@@ -7,8 +7,13 @@ import { SW, SH, PAGE, clamp, round, uid, spread, type Guide } from "./model"
 import { useStudio, mapSpread, useKeys } from "./store"
 import { SpreadSurface, GuideLine, PHOTO_TYPE, readItems } from "./canvas"
 import { bestTemplate } from "./templates"
-import { CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, setMaster, guidesOfMaster, useMasters, coverW, pagesOf, pageLabel, SPINE, T, SUB, setCoverPhoto } from "./v7"
+import { CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, setMaster, guidesOfMaster, useMasters, coverW, pagesOf, SPINE, SUB, setCoverPhoto } from "./v7"
 import type { Node } from "./store"
+
+/* Stack gap = 104 / 588 of the spread height (prod M49), so it scales with zoom. Page labels keep 11 px on screen,
+   8 px under the page, and hide in a gap < 19 px; the new-spread pill (32 px) sits centred between the labels and the
+   next spread and hides when it does not fit with the same 19 px clearance on both sides (M37/M42/M56). */
+export const STACK_GAP = 104 / 588, STACK_TOP = 56, LABELS_MIN_GAP = 8 + 11, PILL_H = 32, PILL_MIN_GAP = PILL_H + 2 * LABELS_MIN_GAP
 
 /* v0.7.1: page labels live in the canvas layer under the spread and move with zoom and pan */
 function PageLabels({ nd, si }: { nd: Node; si: number }) {
@@ -16,7 +21,9 @@ function PageLabels({ nd, si }: { nd: Node; si: number }) {
   const labels: [string, number][] = nd?.k === "cover" ? [["Back", b.w / cw], ["Spine", SPINE / cw], ["Front", b.w / cw]]
     : nd?.k === "endpaper" ? [["Endpaper", 1]] : nd?.k === "master" ? [[`Master ${nd.id}`, 1]] : nd?.k === "last" ? [[`${pagesOf(n)}`, .5], ["", .5]]
     : si === 0 ? [["", .5], ["1", .5]] : [[`${si * 2}`, .5], [`${si * 2 + 1}`, .5]]
-  return <div className="pointer-events-none absolute inset-x-0 top-full flex pt-2.5 text-xs tabular-nums" style={{ color: SUB }} aria-hidden data-testid="page-labels">
+  // page numbers are 11 px, 8 px under the page (M37); cover / endpaper / master labels keep 12 px, 10 px under it
+  const pageNo = !nd || nd.k === "last"
+  return <div className={cn("pointer-events-none absolute inset-x-0 top-full flex tabular-nums", pageNo ? "mt-2 text-2xs leading-none" : "pt-2.5 text-xs")} style={{ color: SUB }} aria-hidden data-testid="page-labels">
     {labels.map(([t, w], i) => <span key={i} className="whitespace-nowrap text-center" style={{ width: `${w * 100}%` }}>{t}</span>)}</div>
 }
 
@@ -41,7 +48,8 @@ function CoverDrop() {
   )
 }
 
-function useSize<T extends HTMLElement>() {
+/** `key`: re-attach when the measured element is swapped (Viewport ⇄ Stack). */
+function useSize<T extends HTMLElement>(key?: unknown) {
   const ref = React.useRef<T>(null)
   const [s, setS] = React.useState({ w: 0, h: 0 })
   React.useLayoutEffect(() => {
@@ -49,7 +57,7 @@ function useSize<T extends HTMLElement>() {
     const ro = new ResizeObserver(() => setS({ w: el.clientWidth, h: el.clientHeight }))
     ro.observe(el); setS({ w: el.clientWidth, h: el.clientHeight })
     return () => ro.disconnect()
-  }, [])
+  }, [key])
   return [ref, s] as const
 }
 
@@ -108,11 +116,17 @@ function Ruler({ axis, origin, sc, len, cursor, onDown }: { axis: "x" | "y"; ori
 }
 
 export const FIT_TOP = 56, FIT_BOTTOM = 48
-export function Viewport({ className, children, pad = 40, stackGap = 44 }: { className?: string; children?: React.ReactNode; pad?: number; stackGap?: number }) {
+/** Fit scale for a spread `VW` mm wide in a `w`×`h` px box (`r` = ruler band); the stack uses the same Fit, so a stacked spread is as big as the lone one. */
+const fitScale = (w: number, h: number, pad: number, VW = SW, r = 0) =>
+  Math.max(0.2, Math.min((w - r - pad * 2) / VW, (h - r - Math.max(FIT_TOP, pad) - Math.max(FIT_BOTTOM, pad)) / SH))
+export function Viewport({ className, children, pad = 40 }: { className?: string; children?: React.ReactNode; pad?: number }) {
   const st = useStudio(), masters = useMasters()
   const { view } = st
   useEditorKeys()
-  const [ref, size] = useSize<HTMLDivElement>()
+  const nd = st.node && ["cover", "endpaper", "master", "last"].includes(st.node.k) ? st.node : st.mode === "masters" ? { k: "master" as const, id: "A" as const } : null
+  // Q3: pages stack on the pasteboard, the single last page at the end (M45); cover / endpaper / master and the rulers (guide drawing) keep the single-spread camera
+  const stacked = !!st.features.stack && (!nd || nd.k === "last") && !view.rulers
+  const [ref, size] = useSize<HTMLDivElement>(stacked)
   const [pan, setPan] = React.useState({ x: 0, y: 0 })
   const [cursor, setCursor] = React.useState<{ x: number; y: number } | null>(null)
   const [newGuide, setNewGuide] = React.useState<Guide | null>(null)
@@ -121,10 +135,8 @@ export function Viewport({ className, children, pad = 40, stackGap = 44 }: { cla
   // v5.1: Fit leaves more air ABOVE the spread than below — top band FIT_TOP (≥ 48 px), bottom band FIT_BOTTOM
   // (page labels + floating pager); the spread is centred inside that band, so top air ≥ bottom air at any size.
   const fitTop = Math.max(FIT_TOP, pad), fitBottom = Math.max(FIT_BOTTOM, pad)
-  const nd = st.node && ["cover", "endpaper", "master", "last"].includes(st.node.k) ? st.node : st.mode === "masters" ? { k: "master" as const, id: "A" as const } : null
   const k = nd?.k === "cover" ? coverW(st.book) / (2 * st.book.w) : 1, VW = SW * k
-  const fit = Math.max(0.2, Math.min((size.w - r - pad * 2) / VW, (size.h - r - fitTop - fitBottom) / SH))
-  const sc = fit * view.zoom
+  const sc = fitScale(size.w, size.h, pad, VW, r) * view.zoom
   const ox = r + (size.w - r) / 2 - VW * sc / 2 + pan.x, oy = r + fitTop + (size.h - r - fitTop - fitBottom) / 2 - SH * sc / 2 + pan.y
   React.useEffect(() => { if (view.zoom === 1) setPan({ x: 0, y: 0 }) }, [view.zoom])
   React.useEffect(() => {
@@ -145,7 +157,7 @@ export function Viewport({ className, children, pad = 40, stackGap = 44 }: { cla
   /* v0.9 §8: wheel / pinch always zooms to cursor; pan is Space+drag, middle-button, or hand tool.
      Native non-passive listener — React's onWheel is passive and cannot preventDefault (console error). */
   React.useEffect(() => {
-    const el = ref.current; if (!el || st.features.stack) return
+    const el = ref.current; if (!el || stacked) return
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
       const p = local(e); const z0 = view.zoom
@@ -157,7 +169,7 @@ export function Viewport({ className, children, pad = 40, stackGap = 44 }: { cla
     }
     el.addEventListener("wheel", onWheel, { passive: false })
     return () => el.removeEventListener("wheel", onWheel)
-  }, [st.features.stack, view.zoom, size.w, size.h, r, ox, oy, sc])
+  }, [stacked, view.zoom, size.w, size.h, r, ox, oy, sc])
   const onPanDown = (e: React.PointerEvent) => {
     if (!(view.tool === "hand" || space || e.button === 1)) return
     e.preventDefault(); e.stopPropagation()
@@ -211,7 +223,7 @@ export function Viewport({ className, children, pad = 40, stackGap = 44 }: { cla
     guideDrag(e, g.axis, g)
   }
 
-  if (st.features.stack) return <Stack className={className} gap={stackGap}>{children}</Stack>
+  if (stacked) return <Stack className={className} pad={pad}>{children}</Stack>
   return (
     <div ref={ref} onPointerDownCapture={onPanDown} onPointerMove={(e) => view.rulers && setCursor(local(e))} onPointerLeave={() => setCursor(null)}
       className={cn("canvas-dots relative min-h-0 flex-1 overflow-hidden",
@@ -242,7 +254,8 @@ export function Viewport({ className, children, pad = 40, stackGap = 44 }: { cla
 }
 
 /* ---------------------------------------------------------------- stacked pasteboard */
-function GapDrop({ index }: { index: number }) {
+/** The gap under spread `index - 1`: a drop zone of the gap's height; it never grows during a drag (M49). */
+function GapDrop({ index, h }: { index: number; h: number }) {
   const st = useStudio()
   const ref = React.useRef<HTMLDivElement>(null)
   const { dropProps, isDropTarget } = useDrop({
@@ -259,25 +272,49 @@ function GapDrop({ index }: { index: number }) {
     },
   })
   return (
-    <div ref={ref} {...dropProps} data-testid="gap-drop" className={cn("relative flex w-full items-center justify-center transition-[color,background-color,border-color,box-shadow,opacity,transform]", st.dragging && st.features.multiDrop ? "h-11" : "h-0")}>
-      {st.dragging && st.features.multiDrop && (
-        <div className={cn("flex h-8 w-[60%] items-center justify-center gap-1.5 rounded-lg bg-white/50 text-xs text-muted-foreground-on-app", isDropTarget && "bg-white/80 text-foreground")}>
+    <div ref={ref} {...dropProps} data-testid="gap-drop" className="relative w-full shrink-0" style={{ height: h }}>
+      {st.dragging && st.features.multiDrop && h >= PILL_MIN_GAP && (
+        <div className={cn("absolute left-1/2 flex h-8 -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-md bg-white/50 px-3 text-xs text-muted-foreground-on-app", isDropTarget && "bg-white/80 text-foreground")}
+          style={{ top: LABELS_MIN_GAP + (h - LABELS_MIN_GAP - PILL_H) / 2 }} data-testid="gap-pill">
           <Plus className="size-3.5" />Drop here for a new spread
         </div>
       )}
     </div>
   )
 }
-function Stack({ className, gap, children }: { className?: string; gap: number; children?: React.ReactNode }) {
+function Stack({ className, pad, children }: { className?: string; pad: number; children?: React.ReactNode }) {
   const st = useStudio()
   const [ref, size] = useSize<HTMLDivElement>()
-  const sc = Math.max(0.3, Math.min((size.w - 80) / SW, (size.h - FIT_TOP - FIT_BOTTOM) / SH)) * st.view.zoom // v5.1: FIT_TOP air above the first spread ≥ air below it
+  const sc = fitScale(size.w, size.h, pad) * st.view.zoom, gap = SH * sc * STACK_GAP
+  const last = st.node?.k === "last", ready = size.w > 0
   React.useEffect(() => {
-    const el = ref.current?.querySelector(`[data-stack-item="${st.cur}"]`) as HTMLElement | null
+    // a current spread (or the last page) not fully in view is centred in the viewport (prod centerSpreadScroll)
+    const el = ref.current?.querySelector(`[data-stack-item="${last ? "last" : st.cur}"]`) as HTMLElement | null
     if (!el || !ref.current) return
-    const c = ref.current, top = el.offsetTop - 24
-    if (top < c.scrollTop || top + el.offsetHeight > c.scrollTop + c.clientHeight) c.scrollTo({ top, behavior: "smooth" })
-  }, [st.cur, ref])
+    const c = ref.current, top = el.offsetTop + el.offsetHeight / 2 - c.clientHeight / 2
+    if (el.offsetTop < c.scrollTop || el.offsetTop + el.offsetHeight > c.scrollTop + c.clientHeight) c.scrollTo({ top })
+  }, [st.cur, last, ready])
+  // prod usePasteboardCamera: a zoom keeps the content point under the cursor (wheel) or the pasteboard centre (keys, menu) fixed.
+  // Everything but the padding scales with sc: x from the stack's centre line, y from the top padding.
+  const anchor = React.useRef<{ x: number; y: number } | null>(null)
+  const cam = React.useRef({ sc: 0, l: 0, t: 0, cx: 0 })
+  React.useLayoutEffect(() => {
+    const c = ref.current, inner = c?.firstElementChild as HTMLElement | null
+    if (!c || !inner) return
+    const p = cam.current, k = sc / p.sc, cx = inner.offsetWidth / 2
+    const it = c.querySelector(`[data-stack-item="${last ? "last" : st.cur}"]`) as HTMLElement | null
+    if (p.sc > 0 && k !== 1 && st.view.zoom === 1 && !anchor.current && it) {
+      // Fit (Ctrl+0, menu) centres the current spread again (prod placedScroll)
+      c.scrollLeft = 0; c.scrollTop = it.offsetTop + it.offsetHeight / 2 - c.clientHeight / 2
+    } else if (p.sc > 0 && k !== 1) {
+      const a = anchor.current ?? { x: c.clientWidth / 2, y: c.clientHeight / 2 }
+      c.scrollLeft = cx + (p.l + a.x - p.cx) * k - a.x
+      c.scrollTop = STACK_TOP + (p.t + a.y - STACK_TOP) * k - a.y
+    }
+    anchor.current = null
+    cam.current = { sc: ready ? sc : 0, l: c.scrollLeft, t: c.scrollTop, cx }
+  }, [sc, ready])
+  const onScroll = () => { const c = ref.current; if (c) { cam.current.l = c.scrollLeft; cam.current.t = c.scrollTop } }
   // proto: scrollbars are hidden, so panning is explicit — wheel / trackpad scrolls, Space+drag, the Hand tool or middle-drag pan
   const [space, setSpace] = React.useState(false)
   React.useEffect(() => {
@@ -305,28 +342,34 @@ function Stack({ className, gap, children }: { className?: string; gap: number; 
     const el = ref.current; if (!el) return
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
-      st.setView({ zoom: round(clamp(st.view.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1), 0.5, 3), 3) })
+      const r = el.getBoundingClientRect(); anchor.current = { x: e.clientX - r.left, y: e.clientY - r.top }
+      st.setView({ zoom: round(clamp(st.view.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1), 0.25, 8), 3) })
     }
     el.addEventListener("wheel", onWheel, { passive: false })
     return () => el.removeEventListener("wheel", onWheel)
   }, [st.view.zoom])
   return (
     <div className={cn("relative min-h-0 flex-1", className)}>
-      <div ref={ref} onPointerDownCapture={onPanDown} className={cn("canvas-dots no-scrollbar absolute inset-0 overflow-auto",
+      <div ref={ref} onPointerDownCapture={onPanDown} onScroll={onScroll} className={cn("canvas-dots no-scrollbar absolute inset-0 overflow-auto",
           (st.view.tool === "hand" || space) && "cursor-grab",
           !space && st.view.tool === "frame" && "cursor-tool-frame",
           !space && st.view.tool === "text" && "cursor-tool-text")} data-testid="pasteboard">
-        <div className="flex min-w-max flex-col items-center px-10 pb-16 pt-14" style={{ gap: st.dragging && st.features.multiDrop ? 0 : gap }}>
-          {size.w > 0 && st.doc.spreads.map((_, i) => (
-            <React.Fragment key={st.doc.spreads[i].id}>
-              {i > 0 && <GapDrop index={i} />}
-              <div data-stack-item={i} className="flex flex-col items-center gap-3">
+        <div className="flex min-w-max flex-col items-center px-10 pb-16 pt-14">
+          {size.w > 0 && st.doc.spreads.map((s, i) => (
+            <React.Fragment key={s.id}>
+              <div data-stack-item={i} className="relative">
                 <SpreadSurface si={i} sc={sc} active={i === st.cur} />
-                <span className={cn("text-2xs tabular-nums", i === st.cur && "font-semibold")} style={{ color: i === st.cur ? T : SUB, paddingLeft: i === 0 ? SW * sc / 2 : undefined }}>{pageLabel(i)}</span>
+                {!st.view.preview && gap >= LABELS_MIN_GAP && <PageLabels nd={null} si={i} />}
               </div>
+              <GapDrop index={i + 1} h={gap} />
             </React.Fragment>
           ))}
-          <GapDrop index={st.doc.spreads.length} />
+          {ready && (
+            <div data-stack-item="last" className="relative" style={{ width: SW * sc, height: SH * sc }} onPointerDown={() => st.setNode({ k: "last" })}>
+              <LastPage big />
+              {!st.view.preview && gap >= LABELS_MIN_GAP && <PageLabels nd={{ k: "last" }} si={-1} />}
+            </div>
+          )}
         </div>
       </div>
       {children}
