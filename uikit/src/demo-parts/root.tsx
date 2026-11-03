@@ -7,6 +7,7 @@ import { DemoEditor } from "./editor"
 import { DemoSettings, type SettingsSection } from "./settings"
 import { DemoSite } from "./site"
 import type { SiteState } from "@/features/site-viewer"
+import { UnsupportedScreen } from "@/features/unsupported"
 
 export type RootInit = {
   session?: Partial<SessionState>
@@ -25,6 +26,7 @@ function Stages({ init }: { init: RootInit }) {
       {d.stage === "editor" && d.open && <DemoEditor key={d.open} id={d.open} initialDialog={init.editor?.dialog} initialPreview={init.editor?.preview} />}
       {d.stage === "settings" && <DemoSettings initialSection={init.settings?.section} />}
       {d.stage === "site" && d.open && <DemoSite key={`${d.open}-${d.siteEntry}`} id={d.open} initial={init.site} />}
+      {d.stage === "unsupported" && <UnsupportedScreen variant={d.unsupported?.variant ?? "other"} browserName={d.unsupported?.browserName} />}
     </div>
   )
 }

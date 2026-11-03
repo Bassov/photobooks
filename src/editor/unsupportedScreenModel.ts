@@ -11,7 +11,8 @@ export interface UnsupportedScreenModel {
   browserName: string
   title: string
   icon: UnsupportedIconName
-  chromeOutline: boolean
+  /** Get Google Chrome is the secondary button (Reload is primary). */
+  chromeSecondary: boolean
   showReload: boolean
   showBrowserList: boolean
   showCopyInActions: boolean
@@ -53,7 +54,7 @@ export function resolveUnsupportedScreen(
     browserName,
     title: unsupportedTitle(variant),
     icon: unsupportedIcon(variant),
-    chromeOutline: variant === 'no-api',
+    chromeSecondary: variant === 'no-api',
     showReload: variant === 'no-api',
     showBrowserList: variant === 'other',
     showCopyInActions: variant === 'other',

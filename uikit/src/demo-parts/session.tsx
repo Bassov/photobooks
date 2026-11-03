@@ -5,12 +5,14 @@ import type { Book } from "@/sandbox/store"
 import { makeDoc, SAMPLE_BOOK, type Doc } from "@/sandbox/model"
 import { getEditorExtras, defaultMasters, type CoverText } from "@/sandbox/v7"
 import type { LibBook } from "@/features/library"
+import type { UnsupportedVariant } from "@/features/unsupported"
 
 export type Extras = ReturnType<typeof getEditorExtras>
-export type Stage = "welcome" | "library" | "editor" | "settings" | "site"
+export type Stage = "welcome" | "library" | "editor" | "settings" | "site" | "unsupported"
 export type DBook = { id: string; title: string; book: Book; doc?: Doc; cover?: string; published?: boolean; extras?: Extras
   /** ids of photos whose files can't be found (seeded by `__demo.missing()`; resolved through Relink) */ missing?: string[] }
-export type SessionState = { stage: Stage; path: string; books: DBook[]; open: string | null; back: Stage; nonce: number; siteEntry: "catalog" | "book" }
+export type SessionState = { stage: Stage; path: string; books: DBook[]; open: string | null; back: Stage; nonce: number; siteEntry: "catalog" | "book"
+  /** the "unsupported" stage: which variant, and the browser named in its copy */ unsupported?: { variant: UnsupportedVariant; browserName?: string } }
 export type Session = { S: SessionState; set: (p: Partial<SessionState>) => void; useDemo: () => SessionState }
 
 export const INITIAL_SESSION: SessionState = { stage: "welcome", path: "", books: [], open: null, back: "library", nonce: 0, siteEntry: "catalog" }

@@ -73,8 +73,6 @@ export function SettingsScreen(props: { bookCount?: number; libraryPath?: string
   )
 }
 
-/* ---------------------------------------------------------------- unsupported browser */
-
 /** #/demo Settings stage with its back bar ("Back to the book" from the editor, "Library" from the library). State: session (back, books, path). */
 export function DemoSettings({ initialSection }: { initialSection?: SettingsSection } = {}) {
   const { set, useDemo } = useSession()

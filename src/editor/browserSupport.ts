@@ -15,11 +15,11 @@ export interface BrowserSupportSnapshot {
     | 'nested-frame'
   /** Present when `supported` is false — drives kit unsupported copy/CTAs. */
   variant?: UnsupportedVariant
-  /** Best-effort brand label for “other” copy (UA brands only). */
+  /** Best-effort label for “other” copy (UA brands, else the UA string). */
   browserName?: string
 }
 
-type NavigatorWithUAData = Navigator & {
+type NavigatorWithUAData = Partial<Navigator> & {
   userAgentData?: {
     mobile?: boolean
     brands?: readonly { brand: string; version: string }[]
@@ -59,6 +59,30 @@ export function pickBrowserName(
   return { isChromium, browserName }
 }
 
+/** Name from the UA string when there are no UA brands (Firefox, Safari). */
+export function uaBrowserName(ua: string): string | undefined {
+  if (ua.includes('Firefox/')) {
+    return 'Firefox'
+  }
+  if (
+    /Version\/[\d.]+.*Safari\//.test(ua) &&
+    !/Chrome|Chromium|CriOS|Edg/.test(ua)
+  ) {
+    return 'Safari'
+  }
+  return undefined
+}
+
+/** Phones and tablets, incl. iPadOS, which sends a desktop Macintosh UA. */
+function isMobileDevice(nav: NavigatorWithUAData): boolean {
+  const ua = nav.userAgent ?? ''
+  return (
+    nav.userAgentData?.mobile === true ||
+    /iPhone|iPad|iPod|Android/i.test(ua) ||
+    (ua.includes('Macintosh') && (nav.maxTouchPoints ?? 0) > 1)
+  )
+}
+
 function readBrandMeta(nav: NavigatorWithUAData | undefined): {
   mobile: boolean
   isChromium: boolean
@@ -67,9 +91,9 @@ function readBrandMeta(nav: NavigatorWithUAData | undefined): {
   const brands = nav?.userAgentData?.brands ?? []
   const { isChromium, browserName } = pickBrowserName(brands)
   return {
-    mobile: nav?.userAgentData?.mobile === true,
+    mobile: nav !== undefined && isMobileDevice(nav),
     isChromium,
-    browserName,
+    browserName: browserName ?? uaBrowserName(nav?.userAgent ?? ''),
   }
 }
 
@@ -136,7 +160,7 @@ export function getBrowserSupport(
     return fail('nested-frame', isChromium, browserName)
   }
 
-  if (nav !== undefined && mobile) {
+  if (mobile) {
     return fail('mobile', isChromium, browserName)
   }
 
@@ -155,13 +179,14 @@ export const CHROME_DOWNLOAD_URL = 'https://www.google.com/chrome/'
 export const CHROMIUM_BROWSERS: {
   name: string
   url: string
-  note?: string
+  /** Flag that turns File System Access on (shown as a note under the list). */
+  flag?: string
 }[] = [
   { name: 'Microsoft Edge', url: 'https://www.microsoft.com/edge' },
   {
     name: 'Brave',
     url: 'https://brave.com/download/',
-    note: 'turn on brave://flags/#file-system-access-api',
+    flag: 'brave://flags/#file-system-access-api',
   },
   { name: 'Arc', url: 'https://arc.net/' },
   { name: 'Opera', url: 'https://www.opera.com/' },

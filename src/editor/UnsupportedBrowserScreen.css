@@ -1,0 +1,332 @@
+/* Unsupported-browser screen (Designer spec 2026-11-03). Hand CSS, unlayered:
+   no reliance on Tailwind preflight, every element sets its own margins, list
+   style, colour and text-decoration. One file, two byte-identical copies:
+   src/editor/UnsupportedBrowserScreen.css (prod) and
+   uikit/src/features/unsupported.css (kit); a prod unit test fails on drift. */
+
+.ub-root {
+  --ub-header-pad: 36px 56px 0;
+  --ub-main-pad: 48px 56px 64px;
+  --ub-main-place: center;
+  --ub-icon-gap: 20px;
+  --ub-title-size: var(--text-3xl);
+  --ub-title-lh: 1.15;
+  --ub-text-gap: 12px;
+  --ub-text-size: var(--text-md);
+  --ub-text-lh: 1.6;
+  --ub-actions-dir: row;
+  --ub-actions-gap: 28px;
+  --ub-btn-h: 40px;
+  --ub-btn-w: auto;
+  --ub-section-gap: 36px;
+  --ub-foot-gap: 28px;
+
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-ui);
+}
+
+/* Narrow: every mobile variant, and any window under 640 px. */
+.ub-root[data-narrow] {
+  --ub-header-pad: 20px 20px 0;
+  --ub-main-pad: 40px 20px;
+  --ub-main-place: start stretch;
+  --ub-icon-gap: 16px;
+  --ub-title-size: var(--text-2xl);
+  --ub-title-lh: 1.2;
+  --ub-text-gap: 10px;
+  --ub-text-size: var(--text-base);
+  --ub-text-lh: 1.55;
+  --ub-actions-dir: column;
+  --ub-actions-gap: 24px;
+  --ub-btn-h: 44px;
+  --ub-btn-w: 100%;
+  --ub-section-gap: 28px;
+  --ub-foot-gap: 24px;
+}
+
+@media (max-width: 639px) {
+  .ub-root {
+    --ub-header-pad: 20px 20px 0;
+    --ub-main-pad: 40px 20px;
+    --ub-main-place: start stretch;
+    --ub-icon-gap: 16px;
+    --ub-title-size: 26px;
+    --ub-title-lh: 1.2;
+    --ub-text-gap: 10px;
+    --ub-text-size: 14px;
+    --ub-text-lh: 1.55;
+    --ub-actions-dir: column;
+    --ub-actions-gap: 24px;
+    --ub-btn-h: 44px;
+    --ub-btn-w: 100%;
+    --ub-section-gap: 28px;
+    --ub-foot-gap: 24px;
+  }
+}
+
+/* The screen fits phones: the page minimum is prod's 320 px (the kit's
+   desktop canvas sets 1280 px on body). */
+body:has(.ub-root) {
+  min-width: 320px;
+}
+
+.ub-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.ub-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.ub-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: var(--ub-header-pad);
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 24px;
+  letter-spacing: -0.01em;
+}
+
+.ub-mark {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-md);
+  background: var(--field);
+  color: var(--foreground);
+}
+
+.ub-root .ub-mark > svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ub-main {
+  display: grid;
+  flex: 1;
+  place-items: var(--ub-main-place);
+  padding: var(--ub-main-pad);
+}
+
+.ub-body {
+  width: 100%;
+  max-width: 560px;
+  text-align: left;
+}
+
+.ub-root .ub-icon {
+  margin: 0 0 var(--ub-icon-gap);
+}
+
+.ub-root .ub-icon > svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ub-title {
+  margin: 0;
+  color: var(--foreground);
+  font-family: var(--font-heading);
+  font-size: var(--ub-title-size);
+  font-weight: 400;
+  line-height: var(--ub-title-lh);
+  letter-spacing: -0.01em;
+}
+
+.ub-text {
+  margin: var(--ub-text-gap) 0 0;
+  color: var(--muted-foreground);
+  font-size: var(--ub-text-size);
+  line-height: var(--ub-text-lh);
+}
+
+.ub-text + .ub-text {
+  margin-top: 8px;
+}
+
+.ub-text b,
+.ub-tips b {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.ub-actions {
+  display: flex;
+  flex-direction: var(--ub-actions-dir);
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: var(--ub-actions-gap) 0 0;
+}
+
+.ub-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: var(--ub-btn-w);
+  height: var(--ub-btn-h);
+  margin: 0;
+  padding: 0 18px;
+  border: 0;
+  /* pill: an infinite radius clamps to half the height */
+  border-radius: calc(infinity * var(--radius-xs));
+  outline: none;
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  font-weight: 500;
+  line-height: 20px;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ub-root .ub-btn > svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ub-btn.ub-btn--primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: var(--shadow-sm);
+}
+
+.ub-btn.ub-btn--primary[data-hovered],
+.ub-btn.ub-btn--primary[data-pressed] {
+  background: var(--primary-hover);
+}
+
+.ub-btn.ub-btn--secondary {
+  min-width: 128px;
+  background: var(--field);
+  color: var(--foreground);
+  box-shadow: var(--shadow-xs);
+}
+
+.ub-btn.ub-btn--secondary[data-hovered],
+.ub-btn.ub-btn--secondary[data-pressed] {
+  background: var(--accent);
+}
+
+.ub-root .ub-btn[data-focus-visible],
+.ub-root .ub-pill[data-focus-visible] {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--background),
+    0 0 0 4px var(--ring);
+}
+
+.ub-section {
+  margin: var(--ub-section-gap) 0 0;
+}
+
+.ub-eyebrow {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ub-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ub-pills > li {
+  margin: 0;
+  padding: 0;
+}
+
+.ub-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: calc(infinity * var(--radius-xs));
+  outline: none;
+  background: var(--field);
+  box-shadow: var(--shadow-xs);
+  color: var(--foreground);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ub-pill[data-hovered] {
+  background: var(--accent);
+}
+
+.ub-root .ub-pill > svg {
+  width: 12px;
+  height: 12px;
+  color: var(--muted-foreground);
+}
+
+.ub-note {
+  margin: 10px 0 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.ub-code {
+  padding: 2px 5px;
+  border-radius: var(--radius-xs);
+  background: var(--field);
+  color: var(--foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* 11.5 px */
+  font-size: calc(var(--text-xs) * 23 / 24);
+  overflow-wrap: anywhere;
+}
+
+.ub-tips {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ub-tips > li {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+}
+
+.ub-foot {
+  margin: var(--ub-foot-gap) 0 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+}
