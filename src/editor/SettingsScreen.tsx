@@ -25,7 +25,8 @@ export function SettingsScreen({
   changeDisabled,
 }: {
   libraryPath: string
-  bookCount: number
+  /** `null` while the current library's list is pending or failed. */
+  bookCount: number | null
   changeDisabled?: boolean
 }) {
   const [confirm, setConfirm] = useState(false)
@@ -135,7 +136,7 @@ export function SettingsScreen({
                 className="text-sm tabular-nums text-muted-foreground"
                 data-testid="settings-book-count"
               >
-                {bookCount}
+                {bookCount ?? '—'}
               </span>
             </div>
             <div

@@ -21,7 +21,8 @@ export function EditorSettings({
   changeDisabled: boolean
   onClose: () => void
 }) {
-  const [bookCount, setBookCount] = useState(0)
+  // `null` (a dash) until the list lands: never a number it has not listed.
+  const [bookCount, setBookCount] = useState<number | null>(null)
   useEffect(() => {
     let live = true
     void listLibraryBooks().then((listed) => {
