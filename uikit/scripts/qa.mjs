@@ -1496,13 +1496,64 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await go("#/demo", 400); await page.evaluate(() => { const d = window.__demo; d.reset(); d.state().path = "~/Pictures/Photobooks"; d.state().books = [{ id: "s1", title: "Prev", book: { endp: true, endpSame: true, w: 14.8, h: 21, preset: "A5" } }]; d.state().open = "s1"; d.go("editor") })
   await page.waitForTimeout(800)
   await page.click('[data-testid="demo-preview"]'); await page.waitForTimeout(500)
-  const prevOpen = await page.locator('[data-testid="book-preview"]').count()
+  const prevOpen = await page.locator('[data-testid="presentation"]').count()
   const stage = await page.locator('[data-testid="demo"]').getAttribute("data-demo-stage")
-  await page.locator('[data-testid="close-preview"]').click().catch(() => page.keyboard.press("Escape")); await page.waitForTimeout(300)
+  // kit-sync KS14 (M16, M53): Preview = prod presentation mode (src/render/SpreadPager.tsx, styles/tokens.css --presentation*): fixed full-screen
+  // #0d0d0d, the spread fitted to 94 % w / 96 % of (h − 64), opens on the cover; "Esc" chip top-right, caption bottom centre; Esc closes
+  const pm = await page.evaluate(() => {
+    const root = document.querySelector('[data-testid="presentation"]'); if (!root) return null
+    const cs = (e) => getComputedStyle(e), r = (e) => e.getBoundingClientRect(), rr = r(root)
+    const esc = root.querySelector('[data-testid="presentation-exit"]'), cap = root.querySelector('[data-testid="pager-position"]'), eb = r(esc), cb = r(cap.parentElement)
+    const fit = root.querySelector('[data-testid="presentation-slide"][data-active="true"] [data-testid="presentation-cover"]')?.getBoundingClientRect()
+    return {
+      box: [rr.x, rr.y, rr.width - innerWidth, rr.height - innerHeight], pos: cs(root).position, bg: cs(root).backgroundColor, role: root.getAttribute("role"),
+      esc: [esc.textContent, eb.top - rr.top, rr.right - eb.right, eb.height, cs(esc).fontSize, cs(esc).backgroundColor, cs(esc).color, cs(esc).paddingLeft, parseFloat(cs(esc).borderTopLeftRadius) >= eb.height / 2, esc.getAttribute("aria-label")],
+      cap: [cap.textContent, rr.bottom - cb.bottom, cs(cap).fontSize, cs(cap).color, cs(cap.parentElement).textAlign, Math.round((r(cap).left + r(cap).right) / 2 - (rr.left + rr.width / 2))],
+      fit: fit ? +Math.min(rr.width * 0.94 - fit.width, (rr.height - 64) * 0.96 - fit.height).toFixed(2) : null,
+      // rework: prod line boxes are 16 (leading-4) — caption text top = 900 − 32 = 868 at 1440 × 900
+      lh: [cs(cap.parentElement).lineHeight, cs(esc).lineHeight, +(innerHeight - r(cap).top).toFixed(2)],
+      // rework: the cover is the kit's own CoverSpread at prod's 0.5 px / mm, texts × cover / 848 (prod: front 61.15 tall, spine vertical 22.93 wide, back 22.93 tall)
+      text: (() => { const c = root.querySelector('[data-testid="presentation-cover"]'), b = (i) => c.children[0].children[i], h = (e) => +r(e).height.toFixed(2)
+        const sp = () => r(b(1).firstElementChild.firstElementChild)
+        return c ? [h(b(2).firstElementChild.firstElementChild), +sp().width.toFixed(2), sp().height > sp().width, h(b(0).firstElementChild)] : null })(),
+      slide: (() => { const s = root.querySelector('[data-testid="presentation-slide"][data-active="true"]'); return [cs(s).transitionProperty, cs(s).transitionDuration, cs(s).transitionTimingFunction, root.querySelectorAll('[data-testid="presentation-slide"]').length] })(),
+    }
+  })
+  // rework: the slides follow the spread list after the cover — page 1 alone, the spreads, the last page alone (one page wide, centred)
+  const seq = []
+  for (let k = 0; k < 40; k++) {
+    seq.push(await page.evaluate(() => { const root = document.querySelector('[data-testid="presentation"]'), b = root.querySelector('[data-testid="presentation-slide"][data-active="true"]').firstElementChild.getBoundingClientRect()
+      return { cap: root.querySelector('[data-testid="pager-position"]').textContent, w: +b.width.toFixed(2), cx: Math.round(b.left + b.width / 2 - innerWidth / 2), page: !!root.querySelector('[data-testid="presentation-slide"][data-active="true"] [data-testid="presentation-page"]'),
+        sq: [...root.querySelectorAll('[data-testid="presentation-slide"][data-active="true"] [data-paper]')].map((e) => { const s = getComputedStyle(e); return `${s.borderRadius}/${s.boxShadow.split(/,(?![^(]*\))/).every((l) => l === "none" || l.includes("rgba(0, 0, 0, 0)")) ? "none" : s.boxShadow}` }) } }))
+    if (k > 0 && seq[k].cap === seq[k - 1].cap) { seq.pop(); break }
+    await page.keyboard.press("ArrowRight"); await page.waitForTimeout(260)
+  }
+  const mid = seq.slice(2, -1), N = seq.length - 1
+  ok("kit-sync KS14 rework: Preview walks Cover, 1 / N (page 1 alone), the spreads, N / N (the last page alone) — single pages half a spread wide, every slide centred",
+    seq.map((s) => s.cap).join() === ["Cover", ...Array.from({ length: N }, (_, j) => `${j + 1} / ${N}`)].join() && N >= 3 && seq[1].page && seq[N].page && !mid.some((s) => s.page)
+      && mid.every((s) => s.w === mid[0].w) && Math.abs(seq[1].w - mid[0].w / 2) <= 0.5 && Math.abs(seq[N].w - mid[0].w / 2) <= 0.5 && seq.every((s) => Math.abs(s.cx) <= 0.5), JSON.stringify(seq.map((s) => `${s.cap}:${s.w}${s.page ? "p" : ""}@${s.cx}`)))
+  // round 2: prod slides are square paper — no MiniSpread card radius, no thumbnail shadow
+  ok("kit-sync KS14 round 2: page 1, spread and last-page slides are square (border-radius 0) with no shadow",
+    seq.slice(1).every((s) => s.sq.length > 0 && s.sq.every((v) => v === "0px/none")), JSON.stringify([...new Set(seq.slice(1).flatMap((s) => s.sq))]))
+  ok("kit-sync KS14 rework: cover slide = the kit cover at prod's sizes (front title 61.15 tall, spine text vertical 22.93 wide, back text 22.93 tall, ±0.5)",
+    !!pm?.text && Math.abs(pm.text[0] - 61.15) <= 0.5 && Math.abs(pm.text[1] - 22.93) <= 0.5 && pm.text[2] && Math.abs(pm.text[3] - 22.93) <= 0.5, JSON.stringify(pm?.text))
+  ok("kit-sync KS14 rework: slides move sideways + fade 200 ms cubic-bezier(0.2, 0.7, 0.3, 1), neighbours mounted (2 at the cover); caption + Esc line height 16, caption text top 868",
+    JSON.stringify(pm?.slide) === JSON.stringify(["transform, opacity", "0.2s", "cubic-bezier(0.2, 0.7, 0.3, 1)", 2]) && JSON.stringify(pm?.lh) === JSON.stringify(["16px", "16px", 32]), JSON.stringify([pm?.slide, pm?.lh]))
+  for (let k = 1; k < seq.length; k++) await page.keyboard.press("ArrowLeft")
+  await page.waitForTimeout(260); await page.keyboard.press("ArrowRight"); await page.waitForTimeout(260)
+  const next = await page.locator('[data-testid="presentation"] [data-testid="pager-position"]').textContent().catch(() => null)
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300)
+  const afterEsc = await page.locator('[data-testid="presentation"]').count(), stageEsc = await page.locator('[data-testid="demo"]').getAttribute("data-demo-stage")
+  ok("kit-sync KS14: Preview = presentation mode as prod — fixed full-screen rgb(13, 13, 13) dialog, the cover fitted, Esc chip 16 / 16 h 32 12 px white/0.1, caption 'Cover' 16 px up 12 px white/0.6, → '1 / n', Esc closes",
+    !!pm && pm.box.every((v) => Math.abs(v) <= 0.5) && pm.pos === "fixed" && pm.bg === "rgb(13, 13, 13)" && pm.role === "dialog"
+      && JSON.stringify(pm.esc) === JSON.stringify(["Esc", 16, 16, 32, "12px", "rgba(255, 255, 255, 0.1)", "rgb(255, 255, 255)", "12px", true, "Exit presentation"])
+      && JSON.stringify(pm.cap) === JSON.stringify(["Cover", 16, "12px", "rgba(255, 255, 255, 0.6)", "center", 0]) && pm.fit !== null && Math.abs(pm.fit) <= 0.5
+      && /^1 \/ \d+$/.test(next ?? "") && afterEsc === 0 && stageEsc === "editor", JSON.stringify({ ...pm, next, afterEsc }))
   await go(feat("editor-chrome-toolbar"), 1000) // Stage 3: kit pages mount the #/demo editor parts
   await page.click('[data-testid="demo-preview"]'); await page.waitForTimeout(600)
-  const kitPrev = await page.locator('[data-testid="book-preview"]').count()
-  ok("v0.9.1 §2 Preview opens in-app book preview (not Site stage)", prevOpen === 1 && stage === "editor" && kitPrev === 1, `demoPrev=${prevOpen} stage=${stage} kit=${kitPrev}`)
+  const kitPrev = await page.locator('[data-testid="presentation"]').count()
+  ok("v0.9.1 §2 Preview opens in-app book preview (not Site stage) — kit-sync KS14: the presentation mode", prevOpen === 1 && stage === "editor" && kitPrev === 1, `demoPrev=${prevOpen} stage=${stage} kit=${kitPrev}`)
+  await page.keyboard.press("Escape")
 
   // §3 page counts: site indicator uses pagesOf (denominator = spreads*2); deep-link into the book (v0.9.3 catalog home)
   await go("#/demo", 400); await page.evaluate(() => { const d = window.__demo; d.reset(); d.state().path = "~/Pictures/Photobooks"; d.state().books = [{ id: "s1", title: "Pages", book: { endp: true, endpSame: true, w: 14.8, h: 21, preset: "A5" }, published: true }]; d.state().open = "s1"; d.openSite("book") })
@@ -1786,11 +1837,35 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     await c('[data-item="p1"]'); await page.waitForTimeout(250)
   }
   const views = await Promise.all(["snap", "grid", "guides", "rulers", "overlays", "dpi"].map((k) => page.locator(`${demo} [data-testid="toggle-${k}"]`).count()))
-  ok("kit10: #/demo top bar has all six view toggles (snap, grid, guides, rulers, bleed / trim / safe, DPI)", views.every((n) => n === 1), views.join())
+  ok("kit10 → kit-sync KS1 (M11 widened): #/demo top bar has two view toggles (snap, grid), no guides / rulers / bleed / trim / safe / DPI", views.join() === "1,1,0,0,0,0", views.join())
+  // KS1 (M39): the tools toolbar (4 tools + snap + grid) is 210 wide and centred on the canvas, between the spread list and the inspector
+  const tb = await page.evaluate(() => {
+    const d = document.querySelector('[data-testid="demo"]'), t = d.querySelector('[data-testid="editor-bar"] [role=toolbar][aria-label="Tools"]').getBoundingClientRect()
+    return { w: t.width, cx: t.x + t.width / 2, canvas: (d.querySelector('[data-testid="panel-l"]').getBoundingClientRect().right + d.querySelector('[data-testid="panel-r"]').getBoundingClientRect().left) / 2 }
+  })
+  ok("kit-sync KS1 (M39): the tools toolbar is 210 wide, its centre = the canvas centre", Math.abs(tb.w - 210) <= 0.5 && Math.abs(tb.cx - tb.canvas) <= 0.5, `w ${tb.w} cx ${tb.cx} canvas ${tb.canvas}`)
+  // rework (prod SnapToggle / GridToggle .pb-view-toggle): 28 × 28, 8 apart, #CACACA when on, x 717 / 753 at 1440
+  await page.mouse.move(0, 899)
+  const vt = await page.evaluate(() => ["snap", "grid"].map((k) => { const e = document.querySelector(`[data-testid="demo"] [data-testid="toggle-${k}"]`), b = e.getBoundingClientRect(); return [+b.x.toFixed(2), b.width, b.height, e.getAttribute("aria-pressed") === "true" || e.dataset.selected !== undefined, getComputedStyle(e).backgroundColor] }))
+  ok("kit-sync KS1 rework: Snap / Grid toggles 28 × 28 at x 717 / 753, on = rgb(202, 202, 202)", vt.every(([x, w, h, on, bg], i) => Math.abs(x - [717, 753][i]) <= 0.5 && w === 28 && h === 28 && bg === (on ? "rgb(202, 202, 202)" : "rgba(0, 0, 0, 0)")) && vt.some((t) => t[3]), JSON.stringify(vt))
+  // rework: the side groups never overlap the tools; the right group reserves its width and moves the tools aside when room runs out
+  const bars = []
+  let title1024
+  for (const w of [1024, 1100, 1280]) {
+    await page.setViewportSize({ width: w, height: 900 }); await page.waitForTimeout(250)
+    if (w === 1024) title1024 = await page.evaluate(() => { const b = document.querySelector('[data-testid="demo"] [data-testid="book-title"]'), e = b.firstElementChild, r = e.getBoundingClientRect(), s = getComputedStyle(e)
+      return { to: s.textOverflow, ov: s.overflowX, cut: e.scrollWidth > e.clientWidth, w: +r.width.toFixed(2), right: +r.right.toFixed(2), box: +b.getBoundingClientRect().right.toFixed(2), size: +b.querySelector('[data-testid="book-size"]').getBoundingClientRect().width.toFixed(2) } })
+    bars.push(await page.evaluate(() => { const d = document.querySelector('[data-testid="demo"]'), r = (s) => d.querySelector(s).getBoundingClientRect(), s = r('[data-testid="editor-bar-start"]'), t = r('[data-testid="editor-bar"] [role=toolbar][aria-label="Tools"]'), e = r('[data-testid="editor-bar-end"]'), bar = r('[data-testid="editor-bar"]')
+      return [innerWidth, +(t.left - s.right).toFixed(2), +(e.left - t.right).toFixed(2), +(bar.right - e.right).toFixed(2), +t.width.toFixed(2)] }))
+  }
+  await page.setViewportSize({ width: 1440, height: 900 }); await page.waitForTimeout(300)
+  ok("kit-sync KS1 rework: top bar at 1024 / 1100 / 1280 — start · tools · end never overlap (gaps ≥ 8), end stays inside the bar, tools 210", bars.every(([, a, b, c, w]) => a >= 7.5 && b >= 7.5 && c >= 0 && Math.abs(w - 210) <= 0.5), JSON.stringify(bars))
+  // round 2: a clipped book title ends in "…" inside its button (was shrink-0: "Lake tri" cut by the button edge)
+  ok("kit-sync KS1 round 2: at 1024 the top-bar book title truncates with an ellipsis and stays inside its button, the size text gives way first", title1024.to === "ellipsis" && title1024.ov === "hidden" && title1024.right <= title1024.box + 0.5 && (!title1024.cut || title1024.size <= 0.5), JSON.stringify(title1024))
+  const defs = await page.evaluate(() => ["[data-guide]", '[data-testid^="ruler-"]', '[data-testid="print-overlay"]'].map((s) => document.querySelectorAll(`[data-testid="demo"] ${s}`).length))
+  ok("kit-sync KS1: the #/demo canvas opens with 0 guides, 0 rulers, 0 bleed / trim / safe overlays (no dashed safe lines)", defs.join() === "0,0,0", defs.join())
   await page.locator(`${demo} [data-testid="filmstrip"] [role="row"]`).nth(1).dragTo(page.locator(`${demo} [data-testid="canvas"] [data-current] [data-testid="frame"]`).first()); await page.waitForTimeout(400) // p02 = the 800 px low-res photo
-  await c('[data-testid="toggle-dpi"]'); await page.waitForTimeout(200)
-  ok("kit10: DPI toggle shows the frame dpi badge", (await page.locator(`${demo} [data-testid="canvas"] [data-frame]`).filter({ hasText: /dpi/ }).count()) >= 1)
-  await c('[data-testid="toggle-dpi"]')
+  ok("kit10 → kit-sync KS1: no DPI toggle in #/demo, so a low-res photo shows no dpi badge (prod has none)", (await page.locator(`${demo} [data-testid="canvas"] [data-frame]`).filter({ hasText: /dpi/ }).count()) === 0)
   // kit-sync K1 (prod M43): Esc during a frame drag clears the "Release to replace" chip and the dimmed drag source
   {
     const fb = await page.locator(`${demo} [data-testid="spread"][data-current] [data-testid="frame"]`).first().boundingBox(), x = fb.x + fb.width / 2, y = fb.y + fb.height / 2
@@ -1801,20 +1876,23 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     ok("kit-sync K1: Esc during a frame drag clears the Release to replace chip and the dimmed source", mid === 1 && after === 0 && dim === 0, `mid ${mid} after ${after} dimmed ${dim}`)
     await page.keyboard.press("Escape"); await page.waitForTimeout(200)
   }
-  await c('[data-testid="toggle-rulers"]'); await page.waitForTimeout(200)
+  // KS1: rulers (Shift+R) and guides (Ctrl+;) are on keys as in prod; guides stay shown for the master guide checks below
+  await page.keyboard.press("Shift+R"); await page.keyboard.press("Control+;"); await page.waitForTimeout(200)
   const g0 = await page.locator(`${demo} [data-testid="spread"] [data-guide]`).count()
   const rx = await page.locator(`${demo} [data-testid="ruler-x"]`).boundingBox(), sp = await page.locator(`${demo} [data-testid="spread"]`).first().boundingBox()
   await page.mouse.move(rx.x + rx.width / 2, rx.y + 10); await page.mouse.down(); await page.mouse.move(rx.x + rx.width / 2, sp.y + sp.height * 0.4, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(250)
   ok("kit10: rulers show and a drag from the ruler adds a guide", (await page.locator(`${demo} [data-testid="spread"] [data-guide]`).count()) === g0 + 1, `${g0}→+1`)
-  await c('[data-testid="toggle-rulers"]')
+  await page.keyboard.press("Shift+R")
   await page.locator(`${demo} [data-item="p1"]`).hover(); await c('[data-item="p1"] [data-testid="spread-menu"]'); await page.waitForTimeout(250)
   ok("kit10: spread row menu offers Add after / Duplicate / Delete", (await page.getByRole("menuitem").allInnerTexts()).filter((t) => /Add after|Duplicate|Delete/.test(t)).length === 3)
   await page.getByRole("menuitem", { name: /Duplicate/ }).click(); await page.waitForTimeout(300)
   const n0 = await page.locator(`${demo} [data-testid="panel-l"] [role=row]`).count()
-  ok("kit10: spread list is a drag source (reorder) and Add spread is visible", (await page.locator(`${demo} [data-testid="panel-l"] button`).filter({ hasText: "Drag" }).count()) > 0 && (await page.locator(`${demo} [data-testid="add-spread"]`).count()) === 1, `${n0} rows`)
+  // kit-sync KS8 (M17): the spread list ends without the Add spread + Ctrl+↵ row (the row menu Add after stays)
+  const addRows = await page.locator(`${demo} [data-testid="panel-l"]`).getByText(/^Add spread$|^Ctrl\+↵$/).count() + await page.locator(`${demo} [data-testid="add-spread"]`).count()
+  ok("kit10: spread list is a drag source (reorder) — kit-sync KS8: 0 Add spread rows", (await page.locator(`${demo} [data-testid="panel-l"] button`).filter({ hasText: "Drag" }).count()) > 0 && addRows === 0, `${n0} rows, ${addRows} add-spread`)
   // master guides + Page numbers feed every spread on the master
   await page.locator(`${demo} [data-testid="mode-seg"]`).getByText("Masters", { exact: true }).click(); await page.waitForTimeout(250)
-  await c('[data-testid="toggle-rulers"]'); await page.waitForTimeout(200)
+  await page.keyboard.press("Shift+R"); await page.waitForTimeout(200)
   const m0 = await page.locator(`${demo} [data-testid="node-view"] [data-guide]`).count()
   const ry = await page.locator(`${demo} [data-testid="ruler-y"]`).boundingBox(), mb = await page.locator(`${demo} [data-testid="canvas-master"]`).boundingBox()
   await page.mouse.move(ry.x + 10, ry.y + ry.height / 2); await page.mouse.down(); await page.mouse.move(mb.x + mb.width * 0.3, ry.y + ry.height / 2, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(250)

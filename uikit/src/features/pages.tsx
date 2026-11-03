@@ -95,7 +95,7 @@ export const PAGES: Record<string, FeatureDef> = {
     ["spread", "Spread 1", ed({ doc: docFilled, cur: 1, slots: { right: false } })],
     ["masters", "Masters", ed({ doc: docFilled, cur: 1, mode: "masters", node: { k: "master", id: "A" }, slots: { right: false } })],
   ], {
-    what: "The spread list (left panel, 212 px): cover, endpapers and spreads as thumbnails with a Pages / Masters switch and Add spread. Clicking an item shows it on the canvas.",
+    what: "The spread list (left panel, 212 px): cover, endpapers and spreads as thumbnails with a Pages / Masters switch; a row's menu adds a spread after it. Clicking an item shows it on the canvas.",
     where: "#/demo steps 9 (cover), 14 (spread 1), 21–23 (Masters / Pages), 25 (endpaper).",
     edge: ["Masters mode lists the master spreads A and B instead of pages"],
   }),
@@ -207,9 +207,10 @@ export const PAGES: Record<string, FeatureDef> = {
   "site-preview-mode": page([
     ["preview", "Preview", root(inEditor({ editor: { preview: true } }, dbook("lake", LAKE_TITLE, { extras: { ...dbook("x", LAKE_TITLE).extras!, ...COVER_DONE } })))],
   ], {
-    what: "Preview from the editor: the current book in the site viewer, full screen, without publishing.",
-    where: "#/demo step 26 (top bar → Preview).",
-    edge: ["Close / Esc returns to the editor"],
+    what: "Preview from the editor: presentation mode as prod — the current book full screen on black, from the cover, one spread at a time, without publishing. \"Esc\" chip top-right, caption bottom centre (Cover, then 1 / n).",
+    where: "#/demo step editor-preview (top bar → Preview).",
+    keys: [["← / → / Space", "previous / next spread"], ["Esc", "close"]],
+    edge: ["Click the left / right half to page; the published site viewer stays behind Publish → Open site"],
   }),
   /* ------------------------------------------------------------ print */
   "pdf-export": page([
