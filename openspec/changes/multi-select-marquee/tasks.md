@@ -12,3 +12,5 @@
 1. Painter fixture, spread 2–3: drag from the gray left of the spread across the top row → 2 frames pressed, live outlines during the drag, box in screen px.
 2. Shift+drag a second marquee over the bottom row → 4 pressed; Esc mid-marquee → previous set back.
 3. Hand tool drag on the pasteboard → pans, no marquee; a short click on the gray → spread active, selection cleared.
+
+manual-qa: 1–3 problem (harness) — blocked at welcome (`start-session` click intercepted by the header); covered by e2e `multi-select.spec.ts` "multi-select part 3: marquee" and `Pasteboard.click.test.tsx`.
