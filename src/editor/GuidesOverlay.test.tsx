@@ -21,6 +21,14 @@ function seed(locked = false) {
         }),
         makeSpread({ id: 's2' }),
       ],
+      parents: [
+        {
+          id: 'pa',
+          name: 'Master A',
+          frames: [],
+          guides: [{ id: 'pg', orientation: 'horizontal', offsetMm: 30 }],
+        },
+      ],
     }),
     sessionMeta: new Map(),
     importRunning: false,
@@ -30,7 +38,7 @@ function seed(locked = false) {
 
 function renderInSpread(spreadId: string, pxPerMm = 2) {
   return render(
-    <div className="pasteboard-stage">
+    <div data-rulers="true">
       <div data-testid="spread-view" data-spread-id={spreadId}>
         <GuidesOverlay spreadId={spreadId} pxPerMm={pxPerMm} />
       </div>
@@ -136,6 +144,27 @@ describe('GuidesOverlay', () => {
     )
     expect(startGuideDrag).not.toHaveBeenCalled()
     expect(bare).toBe(true)
+  })
+
+  it('draws and follows a parent’s guides on the Masters canvas', () => {
+    seed()
+    renderInSpread('pa')
+    const [line] = screen.getAllByTestId('guide-line')
+    expect(line?.style.top).toBe('60px')
+    expect(line?.dataset.guideId).toBe('pg')
+    act(() => {
+      dispatchBookOp({
+        type: 'addGuide',
+        spreadId: 'pa',
+        orientation: 'vertical',
+        offsetMm: 10,
+      })
+    })
+    expect(screen.getAllByTestId('guide-line')).toHaveLength(2)
+    fireEvent.pointerDown(line as Element, { button: 0 })
+    expect(startGuideDrag.mock.calls[0]?.[0].rulerEl).toBe(
+      screen.getByTestId('ruler-x'),
+    )
   })
 
   it('draws an empty layer for an unknown spread', () => {

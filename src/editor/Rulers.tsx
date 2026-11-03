@@ -21,7 +21,7 @@ const ACTIVE_SPREAD =
   '[data-pasteboard-slot][data-active="true"] [data-testid="spread-view"]'
 
 /** Active spread's on-screen box relative to the scroll area (null while nothing is mounted). */
-function measure(scroll: HTMLElement, pageMm: number) {
+function measure(scroll: HTMLElement, pageMm: number, pxPerMm?: number) {
   const spread =
     scroll.querySelector<HTMLElement>(ACTIVE_SPREAD) ??
     scroll.querySelector<HTMLElement>('[data-testid="spread-view"]')
@@ -37,7 +37,7 @@ function measure(scroll: HTMLElement, pageMm: number) {
       areaLeft: area.left,
       areaTop: area.top,
       offsetWidth: spread.offsetWidth,
-      pxPerMm: SPREAD_PX_PER_MM * getCommittedCamera().zoom,
+      pxPerMm: pxPerMm ?? SPREAD_PX_PER_MM * getCommittedCamera().zoom,
       pageMm,
     }),
     lenX: scroll.clientWidth,
@@ -79,9 +79,12 @@ function paintAxis(
 export function Rulers({
   scrollRef,
   pageMm,
+  pxPerMm,
 }: {
   scrollRef: RefObject<HTMLDivElement | null>
   pageMm: number
+  /** Layout px per mm of a spread off the pasteboard camera (Masters canvas). */
+  pxPerMm?: number
 }) {
   const rulerX = useRef<HTMLDivElement>(null)
   const rulerY = useRef<HTMLDivElement>(null)
@@ -121,7 +124,7 @@ export function Rulers({
     let observed: HTMLElement | null = null
     const paint = (): void => {
       raf = 0
-      const g = measure(scroll, pageMm)
+      const g = measure(scroll, pageMm, pxPerMm)
       activeSpread.current = g?.spread ?? null
       if (g === null) return
       if (g.spread !== observed) {
@@ -182,7 +185,7 @@ export function Rulers({
       resize.disconnect()
       mutations.disconnect()
     }
-  }, [scrollRef, pageMm])
+  }, [scrollRef, pageMm, pxPerMm])
 
   return (
     <>

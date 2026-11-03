@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeSpread } from '../core/testing/fixtures'
-import { getBookStoreSnapshot, resetBookStore } from './bookStore'
+import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
 import { startGuideDrag } from './guideGesture'
 import { getGuidesVisible, setGuidesVisible } from './guidesView'
 
@@ -265,6 +265,76 @@ describe('startGuideDrag', () => {
     })
     expect(getGuidesVisible()).toBe(true)
     up(90, 200)
+  })
+
+  describe('on a parent (Masters canvas)', () => {
+    const parentGuides = () =>
+      getBookStoreSnapshot().book.parents?.[0]?.guides ?? []
+
+    beforeEach(() => {
+      resetBookStore({
+        book: makeBook({
+          spreads: [makeSpread({ id: 's1' })],
+          parents: [
+            {
+              id: 'pa',
+              name: 'Master A',
+              frames: [],
+              guides: [{ id: 'g', orientation: 'vertical', offsetMm: 100 }],
+            },
+          ],
+        }),
+        sessionMeta: new Map(),
+        importRunning: false,
+        importExpectedCount: 0,
+      })
+    })
+
+    // A parent is two 300 mm pages: 600 mm over the 600 px box, 1 mm = 1 client px.
+    it('adds a ruler guide to the parent, sized as a two-page spread', () => {
+      const { spreadEl, rulerX } = mount()
+      spreadEl.dataset.spreadId = 'pa'
+      startGuideDrag({
+        event: pointer(500, 40),
+        spreadEl,
+        orientation: 'horizontal',
+        rulerEl: rulerX,
+      })
+      move(500, 150)
+      const line = spreadEl.querySelector<HTMLElement>('.guide-line')
+      expect(line?.style.transform).toBe('translateY(75px)')
+      up(500, 150)
+      expect(parentGuides()).toEqual([
+        { id: 'g', orientation: 'vertical', offsetMm: 100 },
+        { id: 'guide-2', orientation: 'horizontal', offsetMm: 100 },
+      ])
+      expect(getBookStoreSnapshot().book.spreads[0]?.guides).toBeUndefined()
+    })
+
+    it('moves a parent guide as one undo step, and removes it on its ruler', () => {
+      const { spreadEl, rulerY, lineEl } = mount()
+      spreadEl.dataset.spreadId = 'pa'
+      const drag = (x: number) => {
+        startGuideDrag({
+          event: pointer(200, 200),
+          spreadEl,
+          orientation: 'vertical',
+          rulerEl: rulerY,
+          existing: {
+            id: 'g',
+            lineEl,
+            offsetMm: parentGuides()[0]?.offsetMm ?? 0,
+          },
+        })
+        up(x, 200)
+      }
+      drag(400)
+      expect(parentGuides()[0]?.offsetMm).toBe(300)
+      undoBook()
+      expect(parentGuides()[0]?.offsetMm).toBe(100)
+      drag(100)
+      expect(parentGuides()).toEqual([])
+    })
   })
 
   it('does nothing for an unknown spread or a collapsed box', () => {

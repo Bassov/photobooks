@@ -13,15 +13,13 @@ export interface RulerTick {
   readonly label?: number
 }
 
-/** Smallest major spacing in px; below the kit's 20 mm step the ladder keeps labels apart. */
-const MIN_MAJOR_PX = 24
-const COARSE_STEPS_MM = [20, 50, 100, 200, 500, 1000]
+/** Smallest major spacing in px (kit `Ruler`): 3-digit labels never collide. */
+const MIN_MAJOR_PX = 34
+const STEPS_MM = [5, 10, 20, 50, 100, 200, 500, 1000]
 
-/** Major step in mm for a screen scale `sc` (px per mm): kit 5 / 10 / 20, then coarser when zoomed far out. */
+/** Major step in mm for a screen scale `sc` (px per mm): the first kit step at least 34 px wide. */
 export function rulerStepMm(sc: number): number {
-  if (sc > 2.4) return 5
-  if (sc > 1.2) return 10
-  return COARSE_STEPS_MM.find((step) => step * sc >= MIN_MAJOR_PX) ?? 1000
+  return STEPS_MM.find((step) => step * sc >= MIN_MAJOR_PX) ?? 1000
 }
 
 /** X labels are page-local (reset at the spine, which reads 0). */
