@@ -702,6 +702,8 @@ test.describe('multi-select part 4: inspector align, distribute, arrange, delete
     expect(after[1]).toEqual(before[1])
     expect(after[2]?.x).not.toBe(before[2]?.x)
     await expect(pressed(page)).toHaveCount(3)
+    // Align, Arrange and Delete all open: no page-level scroll.
+    await assertDocumentFitsViewport(page)
 
     await page.getByTestId('undo').click()
     await expect
