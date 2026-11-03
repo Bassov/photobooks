@@ -127,6 +127,7 @@ export const BookReader = React.forwardRef<ReaderApi, { b: SiteBook; view: numbe
 
     const run = (a: number, th0: number, th1: number, ms: number, ease: (t: number) => number, kind: Turn["kind"], done?: () => void) => {
       cancelAnimationFrame(raf.current)
+      setTurn({ a, th: th0, kind }) // busy from now, so a press before the first frame is queued
       const t0 = performance.now()
       const step = (now: number) => {
         const p = Math.min(1, (now - t0) / ms)
@@ -140,10 +141,11 @@ export const BookReader = React.forwardRef<ReaderApi, { b: SiteBook; view: numbe
     /** a finished turn lands on view v; a queued press runs next */
     const land = (v: number) => {
       setTurn(null); setShown(v)
-      if (live.current.view !== v) return
       const d = pending.current; pending.current = null
+      if (live.current.view !== v) return
       if (d !== null) { const t = clamp(v + d, 0, n - 1); if (t !== v) live.current.onView(t) }
     }
+    const stop = () => { cancelAnimationFrame(raf.current); setTurn(null) }
     const request = React.useCallback((d: number) => {
       const { view: v, onView: go } = live.current
       if (turnRef.current && turnRef.current.kind !== "lift") { if (pending.current === null) pending.current = d; return }
@@ -155,8 +157,8 @@ export const BookReader = React.forwardRef<ReaderApi, { b: SiteBook; view: numbe
     // follow `view`: ±1 turns a leaf, bigger jumps crossfade; reduced motion crossfades every change
     React.useEffect(() => {
       if (busy || view === shown) return
-      if (reduced()) { setTurn(null); setFade({ from: shown, ms: 160, id: performance.now() }); setShown(view); return }
-      if (Math.abs(view - shown) > 1) { setTurn(null); setFade({ from: shown, ms: 240, id: performance.now() }); setShown(view); return }
+      if (reduced()) { stop(); setFade({ from: shown, ms: 160, id: performance.now() }); setShown(view); return }
+      if (Math.abs(view - shown) > 1) { stop(); setFade({ from: shown, ms: 240, id: performance.now() }); setShown(view); return }
       const fwd = view > shown, a = Math.min(view, shown)
       const lift = turnRef.current
       const th0 = lift && lift.a === a ? lift.th : fwd ? 0 : 180, th1 = fwd ? 180 : 0
@@ -238,8 +240,10 @@ export const BookReader = React.forwardRef<ReaderApi, { b: SiteBook; view: numbe
       const p = ptr.current; ptr.current = null
       if (!p || p.id !== e.pointerId) return
       if (!p.drag) {
-        if (shown === 0) request(1)
-        else if (shown === n - 1) request(-1)
+        // closed: only the book itself (centred, one page wide) opens it
+        const { r, k } = geo(), x = (e.clientX - r.left) / k, onBook = x >= pw / 2 - BD && x <= (3 * pw) / 2 + BD
+        if (shown === 0) { if (onBook) request(1) }
+        else if (shown === n - 1) { if (onBook) request(-1) }
         else request(p.side === "R" ? 1 : -1)
         return
       }
@@ -250,16 +254,18 @@ export const BookReader = React.forwardRef<ReaderApi, { b: SiteBook; view: numbe
       const to = fwd === done ? 180 : 0
       const target = done ? (fwd ? shown + 1 : shown - 1) : shown
       run(p.a, th, to, Math.max(200, (800 * Math.abs(to - th)) / 180), EASE, "anim", () => {
-        setTurn(null)
-        if (target !== shown) { setShown(target); onView(target) }
+        if (target !== shown) { onView(target); live.current = { ...live.current, view: target } }
+        land(target)
       })
     }
-    const onPointerLeave = () => { el.current?.removeAttribute("data-cursor"); if (!ptr.current) unlift() }
+    const onPointerLeave = () => { if (!ptr.current) unlift() }
+    // the cursor label (site Cursor) reads data-cursor; set only here and on pointer moves
+    React.useEffect(() => { el.current?.setAttribute("data-cursor", shown === 0 ? "Open" : shown === n - 1 ? "←" : "→") }, [shown, n])
 
     const label = viewLabel(b, shown)
     return (
       <div ref={el} className={dark ? "sd-reader sd-dark" : "sd-reader"} style={{ width: W, height: H, perspective: `${Math.round(W * 2.9)}px` }}
-        role="region" aria-roledescription="book" aria-label={b.title} tabIndex={0} data-testid="ps-reader" data-view={shown} data-cursor={shown === 0 ? "Open" : shown === n - 1 ? "←" : "→"}
+        role="region" aria-roledescription="book" aria-label={b.title} tabIndex={0} data-testid="ps-reader" data-view={shown}
         onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={() => { ptr.current = null; setTurn(null) }} onPointerLeave={onPointerLeave}>
         {turn ? <TurningBook g={g} a={turn.a} th={turn.th} /> : <StaticBook g={g} v={shown} vt={vt} />}
         {fade && <div key={fade.id} className="sd-fade" style={{ "--fd": `${fade.ms}ms` } as React.CSSProperties} onAnimationEnd={() => setFade(null)}><StaticBook g={g} v={fade.from} /></div>}
