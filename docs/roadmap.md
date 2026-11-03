@@ -98,6 +98,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [kit-sync-chrome](roadmap/P2/kit-sync-chrome.md) — Bug: Kit sync W2: top-bar view toggles, no Add spread row, Preview = presentation mode (Designer kit-sync Spec)
 - [ ] [feature] [kit-sync-filmstrip](roadmap/P2/kit-sync-filmstrip.md) — Bug: Kit sync W5: filmstrip header Unplaced toggle + sort menu (Designer kit-sync Spec)
 - [x] [feature] [design-r16-prod](roadmap/P2/design-r16-prod.md) — Bug: /next-roadmap-item design-r16-prod
+- [x] [feature] [design-r16-kit-inspector](roadmap/P2/design-r16-kit-inspector.md) — Bug: /next-roadmap-item design-r16-kit-inspector
 - [ ] [feature] [kit-sync-inspector](roadmap/P2/kit-sync-inspector.md) — Bug: kit sync W3 — inspector head, layout picker, flip icons, page size chevron
 - [x] [feature] [layout-grids-parent-inherit](roadmap/P2/layout-grids-parent-inherit.md) — grids on parent spreads
 - [x] [feature] [design-r16-kit-book](roadmap/P2/design-r16-kit-book.md) — Bug: /next-roadmap-item design-r16-kit-book
