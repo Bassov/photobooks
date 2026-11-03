@@ -15,6 +15,18 @@ export function withPlacedAsset(frame: Frame, assetId: string): Frame {
   return next
 }
 
+/**
+ * The frame without its photo (`assetId`, `crop`, `fit`); everything else,
+ * `locked` and rotation included, stays.
+ */
+export function withoutPlacement(frame: Frame): Frame {
+  const next: Frame = { ...frame }
+  delete next.assetId
+  delete next.crop
+  delete next.fit
+  return next
+}
+
 export function placeAsset(
   book: Book,
   spreadId: string,
@@ -25,7 +37,7 @@ export function placeAsset(
     return book
   }
   return updateFrame(book, spreadId, frameId, (frame) => {
-    if (frame.assetId !== undefined) {
+    if (frame.assetId !== undefined || frame.locked === true) {
       return frame
     }
     return withPlacedAsset(frame, assetId)
@@ -42,7 +54,7 @@ export function replaceAsset(
     return book
   }
   return updateFrame(book, spreadId, frameId, (frame) => {
-    if (frame.assetId === assetId) {
+    if (frame.assetId === assetId || frame.locked === true) {
       return frame
     }
     return withPlacedAsset(frame, assetId)
@@ -58,11 +70,7 @@ export function unplaceAsset(
     if (frame.assetId === undefined) {
       return frame
     }
-    return {
-      id: frame.id,
-      rect: frame.rect,
-      z: frame.z,
-    }
+    return withoutPlacement(frame)
   })
 }
 
@@ -79,6 +87,10 @@ export function swapFrames(
     return book
   }
   if (spreadIdA === spreadIdB && frameIdA === frameIdB) {
+    return book
+  }
+  // A locked frame keeps its photo: neither gives nor takes one.
+  if (frameA.locked === true || frameB.locked === true) {
     return book
   }
 
@@ -113,11 +125,7 @@ function setPlacement(
   placement: Placement,
 ): Book {
   return updateFrame(book, spreadId, frameId, (frame) => {
-    const next: Frame = {
-      id: frame.id,
-      rect: frame.rect,
-      z: frame.z,
-    }
+    const next = withoutPlacement(frame)
     if (placement.assetId !== undefined) {
       next.assetId = placement.assetId
     }

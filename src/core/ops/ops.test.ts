@@ -21,6 +21,8 @@ import {
   TEMPLATE_IDS,
   unplaceAsset,
   unplacedAssetIds,
+  type Book,
+  type Frame,
 } from '../index'
 import {
   makeBook,
@@ -287,6 +289,71 @@ describe('placement ops', () => {
     expect(swapFrames(book, 'spread-1', 'frame-1', 'spread-1', 'frame-1')).toBe(
       book,
     )
+  })
+})
+
+describe('placement ops and locked frames', () => {
+  const pair = (f1: Partial<Frame>, f2: Partial<Frame>): Book =>
+    makeBook({
+      assets: { a: {}, b: {}, c: {} },
+      gallery: ['a', 'b', 'c'],
+      spreads: [
+        makeSpread({
+          frames: [
+            makeFrame({ id: 'f1', assetId: 'a', ...f1 }),
+            makeFrame({ id: 'f2', assetId: 'b', ...f2 }),
+          ],
+        }),
+      ],
+    })
+
+  it('refuses a swap from a locked frame', () => {
+    const book = pair({ locked: true }, {})
+    expect(swapFrames(book, 'spread-1', 'f1', 'spread-1', 'f2')).toBe(book)
+  })
+
+  it('refuses a swap onto a locked frame, filled or empty', () => {
+    const book = pair({}, { locked: true })
+    expect(swapFrames(book, 'spread-1', 'f1', 'spread-1', 'f2')).toBe(book)
+    const empty = unplaceAsset(book, 'spread-1', 'f2')
+    expect(swapFrames(empty, 'spread-1', 'f1', 'spread-1', 'f2')).toBe(empty)
+  })
+
+  it('swaps an unlocked pair and keeps each frame’s own fields', () => {
+    const book = pair(
+      { locked: false, rotationDeg: 12, frameStyleId: 'style-a' },
+      { rotationDeg: -5, fit: 'fit' },
+    )
+    const next = swapFrames(book, 'spread-1', 'f1', 'spread-1', 'f2')
+    const [f1, f2] = next.spreads[0]?.frames ?? []
+    expect(f1).toMatchObject({
+      assetId: 'b',
+      locked: false,
+      rotationDeg: 12,
+      frameStyleId: 'style-a',
+    })
+    expect(f2).toMatchObject({ assetId: 'a', rotationDeg: -5 })
+    expect(f2).not.toHaveProperty('fit')
+  })
+
+  it('leaves a locked frame out of place and replace', () => {
+    const book = pair({ locked: true }, {})
+    expect(replaceAsset(book, 'spread-1', 'f1', 'c')).toBe(book)
+    const empty = unplaceAsset(book, 'spread-1', 'f1')
+    expect(placeAsset(empty, 'spread-1', 'f1', 'c')).toBe(empty)
+  })
+
+  it('keeps the lock and rotation when unplacing or removing the photo', () => {
+    const book = pair({ locked: true, rotationDeg: 7 }, {})
+    for (const next of [
+      unplaceAsset(book, 'spread-1', 'f1'),
+      removeFromGallery(book, 'a'),
+    ]) {
+      const frame = next.spreads[0]?.frames[0]
+      expect(frame).toMatchObject({ id: 'f1', locked: true, rotationDeg: 7 })
+      expect(frame).not.toHaveProperty('assetId')
+      expect(frame).not.toHaveProperty('crop')
+    }
   })
 })
 

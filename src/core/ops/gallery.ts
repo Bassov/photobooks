@@ -1,6 +1,7 @@
-import type { Book, Frame } from '../schema'
+import type { Book } from '../schema'
 import { clearRemovedCoverAssets } from '../cover'
 import { updateSpread } from '../update'
+import { withoutPlacement } from './place'
 
 export function addToGallery(book: Book, assetIds: readonly string[]): Book {
   if (assetIds.length === 0) {
@@ -56,7 +57,7 @@ export function removeManyFromGallery(
     next = updateSpread(next, spread.id, (current) => {
       const frames = current.frames.map((frame) => {
         if (frame.assetId !== undefined && remove.has(frame.assetId)) {
-          return clearAsset(frame)
+          return withoutPlacement(frame)
         }
         return frame
       })
@@ -67,12 +68,4 @@ export function removeManyFromGallery(
     })
   }
   return next
-}
-
-function clearAsset(frame: Frame): Frame {
-  return {
-    id: frame.id,
-    rect: frame.rect,
-    z: frame.z,
-  }
 }
