@@ -181,7 +181,11 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       control.pressed = true
     }
     if (filled) {
-      control.onDoubleActivate = () => {
+      control.onDoubleActivate = (event) => {
+        // A double Shift+click only toggles; it never enters crop.
+        if (event?.shiftKey === true) {
+          return
+        }
         setFrameSource(null)
         enterCropMode(spreadId, item.frameId)
       }

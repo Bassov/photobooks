@@ -22,7 +22,7 @@ export interface FrameControl {
   cropActive?: boolean
   /** Crop zoom (1 = cover) shown in the "Crop · N%" tag. */
   cropZoom?: number
-  onDoubleActivate?: () => void
+  onDoubleActivate?: (event?: { shiftKey?: boolean }) => void
 }
 import { dropChipLabel } from './dropChip'
 import { adjustFilter, frameStyleCss } from './frameLookCss'

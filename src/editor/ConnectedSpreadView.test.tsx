@@ -250,6 +250,12 @@ describe('per-spread paint subscription', () => {
     expect(getFrameSource()).toEqual({ spreadId: 's0', frameId: ids[0] })
     expect(screen.getAllByTestId('spread-frame-handles')).toHaveLength(1)
     expect(screen.queryByTestId('group-box')).toBeNull()
+
+    // A double Shift+click never enters crop; a plain one does.
+    fireEvent.doubleClick(first, { shiftKey: true })
+    expect(getCropTarget()).toBeNull()
+    fireEvent.doubleClick(first)
+    expect(getCropTarget()).toMatchObject({ spreadId: 's0', frameId: ids[0] })
   })
 
   it('an empty frame neither enters crop mode nor drags', () => {
