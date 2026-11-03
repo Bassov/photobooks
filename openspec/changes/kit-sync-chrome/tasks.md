@@ -10,3 +10,7 @@
 
 1. `#/demo` editor: top bar shows 4 tools + Snap + Grid over the canvas centre; spread 1 shows no dashed guides; the spread list ends without Add spread.
 2. Preview → black presentation on the cover, "Esc" top-right, "Cover" bottom centre; → shows "1 / n"; Esc returns to the editor.
+
+- harness problem: `pnpm agent manual-qa --base-url <kit #/demo>` waits for the prod `editor-shell`, so it cannot drive the kit (exit 1 before any scenario). Evidence below is the headless kit qa (`uikit/scripts/qa.mjs`, 259 passed) and the `#/demo` capture walk (64 steps), both at 1440×900.
+- OK 1: toggles `1,1,0,0,0,0` (snap, grid only); tools w 210, cx 676 = canvas 676; guides / rulers / overlays `0,0,0`; 0 Add spread rows (15 rows).
+- OK 2: presentation fixed 1440×900, bg rgb(13, 13, 13); Esc chip top 16 right 16 h 32 12 px; caption "Cover" bottom 16, centred; cover fit within 0.01 px; → "1 / 9"; Esc → closed, stage editor.
