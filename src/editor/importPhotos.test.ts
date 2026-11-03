@@ -61,6 +61,7 @@ vi.mock('./jpegHeadPass', () => ({
     runJpegHeadPass(...args) as unknown,
 }))
 
+import * as folderManifestWrite from './folderManifestWrite'
 import { importPhotoFiles } from './importPhotos'
 import { awaitPendingHashes } from './pendingHashes'
 
@@ -541,6 +542,40 @@ describe('importPhotoFiles', () => {
       new File([new Uint8Array([1])], 'bad.jpg', { type: 'image/jpeg' }),
     ])
     expect(getSelectedAssetId()).toBe('other-asset')
+  })
+
+  it('onError remembers the decode failure in the folder manifest', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    const mark = vi.spyOn(folderManifestWrite, 'tryMarkManifestDecodeFailed')
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onError?: (assetId: string, error: ImportFileError) => void
+        },
+      ) => {
+        for (const item of items) {
+          options?.onError?.(item.assetId, {
+            id: `err-${item.assetId}`,
+            name: item.file.name,
+            message: 'decode failed',
+            reason: 'decode-failed',
+            assetId: item.assetId,
+          })
+        }
+        return Promise.resolve({ results: [], errors: [] })
+      },
+    )
+    await importPhotoFiles([
+      new File([new Uint8Array([1])], 'bad.jpg', { type: 'image/jpeg' }),
+    ])
+    expect(mark).toHaveBeenCalledTimes(1)
   })
 
   it('onError removes a pending decode failure from the gallery', async () => {

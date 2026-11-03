@@ -60,14 +60,29 @@ export function isImageLikeFile(file: { name: string; type: string }): boolean {
   return isImageLikePath(file.name)
 }
 
+/**
+ * Hidden / OS metadata entry (macOS AppleDouble `._*`, `.DS_Store`,
+ * `.Trashes/`, `.Spotlight-V100/`): any path segment starting with `.`.
+ * Never a photo and never an import error — a silent folder skip.
+ */
+export function isHiddenPhotoPath(relativePath: string): boolean {
+  return relativePath.split('/').some((segment) => segment.startsWith('.'))
+}
+
 /** Extension-based image-like check for cheap scan paths (no File/MIME yet). */
 export function isImageLikePath(relativePath: string): boolean {
+  if (isHiddenPhotoPath(relativePath)) {
+    return false
+  }
   const lower = relativePath.toLowerCase()
   return IMAGE_LIKE_EXTENSIONS.some((ext) => lower.endsWith(ext))
 }
 
 /** Accepted gallery import extensions (jpeg/png/webp/heic/heif) from a path. */
 export function isAcceptedPhotoPath(relativePath: string): boolean {
+  if (isHiddenPhotoPath(relativePath)) {
+    return false
+  }
   const lower = relativePath.toLowerCase()
   return (
     lower.endsWith('.jpg') ||
@@ -92,6 +107,9 @@ export function isUnsupportedImagePath(relativePath: string): boolean {
  * Extension-less names are not skips — they still need HEIC ftyp sniff.
  */
 export function isClearFolderSkipPath(relativePath: string): boolean {
+  if (isHiddenPhotoPath(relativePath)) {
+    return true
+  }
   if (isImageLikePath(relativePath)) {
     return false
   }
@@ -102,6 +120,18 @@ export function isClearFolderSkipPath(relativePath: string): boolean {
 }
 
 export type PartitionImportSource = 'files' | 'folder'
+
+/**
+ * Hidden check for a picked / dropped File: the name, plus any
+ * `webkitRelativePath` segment below the picked folder itself.
+ */
+function isHiddenImportFile(file: File): boolean {
+  const relative = (file as File & { webkitRelativePath?: string })
+    .webkitRelativePath
+  const below =
+    typeof relative === 'string' ? relative.split('/').slice(1).join('/') : ''
+  return isHiddenPhotoPath(file.name) || isHiddenPhotoPath(below)
+}
 
 export function partitionImportFiles(
   files: readonly File[],
@@ -124,6 +154,10 @@ export function partitionImportFiles(
   }[] = []
   const skipped: File[] = []
   for (const file of files) {
+    if (isHiddenImportFile(file)) {
+      skipped.push(file)
+      continue
+    }
     const mimeType = file.type || 'application/octet-stream'
     if (isAcceptedPhotoMime(mimeType) || isHeicLikeFile(file)) {
       accepted.push(file)

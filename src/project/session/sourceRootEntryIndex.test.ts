@@ -10,6 +10,7 @@ import {
   FOLDER_MANIFEST_VERSION,
   getSourceRootEntryIndex,
   parseFolderManifest,
+  patchManifestDecodeFailed,
   patchManifestDimensions,
   persistScannedEntryIndex,
   putSourceRootEntryIndex,
@@ -355,6 +356,104 @@ describe('persistScannedEntryIndex', () => {
       width: 80,
       height: 40,
       orientation: 6,
+    })
+  })
+
+  it('remembers a decode failure only while size and mtime match', async () => {
+    const idb = memoryIdb()
+    const opts = { entryIndexIdb: idb }
+    await persistScannedEntryIndex('root-bad', scanned, opts)
+    const marked = await patchManifestDecodeFailed(
+      'root-bad',
+      { relativePath: 'a.jpg', byteSize: 10, mtimeMs: 1 },
+      opts,
+    )
+    expect(marked.ok).toBe(true)
+    // A stale identity never marks the current file.
+    await patchManifestDecodeFailed(
+      'root-bad',
+      { relativePath: 'b.jpg', byteSize: 99, mtimeMs: 2 },
+      opts,
+    )
+    const read = async () => {
+      const got = await getSourceRootEntryIndex('root-bad', opts)
+      return got.ok ? got.value.entries : {}
+    }
+    expect(await read()).toEqual({
+      'a.jpg': { byteSize: 10, mtimeMs: 1, decodeFailed: true },
+      'b.jpg': { byteSize: 20, mtimeMs: 2 },
+    })
+
+    // Unchanged walk keeps the flag (also via the pure builder).
+    await persistScannedEntryIndex('root-bad', scanned, opts)
+    expect((await read())['a.jpg']?.decodeFailed).toBe(true)
+    const previous = { version: FOLDER_MANIFEST_VERSION, entries: await read() }
+    expect(
+      entryIndexFromScanned(scanned, previous).entries['a.jpg']?.decodeFailed,
+    ).toBe(true)
+
+    // A new size/mtime drops it so the next import retries.
+    await persistScannedEntryIndex(
+      'root-bad',
+      [{ relativePath: 'a.jpg', byteSize: 11, mtimeMs: 1 }],
+      opts,
+    )
+    expect(await read()).toEqual({ 'a.jpg': { byteSize: 11, mtimeMs: 1 } })
+  })
+
+  it('a later successful decode replaces the failure flag with dims', async () => {
+    const idb = memoryIdb()
+    const opts = { entryIndexIdb: idb }
+    const identity = { relativePath: 'a.jpg', byteSize: 10, mtimeMs: 1 }
+    await patchManifestDecodeFailed('root-retry', identity, opts)
+    await patchManifestDimensions(
+      'root-retry',
+      { ...identity, width: 4, height: 3, orientation: 1 },
+      opts,
+    )
+    const got = await getSourceRootEntryIndex('root-retry', opts)
+    expect(got.ok && got.value.entries['a.jpg']).toEqual({
+      byteSize: 10,
+      mtimeMs: 1,
+      width: 4,
+      height: 3,
+      orientation: 1,
+    })
+  })
+
+  it('rejects decode-failure marks without a root or path', async () => {
+    const idb = memoryIdb()
+    const opts = { entryIndexIdb: idb }
+    const identity = { relativePath: 'a.jpg', byteSize: 1, mtimeMs: 1 }
+    expect(await patchManifestDecodeFailed('', identity, opts)).toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    expect(
+      await patchManifestDecodeFailed(
+        'root',
+        { ...identity, relativePath: '' },
+        opts,
+      ),
+    ).toEqual({ ok: false, code: 'not-found' })
+    expect(idb.store.size).toBe(0)
+  })
+
+  it('parses only a literal true decodeFailed flag', () => {
+    expect(
+      parseFolderManifest({
+        version: FOLDER_MANIFEST_VERSION,
+        entries: {
+          'a.jpg': { byteSize: 1, mtimeMs: 1, decodeFailed: true },
+          'b.jpg': { byteSize: 1, mtimeMs: 1, decodeFailed: 'yes' },
+        },
+      }),
+    ).toEqual({
+      version: FOLDER_MANIFEST_VERSION,
+      entries: {
+        'a.jpg': { byteSize: 1, mtimeMs: 1, decodeFailed: true },
+        'b.jpg': { byteSize: 1, mtimeMs: 1 },
+      },
     })
   })
 
