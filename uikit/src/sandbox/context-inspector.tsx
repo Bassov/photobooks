@@ -202,15 +202,16 @@ export function LayoutSection() {
       <div className="flex flex-col gap-3" data-testid="layout-section">
         <Tabs selectedKey={tab} onSelectionChange={(k) => setTab(k as "all")}>
           <TabList aria-label="Template source" className={cn(segList, "grid grid-cols-2")}>
-            <Tab id="all" className={segTab}>All <span className="ml-1 text-muted-foreground">{all.length}</span></Tab>
-            <Tab id="mine" className={segTab} data-testid="tab-mine">My templates <span className="ml-1 text-muted-foreground">{mine.length}</span></Tab>
+            {/* r15 M87: label + count in ONE flex item so the single space survives (prod `My templates <span>N</span>`) */}
+            <Tab id="all" className={segTab}><span>All <span className="text-muted-foreground">{all.length}</span></span></Tab>
+            <Tab id="mine" className={segTab} data-testid="tab-mine"><span>My templates <span className="text-muted-foreground">{mine.length}</span></span></Tab>
           </TabList>
         </Tabs>
         <div className="flex items-center gap-1" role="group" aria-label="Photos per layout" data-testid="tpl-chips">
           <span className="mr-1 text-2xs text-muted-foreground">Photos</span>
           {CHIPS.map(([id, l]) => (
             <button key={id} type="button" aria-pressed={chip === id} onClick={() => setChip(id)} data-chip={id}
-              className={cn("h-6 min-w-7 rounded-full bg-field px-2 text-xs transition-colors", chip === id ? "bg-sel font-semibold text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>{l}</button>
+              className={cn("h-6 min-w-7 rounded-full bg-field px-2 text-xs leading-[normal] transition-colors", chip === id ? "bg-sel font-semibold text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>{l}</button>
           ))}
         </div>
         {list.length ? grid(list) : (
@@ -219,7 +220,7 @@ export function LayoutSection() {
           </div>
         )}
         <p className="text-2xs text-muted-foreground" data-testid="tpl-hint">Hover a layout to preview it on the spread; click to apply. Photos are kept in order.</p>
-        <Button variant="secondary" size="sm" onPress={save} className="w-full shadow-xs" data-testid="tpl-save-button"><Plus />Save as template</Button>
+        <Button variant="secondary" size="sm" onPress={save} className="w-full shadow-xs [&_svg]:size-3.5" data-testid="tpl-save-button"><Plus />Save as template</Button>
         {/* kit-sync KS7 (prod LayoutSection contact sheet): Columns × Rows, then apply */}
         <div className="flex items-center gap-1.5" role="group" aria-label="Contact sheet" data-testid="tpl-contact">
           {count("Columns", cols, setCols, "tpl-contact-cols")}
