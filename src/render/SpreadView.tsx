@@ -133,12 +133,9 @@ const FOLD_SHARE = '3%'
 /** Gap between the frame and its caption (kit: 1.5 mm under the frame). */
 const CAPTION_GAP_MM = 1.5
 
-/** Kit group box: 4 screen px outside the selected frames' union. */
-const GROUP_BOX_GAP_PX = 4
-
 /**
- * Axis-aligned union of the frames as painted (rotated corners included),
- * grown by `GROUP_BOX_GAP_PX`; layout px are screen px at the committed zoom.
+ * Axis-aligned union of the frames as painted (rotated corners included).
+ * `.spread-group-box` grows it by 4 screen px per side, live zoom included.
  */
 function groupBoxPx(
   items: readonly Pick<ResolvedItem, 'rectMm' | 'rotation'>[],
@@ -162,12 +159,7 @@ function groupBoxPx(
     right = Math.max(right, cx + halfW)
     bottom = Math.max(bottom, cy + halfH)
   }
-  return {
-    left: left - GROUP_BOX_GAP_PX,
-    top: top - GROUP_BOX_GAP_PX,
-    width: right - left + GROUP_BOX_GAP_PX * 2,
-    height: bottom - top + GROUP_BOX_GAP_PX * 2,
-  }
+  return { left, top, width: right - left, height: bottom - top }
 }
 
 export function SpreadView({
@@ -305,6 +297,7 @@ export function SpreadView({
         <div
           className="spread-group-box"
           data-testid="group-box"
+          data-camera-frame=""
           aria-hidden="true"
           style={groupBox}
         />

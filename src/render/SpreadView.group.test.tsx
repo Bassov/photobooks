@@ -55,15 +55,17 @@ const pressed =
 describe('SpreadView multi-selection', () => {
   afterEach(cleanup)
 
-  it('draws the group box 4 px outside the union, rotated corners included, and no handles', () => {
+  it('places the group box on the union, rotated corners included, and no handles', () => {
     renderWith(pressed('a', 'b'))
     const box = screen.getByTestId('group-box')
     // a: x 10–30, y 10–20 mm. b turned 90° about (60, 45): x 55–65, y 35–55 mm.
-    expect(box.style.left).toBe(`${String(10 * PX_PER_MM - 4)}px`)
-    expect(box.style.top).toBe(`${String(10 * PX_PER_MM - 4)}px`)
-    expect(box.style.width).toBe(`${String(55 * PX_PER_MM + 8)}px`)
-    expect(box.style.height).toBe(`${String(45 * PX_PER_MM + 8)}px`)
+    expect(box.style.left).toBe(`${String(10 * PX_PER_MM)}px`)
+    expect(box.style.top).toBe(`${String(10 * PX_PER_MM)}px`)
+    expect(box.style.width).toBe(`${String(55 * PX_PER_MM)}px`)
+    expect(box.style.height).toBe(`${String(45 * PX_PER_MM)}px`)
     expect(box.getAttribute('aria-hidden')).toBe('true')
+    // The camera writes --cam-scale on it each live-zoom frame.
+    expect(box.hasAttribute('data-camera-frame')).toBe(true)
     expect(screen.queryAllByTestId('spread-frame-handles')).toHaveLength(0)
     expect(
       screen
@@ -86,10 +88,17 @@ describe('SpreadView multi-selection', () => {
     expect(screen.queryByTestId('group-box')).toBeNull()
   })
 
-  it('paints the box as a 1px dashed mark outline that takes no pointer', () => {
+  it('paints the box 4 screen px out as a 1px dashed mark outline that takes no pointer', () => {
     const css = readFileSync('src/render/SpreadView.css', 'utf8')
     const rule = /\.spread-group-box \{([^}]*)\}/.exec(css)?.[1] ?? ''
-    expect(rule).toContain('outline: 1px dashed var(--color-mark)')
+    const line = /\.spread-group-box::after \{([^}]*)\}/.exec(css)?.[1] ?? ''
+    expect(line).toContain('outline: 1px dashed var(--color-mark)')
+    // Screen px through a live zoom: the gap and the outline undo --cam-scale.
+    expect(rule).toContain('box-sizing: content-box')
+    expect(rule).toContain('padding: calc(4px / var(--cam-scale, 1))')
+    expect(rule).toContain('margin: calc(-4px / var(--cam-scale, 1))')
+    expect(line).toContain('width: calc(100% * var(--cam-scale, 1))')
+    expect(line).toContain('scale: calc(1 / var(--cam-scale, 1))')
     expect(rule).toContain('pointer-events: none')
     expect(rule).not.toContain('background')
   })

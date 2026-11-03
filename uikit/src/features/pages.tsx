@@ -119,7 +119,7 @@ export const PAGES: Record<string, FeatureDef> = {
   }),
   "frame-selection-handles": page([
     ["one", "Frame selected", ed({ doc: docFilled, cur: 1, pick: 0 })],
-    ["multi", "Two frames", ed({ doc: docFilled, cur: 1, pick: [0, 1] })],
+    ["multi", "Two frames", ed({ doc: docFilled, cur: 2, pick: [0, 1] })],
     ["locked", "Three frames, one locked", ed({ doc: docThreeOneLocked, cur: 2, pick: [0, 1, 2] })],
   ], {
     what: "Click a frame to select it: handles on the frame, frame properties in the inspector. Drag moves the frame; Esc during a drag cancels it. Shift+click adds or removes a frame: with two or more selected, every frame keeps its outline, a dashed group box surrounds them and no frame shows handles.",

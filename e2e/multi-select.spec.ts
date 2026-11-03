@@ -77,10 +77,11 @@ test.describe('multi-select: Shift+click, group box, Esc, Delete', () => {
     )
     const paint = await group.evaluate((el) => {
       const s = getComputedStyle(el)
+      const after = getComputedStyle(el, '::after')
       return {
-        style: s.outlineStyle,
-        width: s.outlineWidth,
-        color: s.outlineColor,
+        style: after.outlineStyle,
+        width: after.outlineWidth,
+        color: after.outlineColor,
         bg: s.backgroundColor,
         events: s.pointerEvents,
       }
@@ -109,6 +110,90 @@ test.describe('multi-select: Shift+click, group box, Esc, Delete', () => {
     await page.keyboard.press('Escape')
     await expect(pressed(page)).toHaveCount(0)
     await expect(group).toHaveCount(0)
+  })
+
+  test('the group box stays 4 screen px out with a 1px outline on every frame of a Ctrl+wheel zoom', async ({
+    page,
+  }) => {
+    await frames(page).nth(0).click()
+    await frames(page)
+      .nth(1)
+      .click({ modifiers: ['Shift'] })
+    await expect(spread(page).getByTestId('group-box')).toHaveCount(1)
+
+    const samples = await page
+      .getByTestId('pasteboard-scroll')
+      .evaluate(async (scroll) => {
+        const view = document.querySelector(
+          '[data-testid="spread-view"][data-spread-id="painter-spread-1"]',
+        )
+        const world = document.querySelector<HTMLElement>(
+          '[data-testid="pasteboard-world"]',
+        )
+        if (view === null || world === null) throw new Error('no spread view')
+        const sample = () => {
+          const box = view.querySelector<HTMLElement>(
+            '[data-testid="group-box"]',
+          )
+          if (box === null) return null
+          const picked = [
+            ...view.querySelectorAll(
+              '[data-testid="spread-frame"][aria-pressed="true"]',
+            ),
+          ].map((el) => el.getBoundingClientRect())
+          const g = box.getBoundingClientRect()
+          const s = getComputedStyle(box)
+          const scale = Number(s.getPropertyValue('--cam-scale') || '1')
+          // The outline is drawn on ::after, counter-scaled by 1 / scale.
+          const after = getComputedStyle(box, '::after')
+          const local = scale * parseFloat(after.scale || '1')
+          return {
+            gesture: world.dataset.gesture === 'zoom',
+            gaps: [
+              Math.min(...picked.map((r) => r.left)) - g.left,
+              Math.min(...picked.map((r) => r.top)) - g.top,
+              g.right - Math.max(...picked.map((r) => r.right)),
+              g.bottom - Math.max(...picked.map((r) => r.bottom)),
+            ],
+            outline: parseFloat(after.outlineWidth) * local,
+            // ::after spans the box: its width on screen = the box's.
+            span: parseFloat(after.width) * local - g.width,
+          }
+        }
+        const frame = (): Promise<void> =>
+          new Promise((resolve) => {
+            requestAnimationFrame(() => {
+              resolve()
+            })
+          })
+        const r = scroll.getBoundingClientRect()
+        const out: ReturnType<typeof sample>[] = []
+        for (const deltaY of [...Array(6).fill(-120), ...Array(6).fill(120)]) {
+          scroll.dispatchEvent(
+            new WheelEvent('wheel', {
+              deltaY: deltaY as number,
+              ctrlKey: true,
+              clientX: r.x + r.width / 2,
+              clientY: r.y + r.height / 2,
+              bubbles: true,
+              cancelable: true,
+            }),
+          )
+          await frame()
+          out.push(sample())
+        }
+        return out
+      })
+    expect(samples).toHaveLength(12)
+    // Mid-gesture samples are what the review saw drift (2.01–6.32 px).
+    expect(samples.some((s) => s?.gesture)).toBe(true)
+    for (const s of samples) {
+      expect(s).not.toBeNull()
+      for (const gap of s?.gaps ?? [])
+        expect(Math.abs(gap - 4)).toBeLessThanOrEqual(0.5)
+      expect(Math.abs((s?.outline ?? 0) - 1)).toBeLessThanOrEqual(0.05)
+      expect(Math.abs(s?.span ?? Infinity)).toBeLessThanOrEqual(0.5)
+    }
   })
 
   test('a plain click inside the set collapses it to that frame', async ({
