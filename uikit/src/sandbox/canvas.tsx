@@ -7,12 +7,13 @@ import { TT, useTemplatePreview } from "./templates"
 import { cn } from "@/lib/utils"
 import { P } from "@/data"
 import {
-  SW, SH, PAGE, type Frame, type Spread, type Rect, type SnapLine, type Anchor, anchors, snapRect, resolveGrid, effectiveGrid,
+  SW, SH, PAGE, type Doc, type Frame, type Spread, type Rect, type SnapLine, type Anchor, anchors, snapRect, resolveGrid, effectiveGrid,
   allGuides, clamp, round, effectiveDpi, orientedSize, photoOf, uid, framesFromTemplate,
   parentOf, pageNumbersOf, type Guide,
 } from "./model"
 import { useStudio, mapSpread, mapFrames, type Studio } from "./store"
 import { fillTokens } from "./meta"
+import { setTextOverflow, useTextOverflow } from "./text-overflow"
 
 export const PHOTO_TYPE = "application/x-photobooks-photo"
 export const FRAME_TYPE = "application/x-photobooks-frame"
@@ -43,9 +44,54 @@ const TEXT = {
   body: { font: "'Inter Variable', system-ui, sans-serif", size: 3.6, weight: 400, lh: 1.5 },
 }
 
+/** Designer text-frames: a text box shows whole lines only, floor(h / line) of them; below that it is empty paper. */
+const wholeLines = (h: number, line: number) => Math.floor(h / line + 1e-6) * line
+
+function TextView({ f, text, css, vis, preview }: { f: Frame; text: string; css: React.CSSProperties; vis: number; preview: boolean }) {
+  const ref = React.useRef<HTMLDivElement>(null)
+  React.useLayoutEffect(() => {
+    let live = true
+    const measure = () => { const el = ref.current; if (live && el) setTextOverflow(f.id, !!text && el.scrollHeight > vis + 0.5) }
+    measure(); void document.fonts?.ready.then(measure)
+    return () => { live = false }
+  })
+  React.useEffect(() => () => setTextOverflow(f.id, false), [f.id])
+  return (
+    <div ref={ref} data-testid="text-body" className="absolute inset-x-0 top-0 overflow-hidden whitespace-pre-wrap [overflow-wrap:anywhere]" style={{ ...css, height: vis }}>
+      {text || (!preview && <span className="opacity-40">Empty text</span>)}
+    </div>
+  )
+}
+
+/* Edit mode: transparent textarea at the frame rect, 1 px outline, no handles. A content edit grows the box to whole lines,
+   capped at the paper bottom, by DOM style only (no doc render per key); the grown h is written with the text on exit. */
+function TextEdit({ f, css, line, sc, onEditDone }: { f: Frame; css: React.CSSProperties; line: number; sc: number; onEditDone?: (t: string, h: number) => void }) {
+  const box = React.useRef<HTMLDivElement>(null), ta = React.useRef<HTMLTextAreaElement>(null)
+  const lines = React.useRef(0), cur = React.useRef(f.h * sc)
+  const t = TEXT[f.textStyle ?? "caption"], lineMm = t.size * t.lh
+  React.useLayoutEffect(() => { const el = ta.current!; el.focus(); el.setSelectionRange(el.value.length, el.value.length) }, [])
+  const grow = (el: HTMLTextAreaElement) => {
+    el.style.height = "0px"; const content = el.scrollHeight; el.style.height = ""
+    if (content <= wholeLines(cur.current, line) + 0.5) return
+    lines.current = Math.round(content / line)
+    cur.current = Math.min((SH - f.y) * sc, lines.current * line)
+    box.current!.style.height = `${cur.current}px`
+  }
+  const h = () => Math.max(f.h, Math.min(round(SH - f.y, 2), round(lines.current * lineMm, 2)))
+  return (
+    <div ref={box} className="absolute inset-x-0 top-0 outline-1 outline-offset-1 outline-select [outline-style:solid]" style={{ height: f.h * sc }} data-testid="text-edit">
+      <textarea ref={ta} defaultValue={f.text} aria-label="Text" placeholder="Type text" onInput={(e) => grow(e.currentTarget)}
+        onBlur={(e) => onEditDone?.(e.currentTarget.value, h())}
+        onKeyDown={(e) => { if (e.key === "Escape" || (e.key === "Enter" && (e.metaKey || e.ctrlKey))) (e.currentTarget as HTMLTextAreaElement).blur(); e.stopPropagation() }}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="block size-full resize-none border-0 bg-transparent p-0 caret-[#232223] outline-hidden selection:bg-sel placeholder:text-[rgb(35_34_32/.4)] [overflow-wrap:anywhere]" style={css} />
+    </div>
+  )
+}
+
 /* ---------------------------------------------------------------- one frame */
 function FrameBody({ f, s, sc, missing, inherited, editing, onEditDone }: {
-  f: Frame; s: Spread; sc: number; missing: boolean; inherited?: boolean; editing?: boolean; onEditDone?: (t: string) => void
+  f: Frame; s: Spread; sc: number; missing: boolean; inherited?: boolean; editing?: boolean; onEditDone?: (t: string, h: number) => void
 }) {
   const st = useStudio()
   const style = f.styleId ? st.doc.styles.find((x) => x.id === f.styleId) : undefined
@@ -56,13 +102,9 @@ function FrameBody({ f, s, sc, missing, inherited, editing, onEditDone }: {
     const anchorPhoto = f.anchor ? s.frames.find((x) => x.id === f.anchor)?.photo ?? null : null
     const text = f.live ? fillTokens(f.text ?? "", anchorPhoto) : f.text ?? ""
     const css: React.CSSProperties = { fontFamily: t.font, fontSize: t.size * sc, fontWeight: t.weight, lineHeight: t.lh, textAlign: f.align ?? "left", color: "#232220" }
-    if (editing) return (
-      <textarea autoFocus defaultValue={f.text} aria-label="Text" onBlur={(e) => onEditDone?.(e.currentTarget.value)}
-        onKeyDown={(e) => { if (e.key === "Escape" || (e.key === "Enter" && (e.metaKey || e.ctrlKey))) (e.currentTarget as HTMLTextAreaElement).blur(); e.stopPropagation() }}
-        onPointerDown={(e) => e.stopPropagation()}
-        className="absolute inset-0 resize-none bg-white/70 p-0 outline-hidden" style={css} />
-    )
-    return <div className="absolute inset-0 overflow-hidden whitespace-pre-wrap" style={css}>{text || <span className="opacity-40">Empty text</span>}</div>
+    const line = t.size * t.lh * sc
+    if (editing) return <TextEdit f={f} css={css} line={line} sc={sc} onEditDone={onEditDone} />
+    return <TextView f={f} text={text} css={css} vis={wholeLines(f.h * sc, line)} preview={st.view.preview} />
   }
   return (
     <div className="absolute inset-0 overflow-hidden" style={{ background: style?.mat ? "#fff" : undefined, borderRadius: (style?.radius ?? 0) * sc, boxShadow: style?.shadow ? "0 1px 3px rgb(0 0 0 / .18)" : undefined, outline: style?.stroke ? `${Math.max(1, style.stroke * sc)}px solid ${style.strokeColor}` : undefined, outlineOffset: style?.stroke ? -Math.max(1, style.stroke * sc) : undefined }}>
@@ -86,7 +128,7 @@ function FrameBody({ f, s, sc, missing, inherited, editing, onEditDone }: {
 type FrameProps = {
   f: Frame; si: number; s: Spread; sc: number; selected: boolean; inherited?: boolean; hidden?: boolean
   onDown: (e: React.PointerEvent, f: Frame) => void; onDouble: (f: Frame) => void
-  editing: boolean; onEditDone: (t: string) => void
+  editing: boolean; onEditDone: (t: string, h: number) => void
 }
 /** K1: Esc or a release ends a frame drag even when the browser never sends dragleave / dragend,
  *  so the "Release to replace" chip and the dimmed source clear on cancel (prod M43); a new dragstart re-arms. */
@@ -114,8 +156,10 @@ function FrameEl(p: FrameProps) {
     getDropOperation: (types) => (types.has(PHOTO_TYPE) || types.has(FRAME_TYPE) ? "move" : "cancel"),
     onDrop: async (e) => { await handleDrop(st, p.si, f.id, e.items) },
   })
+  // swap drag only with Select: a native drag would eat the pointerup of a Text press over a photo (Designer text-frames)
+  const swap = !!st.features.swap && !!f.photo && !p.inherited && st.view.tool === "select"
   const { dragProps, isDragging } = useDrag({
-    isDisabled: !st.features.swap || !f.photo || p.inherited,
+    isDisabled: !swap,
     getItems: () => [{ [FRAME_TYPE]: `${p.si}:${f.id}`, "text/plain": f.photo ? P(f.photo).name : "" }],
     onDragStart: () => st.setStatus("Drag onto another frame to swap, or onto the filmstrip to take the photo back"),
     onDragEnd: () => st.setStatus(""),
@@ -123,12 +167,13 @@ function FrameEl(p: FrameProps) {
   const dropLive = useDragLive(isDropTarget), dragLive = useDragLive(isDragging)
   const crop = st.cropId === f.id
   const dpi = st.view.dpi && f.kind === "image" ? effectiveDpi(f) : null
+  const overflow = useTextOverflow(f.kind === "text" && !p.inherited ? f.id : undefined)
   return (
-    <div ref={ref} {...(canDrop ? dropProps : {})} {...(st.features.swap && f.photo && !p.inherited ? dragProps : {})}
+    <div ref={ref} {...(canDrop ? dropProps : {})} {...(swap ? dragProps : {})}
       data-frame={f.id} data-testid={p.inherited ? "master-frame" : "frame"}
       onPointerDown={(e) => p.onDown(e, f)} onDoubleClick={() => p.onDouble(f)}
       className={cn("group/frame absolute", p.inherited ? cn("z-10", st.features.overrides && st.view.tool === "select" && !st.view.preview ? "cursor-default" : "pointer-events-none") : "", dragLive && "opacity-40", p.hidden && "opacity-0")}
-      style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined, zIndex: crop ? 30 : undefined }}>
+      style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined, zIndex: crop || p.editing ? 30 : undefined }}>
       {crop && <div className="pointer-events-none absolute inset-0 overflow-visible"><PhotoImg f={f} wpx={f.w * sc} hpx={f.h * sc} ghost /></div>}
       <FrameBody f={f} s={p.s} sc={sc} missing={missing} inherited={p.inherited} editing={p.editing} onEditDone={p.onEditDone} />
       {f.kind === "image" && f.caption && <div data-testid="frame-caption" className="pointer-events-none absolute inset-x-0 truncate" style={{ top: f.h * sc + 1.5 * sc, fontSize: TEXT.caption.size * sc, fontFamily: TEXT.caption.font, color: "#535152", lineHeight: 1.3 }}>{f.caption}</div>}
@@ -145,6 +190,14 @@ function FrameEl(p: FrameProps) {
       {dpi !== null && dpi < 300 && !st.view.preview && (
         <span className={cn("pointer-events-none absolute bottom-1 left-1 inline-flex items-center gap-1 rounded-xs bg-field px-1.5 py-0.5 text-2xs text-ink-warning shadow-sm", dpi < 150 ? "font-semibold" : "font-medium")} data-testid="dpi-badge">
           <AlertTriangle className="size-2.5" />{dpi} dpi
+        </span>
+      )}
+      {/* Designer text-frames: the Low-res chip look (M85), 4 px under the frame, right-aligned; inside when it would pass the paper bottom */}
+      {overflow && !p.editing && !st.view.preview && (
+        <span data-testid="text-overflow-chip" title="Text doesn't fit the frame"
+          className="pointer-events-none absolute z-10 inline-flex h-3.5 items-center gap-1 whitespace-nowrap rounded-xs bg-field px-1 py-px text-2xs font-medium leading-3 text-ink-warning"
+          style={(f.y + f.h) * sc + 18 > SH * sc ? { right: 4, bottom: 4 } : { right: 0, top: f.h * sc + 4 }}>
+          <AlertTriangle className="size-2.5" />Overflow
         </span>
       )}
     </div>
@@ -270,6 +323,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   const [lines, setLines] = React.useState<SnapLine[]>([])
   const [marquee, setMarquee] = React.useState<Rect | null>(null)
   const [editing, setEditing] = React.useState<string | null>(null)
+  const fresh = React.useRef<string | null>(null)
   const par = parentOf(doc, s)
   const overridden = new Set(s.frames.map((f) => f.overrides).filter(Boolean) as string[])
   const parentFrames = (par?.frames ?? []).filter((f) => !(s.hiddenParent ?? []).includes(f.id) && !overridden.has(f.id))
@@ -295,6 +349,12 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
     if (st.cropId && st.cropId !== f.id) st.setCropId(null)
     if (editing === f.id) return
     st.setCur(si)
+    // Designer text-frames: Text over a photo frame starts a text frame (captions on photos); over a text frame it edits that one
+    if (view.tool === "text" && st.cropId !== f.id) {
+      e.stopPropagation()
+      if (f.kind !== "text") { drawFrame(e, "text"); return }
+      e.preventDefault(); st.setSel([f.id]); setEditing(f.id); return
+    }
     if (st.cropId === f.id) { // pan inside the frame
       e.stopPropagation()
       const p0 = { ox: f.ox, oy: f.oy }, ph = photoOf(f.photo)!
@@ -377,16 +437,37 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
     if (e.button !== 0) return
     st.setCur(si)
     if (st.cropId) { st.setCropId(null); return }
-    if (view.tool === "frame" || view.tool === "text") {
-      const kind = view.tool
-      const id = uid()
-      const start = gesture(e, (p) => {
-        const r = { x: Math.min(p.x, start.x), y: Math.min(p.y, start.y), w: Math.abs(p.x - start.x), h: Math.abs(p.y - start.y) }
-        st.preview((d) => mapSpread(d, si, (sp) => ({ ...sp, template: null, frames: [...sp.frames.filter((q) => q.id !== id), { id, kind: kind === "text" ? "text" : "image", photo: null, zoom: 1, ox: 0, oy: 0, rot: 0, qt: 0, straighten: 0, text: kind === "text" ? "New text" : undefined, textStyle: "caption", ...r }] })))
-      }, (m) => { if (m) { st.commit(kind === "text" ? "Add text frame" : "Add frame"); st.setSel([id]); st.setView({ tool: "select" }) } })
-      return
-    }
+    if (view.tool === "frame" || view.tool === "text") { drawFrame(e, view.tool); return }
     startMarquee(e)
+  }
+  /* Frame / Text draw. Text (Designer text-frames): a drag keeps min 10 × 4.5 mm (one caption line); a click makes 60 × 14 mm
+     (3 caption lines) at the snapped point, inside the clicked page's 6 mm safe area. The new text frame stays a draft and
+     editing starts at once: its first edit ends in one "Add text" step, or removes it with no step when left empty (endEdit). */
+  const drawFrame = (e: React.PointerEvent, kind: "frame" | "text") => {
+    const id = uid(), text = kind === "text"
+    const put = (r: Rect) => st.preview((d) => mapSpread(d, si, (sp) => ({ ...sp, template: null, frames: [...sp.frames.filter((q) => q.id !== id), { id, kind: text ? "text" : "image", photo: null, zoom: 1, ox: 0, oy: 0, rot: 0, qt: 0, straighten: 0, text: text ? "" : undefined, textStyle: "caption", align: text ? "left" : undefined, ...r }] })))
+    const start = gesture(e, (p) => {
+      const r = { x: Math.min(p.x, start.x), y: Math.min(p.y, start.y), w: Math.abs(p.x - start.x), h: Math.abs(p.y - start.y) }
+      put(text ? { ...r, w: Math.max(10, r.w), h: Math.max(4.5, r.h) } : r)
+    }, (m) => {
+      if (!text) { if (m) { st.commit("Add frame"); st.setSel([id]); st.setView({ tool: "select" }) } return }
+      if (!m) {
+        const x0 = start.x < PAGE ? 0 : PAGE, w = Math.min(60, PAGE - 12), h = 14
+        const sn = snapOn ? snapRect({ x: start.x, y: start.y, w: 0, h: 0 }, anc([]), th, { x: ["l"], y: ["t"] }) : { dx: 0, dy: 0 }
+        put({ x: round(clamp(start.x + sn.dx, x0 + 6, x0 + PAGE - 6 - w), 2), y: round(clamp(start.y + sn.dy, 6, SH - 6 - h), 2), w, h })
+      }
+      fresh.current = id; st.setSel([id]); st.setView({ tool: "select" }); setEditing(id)
+    })
+  }
+  const endEdit = (f: Frame, t: string, h: number) => {
+    setEditing(null)
+    const patch = (d: Doc) => mapFrames(d, si, [f.id], (x) => ({ ...x, text: t, h, live: x.live && /\{\w+\}/.test(t) }))
+    if (fresh.current === f.id) {
+      fresh.current = null
+      if (!t) { st.cancelPreview(); st.setSel([]); return }
+      st.preview(patch); st.commit("Add text"); return
+    }
+    if (t !== f.text || h !== f.h) st.update(patch, "Edit text")
   }
   /* Marquee (paper or, via viewport.tsx, the pasteboard): hits = own frames whose rotated AABB it touches,
      outlined live; release selects them (∪ the previous set with Shift at the press); Esc restores it. */
@@ -463,7 +544,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
       ))}
       {s.frames.map((f) => (
         <FrameEl key={f.id} f={f} si={si} s={s} sc={sc} selected={st.sel.includes(f.id)} onDown={onFrameDown} onDouble={onDouble}
-          editing={editing === f.id} onEditDone={(t) => { setEditing(null); if (t !== f.text) st.update((d) => mapFrames(d, si, [f.id], (x) => ({ ...x, text: t, live: x.live && /\{\w+\}/.test(t) })), "Edit text") }} />
+          editing={editing === f.id} onEditDone={(t, h) => endEdit(f, t, h)} />
       ))}
       {view.preview && <div className="pointer-events-none absolute inset-0 outline-[4000px] outline-canvas [outline-style:solid]" />}
       {view.grid && !view.preview && <GridOverlay s={s} sc={sc} />}
@@ -485,8 +566,8 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
       {s.frames.filter((f) => live.includes(f.id)).map((f) => (
         <div key={f.id} data-testid="marquee-hit" className="pointer-events-none absolute z-40 shadow-ring-white outline-2 outline-offset-1 outline-select [outline-style:solid]" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined }} />
       ))}
-      {showSel && single && ft.handles && !single.locked && <Handles r={single} sc={sc} rotate={!!ft.rotateHandle} onHandle={onHandle} />}
-      {showSel && (!ft.handles || selFrames.length > 1 || single?.locked) && selFrames.map((f) => (
+      {showSel && single && ft.handles && !single.locked && editing !== single.id && <Handles r={single} sc={sc} rotate={!!ft.rotateHandle} onHandle={onHandle} />}
+      {showSel && (!ft.handles || selFrames.length > 1 || single?.locked) && selFrames.filter((f) => f.id !== editing).map((f) => (
         <div key={f.id} data-testid="sel-outline" className="pointer-events-none absolute z-40 shadow-ring-white outline-2 outline-offset-1 outline-select [outline-style:solid]" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined }} />
       ))}
       {showSel && selFrames.length > 1 && (() => { const b = bbox(selFrames); return <div className="pointer-events-none absolute z-40 outline-1 outline-dashed outline-mark" style={{ left: b.x * sc - 4, top: b.y * sc - 4, width: b.w * sc + 8, height: b.h * sc + 8 }} /> })()}

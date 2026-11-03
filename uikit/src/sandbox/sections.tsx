@@ -41,7 +41,8 @@ export function TextSection({ live = false }: { live?: boolean }) {
         <span className="ml-auto text-2xs text-muted-foreground">dbl-click to edit on canvas</span>
       </div>
       <TextField aria-label="Text" value={f.text ?? ""} onChange={(v) => set({ text: v }, "Edit text", `txt-${f.id}`)} className="mt-2">
-        <TextArea className="min-h-16 text-sm shadow-xs" />
+        {/* Designer text-frames: grows with the content up to 160 px, then scrolls; focus = inset 1 px #535152 (parent-spreads-inspector) */}
+        <TextArea className="field-sizing-content max-h-40 min-h-16 overflow-y-auto text-sm shadow-xs data-[focused]:ring-1 data-[focused]:ring-tag data-[focused]:ring-offset-0 data-[focused]:ring-inset" />
       </TextField>
       {live && (
         <div className="mt-3 flex flex-col gap-2 pt-3" data-testid="live-caption">
