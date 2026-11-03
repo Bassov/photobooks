@@ -2091,6 +2091,12 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const names = await page.locator(`${dock} [data-testid="filmstrip"] [role="row"]`).evaluateAll((rs) => rs.map((r) => r.getAttribute("aria-label") ?? r.textContent.trim()))
   const label1 = (await page.locator(S).textContent()).trim()
   ok("kit-sync KS13: File name relabels the chip and sorts the strip by name", label1 === "File name" && names.length === all.length && names.every((n, i) => i === 0 || names[i - 1].localeCompare(n, undefined, { numeric: true }) <= 0), JSON.stringify({ label1, names: names.slice(0, 4) }))
+  // all placed: the gallery keeps only the cover photo → Unplaced on shows prod's all-placed copy
+  await page.evaluate((id) => { const d = window.__demo, b = d.state().books[0]; b.doc = { ...b.doc, gallery: [id] }; d.go("library") }, all[0]); await page.waitForTimeout(300)
+  await page.evaluate(() => window.__demo.go("editor")); await page.waitForTimeout(700)
+  await page.click(U); await page.waitForTimeout(250)
+  const hAll = await head(), copyAll = (await page.locator(`${dock} [data-testid="film-panel"]`).innerText()).trim()
+  ok("kit-sync KS13: every photo placed + Unplaced on → Photos · 0 of 1 · 1 used and “Every photo is placed. Turn off “Unplaced” to see all.”", hAll === "Photos · 0 of 1 · 1 used" && copyAll === "Every photo is placed. Turn off “Unplaced” to see all.", JSON.stringify({ hAll, copyAll }))
   ok("kit-sync W5: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
 
