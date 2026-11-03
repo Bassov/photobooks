@@ -626,7 +626,8 @@ await page.goto(url + "#/"); await page.waitForTimeout(400)
         const paper = /bg-paper|bg-white|shadow-(thumb|stage|hairline)|\bspread\b/.test(cls) || e.closest('[data-testid="spread"],[data-testid="site"],.site,[class*="shadow-thumb"],[class*="bg-paper"],[class*="shadow-stage"]') || e.style.background || e.style.backgroundColor || /swatch|handle|cursor-/.test(cls + (e.getAttribute("data-testid") ?? ""))
         return paper ? [] : [["W", k, (e.getAttribute("data-testid") || cls).slice(0, 50)]]
       }
-      const tinted = !(r === g && g === b) && Math.max(r, g, b) - Math.min(r, g, b) <= 14 && Math.min(r, g, b) >= 112
+      // [data-surface="site"]: the photographer-site demos' warm paper theme (Spec site-awards)
+      const tinted = !(r === g && g === b) && Math.max(r, g, b) - Math.min(r, g, b) <= 14 && Math.min(r, g, b) >= 112 && !e.closest('[data-surface="site"]')
       return tinted ? [["T", k, (e.getAttribute("data-testid") || cls).slice(0, 50)]] : []
     }))
     for (const [w, k, s] of r) { if (w === "W") white.push(`${h} ${s}`); else if (!CONTENT.has(k)) tint.push(`${h} ${k} ${s}`) }
