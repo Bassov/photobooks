@@ -417,6 +417,20 @@ await smoke("home → book → spread fullscreen", "site-photographer", async ()
     return [Math.abs(r.top - 12) <= 1 && Math.abs(r.right - (r.pw + 12)) <= 1, `top ${r.top} right ${r.right} (pw ${r.pw})`]
   })
 }
+await smoke("shelf → book page → open cover → turn a page → fullscreen", "site-demo-1", async () => {
+  const reader = '[data-testid="ps-stage"] [data-testid="ps-reader"]'
+  const at = (v) => page.waitForFunction(([s, v]) => document.querySelector(s)?.getAttribute("data-view") === v, [`${demo} ${reader}`, v], { timeout: 4000 })
+  await D('[data-testid="ps-book"]').first().click(); await page.waitForTimeout(700)
+  const title = await D('[data-testid="ps-title"]').textContent()
+  const size = await D(reader).evaluate((e) => `${e.offsetWidth}×${e.offsetHeight}`)
+  await D(reader).click(); await at("1")
+  await D('[data-testid="ps-next"]').click(); await at("2")
+  const leaf = await D('[data-testid="ps-leaf"]').count()
+  await D('[data-testid="ps-fullscreen"]').click(); await page.waitForTimeout(300)
+  const lb = await D('[data-testid="lightbox"]').isVisible()
+  const ind = await D('[data-testid="site-fullscreen-indicator"]').textContent()
+  return [title === "Lake trip" && leaf === 0 && lb && ind === "Pages 2–3", `title ${title} · reader ${size} · leaf after turn ${leaf} · lightbox ${lb} · ${ind}`]
+})
 // ---------------------------------------------------------------- v5 checks
 const fitAir = async () => page.evaluate(() => {
   const d = document.querySelector('[data-testid="demo"]'); const sp = d.querySelector('.canvas-dots [data-testid="spread"]'); const vp = sp.parentElement.closest(".canvas-dots")
@@ -476,7 +490,8 @@ await smoke("v6 Home: no New book tile; covers in a row share a baseline", "rece
 // ---------- v0.6.0 ----------
 const walk6 = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walk6(`${d}/${e.name}`) : /\.(tsx?|css)$/.test(e.name) ? [`${d}/${e.name}`] : [])
 { // no blue anywhere: hue scan of every hex / rgb literal in src css + tsx, blue Tailwind classes, retired accent
-  const all = walk6(new URL("../src", import.meta.url).pathname)
+  // features/site-demo-*: book cloth colours of the photographer-site demos are content, like the photos (Spec site-awards)
+  const all = walk6(new URL("../src", import.meta.url).pathname).filter((f) => !f.includes("/features/site-demo-"))
   const hue = (r, g, b) => { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (d < 24) return null; let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; return h < 0 ? h + 360 : h }
   const bad = []
   for (const f of all) {
@@ -945,7 +960,8 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
       const root = document.querySelector('[data-testid="demo"]') || document.body; const out = []
       const sat = (c) => { const m = c.match(/rgba?\(([\d.]+),?\s*([\d.]+),?\s*([\d.]+)(?:[,/]\s*([\d.]+))?/); if (!m) return 0; if (m[4] !== undefined && +m[4] < 0.05) return 0; return Math.max(+m[1], +m[2], +m[3]) - Math.min(+m[1], +m[2], +m[3]) }
       for (const el of root.querySelectorAll("*")) { const r = el.getBoundingClientRect(); if (!r.width || !r.height) continue
-        if (el.closest("[data-swatch],[data-theme-option]")) continue
+        // [data-surface="site"]: the photographer-site demos carry their own warm site theme (Spec site-awards)
+        if (el.closest('[data-swatch],[data-theme-option],[data-surface="site"]')) continue
         const cs = getComputedStyle(el); if (cs.visibility === "hidden" || cs.opacity === "0") continue
         for (const p of ["color", "backgroundColor", "outlineColor", "borderTopColor", "fill", "stroke"]) { const v = cs[p]
           if (p === "outlineColor" && (cs.outlineStyle === "none" || cs.outlineWidth === "0px")) continue

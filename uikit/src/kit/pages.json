@@ -20,5 +20,7 @@
   {"slug": "site-photographer", "title": "Photographer site (demo)", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "site"},
   {"slug": "site-preview-mode", "title": "Site preview from the editor", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "site"},
   {"slug": "pdf-export", "title": "Print dialog (PDF)", "group": "M6 — Print", "kind": "interactive", "screen": "print"},
-  {"slug": "in-app-publish", "title": "Publish dialog", "group": "M7 — Deploy as my site", "kind": "interactive", "screen": "publish"}
+  {"slug": "in-app-publish", "title": "Publish dialog", "group": "M7 — Deploy as my site", "kind": "interactive", "screen": "publish"},
+  {"slug": "site-demos", "title": "Photographer site: five demos", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"},
+  {"slug": "site-demo-1", "title": "Site demo 1: the lit table", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"}
 ]

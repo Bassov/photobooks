@@ -9,6 +9,8 @@ import { LAKE_BOOK, LAKE_TITLE, docBlank, docAdded, docFilled, COVER_DONE, dbook
 import type { Doc } from "@/sandbox/model"
 import { WithScenarios } from "./parts"
 import { PhotographerSite } from "./site-photographer"
+import { SiteDemos } from "./site-demo-1/entry"
+import { SiteDemo1 } from "./site-demo-1/site"
 import type { FeatureDef, Notes } from "./types"
 
 /** Stage height = the #/demo viewport height (+ the 40 px scenario strip), so every slot sits at its #/demo size. */
@@ -210,6 +212,20 @@ export const PAGES: Record<string, FeatureDef> = {
       what: "Proposal for the published site as a photographer's site of books: home with the books on a shelf, one page per book with text, facts and all spreads, the kit Fullscreen viewer. Sample books and texts.",
       where: "Standalone demo; not in #/demo yet. Full window: #/full/site-photographer.",
       edge: ["Click a book, a spread or the closed book; Esc leaves fullscreen", "Narrow window (< 768) = one column"],
+    },
+  },
+  "site-demos": {
+    Demo: SiteDemos, h: SLOT.app.h, notes: {
+      what: "Entry for five demos of the photographer's personal site: one line per demo; 2–5 are coming.",
+      where: "DEMO branch only. Full window: #/full/site-demos.",
+    },
+  },
+  "site-demo-1": {
+    Demo: SiteDemo1, h: SLOT.app.h, notes: {
+      what: "Site demo 1, the lit table: books on shelves as 3D objects; the book page is a reader that turns pages.",
+      where: "DEMO branch only. Full window: #/full/site-demo-1.",
+      keys: [["← / →", "turn"], ["Home / End", "cover / last spread"], ["Esc", "leave fullscreen"]],
+      edge: ["Drag a page; reduced motion = crossfade", "Narrow = one book per shelf"],
     },
   },
   "site-preview-mode": page([
