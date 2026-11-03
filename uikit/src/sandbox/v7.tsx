@@ -131,7 +131,7 @@ export const Sec = ({ title, children, right }: { title: string; children: React
   <section className="px-4 py-4"><div className="mb-3 flex items-center justify-between"><h3 className="text-2xs font-semibold tracking-[0.12em] uppercase" style={{ color: SUB }}>{title}</h3>{right}</div>{children}</section>)
 export const Field = ({ l, v, u, set, min = 0, max = 99, cap, name, tid = "master-field" }: { l: string; v: string; u?: string; set?: (n: number) => void; min?: number; max?: number; cap?: string; name?: string; tid?: string }) => (
   /* v0.9 §5: always show the short label (`l`) so the number + unit stay visible; long name goes on title/aria */
-  <label className="flex h-8 items-center gap-2 rounded-md px-2.5 text-sm has-[input:focus-visible]:shadow-[inset_0_0_0_1px_#535152]" style={{ background: FIELD }} title={cap ?? name ?? l}><span className="min-w-3 shrink-0 text-center" style={{ color: SUB }}>{l}</span>
+  <label className="flex h-8 items-center gap-2 rounded-md px-2.5 text-sm has-[input:focus-visible]:shadow-field-focus" style={{ background: FIELD }} title={cap ?? name ?? l}><span className="min-w-3 shrink-0 text-center" style={{ color: SUB }}>{l}</span>
     {set ? <input type="number" inputMode="numeric" aria-label={name ?? cap ?? l} value={v} min={min} max={max} data-testid={`${tid}-${l}`} onChange={(e) => { const n = +e.target.value; if (Number.isFinite(n)) set(Math.min(max, Math.max(min, n))) }}
         className="w-0 min-w-0 flex-1 bg-transparent font-mono tabular-nums outline-none [appearance:textfield] focus-visible:underline" style={{ color: T }} />
       : <span className="flex-1 font-mono tabular-nums" style={{ color: T }}>{v}</span>}{u && <span className="shrink-0" style={{ color: SUB }}>{u}</span>}</label>)
