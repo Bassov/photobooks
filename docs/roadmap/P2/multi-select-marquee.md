@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: marquee selection
+Status: done
 
 ## Scope
 
