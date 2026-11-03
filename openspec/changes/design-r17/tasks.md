@@ -9,3 +9,7 @@
 
 1. Kit `#/demo` 1440 × 900: spread 2–3, Esc twice, press the grey canvas at (20, 20) → row "1", inspector "Spread · Page 1", page-1 label y unchanged.
 2. Prod editor 1440 × 900: a spread-list card centre line is `rgba(0, 0, 0, 0.1)`; the canvas fold keeps its gradient.
+
+- harness problem: `pnpm agent manual-qa` timed out on `start-session` (welcome-screen header intercepts the click) before either scenario; it cannot drive the kit `#/demo` anyway.
+- OK 1 (kit qa `uikit/scripts/qa.mjs` r16 M92, 330 passed): before the press no row and "Select a spread or photo"; after it row `p0`, "Spread · Page 1 · 1 empty", label y 52.25 → 52.25. Demo walk (demo-capture `editor-spread-selected`): label y 66.25 → 66.25, scrollTop 557 kept (before the fix: 623.25, scrollTop 0, empty inspector).
+- OK 2 (`e2e/design-r17-prod.spec.ts`, 1 passed): list card cut `rgba(0, 0, 0, 0.1)`, width `1px`; canvas fold gradient unchanged.
