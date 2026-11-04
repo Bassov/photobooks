@@ -1,9 +1,9 @@
-/* Kit TextSection (uikit/src/sandbox/sections.tsx): Section padding, 16 px
+/* Kit TextSection (uikit/src/sandbox/sections.tsx): Section padding, 12 px
    below the field; Style full width, Align 96 px with the hint on the right. */
 .text-section {
   display: flex;
   flex-direction: column;
-  padding: 2px 16px 16px;
+  padding: 2px 16px 12px;
 }
 
 .text-section-style {
@@ -60,6 +60,7 @@
   margin: 0;
   overflow: hidden;
   font-size: var(--text-2xs);
+  line-height: 14px;
   color: var(--ink-warning);
   text-overflow: ellipsis;
   white-space: nowrap;
