@@ -6,7 +6,12 @@ import {
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
 import { PERF_BUDGETS } from './perf/budgets'
-import { clearPerfScenario, enablePerfScenario } from './perf/perfFixture'
+import {
+  browserStartLoafScripts,
+  browserTakeLoafScripts,
+  clearPerfScenario,
+  enablePerfScenario,
+} from './perf/perfFixture'
 
 /** Fixture library: every decodable sample, served same-origin. */
 const LIBRARY = [
@@ -210,6 +215,7 @@ test.describe('frame-budget gates', () => {
     const box = await frameCenter(frame)
     const { cx, cy } = box
 
+    await page.evaluate(browserStartLoafScripts)
     await clearPerfScenario(page)
     await page.evaluate(
       ({ route, names: assets }) => {
@@ -246,6 +252,10 @@ test.describe('frame-budget gates', () => {
     }
     await page.mouse.up()
     const dragEnd = await page.evaluate(() => performance.now())
+    // Attribution for any gated entry (script URL / function / invoker).
+    await logBench(testInfo, 'drag-loaf-scripts', {
+      rows: await page.evaluate(browserTakeLoafScripts),
+    })
 
     await page.evaluate((handlerBudgetMs) => {
       const perf = window.__photobooksPerf
