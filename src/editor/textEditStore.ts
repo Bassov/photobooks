@@ -8,10 +8,11 @@ type Listener = () => void
 interface TextEdit {
   spreadId: string
   frameId: string
-  /** Made by the Text tool in this session: left empty, it goes away. */
-  created: boolean
-  /** History key shared with the create step ("Add text"); none later. */
-  key: string | undefined
+  /**
+   * History key shared with the Text tool's create step ("Add text"); none
+   * later. A keyed frame left empty goes away.
+   */
+  addKey: string | undefined
 }
 
 /** What the edit overlay holds: the text and the whole-line height it needs. */
@@ -59,15 +60,10 @@ export function nextEditKey(kind: 'add' | 'txt', frameId: string): string {
 /** Edit a text frame (the previous edit commits first). */
 export function startTextEdit(
   target: { spreadId: string; frameId: string },
-  options: { created?: boolean; key?: string } = {},
+  addKey?: string,
 ): void {
   commitTextEdit()
-  current = {
-    spreadId: target.spreadId,
-    frameId: target.frameId,
-    created: options.created === true,
-    key: options.key,
-  }
+  current = { spreadId: target.spreadId, frameId: target.frameId, addKey }
   emit()
 }
 
@@ -113,12 +109,12 @@ export function commitTextEdit(): void {
         text: draft.text,
         fitHeightMm: draft.fitHeightMm,
       },
-      edit.key,
+      edit.addKey,
     )
   }
-  if (edit.created && frameText(edit) === '') {
+  if (edit.addKey !== undefined && frameText(edit) === '') {
     const selected = getFrameSource()
-    if (edit.key === undefined || !discardStep(edit.key)) {
+    if (!discardStep(edit.addKey)) {
       dispatchBookOp({
         type: 'removeFrames',
         spreadId: edit.spreadId,
@@ -144,31 +140,33 @@ export function cancelTextEdit(): void {
 /** Text frames whose text runs past their whole-line box, per spread. */
 const overflowing = new Map<string, readonly string[]>()
 const overflowListeners = new Set<Listener>()
+const NONE: readonly string[] = []
 
 /** The measured overflowing frame ids of one painted spread. */
 export function setSpreadOverflow(
   spreadId: string,
   frameIds: readonly string[],
 ): void {
-  const prev = overflowing.get(spreadId) ?? []
+  const prev = getSpreadOverflow(spreadId)
   if (
     prev.length === frameIds.length &&
     prev.every((id, index) => frameIds[index] === id)
   ) {
     return
   }
-  if (frameIds.length === 0) {
-    overflowing.delete(spreadId)
-  } else {
-    overflowing.set(spreadId, [...frameIds])
-  }
+  overflowing.set(spreadId, frameIds)
   for (const listener of overflowListeners) {
     listener()
   }
 }
 
+/** Stable per change: a `useSyncExternalStore` snapshot. */
+export function getSpreadOverflow(spreadId: string): readonly string[] {
+  return overflowing.get(spreadId) ?? NONE
+}
+
 export function isTextOverflowing(spreadId: string, frameId: string): boolean {
-  return overflowing.get(spreadId)?.includes(frameId) === true
+  return getSpreadOverflow(spreadId).includes(frameId)
 }
 
 export function subscribeTextOverflow(listener: Listener): () => void {

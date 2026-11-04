@@ -2,7 +2,6 @@ import {
   useEffect,
   useLayoutEffect,
   useRef,
-  useState,
   useSyncExternalStore,
   type CSSProperties,
 } from 'react'
@@ -20,10 +19,12 @@ import { ICON_GLYPHS } from '../ui/icons/glyphs'
 import {
   cancelTextEdit,
   commitTextEdit,
+  getSpreadOverflow,
   getSpreadTextEditKey,
   registerTextDraft,
   setSpreadOverflow,
   subscribeTextEdit,
+  subscribeTextOverflow,
 } from './textEditStore'
 import './TextEditOverlay.css'
 
@@ -40,12 +41,12 @@ function textItems(resolved: ResolvedSpread): TextItem[] {
   )
 }
 
-function boxStyle(item: ResolvedItem, pxPerMm: number): CSSProperties {
+/** The frame's left / top / width on the painted spread. */
+function placeStyle(item: ResolvedItem, pxPerMm: number): CSSProperties {
   return {
     left: item.rectMm.x * pxPerMm,
     top: item.rectMm.y * pxPerMm,
     width: item.rectMm.width * pxPerMm,
-    height: item.rectMm.height * pxPerMm,
   }
 }
 
@@ -153,8 +154,8 @@ function TextEditBox({
     }
     el.value = live.current.item.text.text
     growBox(el, live.current)
+    // Setting the value already put the caret at the end.
     el.focus({ preventScroll: true })
-    el.setSelectionRange(el.value.length, el.value.length)
     return registerTextDraft(() => ({
       text: el.value,
       fitHeightMm: live.current.fitMm,
@@ -170,12 +171,7 @@ function TextEditBox({
       aria-label="Text"
       placeholder="Type text"
       spellCheck={false}
-      style={{
-        ...style,
-        left: item.rectMm.x * pxPerMm,
-        top: item.rectMm.y * pxPerMm,
-        width: item.rectMm.width * pxPerMm,
-      }}
+      style={{ ...style, ...placeStyle(item, pxPerMm) }}
       onInput={(event) => {
         growBox(event.currentTarget, live.current)
       }}
@@ -198,10 +194,6 @@ function TextEditBox({
       }}
     />
   )
-}
-
-function sameIds(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((id, index) => b[index] === id)
 }
 
 /** Painted text nodes taller than their whole-line box (fonts loaded first). */
@@ -234,22 +226,20 @@ function OverflowChips({
   editingId: string
 }) {
   const ref = useRef<HTMLSpanElement>(null)
-  const [ids, setIds] = useState<readonly string[]>([])
+  const ids = useSyncExternalStore(
+    subscribeTextOverflow,
+    () => getSpreadOverflow(spreadId),
+    () => getSpreadOverflow(spreadId),
+  )
   useEffect(() => {
-    let live = true
+    // Any measure reads the DOM as it is now, so a stale one is harmless.
     const measure = () => {
-      const view = ref.current?.closest('[data-testid="spread-view"]')
-      if (!live || view === null || view === undefined) {
-        return
+      const view = ref.current?.closest('[data-testid="spread-view"]') ?? null
+      if (view !== null) {
+        setSpreadOverflow(spreadId, measureOverflow(view, textItems(resolved)))
       }
-      const next = measureOverflow(view, textItems(resolved))
-      setIds((prev) => (sameIds(prev, next) ? prev : next))
-      setSpreadOverflow(spreadId, next)
     }
     loadFonts(textStyleFonts()).then(measure, measure)
-    return () => {
-      live = false
-    }
   }, [spreadId, resolved, pxPerMm])
   useEffect(
     () => () => {
@@ -270,7 +260,10 @@ function OverflowChips({
           <span
             key={item.frameId}
             className="text-overflow-anchor"
-            style={boxStyle(item, pxPerMm)}
+            style={{
+              ...placeStyle(item, pxPerMm),
+              height: item.rectMm.height * pxPerMm,
+            }}
           >
             <span
               className="text-overflow-chip"

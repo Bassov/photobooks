@@ -11,16 +11,23 @@ import type { Frame } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import {
+  dispatchBookOp,
   getBookStoreSnapshot,
   getHistorySnapshot,
   resetBookStore,
   undoBook,
 } from './bookStore'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
-import { resetFrameSelection, setFrameSource } from './frameSelection'
+import {
+  getFrameSource,
+  resetFrameSelection,
+  setFrameSource,
+} from './frameSelection'
+import { installEditorKeys } from './galleryDrop'
 import { Inspector } from './Inspector'
 import { isTextFrameTarget } from './inspectorModel'
 import { resetTextEditForTests, setSpreadOverflow } from './textEditStore'
+import { TextFrameSections } from './TextSection'
 
 const at = { spreadId: 's1', frameId: 't' }
 const label: Frame = {
@@ -34,18 +41,18 @@ const label: Frame = {
 const textFrame = () =>
   getBookStoreSnapshot().book.spreads[0]?.frames.find((item) => item.id === 't')
 
+function load(frames: Frame[]) {
+  resetBookStore({
+    book: makeBook({ spreads: [makeSpread({ id: 's1', frames })] }),
+    sessionMeta: new Map(),
+    importRunning: false,
+    importExpectedCount: 0,
+  })
+}
+
 describe('Text inspector', () => {
   beforeEach(() => {
-    resetBookStore({
-      book: makeBook({
-        spreads: [
-          makeSpread({ id: 's1', frames: [makeFrame({ id: 'a' }), label] }),
-        ],
-      }),
-      sessionMeta: new Map(),
-      importRunning: false,
-      importExpectedCount: 0,
-    })
+    load([makeFrame({ id: 'a' }), label])
   })
 
   afterEach(() => {
@@ -98,7 +105,92 @@ describe('Text inspector', () => {
     expect(getHistorySnapshot().undoLabel).toBe('Text style')
     fireEvent.click(screen.getByRole('radio', { name: 'Right' }))
     expect(textFrame()?.align).toBe('right')
+    expect(screen.getByRole('radio', { name: 'Right' })).toHaveProperty(
+      'checked',
+      true,
+    )
     expect(getHistorySnapshot().undoLabel).toBe('Align text')
+  })
+
+  it('summarizes the layer on the collapsed Arrange; Esc in the field keeps the selection', () => {
+    const stop = installEditorKeys()
+    act(() => {
+      setFrameSource(at)
+    })
+    render(<Inspector />)
+    const trigger = within(
+      screen.getByTestId('inspector-arrange-disclosure'),
+    ).getAllByRole('button')[0]
+    const described = trigger?.getAttribute('aria-describedby') ?? ''
+    expect(document.getElementById(described)?.textContent).toBe('layer 2 of 2')
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Text' }), {
+      key: 'Escape',
+    })
+    expect(getFrameSource()).toEqual(at)
+    stop()
+  })
+
+  it('renders nothing for a missing, photo or gone-spread target; bare text reads empty', () => {
+    const { container } = render(
+      <>
+        <TextFrameSections target={{ spreadId: 's1', frameId: 'zz' }} />
+        <TextFrameSections target={{ spreadId: 's1', frameId: 'a' }} />
+        <TextFrameSections target={{ spreadId: 'gone', frameId: 't' }} />
+      </>,
+    )
+    expect(within(container).queryByTestId('inspector-text')).toBeNull()
+    cleanup()
+    // A text frame whose content was never written.
+    load([
+      makeFrame({ id: 'a' }),
+      { id: 't', rect: label.rect, z: 2, kind: 'text' },
+    ])
+    render(<TextFrameSections target={at} />)
+    expect(screen.getByRole('textbox', { name: 'Text' })).toHaveProperty(
+      'value',
+      '',
+    )
+  })
+
+  it('typing with no painted spread, no layout or a frame gone keeps the box', () => {
+    const frames: FrameRequestCallback[] = []
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((run) => {
+      frames.push(run)
+      return 0
+    })
+    const flush = () => {
+      for (const run of frames.splice(0)) {
+        run(0)
+      }
+    }
+    act(() => {
+      setFrameSource(at)
+    })
+    const { rerender } = render(<Inspector />)
+    const field = () => screen.getByRole('textbox', { name: 'Text' })
+    fireEvent.focus(field())
+    fireEvent.change(field(), { target: { value: 'No view' } })
+    flush()
+    expect(textFrame()?.rect).toEqual(label.rect)
+
+    // Painted but unlaid-out (offsetWidth 0): no px scale to measure with.
+    rerender(
+      <>
+        <ConnectedSpreadView spreadId="s1" />
+        <Inspector />
+      </>,
+    )
+    fireEvent.change(field(), { target: { value: 'No layout' } })
+    flush()
+    expect(textFrame()?.rect).toEqual(label.rect)
+
+    fireEvent.change(field(), { target: { value: 'Gone' } })
+    act(() => {
+      dispatchBookOp({ type: 'removeFrames', spreadId: 's1', frameIds: ['t'] })
+    })
+    expect(() => {
+      flush()
+    }).not.toThrow()
   })
 
   it('shows the overflow meta while the frame overflows', () => {
@@ -164,6 +256,15 @@ describe('Text inspector', () => {
       content: { type: 'static', text: 'Hi' },
       rect: label.rect,
     })
+  })
+
+  it('a photo frame keeps the Photo inspector', () => {
+    act(() => {
+      setFrameSource({ spreadId: 's1', frameId: 'a' })
+    })
+    render(<Inspector />)
+    expect(screen.getByTestId('inspector-context').textContent).toBe('Photo')
+    expect(screen.queryByTestId('inspector-text')).toBeNull()
   })
 
   it('isTextFrameTarget tells a text frame from a photo frame', () => {

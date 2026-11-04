@@ -801,7 +801,7 @@ export function installFrameGesture(): () => void {
     armSwallow()
     setFrameSource({ spreadId, frameId })
     setEditorTool('select')
-    startTextEdit({ spreadId, frameId }, { created: true, key })
+    startTextEdit({ spreadId, frameId }, key)
   }
 
   function commitDraw(draw: DrawSession): void {

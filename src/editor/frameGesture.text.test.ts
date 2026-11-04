@@ -17,7 +17,11 @@ import {
   textClickRect,
   textDragRect,
 } from './frameGesture'
-import { getTextEdit, resetTextEditForTests } from './textEditStore'
+import {
+  cancelTextEdit,
+  getTextEdit,
+  resetTextEditForTests,
+} from './textEditStore'
 
 const SIZE_MM = 300
 const SCALE = 2
@@ -119,6 +123,10 @@ describe('textClickRect', () => {
     expect(textClickRect({ x: 201, y: 1 }, spread)).toEqual(
       rect(206, 6, 60, 14),
     )
+    // The far right edge still belongs to the last page.
+    expect(textClickRect({ x: 400, y: 40 }, spread)).toEqual(
+      rect(334, 40, 60, 14),
+    )
   })
 
   it('never grows wider than the page allows', () => {
@@ -178,7 +186,10 @@ describe('frameGesture · Text tool', () => {
       spreadId: 'spread-1',
       frameId: created?.id,
     })
-    expect(getTextEdit()).toMatchObject({ frameId: created?.id, created: true })
+    expect(getTextEdit()).toMatchObject({
+      frameId: created?.id,
+      addKey: expect.stringMatching(/^add:/),
+    })
     expect(getEditorTool()).toBe('select')
     expect(getHistorySnapshot().undoLabel).toBe('Add text')
   })
@@ -212,14 +223,53 @@ describe('frameGesture · Text tool', () => {
     expect(spread.querySelector('[data-testid="frame-draft"]')).toBeNull()
   })
 
+  it('a move under 3 px stays a click; 3 px draws the 10 × 4.5 mm minimum', () => {
+    pointer('pointerdown', spread, 200, 20)
+    pointer('pointermove', window, 201, 20)
+    pointer('pointerup', window, 201, 20)
+    expect(frames()[2]?.rect).toMatchObject({ width: 60, height: 14 })
+
+    setEditorTool('text')
+    pointer('pointerdown', spread, 200, 120)
+    pointer('pointermove', window, 201.5, 120)
+    pointer('pointerup', window, 201.5, 120)
+    // (The first frame, left empty, went away when this edit started.)
+    expect(frames().at(-1)?.rect).toMatchObject({ width: 10, height: 4.5 })
+  })
+
+  it('a draw dragged back near its start keeps following the pointer', () => {
+    pointer('pointerdown', spread, 200, 20)
+    pointer('pointermove', window, 260, 60)
+    pointer('pointermove', window, 200.5, 20)
+    pointer('pointerup', window, 200.5, 20)
+    expect(frames()[2]?.rect).toMatchObject({ width: 10, height: 4.5 })
+  })
+
+  it('a Text press blocks native drags', () => {
+    pointer('pointerdown', button(spread, 'a'), 120, 120)
+    const drag = new Event('dragstart', { bubbles: true, cancelable: true })
+    button(spread, 'a').dispatchEvent(drag)
+    expect(drag.defaultPrevented).toBe(true)
+    pointer('pointerup', window, 120, 120)
+  })
+
   it('a press on a text frame selects it and edits it on release', () => {
-    pointer('pointerdown', button(spread, 't'), 30, 205)
+    const press = pointer('pointerdown', button(spread, 't'), 30, 205)
+    expect(press.defaultPrevented).toBe(true)
     expect(getFrameSource()).toEqual({ spreadId: 'spread-1', frameId: 't' })
     expect(getTextEdit()).toBeNull()
     pointer('pointerup', window, 30, 205)
-    expect(getTextEdit()).toMatchObject({ frameId: 't', created: false })
+    expect(getTextEdit()).toMatchObject({ frameId: 't', addKey: undefined })
     expect(frames()).toHaveLength(2)
     expect(getEditorTool()).toBe('select')
+    // The release click must not land on the frame button.
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+    button(spread, 't').dispatchEvent(click)
+    expect(click.defaultPrevented).toBe(true)
+    // One release, one edit.
+    cancelTextEdit()
+    pointer('pointerup', window, 30, 205)
+    expect(getTextEdit()).toBeNull()
   })
 
   it('Select moves a text frame by its body', () => {

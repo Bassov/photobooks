@@ -16,6 +16,7 @@ import {
 import {
   cancelTextEdit,
   commitTextEdit,
+  getSpreadOverflow,
   getSpreadTextEditKey,
   getTextEdit,
   isTextOverflowing,
@@ -37,12 +38,15 @@ const label: Frame = {
   content: { type: 'static', text: 'Hi' },
 }
 
+/** A text frame whose content was never written. */
+const bare: Frame = { id: 'e', rect: label.rect, z: 3, kind: 'text' }
+
 function load() {
   resetBookStore({
     book: makeBook({
       spreads: [
         makeSpread({
-          frames: [makeFrame({ id: 'a' }), label],
+          frames: [makeFrame({ id: 'a' }), label, bare],
         }),
       ],
     }),
@@ -72,7 +76,7 @@ function create(id = 'n') {
     key,
   )
   setFrameSource({ spreadId: 'spread-1', frameId: id })
-  startTextEdit({ spreadId: 'spread-1', frameId: id }, { created: true, key })
+  startTextEdit({ spreadId: 'spread-1', frameId: id }, key)
 }
 
 describe('textEditStore', () => {
@@ -81,6 +85,7 @@ describe('textEditStore', () => {
 
   beforeEach(() => {
     load()
+    draft = { text: '', fitHeightMm: 0 }
     release = registerTextDraft(() => draft)
   })
 
@@ -170,6 +175,47 @@ describe('textEditStore', () => {
     // start, commit + start of the next one, cancel; the no-ops stay quiet.
     expect(listener).toHaveBeenCalledTimes(4)
     stop()
+    startTextEdit(at)
+    expect(listener).toHaveBeenCalledTimes(4)
+  })
+
+  it('an empty new frame keeps another selection, and works with none', () => {
+    create()
+    setFrameSource(at)
+    commitTextEdit()
+    expect(frame('n')).toBeUndefined()
+    expect(getFrameSource()).toEqual(at)
+
+    create('m')
+    setFrameSource(null)
+    commitTextEdit()
+    expect(frame('m')).toBeUndefined()
+    expect(getFrameSource()).toBeNull()
+  })
+
+  it('a stale unregister keeps the newer draft', () => {
+    const stop = registerTextDraft(() => ({ text: 'Newer', fitHeightMm: 14 }))
+    release()
+    startTextEdit(at)
+    commitTextEdit()
+    expect(textOf('t')).toBe('Newer')
+    stop()
+  })
+
+  it('commits without throwing when the spread or frame is gone or has no text yet', () => {
+    draft = { text: '', fitHeightMm: 14 }
+    startTextEdit({ spreadId: 'spread-1', frameId: 'e' })
+    commitTextEdit()
+    expect(frame('e')?.content).toBeUndefined()
+    expect(getHistorySnapshot().undoLabel).toBeNull()
+
+    draft = { text: 'X', fitHeightMm: 14 }
+    startTextEdit({ spreadId: 'gone', frameId: 't' })
+    commitTextEdit()
+    startTextEdit({ spreadId: 'spread-1', frameId: 'zz' })
+    commitTextEdit()
+    expect(textOf('t')).toBe('Hi')
+    expect(getTextEdit()).toBeNull()
   })
 
   it('commits nothing when no overlay holds a draft', () => {
@@ -179,8 +225,9 @@ describe('textEditStore', () => {
     expect(textOf('t')).toBe('Hi')
   })
 
-  it('history keys are fresh per call', () => {
-    expect(nextEditKey('txt', 't')).not.toBe(nextEditKey('txt', 't'))
+  it('history keys count up from 1 after a reset', () => {
+    expect(nextEditKey('txt', 't')).toBe('txt:t:1')
+    expect(nextEditKey('add', 'u')).toBe('add:u:2')
   })
 })
 
@@ -200,6 +247,18 @@ describe('text overflow ids', () => {
     setSpreadOverflow('s1', [])
     expect(isTextOverflowing('s1', 't')).toBe(false)
     expect(listener).toHaveBeenCalledTimes(2)
+    setSpreadOverflow('s2', [])
+    expect(listener).toHaveBeenCalledTimes(2)
+    expect(getSpreadOverflow('s3')).toBe(getSpreadOverflow('s4'))
     stop()
+    setSpreadOverflow('s1', ['t'])
+    expect(listener).toHaveBeenCalledTimes(2)
+  })
+
+  it('a same-length change with other ids updates', () => {
+    setSpreadOverflow('s1', ['a', 'b'])
+    setSpreadOverflow('s1', ['a', 'c'])
+    expect(getSpreadOverflow('s1')).toEqual(['a', 'c'])
+    expect(isTextOverflowing('s1', 'b')).toBe(false)
   })
 })

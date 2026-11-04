@@ -46,6 +46,12 @@ describe('bookHistory', () => {
     const h = recordStep(kept, b, 'add:t:1', undefined, 'Add text')
     expect(dropStep(h, 'add:t:2')).toBeNull()
     expect(dropStep(EMPTY_HISTORY, 'add:t:1')).toBeNull()
+    expect(dropStep({ ...EMPTY_HISTORY, key: 'add:t:1' }, 'add:t:1')).toBeNull()
+    const three = recordStep(h, snap('c'), 'add:u:3', undefined, 'Add text')
+    expect(dropStep(three, 'add:u:3')?.history.pastLabels).toEqual([
+      'Move',
+      'Add text',
+    ])
     const dropped = dropStep(h, 'add:t:1')
     expect(dropped?.snapshot).toBe(b)
     expect(dropped?.history).toMatchObject({
