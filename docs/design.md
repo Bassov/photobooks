@@ -54,6 +54,8 @@ Badges: `--badge-{gray,brand,success,warning,error}-{fg,bg,ring,dot}`.
 
 App Tailwind 4 bridge: `@theme` tokens in `styles/tokens.css` (entry `styles/app.css` from `src/main.tsx`; no `uikit/src` imports); utilities via `@tailwindcss/vite`; preflight omitted until screen ports, except its `button` font / color inherit rule (`@layer base`, never the UA Arial 13.33). Helpers: `src/ui/cn.ts` (`cn` / `cva`).
 
+Site viewer (`styles/tokens.css` under `.site`, read by `src/site/site.css`; kit block under `.site` in `uikit/src/index.css`): `--site-bg` `#E1E1E1`, `--site-text`, `--site-muted`, `--site-control` `#D7D7D7` (+ `-hover` `#CFCFCF`), `--site-focus`, `--site-font` (Inter), `--site-heading` (Lora 400), `--site-page-shadow` (= `--page-shadow` inside `.site`), `--site-h1-narrow` (28 px). They hold today's kit values; a later site direction changes only them and the layout constants in `src/site/siteModel.ts`.
+
 Library quiet controls (search/sort): kit v0.9.1 tone-only field fill `#D7D7D7` on `--chrome` (no border); focus ring `#3A3839` (same ink as kit `--ring` companion). Hover uses `--accent`.
 
 Do not put raw brand colour on large surfaces. Book page fills come from the document, not chrome tokens.

@@ -2,6 +2,8 @@ import { fc, test } from '@fast-check/vitest'
 import { describe, expect } from 'vitest'
 import { DERIVATIVE_PRESETS } from '../../derivatives/plan'
 import { unpublishBook, type LibraryMeta } from '../../project'
+import { siteDataJson } from '../renderSitePage'
+import type { SitePageAssets, SitePageInput } from '../siteInput'
 import { buildSiteTree, type SiteExportInput } from '.'
 import {
   allText,
@@ -95,7 +97,14 @@ describe('buildSiteTree (PBT)', () => {
   test.prop([scenario, fc.gen()], PBT_RUNS)(
     'output is independent of the input order of books and photos',
     async (generated, g) => {
-      const input = libraryOf(generated)
+      // Everything a renderer sees, serialized: renderSitePage is a pure
+      // function of it (renderSitePage.test.tsx), and React SSR here would
+      // take most of the time budget.
+      const input = {
+        ...libraryOf(generated),
+        renderer: (page: SitePageInput, assets: SitePageAssets) =>
+          `${siteDataJson(page)}${JSON.stringify(assets)}`,
+      }
       const shuffled: SiteExportInput = {
         ...input,
         revisions: g(fc.shuffledSubarray, [...input.revisions], {

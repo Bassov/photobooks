@@ -369,6 +369,22 @@ html[data-density='compact'] {
   --thumb: 80px;
 }
 
+/* Site viewer (Designer site-viewer §1; src/site/site.css): today's kit values.
+   A later site direction changes only these and the siteModel.ts layout. */
+.site {
+  --site-bg: #e1e1e1;
+  --site-text: #393738;
+  --site-muted: #535152;
+  --site-control: #d7d7d7;
+  --site-control-hover: #cfcfcf;
+  --site-focus: #535152;
+  --site-font: 'Inter Variable', Inter, system-ui, sans-serif;
+  --site-heading: 'Lora Variable', Lora, serif;
+  --site-page-shadow: 0 2px 6px rgb(0 0 0 / 0.1), 0 12px 32px rgb(0 0 0 / 0.14);
+  --site-h1-narrow: 28px;
+  --page-shadow: var(--site-page-shadow);
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --motion-duration-fast: 0ms;
