@@ -2270,6 +2270,95 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("r16 M92: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
 
+// text-frames (Designer text-frames Spec "Kit changes"): Text click / drag, edit look, whole lines, Overflow chip, grow, inspector
+{
+  const e0 = errs.length
+  await go("#/demo", 500); await page.evaluate(() => window.__demo.reset()); await page.waitForTimeout(500)
+  const c = async (sel) => { await page.locator(sel).first().click(); await page.waitForTimeout(300) }
+  await c('[data-testid="create-library"]'); await c('[data-testid="picker-select"]')
+  await c(`${demo} [data-testid="new-book"]`); await page.locator("[role=dialog] input").first().fill("Lake trip")
+  await page.locator("[role=dialog]").getByRole("button", { name: /A5|A4|Square|cm/ }).first().click(); await page.waitForTimeout(200)
+  await page.getByRole("option", { name: /Custom size/ }).click(); await page.waitForTimeout(200)
+  await page.fill('[data-testid="create-custom-w"]', "19"); await page.fill('[data-testid="create-custom-h"]', "23")
+  await c('[data-testid="create-book"]'); await c('[data-item="p1"]')
+  const paperSel = '[data-testid="canvas"] [data-testid="spread"][data-current]'
+  const paper = await page.locator(paperSel).boundingBox(), sc = paper.width / 380 // 19 × 23 cm book: a spread is 380 mm wide
+  const read = () => page.evaluate((ps) => {
+    const p = document.querySelector(ps), r = (e) => e && (({ x, y, width, height }) => ({ x, y, w: width, h: height }))(e.getBoundingClientRect())
+    // own text frames only (the master's inherited caption is a master-frame)
+    const tf = [...p.querySelectorAll('[data-testid="frame"]')].filter((f) => f.querySelector('[data-testid="text-body"], [data-testid="text-edit"]'))
+    const ta = p.querySelector('[data-testid="frame"] [data-testid="text-edit"] textarea'), body = tf.at(-1)?.querySelector('[data-testid="text-body"]'), chip = p.querySelector('[data-testid="text-overflow-chip"]')
+    const cs = ta && getComputedStyle(ta), bs = body && getComputedStyle(body)
+    return {
+      frames: p.querySelectorAll('[data-testid="frame"]').length, texts: tf.map(r), editing: !!ta, focused: !!ta && document.activeElement === ta, handles: p.querySelectorAll('[data-testid="handles"]').length,
+      edit: ta && { bg: cs.backgroundColor, ph: ta.placeholder, value: ta.value, outline: getComputedStyle(ta.parentElement).outlineWidth, box: r(ta.parentElement) },
+      body: body && { h: body.getBoundingClientRect().height, lh: parseFloat(bs.lineHeight), sh: body.scrollHeight }, chip: chip && { ...r(chip), text: chip.textContent, color: getComputedStyle(chip).color },
+      meta: document.querySelector('[data-testid="inspector-meta"]')?.textContent ?? null, metaColor: (() => { const m = document.querySelector('[data-testid="inspector-meta"] span'); return m ? getComputedStyle(m).color : null })(),
+    }
+  }, paperSel)
+  const s0 = await read()
+  const tool = () => c('[aria-label="Text (T)"]')
+  // a click near the bottom-right corner: 60 × 14 mm, clamped into the right page's 6 mm safe area, editing at once
+  await tool(); await page.mouse.click(Math.round(paper.x + paper.width - 3), Math.round(paper.y + paper.height - 3)); await page.waitForTimeout(300)
+  const s1 = await read(), t1 = s1.texts.at(-1)
+  ok("text-frames: Text click → one 60 × 14 mm frame in edit mode (focused, `Type text`, transparent, 1 px outline, no handles)",
+    s1.frames === s0.frames + 1 && s1.focused && s1.edit?.ph === "Type text" && s1.edit?.value === "" && s1.edit?.bg === "rgba(0, 0, 0, 0)" && s1.edit?.outline === "1px" && s1.handles === 0 && Math.abs(t1.w - 60 * sc) <= 1 && Math.abs(t1.h - 14 * sc) <= 1, JSON.stringify({ s0: s0.frames, ...s1, sc }))
+  ok("text-frames: the click frame is clamped inside the page's 6 mm safe area", t1 && paper.x + paper.width - (t1.x + t1.w) >= 6 * sc - 1 && paper.y + paper.height - (t1.y + t1.h) >= 6 * sc - 1, JSON.stringify({ t1, paper }))
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300)
+  const s2 = await read()
+  ok("text-frames: Esc on an empty new frame removes it", s2.frames === s0.frames && !s2.editing, JSON.stringify(s2))
+  // a drag (over whatever lies there, photo frames included) + typing, Esc, Title → whole lines + Overflow chip + inspector meta
+  await tool()
+  const x = Math.round(paper.x + paper.width * 0.56), y = Math.round(paper.y + paper.height * 0.62)
+  await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 200, y + 36, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(300)
+  await page.keyboard.type("Morning on the lake, 6:40"); await page.keyboard.press("Escape"); await page.waitForTimeout(300)
+  const s3 = await read()
+  ok("text-frames: drag + type + Esc keeps the frame selected with handles, no chip (caption fits)", s3.frames === s0.frames + 1 && !s3.editing && s3.handles === 1 && !s3.chip, JSON.stringify(s3))
+  await page.locator('[data-testid="ctx-inspector"]').getByText("Title", { exact: true }).click(); await page.waitForTimeout(400)
+  const s4 = await read(), t4 = s4.texts.at(-1), lines = s4.body && s4.body.h / s4.body.lh
+  ok("text-frames: Title in a 36 px box shows whole lines only (visible height = n × line height ≤ box)", s4.body && Math.abs(lines - Math.round(lines)) < 0.01 && Math.round(lines) >= 1 && s4.body.h <= t4.h + 0.5 && s4.body.sh > s4.body.h, JSON.stringify({ body: s4.body, t4 }))
+  ok("text-frames: Overflow chip 4 px below the frame, right-aligned, amber", s4.chip?.text === "Overflow" && Math.abs(s4.chip.y - (t4.y + t4.h + 4)) <= 1 && Math.abs(s4.chip.x + s4.chip.w - (t4.x + t4.w)) <= 1 && s4.chip.color === "rgb(132, 85, 16)" && Math.abs(s4.chip.h - 14) <= 0.5, JSON.stringify({ chip: s4.chip, t4 }))
+  ok("text-frames: inspector meta `Text overflows the frame` rgb(132, 85, 16)", s4.meta === "Text overflows the frame" && s4.metaColor === "rgb(132, 85, 16)", JSON.stringify({ meta: s4.meta, c: s4.metaColor }))
+  // a content edit grows the box to whole lines: no overflow after the edit
+  await page.locator(paperSel).locator('[data-testid="text-body"]').last().dblclick(); await page.waitForTimeout(300)
+  await page.keyboard.press("End"); await page.keyboard.type(" by the pier"); await page.keyboard.press("Escape"); await page.waitForTimeout(400)
+  const s5 = await read(), t5 = s5.texts.at(-1), n5 = s5.body && s5.body.h / s5.body.lh
+  ok("text-frames: a content edit grows the box to whole lines (taller, no chip, no meta)", t5.h > t4.h + 1 && !s5.chip && s5.meta === null && Math.abs(n5 - Math.round(n5)) < 0.01 && Math.abs(t5.h - s5.body.h) <= 1, JSON.stringify({ t4, t5, body: s5.body }))
+  // inspector TEXT textarea: grows to 160 then scrolls; focus = inset 1 px #535152
+  const ita = page.locator('[data-testid="ctx-inspector"] textarea[aria-label="Text"]')
+  await ita.focus(); await page.waitForTimeout(150)
+  const ti = await ita.evaluate((e) => { const s = getComputedStyle(e); return { max: s.maxHeight, oy: s.overflowY, shadow: s.boxShadow } })
+  ok("text-frames: inspector textarea max-height 160, scrolls, focus ring inset 1 px #535152", ti.max === "160px" && ti.oy === "auto" && /rgb\(83, 81, 82\) 0px 0px 0px 1px inset/.test(ti.shadow), JSON.stringify(ti))
+  await ita.blur()
+  // review #445: an inspector content edit grows the box to whole lines like the canvas edit, capped at the paper bottom
+  await ita.fill(["Lake", "Pier", "Boats", "Dock", "Pines", "Dusk"].join("\n")); await page.waitForTimeout(400)
+  const s6 = await read(), t6 = s6.texts.at(-1), n6 = s6.body && s6.body.h / s6.body.lh
+  ok("text-frames: inspector TEXT edit grows the box to whole lines (taller, no chip, no meta)", t6.h > t5.h + 1 && !s6.chip && s6.meta === null && Math.abs(n6 - Math.round(n6)) < 0.01 && Math.round(n6) >= 6, JSON.stringify({ t5, t6, body: s6.body }))
+  await ita.fill(Array.from({ length: 14 }, (_, i) => `Line ${i + 1}`).join("\n")); await page.waitForTimeout(400)
+  const s7 = await read(), t7 = s7.texts.at(-1)
+  ok("text-frames: inspector TEXT growth stops at the paper bottom (then the chip shows)", Math.abs(t7.y + t7.h - (paper.y + paper.height)) <= 1 && !!s7.chip, JSON.stringify({ t7, paper, chip: s7.chip }))
+  await ita.blur()
+  // review #445: Enter on one selected text frame (Select tool) edits it, caret at the end
+  await page.locator(paperSel).locator('[data-testid="text-body"]').last().click(); await page.waitForTimeout(200)
+  await page.keyboard.press("Enter"); await page.waitForTimeout(300)
+  const s8 = await read(), caret = await page.evaluate(() => { const t = document.activeElement; return t?.tagName === "TEXTAREA" ? { at: t.selectionStart, len: t.value.length } : null })
+  ok("text-frames: Enter on a selected text frame starts editing, caret at the end", s8.editing && s8.focused && caret?.at === caret?.len && caret?.len > 0, JSON.stringify({ editing: s8.editing, caret }))
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300)
+  // review #445 (Designer decision): Text pressed on a text frame edits it and the tool returns to Select
+  await tool(); await page.locator(paperSel).locator('[data-testid="text-body"]').last().click(); await page.waitForTimeout(300)
+  const s9 = await read(), toolSel = await page.locator('[aria-label="Select (V)"]').getAttribute("data-selected")
+  ok("text-frames: Text press on a text frame edits it, the tool returns to Select", s9.editing && toolSel === "true", JSON.stringify({ editing: s9.editing, toolSel }))
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300)
+  // review #445: Esc during a Text drag cancels (no frame, no undo step)
+  const undoLabel = () => page.locator(`${demo} [data-testid="undo"]`).first().getAttribute("aria-label")
+  const undo0 = await undoLabel(), s10a = await read()
+  await tool(); await page.mouse.move(x - 120, y - 120); await page.mouse.down(); await page.mouse.move(x - 20, y - 90, { steps: 5 })
+  await page.keyboard.press("Escape"); await page.mouse.up(); await page.waitForTimeout(300)
+  const s10 = await read(), undo1 = await undoLabel()
+  ok("text-frames: Esc during a Text drag cancels (no frame, no edit, no undo step)", s10.frames === s10a.frames && !s10.editing && undo1 === undo0, JSON.stringify({ before: s10a.frames, after: s10.frames, undo0, undo1 }))
+  ok("text-frames: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
+}
+
 
 fs.writeFileSync(new URL("../qa-report.txt", import.meta.url), res.join("\n") + "\n\nCONSOLE:\n" + (errs.join("\n") || "none") + "\n")
 console.log(res.join("\n")); console.log(`\n${res.length - fails} passed, ${fails} failed; console errors/warnings: ${errs.length}`); if (errs.length) console.log(errs.slice(0, 20).join("\n"))

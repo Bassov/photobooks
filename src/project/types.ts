@@ -1,7 +1,16 @@
 import type { Book } from '../core'
 
-/** Placeholder until site settings land on the library document. */
-export type LibraryMeta = Record<string, never>
+export type PublishStatus = 'draft' | 'published'
+
+/** Per-book entry in `library.json`; a book without one is a draft. */
+export interface BookPublishEntry {
+  status: PublishStatus
+}
+
+/** `library.json` content; `books` absent reads as an empty map. */
+export interface LibraryMeta {
+  books?: Readonly<Record<string, BookPublishEntry>>
+}
 
 export interface BookSummary {
   id: string
