@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const CURRENT_SCHEMA_VERSION = 10 as const
+export const CURRENT_SCHEMA_VERSION = 11 as const
 
 const nonNegativeMm = z.number().nonnegative()
 const positiveMm = z.number().positive()
@@ -236,6 +236,8 @@ export const COVER_MATERIALS = ['printed', 'linen', 'leatherette'] as const
 export const COVER_FINISHES = ['matte', 'gloss', 'soft-touch'] as const
 export const SPINE_WIDTH_MIN_MM = 4
 export const SPINE_WIDTH_MAX_MM = 40
+/** `profile`: computed from the print profile; `manual`: `style.spineWidthMm`. */
+export const SPINE_WIDTH_SOURCES = ['profile', 'manual'] as const
 
 /*
  * Cover / endpaper shapes are built per parse (not at module load) so that
@@ -257,7 +259,29 @@ function makeCoverSchema() {
     material: z.enum(COVER_MATERIALS),
     finish: z.enum(COVER_FINISHES),
   })
-  return z.object({ front: panel, spine: panel, back: panel, style })
+  /** Print fields; absent → spine width from the print profile. */
+  const print = z.object({ spineWidthSource: z.enum(SPINE_WIDTH_SOURCES) })
+  return z.object({
+    front: panel,
+    spine: panel,
+    back: panel,
+    style,
+    print: print.optional(),
+  })
+}
+
+/**
+ * Book → print profile reference: built-in profile id plus the book's
+ * overrides of its trim / bleed limits (`printProfile.ts` resolves both).
+ */
+function makePrintProfileRefSchema() {
+  const overrides = z.object({
+    trimMinMm: positiveMm.optional(),
+    trimMaxMm: positiveMm.optional(),
+    bleedMinMm: nonNegativeMm.optional(),
+    bleedMaxMm: nonNegativeMm.optional(),
+  })
+  return z.object({ id: nonEmptyString, overrides })
 }
 
 function makeEndpapersSchema() {
@@ -331,6 +355,8 @@ export const bookSchema = z.object({
   defaultParentId: nonEmptyString.optional(),
   /** Absent → start 1, first page numbered, decimal. */
   pageNumbering: atParseTime(makePageNumberingSchema).optional(),
+  /** Absent → the built-in default profile, no overrides. */
+  printProfile: atParseTime(makePrintProfileRefSchema).optional(),
 })
 
 export type Asset = z.infer<typeof assetSchema>
@@ -351,6 +377,12 @@ export type PageNumberFormat = (typeof PAGE_NUMBER_FORMATS)[number]
 export type Cover = z.output<ReturnType<typeof makeCoverSchema>>
 export type CoverPanel = Cover['front']
 export type CoverStyle = Cover['style']
+export type CoverPrint = NonNullable<Cover['print']>
+export type SpineWidthSource = (typeof SPINE_WIDTH_SOURCES)[number]
+export type PrintProfileRef = z.output<
+  ReturnType<typeof makePrintProfileRefSchema>
+>
+export type PrintProfileOverrides = PrintProfileRef['overrides']
 export type FrameAdjust = NonNullable<Frame['adjust']>
 export type Endpapers = z.output<ReturnType<typeof makeEndpapersSchema>>
 export type Endpaper = Endpapers['front']
