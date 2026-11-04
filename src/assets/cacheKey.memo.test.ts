@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { CACHE_KEY_MEMO_MAX, cacheKeyFromIdentity } from './cacheKey'
+import {
+  CACHE_KEY_MEMO_MAX,
+  cacheKeyFromIdentity,
+  cacheKeyFromRecord,
+} from './cacheKey'
 import { sha256HexSync } from './sha256Sync'
 
 vi.mock('./sha256Sync', async (importOriginal) => {
@@ -69,5 +73,60 @@ describe('cacheKeyFromIdentity memo', () => {
     const evicted = identity('fill', 0)
     expect(cacheKeyFromIdentity(evicted)).toBe(nodeDigest(evicted))
     expect(hashSpy).toHaveBeenCalledTimes(2)
+  })
+})
+
+/** Record whose identity reads are counted (a memo hit reads none). */
+function countingRecord(id: ReturnType<typeof identity>) {
+  const reads = { count: 0 }
+  const record = {}
+  for (const [field, value] of Object.entries(id)) {
+    Object.defineProperty(record, field, {
+      enumerable: true,
+      get: () => {
+        reads.count += 1
+        return value
+      },
+    })
+  }
+  return { record, reads }
+}
+
+describe('cacheKeyFromRecord memo', () => {
+  it('reads a record once and serves repeats without touching its fields', () => {
+    const id = identity('record')
+    const { record, reads } = countingRecord(id)
+
+    const first = cacheKeyFromRecord(record)
+    const readsAfterFirst = reads.count
+    const second = cacheKeyFromRecord(record)
+
+    expect(first).toBe(nodeDigest(id))
+    expect(second).toBe(first)
+    expect(readsAfterFirst).toBeGreaterThan(0)
+    expect(reads.count).toBe(readsAfterFirst)
+  })
+
+  it('keys a new revision of the record afresh', () => {
+    const id = identity('revision')
+    const record = { ...id }
+    cacheKeyFromRecord(record)
+
+    const revised = cacheKeyFromRecord({ ...record, mtimeMs: 3 })
+
+    expect(revised).toBe(nodeDigest({ ...id, mtimeMs: 3 }))
+    expect(cacheKeyFromRecord(record)).toBe(nodeDigest(id))
+  })
+
+  it('memoizes an incomplete identity as no key', () => {
+    const { record, reads } = countingRecord({
+      ...identity('incomplete'),
+      relativePath: '',
+    })
+
+    expect(cacheKeyFromRecord(record)).toBeUndefined()
+    const readsAfterFirst = reads.count
+    expect(cacheKeyFromRecord(record)).toBeUndefined()
+    expect(reads.count).toBe(readsAfterFirst)
   })
 })

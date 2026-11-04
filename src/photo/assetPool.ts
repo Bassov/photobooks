@@ -33,6 +33,7 @@ export { noteDecodeScrollActivity } from './decodeScrollQuiet'
 import { createDecodeWorker } from './createDecodeWorker'
 import { isKnownHeicFile } from './heic'
 import { isJpegLikeFile } from './mime'
+import { PendingJobIndex } from './pendingJobIndex'
 import { THUMB_MAX_EDGE } from './photoEdges'
 import type { PhotoWorkerRequest, PhotoWorkerResponse } from './processPhoto'
 
@@ -183,6 +184,8 @@ function effectiveBaseConcurrency(): number {
 let decodeSlots: WorkerSlot[] = []
 let queue: DecodeQueueItem[] = []
 const inFlightJobs = new Set<DecodeQueueItem>()
+/** thumb320 jobs in `queue` ∪ `inFlightJobs`. */
+const pendingThumbJobs = new PendingJobIndex<DecodeQueueItem>()
 let requestCounter = 0
 let filmstripVisibleIds = new Set<string>()
 /** Per painted spread → asset ids (unioned into visible preference). */
@@ -292,6 +295,9 @@ function pumpNowThenBackground(): void {
 
 function enqueueDecodeJob(item: DecodeQueueItem): void {
   queue.push(item)
+  if (item.maxEdge === THUMB_MAX_EDGE) {
+    pendingThumbJobs.add(item)
+  }
   if (item.lane === 'now') {
     pump({ allowBackground: false })
     return
@@ -350,6 +356,7 @@ function abortAssetJobs(assetId: string, registerRetry: boolean): void {
   const queued = queue.filter((job) => job.assetId === assetId)
   queue = queue.filter((job) => job.assetId !== assetId)
   for (const job of queued) {
+    pendingThumbJobs.delete(job)
     if (registerRetry) {
       registerPoolRetry(job)
     }
@@ -580,6 +587,7 @@ function pump(options: { allowBackground?: boolean } = {}): void {
       allowBackground,
       nowAssetIds,
       (aborted) => {
+        pendingThumbJobs.delete(aborted)
         registerPoolRetry(aborted)
         aborted.reject(new DOMException('Aborted', 'AbortError'))
       },
@@ -618,6 +626,7 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
     }
     settled = true
     inFlightJobs.delete(job)
+    pendingThumbJobs.delete(job)
     fn()
   }
 
@@ -733,6 +742,7 @@ export function resetAssetPool(): void {
     job.reject(resetError)
   }
   inFlightJobs.clear()
+  pendingThumbJobs.clear()
   for (const deferred of deferredLazyByAsset.values()) {
     deferred.reject(resetError)
   }
@@ -812,12 +822,7 @@ export function isNowAssetId(assetId: string): boolean {
  * flight (import-owned); working/zoom tier jobs do not count.
  */
 export function hasPendingThumbDecode(assetId: string): boolean {
-  if (deferredLazyByAsset.has(assetId)) {
-    return true
-  }
-  const matches = (job: DecodeQueueItem): boolean =>
-    job.assetId === assetId && job.maxEdge === THUMB_MAX_EDGE
-  return queue.some(matches) || [...inFlightJobs].some(matches)
+  return deferredLazyByAsset.has(assetId) || pendingThumbJobs.has(assetId)
 }
 
 /** Painted-spread asset ids for one spread (unioned across spreads + filmstrip). */
