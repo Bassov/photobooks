@@ -170,7 +170,11 @@ test('My templates shows a readable one-line empty state', async ({ page }) => {
   const empty = page.getByTestId('tpl-empty')
   // Kit tpl-empty copy (context-inspector.tsx:191).
   await expect(empty).toHaveText('No templates yet. Save a spread you like.')
-  // Kit tpl-empty is a p-4 box; its text sits on one line.
+  await expectOneLineCopy(empty)
+})
+
+/** Kit tpl-empty is a p-4 box; its text sits on one line. */
+async function expectOneLineCopy(empty: Locator) {
   const text = await empty.evaluate((el) => {
     // The copy only: the kit LayoutTemplate glyph sits on its own row above.
     const copy = [...el.childNodes].find((n) => n.nodeType === Node.TEXT_NODE)
@@ -186,7 +190,7 @@ test('My templates shows a readable one-line empty state', async ({ page }) => {
   })
   expect(text.width).toBeGreaterThan(80)
   expect(text.height).toBeLessThanOrEqual(text.lineHeight + 0.5)
-})
+}
 
 test('every spread inspector text renders in the kit Inter face', async ({
   page,
@@ -561,9 +565,9 @@ test('page 1 offers no two-page template: My templates 0 asks for a page', async
   await expect(page.getByTestId('tab-mine')).toHaveText('My templates 0')
   await page.getByTestId('tab-mine').click()
   await expect(allTiles(page)).toHaveCount(0)
-  await expect(page.getByTestId('tpl-empty')).toHaveText(
-    'No templates yet. Save a page you like.',
-  )
+  const empty = page.getByTestId('tpl-empty')
+  await expect(empty).toHaveText('No templates yet. Save a page you like.')
+  await expectOneLineCopy(empty)
 })
 
 async function selectLastSpread(page: Page) {
