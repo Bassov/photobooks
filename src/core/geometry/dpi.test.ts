@@ -30,29 +30,36 @@ describe('frameDpi', () => {
 })
 
 describe('lowDpi', () => {
+  const DEFAULTS = { warn: DPI_WARN, min: DPI_MIN }
+
   it('is undefined at or above the warn threshold', () => {
-    expect(lowDpi(DPI_WARN)).toBeUndefined()
-    expect(lowDpi(300)).toBeUndefined()
-    expect(lowDpi(Number.NaN)).toBeUndefined()
+    expect(lowDpi(DPI_WARN, DEFAULTS)).toBeUndefined()
+    expect(lowDpi(300, DEFAULTS)).toBeUndefined()
+    expect(lowDpi(Number.NaN, DEFAULTS)).toBeUndefined()
   })
 
   it('warns between min and warn, min below min', () => {
-    expect(lowDpi(DPI_WARN - 0.4)).toEqual({ dpi: 200, level: 'warn' })
-    expect(lowDpi(DPI_MIN)).toEqual({ dpi: 150, level: 'warn' })
-    expect(lowDpi(DPI_MIN - 1)).toEqual({ dpi: 149, level: 'min' })
+    expect(lowDpi(DPI_WARN - 0.4, DEFAULTS)).toEqual({
+      dpi: 200,
+      level: 'warn',
+    })
+    expect(lowDpi(DPI_MIN, DEFAULTS)).toEqual({ dpi: 150, level: 'warn' })
+    expect(lowDpi(DPI_MIN - 1, DEFAULTS)).toEqual({ dpi: 149, level: 'min' })
   })
 
-  test.prop([fc.double({ min: 0, max: 1000, noNaN: true })])(
-    'level matches the thresholds',
-    (dpi) => {
-      const low = lowDpi(dpi)
-      if (dpi >= DPI_WARN) {
-        expect(low).toBeUndefined()
-      } else {
-        expect(low?.level).toBe(dpi < DPI_MIN ? 'min' : 'warn')
-      }
-    },
-  )
+  test.prop([
+    fc.double({ min: 0, max: 1000, noNaN: true }),
+    fc.double({ min: 1, max: 600, noNaN: true }),
+    fc.double({ min: 1, max: 600, noNaN: true }),
+  ])('level matches the given thresholds', (dpi, a, b) => {
+    const thresholds = { warn: Math.max(a, b), min: Math.min(a, b) }
+    const low = lowDpi(dpi, thresholds)
+    if (dpi >= thresholds.warn) {
+      expect(low).toBeUndefined()
+    } else {
+      expect(low?.level).toBe(dpi < thresholds.min ? 'min' : 'warn')
+    }
+  })
 })
 
 describe('resolveSpread lowDpi', () => {
@@ -100,6 +107,17 @@ describe('resolveSpread lowDpi', () => {
         ?.items[0]
     expect(items({ widthPx: 1000, heightPx: 1000 })?.lowDpi?.dpi).toBe(100)
     expect(items(undefined)?.lowDpi).toBeUndefined()
+  })
+
+  it('an unknown profile id keeps the default thresholds', () => {
+    const lab = {
+      ...book(1.5, 2540),
+      printProfile: { id: 'lab-x', overrides: {} },
+    }
+    expect(resolveSpread(lab, 'spread-1')?.items[0]?.lowDpi).toEqual({
+      dpi: 169,
+      level: 'warn',
+    })
   })
 
   it('stays silent without asset pixel dimensions', () => {
