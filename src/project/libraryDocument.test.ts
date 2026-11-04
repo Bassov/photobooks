@@ -248,6 +248,8 @@ describe('library document', () => {
         meta: { books, templates },
       })
     },
+    // ~0.4 s alone; headroom for a loaded CI runner.
+    20_000,
   )
 
   test.prop([fc.integer({ min: 4, max: 1_000_000 })])(
