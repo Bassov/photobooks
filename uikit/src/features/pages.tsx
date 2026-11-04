@@ -15,6 +15,7 @@ import { SiteDemo2 } from "./site-demo-2/site"
 import { SiteDemo3 } from "./site-demo-3/site"
 import { SiteDemo4 } from "./site-demo-4/site"
 import { SiteDemo5 } from "./site-demo-5/site"
+import { SiteFreshC } from "./site-fresh-c/site"
 import type { FeatureDef, Notes } from "./types"
 
 /** Stage height = the #/demo viewport height (+ the 40 px scenario strip), so every slot sits at its #/demo size. */
@@ -262,6 +263,14 @@ export const PAGES: Record<string, FeatureDef> = {
       where: "DEMO branch only. Full window: #/full/site-demo-5 (?books=1|3|6|12).",
       keys: [["← / →", "turn"], ["Enter", "open"], ["Esc", "back to the shelf"]],
       edge: ["Reduced motion = opacity only", "Phone: tap pulls a spine, tap again opens"],
+    },
+  },
+  "site-fresh-c": {
+    Demo: SiteFreshC, h: SLOT.app.h, notes: {
+      what: "Site fresh C, the programme: the site runs on the clock; each book owns a minute and turns its own pages.",
+      where: "DEMO branch only. Full window: #/full/site-fresh-c (?books=1|3|6|12).",
+      keys: [["← / →", "turn (takes over)"], ["Esc", "book page → home"]],
+      edge: ["Touch the book = paused; Play = back to the clock", "Reduced motion starts paused"],
     },
   },
   "site-preview-mode": page([
