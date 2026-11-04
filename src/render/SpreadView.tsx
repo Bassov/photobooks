@@ -72,6 +72,18 @@ const PARENT_LAYER_STYLE: CSSProperties = {
   pointerEvents: 'none',
 }
 
+/** Editor overlay (grid, guides, template preview): clicks fall through. */
+const OVERLAY_LAYER_STYLE: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  pointerEvents: 'none',
+}
+
+/** Just above the highest spread frame, never below 1. */
+function overlayZ(items: readonly ResolvedItem[]): number {
+  return Math.max(0, ...items.map((item) => item.z)) + 1
+}
+
 const FULL_CROP = { x: 0, y: 0, width: 1, height: 1 } as const
 
 /** Kit selection handles: corners + edge midpoints, % of the frame. */
@@ -320,7 +332,18 @@ export function SpreadView({
           style={groupBox}
         />
       )}
-      {thumb ? null : overlay}
+      {thumb || overlay === undefined ? null : (
+        // One layer above every spread frame (frames paint at their `z`), so
+        // the grid shows on both pages, not only beside a z-0 frame. A crop
+        // frame (+1000) and the group box (999) stay above it.
+        <div
+          className="spread-view-overlay"
+          data-testid="spread-view-overlay"
+          style={{ ...OVERLAY_LAYER_STYLE, zIndex: overlayZ(spreadItems) }}
+        >
+          {overlay}
+        </div>
+      )}
     </div>
   )
 }
