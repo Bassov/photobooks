@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P4
 Title: print settings and cover in the document
+Status: done
 
 ## Scope
 
