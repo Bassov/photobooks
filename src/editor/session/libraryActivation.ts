@@ -385,7 +385,7 @@ export function createLibraryActivation(
       }
       await releaseOpenBookForNewLibrary()
       const nextStorage = host.createStorageFromHandle(handle)
-      // An existing library.json keeps its publish statuses.
+      // An existing library.json keeps its publish statuses and templates.
       const existing = await nextStorage.getLibrary()
       const written = await nextStorage.updateLibrary(
         existing.ok ? existing.value : {},

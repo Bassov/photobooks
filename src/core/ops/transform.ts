@@ -1,4 +1,4 @@
-import { updateSpread } from '../update'
+import { spreadFrames, updateSpread, withChangedCopies } from '../update'
 import type { Book, Frame } from '../schema'
 import { MIN_FRAME_EDGE_MM, detached } from './frames'
 
@@ -9,7 +9,10 @@ export type AlignEdge =
 
 export type DistributeAxis = 'horizontal' | 'vertical'
 
-/** Locked frames are skipped: every op below returns the book unchanged for them. */
+/**
+ * Locked frames are skipped: every op below returns the book unchanged for
+ * them. Local copies of parent items move too; only own frames detach.
+ */
 function transformFrames(
   book: Book,
   spreadId: string,
@@ -18,17 +21,20 @@ function transformFrames(
 ): Book {
   return updateSpread(book, spreadId, (spread) => {
     const wanted = new Set(frameIds)
-    const targets = spread.frames.filter(
+    const targets = spreadFrames(spread).filter(
       (frame) => wanted.has(frame.id) && frame.locked !== true,
     )
     const changed = next(targets)
     if (changed.size === 0) {
       return spread
     }
-    return detached(
-      spread,
-      spread.frames.map((frame) => changed.get(frame.id) ?? frame),
-    )
+    const own = spread.frames.some((frame) => changed.has(frame.id))
+      ? detached(
+          spread,
+          spread.frames.map((frame) => changed.get(frame.id) ?? frame),
+        )
+      : spread
+    return withChangedCopies(own, changed)
   })
 }
 

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cacheKeyFromIdentity } from '../assets/cacheKey'
 import { resetAssetSources } from '../photo/assetSources'
 import {
   makeBook,
@@ -14,6 +15,7 @@ import {
   enqueueGalleryAssets,
   loadPainterFixture as loadPainterFixtureLazy,
   getAssetAspectSnapshot,
+  getAssetCacheKey,
   getAssetPixelSizeSnapshot,
   getAssetContentHash,
   getAssetDisplayName,
@@ -337,6 +339,35 @@ describe('bookStore', () => {
       hash,
     )
     expect(getAssetContentHash('early-hash')).toBe(hash)
+  })
+
+  it('getAssetCacheKey follows the asset from pending to live and re-keys a new revision', () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    const identity = {
+      sourceRootId: 'root',
+      relativePath: 'keyed.jpg',
+      byteSize: 1,
+      mtimeMs: 1,
+    }
+    enqueueGalleryAssets([{ assetId: 'keyed', asset: identity }])
+    const pendingKey = getAssetCacheKey('keyed')
+    expect(pendingKey).toBe(cacheKeyFromIdentity(identity))
+
+    callbacks[0]?.(0)
+    expect(getAssetCacheKey('keyed')).toBe(pendingKey)
+    expect(getAssetCacheKey('keyed')).toBe(pendingKey)
+
+    patchAssetRecord('keyed', { mtimeMs: 2 })
+    expect(getAssetCacheKey('keyed')).toBe(
+      cacheKeyFromIdentity({ ...identity, mtimeMs: 2 }),
+    )
   })
 
   it('removeFailedImportAsset drops a still-pending id before flush', () => {

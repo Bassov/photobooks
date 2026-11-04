@@ -1,15 +1,20 @@
 import assert from 'node:assert/strict'
 import { fc, test } from '@fast-check/vitest'
 import { describe, expect, it } from 'vitest'
+import type { SavedTemplate } from '../core'
 import {
   LIBRARY_SCHEMA_VERSION,
   migrateLibrary,
+  parseLegacySavedTemplates,
   parseLibrary,
+  parseSavedTemplates,
   serializeLibrary,
 } from './libraryDocument'
 import type { BookPublishEntry } from './types'
 
 const PBT_RUNS = { numRuns: 1000 }
+
+const EMPTY = { books: {}, templates: [] }
 
 const v0Fixtures: unknown[] = [
   undefined,
@@ -32,55 +37,177 @@ const bookEntries = fc.dictionary(
   }),
 )
 
+// JSON has no -0: `+ 0` folds it into 0.
+const pct = fc.double({ min: -50, max: 150, noNaN: true }).map((v) => v + 0)
+const size = fc.double({ min: 0.01, max: 150, noNaN: true })
+
+const savedTemplate: fc.Arbitrary<SavedTemplate> = fc.record({
+  id: fc.stringMatching(/^user-[\w-]{1,12}$/),
+  // Names are stored trimmed (the parse trims them).
+  name: fc
+    .string({ minLength: 1 })
+    .map((name) => name.trim())
+    .filter((name) => name !== ''),
+  pages: fc.constantFrom<1 | 2>(1, 2),
+  slots: fc.array(fc.record({ x: pct, y: pct, w: size, h: size }), {
+    minLength: 1,
+    maxLength: 4,
+  }),
+})
+
+const OPENER: SavedTemplate = {
+  id: 'user-opener',
+  name: 'Travel opener',
+  pages: 2,
+  slots: [{ x: 0, y: 0, w: 62, h: 100 }],
+}
+
 describe('library document', () => {
-  it.each(v0Fixtures)('upgrades v0 fixture %j to v2', (fixture) => {
+  it.each(v0Fixtures)('upgrades v0 fixture %j to v3', (fixture) => {
     const migrated = migrateLibrary(fixture)
     expect(migrated).toMatchObject({
       ok: true,
-      value: { schemaVersion: LIBRARY_SCHEMA_VERSION, books: {} },
+      value: {
+        schemaVersion: LIBRARY_SCHEMA_VERSION,
+        books: {},
+        templates: [],
+      },
     })
-    expect(parseLibrary(fixture)).toEqual({ ok: true, meta: { books: {} } })
+    expect(parseLibrary(fixture)).toEqual({ ok: true, meta: EMPTY })
   })
 
-  it('upgrades a v1 document to an empty status map', () => {
+  it('upgrades a v1 document to an empty status map and no templates', () => {
     expect(migrateLibrary({ schemaVersion: 1 })).toEqual({
       ok: true,
-      value: { schemaVersion: 2, books: {} },
+      value: { schemaVersion: 3, books: {}, templates: [] },
     })
   })
 
-  it('keeps a v2 document as is', () => {
+  it('upgrades a v2 document to v3 keeping its status map', () => {
     const doc = { schemaVersion: 2, books: { a: { status: 'published' } } }
+    expect(migrateLibrary(doc)).toEqual({
+      ok: true,
+      value: { ...doc, schemaVersion: 3, templates: [] },
+    })
+    expect(parseLibrary(doc)).toEqual({
+      ok: true,
+      meta: { books: { a: { status: 'published' } }, templates: [] },
+    })
+  })
+
+  it('keeps a v3 document as is', () => {
+    const doc = { schemaVersion: 3, books: {}, templates: [OPENER] }
     const migrated = migrateLibrary(doc)
     assert.equal(migrated.ok, true)
     expect(migrated.value).toBe(doc)
     expect(parseLibrary(doc)).toEqual({
       ok: true,
-      meta: { books: { a: { status: 'published' } } },
+      meta: { books: {}, templates: [OPENER] },
     })
   })
 
   it.each([
-    { schemaVersion: 2 },
-    { schemaVersion: 2, books: [] },
-    { schemaVersion: 2, books: { a: { status: 'live' } } },
-    { schemaVersion: 2, books: { a: {} } },
-    { schemaVersion: 2, books: { '': { status: 'draft' } } },
-  ])('fails an invalid v2 document %j as corrupted', (doc) => {
+    { schemaVersion: 3 },
+    { schemaVersion: 3, books: [] },
+    { schemaVersion: 3, books: { a: { status: 'live' } } },
+    { schemaVersion: 3, books: { a: {} } },
+    { schemaVersion: 3, books: { '': { status: 'draft' } } },
+  ])('fails an invalid status map %j as corrupted', (doc) => {
     expect(parseLibrary(doc)).toEqual({ ok: false, code: 'corrupted' })
   })
 
-  it('rejects a newer schemaVersion', () => {
-    expect(parseLibrary({ schemaVersion: 3 })).toEqual({
-      ok: false,
-      code: 'newer-schema',
+  it('drops invalid templates one by one and keeps the rest in order', () => {
+    const second = { ...OPENER, id: 'user-two', pages: 1 }
+    const doc = {
       schemaVersion: 3,
-      supportedVersion: 2,
+      books: {},
+      templates: [
+        OPENER,
+        { ...OPENER, id: 'user-bad', pages: 3 },
+        { ...OPENER, id: 'full-bleed' },
+        { ...OPENER, id: 'xuser-a' },
+        { ...OPENER, id: 'user-a!' },
+        { ...OPENER, name: '  ' },
+        { ...OPENER, slots: [] },
+        { ...OPENER, slots: [{ x: 0, y: 0, w: 0, h: 5 }] },
+        { id: 'user-legacy', name: 'No pages', slots: OPENER.slots },
+        'text',
+        null,
+        second,
+      ],
+    }
+    expect(parseLibrary(doc)).toEqual({
+      ok: true,
+      meta: { books: {}, templates: [OPENER, second] },
     })
   })
 
-  it('serializes with the current schemaVersion and an empty map', () => {
-    expect(serializeLibrary({})).toEqual({ schemaVersion: 2, books: {} })
+  it('bounds slot values and counts so a crafted file cannot overflow the frame math', () => {
+    const slot = { x: 0, y: 0, w: 50, h: 100 }
+    const withSlots = (id: string, slots: unknown[]) => ({
+      ...OPENER,
+      id: `user-${id}`,
+      slots,
+    })
+    const kept = [
+      withSlots('edge', [{ x: -1000, y: 1000, w: 1000, h: 1000 }]),
+      withSlots(
+        'many',
+        Array.from({ length: 500 }, () => slot),
+      ),
+    ]
+    const dropped = [
+      withSlots('x-low', [{ ...slot, x: -1001 }]),
+      withSlots('y-high', [{ ...slot, y: 1001 }]),
+      withSlots('w-high', [{ ...slot, w: 1001 }]),
+      withSlots('h-huge', [{ ...slot, h: 1e306 }]),
+      withSlots(
+        'too-many',
+        Array.from({ length: 501 }, () => slot),
+      ),
+    ]
+    expect(parseSavedTemplates([...kept, ...dropped])).toEqual(kept)
+  })
+
+  it.each([undefined, null, 'x', {}, 42])(
+    'reads templates %j that are not a list as none',
+    (templates) => {
+      expect(parseLibrary({ schemaVersion: 3, books: {}, templates })).toEqual({
+        ok: true,
+        meta: EMPTY,
+      })
+      expect(parseSavedTemplates(templates)).toEqual([])
+    },
+  )
+
+  it('reads the legacy localStorage list as two-page layouts, one entry at a time', () => {
+    const legacy = { id: OPENER.id, name: OPENER.name, slots: OPENER.slots }
+    expect(
+      parseLegacySavedTemplates([
+        legacy,
+        { ...legacy, id: 'full-bleed' },
+        { ...legacy, id: 'user-page', pages: 1 },
+      ]),
+    ).toEqual([OPENER, { ...OPENER, id: 'user-page', pages: 2 }])
+    expect(parseLegacySavedTemplates(null)).toEqual([])
+    expect(parseLegacySavedTemplates({ ...legacy })).toEqual([])
+  })
+
+  it('rejects a newer schemaVersion', () => {
+    expect(parseLibrary({ schemaVersion: 4 })).toEqual({
+      ok: false,
+      code: 'newer-schema',
+      schemaVersion: 4,
+      supportedVersion: 3,
+    })
+  })
+
+  it('serializes with the current schemaVersion, an empty map and no templates', () => {
+    expect(serializeLibrary({})).toEqual({
+      schemaVersion: 3,
+      books: {},
+      templates: [],
+    })
   })
 
   test.prop([fc.jsonValue()], PBT_RUNS)(
@@ -104,23 +231,28 @@ describe('library document', () => {
       fc.dictionary(fc.string(), fc.jsonValue()),
     ],
     PBT_RUNS,
-  )('any v0 / v1 document upgrades to an empty v2 map', (version, extra) => {
-    const doc = { ...extra, schemaVersion: version }
-    expect(parseLibrary(doc)).toEqual({ ok: true, meta: { books: {} } })
-  })
-
-  test.prop([bookEntries], PBT_RUNS)(
-    'serialize then parse round-trips the status map',
-    (books) => {
-      const text = JSON.stringify(serializeLibrary({ books }))
-      expect(parseLibrary(JSON.parse(text))).toEqual({
-        ok: true,
-        meta: { books },
-      })
+  )(
+    'any v0 / v1 document upgrades to an empty v3 library',
+    (version, extra) => {
+      const doc = { ...extra, schemaVersion: version }
+      expect(parseLibrary(doc)).toEqual({ ok: true, meta: EMPTY })
     },
   )
 
-  test.prop([fc.integer({ min: 3, max: 1_000_000 })])(
+  test.prop([bookEntries, fc.array(savedTemplate, { maxLength: 5 })], PBT_RUNS)(
+    'serialize then parse round-trips the status map and the templates',
+    (books, templates) => {
+      const text = JSON.stringify(serializeLibrary({ books, templates }))
+      expect(parseLibrary(JSON.parse(text))).toEqual({
+        ok: true,
+        meta: { books, templates },
+      })
+    },
+    // ~0.4 s alone; headroom for a loaded CI runner.
+    20_000,
+  )
+
+  test.prop([fc.integer({ min: 4, max: 1_000_000 })])(
     'any newer version is rejected',
     (schemaVersion) => {
       expect(parseLibrary({ schemaVersion })).toMatchObject({

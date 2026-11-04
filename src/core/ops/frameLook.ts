@@ -1,5 +1,5 @@
 import type { Book, Frame, FrameAdjust, FrameStyle } from '../schema'
-import { updateFrame } from '../update'
+import { findBookFrame, updateFrame } from '../update'
 import { omitKey } from '../omitKey'
 
 /** Kit built-in frame styles (uikit/src/sandbox/model.ts DEFAULT_STYLES). */
@@ -148,9 +148,7 @@ export function newFrameStyleFromFrame(
   spreadId: string,
   frameId: string,
 ): Book {
-  const frame = book.spreads
-    .find((spread) => spread.id === spreadId)
-    ?.frames.find((item) => item.id === frameId)
+  const frame = findBookFrame(book, spreadId, frameId)
   if (frame === undefined || frame.kind === 'text') {
     return book
   }

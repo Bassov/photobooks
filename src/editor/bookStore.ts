@@ -9,16 +9,18 @@ import {
   PARENT_SPREAD_INDEX,
   parentAsSpread,
   placementCountByAsset,
+  resolveParentFrames,
   resolveSpread,
   spreadParent,
   type Asset,
   type Book,
   type BookOp,
+  type Frame,
   type ParentSpread,
   type ResolvedSpread,
   type Spread,
 } from '../core'
-import { tryCacheKeyFromAsset } from '../assets/cacheKey'
+import { cacheKeyFromRecord, tryCacheKeyFromAsset } from '../assets/cacheKey'
 import { setBookUsedAssetIds, setDecodeImportActive } from '../photo/assetPool'
 import type { ExifOrientation } from '../photo/types'
 import {
@@ -450,6 +452,9 @@ export function getAssetCacheKey(assetId: string): string | undefined {
   const book = state.book.assets[assetId]
   const pending = pendingAssetRecords.get(assetId)
   const patch = pendingAssetPatches.get(assetId)
+  if (book !== undefined && pending === undefined && patch === undefined) {
+    return cacheKeyFromRecord(book)
+  }
   return tryCacheKeyFromAsset({
     sourceRootId:
       book?.sourceRootId ?? pending?.sourceRootId ?? patch?.sourceRootId,
@@ -1121,6 +1126,28 @@ function paintInputKey(
   return key
 }
 
+/** Parent frames the spread paints (hidden and copied ids never do). */
+function paintedParentFrames(book: Book, spread: Spread): Frame[] {
+  return resolveParentFrames(book, spread).flatMap(({ frame, layer }) =>
+    layer === 'parent' ? [frame] : [],
+  )
+}
+
+/** Same parent frames painted; a parent edit on an item the spread hides or copies keeps it quiet. */
+function sameParentPaint(
+  prevBook: Book,
+  nextBook: Book,
+  before: PaintSource,
+  after: PaintSource,
+): boolean {
+  if (before.parent?.frames === after.parent?.frames) {
+    return true
+  }
+  const was = paintedParentFrames(prevBook, before.spread)
+  const now = paintedParentFrames(nextBook, after.spread)
+  return was.length === now.length && was.every((frame, i) => frame === now[i])
+}
+
 function notifySpread(spreadId: string): void {
   const set = spreadListeners.get(spreadId)
   if (set === undefined) {
@@ -1149,7 +1176,7 @@ function paintChanged(
   }
   return (
     before.spread !== after.spread ||
-    before.parent?.frames !== after.parent?.frames ||
+    !sameParentPaint(prev.book, next.book, before, after) ||
     before.index !== after.index ||
     (!sharedSame &&
       paintInputKey(prev.book, before, prev.sessionMeta, prev.previewUrls) !==

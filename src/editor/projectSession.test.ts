@@ -20,6 +20,10 @@ import {
 import { isEditorGestureActive, setEditorGestureActive } from './editorGesture'
 import { getEditorStatus } from './editorStatus'
 import {
+  flushSavedTemplatesForTests,
+  getSavedTemplates,
+} from './savedTemplates'
+import {
   ensureThumb,
   getThumbBulkHydrateStatsForTests,
   getThumbUrl,
@@ -73,6 +77,24 @@ describe('projectSession', () => {
     const first = getProjectSessionSnapshot()
     const second = getProjectSessionSnapshot()
     expect(Object.is(first, second)).toBe(true)
+  })
+
+  it('My templates follow the bound library and clear when the session resets', async () => {
+    const storage = createMemoryLibraryStorage()
+    const saved = {
+      id: 'user-a',
+      name: 'Opener',
+      pages: 2 as const,
+      slots: [{ x: 0, y: 0, w: 62, h: 100 }],
+    }
+    await storage.updateLibrary({ templates: [saved] })
+    const session = createMemorySessionState()
+    configureProjectSession({ session, createStorage: () => storage })
+    await attachLibraryForTests({ storage, session })
+    await flushSavedTemplatesForTests()
+    expect(getSavedTemplates()).toEqual([saved])
+    resetProjectSessionForTests()
+    expect(getSavedTemplates()).toEqual([])
   })
 
   it('creates a book, saves, and restores the document', async () => {

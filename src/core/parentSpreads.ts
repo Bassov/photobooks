@@ -3,8 +3,15 @@ import { mergeGridLevels } from './grid/layoutGrid'
 import { omitKey } from './omitKey'
 import { realignResolvedGrids } from './ops/grid'
 import type { Guide } from './ops/guides'
-import type { Book, Frame, ParentSpread, Spread } from './schema'
+import type {
+  Book,
+  Frame,
+  ParentOverrides,
+  ParentSpread,
+  Spread,
+} from './schema'
 import { spreadParent } from './spreadParent'
+import { updateSpread } from './update'
 
 /** Where a resolved item comes from: the parent, a spread-local copy of a parent item, or the spread itself. */
 export type ParentLayer = 'parent' | 'override' | 'spread'
@@ -166,7 +173,7 @@ export function removeParent(book: Book, id: string): Book {
   next.spreads = book.spreads.map((spread) =>
     spread.parentId === id ? none(spread) : spread,
   )
-  return realignResolvedGrids(book, next)
+  return realignResolvedGrids(book, keepOverridesOnParentChange(book, next))
 }
 
 /**
@@ -186,7 +193,7 @@ export function setDefaultParent(book: Book, id: string | null): Book {
     id === null
       ? omitKey(book, 'defaultParentId')
       : { ...book, defaultParentId: id }
-  return realignResolvedGrids(book, next)
+  return realignResolvedGrids(book, keepOverridesOnParentChange(book, next))
 }
 
 /** Grid chain: book grid → parent partial grid → spread override. */
@@ -212,7 +219,7 @@ function suppressedIds(spread: Spread): ReadonlySet<string | undefined> {
   )
 }
 
-function byZ(frames: readonly Frame[]): Frame[] {
+function byZ<T extends Frame>(frames: readonly T[]): T[] {
   return frames.toSorted((a, b) => a.z - b.z)
 }
 
@@ -260,6 +267,248 @@ export function resolveParentGuides(
   ]
 }
 
+/** First `copy-<n>` not in `taken`. */
+function nextCopyId(taken: ReadonlySet<string>): string {
+  let n = 1
+  while (taken.has(`copy-${String(n)}`)) {
+    n += 1
+  }
+  return `copy-${String(n)}`
+}
+
+/** `parentOverrides` = `next` minus empty lists; nothing left → the field is gone. */
+function withOverrides(spread: Spread, next: ParentOverrides): Spread {
+  const kept: ParentOverrides = {}
+  if (next.hiddenIds !== undefined && next.hiddenIds.length > 0) {
+    kept.hiddenIds = next.hiddenIds
+  }
+  if (next.frames !== undefined && next.frames.length > 0) {
+    kept.frames = next.frames
+  }
+  if (next.guides !== undefined && next.guides.length > 0) {
+    kept.guides = next.guides
+  }
+  const rest = omitKey(spread, 'parentOverrides')
+  return Object.keys(kept).length === 0
+    ? rest
+    : { ...rest, parentOverrides: kept }
+}
+
+/**
+ * Copy the resolved parent item `parentItemId` into the spread's local copies
+ * (`id`, else the first free `copy-<n>`); the resolver then paints the copy
+ * instead. An unknown, hidden or already overridden item or a taken `id`
+ * leaves the book.
+ */
+function overrideParentItem(
+  book: Book,
+  spreadId: string,
+  parentItemId: string,
+  id: string | undefined,
+  kind: 'frames' | 'guides',
+  placed?: { id: string },
+): Book {
+  return updateSpread(book, spreadId, (spread) => {
+    const items: readonly { id: string }[] =
+      spreadParent(book, spread)?.[kind] ?? []
+    const source = items.find((item) => item.id === parentItemId)
+    if (source === undefined || suppressedIds(spread).has(parentItemId)) {
+      return spread
+    }
+    const overrides = spread.parentOverrides ?? {}
+    const own: readonly { id: string }[] =
+      kind === 'frames' ? spread.frames : (spread.guides ?? [])
+    const taken = new Set(
+      [...items, ...own, ...(overrides[kind] ?? [])].map((item) => item.id),
+    )
+    const copyId = id ?? nextCopyId(taken)
+    if (taken.has(copyId)) {
+      return spread
+    }
+    const copy = {
+      ...(placed ?? source),
+      id: copyId,
+      overridesId: parentItemId,
+    }
+    return {
+      ...spread,
+      parentOverrides: {
+        ...overrides,
+        [kind]: [...(overrides[kind] ?? []), copy],
+      },
+    }
+  })
+}
+
+/** Override a parent frame on the spread: a local copy the spread edits on its own. */
+export function overrideParentFrame(
+  book: Book,
+  spreadId: string,
+  parentFrameId: string,
+  id?: string,
+): Book {
+  return overrideParentItem(book, spreadId, parentFrameId, id, 'frames')
+}
+
+/**
+ * Override a parent guide on the spread: a local copy the spread edits on its
+ * own, in the spread's mm as `viewGuides` shows it. A guide off the spread's
+ * page leaves the book.
+ */
+export function overrideParentGuide(
+  book: Book,
+  spreadId: string,
+  parentGuideId: string,
+  id?: string,
+): Book {
+  const spreadIndex = book.spreads.findIndex((s) => s.id === spreadId)
+  const spread = book.spreads[spreadIndex]
+  const source =
+    spread === undefined
+      ? undefined
+      : spreadParent(book, spread)?.guides.find((g) => g.id === parentGuideId)
+  const placed =
+    source === undefined ? undefined : onSpreadPage(book, spreadIndex, source)
+  return placed === undefined
+    ? book
+    : overrideParentItem(book, spreadId, parentGuideId, id, 'guides', placed)
+}
+
+/** Overrides without the copies and the hidden entry of `parentItemId`. */
+function withoutItem(
+  overrides: ParentOverrides,
+  parentItemId: string,
+): ParentOverrides {
+  const other = ({ overridesId }: { overridesId: string }) =>
+    overridesId !== parentItemId
+  return {
+    hiddenIds: overrides.hiddenIds?.filter((id) => id !== parentItemId),
+    frames: overrides.frames?.filter(other),
+    guides: overrides.guides?.filter(other),
+  }
+}
+
+/**
+ * Hide a parent frame or guide on the spread ("not on this spread"): its
+ * copy, if any, goes and the id joins `hiddenIds`. An id that is neither a
+ * parent item nor copied, or one already hidden, leaves the book.
+ */
+export function hideParentItem(
+  book: Book,
+  spreadId: string,
+  parentItemId: string,
+): Book {
+  return updateSpread(book, spreadId, (spread) => {
+    const overrides = spread.parentOverrides ?? {}
+    const parent = spreadParent(book, spread)
+    const copied = [
+      ...(overrides.frames ?? []),
+      ...(overrides.guides ?? []),
+    ].some((copy) => copy.overridesId === parentItemId)
+    const inherited = [
+      ...(parent?.frames ?? []),
+      ...(parent?.guides ?? []),
+    ].some((item) => item.id === parentItemId)
+    const hidden = overrides.hiddenIds?.includes(parentItemId) === true
+    if (!copied && (hidden || !inherited)) {
+      return spread
+    }
+    const next = withoutItem(overrides, parentItemId)
+    return withOverrides(spread, {
+      ...next,
+      hiddenIds: [...(next.hiddenIds ?? []), parentItemId],
+    })
+  })
+}
+
+/** Back to the parent for one item: its copy and hidden entry go. Untouched → unchanged. */
+export function resetParentItem(
+  book: Book,
+  spreadId: string,
+  parentItemId: string,
+): Book {
+  return updateSpread(book, spreadId, (spread) =>
+    spread.parentOverrides === undefined ||
+    !suppressedIds(spread).has(parentItemId)
+      ? spread
+      : withOverrides(
+          spread,
+          withoutItem(spread.parentOverrides, parentItemId),
+        ),
+  )
+}
+
+/** Back to the parent for every item: `parentOverrides` goes. */
+export function resetSpreadToParent(book: Book, spreadId: string): Book {
+  return updateSpread(book, spreadId, (spread) =>
+    spread.parentOverrides === undefined
+      ? spread
+      : omitKey(spread, 'parentOverrides'),
+  )
+}
+
+/** `item` without `overridesId`, renamed to a free `copy-<n>` when its id is taken. */
+function asOwn<T extends { id: string; overridesId: string }>(
+  item: T,
+  taken: Set<string>,
+): Omit<T, 'overridesId'> {
+  const own = omitKey(item, 'overridesId')
+  const id = taken.has(item.id) ? nextCopyId(taken) : item.id
+  taken.add(id)
+  return { ...own, id }
+}
+
+/**
+ * Keep the spread's work when its parent changes: local copies become own
+ * frames beneath every own frame (relative order kept; the template goes),
+ * copied guides become own guides and hidden ids are dropped.
+ */
+export function keepOverridesAsOwn(spread: Spread): Spread {
+  const overrides = spread.parentOverrides
+  if (overrides === undefined) {
+    return spread
+  }
+  let next = omitKey(spread, 'parentOverrides')
+  const copies = byZ(overrides.frames ?? [])
+  if (copies.length > 0) {
+    const taken = new Set(spread.frames.map((frame) => frame.id))
+    const bottom = Math.min(...spread.frames.map((frame) => frame.z))
+    const frames = copies.map((copy, rank) => ({
+      ...asOwn(copy, taken),
+      z: spread.frames.length === 0 ? copy.z : bottom - copies.length + rank,
+    }))
+    next = omitKey(
+      { ...next, frames: [...frames, ...spread.frames] },
+      'templateId',
+    )
+  }
+  const guides = overrides.guides ?? []
+  if (guides.length > 0) {
+    const own = next.guides ?? []
+    const taken = new Set(own.map((guide) => guide.id))
+    next = {
+      ...next,
+      guides: [...own, ...guides.map((guide) => asOwn(guide, taken))],
+    }
+  }
+  return next
+}
+
+/** `after` with the work kept on every spread whose resolved parent differs from `before`. */
+function keepOverridesOnParentChange(before: Book, after: Book): Book {
+  const spreads = after.spreads.map((spread, index) => {
+    const prev = before.spreads[index]
+    return spread.parentOverrides === undefined ||
+      (prev !== undefined &&
+        spreadParent(before, prev)?.id === spreadParent(after, spread)?.id)
+      ? spread
+      : keepOverridesAsOwn(spread)
+  })
+  return spreads.some((spread, index) => spread !== after.spreads[index])
+    ? { ...after, spreads }
+    : after
+}
+
 /** A parent guide (two-page mm) on this spread's page, or `undefined` when off it. */
 function onPage(
   guide: Guide,
@@ -274,6 +523,18 @@ function onPage(
     return undefined
   }
   return shiftMm === 0 ? guide : { ...guide, offsetMm }
+}
+
+/** `onPage` with the page shift and width `viewGuides` uses for `spreadIndex`. */
+function onSpreadPage(
+  book: Book,
+  spreadIndex: number,
+  guide: Guide,
+): Guide | undefined {
+  const trimWidthMm = book.settings.trim.widthMm
+  const single = getSpreadPageCount(spreadIndex, book.spreads.length) === 1
+  const shiftMm = single && spreadIndex === 0 ? trimWidthMm : 0
+  return onPage(guide, shiftMm, single ? trimWidthMm : trimWidthMm * 2)
 }
 
 interface ViewGuidesEntry {
