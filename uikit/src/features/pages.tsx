@@ -15,6 +15,7 @@ import { SiteDemo2 } from "./site-demo-2/site"
 import { SiteDemo3 } from "./site-demo-3/site"
 import { SiteDemo4 } from "./site-demo-4/site"
 import { SiteDemo5 } from "./site-demo-5/site"
+import { SiteFreshB } from "./site-fresh-b/site"
 import type { FeatureDef, Notes } from "./types"
 
 /** Stage height = the #/demo viewport height (+ the 40 px scenario strip), so every slot sits at its #/demo size. */
@@ -262,6 +263,14 @@ export const PAGES: Record<string, FeatureDef> = {
       where: "DEMO branch only. Full window: #/full/site-demo-5 (?books=1|3|6|12).",
       keys: [["← / →", "turn"], ["Enter", "open"], ["Esc", "back to the shelf"]],
       edge: ["Reduced motion = opacity only", "Phone: tap pulls a spine, tap again opens"],
+    },
+  },
+  "site-fresh-b": {
+    Demo: SiteFreshB, h: SLOT.app.h, notes: {
+      what: "Fresh concept B, the row: books stand one behind another; pull the front one aside and it goes to the back.",
+      where: "DEMO branch only. Full window: #/full/site-fresh-b (?books=1|3|6|12).",
+      keys: [["← / →", "next / previous book, turn"], ["Enter", "open"]],
+      edge: ["A flick riffles several; reduced motion = fade", "Phone: swipe the front book, tap a spine"],
     },
   },
   "site-preview-mode": page([
