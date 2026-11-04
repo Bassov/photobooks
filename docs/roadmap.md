@@ -111,6 +111,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [site-photographer-demo](roadmap/P2/site-photographer-demo.md) — Bug: /next-roadmap-item site-photographer-demo
 - [ ] [feature] [text-frames-core](roadmap/P2/text-frames-core.md) — Bug: /next-roadmap-item text-frames-core
 - [ ] [feature] [text-frames-kit](roadmap/P2/text-frames-kit.md) — Bug: /next-roadmap-item text-frames-kit
+- [ ] [feature] [text-frames-editor](roadmap/P2/text-frames-editor.md) — Bug: /next-roadmap-item text-frames-editor
 - [ ] [feature] [parent-guides-kit](roadmap/P2/parent-guides-kit.md) — Bug: /next-roadmap-item parent-guides-kit
 - [ ] [feature] [roadmap-index-no-tick](roadmap/P2/roadmap-index-no-tick.md) — Bug: /next-roadmap-item roadmap-index-no-tick
 - [ ] [feature] [master-spread-both-pages](roadmap/P2/master-spread-both-pages.md) — Bug: /next-roadmap-item master-spread-both-pages
