@@ -38,6 +38,7 @@ import {
 } from './marquee'
 import { setSnapHint } from './snapHint'
 import { isTypingTarget } from './isTypingTarget'
+import { paintedOf } from './selectionPeer'
 import { nextEditKey, startTextEdit } from './textEditStore'
 import {
   buildSnapIndex,
@@ -131,8 +132,11 @@ interface MoveSession {
   pointerId: number
   ctx: SpreadContext
   frameId: string
-  /** Null until the first move for a copy made by this press (not painted yet). */
-  button: HTMLElement | null
+  /**
+   * The frame button, plus a copy's selection peer. Empty until the first
+   * move for a copy made by this press (not painted yet).
+   */
+  painted: HTMLElement[]
   startX: number
   startY: number
   rect0: RectMm
@@ -476,7 +480,7 @@ function copyMoveSession(
     pointerId: event.pointerId,
     ctx,
     frameId: copy.id,
-    button: null,
+    painted: [],
     startX: event.clientX,
     startY: event.clientY,
     rect0: copy.rect,
@@ -489,9 +493,9 @@ function copyMoveSession(
 }
 
 function restoreMove(move: MoveSession): void {
-  if (move.button !== null) {
-    move.button.style.left = move.saved.left
-    move.button.style.top = move.saved.top
+  for (const { style } of move.painted) {
+    style.left = move.saved.left
+    style.top = move.saved.top
   }
 }
 
@@ -680,7 +684,7 @@ export function installFrameGesture(): () => void {
         pointerId: event.pointerId,
         ctx,
         frameId,
-        button: frameEl,
+        painted: paintedOf(frameEl),
         startX: event.clientX,
         startY: event.clientY,
         rect0: frame.rect,
@@ -793,11 +797,12 @@ export function installFrameGesture(): () => void {
         setEditorStatus(STATUS_FRAME_LOCKED)
       }
     }
-    if (move.button === null) {
-      move.button = frameButton(ctx.element, move.frameId)
+    if (move.painted.length === 0) {
+      const button = frameButton(ctx.element, move.frameId)
+      move.painted = button === null ? [] : paintedOf(button)
       move.saved = {
-        left: move.button?.style.left ?? '',
-        top: move.button?.style.top ?? '',
+        left: button?.style.left ?? '',
+        top: button?.style.top ?? '',
       }
     }
     if (move.locked) {
@@ -824,9 +829,9 @@ export function installFrameGesture(): () => void {
       grid: gridSnapActive(event),
     })
     move.rect = { ...moved, x: moved.x + snap.dx, y: moved.y + snap.dy }
-    if (move.button !== null) {
-      move.button.style.left = pct(move.rect.x, ctx.widthMm)
-      move.button.style.top = pct(move.rect.y, ctx.heightMm)
+    for (const { style } of move.painted) {
+      style.left = pct(move.rect.x, ctx.widthMm)
+      style.top = pct(move.rect.y, ctx.heightMm)
     }
     paintSnapLines(ctx, snap.lines)
     setSnapHint(snap.hint, ctx.spreadId)

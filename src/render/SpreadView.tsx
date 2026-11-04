@@ -27,7 +27,7 @@ export interface FrameControl {
   editing?: boolean
 }
 import { dropChipLabel } from './dropChip'
-import { overrideBadgeFit, type OverrideBadgeFit } from './overrideBadge'
+import { overrideBadgeFit } from './overrideBadge'
 import { adjustFilter, frameStyleCss } from './frameLookCss'
 import {
   clearPhotoPreview,
@@ -151,23 +151,28 @@ export function FrameGlyph({
   )
 }
 
-/** Designer PO3 badge on a local copy: full, icon-only or none by frame size. */
-function OverrideBadge({ fit }: { fit: OverrideBadgeFit }) {
-  if (fit === 'none') {
-    return null
-  }
+/**
+ * Designer PO3 badge on a local copy: full, icon-only or none by frame size.
+ * It carries the frame's layout px, so a live zoom refits it per gesture
+ * frame (`data-live-fit`, usePasteboardCamera) and the CSS hides the text or
+ * the badge; the attribute clears when the zoom settles.
+ */
+function OverrideBadge({ width, height }: { width: number; height: number }) {
+  const fit = overrideBadgeFit(width, height)
   const iconOnly = fit === 'icon'
   return (
     <span
       className="spread-frame-override"
       data-testid="override-badge"
       data-fit={fit}
+      data-badge-w={width}
+      data-badge-h={height}
       data-camera-frame=""
       title={iconOnly ? 'Override' : undefined}
       aria-label={iconOnly ? 'Override' : undefined}
     >
       <FrameGlyph nodes={ICON_GLYPHS.unlink2} size={10} name="unlink2" />
-      {iconOnly ? null : 'override'}
+      <span className="spread-frame-override-text">override</span>
     </span>
   )
 }
@@ -263,6 +268,12 @@ export function SpreadView({
   )
   // Editor canvas only: thumbs and Preview mount no frame controls.
   const markParents = !thumb && frameControlFor !== undefined
+  // A lone selected copy (the only editable parent item) draws its ring and
+  // handles above own frames.
+  const lone = pressedItems.length === 1 && !cropping ? pressedItems[0] : null
+  const selectedCopy = lone?.parent === true ? lone : null
+  const copyControl =
+    selectedCopy === null ? undefined : controls.get(selectedCopy.frameId)
   const groupBox =
     pressedItems.length > 1 && !cropping
       ? groupBoxPx(pressedItems, pxPerMm)
@@ -293,7 +304,7 @@ export function SpreadView({
         }
         tier={tierUnlessMissing(missing, item.assetId, tierFor)}
         control={inert ? undefined : controls.get(item.frameId)}
-        handles={pressedItems.length === 1}
+        handles={pressedItems.length === 1 && item !== selectedCopy}
         parentMark={inherited && markParents}
       />
     )
@@ -355,6 +366,15 @@ export function SpreadView({
           />
         )
       })}
+      {selectedCopy === null || thumb ? null : (
+        <CopySelection
+          item={selectedCopy}
+          pxPerMm={pxPerMm}
+          handles={
+            selectedCopy.locked !== true && copyControl?.editing !== true
+          }
+        />
+      )}
       {groupBox === null || thumb ? null : (
         <div
           className="spread-group-box"
@@ -690,7 +710,7 @@ function SpreadFrame({
         </span>
       ) : null}
       {item.override === true && !cropActive ? (
-        <OverrideBadge fit={overrideBadgeFit(box.width, box.height)} />
+        <OverrideBadge width={box.width} height={box.height} />
       ) : null}
       {item.lowDpi !== undefined && !missing && !thumb && lowDpiBadge ? (
         <span
@@ -708,22 +728,63 @@ function SpreadFrame({
       handles &&
       item.locked !== true &&
       control.editing !== true ? (
-        <span
-          className="spread-frame-handles"
-          data-testid="spread-frame-handles"
-          aria-hidden
-        >
-          {HANDLE_POINTS.map(([id, x, y]) => (
-            <span
-              key={id}
-              className="spread-frame-handle"
-              data-handle={id}
-              data-testid="sel-handle"
-              style={{ left: x, top: y }}
-            />
-          ))}
-        </span>
+        <SelectionHandles />
       ) : null}
     </button>
+  )
+}
+
+function SelectionHandles() {
+  return (
+    <span
+      className="spread-frame-handles"
+      data-testid="spread-frame-handles"
+      aria-hidden
+    >
+      {HANDLE_POINTS.map(([id, x, y]) => (
+        <span
+          key={id}
+          className="spread-frame-handle"
+          data-handle={id}
+          data-testid="sel-handle"
+          style={{ left: x, top: y }}
+        />
+      ))}
+    </span>
+  )
+}
+
+/**
+ * Designer PO3: a selected copy paints in the parent layer, under own frames;
+ * its ring and handles sit here, above every frame, visible and grabbable.
+ * The box itself takes no pointer, so presses inside it reach the frames.
+ */
+function CopySelection({
+  item,
+  pxPerMm,
+  handles,
+}: {
+  item: ResolvedItem
+  pxPerMm: number
+  handles: boolean
+}) {
+  const box = frameBox(item.rectMm, pxPerMm)
+  return (
+    <div
+      className="spread-copy-selection"
+      data-testid="copy-selection"
+      data-selection-for={item.frameId}
+      style={{
+        left: box.left,
+        top: box.top,
+        width: box.width,
+        height: box.height,
+        ...(item.rotation === 0
+          ? {}
+          : { transform: `rotate(${String(item.rotation)}deg)` }),
+      }}
+    >
+      {handles ? <SelectionHandles /> : null}
+    </div>
   )
 }

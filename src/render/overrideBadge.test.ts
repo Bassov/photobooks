@@ -3,9 +3,10 @@ import { overrideBadgeFit } from './overrideBadge'
 
 describe('overrideBadgeFit', () => {
   it.each([
-    [75, 24.84, 'full'],
+    // 66.42 px badge + 4 px inset each side.
+    [74.42, 24.84, 'full'],
     [200, 100, 'full'],
-    [74.99, 24.84, 'icon'],
+    [74.41, 24.84, 'icon'],
     [26, 24.84, 'icon'],
     [25.99, 100, 'none'],
     [200, 24.83, 'none'],

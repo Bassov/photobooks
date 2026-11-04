@@ -22,6 +22,59 @@ const inheritedLogo = (page: Page, id: string) =>
 const copyOf = (page: Page, id: string) =>
   parentLayer(page, id).locator('button.spread-frame[data-override="true"]')
 const badge = (copy: Locator) => copy.getByTestId('override-badge')
+/** A selected copy's ring + handles, painted above the own frames. */
+const selectionOf = (page: Page, id: string) =>
+  canvasSpread(page, id).getByTestId('copy-selection')
+
+/**
+ * Ctrl+wheel steps of `deltaY` over the copy, one per frame (well inside the
+ * 80 ms settle), until its live height crosses `heightPx`; returns the live
+ * copy box and badge state before the zoom settles.
+ */
+async function liveZoomUntil(page: Page, deltaY: number, heightPx: number) {
+  return page.evaluate(
+    async ([step, limit]) => {
+      const badgeEl = document.querySelector<HTMLElement>(
+        '[data-override="true"] [data-testid="override-badge"]',
+      )
+      const port = document.querySelector('[data-testid="pasteboard-scroll"]')
+      const copyEl = badgeEl?.closest('button')
+      if (!badgeEl || !port || !copyEl) {
+        throw new Error('expected a copy with a badge')
+      }
+      const frame = () =>
+        new Promise((resolve) => requestAnimationFrame(resolve))
+      const crossed = () => {
+        const { height } = copyEl.getBoundingClientRect()
+        return step > 0 ? height < limit : height >= limit
+      }
+      for (let index = 0; index < 40 && !crossed(); index += 1) {
+        const at = copyEl.getBoundingClientRect()
+        port.dispatchEvent(
+          new WheelEvent('wheel', {
+            deltaY: step,
+            ctrlKey: true,
+            clientX: at.x,
+            clientY: at.y,
+            bubbles: true,
+            cancelable: true,
+          }),
+        )
+        await frame()
+      }
+      const live = copyEl.getBoundingClientRect()
+      const text = badgeEl.querySelector('.spread-frame-override-text')
+      return {
+        width: live.width,
+        height: live.height,
+        fit: badgeEl.dataset.liveFit,
+        display: getComputedStyle(badgeEl).display,
+        text: text === null ? null : getComputedStyle(text).display,
+      }
+    },
+    [deltaY, heightPx] as const,
+  )
+}
 
 async function openSpread(page: Page, id: string) {
   await page.getByTestId(`spread-list-item-${id}`).click()
@@ -122,12 +175,13 @@ test('Ctrl+Shift through an own frame overrides the logo and moves the copy; und
     .poll(async () => (await boxOf(copy)).x - logoBox.x)
     .toBeCloseTo(30, 0)
   expect(await boxOf(own)).toEqual(ownBox)
-  // Still painted under the own frame: the own frame keeps the press point.
+  // Still painted under the own frame: the topmost frame at the press point
+  // is the own frame (the copy's handles above it may cover the point).
   const top = await page.evaluate(
     ([x, y]) =>
       document
-        .elementFromPoint(x, y)
-        ?.closest('.spread-frame')
+        .elementsFromPoint(x, y)
+        .find((el) => el.matches('.spread-frame'))
         ?.getAttribute('data-frame-id'),
     [
       logoBox.x + logoBox.width / 2 + 30,
@@ -135,6 +189,24 @@ test('Ctrl+Shift through an own frame overrides the logo and moves the copy; und
     ] as const,
   )
   expect(top).toBe(ownId)
+  // …but its ring and 8 handles sit above the own frame, grabbable.
+  const chrome = selectionOf(page, a)
+  expect(await boxOf(chrome)).toEqual(await boxOf(copy))
+  const handles = chrome.locator('[data-handle]')
+  await expect(handles).toHaveCount(8)
+  for (const handle of await handles.all()) {
+    const box = await boxOf(handle)
+    const hit = await page.evaluate(
+      ([x, y]) =>
+        document
+          .elementFromPoint(x, y)
+          ?.closest('[data-handle]')
+          ?.closest('[data-selection-for]')
+          ?.getAttribute('data-selection-for'),
+      [box.x + box.width / 2, box.y + box.height / 2] as const,
+    )
+    expect(hit).toBe(await copy.getAttribute('data-frame-id'))
+  }
 
   // Undo: the move, then the override.
   await page.keyboard.press('Control+z')
@@ -163,12 +235,24 @@ test('the override badge shows in full, icon-only, or not at all by the copy siz
   expect(Math.abs(full.height - 16.85)).toBeLessThanOrEqual(0.5)
   expect(full.width).toBeGreaterThan(55)
   expect(full.width).toBeLessThan(75)
-  const copyBox = await boxOf(copy)
+  let copyBox = await boxOf(copy)
   expect(full.x - copyBox.x).toBeCloseTo(4, 0)
   expect(full.y - copyBox.y).toBeCloseTo(4, 0)
 
-  // Narrowed to ~40 px with the east handle (snaps may shift it) → icon only.
-  const east = await boxOf(copy.locator('[data-handle="e"]'))
+  // Live Ctrl+wheel zoom-out: the badge refits per gesture frame; under
+  // 24.84 px high it goes, and the live fit clears when the zoom settles.
+  const out = await liveZoomUntil(page, 120, 24.84)
+  expect(out.height).toBeLessThan(24.84)
+  expect(out).toMatchObject({ fit: 'none', display: 'none' })
+  await expect(badge(copy)).not.toHaveAttribute('data-live-fit')
+  await chooseZoom(page, '100%')
+  await copy.scrollIntoViewIfNeeded()
+  await expect(badge(copy)).toHaveAttribute('data-fit', 'full')
+  copyBox = await boxOf(copy)
+
+  // Narrowed to ~40 px with a handle above the frames (snaps may shift it)
+  // → icon only.
+  const east = await boxOf(selectionOf(page, b).locator('[data-handle="e"]'))
   await page.mouse.move(east.x + east.width / 2, east.y + east.height / 2)
   await page.mouse.down()
   await page.mouse.move(copyBox.x + 40, east.y + east.height / 2, { steps: 6 })
@@ -193,6 +277,19 @@ test('the override badge shows in full, icon-only, or not at all by the copy siz
   await expect
     .poll(async () => (await boxOf(copy)).height)
     .toBeLessThan(full.height)
-  await expect(badge(copy)).toHaveCount(0)
+  await expect(badge(copy)).toHaveAttribute('data-fit', 'none')
+  await expect(badge(copy)).toBeHidden()
+
+  // Live zoom-in: tall enough again → the icon, text still hidden.
+  const back = await liveZoomUntil(page, -120, 24.84)
+  expect(back.height).toBeGreaterThanOrEqual(24.84)
+  expect(back.width).toBeGreaterThanOrEqual(26)
+  expect(back.width).toBeLessThan(74.42)
+  expect(back).toMatchObject({
+    fit: 'icon',
+    // inline-flex, blockified by position: absolute.
+    display: 'flex',
+    text: 'none',
+  })
   await assertDocumentFitsViewport(page)
 })

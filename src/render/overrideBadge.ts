@@ -1,5 +1,5 @@
 /** Kit override badge (Designer PO3): 66.42 × 16.84 px, inset 4 px. */
-const BADGE_FULL_WIDTH_PX = 67
+const BADGE_FULL_WIDTH_PX = 66.42
 const BADGE_INSET_PX = 4
 const BADGE_MIN_HEIGHT_PX = 24.84
 const BADGE_ICON_MIN_WIDTH_PX = 26

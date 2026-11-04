@@ -164,14 +164,22 @@ describe('frameGesture · parent item override (PO2)', () => {
     copyButton.className = 'spread-frame'
     copyButton.setAttribute('data-frame-id', 'copy-1')
     copyButton.style.left = '1%'
-    spread.append(copyButton)
+    copyButton.style.top = '2%'
+    // …and its selection ring + handles above the own frames.
+    const peer = document.createElement('div')
+    peer.setAttribute('data-selection-for', 'copy-1')
+    peer.style.left = '1%'
+    spread.append(copyButton, peer)
     // Alt bypasses the snap, as for any move.
     pointer('pointermove', window, 37.5, 8, { altKey: true })
     expect(copyButton.style.left).toBe(`${String((27.5 / SIZE_MM) * 100)}%`)
+    expect(peer.style.left).toBe(copyButton.style.left)
     pointer('pointermove', window, 45, 8, { altKey: true })
     pointer('pointerup', window, 45, 8, { altKey: true })
 
     expect(copyButton.style.left).toBe('1%')
+    expect(copyButton.style.top).toBe('2%')
+    expect(peer.style.left).toBe('1%')
     expect(copies()[0]?.rect).toEqual({ ...LOGO, x: 35 })
     expect(getFrameSource()?.frameId).toBe('copy-1')
 
@@ -179,6 +187,26 @@ describe('frameGesture · parent item override (PO2)', () => {
     expect(copies()[0]?.rect).toEqual(LOGO)
     undoBook()
     expect(spreadNow().parentOverrides).toBeUndefined()
+  })
+
+  it('leaves a press on a copy handle above the frames to the handle gesture', async () => {
+    own.remove()
+    const peer = document.createElement('div')
+    peer.setAttribute('data-selection-for', 'copy-1')
+    const handle = document.createElement('span')
+    handle.setAttribute('data-handle', 'e')
+    peer.append(handle)
+    spread.append(peer)
+
+    // Over the logo: a paper press there would announce the parent item.
+    const down = pointer('pointerdown', handle, 32, 8)
+    pointer('pointerup', window, 32, 8)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(down.defaultPrevented).toBe(false)
+    expect(getEditorStatus()).toBe('')
+    expect(getFrameSource()).toBeNull()
+    expect(getHistorySnapshot().undoLabel).toBeNull()
   })
 
   it('needs Shift with Ctrl or ⌘ and a parent frame under the press', () => {

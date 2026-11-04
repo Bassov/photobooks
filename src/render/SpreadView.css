@@ -42,7 +42,8 @@ button.spread-frame {
    its ::before outline marks the frame instead. A live marquee hit
    (editor/marquee.ts) wears the same outline before the release selects it. */
 button.spread-frame[aria-pressed='true']:not([data-drop-hover='true'])::after,
-button.spread-frame[data-marquee-hit='true']::after {
+button.spread-frame[data-marquee-hit='true']::after,
+.spread-copy-selection::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -235,6 +236,14 @@ button.spread-frame[data-crop-active='true']:not(
   pointer-events: none;
 }
 
+/* PO3: a selected copy's ring and handles above every own frame (the group
+   box's layer); only the handles take the pointer. */
+.spread-copy-selection {
+  position: absolute;
+  z-index: 999;
+  pointer-events: none;
+}
+
 /* PO3: a local copy is the only pointer target in the inert parent layer. */
 .spread-view-parent-layer > button.spread-frame {
   pointer-events: auto;
@@ -266,8 +275,24 @@ button.spread-frame[data-crop-active='true']:not(
   scale: calc(1 / var(--cam-scale, 1));
 }
 
-.spread-frame-override[data-fit='icon'] {
+/* The fit at rest, or the live one mid-zoom (writeCameraFrame). */
+.spread-frame-override:is(
+  [data-live-fit='icon'],
+  [data-fit='icon']:not([data-live-fit])
+) {
   width: 18px;
+}
+
+.spread-frame-override:is(
+    [data-live-fit='icon'],
+    [data-fit='icon']:not([data-live-fit])
+  )
+  .spread-frame-override-text,
+.spread-frame-override:is(
+  [data-live-fit='none'],
+  [data-fit='none']:not([data-live-fit])
+) {
+  display: none;
 }
 
 /* Kit lock badge: 20px round, top-right. */

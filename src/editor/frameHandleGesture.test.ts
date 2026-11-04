@@ -390,6 +390,42 @@ describe('frameHandleGesture', () => {
       expect(frame().rotationDeg).toBe(45)
     })
 
+    it('drives the frame from a selection peer handle and previews on both', () => {
+      // A selected copy's chrome above own frames (SpreadView CopySelection).
+      const peer = document.createElement('div')
+      peer.setAttribute('data-selection-for', 'a')
+      const se = document.createElement('span')
+      se.setAttribute('data-handle', 'se')
+      const rot = document.createElement('span')
+      rot.setAttribute('data-handle', 'rotate')
+      peer.append(se, rot)
+      const other = document.createElement('div')
+      other.setAttribute('data-selection-for', 'n')
+      dom.spread.append(other, peer)
+      dom.button.style.width = '100px'
+      peer.style.width = '100px'
+
+      fire('pointerdown', se, 150, 150)
+      fire('pointermove', window, 160, 170)
+      expect(peer.style.width).toBe(dom.button.style.width)
+      expect(peer.style.height).toBe(dom.button.style.height)
+      expect(dom.button.style.width).toBe(`${String((60 / SIZE_MM) * 100)}%`)
+      fire('pointercancel', window, 160, 170)
+      expect(peer.style.width).toBe('100px')
+      expect(dom.button.style.width).toBe('100px')
+
+      fire('pointerdown', se, 150, 150)
+      fire('pointermove', window, 160, 170)
+      fire('pointerup', window, 160, 170)
+      expect(frame().rect).toMatchObject({ width: 60, height: 70 })
+
+      fire('pointerdown', rot, 225, 125)
+      fire('pointermove', window, 125, 225)
+      expect(peer.style.transform).toBe(dom.button.style.transform)
+      expect(peer.style.transform).toMatch(/^rotate\(/)
+      expect(other.getAttribute('style')).toBeNull()
+    })
+
     it('a handle press without movement changes nothing', () => {
       const nw = dom.handles.get('nw')
       assert(nw !== undefined)

@@ -31,6 +31,7 @@ import {
   type ResizeHandle,
 } from './frameHandleMath'
 import { isTypingTarget } from './isTypingTarget'
+import { handleOwner, paintedOf } from './selectionPeer'
 
 const SPREAD_SELECTOR = '[data-testid="spread-view"]'
 const NUDGE_MM = 1
@@ -51,7 +52,8 @@ interface Session {
   pointerId: number
   ctx: SpreadContext
   frameId: string
-  button: HTMLElement
+  /** The frame button, plus a copy's selection peer (live writes on both). */
+  painted: HTMLElement[]
   handle: ResizeHandle | typeof ROTATE_HANDLE
   startX: number
   startY: number
@@ -90,12 +92,13 @@ export function installFrameHandleGesture(): () => void {
   }
 
   const restore = (current: Session): void => {
-    const { style } = current.button
-    style.left = current.saved.left
-    style.top = current.saved.top
-    style.width = current.saved.width
-    style.height = current.saved.height
-    style.transform = current.savedTransform
+    for (const { style } of current.painted) {
+      style.left = current.saved.left
+      style.top = current.saved.top
+      style.width = current.saved.width
+      style.height = current.saved.height
+      style.transform = current.savedTransform
+    }
   }
 
   const finish = (): Session | null => {
@@ -121,7 +124,7 @@ export function installFrameHandleGesture(): () => void {
       return
     }
     const handleEl = event.target.closest<HTMLElement>('[data-handle]')
-    const button = handleEl?.closest<HTMLElement>('button.spread-frame')
+    const button = handleEl === null ? null : handleOwner(handleEl)
     const spreadEl = button?.closest<HTMLElement>(SPREAD_SELECTOR)
     const handle = handleEl?.getAttribute('data-handle') ?? ''
     if (
@@ -158,7 +161,7 @@ export function installFrameHandleGesture(): () => void {
       pointerId: event.pointerId,
       ctx,
       frameId,
-      button,
+      painted: paintedOf(button),
       handle,
       startX: event.clientX,
       startY: event.clientY,
@@ -241,7 +244,9 @@ export function installFrameHandleGesture(): () => void {
     }
     paintSnapLines(ctx, snapped?.lines ?? [])
     setSnapHint(snapped?.hint ?? null, ctx.spreadId)
-    placeBox(current.button, ctx, current.rect)
+    for (const el of current.painted) {
+      placeBox(el, ctx, current.rect)
+    }
   }
 
   function snapResizedRect(
@@ -294,7 +299,9 @@ export function installFrameHandleGesture(): () => void {
       pointerAngleDeg(centerX, centerY, event.clientX, event.clientY),
       event.shiftKey,
     )
-    current.button.style.transform = `rotate(${String(current.rotation)}deg)`
+    for (const { style } of current.painted) {
+      style.transform = `rotate(${String(current.rotation)}deg)`
+    }
   }
 
   function onUp(event: PointerEvent): void {
