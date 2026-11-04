@@ -6,13 +6,14 @@ import { CoverFace } from "./art"
 import type { SiteBook } from "./data"
 import { pagesOf } from "./data"
 
-export type Pose = { ry: number; rx: number; lift?: number; peek?: number }
+/** `rz` (Spec site-awards-5, default 0) turns the book in its plane before the tilt */
+export type Pose = { ry: number; rx: number; rz?: number; lift?: number; peek?: number }
 export const thick = (b: SiteBook, s: number) => Math.max(12, (0.6 + (pagesOf(b) / 2) * 0.1) * s)
 export const SPINE_SHADE = "linear-gradient(90deg, rgb(0 0 0/.16), rgb(0 0 0/0) 28%, rgb(255 255 255/.07) 55%, rgb(0 0 0/.12))"
 
 export const Book3D = React.forwardRef<HTMLDivElement, { b: SiteBook; s: number; pose?: Pose; floor?: boolean }>(function Book3D({ b, s, pose, floor = true }, ref) {
   const W = b.w * s, H = b.h * s, T = thick(b, s)
-  const vars = { "--t2": `${T / 2}px`, ...(pose && { "--ry": pose.ry, "--rx": pose.rx, "--lift": pose.lift ?? 0, "--peek": pose.peek ?? 0 }) } as React.CSSProperties
+  const vars = { "--t2": `${T / 2}px`, ...(pose && { "--ry": pose.ry, "--rx": pose.rx, "--rz": pose.rz ?? 0, "--lift": pose.lift ?? 0, "--peek": pose.peek ?? 0 }) } as React.CSSProperties
   return (
     <div ref={ref} className="sd-b3wrap sd-pose sd-ring" style={{ width: W, height: H, ...vars }} data-testid="book3d" data-book={b.id}>
       {floor && <div className="sd-floor" style={{ left: -W * 0.08, width: W * 1.16, bottom: -16, height: 28 }} />}

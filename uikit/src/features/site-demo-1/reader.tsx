@@ -2,7 +2,8 @@
    Views: 0 closed front cover · 1 endpaper | page 1 · 2… the spreads (the last: last page | endpaper) · last: closed back.
    A ±1 change of `view` turns a leaf (800 ms, the cover / back board 1000 ms); bigger jumps crossfade 240 ms; reduced
    motion crossfades every change in 160 ms. Click a half, ← / →, or drag a page; the corner lifts under a fine pointer.
-   Demos 2–5 (Spec site-awards-5) add `leaf="paper"` (a curling leaf), `turnMs` and `board`; the defaults are demo 1's. */
+   Demos 2–5 (Spec site-awards-5) add `leaf="paper"` (a curling leaf), `turnMs`, `board` and `scrub` (the page follows the
+   scroll); the defaults are demo 1's. */
 import * as React from "react"
 import { CoverFace, ENDPAPER, FOLD, SpreadArt, TitlePage } from "./art"
 import { SPREAD_R, src, viewLabel, viewsOf, type SiteBook } from "./data"
@@ -153,11 +154,17 @@ type ReaderProps = {
   turnMs?: number
   /** board (cloth) colour, default the spine */
   board?: string
+  /** scroll position in views (Spec site-awards-5): draws view floor(scrub) with θ = smoothstep(frac)·180; no animation,
+     no pointer or keys, and `onView` is not called */
+  scrub?: number
 }
 
 export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
-  function BookReader({ b, view, onView, width: W, dark, keys = true, vt, leaf = "board", turnMs = 800, board = b.spine }, apiRef) {
+  function BookReader({ b, view, onView, width: W, dark, keys = true, vt, leaf = "board", turnMs = 800, board = b.spine, scrub }, apiRef) {
     const n = viewsOf(b)
+    const sc = scrub === undefined ? null : clamp(scrub, 0, n - 1)
+    const sa = sc === null ? 0 : Math.min(Math.floor(sc), n - 2), sf = sc === null ? 0 : sc - sa
+    const sth = sf * sf * (3 - 2 * sf) * 180
     const H = W / SPREAD_R[b.fmt], pw = W / 2
     const g: Geo = { b, W, H, pw, n, shadow: dark ? SHADOW_DARK : "var(--site-shadow-book)", board, paper: leaf === "paper" }
     const el = React.useRef<HTMLDivElement>(null)
@@ -171,6 +178,8 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
     const live = React.useRef({ view, shown, onView })
     live.current = { view, shown, onView }
     const busy = turn !== null && turn.kind !== "lift"
+    /** the view on screen: a scrubbed leaf past 90° shows the next one */
+    const at = sc === null ? shown : sth >= 90 ? sa + 1 : sa
 
     const run = (a: number, th0: number, th1: number, ms: number, ease: (t: number) => number, kind: Turn["kind"], done?: () => void) => {
       cancelAnimationFrame(raf.current)
@@ -203,7 +212,7 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
 
     // follow `view`: ±1 turns a leaf, bigger jumps crossfade; reduced motion crossfades every change
     React.useEffect(() => {
-      if (busy || view === shown) return
+      if (sc !== null || busy || view === shown) return
       if (reduced()) { stop(); setFade({ from: shown, ms: 160, id: performance.now() }); setShown(view); return }
       if (Math.abs(view - shown) > 1) { stop(); setFade({ from: shown, ms: 240, id: performance.now() }); setShown(view); return }
       const fwd = view > shown, a = Math.min(view, shown)
@@ -216,11 +225,11 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
 
     // preload + decode the photos two views either side
     React.useEffect(() => {
-      for (const v of [shown - 2, shown - 1, shown + 1, shown + 2]) for (const u of photosOf(b, v)) {
+      for (const v of [at - 2, at - 1, at + 1, at + 2]) for (const u of photosOf(b, v)) {
         if (decoded.has(u)) continue
         decoded.add(u); const img = new Image(); img.src = u; void img.decode().catch(() => {})
       }
-    }, [b, shown])
+    }, [b, at])
 
     // keys while the reader is at least half in view
     const inView = React.useRef(false)
@@ -229,8 +238,9 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
       const io = new IntersectionObserver(([x]) => { inView.current = x.intersectionRatio >= 0.5 }, { threshold: [0, 0.5, 1] })
       io.observe(e); return () => io.disconnect()
     }, [])
+    const scrubbing = sc !== null
     React.useEffect(() => {
-      if (!keys) return
+      if (!keys || scrubbing) return
       const k = (e: KeyboardEvent) => {
         if (!inView.current || e.altKey || e.ctrlKey || e.metaKey) return
         const t = e.target as HTMLElement | null
@@ -241,7 +251,7 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
         if (e.key === "End") { e.preventDefault(); live.current.onView(n - 2) }
       }
       window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k)
-    }, [keys, n, request])
+    }, [keys, scrubbing, n, request])
 
     // pointer: click a half, drag a page (6 px threshold), corner lift
     const ptr = React.useRef<{ id: number; x0: number; y0: number; side: "L" | "R"; a: number; drag: boolean; lx: number; lt: number; vx: number } | null>(null)
@@ -309,12 +319,13 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
     // the cursor label (site Cursor) reads data-cursor; set only here and on pointer moves
     React.useEffect(() => { el.current?.setAttribute("data-cursor", shown === 0 ? "Open" : shown === n - 1 ? "←" : "→") }, [shown, n])
 
-    const label = viewLabel(b, shown)
+    const label = viewLabel(b, at)
+    const handlers = scrubbing ? {} : { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: () => { ptr.current = null; setTurn(null) }, onPointerLeave }
     return (
       <div ref={el} className={dark ? "sd-reader sd-dark" : "sd-reader"} style={{ width: W, height: H, perspective: `${Math.round(W * 2.9)}px` }}
-        role="region" aria-roledescription="book" aria-label={b.title} tabIndex={0} data-testid="ps-reader" data-view={shown}
-        onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={() => { ptr.current = null; setTurn(null) }} onPointerLeave={onPointerLeave}>
-        {turn ? <TurningBook g={g} a={turn.a} th={turn.th} /> : <StaticBook g={g} v={shown} vt={vt} />}
+        role="region" aria-roledescription="book" aria-label={b.title} tabIndex={0} data-testid="ps-reader" data-view={at} {...handlers}>
+        {scrubbing ? sth > 0 && sth < 180 ? <TurningBook g={g} a={sa} th={sth} /> : <StaticBook g={g} v={at} vt={vt} />
+          : turn ? <TurningBook g={g} a={turn.a} th={turn.th} /> : <StaticBook g={g} v={shown} vt={vt} />}
         {fade && <div key={fade.id} className="sd-fade" style={{ "--fd": `${fade.ms}ms` } as React.CSSProperties} onAnimationEnd={() => setFade(null)}><StaticBook g={g} v={fade.from} /></div>}
         <div className="sr-only" aria-live="polite" data-testid="ps-reader-live">{label}</div>
       </div>

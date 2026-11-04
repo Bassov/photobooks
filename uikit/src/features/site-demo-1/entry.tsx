@@ -4,7 +4,7 @@ import * as React from "react"
 const DEMOS: { n: number; name: string; ready: boolean }[] = [
   { n: 1, name: "The lit table — books as 3D objects on shelves, a reader that turns rigid pages", ready: true },
   { n: 2, name: "Night gallery: one room, a horizontal wall of lit books, pages that curl like paper", ready: true },
-  { n: 3, name: "Index: a typographic catalogue, the book turns as you scroll", ready: false },
+  { n: 3, name: "Index: a typographic catalogue, the book turns as you scroll", ready: true },
   { n: 4, name: "Desk: books lying on a linen desk, pick one up, open it in the lamp light", ready: false },
   { n: 5, name: "Spines: a bookcase of spines, pull one out, riffle its pages", ready: false },
 ]

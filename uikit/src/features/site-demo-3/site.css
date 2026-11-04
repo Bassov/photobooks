@@ -1,0 +1,86 @@
+/* Photographer site, demo 3 "Index" (Designer Spec site-awards-5, Direction 3): a catalogue raisonné on paper white with
+   one vermilion mark. Theme scoped to [data-surface="site-demo-3"]; Book3D / BookReader classes come from demo 1. */
+[data-surface="site-demo-3"] {
+  --d3-paper: #F7F5F0; --d3-ink: #111110; --d3-muted: #6B675F; --d3-mark: #C8401E; --d3-rule: rgb(17 17 16 / .16);
+  --d3-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* the reader's paper, title page and cloth read these */
+  --site-paper: #FFFFFF; --site-ink: #111110; --site-muted: #605B54; --site-on-band: #F7F5F0;
+  --site-serif: "Lora Variable", Lora, serif; --site-serif-it: "Site Lora", "Lora Variable", Lora, serif;
+  --site-sans: "Inter Variable", Inter, sans-serif;
+  --site-ease: cubic-bezier(.2, .7, .2, 1); --site-turn: cubic-bezier(.45, .05, .25, 1);
+  --site-shadow-book: 0 2px 4px rgb(17 17 16 / .12), 0 34px 60px -22px rgb(17 17 16 / .4);
+  background: var(--d3-paper); color: var(--d3-ink); font-family: var(--site-sans); -webkit-font-smoothing: antialiased;
+}
+[data-surface="site-demo-3"] em, [data-surface="site-demo-3"] .sd-it { font-family: var(--site-serif-it); font-style: italic; font-weight: 400 }
+:where([data-surface="site-demo-3"]) :where(button) { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit }
+:where([data-surface="site-demo-3"]) :where(:focus) { outline: none }
+[data-surface="site-demo-3"] .sd-grain { opacity: .04 }
+.sd3-abs { position: absolute }
+.sd3-scroll { position: absolute; inset: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain }
+
+/* type */
+.sd3-mono { font: 400 12px/1.7 var(--d3-mono); letter-spacing: .02em; text-transform: uppercase; color: var(--d3-muted); font-variant-numeric: tabular-nums; white-space: nowrap }
+.sd3-mono.sd3-s { font-size: 11px }
+.sd3-statement { font: 400 30px/1.3 var(--site-serif); letter-spacing: -.01em; color: var(--d3-ink) }
+.sd3-title { font: 400 112px/1 var(--site-serif); letter-spacing: -.045em; white-space: nowrap; color: var(--d3-ink) }
+.sd3-book-title { font: 400 44px/1 var(--site-serif-it); font-style: italic; letter-spacing: -.03em; color: var(--d3-ink) }
+.sd3-link { font: 500 13px/1 var(--site-sans); color: var(--d3-muted); transition: color 160ms }
+.sd3-link:hover, .sd3-link[aria-current] { color: var(--d3-ink) }
+[data-surface="site-demo-3"] .sd3-link:focus-visible, [data-surface="site-demo-3"] .sd3-email:focus-visible,
+[data-surface="site-demo-3"] .sd3-tick:focus-visible { outline: 2px solid var(--d3-ink); outline-offset: 3px; border-radius: 2px }
+.sd3-mast { position: absolute; inset: 0 0 auto; height: 56px; z-index: 40; background: var(--d3-paper) }
+.sd3-menu { position: absolute; right: 12px; top: 48px; display: flex; flex-direction: column; gap: 16px; padding: 16px 20px; background: var(--d3-paper); border: 1px solid var(--d3-rule) }
+
+/* the index */
+.sd3-list { position: relative; list-style: none; margin: 0; padding: 0 }
+.sd3-row { position: relative; display: block; width: 100%; border-top: 1px solid var(--d3-rule); transition: opacity 300ms var(--site-ease) }
+.sd3-list:has(.sd3-row:focus-visible) .sd3-row:not(:focus-visible) { opacity: .22 }
+@media (hover: hover) { .sd3-list:has(.sd3-row:hover) .sd3-row:not(:hover, :focus-visible) { opacity: .22 } }
+.sd3-row .sd3-no { position: absolute; left: 0; transition: left 300ms var(--site-ease), color 300ms }
+.sd3-row .sd3-t { position: absolute; display: block; transition: transform 300ms var(--site-ease) }
+.sd3-row .sd3-dot { position: absolute; left: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--d3-mark); opacity: 0; transition: opacity 300ms }
+.sd3-row:is(:hover, :focus-visible) .sd3-no { left: 16px; color: var(--d3-ink) }
+.sd3-row:is(:hover, :focus-visible) .sd3-t { transform: translateX(24px); font-family: var(--site-serif-it); font-style: italic }
+.sd3-row:is(:hover, :focus-visible) .sd3-dot { opacity: 1 }
+@media (hover: none) { .sd3-row:hover:not(:focus-visible) .sd3-no { left: 0; color: var(--d3-muted) } .sd3-row:hover:not(:focus-visible) .sd3-t { transform: none; font-family: var(--site-serif); font-style: normal } .sd3-row:hover:not(:focus-visible) .sd3-dot { opacity: 0 } }
+[data-surface="site-demo-3"] .sd3-row:focus-visible { outline: 2px solid var(--d3-ink); outline-offset: 8px; border-radius: 2px }
+@media (hover: hover) and (pointer: fine) { .sd3-fine .sd3-row { cursor: none } }
+
+/* the book that follows the pointer, and the cursor dot */
+.sd3-float { position: absolute; left: 0; top: 0; z-index: 30; pointer-events: none; will-change: transform }
+.sd3-float-in { transform-origin: 0 50%; scale: .6; opacity: 0; transition: scale 160ms var(--site-ease), opacity 160ms }
+.sd3-float-in[data-on] { scale: 1; opacity: 1; transition-duration: 220ms }
+.sd3-float .sd-b3 { transition: none }
+/* the dot centred on the pointer, "OPEN" starting 18 px to its right */
+.sd3-cursor { position: absolute; left: 0; top: -6px; height: 12px; z-index: 31; pointer-events: none; display: flex; align-items: center; gap: 13px; line-height: 1; opacity: 0; transition: opacity 160ms }
+.sd3-cursor[data-on] { opacity: 1 }
+.sd3-cursor::before { content: ""; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--d3-mark) }
+
+/* the book page */
+.sd3-page { animation: sd3-in 300ms var(--site-ease) both }
+@keyframes sd3-in { from { opacity: 0 } to { opacity: 1 } }
+.sd3-stage { position: sticky; top: 0; overflow: hidden }
+.sd3-slot { overflow: hidden; height: 46px; font: 400 44px/46px var(--site-serif); letter-spacing: -.03em; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--d3-ink) }
+.sd3-slot > span { display: block; height: 46px }
+.sd3-slot .sd3-out { position: absolute; inset: 0 0 auto; animation: sd3-out 400ms var(--site-ease) both }
+.sd3-slot .sd3-in { animation: sd3-roll 400ms var(--site-ease) both }
+@keyframes sd3-out { to { transform: translateY(-100%) } }
+@keyframes sd3-roll { from { transform: translateY(100%) } }
+.sd3-rule { height: 1px; background: rgb(17 17 16 / .18) }
+.sd3-tick { position: absolute; top: -12px; width: 24px; height: 24px; margin-left: -12px; display: grid; place-items: center }
+.sd3-tick::before { content: ""; width: 1px; height: 9px; background: rgb(17 17 16 / .35) }
+.sd3-marker { position: absolute; top: -2px; width: 12px; height: 5px; margin-left: -6px; background: var(--d3-mark); pointer-events: none }
+.sd3-hit { cursor: pointer }
+.sd3-email { font: 400 44px/1 var(--site-serif); letter-spacing: -.03em; color: var(--d3-ink); text-decoration: underline 1px; text-underline-offset: 10px; text-decoration-color: var(--d3-rule) }
+.sd3-email:hover { text-decoration-color: var(--d3-ink) }
+.sd3-dl { display: grid; grid-template-columns: 96px auto; row-gap: 10px; margin: 0 }
+.sd3-dl dd { margin: 0; color: var(--d3-ink) }
+[data-surface="site-demo-3"] .sd-reader:focus-visible { outline: 2px solid var(--d3-ink); outline-offset: 8px; border-radius: 4px }
+
+@media (prefers-reduced-motion: reduce) {
+  .sd3-row, .sd3-row .sd3-no, .sd3-row .sd3-t, .sd3-float-in, .sd3-cursor { transition: none }
+  .sd3-row:is(:hover, :focus-visible) .sd3-t { transform: none }
+  .sd3-page { animation-duration: 160ms }
+  .sd3-slot .sd3-out { display: none }
+  .sd3-slot .sd3-in { animation: none }
+}

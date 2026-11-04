@@ -459,14 +459,17 @@ await smoke("shelf → book page → open cover → turn a page → fullscreen",
     await p.click(`[data-testid="sd${n}-book"][data-id="lake-trip"]`); await p.waitForTimeout(1600)
     const rd = p.locator(`[data-testid="sd${n}-reader"]`); return { shown: await rd.isVisible(), v0: await rd.getAttribute("data-view") }
   }
-  for (const n of [2]) {
+  for (const n of [2, 3]) {
     const id = `#/full/site-demo-${n}`, e0 = errs.length
     let pass = false, info = ""
     try {
       await go(id, 700)
       const th = await theme(page, n)
       const { shown, v0 } = await openLake(page, n)
-      await page.keyboard.press("ArrowRight"); await turned(page, n, v0)
+      // demo 3 turns by scroll: one 100vh step is one view
+      if (n === 3) await page.evaluate(() => { const s = document.querySelector('[data-testid="sd3-scroll"]'); s.scrollBy(0, s.clientHeight) })
+      else await page.keyboard.press("ArrowRight")
+      await turned(page, n, v0)
       const v1 = await page.getAttribute(`[data-testid="sd${n}-reader"]`, "data-view")
       await page.keyboard.press("Escape"); await page.waitForTimeout(1200)
       const home = (await page.locator(`[data-testid="sd${n}-reader"]`).count()) === 0, focus = await page.evaluate(() => document.activeElement?.getAttribute("data-id"))

@@ -61,7 +61,7 @@
 /* Book3D */
 .sd-b3wrap { position: relative; perspective: 1800px }
 .sd-b3 { position: absolute; left: 0; top: 0; transform-style: preserve-3d;
-  transform: translateY(calc(-1px * var(--lift))) rotateX(calc(1deg * var(--rx))) rotateY(calc(1deg * var(--ry)));
+  transform: translateY(calc(-1px * var(--lift))) rotateZ(calc(1deg * var(--rz, 0))) rotateX(calc(1deg * var(--rx))) rotateY(calc(1deg * var(--ry)));
   transition: transform 600ms var(--site-ease) }
 .sd-b3 > div { position: absolute; backface-visibility: hidden }
 .sd-b3-cover { left: 0; top: 0; width: 100%; height: 100%; transform-origin: left center; border-radius: 1px 3px 3px 1px;
