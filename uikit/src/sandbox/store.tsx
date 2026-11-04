@@ -54,8 +54,9 @@ export type Studio = {
   panels: { l: boolean; b: boolean }; setPanels: (p: { l: boolean; b: boolean }) => void
 }
 export type Node = { k: "cover" } | { k: "endpaper"; w: "front" | "back" } | { k: "master"; id: "A" | "B" } | { k: "last" } | { k: "book" } | { k: "none" } | null
-export type Book = { endp: boolean; endpSame: boolean; w: number; h: number; preset: string }
-export const BOOK0: Book = { endp: true, endpSame: true, w: 20, h: 20, preset: "sq20" }
+/** `safe`: the safe margin in mm (Book settings Print · S; folios stay inside it) */
+export type Book = { endp: boolean; endpSame: boolean; w: number; h: number; preset: string; safe: number }
+export const BOOK0: Book = { endp: true, endpSame: true, w: 20, h: 20, preset: "sq20", safe: 8 }
 const Ctx = React.createContext<Studio | null>(null)
 export const useStudio = () => React.useContext(Ctx)!
 

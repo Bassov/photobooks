@@ -4,9 +4,9 @@
    Colours are prod's styles/tokens.css values: --presentation-ink white/0.6, --presentation-chip white/0.1 (hover 0.2). */
 import * as React from "react"
 import { MiniSpread } from "@/sandbox/chrome"
-import { SW, SH } from "@/sandbox/model"
+import { SW, SH, lastPageFolios } from "@/sandbox/model"
 import { useStudio } from "@/sandbox/store"
-import { coverW, CoverSpread, PAPER } from "@/sandbox/v7"
+import { coverW, CoverSpread, FolioMarks, PAPER } from "@/sandbox/v7"
 
 /** Prod cover slide (PresentationMode.tsx, CoverCanvas.css): 0.5 px / mm wide, the canvas texts (34 / 12 / 11 px) at the cover width / 848 */
 const COVER_PX_PER_MM = 0.5, COVER_FIT_PX = 848
@@ -39,9 +39,10 @@ export function Presentation({ onExit }: { onExit: () => void }) {
   /** natural size + content of slide `j` */
   const slide = (j: number): [number, number, React.ReactNode] => {
     if (j === 0) { const cw = coverW(bk) * 10 * COVER_PX_PER_MM; return [cw, bk.h * 10 * COVER_PX_PER_MM, <div className="size-full" data-testid="presentation-cover"><CoverSpread slide={cw / COVER_FIT_PX} /></div>] }
-    if (j === 1) return [SW / 2, SH, <div className="-ml-[100%] w-[200%]" data-testid="presentation-page"><MiniSpread s={st.doc.spreads[0]} width={SW} si={0} className="rounded-none shadow-none!" /></div>]
-    if (j === n - 1) return [SW / 2, SH, <div className="size-full" style={{ background: PAPER }} data-paper data-testid="presentation-page" />]
-    return [SW, SH, <MiniSpread s={st.doc.spreads[j - 1]} width={SW} si={j - 1} className="rounded-none shadow-none!" />]
+    // Designer page-numbers: every page slide prints its folios (1 px / mm here, the slide box scales it)
+    if (j === 1) return [SW / 2, SH, <div className="-ml-[100%] w-[200%]" data-testid="presentation-page"><MiniSpread s={st.doc.spreads[0]} width={SW} si={0} folios className="rounded-none shadow-none!" /></div>]
+    if (j === n - 1) return [SW / 2, SH, <div className="relative size-full" style={{ background: PAPER }} data-paper data-testid="presentation-page"><FolioMarks folios={lastPageFolios(st.doc, st.book.safe, st.view.pageNumbers)} sc={1} /></div>]
+    return [SW, SH, <MiniSpread s={st.doc.spreads[j - 1]} width={SW} si={j - 1} folios className="rounded-none shadow-none!" />]
   }
   return (
     <div ref={ref} className="fixed inset-0 z-[80] touch-pan-y overflow-hidden bg-presentation text-[rgb(255_255_255/0.6)] select-none" role="dialog" aria-modal="true" aria-label="Presentation" data-testid="presentation"

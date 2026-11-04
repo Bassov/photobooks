@@ -22,9 +22,9 @@ import { IconButton, ThumbGrid, ThumbItem, Kbd, AlertDialog, thumbWidth } from "
 import { photos, P, type Photo } from "@/data"
 import { useStudio, placedSet, mapSpread } from "./store"
 import { PhotoImg, PHOTO_TYPE, FRAME_TYPE } from "./canvas"
-import { SW, SH, spread, parentOf, type Spread } from "./model"
+import { SW, SH, spread, parentOf, pageNumbersOf, foliosOf, type Frame, type Spread } from "./model"
 import type { Node } from "./store"
-import { pagesOf, pageLabel, pagesName, fmtN, coverW, SegC, CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, useMasters, useCoverPhoto, T, SUB, BAR, FIELD, SURROUND, V7CSS } from "./v7"
+import { pagesOf, pageLabel, pagesName, fmtN, coverW, SegC, CoverSpread, EndpaperSpread, MasterSpread, LastPage, FolioMarks, MASTERS, useMasters, useCoverPhoto, T, SUB, BAR, FIELD, SURROUND, V7CSS } from "./v7"
 import { ALL_TEMPLATES, TT, basePageId, pageId } from "./templates"
 import { metaOf } from "./meta"
 
@@ -223,7 +223,8 @@ function PanelToggles() {
 }
 
 /* ---------------------------------------------------------------- mini spread (thumbnails) */
-export function MiniSpread({ s, width = 0, className, si, fill }: { s: Spread; width?: number; className?: string; si?: number; fill?: boolean }) {
+/** `folios` (Preview slides): print the page numbers under the spread's own frames; spread-list thumbnails have none */
+export function MiniSpread({ s, width = 0, className, si, fill, folios }: { s: Spread; width?: number; className?: string; si?: number; fill?: boolean; folios?: boolean }) {
   const st = useStudio()
   const [ref, setRef] = React.useState<HTMLDivElement | null>(null)
   const [fw, setFw] = React.useState(0)
@@ -231,17 +232,20 @@ export function MiniSpread({ s, width = 0, className, si, fill }: { s: Spread; w
   if (fill) width = fw
   const sc = width / SW
   const par = parentOf(st.doc, s)
-  const fr = [...(par?.frames ?? []), ...s.frames]
-  return (
-    <div ref={setRef} className={cn("relative shrink-0 overflow-hidden rounded-2xs shadow-thumb", fill && "size-full", className)} data-paper
-      style={{ ...(fill ? {} : { width, height: SH * sc }), background: s.bg ?? "var(--paper,#fff)", clipPath: si === 0 ? "inset(0 0 0 50%)" : undefined }}>
-      {fr.map((f) => (
+  const fo = folios && si !== undefined && (st.view.pageNumbers || pageNumbersOf(par)) ? foliosOf(st.doc, s, si, st.book.safe) : []
+  const frames = (fr: Frame[]) => fr.map((f) => (
         <div key={f.id} className="absolute overflow-hidden" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined }}>
           {f.kind === "text" ? <div className="mt-[30%] h-0.5 w-3/4 rounded bg-black/25" />
             : f.photo && !st.missing.has(f.photo) ? <PhotoImg f={f} wpx={f.w * sc} hpx={f.h * sc} />
             : <div className={cn("size-full", f.photo ? "hatch-missing-sm" : "bg-placeholder")} />}
         </div>
-      ))}
+      ))
+  return (
+    <div ref={setRef} className={cn("relative shrink-0 overflow-hidden rounded-2xs shadow-thumb", fill && "size-full", className)} data-paper
+      style={{ ...(fill ? {} : { width, height: SH * sc }), background: s.bg ?? "var(--paper,#fff)", clipPath: si === 0 ? "inset(0 0 0 50%)" : undefined }}>
+      {frames(par?.frames ?? [])}
+      <FolioMarks folios={fo} sc={sc} />
+      {frames(s.frames)}
       <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-black/10" />
     </div>
   )

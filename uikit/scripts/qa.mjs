@@ -2020,30 +2020,40 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await page.locator(`${demo} [data-testid="mode-seg"]`).getByText("Pages", { exact: true }).click(); await page.waitForTimeout(250); await c('[data-item="p1"]'); await page.waitForTimeout(250)
   ok("kit10: a guide dragged on a master is kept and inherited (dashed) by its spreads", m1 === m0 + 1 && (await page.locator(`${demo} [data-testid="spread"] [data-guide]`).count()) >= m1, `master ${m0}→${m1}`)
   ok("kit10: master Page numbers toggle wires Parent.pageNumbers — spreads show page numbers", (await page.locator(`${demo} [data-testid="spread"][data-current] [data-testid="page-number"]`).count()) === 2)
-  // page-numbers-kit: folio box 20 × 4.34 mm at y = min(H − bottom/2 − 2.17, H − 5 − 4.34), x per Outer / Centre / Inner from Master A's
-  // margins, Inter 3.1 mm × px/mm, painted under the spread frames; none in the spread list; Start at / Format / Skip first from Book settings
+  // page-numbers-kit: folio box 20 × 4.34 mm at y = min(H − bottom/2 − 2.17, H − safe − 4.34) (safe = the book's S, 8 mm), x per Outer / Centre /
+  // Inner from Master A's margins, Inter 3.1 mm × px/mm, painted under the spread frames; the single last page gets the left folio; none in the
+  // spread list; Start at / Format / Skip first from Book settings
   {
     const mode = async (t) => { await page.locator(`${demo} [data-testid="mode-seg"]`).getByText(t, { exact: true }).click(); await page.waitForTimeout(250) }
     const toP1 = async () => { await mode("Pages"); await c('[data-item="p1"]'); await page.waitForTimeout(250) }
     const fol = () => page.evaluate((demo) => {
       const sp = document.querySelector(`${demo} [data-testid="spread"][data-current]`), s = sp.getBoundingClientRect(), kids = [...sp.children]
       const fs = [...sp.querySelectorAll('[data-testid="page-number"]')], own = kids.findIndex((k) => k.matches('[data-testid="frame"]'))
-      return { w: s.width, under: own === -1 || fs.every((e) => kids.indexOf(e) < own), f: fs.map((e) => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e)
-        return { l: r.left - s.left, r: r.right - s.left, t: r.top - s.top, al: cs.textAlign, fz: parseFloat(cs.fontSize), col: cs.color, tx: e.textContent } }) }
+      const box = (e, s) => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e); return { l: r.left - s.left, r: r.right - s.left, t: r.top - s.top, al: cs.textAlign, fz: parseFloat(cs.fontSize), col: cs.color, tx: e.textContent } }
+      return { w: s.width, n: [...document.querySelectorAll(`${demo} [data-item]`)].filter((e) => /^p\d+$/.test(e.dataset.item)).length, under: own === -1 || fs.every((e) => kids.indexOf(e) < own), f: fs.map((e) => box(e, s)) }
     }, demo)
+    const lastFol = async () => { await c('[data-item="last"]'); await page.waitForTimeout(250)
+      return page.evaluate((demo) => { const lp = document.querySelector(`${demo} [data-testid="canvas-last"]`), lr = lp?.getBoundingClientRect()
+        return lp ? [...lp.querySelectorAll('[data-testid="page-number"]')].map((e) => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e); return { l: r.left - lr.left, r: r.right - lr.left, t: r.top - lr.top, al: cs.textAlign, fz: parseFloat(cs.fontSize), tx: e.textContent } }) : null }, demo) }
     const bk = await page.evaluate(() => window.__demo.state().books[0].book), P = bk.w * 10, H = bk.h * 10
     await mode("Masters")
     const fv = async (k) => +(await page.locator(`${demo} [data-testid="master-field-${k}"]`).inputValue()), g = { b: await fv("B"), i: await fv("I"), o: await fv("O") }
+    const chips = () => page.evaluate((demo) => { const m = document.querySelector(`${demo} [data-testid="canvas-master"]`).getBoundingClientRect()
+      return { w: m.width, t: [...document.querySelectorAll(`${demo} [data-testid="master-pn"]`)].map((e) => e.getBoundingClientRect().top - m.top) } }, demo)
     const seg = `${demo} [data-testid="master-pn-position"] button`, got = []
-    for (let i = 0; i < 3; i++) { await page.locator(seg).nth(i).click(); await page.waitForTimeout(150); const al = await page.locator(`${demo} [data-testid="master-pn"]`).evaluateAll((es) => es.map((e) => e.dataset.align).join()); await toP1(); got.push({ ...(await fol()), al }); await mode("Masters") }
+    for (let i = 0; i < 3; i++) { await page.locator(seg).nth(i).click(); await page.waitForTimeout(150); const al = await page.locator(`${demo} [data-testid="master-pn"]`).evaluateAll((es) => es.map((e) => e.dataset.align).join()); const ch = await chips(); await toP1(); got.push({ ...(await fol()), al, ch, last: await lastFol() }); await mode("Masters") }
     await page.locator(seg).nth(0).click(); await page.waitForTimeout(150)
-    const k = got[0].w / (2 * P), near = (a, b) => Math.abs(a - b) <= 0.5, y = Math.min(H - g.b / 2 - 2.17, H - 5 - 4.34) * k
+    const k = got[0].w / (2 * P), near = (a, b) => Math.abs(a - b) <= 0.5, ymm = Math.min(H - g.b / 2 - 2.17, H - bk.safe - 4.34), y = ymm * k
     const [o, ce, inn] = got.map((x) => x.f)
-    const geo = got.every((x) => x.f.length === 2 && x.under && x.f.every((f) => near(f.t, y) && near(f.fz, 3.1 * k) && f.col === "rgb(35, 34, 32)"))
+    const geo = bk.safe === 8 && got.every((x) => x.f.length === 2 && x.under && x.f.every((f) => near(f.t, y) && near(f.fz, 3.1 * k) && f.col === "rgb(35, 34, 32)"))
       && near(o[0].l, g.o * k) && o[0].al === "left" && near(o[1].r, got[0].w - g.o * k) && o[1].al === "right" && got[0].al === "left,right"
       && near((ce[0].l + ce[0].r) / 2, (P / 2) * k) && near((ce[1].l + ce[1].r) / 2, (P * 1.5) * k) && ce.every((f) => f.al === "center") && got[1].al === "center,center"
       && near(inn[0].r, (P - g.i) * k) && inn[0].al === "right" && near(inn[1].l, (P + g.i) * k) && inn[1].al === "left" && got[2].al === "right,left"
-    ok("page-numbers-kit: spread folios follow Outer / Centre / Inner at the master margins, top in the bottom margin band, Inter 3.1 mm, under the spread frames (±0.5 px)", geo, JSON.stringify({ k, y, g, got }))
+    ok("page-numbers-kit: spread folios follow Outer / Centre / Inner at the master margins, top in the bottom margin band inside the book's safe margin, Inter 3.1 mm, under the spread frames (±0.5 px)", geo, JSON.stringify({ k, ymm, y, g, safe: bk.safe, got }))
+    ok("page-numbers-kit: the master # chip sits at the folio top inside the book's safe margin (±0.5 px)", got.every((x) => x.ch.t.length === 2 && x.ch.t.every((t) => near(t, ymm * x.ch.w / (2 * P)))), JSON.stringify(got.map((x) => x.ch)))
+    const [lo, lc, li] = got.map((x) => x.last?.[0])
+    ok("page-numbers-kit: the single last page prints the left-page folio (page 2n) at Outer / Centre / Inner (±0.5 px)", got.every((x) => x.last?.length === 1 && x.last[0].tx === `${2 * x.n}` && near(x.last[0].t, y) && near(x.last[0].fz, 3.1 * k))
+      && near(lo.l, g.o * k) && lo.al === "left" && near((lc.l + lc.r) / 2, (P / 2) * k) && lc.al === "center" && near(li.r, (P - g.i) * k) && li.al === "right", JSON.stringify(got.map((x) => x.last)))
     ok("page-numbers-kit: no folios in the spread list", (await page.locator(`${demo} [data-testid="panel-l"] [data-testid="page-number"]`).count()) === 0)
     // master hint → Book settings; the Page numbers section sits between Binding and Print (179.37 px with a one-line note)
     const hint = await page.locator(`${demo} [data-testid="master-pn-note"]`).innerText()
@@ -2061,6 +2071,21 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     ok("page-numbers-kit: Start at 5 + i, ii, iii + Skip first page → vi / vii on pages 2–3, none on page 1; Skip off → v on the right page", sv === "5" && note === "Page 1 has no number · page 2 is vi" && p1 === "vi,vii" && p0 === 0 && p0n.length === 1 && p0n[0].tx === "v" && p0n[0].l >= got[0].w / 2,
       `start=${sv} note="${note}" p1=${p1} p0=${p0}/${p0n.map((f) => f.tx)}`)
     await c('[data-testid="book-title"]'); await page.waitForTimeout(250); await start.fill("1"); await page.keyboard.press("Enter"); await fmt(0); await page.waitForTimeout(150); await toP1()
+    // Preview prints the folios on every page slide (page 1 alone, the spreads, the last page alone) at the slide scale
+    await page.click('[data-testid="demo-preview"]'); await page.waitForTimeout(500)
+    const pv = []
+    for (let j = 0; j < 40; j++) {
+      pv.push(await page.evaluate(() => { const root = document.querySelector('[data-testid="presentation"]'), s = root.querySelector('[data-testid="presentation-slide"][data-active="true"]'), b = s.firstElementChild.getBoundingClientRect()
+        return { cap: root.querySelector('[data-testid="pager-position"]').textContent, w: b.width, f: [...s.querySelectorAll('[data-testid="page-number"]')].map((e) => { const r = e.getBoundingClientRect(); return { l: r.left - b.left, r: r.right - b.left, t: r.top - b.top, tx: e.textContent } }) } }))
+      if (j > 0 && pv[j].cap === pv[j - 1].cap) { pv.pop(); break }
+      await page.keyboard.press("ArrowRight"); await page.waitForTimeout(260)
+    }
+    await page.keyboard.press("Escape"); await page.waitForTimeout(300)
+    const N = pv.length - 1, s1 = pv[1], sN = pv[N], ks = (x) => x.w / P
+    ok("page-numbers-kit: Preview prints folios on every page slide — page 1 right Outer, 2 per spread, the last page left Outer, top inside the safe margin (±0.5 px)",
+      N >= 3 && pv[0].f.length === 0 && pv.slice(2, -1).every((x) => x.f.length === 2 && x.f.every((f) => near(f.t, ymm * x.w / (2 * P))))
+        && s1.f.length === 1 && s1.f[0].tx === "1" && near(s1.f[0].r, s1.w - g.o * ks(s1)) && near(s1.f[0].t, ymm * ks(s1))
+        && sN.f.length === 1 && sN.f[0].tx === `${2 * got[0].n}` && near(sN.f[0].l, g.o * ks(sN)) && near(sN.f[0].t, ymm * ks(sN)), JSON.stringify(pv.map((x) => `${x.cap}:${x.f.map((f) => `${f.tx}@${f.l.toFixed(2)},${f.t.toFixed(2)}`).join("|")}`)))
   }
   // parent-guides PG5: inherited guides are dashed --parent-soft, 24 px past the page, under own guides and pointer-transparent
   const pg = await page.evaluate((demo) => {

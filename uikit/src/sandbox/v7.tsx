@@ -4,7 +4,7 @@ import * as React from "react"
 import { useStudio, type Book } from "./store"
 import { Slider as USlider, SliderTrack, SliderFillTrack, SliderThumb } from "@/components/ui/slider"
 import { P } from "@/data"
-import { MASTER_GRIDS, MASTER_GUIDES, MASTER_PN, MASTER_POS, FOLIO_W, builtinMaster, folioBox, formatPageNumber, pageNumbersOf, type Doc, type Grid, type Guide, type PageFormat, type PnPos } from "./model"
+import { MASTER_GRIDS, MASTER_GUIDES, MASTER_PN, MASTER_POS, FOLIO_W, builtinMaster, folioBox, formatPageNumber, lastPageFolios, pageNumbersOf, type Doc, type Folio, type Grid, type Guide, type PageFormat, type PnPos } from "./model"
 import { Link2, RotateCcw, Unlink2 } from "lucide-react"
 
 export const T = "#393738", SUB = "#535152", INK = "#232223", ON_INK = "#F2F2F2", SURROUND = "#C8CACB", BAR = "#E1E1E1", FIELD = "#D7D7D7", PAPER = "#FFFFFF"
@@ -113,7 +113,7 @@ export function MasterSpread({ id, big, m }: { id: "A" | "B"; big?: boolean; m: 
   const mx = pc(g.outside, PW), cq = (mm: number) => `${(mm / PW) * 100}cqw`
   /* Designer page-numbers: the `#` chip sits at the folio box in the folio font at true scale (cqw of its page) */
   const chip = (side: "l" | "r") => {
-    const b = folioBox(g, PW, PH, m.pos as PnPos, side === "l" ? 0 : 1)
+    const b = folioBox(g, PW, PH, m.pos as PnPos, side === "l" ? 0 : 1, bk.safe)
     const at = b.align === "center" ? { left: pc(b.x + FOLIO_W / 2, PW), transform: "translateX(-50%)" } : b.align === "left" ? { left: pc(b.x, PW) } : { right: pc(PW - b.x - FOLIO_W, PW) }
     return <span className="pointer-events-none absolute whitespace-nowrap" data-testid="master-pn" data-align={b.align}
       style={{ top: pc(b.y, PH), ...at, fontFamily: "'Inter Variable', system-ui, sans-serif", fontSize: cq(3.1), fontWeight: 400, lineHeight: 1.4, padding: `0 ${cq(1)}`, borderRadius: 2, color: SUB, background: "rgb(57 55 56/.08)" }}>#</span>
@@ -130,11 +130,20 @@ export function MasterSpread({ id, big, m }: { id: "A" | "B"; big?: boolean; m: 
     </div>)
   return <div className="relative flex h-full w-full" style={{ boxShadow: big ? shadowBig : shadowSm }} data-testid={big ? "canvas-master" : undefined}>{page("l")}{page("r")}<Gutter /></div>
 }
-export function LastPage({ big }: { big?: boolean }) {
+/* Designer page-numbers: folios at `sc` px / mm (spread mm), printed parent content on the canvas, the last page and Preview;
+   never in spread-list thumbnails */
+export const FolioMarks = ({ folios, sc }: { folios: Folio[]; sc: number }) => <>{folios.map((p) => (
+  <span key={p.side} className="pointer-events-none absolute select-none whitespace-nowrap" data-testid="page-number" data-side={p.side}
+    style={{ left: p.x * sc, top: p.y * sc, width: p.w * sc, height: p.h * sc, textAlign: p.align, fontFamily: "'Inter Variable', system-ui, sans-serif", fontSize: 3.1 * sc, fontWeight: 400, lineHeight: 1.4, color: "#232220", fontVariantNumeric: "tabular-nums", letterSpacing: "normal" }}>{p.text}</span>
+))}</>
+/** the single last page; with `sc` (px / mm, the canvas) it prints the left-page folio of the last spread's parent */
+export function LastPage({ big, sc }: { big?: boolean; sc?: number }) {
+  const st = useStudio()
   return (
     <div className="relative flex h-full w-full" data-testid={big ? "canvas-last" : undefined}>
       <div className="h-full flex-1" style={{ background: PAPER, boxShadow: big ? shadowBig : shadowSm }} data-paper />
       <div className="h-full flex-1" />
+      {sc !== undefined && <FolioMarks folios={lastPageFolios(st.doc, st.book.safe, st.view.pageNumbers)} sc={sc} />}
     </div>)
 }
 
@@ -255,7 +264,7 @@ export function BookInspector() {
       <div className="mt-3"><SegC label="Page number format" tid="book-pn-format" items={PN_LABELS} on={pnFmt} set={(i) => st.update((d) => ({ ...d, pageFormat: PN_FORMATS[i] }), "Page number format")} /></div>
       <Row l="Skip first page"><Toggle label="Skip first page" tid="book-pn-skip-first" on={!!doc.skipFirst} onClick={() => st.update((d) => ({ ...d, skipFirst: !d.skipFirst }), "Skip first page")} /></Row>
       <div className="mt-1.5 text-2xs leading-[1.35]" style={{ color: SUB }} data-testid="book-pn-note">{!pnAny ? "No master prints page numbers yet. Turn them on in Masters." : doc.skipFirst ? `Page 1 has no number · page 2 is ${formatPageNumber((doc.pageStart ?? 1) + 1, doc.pageFormat)}` : `Page 1 is ${pnStart(doc)}`}</div></Sec>
-    <Sec title="Print"><div className="grid grid-cols-2 gap-2"><Field l="B" v="3" u="mm" /><Field l="S" v="8" u="mm" /></div><Row l="Paper"><Val v="Matte 200 g" /></Row></Sec>
+    <Sec title="Print"><div className="grid grid-cols-2 gap-2"><Field l="B" v="3" u="mm" /><Field l="S" v={`${book.safe}`} u="mm" /></div><Row l="Paper"><Val v="Matte 200 g" /></Row></Sec>
     <Sec title="Defaults"><Row l="Default master"><Val v="Master A" /></Row><Row l="Page colour">{pc}</Row></Sec></div>
   if (sel.k === "cover") return <div data-testid="insp-cover">
     <Head t="Cover" s="Hardcover · back, spine, front · wrap 15 mm" />

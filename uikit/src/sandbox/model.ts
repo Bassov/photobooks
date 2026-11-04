@@ -190,13 +190,13 @@ export const MASTER_POS: Record<string, PnPos | undefined> = {}
 export const pageNumberPosOf = (p?: Parent): PnPos => (p ? MASTER_POS[p.id] ?? 0 : 0)
 
 /* Designer page-numbers: the folio is one caption line (20 × 4.34 mm) centred in the master's bottom margin band and
-   kept inside the safe area (5 mm, the prod default). x per page: Outer at the outside margin, Centre on the page centre,
-   Inner at the inside margin. */
-export const FOLIO_W = 20, FOLIO_H = 4.34, FOLIO_SAFE = 5
+   kept inside the book's safe area (Book settings S; prod `settings.safeMarginMm`). x per page: Outer at the outside margin,
+   Centre on the page centre, Inner at the inside margin. */
+export const FOLIO_W = 20, FOLIO_H = 4.34
 export type Folio = { side: 0 | 1; x: number; y: number; w: number; h: number; align: "left" | "center" | "right"; text: string }
-/** folio box of one page in page mm (x from that page's left edge) */
-export function folioBox(g: Pick<Grid, "bottom" | "inside" | "outside">, P: number, H: number, pos: PnPos, side: 0 | 1) {
-  const y = Math.min(H - g.bottom / 2 - FOLIO_H / 2, H - FOLIO_SAFE - FOLIO_H)
+/** folio box of one page in page mm (x from that page's left edge); `safe` = the book's safe margin */
+export function folioBox(g: Pick<Grid, "bottom" | "inside" | "outside">, P: number, H: number, pos: PnPos, side: 0 | 1, safe: number) {
+  const y = Math.min(H - g.bottom / 2 - FOLIO_H / 2, H - safe - FOLIO_H)
   const mg = pos === 0 ? g.outside : g.inside, left = (pos === 0) === (side === 0)
   const x = pos === 1 ? P / 2 - FOLIO_W / 2 : left ? mg : P - mg - FOLIO_W
   return { x, y, w: FOLIO_W, h: FOLIO_H, align: pos === 1 ? "center" as const : left ? "left" as const : "right" as const }
@@ -211,15 +211,21 @@ export function formatPageNumber(n: number, f: PageFormat = "decimal"): string {
 }
 /** Folios of spread si (spread mm): physical page 2·si + side, spread 0 has the right page only; n = start + page − 1.
  *  None on page 1 with Skip first page or when the spread hides the parent's `${parentId}-pn-l|r` item. */
-export function foliosOf(doc: Doc, s: Spread, si: number): Folio[] {
+export function foliosOf(doc: Doc, s: Spread, si: number, safe: number): Folio[] {
   const par = parentOf(doc, s), g = effectiveGrid(doc, { ...s, grid: undefined }), pos = pageNumberPosOf(par)
   return ([0, 1] as const).flatMap((side) => {
     const page = 2 * si + side
     if (page < 1 || (doc.skipFirst && page === 1) || (s.hiddenParent ?? []).includes(`${par?.id}-pn-${side ? "r" : "l"}`)) return []
     const text = formatPageNumber((doc.pageStart ?? 1) + page - 1, doc.pageFormat)
-    const b = folioBox(g, PAGE, SH, pos, side)
+    const b = folioBox(g, PAGE, SH, pos, side, safe)
     return text ? [{ side, ...b, x: b.x + side * PAGE, text }] : []
   })
+}
+/** The single last page (physical page 2·n, left side only) under the last spread's parent, when that parent prints numbers. */
+export function lastPageFolios(doc: Doc, safe: number, force = false): Folio[] {
+  const s = doc.spreads.at(-1)
+  if (!s || !(force || pageNumbersOf(parentOf(doc, s)))) return []
+  return foliosOf(doc, { ...s, hiddenParent: [] }, doc.spreads.length, safe).filter((f) => f.side === 0)
 }
 export function allGuides(doc: Doc, s: Spread): (Guide & { inherited?: boolean })[] {
   const par = parentOf(doc, s)

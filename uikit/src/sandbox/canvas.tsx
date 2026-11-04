@@ -1,5 +1,5 @@
 /* Sandbox canvas: spread surface with frames, crop, handles, snapping, guides, rulers, grid, print overlays. */
-import { useMasters } from "./v7"
+import { FolioMarks, useMasters } from "./v7"
 import * as React from "react"
 import { useDrop, useDrag, type DropItem } from "react-aria"
 import { AlertTriangle, ImagePlus, Lock, Link2 } from "lucide-react"
@@ -543,7 +543,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   })
   const showSel = active && selFrames.length > 0 && !st.cropId && !view.preview
   const single = selFrames.length === 1 ? selFrames[0] : null
-  const folios = view.pageNumbers || pageNumbersOf(par) ? foliosOf(doc, s, si) : []
+  const folios = view.pageNumbers || pageNumbersOf(par) ? foliosOf(doc, s, si, st.book.safe) : []
   return (
     <div ref={ref} {...dropProps} onPointerDown={onBgDown} onWheel={onWheel} data-testid="spread" data-spread={si} data-current={si === st.cur || undefined}
       className={cn("relative shrink-0 select-none", view.preview ? "" : "shadow-page", isDropTarget && "outline-2 outline-offset-4 outline-mark [outline-style:dashed]",
@@ -562,10 +562,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
           onDouble={() => { }} editing={false} onEditDone={() => { }} />
       ))}
       {/* Designer page-numbers: the folio is printed parent content, under the spread's own frames (a full-bleed photo hides it) */}
-      {folios.map((p) => (
-        <span key={p.side} className="pointer-events-none absolute select-none whitespace-nowrap" data-testid="page-number" data-side={p.side}
-          style={{ left: p.x * sc, top: p.y * sc, width: p.w * sc, height: p.h * sc, textAlign: p.align, fontFamily: "'Inter Variable', system-ui, sans-serif", fontSize: 3.1 * sc, fontWeight: 400, lineHeight: 1.4, color: "#232220", fontVariantNumeric: "tabular-nums", letterSpacing: "normal" }}>{p.text}</span>
-      ))}
+      <FolioMarks folios={folios} sc={sc} />
       {s.frames.map((f) => (
         <FrameEl key={f.id} f={f} si={si} s={s} sc={sc} selected={st.sel.includes(f.id)} onDown={onFrameDown} onDouble={onDouble}
           editing={editing === f.id} onEditDone={(t, h) => endEdit(f, t, h)} />
