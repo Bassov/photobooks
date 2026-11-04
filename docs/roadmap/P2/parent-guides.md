@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: guides on parent spreads
+Status: done
 
 ## Scope
 
