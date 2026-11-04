@@ -71,7 +71,10 @@ const WEBP_PRESETS = new Set(
 const INK_ON_PHOTO = '#F5F5F5'
 const INK_ON_CLOTH = '#2E2C2D'
 
-function publishedRevisions(input: SiteExportInput): PublishedRevision[] {
+/** The revisions `buildSiteTree` exports: published books only, newest first. */
+export function publishedRevisions(
+  input: Pick<SiteExportInput, 'meta' | 'revisions'>,
+): PublishedRevision[] {
   const seen = new Set<string>()
   for (const { bookId } of input.revisions) {
     if (seen.has(bookId)) {
