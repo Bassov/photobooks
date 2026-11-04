@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item deps-dev-knip-relink
+Status: done
 
 Lands Dependabot #443 (dev group: `@types/node`, `eslint`, `fake-indexeddb`, `knip` 6.44.1, `oxc-transform-react`, `typescript-eslint`, `wrangler`). knip 6.44.1 tracks `import().then()` member usage, so the lone dynamic `import('./relink')` in `src/editor/projectSession.ts` no longer marks every `src/editor/relink/index.ts` export as used (29 unused exports + 2 unused types).
 
