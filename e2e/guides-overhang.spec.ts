@@ -291,4 +291,12 @@ test('the paper still clips its own content at the slot box', async ({
     return { above: inFrame(p.top - 6), on: inFrame(p.top + 6) }
   })
   expect(hits).toEqual({ above: false, on: true })
+
+  // Crop mode on it: the photo ghost runs past the page top as well, inside
+  // the paper whose clip (asserted above) cuts it at the page edge.
+  await frame.dblclick()
+  await expect(frame).toHaveAttribute('data-crop-active', 'true')
+  const ghost = paper.getByTestId('spread-frame-ghost')
+  await expect(ghost).toHaveCount(1)
+  expect((await box(ghost)).y).toBeLessThan((await box(paper)).y - 12)
 })
