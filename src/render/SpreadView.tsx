@@ -24,14 +24,6 @@ export interface FrameControl {
   cropZoom?: number
   onDoubleActivate?: (event?: { shiftKey?: boolean }) => void
 }
-
-/** Responsive source of one frame photo (published site): `<img>` attributes. */
-export interface FrameImage {
-  src: string
-  srcset: string
-  sizes: string
-  loading?: 'lazy' | 'eager'
-}
 import { dropChipLabel } from './dropChip'
 import { adjustFilter, frameStyleCss } from './frameLookCss'
 import {
@@ -57,6 +49,14 @@ import { spreadFrameControlStyle } from './spreadChromeStyles'
 import { PHOTO_CAPTION_SIZE_MM, textNodeStyle } from './textStyles'
 import { ICON_GLYPHS } from '../ui/icons/glyphs'
 import './SpreadView.css'
+
+/** Responsive source of one frame photo (published site): `<img>` attributes. */
+export interface FrameImage {
+  src: string
+  srcset: string
+  sizes: string
+  loading?: 'lazy' | 'eager'
+}
 
 /** Keeps the crop-mode frame (and its ghost) above neighbouring frames. */
 const CROP_Z_BOOST = 1000
