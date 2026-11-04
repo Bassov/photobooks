@@ -20,6 +20,26 @@ const paperOf = (page: Page, id: string) =>
   slot(page, id).getByTestId('spread-view')
 const masterCanvas = (page: Page) => page.getByTestId('masters-canvas')
 
+/** The spread list is windowed: scroll it so the rows at that end mount. */
+async function scrollSpreadList(page: Page, to: 'start' | 'end') {
+  await page.getByTestId('spreads-list').evaluate((el, end) => {
+    el.scrollTo({ top: end ? el.scrollHeight : 0, behavior: 'instant' })
+  }, to === 'end')
+}
+
+/**
+ * Open a spread from the list and wait for its reveal to end: the reveal
+ * forces the slot's content-visibility and drops it only at the end, which
+ * leaves the slot unhittable for a frame.
+ */
+async function openSpread(page: Page, id: string) {
+  await page.getByTestId(`spread-list-item-${id}`).click()
+  await expect(page.getByTestId('pasteboard-scroll')).not.toHaveAttribute(
+    'data-reveal-hold',
+    'true',
+  )
+}
+
 async function box(locator: Locator) {
   const rect = await locator.boundingBox()
   if (rect === null) throw new Error('not visible')
@@ -116,6 +136,9 @@ async function probeEnd(line: Locator, end: End) {
       })
     const port = el.closest('[data-testid="pasteboard-scroll"]')
     const scrolled = { left: port?.scrollLeft ?? 0, top: port?.scrollTop ?? 0 }
+    // A slot whose content-visibility just changed hit-tests as skipped
+    // until the next rendering update decides it is on screen.
+    await frames()
     if (port !== null) {
       const at = measure()
       const r = port.getBoundingClientRect()
@@ -169,23 +192,27 @@ async function zoomIn(page: Page, paper: Locator) {
  * Parent lines are pointer-transparent: let the hit test see them while
  * probing (clips still apply), then restore them.
  */
-async function expectParentOverhang(page: Page, lines: Locator) {
+async function expectParentOverhang(
+  page: Page,
+  lines: Locator,
+  orientations = 2,
+) {
   const style = await page.addStyleTag({
     content:
       '.guide-line[data-layer="parent"] { pointer-events: auto !important; }',
   })
-  await expectOverhangEverywhere(lines)
+  await expectOverhangEverywhere(lines, orientations)
   await style.evaluate((el) => {
     el.parentNode?.removeChild(el)
   })
 }
 
-test('Browser check: guides overhang the page by 24 px on all four sides — Masters, parent, own, page 1, Fit and zoomed', async ({
+test('Browser check: guides overhang the page by 24 px on all four sides — Masters, parent, own, page 1, last page, Fit and zoomed', async ({
   page,
 }) => {
   await page.goto(PAINTER)
   const two = 'painter-spread-2'
-  await page.getByTestId(`spread-list-item-${two}`).click()
+  await openSpread(page, two)
   await expect(paperOf(page, two)).toBeVisible()
   // Empty: no guide anywhere yet, so nothing overhangs.
   await expect(page.locator('.guide-line')).toHaveCount(0)
@@ -204,7 +231,7 @@ test('Browser check: guides overhang the page by 24 px on all four sides — Mas
 
   // A Master A child shows them dashed: same overhang at Fit.
   await page.getByTestId('left-tab-pages').click()
-  await page.getByTestId(`spread-list-item-${two}`).click()
+  await openSpread(page, two)
   const parents = slot(page, two).getByTestId('guide-line-parent')
   await expectParentOverhang(page, parents)
   await assertDocumentFitsViewport(page)
@@ -218,14 +245,27 @@ test('Browser check: guides overhang the page by 24 px on all four sides — Mas
   // Page 1 (right half of its slot): the master's right-page vertical and
   // its horizontal overhang on all sides too.
   const first = 'painter-spread-0'
-  await page.getByTestId(`spread-list-item-${first}`).click()
+  await openSpread(page, first)
   await expectParentOverhang(
     page,
     slot(page, first).getByTestId('guide-line-parent'),
   )
 
+  // The single last page (left half of its slot): the master horizontal
+  // overhangs both sides; the right-page vertical is not on it.
+  const last = 'painter-spread-39'
+  await scrollSpreadList(page, 'end')
+  await openSpread(page, last)
+  await expect(slot(page, last)).toHaveAttribute('data-page-side', 'left')
+  await expectParentOverhang(
+    page,
+    slot(page, last).getByTestId('guide-line-parent'),
+    1,
+  )
+
   // Zoomed far past Fit: own and parent still overhang 24 screen px.
-  await page.getByTestId(`spread-list-item-${two}`).click()
+  await scrollSpreadList(page, 'start')
+  await openSpread(page, two)
   await zoomIn(page, paperOf(page, two))
   await expectOverhangEverywhere(own)
   await expectParentOverhang(page, parents)
@@ -237,7 +277,7 @@ test('the paper still clips its own content at the slot box', async ({
 }) => {
   await page.goto(PAINTER)
   const id = 'painter-spread-2'
-  await page.getByTestId(`spread-list-item-${id}`).click()
+  await openSpread(page, id)
   const paper = paperOf(page, id)
   await expect(paper).toBeVisible()
   // The paper's clip is the slot box it had before the guide margin: page
