@@ -25,7 +25,7 @@ import { PhotoImg, PHOTO_TYPE, FRAME_TYPE } from "./canvas"
 import { SW, SH, spread, parentOf, type Spread } from "./model"
 import type { Node } from "./store"
 import { pagesOf, pageLabel, pagesName, fmtN, coverW, SegC, CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, useMasters, useCoverPhoto, T, SUB, BAR, FIELD, SURROUND, V7CSS } from "./v7"
-import { ALL_TEMPLATES, TT } from "./templates"
+import { ALL_TEMPLATES, TT, basePageId, pageId } from "./templates"
 import { metaOf } from "./meta"
 
 export const toolToggle = "size-8 px-0 text-muted-foreground data-[hovered]:bg-accent/70 data-[hovered]:text-foreground data-[selected]:bg-background data-[selected]:text-foreground data-[selected]:shadow-sm [&_svg]:size-4"
@@ -533,10 +533,12 @@ export function TemplateBar({ ids, extra }: { ids?: string[]; extra?: React.Reac
   const st = useStudio()
   const list = (ids ?? ALL_TEMPLATES.map((t) => t.id)).map((id) => TT(id))
   const s = st.doc.spreads[st.cur]
+  // kit-sync KS7 (prod LayoutSection, as the inspector picker): page 1 stores the page variant `<id>@page`, its thumb is the base id
+  const single = st.cur === 0, current = s?.template ? basePageId(s.template) : null
   return (
     <div className="flex items-center gap-2">
-      <ThumbGrid aria-label="Templates" layout="grid" selectionMode="single" selectedKeys={s?.template ? [s.template] : []} items={list}
-        onSelectionChange={(k) => { const id = [...k][0]; if (id && id !== s.template) applyTemplate(st, String(id)) }}
+      <ThumbGrid aria-label="Templates" layout="grid" selectionMode="single" selectedKeys={current ? [current] : []} items={list}
+        onSelectionChange={(k) => { const id = [...k][0]; if (id && id !== current) applyTemplate(st, single ? pageId(String(id)) : String(id)) }}
         className="flex gap-2 overflow-x-auto p-1 pb-2" data-testid="template-bar">
         {(t) => (
           <ThumbItem id={t.id} textValue={t.name} className="flex shrink-0 flex-col gap-1 rounded-xs ring-0! ring-offset-0! outline-none data-[selected]:bg-sel p-0.5">
