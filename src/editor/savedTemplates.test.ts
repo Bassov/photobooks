@@ -190,12 +190,55 @@ describe('saved templates in library.json', () => {
   it('a save while the library is still loading keeps the stored templates', async () => {
     const library = createMemoryLibraryStorage()
     await library.updateLibrary({ templates: [template('user-a')] })
+    window.localStorage.setItem(
+      LEGACY_KEY,
+      JSON.stringify([template('user-x')]),
+    )
     void bindSavedTemplatesLibrary(library)
     const added = addSavedTemplate('X', SLOTS)
     await flushSavedTemplatesForTests()
     expect(getSavedTemplates()).toEqual([template('user-a'), added])
     expect(await storedTemplates(library)).toEqual([template('user-a'), added])
+    // Nothing was imported, so the legacy key stays.
+    expect(window.localStorage.getItem(LEGACY_KEY)).not.toBeNull()
   })
+
+  it('loading a library writes nothing when nothing changed', async () => {
+    const library = createMemoryLibraryStorage()
+    await library.updateLibrary({ templates: [template('user-a')] })
+    const update = vi.spyOn(library, 'updateLibrary')
+    await bindSavedTemplatesLibrary(library)
+    await flushSavedTemplatesForTests()
+    expect(update).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [
+      'fails',
+      (lib: ReturnType<typeof createMemoryLibraryStorage>) =>
+        vi.spyOn(lib, 'getLibrary').mockResolvedValueOnce({
+          ok: false,
+          code: 'corrupted',
+        }),
+    ],
+    [
+      'throws',
+      (lib: ReturnType<typeof createMemoryLibraryStorage>) =>
+        vi.spyOn(lib, 'getLibrary').mockRejectedValueOnce(new Error('locked')),
+    ],
+  ])(
+    'after a load that %s, saves stay in the session and never replace the stored list',
+    async (_label, breakLoad) => {
+      const library = createMemoryLibraryStorage()
+      await library.updateLibrary({ templates: [template('user-a')] })
+      breakLoad(library)
+      await bindSavedTemplatesLibrary(library)
+      expect(getSavedTemplates()).toEqual([])
+      addSavedTemplate('X', SLOTS)
+      expect(getSavedTemplates().map((t) => t.name)).toEqual(['X'])
+      expect(await storedTemplates(library)).toEqual([template('user-a')])
+    },
+  )
 
   it('a save queued just before another library opens lands in its own library', async () => {
     const first = createMemoryLibraryStorage()

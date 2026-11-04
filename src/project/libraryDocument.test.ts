@@ -142,6 +142,33 @@ describe('library document', () => {
     })
   })
 
+  it('bounds slot values and counts so a crafted file cannot overflow the frame math', () => {
+    const slot = { x: 0, y: 0, w: 50, h: 100 }
+    const withSlots = (id: string, slots: unknown[]) => ({
+      ...OPENER,
+      id: `user-${id}`,
+      slots,
+    })
+    const kept = [
+      withSlots('edge', [{ x: -1000, y: 1000, w: 1000, h: 1000 }]),
+      withSlots(
+        'many',
+        Array.from({ length: 500 }, () => slot),
+      ),
+    ]
+    const dropped = [
+      withSlots('x-low', [{ ...slot, x: -1001 }]),
+      withSlots('y-high', [{ ...slot, y: 1001 }]),
+      withSlots('w-high', [{ ...slot, w: 1001 }]),
+      withSlots('h-huge', [{ ...slot, h: 1e306 }]),
+      withSlots(
+        'too-many',
+        Array.from({ length: 501 }, () => slot),
+      ),
+    ]
+    expect(parseSavedTemplates([...kept, ...dropped])).toEqual(kept)
+  })
+
   it.each([undefined, null, 'x', {}, 42])(
     'reads templates %j that are not a list as none',
     (templates) => {

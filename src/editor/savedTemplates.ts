@@ -44,18 +44,10 @@ function sessionOnly(): void {
   // Without a library the list lives for this session only.
 }
 
-/**
- * Queues a write of `next`. If `target` is still bound when the write runs,
- * the write takes the current list instead, which includes a load that
- * finished in between.
- */
 function writeTo(target: LibraryStorage) {
   return (next: readonly SavedTemplate[]): void => {
     void enqueue(async () => {
-      await writeTemplates(
-        target,
-        target === library ? getSavedTemplates() : next,
-      )
+      await writeTemplates(target, next)
     })
   }
 }
@@ -86,23 +78,25 @@ function removeLegacyTemplates(): void {
 
 async function load(target: LibraryStorage): Promise<void> {
   const meta = await target.getLibrary()
-  // Another library (or none) was bound meanwhile: its list wins.
-  if (target !== library) {
+  // Another library (or none) was bound meanwhile, or library.json is
+  // unreadable: nothing gets written, so the stored list is never replaced.
+  if (target !== library || !meta.ok) {
     return
   }
-  const stored = meta.ok ? (meta.value.templates ?? []) : []
-  const legacy = meta.ok && stored.length === 0 ? readLegacyTemplates() : []
+  const stored = meta.value.templates ?? []
+  const legacy = stored.length === 0 ? readLegacyTemplates() : []
   // Saves made while the list was loading follow the stored ones.
   const added = getSavedTemplates()
   templates = [...(legacy.length > 0 ? legacy : stored), ...added]
+  persist = writeTo(target)
   seedSavedTemplatesFromQuery()
   notify()
-  // One-time import: the key goes only once library.json holds the list.
-  if (
-    legacy.length > 0 &&
-    (await writeTemplates(target, getSavedTemplates()))
-  ) {
-    removeLegacyTemplates()
+  if (legacy.length > 0 || added.length > 0) {
+    const written = await writeTemplates(target, getSavedTemplates())
+    // One-time import: the key goes only once library.json holds the list.
+    if (written && legacy.length > 0) {
+      removeLegacyTemplates()
+    }
   }
 }
 
@@ -118,13 +112,13 @@ export function bindSavedTemplatesLibrary(
   }
   library = next
   templates = []
+  // Session-only until a library's list has loaded (none: for good).
+  persist = sessionOnly
   if (next === null) {
-    persist = sessionOnly
     seedSavedTemplatesFromQuery()
     notify()
     return queue
   }
-  persist = writeTo(next)
   notify()
   return enqueue(() => load(next))
 }

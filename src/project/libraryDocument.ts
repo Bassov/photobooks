@@ -28,15 +28,24 @@ function makeLibrarySchema() {
   return z.object({ books: z.record(z.string().min(1), entry) })
 }
 
+/*
+ * Bounded so a crafted file cannot overflow the frame math to `Infinity` (a
+ * book that no longer saves) or ask for unbounded frames. Slots may sit off
+ * the trim (bleed, pasteboard), so the bounds are wide.
+ */
+const MAX_SLOT_PCT = 1000
+const MAX_SLOTS = 500
+
 function makeTemplateSchema() {
-  const pct = z.number()
+  const pct = z.number().min(-MAX_SLOT_PCT).max(MAX_SLOT_PCT)
   return z.object({
     id: z.string().regex(/^user-[\w-]+$/),
     name: z.string().trim().min(1),
     pages: z.union([z.literal(1), z.literal(2)]),
     slots: z
       .array(z.object({ x: pct, y: pct, w: pct.positive(), h: pct.positive() }))
-      .min(1),
+      .min(1)
+      .max(MAX_SLOTS),
   })
 }
 
