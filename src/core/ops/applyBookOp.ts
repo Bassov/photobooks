@@ -305,6 +305,7 @@ export type BookOp =
       spreadId: string
       templateId: string
       slots: readonly LayoutSlotPct[]
+      pages: 1 | 2
     }
   | { type: 'setSpreadBackground'; spreadId: string; color: string | undefined }
   | { type: 'setSpreadParent'; spreadId: string; parentId: string | null }
@@ -432,7 +433,13 @@ export function applyBookOp(book: Book, op: BookOp): Book {
     case 'removeGuide':
       return removeGuide(book, op.spreadId, op.guideId)
     case 'applyCustomLayout':
-      return applyCustomLayout(book, op.spreadId, op.templateId, op.slots)
+      return applyCustomLayout(
+        book,
+        op.spreadId,
+        op.templateId,
+        op.slots,
+        op.pages,
+      )
     case 'setSpreadBackground':
       return setSpreadBackground(book, op.spreadId, op.color)
     case 'setSpreadParent':
