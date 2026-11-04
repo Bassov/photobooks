@@ -129,6 +129,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [parent-guides-prod-overhang](roadmap/P2/parent-guides-prod-overhang.md) — Bug: /next-roadmap-item parent-guides-prod-overhang
 - [ ] [feature] [parent-overrides](roadmap/P2/parent-overrides.md) — change one spread without touching the parent
 - [ ] [feature] [page-numbers](roadmap/P2/page-numbers.md) — page numbers
+- [x] [feature] [page-numbers-kit](roadmap/P2/page-numbers-kit.md) — Bug: /next-roadmap-item page-numbers-kit
 - [x] [feature] [page-numbers-core](roadmap/P2/page-numbers-core.md) — Bug: /next-roadmap-item page-numbers-core
 - [ ] [feature] [user-templates](roadmap/P2/user-templates.md) — your own layouts
 
@@ -159,6 +160,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 **Review cut:** a print PDF from the `#/demo` Print dialog (1 per sheet with a bleed checkbox; 2-up saddle-stitch and 4-up duplex with `booklet-imposition`) and a cover with the right spine; exporting never freezes the editor.
 
 - [x] [prep] [print-model-schema](roadmap/P4/print-model-schema.md) — print settings and cover in the document
+- [x] [feature] [print-model-pbt-timeout](roadmap/P4/print-model-pbt-timeout.md) — Bug: print-model PBT times out in loaded pre-push runs
 - [x] [prep] [print-profiles](roadmap/P4/print-profiles.md) — printer data
 - [ ] [prep] [preflight-core](roadmap/P4/preflight-core.md) — pure preflight
 - [ ] [prep] [pdf-painter](roadmap/P4/pdf-painter.md) — worker PDF painter (Security Review: dependency)

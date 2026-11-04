@@ -247,7 +247,7 @@ export function Viewport({ className, children, pad = 40 }: { className?: string
         className)} data-testid="viewport">
       {size.w > 0 && (
         <div className="absolute" style={{ left: ox, top: oy, width: VW * sc, height: SH * sc }} data-testid="spread-layer">
-          {nd ? <div className="size-full" data-testid="node-view">{nd.k === "cover" ? <CoverDrop /> : nd.k === "endpaper" ? <EndpaperSpread big which={nd.w} /> : nd.k === "master" ? <><MasterSpread big id={nd.id} m={masters[nd.id]} />{view.guides && !view.preview && masterGuides(nd.id).map((g) => <GuideLine key={g.id} g={g} sc={sc} onDown={(e) => onGuideDown(e, g.id)} />)}</> : <LastPage big />}</div>
+          {nd ? <div className="size-full" data-testid="node-view">{nd.k === "cover" ? <CoverDrop /> : nd.k === "endpaper" ? <EndpaperSpread big which={nd.w} /> : nd.k === "master" ? <><MasterSpread big id={nd.id} m={masters[nd.id]} />{view.guides && !view.preview && masterGuides(nd.id).map((g) => <GuideLine key={g.id} g={g} sc={sc} onDown={(e) => onGuideDown(e, g.id)} />)}</> : <LastPage big sc={sc} />}</div>
             : <SpreadSurface si={si} sc={sc} onGuideDown={onGuideDown} />}
           {(!nd || mid) && newGuide && <div className={cn("pointer-events-none absolute z-50 bg-guide", newGuide.axis === "v" ? "w-px" : "h-px")} style={newGuide.axis === "v" ? { left: newGuide.pos * sc, top: -40, height: SH * sc + 80 } : { top: newGuide.pos * sc, left: -40, width: SW * sc + 80 }}>
             <span className="absolute whitespace-nowrap rounded-xs bg-guide-solid px-1.5 py-px text-2xs font-semibold text-white" style={newGuide.axis === "v" ? { left: 4, top: 0 } : { left: 0, top: 4 }}>{newGuide.pos} mm</span>
@@ -386,7 +386,7 @@ function Stack({ className, pad, children }: { className?: string; pad: number; 
           ))}
           {ready && (
             <div data-stack-item="last" className="relative" style={{ width: SW * sc, height: SH * sc }} onPointerDown={() => st.setNode({ k: "last" })}>
-              <LastPage big />
+              <LastPage big sc={sc} />
               {!st.view.preview && gap >= LABELS_MIN_GAP && <PageLabels nd={{ k: "last" }} si={-1} />}
             </div>
           )}
