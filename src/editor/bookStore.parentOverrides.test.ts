@@ -23,7 +23,8 @@ function loadBook(): void {
             makeFrame({ id: 'logo', z: 0 }),
             makeFrame({ id: 'band', z: 1 }),
           ],
-          guides: [{ id: 'pg', orientation: 'vertical', offsetMm: 20 }],
+          // Right page of the 300 mm trim: on the single first page `s1`.
+          guides: [{ id: 'pg', orientation: 'vertical', offsetMm: 320 }],
         },
         { id: 'pB', name: 'Master B', frames: [], guides: [] },
       ],

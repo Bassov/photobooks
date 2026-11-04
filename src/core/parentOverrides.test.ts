@@ -17,7 +17,8 @@ function master(id = 'p1'): ParentSpread {
     id,
     name: id,
     frames: [logo],
-    guides: [{ id: 'pg', orientation: 'vertical', offsetMm: 30 }],
+    // Right page of the 300 mm trim: on the single first page `s1`.
+    guides: [{ id: 'pg', orientation: 'vertical', offsetMm: 330 }],
   }
 }
 
