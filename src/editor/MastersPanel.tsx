@@ -33,6 +33,10 @@ function readParents(): readonly ParentSpread[] {
   return getBookStoreSnapshot().book.parents ?? NO_PARENTS
 }
 
+function readDefaultId(): string | undefined {
+  return getBookStoreSnapshot().book.defaultParentId
+}
+
 /** A parent is always a two-page spread. */
 function readAspect(): number {
   const { widthMm, heightMm } = getBookStoreSnapshot().book.settings.trim
@@ -46,8 +50,9 @@ function pick(id: string): void {
 }
 
 /**
- * Kit Masters list (uikit/src/sandbox/chrome.tsx:272-321): the book's parents
- * as thumb rows, Rename / Delete per row and "New master" under the list.
+ * Kit Masters list (uikit/src/sandbox/chrome.tsx:272-321): a note naming the
+ * book default, the book's parents as thumb rows (the default tagged), Make
+ * default / Rename / Delete per row and "New master" under the list.
  */
 export function MastersPanel({ modeSwitch }: { modeSwitch: ReactNode }) {
   const parents = useSyncExternalStore(
@@ -55,6 +60,12 @@ export function MastersPanel({ modeSwitch }: { modeSwitch: ReactNode }) {
     readParents,
     readParents,
   )
+  const defaultId = useSyncExternalStore(
+    subscribeBookStore,
+    readDefaultId,
+    readDefaultId,
+  )
+  const defaultParent = parents.find((parent) => parent.id === defaultId)
   const picked = useSyncExternalStore(
     subscribeLeftPanelTab,
     getPickedParentId,
@@ -95,127 +106,179 @@ export function MastersPanel({ modeSwitch }: { modeSwitch: ReactNode }) {
             </div>
           </div>
         ) : (
-          <div role="listbox" aria-label="Masters">
-            {parents.map((parent) => {
-              const sel = parent.id === shown
-              const thumb = (
-                <div
-                  className="editor-spread-thumb grid w-full place-items-center"
-                  style={{ height: geometry.boxHeightPx }}
-                >
-                  <SpreadThumb
-                    spreadId={parent.id}
-                    boxWidthPx={geometry.boxWidthPx}
-                    boxHeightPx={geometry.boxHeightPx}
-                  />
-                </div>
-              )
-              return (
-                <div
-                  key={parent.id}
-                  role="presentation"
-                  className="group/sp relative mb-1"
-                  data-selected={sel ? 'true' : undefined}
-                >
-                  {renamingId === parent.id ? (
-                    <div className="e7-item rounded-md p-2">
-                      {thumb}
-                      <input
-                        aria-label="Master name"
-                        defaultValue={parent.name}
-                        ref={focusRenameInput}
-                        className="mt-1.5 w-full rounded-sm px-1 text-2xs"
-                        style={{ background: FIELD, color: T }}
-                        data-testid="master-rename-input"
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
+          <>
+            {defaultParent === undefined ? null : (
+              <p
+                className="editor-masters-intro"
+                style={{ color: SUB }}
+                data-testid="masters-intro"
+              >
+                Anything on a master repeats on its pages. Spreads use the
+                default, <b style={{ color: T }}>{defaultParent.name}</b>,
+                unless they pick another.
+              </p>
+            )}
+            <div role="listbox" aria-label="Masters">
+              {parents.map((parent) => {
+                const sel = parent.id === shown
+                const isDefault = parent === defaultParent
+                const thumb = (
+                  <div
+                    className="editor-spread-thumb grid w-full place-items-center"
+                    style={{ height: geometry.boxHeightPx }}
+                  >
+                    <SpreadThumb
+                      spreadId={parent.id}
+                      boxWidthPx={geometry.boxWidthPx}
+                      boxHeightPx={geometry.boxHeightPx}
+                    />
+                  </div>
+                )
+                return (
+                  <div
+                    key={parent.id}
+                    role="presentation"
+                    className="group/sp relative mb-1"
+                    data-selected={sel ? 'true' : undefined}
+                  >
+                    {renamingId === parent.id ? (
+                      <div className="e7-item rounded-md p-2">
+                        {thumb}
+                        <input
+                          aria-label="Master name"
+                          defaultValue={parent.name}
+                          ref={focusRenameInput}
+                          className="mt-1.5 w-full rounded-sm px-1 text-2xs"
+                          style={{ background: FIELD, color: T }}
+                          data-testid="master-rename-input"
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                              commitRename(parent.id, event.currentTarget.value)
+                            } else if (event.key === 'Escape') {
+                              // A blur on unmount then commits the old name (no-op).
+                              event.currentTarget.value = parent.name
+                              setRenamingId(null)
+                            }
+                          }}
+                          onBlur={(event) => {
                             commitRename(parent.id, event.currentTarget.value)
-                          } else if (event.key === 'Escape') {
-                            // A blur on unmount then commits the old name (no-op).
-                            event.currentTarget.value = parent.name
-                            setRenamingId(null)
-                          }
-                        }}
-                        onBlur={(event) => {
-                          commitRename(parent.id, event.currentTarget.value)
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={sel}
-                      className="e7-item w-full rounded-md p-2"
-                      data-item={parent.id}
-                      data-testid={`master-list-item-${parent.id}`}
-                      onClick={() => {
-                        pick(parent.id)
-                      }}
-                      onDoubleClick={() => {
-                        setRenamingId(parent.id)
-                      }}
-                    >
-                      {thumb}
-                      <div className="mt-1.5 flex text-2xs">
-                        <span
-                          data-label
-                          className={sel ? 'font-semibold' : 'font-normal'}
-                        >
-                          {parent.name}
-                        </span>
+                          }}
+                        />
                       </div>
-                    </button>
-                  )}
-                  <MenuTrigger>
-                    <IconButton
-                      label={`${parent.name} actions`}
-                      size="sm"
-                      tooltip={false}
-                      className="spread-row-menu"
-                      data-testid={`master-menu-${parent.id}`}
-                    >
-                      <Icon name="moreHorizontal" size={14} />
-                    </IconButton>
-                    <MenuPopover placement="bottom end" className="w-44">
-                      <Menu
-                        className="[&_svg]:size-4 [&_svg]:text-muted-foreground"
-                        onAction={(key) => {
-                          if (key === 'rename') {
-                            setRenamingId(parent.id)
-                          } else {
-                            dispatchBookOp({
-                              type: 'removeParent',
-                              parentId: parent.id,
-                            })
-                          }
+                    ) : (
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={sel}
+                        aria-label={
+                          isDefault ? `${parent.name}, default` : undefined
+                        }
+                        className="e7-item w-full rounded-md p-2"
+                        data-item={parent.id}
+                        data-testid={`master-list-item-${parent.id}`}
+                        onClick={() => {
+                          pick(parent.id)
+                        }}
+                        onDoubleClick={() => {
+                          setRenamingId(parent.id)
                         }}
                       >
-                        <MenuItem
-                          id="rename"
-                          textValue="Rename"
-                          data-testid="master-menu-rename"
+                        {thumb}
+                        <div className="mt-1.5 flex text-2xs">
+                          <span
+                            data-label
+                            className={sel ? 'font-semibold' : 'font-normal'}
+                          >
+                            {parent.name}
+                          </span>
+                          {isDefault ? (
+                            <span
+                              className="editor-master-default-tag"
+                              style={{ color: sel ? T : SUB }}
+                              data-testid="master-default-tag"
+                            >
+                              Default
+                            </span>
+                          ) : null}
+                        </div>
+                      </button>
+                    )}
+                    <MenuTrigger>
+                      <IconButton
+                        label={`${parent.name} actions`}
+                        size="sm"
+                        tooltip={false}
+                        className="spread-row-menu"
+                        data-testid={`master-menu-${parent.id}`}
+                      >
+                        <Icon name="moreHorizontal" size={14} />
+                      </IconButton>
+                      <MenuPopover placement="bottom end" className="w-44">
+                        <Menu
+                          className="[&_svg]:size-4 [&_svg]:text-muted-foreground"
+                          onAction={(key) => {
+                            if (key === 'make-default') {
+                              dispatchBookOp({
+                                type: 'setDefaultParent',
+                                parentId: parent.id,
+                              })
+                            } else if (key === 'rename') {
+                              setRenamingId(parent.id)
+                            } else {
+                              dispatchBookOp({
+                                type: 'removeParent',
+                                parentId: parent.id,
+                              })
+                            }
+                          }}
                         >
-                          <Icon name="pencil" size={16} />
-                          Rename
-                        </MenuItem>
-                        <MenuSeparator />
-                        <MenuItem
-                          id="delete"
-                          textValue="Delete"
-                          variant="destructive"
-                          data-testid="master-menu-delete"
-                        >
-                          <Icon name="delete" size={16} />
-                          Delete
-                        </MenuItem>
-                      </Menu>
-                    </MenuPopover>
-                  </MenuTrigger>
-                </div>
-              )
-            })}
-          </div>
+                          {isDefault ? null : (
+                            <MenuItem
+                              id="make-default"
+                              textValue="Make default"
+                              data-testid="master-menu-make-default"
+                            >
+                              <Icon name="check" size={16} />
+                              Make default
+                            </MenuItem>
+                          )}
+                          <MenuItem
+                            id="rename"
+                            textValue="Rename"
+                            data-testid="master-menu-rename"
+                          >
+                            <Icon name="pencil" size={16} />
+                            Rename
+                          </MenuItem>
+                          <MenuSeparator />
+                          <MenuItem
+                            id="delete"
+                            textValue="Delete"
+                            variant="destructive"
+                            isDisabled={isDefault}
+                            data-testid="master-menu-delete"
+                          >
+                            {/* A disabled item takes no pointer; the label still shows why. */}
+                            <span
+                              className="editor-master-menu-label"
+                              title={
+                                isDefault
+                                  ? 'Make another master the default first'
+                                  : undefined
+                              }
+                            >
+                              <Icon name="delete" size={16} />
+                              Delete
+                            </span>
+                          </MenuItem>
+                        </Menu>
+                      </MenuPopover>
+                    </MenuTrigger>
+                  </div>
+                )
+              })}
+            </div>
+          </>
         )}
       </div>
       <button

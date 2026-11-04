@@ -42,11 +42,13 @@ test('Masters mode hides the book pages on the canvas and Pages brings them back
   await openSessionEditor(page)
   await expect(page.getByTestId('spread-view').first()).toBeVisible()
   await page.getByTestId('left-tab-masters').click()
-  const empty = page.getByTestId('masters-canvas-empty')
-  await expect(empty).toBeVisible()
-  await expect(empty).toContainText('No masters yet')
+  // default-master: a new book shows its default Master A on the canvas.
+  const stage = page.getByTestId('masters-canvas')
+  await expect(stage).toBeVisible()
+  await expect(page.getByTestId('master-label')).toHaveText('Master A')
   const covered = await page
-    .getByTestId('spread-view')
+    .getByTestId('pasteboard-scroll')
+    .locator('[data-testid="spread-view"]')
     .first()
     .evaluate((el) => {
       const box = el.getBoundingClientRect()
@@ -54,13 +56,16 @@ test('Masters mode hides the book pages on the canvas and Pages brings them back
         box.left + box.width / 2,
         box.top + box.height / 2,
       )
-      return top?.closest('[data-testid="masters-canvas-empty"]') !== null
+      return (
+        box.width === 0 ||
+        top?.closest('[data-testid="masters-canvas"]') !== null
+      )
     })
   expect(covered).toBe(true)
   await assertDocumentFitsViewport(page)
 
   await page.getByTestId('left-tab-pages').click()
-  await expect(empty).toHaveCount(0)
+  await expect(stage).toHaveCount(0)
   await assertDocumentFitsViewport(page)
 })
 

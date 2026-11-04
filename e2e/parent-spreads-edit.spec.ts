@@ -4,6 +4,7 @@ import {
   assertNamedScrollport,
 } from './fixtures/assertDocumentFitsViewport'
 import { expect, test } from './fixtures/coverage'
+import { pickMaster, shownMaster } from './fixtures/spreadMaster'
 
 // parent-spreads-edit: the painter fixture has parents "Master A" (a logo)
 // and "Master B" (empty); Pages is cut to 20 so the book has 10 spreads.
@@ -63,11 +64,7 @@ async function applyMaster(page: Page, spreadId: string, name: string) {
   await row.scrollIntoViewIfNeeded()
   await row.click()
   await expect(canvasSpread(page, spreadId)).toBeVisible()
-  const radio = page
-    .getByRole('radiogroup', { name: 'Master' })
-    .getByRole('radio', { name, exact: true })
-  await radio.check({ force: true })
-  await expect(radio).toBeChecked()
+  await pickMaster(page, name)
 }
 
 /** The logo's offset (mm) on every spread, read on the canvas one by one. */
@@ -212,11 +209,7 @@ test('Masters list: rename and delete a master; its spreads fall back to None', 
   await expect(
     canvasSpread(page, 'painter-spread-1').getByTestId('parent-layer'),
   ).toHaveCount(0)
-  await expect(
-    page
-      .getByRole('radiogroup', { name: 'Master' })
-      .getByRole('radio', { name: 'None', exact: true }),
-  ).toBeChecked()
+  await expect.poll(() => shownMaster(page)).toBe('None')
   await assertDocumentFitsViewport(page)
 })
 

@@ -55,6 +55,8 @@ export type Spread = {
 }
 export type PageFormat = "decimal" | "lower-roman" | "upper-roman"
 export type Doc = { spreads: Spread[]; grid: Grid; styles: FrameStyle[]; parents: Parent[]; gallery: string[]; pageStart?: number; skipFirst?: boolean; pageFormat?: PageFormat
+  /** default-master: the book default master (absent = A); a spread without `master` uses it */
+  defaultMaster?: "A" | "B"
   /** sketch-only: book spreads stashed while a parent spread is open for editing */
   stash?: { spreads: Spread[]; cur: number; parent: string }
   userTemplates?: { id: string; name: string; frames: Frame[] }[] }
@@ -86,11 +88,32 @@ export function builtinMaster(k: "A" | "B"): Parent {
         guides: [{ id: "mB-gt", axis: "h", pos: m + 8 }, { id: "mB-gb", axis: "h", pos: SH - m - 8 }, { id: "mB-gc1", axis: "v", pos: P / 2 }, { id: "mB-gc2", axis: "v", pos: P + P / 2 }] }
   masterCache.set(key, par); return par
 }
+/** default-master: the book default master (Book settings → Defaults), A unless made otherwise */
+export const defaultMasterOf = (doc: Doc): "A" | "B" => doc.defaultMaster ?? "A"
+/** The master key a spread shows: its own choice, else the book default */
+export const masterKeyOf = (doc: Doc, s: Spread): "A" | "B" | "none" => s.master ?? defaultMasterOf(doc)
 export function parentOf(doc: Doc, s?: Spread): Parent | undefined {
   if (!s) return undefined
   if (s.parent) return doc.parents.find((p) => p.id === s.parent)
-  if (s.kind === "cover" || s.master === "none") return undefined
-  return builtinMaster(s.master ?? "A") // the book default master is A (Book settings → Defaults)
+  const k = masterKeyOf(doc, s)
+  if (s.kind === "cover" || k === "none") return undefined
+  return builtinMaster(k)
+}
+/** default-master I1: pages showing master `k` (page 1 and the last page count 1, other spreads 2; the last page follows the default) */
+export function masterPages(doc: Doc, k: "A" | "B"): { used: number; total: number } {
+  const used = doc.spreads.reduce((n, s, i) => n + (!s.parent && s.kind !== "cover" && masterKeyOf(doc, s) === k ? (i === 0 ? 1 : 2) : 0), 0)
+  return { used: used + (defaultMasterOf(doc) === k ? 1 : 0), total: doc.spreads.length * 2 }
+}
+/** default-master I1 (prod masterUsageLabel): the default against all pages, others "Used by …" */
+export function masterUsage(doc: Doc, k: "A" | "B"): string {
+  const { used, total } = masterPages(doc, k)
+  if (defaultMasterOf(doc) !== k) return used === 0 ? "Not used yet" : used === 1 ? "Used by 1 page" : `Used by ${used} pages`
+  return used === 0 ? "Default · no pages" : used === total ? `Default · all ${total} pages` : `Default · ${used} of ${total} pages`
+}
+/** default-master S2 (prod spreadMasterStatus): the spread's master against the book default */
+export function masterStatus(doc: Doc, s: Spread): string {
+  const k = masterKeyOf(doc, s), d = defaultMasterOf(doc)
+  return k === "none" ? "No master on this spread" : k === d ? "Book default" : `Instead of Master ${d}`
 }
 export function framesFromTemplate(tid: string, ph: (string | null)[] = []): Frame[] {
   return TT(tid).frames.map((b, i) => frame({ x: b.x * SW / 100, y: b.y * SH / 100, w: b.w * SW / 100, h: b.h * SH / 100, photo: ph[i] ?? null }))

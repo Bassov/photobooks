@@ -15,12 +15,12 @@ import { segList, segTab, applyTemplate } from "./chrome"
 import { PhotoSection, CropSection, PhotoRotateSection, AdjustSection, CaptionSection, GeometrySection, ArrangeSection, AlignSection, DeleteFrameButton } from "./inspector"
 import { SpreadBgSection, TextSection, FrameStyleSection } from "./sections"
 import { slotCount, setTemplatePreview, useCustomTemplates, addCustom, renameCustom, duplicateCustom, deleteCustom, nextCustomName, pickerTemplates, pickerAlias, sortByPhotoCount, pageId } from "./templates"
-import { PAGE, SW, SH, effectiveGrid, type Spread, type Grid } from "./model"
+import { PAGE, SW, SH, effectiveGrid, masterKeyOf, defaultMasterOf, masterStatus, type Spread, type Grid } from "./model"
 import { TT } from "./templates"
-import { SliderRow, Segmented } from "@/components/app/controls"
+import { SliderRow } from "@/components/app/controls"
 import { mapSpread } from "./store"
 import { useTextOverflow } from "./text-overflow"
-import { BookInspector, pageLabel, GridFields, SegC, Toggle, useMasters } from "./v7"
+import { BookInspector, pageLabel, GridFields, SegC, Toggle, useMasters, FIELD, SUB, T } from "./v7"
 
 type Ctx = "spread" | "photo" | "text" | "multi"
 const META: Record<Ctx, { title: string; icon: React.ReactNode }> = {
@@ -261,7 +261,7 @@ function SpreadGridSection() {
   if (!sp) return null
   const { src, ...g } = effectiveGrid(st.doc, sp)
   const custom = (!!sp.grid && Object.keys(sp.grid).length > 0) || customFor === sp.id
-  const none = sp.master === "none", mName = none ? "Book grid" : `Master ${sp.master ?? "A"}`
+  const mk = masterKeyOf(st.doc, sp), none = mk === "none", mName = none ? "Book grid" : `Master ${mk}`
   const link = linkFor?.id === sp.id ? linkFor.on : g.top === g.bottom && g.top === g.inside && g.top === g.outside
   const write = (ng: Grid) => {
     const changed = (Object.keys(ng) as (keyof Grid)[]).filter((k) => ng[k] !== g[k])
@@ -293,15 +293,24 @@ function SpreadPageSection() {
   const st = useStudio()
   const sp = st.doc.spreads[st.cur]
   if (!sp) return null
-  const m = sp.margin ?? 0, g = sp.gap ?? 0
-  const set = (mm: number, gg: number, label: string, key: string) => st.update((d) => mapSpread(d, st.cur, (x) => relayout(x, mm, gg)), label, key)
+  const m = sp.margin ?? 0, g = sp.gap ?? 0, k = masterKeyOf(st.doc, sp), def = defaultMasterOf(st.doc)
+  const set =(mm: number, gg: number, label: string, key: string) => st.update((d) => mapSpread(d, st.cur, (x) => relayout(x, mm, gg)), label, key)
   return (
     <Section title="Master & spacing">
-      <Segmented label="Master" size="sm" value={sp.master ?? "A"} onChange={(v) => st.update((d) => mapSpread(d, st.cur, (x) => ({ ...x, master: v as Spread["master"] })), "Apply master")}
-        items={[{ id: "A", label: "Master A" }, { id: "B", label: "Master B" }, { id: "none", label: "None" }]} />
+      {/* default-master (Owner amendment): always the Cover inspector select, masters in book order + None; picking the default drops `master` (follows it) */}
+      <select aria-label="Master" data-testid="spread-master-select" value={k} onChange={(e) => { const v = e.target.value as "A" | "B" | "none"; st.update((d) => mapSpread(d, st.cur, (x) => { const { master: _, ...rest } = x; return v === def ? rest : { ...rest, master: v } }), "Apply master") }}
+        className="e7-csel h-9 w-full rounded-md border-0 text-sm outline-none" style={{ backgroundColor: FIELD, color: T }}>
+        {(["A", "B"] as const).map((m) => <option key={m} value={m}>{`Master ${m}${m === def ? " · default" : ""}`}</option>)}
+        <option value="none">None</option>
+      </select>
+      <div className="mt-1.5 flex h-[16.8px] items-center text-xs leading-[16.8px]" style={{ color: SUB }} data-testid="spread-master-status">
+        <span>{masterStatus(st.doc, sp)}</span>
+        {k !== "none" && <button type="button" className="e7-elink ml-auto font-medium" style={{ color: T }} data-testid="spread-master-edit"
+          onClick={() => { st.setMode("masters"); st.setNode({ k: "master", id: k }) }}>Edit master</button>}
+      </div>
       <div data-testid="spread-spacing">
         <SliderRow label="Margin" resetValue={0} value={m} onChange={(v) => set(v as number, g, "Spread margin", `sm-${sp.id}`)} minValue={0} maxValue={30} step={1}
-          formatOptions={{ style: "unit", unit: "millimeter", unitDisplay: "short" }} className="mt-3" />
+          formatOptions={{ style: "unit", unit: "millimeter", unitDisplay: "short" }} className="mt-3.5" />
         <SliderRow label="Gap" resetValue={0} value={g} onChange={(v) => set(m, v as number, "Spread gap", `sg-${sp.id}`)} minValue={0} maxValue={20} step={1}
           formatOptions={{ style: "unit", unit: "millimeter", unitDisplay: "short" }} className="mt-2" />
       </div>

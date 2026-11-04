@@ -6,7 +6,7 @@ import { useDragAndDrop, isTextDropItem, isFileDropItem, isDirectoryDropItem, DI
 import {
   MousePointer2, SquareDashed, Type, Hand, Undo2, Redo2, Magnet, Grid3x3, Eye, Download, ChevronDown, ChevronLeft, ChevronRight,
   PanelLeftClose, Check, AlertTriangle, Plus, Loader2, Images, LayoutTemplate, Layers, BookOpen, Ruler, Filter, ArrowDownUp,
-  Crosshair, Scan, X, ImageOff, Upload, CloudOff, MoreHorizontal, Copy, Trash2, FolderOpen,
+  Crosshair, Scan, X, ImageOff, Upload, CloudOff, MoreHorizontal, Copy, Trash2, FolderOpen, Pencil,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -22,7 +22,7 @@ import { IconButton, ThumbGrid, ThumbItem, Kbd, AlertDialog, thumbWidth } from "
 import { photos, P, type Photo } from "@/data"
 import { useStudio, placedSet, mapSpread } from "./store"
 import { PhotoImg, PHOTO_TYPE, FRAME_TYPE } from "./canvas"
-import { SW, SH, spread, parentOf, pageNumbersOf, foliosOf, type Frame, type Spread } from "./model"
+import { SW, SH, spread, parentOf, defaultMasterOf, pageNumbersOf, foliosOf, type Frame, type Spread } from "./model"
 import type { Node } from "./store"
 import { pagesOf, pageLabel, pagesName, fmtN, coverW, SegC, CoverSpread, EndpaperSpread, MasterSpread, LastPage, FolioMarks, MASTERS, useMasters, useCoverPhoto, T, SUB, BAR, FIELD, SURROUND, V7CSS } from "./v7"
 import { ALL_TEMPLATES, TT, basePageId, pageId } from "./templates"
@@ -279,7 +279,7 @@ type ListItem = { key: string; label: string; ratio: number; thumb: React.ReactN
 export function SpreadsPanel({ reorder = false, actions = false, onCollapse }: { reorder?: boolean; actions?: boolean; onCollapse?: () => void }) {
   // v0.7.1: the ONE editor's list (was Editor7's list): Pages | Masters · Cover · Endpaper · 1 · 2–3 … · last page · Endpaper
   void onCollapse
-  const st = useStudio(), bk = st.book, masters = useMasters()
+  const st = useStudio(), bk = st.book, masters = useMasters(), def = defaultMasterOf(st.doc)
   const SR = (2 * bk.w) / bk.h, CR = coverW(bk) / bk.h, n = st.doc.spreads.length
   const list: ListItem[] = st.mode === "masters"
     ? (["A", "B"] as const).map((id) => ({ key: `m${id}`, label: `Master ${id}`, ratio: SR, node: { k: "master", id }, thumb: <MasterSpread id={id} m={masters[id]} /> }))
@@ -312,18 +312,22 @@ export function SpreadsPanel({ reorder = false, actions = false, onCollapse }: {
   return (
     <aside className="flex h-full min-h-0 flex-col" style={{ background: BAR, color: T }} data-testid="spreads-panel">
       <div className="shrink-0 px-3 pb-2 pt-3" data-testid="mode-seg"><SegC items={["Pages", "Masters"]} on={st.mode === "pages" ? 0 : 1} set={(i) => { const m = i ? "masters" : "pages"; st.setMode(m); st.setNode(m === "masters" ? { k: "master", id: "A" } : null) }} /></div>
+      {/* default-master P1: what a master is, and which one the spreads use */}
+      {st.mode === "masters" && <p className="m-0 shrink-0 pl-5 pr-3 pt-0.5 pb-2.5 text-xs leading-[16.8px]" style={{ color: SUB }} data-testid="masters-intro">Anything on a master repeats on its pages. Spreads use the default, <b className="font-medium" style={{ color: T }}>Master {def}</b>, unless they pick another.</p>}
       <ThumbGrid key={st.mode} aria-label={st.mode === "masters" ? "Masters" : "Pages"} selectionMode="single" disallowEmptySelection={false} selectedKeys={selKey ? [selKey] : []} items={list}
         onSelectionChange={(k) => { const id = [...k][0]; if (id !== undefined) pick(String(id)) }}
         dragAndDropHooks={reorder && st.mode === "pages" ? dragAndDropHooks : undefined}
         className="e7 scroll-thin flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pb-4 pl-3 pr-1" data-testid="list">
         {(it) => (
-          <ThumbItem id={it.key} textValue={it.label} data-item={it.key}
+          <ThumbItem id={it.key} textValue={it.node?.k === "master" && it.node.id === def ? `${it.label}, default` : it.label} data-item={it.key}
             className="e7-item group/sp relative mb-1 rounded-md p-2 ring-0! ring-offset-0! outline-none data-[dragging]:opacity-40">
             {reorder && <AriaButton slot="drag" className="sr-only">{it.si !== undefined ? `Drag pages ${it.label}` : `${it.label} (fixed position)`}</AriaButton>}
             <div className="grid w-full place-items-center" style={{ aspectRatio: `${Math.max(it.ratio, 1.6)}` }}><div style={{ width: it.ratio >= 1.6 ? "100%" : `${(it.ratio / 1.6) * 100}%`, aspectRatio: `${it.ratio}`, position: "relative" }}>{it.thumb}</div></div>
             {actions && it.si !== undefined && <SpreadItemMenu i={it.si} />}
+            {actions && it.node?.k === "master" && <MasterItemMenu id={it.node.id} />}
             <div className="mt-1.5 flex text-2xs tabular-nums" style={{ paddingLeft: it.align === "r" ? "50%" : undefined }}>
               <span data-label className={cn(it.key === selKey ? "font-semibold" : "font-normal")} style={{ color: it.key === selKey ? T : SUB }}>{it.label}</span>
+              {it.node?.k === "master" && it.node.id === def && <span className="e7-tag ml-auto" style={{ color: it.key === selKey ? T : SUB }} data-testid="master-default-tag">Default</span>}
               {it.si !== undefined && st.doc.spreads[it.si].frames.some((f) => f.kind === "image" && !f.photo) && <span className="ml-auto text-warning-fg">{st.doc.spreads[it.si].frames.filter((f) => f.kind === "image" && !f.photo).length} empty</span>}
               {it.si !== undefined && st.doc.spreads[it.si].frames.some((f) => f.photo && st.missing.has(f.photo)) && <span className="ml-auto inline-flex items-center gap-0.5 font-medium text-destructive"><AlertTriangle className="size-3" aria-hidden />missing</span>}
             </div>
@@ -344,6 +348,23 @@ function FitMini({ s, className }: { s: Spread; className?: string }) {
     ro.observe(el); return () => ro.disconnect()
   }, [])
   return <div ref={ref} className="w-full min-w-0">{w > 0 && <MiniSpread s={s} width={w - 4} className={className} />}</div>
+}
+/** default-master P3: Make default on the other master (list order stays); Rename / Delete inert like New master, Delete disabled on the default */
+function MasterItemMenu({ id }: { id: "A" | "B" }) {
+  const st = useStudio(), isDefault = defaultMasterOf(st.doc) === id
+  return (
+    <MenuTrigger>
+      <AriaButton aria-label={`Master ${id} actions`} className="absolute right-2.5 top-2.5 z-10 grid size-6 place-items-center rounded-md bg-popover/90 text-muted-foreground opacity-0 shadow-sm outline-hidden group-data-[hovered]/sp:opacity-100 group-data-[selected]/sp:opacity-100 data-[focus-visible]:opacity-100 data-[focus-visible]:ring-2 data-[focus-visible]:ring-ring" data-testid={`master-menu-${id}`}><MoreHorizontal className="size-3.5" /></AriaButton>
+      <MenuPopover placement="bottom end" className="w-44">
+        <Menu className="[&_svg]:size-4 [&_svg]:text-muted-foreground" onAction={(k) => { if (k === "make-default") { st.update((d) => ({ ...d, defaultMaster: id }), "Make default"); st.setStatus(`Master ${id} is the default`) } }}>
+          {!isDefault && <MenuItem id="make-default" data-testid="master-menu-make-default"><Check />Make default</MenuItem>}
+          <MenuItem id="rename"><Pencil />Rename</MenuItem>
+          <MenuSeparator />
+          <MenuItem id="delete" isDisabled={isDefault} variant="destructive" data-testid="master-menu-delete"><span className="pointer-events-auto flex flex-1 items-center gap-2" title={isDefault ? "Make another master the default first" : undefined}><Trash2 />Delete</span></MenuItem>
+        </Menu>
+      </MenuPopover>
+    </MenuTrigger>
+  )
 }
 function SpreadItemMenu({ i }: { i: number }) {
   const st = useStudio()

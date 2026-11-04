@@ -192,7 +192,7 @@ describe('Inspector', () => {
     ).toBe('master')
     expect(screen.getByTestId('inspector-context').textContent).toBe('Master A')
     expect(screen.getByTestId('master-usage').textContent).toBe(
-      'Used by 1 page',
+      'Default · all 1 page',
     )
     expect(screen.queryByTestId('inspector-header')).toBeNull()
 

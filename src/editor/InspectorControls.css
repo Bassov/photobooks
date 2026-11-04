@@ -167,6 +167,37 @@
   line-height: 1.4;
 }
 
+/* Designer default-master I2 / I3: an unused master's hint and the kit
+   secondary "Make default" button under the master head sub. */
+.master-hint {
+  margin: 8px 0 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  line-height: 16.8px;
+}
+
+.pb-button.master-make-default {
+  display: flex;
+  width: fit-content;
+  height: 28px;
+  margin-top: 10px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  background: var(--field);
+  box-shadow: var(--shadow-xs);
+  color: var(--foreground);
+  font-size: var(--text-sm);
+}
+
+.pb-button.master-make-default[data-hovered] {
+  background: var(--t-field-hover);
+}
+
+.pb-button.master-make-default[data-focus-visible] {
+  outline: 2px solid var(--muted-foreground);
+  outline-offset: 2px;
+}
+
 /* Kit `Sec` title (v7.tsx:131): text-2xs 11 / 14.85 px, no heading margins;
    tracking from `.inspector-eyebrow.inspector-sec-title`. */
 .inspector-sec-title {

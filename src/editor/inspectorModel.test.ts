@@ -10,11 +10,13 @@ import {
   linkMarginsPatch,
   marginsEqual,
   masterGridPatch,
+  masterUsageLabel,
   parentUsage,
   resetGridFields,
   parentUsageLabel,
   sameInspectorPanel,
   spreadLabel,
+  spreadMasterStatus,
   spreadSummary,
   type InspectorPanel,
 } from './inspectorModel'
@@ -285,6 +287,56 @@ describe('parentUsage', () => {
       spreads: [makeSpread({ parentId: 'pb' })],
     })
     expect(parentUsage(lone, 'pb')).toBe(1)
+  })
+
+  it('masterUsageLabel: the default against all book pages, others "Used by"', () => {
+    const book = (stored: (string | null | undefined)[]) =>
+      makeBook({
+        parents,
+        defaultParentId: 'pa',
+        spreads: stored.map((parentId, i) =>
+          makeSpread({
+            id: `s${String(i)}`,
+            ...(parentId === undefined ? {} : { parentId }),
+          }),
+        ),
+      })
+    const all = book([undefined, undefined, undefined, undefined])
+    expect(masterUsageLabel(all, 'pa')).toBe('Default · all 6 pages')
+    expect(masterUsageLabel(all, 'pb')).toBe('Not used yet')
+    const one = book([undefined, null, undefined, undefined])
+    expect(masterUsageLabel(one, 'pa')).toBe('Default · 4 of 6 pages')
+    const none = book([null, 'pb', 'pb', null])
+    expect(masterUsageLabel(none, 'pa')).toBe('Default · no pages')
+    expect(masterUsageLabel(none, 'pb')).toBe('Used by 4 pages')
+  })
+
+  it('spreadMasterStatus: Book default, Instead of the default, None', () => {
+    const book = makeBook({
+      parents,
+      defaultParentId: 'pa',
+      spreads: [
+        makeSpread({ id: 'a' }),
+        makeSpread({ id: 'b', parentId: 'pb' }),
+        makeSpread({ id: 'c', parentId: null }),
+        makeSpread({ id: 'd', parentId: 'pa' }),
+      ],
+    })
+    expect(book.spreads.map((s) => spreadMasterStatus(book, s))).toEqual([
+      'Book default',
+      'Instead of Master A',
+      'No master on this spread',
+      'Book default',
+    ])
+    const noDefault = makeBook({ parents, spreads: book.spreads })
+    expect(
+      noDefault.spreads.map((s) => spreadMasterStatus(noDefault, s)),
+    ).toEqual([
+      'No master on this spread',
+      'Master B',
+      'No master on this spread',
+      'Master A',
+    ])
   })
 
   it('masterGridPatch: a linked margin writes all four, a count stays single', () => {

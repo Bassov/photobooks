@@ -1,5 +1,12 @@
 import { useSyncExternalStore, type ReactNode } from 'react'
-import { editableSpread, frameDpi, lowDpi, sourceCropRect } from '../core'
+import {
+  bookDpiThresholds,
+  editableSpread,
+  frameDpi,
+  lowDpi,
+  sourceCropRect,
+  type DpiThresholds,
+} from '../core'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Disclosure } from '../ui/Disclosure'
@@ -86,6 +93,7 @@ export function PhotoSection({ target }: { target: CropTarget }) {
                     size.widthPx,
                     size.heightPx,
                   )}
+                  thresholds={bookDpiThresholds(book)}
                 />
               </>
             )}
@@ -130,8 +138,14 @@ function PhotoDisclosure({ children }: { children: ReactNode }) {
 }
 
 /** Kit ppi chip: green at print quality, warning / error below the DPI gates. */
-function PpiChip({ dpi }: { dpi: number }) {
-  const low = lowDpi(dpi)
+function PpiChip({
+  dpi,
+  thresholds,
+}: {
+  dpi: number
+  thresholds: DpiThresholds
+}) {
+  const low = lowDpi(dpi, thresholds)
   return (
     <Badge
       color={
