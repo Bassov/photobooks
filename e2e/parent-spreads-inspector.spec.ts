@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { expect, test } from './fixtures/coverage'
 import { dispatchCtrlWheel } from './fixtures/dispatchCtrlWheel'
+import { pickMaster } from './fixtures/spreadMaster'
 import {
   browserAssertNoLoaf,
   browserBeginLoafScenarioWindow,
@@ -107,11 +108,7 @@ function movedSpreads(
 
 async function setSpreadNone(page: Page, spreadId: string) {
   await page.getByTestId(`spread-list-item-${spreadId}`).click()
-  const none = page
-    .getByRole('radiogroup', { name: 'Master' })
-    .getByRole('radio', { name: 'None', exact: true })
-  await none.check({ force: true })
-  await expect(none).toBeChecked()
+  await pickMaster(page, 'None')
 }
 
 test('Browser check: Master A at 5 columns shows on the master and every spread using it', async ({
@@ -126,8 +123,10 @@ test('Browser check: Master A at 5 columns shows on the master and every spread 
   await expect(inspector(page)).toHaveAttribute('data-inspector-view', 'master')
   const head = page.getByTestId('insp-master').getByTestId('inspector-head')
   await expect(head.getByTestId('inspector-context')).toHaveText('Master A')
-  // 40 spreads: 1 + 38 × 2 + 1 pages, minus the None spread's 2.
-  await expect(head.getByTestId('master-usage')).toHaveText('Used by 76 pages')
+  // 40 spreads: 1 + 38 × 2 + 1 pages, minus the None spread's 2 (default-master I1).
+  await expect(head.getByTestId('master-usage')).toHaveText(
+    'Default · 76 of 78 pages',
+  )
   await expect(page.getByTestId('master-label')).toHaveText('Master A')
   // The master grid is drawn although the toolbar Grid is what the user set.
   await expect(masterCells(page)).toHaveCount(8)

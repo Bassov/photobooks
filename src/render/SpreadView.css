@@ -438,6 +438,23 @@ button.spread-frame:not(
   pointer-events: none;
 }
 
+/* Text edit mode (Designer text-frames): 1 px outline, no handles; the
+   editor overlay's textarea paints the text, so the node steps aside. */
+button.spread-frame[data-editing='true']:not([data-drop-hover='true'])::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  box-shadow: none;
+  outline: 1px solid var(--select);
+  outline-offset: 1px;
+}
+
+button.spread-frame[data-editing='true'] .spread-frame-text {
+  visibility: hidden;
+}
+
 /* Editor-only `Empty text` in the style font. */
 .spread-frame-text[data-placeholder='true'] {
   opacity: 0.4;

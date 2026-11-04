@@ -114,11 +114,13 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [parent-overrides-core](roadmap/P2/parent-overrides-core.md) — Bug: /next-roadmap-item parent-overrides-core
 - [ ] [feature] [text-frames-core](roadmap/P2/text-frames-core.md) — Bug: /next-roadmap-item text-frames-core
 - [ ] [feature] [text-frames-kit](roadmap/P2/text-frames-kit.md) — Bug: /next-roadmap-item text-frames-kit
+- [ ] [feature] [text-frames-editor](roadmap/P2/text-frames-editor.md) — Bug: /next-roadmap-item text-frames-editor
 - [ ] [feature] [parent-guides-kit](roadmap/P2/parent-guides-kit.md) — Bug: /next-roadmap-item parent-guides-kit
 - [ ] [feature] [roadmap-index-no-tick](roadmap/P2/roadmap-index-no-tick.md) — Bug: /next-roadmap-item roadmap-index-no-tick
 - [ ] [feature] [tab-leaves-presentation](roadmap/P2/tab-leaves-presentation.md) — Bug: /next-roadmap-item tab-leaves-presentation
 - [ ] [feature] [thumb-warm-memo](roadmap/P2/thumb-warm-memo.md) — Bug: /next-roadmap-item thumb-warm-memo
 - [ ] [feature] [master-spread-both-pages](roadmap/P2/master-spread-both-pages.md) — Bug: /next-roadmap-item master-spread-both-pages
+- [ ] [feature] [default-master](roadmap/P2/default-master.md) — Bug: /next-roadmap-item default-master
 - [ ] [feature] [kit-thumbgrid-page-select](roadmap/P2/kit-thumbgrid-page-select.md) — Bug: /next-roadmap-item kit-thumbgrid-page-select
 - [ ] [feature] [prod-arrange-rulers-parity](roadmap/P2/prod-arrange-rulers-parity.md) — Bug: /next-roadmap-item prod-arrange-rulers-parity
 - [x] [feature] [kit-focus-ring-style](roadmap/P2/kit-focus-ring-style.md) — Bug: /next-roadmap-item kit-focus-ring-style
@@ -127,6 +129,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [parent-guides-prod-overhang](roadmap/P2/parent-guides-prod-overhang.md) — Bug: /next-roadmap-item parent-guides-prod-overhang
 - [ ] [feature] [parent-overrides](roadmap/P2/parent-overrides.md) — change one spread without touching the parent
 - [ ] [feature] [page-numbers](roadmap/P2/page-numbers.md) — page numbers
+- [ ] [feature] [page-numbers-core](roadmap/P2/page-numbers-core.md) — Bug: /next-roadmap-item page-numbers-core
 - [ ] [feature] [user-templates](roadmap/P2/user-templates.md) — your own layouts
 
 ## P3 — Personal site

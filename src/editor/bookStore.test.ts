@@ -1501,6 +1501,7 @@ describe('bookStore spread paint covers the parent layer', () => {
             frames: [makeFrame({ id: 'logo' })],
             guides: [],
           },
+          { id: 'p2', name: 'Master B', frames: [], guides: [] },
         ],
         defaultParentId: 'p1',
       }),
@@ -1515,26 +1516,49 @@ describe('bookStore spread paint covers the parent layer', () => {
       ).length
     expect(parentItems()).toBe(1)
 
-    dispatchBookOp({ type: 'removeParent', parentId: 'p1' })
-    expect(getBookStoreSnapshot().book.parents).toEqual([])
-    expect(getBookStoreSnapshot().book.defaultParentId).toBeUndefined()
+    dispatchBookOp({ type: 'setDefaultParent', parentId: 'p2' })
+    expect(getBookStoreSnapshot().book.defaultParentId).toBe('p2')
     expect(parentItems()).toBe(0)
 
     undoBook()
-    expect(getBookStoreSnapshot().book.parents).toBe(original.parents)
     expect(getBookStoreSnapshot().book.defaultParentId).toBe('p1')
     expect(parentItems()).toBe(1)
 
     redoBook()
-    expect(getBookStoreSnapshot().book.parents).toEqual([])
-    expect('defaultParentId' in getBookStoreSnapshot().book).toBe(false)
+    expect(getBookStoreSnapshot().book.defaultParentId).toBe('p2')
+    dispatchBookOp({ type: 'removeParent', parentId: 'p1' })
+    expect(getBookStoreSnapshot().book.parents?.map((p) => p.id)).toEqual([
+      'p2',
+    ])
+
+    undoBook()
+    expect(getBookStoreSnapshot().book.parents).toBe(original.parents)
 
     // A book that never had parents gets none back.
-    resetBookStore()
+    resetBookStore({
+      book: makeBook(),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
     dispatchBookOp({ type: 'addParent' })
     expect(getBookStoreSnapshot().book.parents).toHaveLength(1)
     undoBook()
     expect('parents' in getBookStoreSnapshot().book).toBe(false)
+  })
+
+  it('the session book has three spreads on its empty default Master A', () => {
+    resetBookStore()
+    const { book } = getBookStoreSnapshot()
+    expect(book.spreads.map((spread) => spread.id)).toEqual([
+      'spread-1',
+      'spread-2',
+      'spread-3',
+    ])
+    expect(book.parents).toEqual([
+      { id: 'parent-1', name: 'Master A', frames: [], guides: [] },
+    ])
+    expect(book.defaultParentId).toBe('parent-1')
   })
 
   it('repaints a parent photo when its real aspect arrives', () => {

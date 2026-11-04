@@ -1,4 +1,4 @@
-import type { Book } from '../../core'
+import { ensureDefaultParent, type Book } from '../../core'
 import type {
   BookSummary,
   LibraryStorage,
@@ -117,7 +117,12 @@ export function createLibraryActivation(
     )
   }
 
-  async function activateLoadedBook(book: Book): Promise<StorageResult<Book>> {
+  async function activateLoadedBook(
+    loaded: Book,
+  ): Promise<StorageResult<Book>> {
+    // Every opened book has a default master; an added one is empty, so the
+    // book looks the same and saves with the next edit.
+    const book = ensureDefaultParent(loaded)
     const libraryId = host.getLibraryId()
     if (!libraryId) {
       return { ok: false, code: 'not-found' }

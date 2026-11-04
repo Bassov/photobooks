@@ -68,6 +68,51 @@ describe('MasterSection', () => {
     expect(screen.getByTestId('master-usage').textContent).toBe(text)
   })
 
+  it.each([
+    [[undefined, undefined, undefined], 'Default · all 4 pages'],
+    [[undefined, null, undefined], 'Default · 2 of 4 pages'],
+    [[null, null, null], 'Default · no pages'],
+  ] as const)('default head: %j → "%s", no Make default', (uses, text) => {
+    resetBookStore({
+      book: makeBook({
+        spreads: uses.map((parentId, i) =>
+          makeSpread({
+            id: `s${String(i)}`,
+            ...(parentId === undefined ? {} : { parentId }),
+          }),
+        ),
+        parents: [MASTER_A],
+        defaultParentId: 'pa',
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<MasterSection parentId="pa" />)
+    expect(screen.getByTestId('master-usage').textContent).toBe(text)
+    expect(screen.queryByTestId('master-make-default')).toBeNull()
+    expect(screen.queryByTestId('master-hint')).toBeNull()
+  })
+
+  it('a master that is not the default offers Make default (and a hint while unused)', () => {
+    seed(MASTER_A, [null, null, null])
+    const { unmount } = render(<MasterSection parentId="pa" />)
+    expect(screen.getByTestId('master-hint').textContent).toBe(
+      'Pick it for a spread under Master & spacing, or make it the default.',
+    )
+    unmount()
+
+    seed(MASTER_A, ['pa', null, null])
+    render(<MasterSection parentId="pa" />)
+    expect(screen.queryByTestId('master-hint')).toBeNull()
+    fireEvent.click(screen.getByTestId('master-make-default'))
+    expect(getBookStoreSnapshot().book.defaultParentId).toBe('pa')
+    expect(screen.queryByTestId('master-make-default')).toBeNull()
+    expect(screen.getByTestId('master-usage').textContent).toBe(
+      'Default · 1 of 4 pages',
+    )
+  })
+
   it('renders nothing for an unknown parent or a book without parents', () => {
     seed()
     const { container, unmount } = render(<MasterSection parentId="nope" />)

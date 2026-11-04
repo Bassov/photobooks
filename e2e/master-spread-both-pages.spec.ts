@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
+import { pickMaster } from './fixtures/spreadMaster'
 
 // master-spread-both-pages (Owner 2026-11-04): a new master with a grid,
 // applied to a two-page spread, showed its grid on the left page only — the
@@ -24,9 +25,7 @@ async function newMasterWithColumns(page: Page, columns: string) {
 
 async function applyMaster(page: Page, spreadId: string, name: string) {
   await page.getByTestId(`spread-list-item-${spreadId}`).click()
-  const master = page.getByTestId('spread-master-spacing')
-  await master.getByText(name, { exact: true }).click()
-  await expect(master.getByRole('radio', { name })).toBeChecked()
+  await pickMaster(page, name)
 }
 
 interface PageReport {

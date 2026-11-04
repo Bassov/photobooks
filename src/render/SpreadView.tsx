@@ -23,6 +23,8 @@ export interface FrameControl {
   /** Crop zoom (1 = cover) shown in the "Crop · N%" tag. */
   cropZoom?: number
   onDoubleActivate?: (event?: { shiftKey?: boolean }) => void
+  /** Text edit mode: the editor overlay types over it (1 px outline, no handles). */
+  editing?: boolean
 }
 import { dropChipLabel } from './dropChip'
 import { adjustFilter, frameStyleCss } from './frameLookCss'
@@ -117,7 +119,7 @@ const IMAGE_PLUS_GLYPH: GlyphNodes = [
 ]
 
 /** Decorative chrome glyph at an exact px size (the Icon set has no 12). */
-function FrameGlyph({
+export function FrameGlyph({
   nodes,
   size,
   name,
@@ -619,6 +621,7 @@ function SpreadFrame({
       {...kindAttrs(item, false)}
       data-crop-active={cropActive ? 'true' : undefined}
       data-locked={item.locked === true ? 'true' : undefined}
+      data-editing={control.editing === true ? 'true' : undefined}
       aria-label={control.label}
       aria-pressed={control.pressed === true ? true : undefined}
       style={spreadFrameControlStyle(style, control.pressed === true)}
@@ -658,7 +661,10 @@ function SpreadFrame({
           {item.lowDpi.dpi} dpi
         </span>
       ) : null}
-      {selected && handles && item.locked !== true ? (
+      {selected &&
+      handles &&
+      item.locked !== true &&
+      control.editing !== true ? (
         <span
           className="spread-frame-handles"
           data-testid="spread-frame-handles"

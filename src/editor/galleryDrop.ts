@@ -38,10 +38,12 @@ import {
   getFrameSelection,
   getFrameSource,
   setFrameSource,
+  sourceFrame,
   sourceFrameFilled,
   toggleFrameSelection,
 } from './frameSelection'
 import { setSelectedAssetId } from './gallerySelection'
+import { startTextEdit } from './textEditStore'
 
 function clearDropSession(): void {
   releaseDragTier()
@@ -91,7 +93,8 @@ export function dropSpreadsFromBook(
     }
     const items = []
     for (const item of resolved.items) {
-      if (item.parent === true) {
+      // Text frames take no photo: a drop falls through to the frame below.
+      if (item.parent === true || item.text !== undefined) {
         continue
       }
       items.push({
@@ -139,6 +142,8 @@ export function activateFrame(
   pointer = false,
   /** Shift+click / Shift+Enter: toggle the frame in the selection. */
   shift = false,
+  /** A text frame takes no photo: it is selected, never swapped. */
+  text = false,
 ): void {
   if (takeFrameDragClick()) {
     return
@@ -156,6 +161,7 @@ export function activateFrame(
       frameId,
       filled,
       locked: frameLocked(book, { spreadId, frameId }),
+      text,
     },
   })
   if (action.type === 'toggle') {
@@ -609,12 +615,47 @@ function isTypingTarget(target: EventTarget | null): boolean {
   )
 }
 
+/**
+ * Enter with one text frame selected edits it (caret at the end). Any other
+ * focused control (a button, the inspector) keeps its own Enter.
+ */
+function editSelectedText(event: KeyboardEvent): boolean {
+  const source = getFrameSource()
+  if (
+    event.shiftKey ||
+    event.altKey ||
+    event.ctrlKey ||
+    event.metaKey ||
+    source === null ||
+    sourceFrame(source)?.kind !== 'text' ||
+    isTypingTarget(event.target)
+  ) {
+    return false
+  }
+  const control =
+    event.target instanceof Element
+      ? event.target.closest('button, a, [role="button"], [tabindex]')
+      : null
+  if (
+    control !== null &&
+    control.getAttribute('data-frame-id') !== source.frameId
+  ) {
+    return false
+  }
+  startTextEdit(source)
+  return true
+}
+
 export function installEditorKeys(): () => void {
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
       setFrameSource(null)
       setSelectedAssetId(null)
       setEditorStatus('')
+      return
+    }
+    if (event.key === 'Enter' && editSelectedText(event)) {
+      event.preventDefault()
       return
     }
     if (event.key !== 'Delete' && event.key !== 'Backspace') {

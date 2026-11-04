@@ -25,16 +25,42 @@
   top: 0;
 }
 
-/* Kit Segmented (components/app/controls.tsx:56-59): medium weight, the
-   selected pill on the raised surface with no shadow. */
-.spread-segmented .pb-segmented__segment {
-  font-weight: 500;
+/* Designer default-master S2 / S3: what the spread's master is against the
+   book default, and "Edit master" at the end of the line. */
+.spread-master-status {
+  display: flex;
+  align-items: center;
+  height: 16.8px;
+  margin-top: 6px;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  line-height: 16.8px;
 }
 
-.spread-segmented .pb-segmented__segment--selected,
-.spread-segmented .pb-segmented__segment--selected:hover {
-  background: var(--t-raised);
-  box-shadow: none;
+.spread-master-status + .spread-spacing {
+  margin-top: 14px;
+}
+
+.spread-master-edit {
+  margin-left: auto;
+  padding: 0 2px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--foreground);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.spread-master-edit:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.spread-master-edit:focus-visible {
+  outline: 2px solid var(--muted-foreground);
+  outline-offset: 1px;
 }
 
 .spread-spacing-note {
