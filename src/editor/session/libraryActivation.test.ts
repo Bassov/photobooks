@@ -695,6 +695,37 @@ describe('createLibraryActivation', () => {
     })
   })
 
+  it('createLibrary keeps the publish statuses of an existing library.json', async () => {
+    const lib = createMemoryLibraryStorage()
+    const books = { 'book-1': { status: 'published' as const } }
+    await lib.updateLibrary({ books })
+    const handle = createFakeBrowserDirectory({ name: 'CreateKeep' })
+    storagesByHandle.set('CreateKeep', lib)
+    pickDirectory = () => Promise.resolve(handle)
+
+    const created = await controller.createLibrary()
+    expect(created.ok).toBe(true)
+    expect(await lib.getLibrary()).toEqual({ ok: true, value: { books } })
+  })
+
+  it('createLibrary on an unreadable library.json still writes a fresh one', async () => {
+    const lib = createMemoryLibraryStorage()
+    lib.getLibrary = () => Promise.resolve(failure('not-found'))
+    const written: unknown[] = []
+    const update = lib.updateLibrary.bind(lib)
+    lib.updateLibrary = (meta) => {
+      written.push(meta)
+      return update(meta)
+    }
+    const handle = createFakeBrowserDirectory({ name: 'CreateFresh' })
+    storagesByHandle.set('CreateFresh', lib)
+    pickDirectory = () => Promise.resolve(handle)
+
+    const created = await controller.createLibrary()
+    expect(created.ok).toBe(true)
+    expect(written).toEqual([{}])
+  })
+
   it('openLibrary getLibrary failure sets homeError and status action', async () => {
     const lib = createMemoryLibraryStorage()
     lib.getLibrary = () => Promise.resolve(failure('not-found'))

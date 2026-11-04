@@ -86,6 +86,23 @@ describe('FSA library storage layout', () => {
     expect(await readMemoryFileText(root, [LIBRARY_JSON])).toBe(newer)
   })
 
+  it('fails library reads and writes on an invalid status map without overwriting it', async () => {
+    const { root, storage } = createFsaHarness()
+    const invalid = '{"schemaVersion":2,"books":{"b":{"status":"live"}}}'
+    const file = await root.getFile(LIBRARY_JSON, { create: true })
+    await file.writeText(invalid)
+
+    expect(await storage.getLibrary()).toEqual({
+      ok: false,
+      code: 'corrupted',
+    })
+    expect(await storage.updateLibrary({})).toEqual({
+      ok: false,
+      code: 'corrupted',
+    })
+    expect(await readMemoryFileText(root, [LIBRARY_JSON])).toBe(invalid)
+  })
+
   it('deletes the book directory and lists from books/ not library.json', async () => {
     const { root, storage } = createFsaHarness()
     const book = makeBook({ id: 'fsa-delete' })
@@ -93,7 +110,7 @@ describe('FSA library storage layout', () => {
 
     await writeLibraryMeta(root, {})
     const libraryText = await readMemoryFileText(root, [LIBRARY_JSON])
-    expect(libraryText).toBe('{"schemaVersion":1}')
+    expect(libraryText).toBe('{"schemaVersion":2,"books":{}}')
 
     const listed = await storage.listBooks()
     expect(listed).toMatchObject({

@@ -45,6 +45,7 @@ describe('isPerfPath', () => {
     'src/perf/loafObserver.ts',
     'src/photo/pool.ts',
     'src/assets/cache.ts',
+    'src/derivatives/pool.ts',
     'src/editor/filmstrip/Filmstrip.tsx',
     'src/editor/Pasteboard.tsx',
     'e2e/perf/perfFixture.ts',
