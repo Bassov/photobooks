@@ -27,15 +27,26 @@ export {
   type CoverPanelName,
 } from './cover'
 export {
-  DEFAULT_PRINT_PROFILE_ID,
+  bookDpiThresholds,
   bookPrintProfileRef,
   defaultPrintProfileRef,
   resolvePrintProfile,
   validatePrintSettings,
-  type PrintProfile,
   type PrintProfileIssue,
   type PrintRangeField,
 } from './printProfile'
+export {
+  DEFAULT_PRINT_PROFILE_ID,
+  PRINT_COLOR_SPACES,
+  PRINT_OUTPUTS,
+  genericPrintProfile,
+  parsePrintProfile,
+  type PrintOutput,
+  type PrintProfile,
+  type PrintProfileInput,
+  type PrintProfileParseResult,
+  type SpineWidthRule,
+} from './print/profileSchema'
 export {
   SPINE_WIDTH_SOURCES,
   type CoverPrint,
@@ -63,6 +74,7 @@ export {
   PARENT_SPREAD_INDEX,
   addParent,
   editableSpread,
+  ensureDefaultParent,
   nextParentId,
   parentAsSpread,
   removeParent,
@@ -122,7 +134,13 @@ export {
   getSpreadSizeMm,
   getSpreadSlotPageCount,
 } from './geometry/spreadSize'
-export { DPI_MIN, DPI_WARN, frameDpi, lowDpi } from './geometry/dpi'
+export {
+  DPI_MIN,
+  DPI_WARN,
+  frameDpi,
+  lowDpi,
+  type DpiThresholds,
+} from './geometry/dpi'
 export {
   clampCrop,
   MAX_CROP_ZOOM,
@@ -144,6 +162,23 @@ export type {
   ResolvedSpread,
   ResolvedText,
 } from './geometry/types'
+export type { ResolvedFolio } from './geometry/types'
+export {
+  FOLIO_HEIGHT_MM,
+  FOLIO_WIDTH_MM,
+  PAGE_NUMBER_START_MAX,
+  PAGE_NUMBER_START_MIN,
+  folioText,
+  formatPageNumber,
+  pageNumberItems,
+  pageNumberPosition,
+  pageNumberingOf,
+  setPageNumbering,
+  setParentPageNumbers,
+  spreadFolios,
+  syncPageNumbers,
+  type PageNumberPosition,
+} from './pageNumbers'
 
 export {
   TEMPLATE_IDS,

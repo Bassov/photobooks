@@ -69,8 +69,15 @@ import type {
   CoverStyle,
   FrameAdjust,
   FrameStyle,
+  PageNumbering,
   TextStyleId,
 } from '../schema'
+import {
+  setPageNumbering,
+  setParentPageNumbers,
+  syncPageNumbers,
+  type PageNumberPosition,
+} from '../pageNumbers'
 import { setTrim } from './bookSettings'
 import {
   applyFrameStyle,
@@ -328,6 +335,12 @@ export type BookOp =
   | { type: 'hideParentItem'; spreadId: string; parentItemId: string }
   | { type: 'resetParentItem'; spreadId: string; parentItemId: string }
   | { type: 'resetSpreadToParent'; spreadId: string }
+  | {
+      type: 'setParentPageNumbers'
+      parentId: string
+      position: PageNumberPosition | null
+    }
+  | { type: 'setPageNumbering'; patch: Partial<PageNumbering> }
 
 export function applyBookOp(book: Book, op: BookOp): Book {
   switch (op.type) {
@@ -395,7 +408,9 @@ export function applyBookOp(book: Book, op: BookOp): Book {
     case 'setCoverStyle':
       return setCoverStyle(book, op.patch)
     case 'setTrim':
-      return setTrim(book, { widthMm: op.widthMm, heightMm: op.heightMm })
+      return syncPageNumbers(
+        setTrim(book, { widthMm: op.widthMm, heightMm: op.heightMm }),
+      )
     case 'setEndpapersEnabled':
       return setEndpapersEnabled(book, op.enabled)
     case 'setEndpapersSame':
@@ -414,14 +429,17 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return editFrameStyle(book, op.styleId, op.patch)
     case 'newFrameStyle':
       return newFrameStyleFromFrame(book, op.spreadId, op.frameId)
+    // Grid edits reaching a parent move its folios with the margins.
     case 'setBookGrid':
-      return setBookGrid(book, op.patch)
+      return syncPageNumbers(setBookGrid(book, op.patch))
     case 'setSpreadGrid':
-      return setSpreadGrid(book, op.spreadId, op.patch)
+      return syncPageNumbers(setSpreadGrid(book, op.spreadId, op.patch))
     case 'resetSpreadGrid':
-      return resetSpreadGrid(book, op.spreadId)
+      return syncPageNumbers(resetSpreadGrid(book, op.spreadId))
     case 'resetSpreadGridFields':
-      return resetSpreadGridFields(book, op.spreadId, op.fields)
+      return syncPageNumbers(
+        resetSpreadGridFields(book, op.spreadId, op.fields),
+      )
     case 'addGuide':
       return addGuide(book, op.spreadId, {
         orientation: op.orientation,
@@ -462,6 +480,10 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return resetParentItem(book, op.spreadId, op.parentItemId)
     case 'resetSpreadToParent':
       return resetSpreadToParent(book, op.spreadId)
+    case 'setParentPageNumbers':
+      return setParentPageNumbers(book, op.parentId, op.position)
+    case 'setPageNumbering':
+      return setPageNumbering(book, op.patch)
     case 'addFrame':
       return addFrame(book, op.spreadId, op.rect, op.id)
     case 'addTextFrame':

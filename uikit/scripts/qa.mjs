@@ -1071,7 +1071,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     const snap = () => page.evaluate(() => { const sp = document.querySelector('[data-testid="spread"][data-current]'); const q = (s) => sp ? sp.querySelectorAll(s).length : -1
       const cs = sp ? getComputedStyle(sp) : null
       return { a: q('[data-frame^="mA-"]'), b: q('[data-frame^="mB-"]'), ga: q('[data-guide^="mA-"]'), gb: q('[data-guide^="mB-"]'), outline: cs ? (cs.outlineStyle !== "none" && cs.outlineWidth !== "0px") : true } })
-    const pick = async (name) => { await page.getByRole("radio", { name, exact: true }).first().evaluate((b) => b.click()); await page.waitForTimeout(350) }
+    const pick = async (name) => { await page.getByTestId("spread-master-select").first().selectOption(name === "None" ? "none" : name.slice(-1), { force: true }); await page.waitForTimeout(350) }
     const out = {}
     for (const m of ["Master B", "None", "Master A"]) { await pick(m); out[m] = await snap() }
     // guides on → master guides render too
@@ -2448,6 +2448,42 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const s10 = await read(), undo1 = await undoLabel()
   ok("text-frames: Esc during a Text drag cancels (no frame, no edit, no undo step)", s10.frames === s10a.frames && !s10.editing && undo1 === undo0, JSON.stringify({ before: s10a.frames, after: s10.frames, undo0, undo1 }))
   ok("text-frames: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
+}
+// ───────── default-master (Designer spec 2026-11-04 + Owner amendment: the Master control is always a select) ─────────
+{
+  const e0 = errs.length
+  await go("#/demo", 500)
+  await page.evaluate(() => { const d = window.__demo; d.reset(); d.state().path = "~/Pictures/Photobooks"; d.state().books = [{ id: "s1", title: "Default master", book: { endp: true, endpSame: true, w: 14.8, h: 21, preset: "A5" } }]; d.state().open = "s1"; d.go("editor") })
+  await page.waitForTimeout(700)
+  const L = (s) => page.locator(`${demo} ${s}`)
+  const seg = (i) => L('[data-testid="mode-seg"] button').nth(i).click()
+  await L('[data-item="p1"]').click(); await page.waitForTimeout(250)
+  const sel = L('[data-testid="spread-master-select"]')
+  const status = () => L('[data-testid="spread-master-status"]').evaluate((e) => ({ t: e.firstElementChild.textContent, h: e.getBoundingClientRect().height, edit: !!e.querySelector('[data-testid="spread-master-edit"]') }))
+  const opts = await sel.locator("option").allTextContents(), w = await sel.evaluate((e) => e.getBoundingClientRect().width), s0 = await status()
+  const col = await L('[data-testid="spread-spacing"]').evaluate((e) => e.getBoundingClientRect().width)
+  ok("default-master S1: spread 2–3 Master is a select (Master A · default, Master B, None), full section width (prod 268), no radiogroup", opts.join("|") === "Master A · default|Master B|None" && Math.abs(w - col) <= 0.5 && w > 250 && (await L('[role=radiogroup][aria-label="Master"]').count()) === 0, `${opts.join("|")} w=${w} col=${col}`)
+  ok("default-master S2/S3: status \"Book default\" 16.8 tall with Edit master", s0.t === "Book default" && Math.abs(s0.h - 16.8) < 0.05 && s0.edit, JSON.stringify(s0))
+  await sel.selectOption("B"); await page.waitForTimeout(200); const s1 = await status()
+  await sel.selectOption("none"); await page.waitForTimeout(200); const s2 = await status()
+  ok("default-master S2: \"Instead of Master A\", then \"No master on this spread\" without Edit master", s1.t === "Instead of Master A" && s1.edit && s2.t === "No master on this spread" && !s2.edit, `${s1.t} | ${s2.t} edit=${s2.edit}`)
+  await sel.selectOption("A"); await page.waitForTimeout(200)
+  await L('[data-testid="spread-master-edit"]').click(); await page.waitForTimeout(300)
+  const intro = await L('[data-testid="masters-intro"]').textContent(), tagOn = await L('[data-item="mA"] [data-testid="master-default-tag"]').count(), head = await L('[data-testid="master-usage"]').textContent()
+  ok("default-master S3/P1/P2/I1: Edit master opens Masters on Master A; the note names it; Master A tagged Default; head \"Default · all N pages\"", intro.includes("Spreads use the default, Master A, unless") && tagOn === 1 && /^Default · all \d+ pages$/.test(head) && (await L('[data-testid="master-make-default"]').count()) === 0, `${intro} tag=${tagOn} head=${head}`)
+  await L('[data-testid="master-menu-A"]').click(); await page.waitForTimeout(200)
+  const aMenu = { make: await page.getByTestId("master-menu-make-default").count(), del: await page.getByTestId("master-menu-delete").getAttribute("aria-disabled") }
+  await page.keyboard.press("Escape"); await page.waitForTimeout(150)
+  ok("default-master P3: the default's row menu has no Make default and a disabled Delete", aMenu.make === 0 && aMenu.del === "true", JSON.stringify(aMenu))
+  await L('[data-item="mB"]').click(); await page.waitForTimeout(250)
+  const hb = await L('[data-testid="master-usage"]').textContent(), hint = await L('[data-testid="master-hint"]').count()
+  await L('[data-testid="master-make-default"]').click(); await page.waitForTimeout(250)
+  const after = { tag: await L('[data-item="mB"] [data-testid="master-default-tag"]').count(), tagA: await L('[data-item="mA"] [data-testid="master-default-tag"]').count(), intro: await L('[data-testid="masters-intro"]').textContent(), button: await L('[data-testid="master-make-default"]').count(), order: await L('[data-testid="list"] [data-item]').evaluateAll((els) => els.map((e) => e.dataset.item).join()) }
+  ok("default-master I2/I3/P2: Master B \"Not used yet\" + hint; Make default moves the tag and the note, list order kept, button gone", hb === "Not used yet" && hint === 1 && after.tag === 1 && after.tagA === 0 && after.intro.includes("default, Master B,") && after.button === 0 && after.order === "mA,mB", JSON.stringify({ hb, hint, ...after }))
+  await seg(0); await page.waitForTimeout(250); await L('[data-item="p1"]').click(); await page.waitForTimeout(250)
+  const follow = { v: await sel.inputValue(), opts: (await sel.locator("option").allTextContents()).join("|"), s: (await status()).t }
+  ok("default-master: spread 2–3 follows the new default Master B", follow.v === "B" && follow.opts === "Master A|Master B · default|None" && follow.s === "Book default", JSON.stringify(follow))
+  ok("default-master: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
 
 

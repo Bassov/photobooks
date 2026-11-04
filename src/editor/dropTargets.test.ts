@@ -292,6 +292,13 @@ describe('dropTargets', () => {
         target: { spreadId: 's0', frameId: 'f1', filled: false },
       }),
     ).toEqual({ type: 'swap', source })
+    // A text frame takes no photo: it is selected, never swapped into.
+    expect(
+      resolveFrameActivation({
+        source,
+        target: { spreadId: 's0', frameId: 't1', filled: false, text: true },
+      }),
+    ).toEqual({ type: 'select-source' })
     // An empty selected frame has nothing to move: the target is selected.
     expect(
       resolveFrameActivation({
