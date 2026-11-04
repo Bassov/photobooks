@@ -109,6 +109,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [design-r17](roadmap/P2/design-r17.md) — Bug: /next-roadmap-item design-r17
 - [x] [feature] [design-r16-kit-book](roadmap/P2/design-r16-kit-book.md) — Bug: /next-roadmap-item design-r16-kit-book
 - [x] [feature] [site-photographer-demo](roadmap/P2/site-photographer-demo.md) — Bug: /next-roadmap-item site-photographer-demo
+- [x] [feature] [parent-overrides-core](roadmap/P2/parent-overrides-core.md) — Bug: /next-roadmap-item parent-overrides-core
 - [x] [feature] [text-frames-core](roadmap/P2/text-frames-core.md) — Bug: /next-roadmap-item text-frames-core
 - [x] [feature] [text-frames-kit](roadmap/P2/text-frames-kit.md) — Bug: /next-roadmap-item text-frames-kit
 - [x] [feature] [parent-guides-kit](roadmap/P2/parent-guides-kit.md) — Bug: /next-roadmap-item parent-guides-kit
@@ -133,6 +134,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [avif-encoder](roadmap/P3/avif-encoder.md) — AVIF derivatives (Security Review: dependency)
 - [x] [prep] [publish-revisions](roadmap/P3/publish-revisions.md) — draft vs published
 - [ ] [feature] [site-viewer](roadmap/P3/site-viewer.md) — viewer entry
+- [x] [feature] [site-viewer-kit](roadmap/P3/site-viewer-kit.md) — Bug: /next-roadmap-item site-viewer-kit
 - [ ] [feature] [site-preview-mode](roadmap/P3/site-preview-mode.md) — preview the site from the editor
 - [ ] [feature] [site-lightbox](roadmap/P3/site-lightbox.md) — fullscreen and swipe
 - [x] [prep] [static-export-core](roadmap/P3/static-export-core.md) — deterministic site tree
