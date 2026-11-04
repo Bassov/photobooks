@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: /next-roadmap-item text-frames-core
+Status: done
 
 ## Scope
 
