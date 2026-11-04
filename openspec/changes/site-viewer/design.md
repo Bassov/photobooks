@@ -8,19 +8,35 @@
 
 ## Touch-set & Test Plan
 
-| Path                       | Why                                     |
-| -------------------------- | --------------------------------------- |
-| `site.html`                | entry                                   |
-| `vite.config.ts`           | rollup input                            |
-| `budget.json`              | stricter `/site.html` budget (gate)     |
-| `quality/gates.json`       | mirrored budget (gate)                  |
-| `styles/tokens.css`        | `--site-*` tokens                       |
-| `src/render/CoverView.tsx` | direct `core/pages` import              |
-| `src/site/*`               | viewer, model, renderer, sample         |
-| `src/site/export/*`        | contract; `defaultRenderer.tsx` deleted |
-| `src/ui/icons/glyphs.ts`   | glyphs                                  |
-| `src/ui/Icon.test.tsx`     | glyph list                              |
-| `docs/design.md`           | tokens                                  |
-| `e2e/site-viewer.spec.ts`  | e2e + perf                              |
+| Path                                  | Why                                 |
+| ------------------------------------- | ----------------------------------- |
+| `site.html`                           | entry                               |
+| `vite.config.ts`                      | rollup input                        |
+| `budget.json`                         | stricter `/site.html` budget (gate) |
+| `quality/gates.json`                  | mirrored budget (gate)              |
+| `styles/tokens.css`                   | `--site-*` tokens                   |
+| `src/render/CoverView.tsx`            | direct `core/pages` import          |
+| `src/site/siteModel.ts`               | pure model                          |
+| `src/site/siteInput.ts`               | page input types                    |
+| `src/site/SiteApp.tsx`                | page root                           |
+| `src/site/SiteCatalog.tsx`            | catalog                             |
+| `src/site/SiteBookPage.tsx`           | book page, keys, hash               |
+| `src/site/SiteStage.tsx`              | stage, slides, swipe                |
+| `src/site/ShareButton.tsx`            | Share                               |
+| `src/site/useViewport.ts`             | measured layout                     |
+| `src/site/site.css`                   | site styles                         |
+| `src/site/renderSitePage.tsx`         | page renderer                       |
+| `src/site/startSite.tsx`              | hydrate                             |
+| `src/site/main.tsx`                   | entry                               |
+| `src/site/sampleSite.ts`              | sample library                      |
+| `src/site/sampleShell.ts`             | sample prerender                    |
+| `src/site/export/buildSiteTree.ts`    | renderer adapter                    |
+| `src/site/export/types.ts`            | renderer contract                   |
+| `src/site/export/index.ts`            | exports                             |
+| `src/site/export/defaultRenderer.tsx` | deleted placeholder                 |
+| `src/ui/icons/glyphs.ts`              | glyphs                              |
+| `src/ui/Icon.test.tsx`                | glyph list                          |
+| `docs/design.md`                      | tokens                              |
+| `e2e/site-viewer.spec.ts`             | e2e + perf                          |
 
 Tests: model unit + PBT (1000 runs), renderer snapshot + determinism + privacy, Share / keys / swipe component tests, and e2e for the empty, happy and interact states. Run `ui-review` before push.
