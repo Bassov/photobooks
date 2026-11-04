@@ -8,3 +8,4 @@
 - `git-finish.md` precedence: an agreed task authorizes commit + PR.
 - Reviewers / manual QA: Task with subagent `openspec-planning-reviewer`, `openspec-implementation-reviewer` or `manual-qa`; pass the brief path only.
 - Long commands (`check:fast`, B, `ci-wait`) run in the foreground with an explicit Bash timeout (max 60 min). Headless: no TodoWrite.
+- Batch independent tool calls in one message (several Grep/Read/`git grep`/`sed -n` of different files; Edits in different files); go one at a time only when a result decides the next call.
