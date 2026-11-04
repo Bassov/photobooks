@@ -4,7 +4,6 @@ import {
   ensureEditorChromeStyles,
   fmtN,
   mmToCm,
-  pageLabel,
   pagesOf,
   resetEditorChromeStylesForTests,
 } from './editorChromeTokens'
@@ -16,8 +15,6 @@ describe('editorChromeTokens', () => {
 
   it('re-exports kit page helpers', () => {
     expect(pagesOf(3)).toBe(6)
-    expect(pageLabel(0)).toBe('1')
-    expect(pageLabel(1)).toBe('2–3')
     expect(fmtN(21.05)).toBe('21.1')
     expect(mmToCm(210)).toBe(21)
   })

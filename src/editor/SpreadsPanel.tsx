@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { flushSync } from 'react-dom'
-import { bookSpineWidthMm, getSinglePageSide } from '../core'
+import { bookSpineWidthMm, getSinglePageSide, pageLabel } from '../core'
 import { Icon } from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
 import {
@@ -30,7 +30,6 @@ import {
   subscribeSpread,
   undoBook,
 } from './bookStore'
-import { pageLabel } from './editorChromePanels'
 import { getActiveSpreadId, subscribeActiveSpreadId } from './photoRootSession'
 import {
   SPREAD_DRAG_MIME,

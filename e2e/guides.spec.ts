@@ -71,9 +71,12 @@ async function expectGuidesAligned(page: Page) {
       let worst = 0
       for (let i = 0; i < (await lines.count()); i += 1) {
         const line = lines.nth(i)
-        // The guide's own spread (the active one can change while zooming).
+        // The guide's own spread (the active one can change while zooming):
+        // the paper beside it in its spread stage.
         const spread = await line
-          .locator('xpath=ancestor::*[@data-testid="spread-view"]')
+          .locator(
+            'xpath=ancestor::*[@data-testid="spread-stage"][1]/*[@data-testid="spread-view"]',
+          )
           .boundingBox()
         const box = await line.boundingBox()
         if (spread === null) return Infinity

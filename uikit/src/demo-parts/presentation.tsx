@@ -14,6 +14,14 @@ const COVER_PX_PER_MM = 0.5, COVER_FIT_PX = 848
 /** Caption: the cover, then the list rows numbered from 1. */
 const caption = (i: number, n: number) => (i === 0 ? "Cover" : `${i} / ${n - 1}`)
 
+/** prod src/lib/focusTrap.ts: Tab (Shift+Tab) focuses the next (previous) tabbable in `root` outside [inert], wrapping, else `root` */
+function trapTab(root: HTMLElement, back: boolean) {
+  const list = [...root.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')].filter((el) => !el.closest("[inert]"))
+  const at = list.findIndex((el) => el === document.activeElement), n = list.length
+  const next = (n ? list[at < 0 ? (back ? n - 1 : 0) : (at + (back ? n - 1 : 1)) % n] : undefined) ?? root
+  next.focus()
+}
+
 export function Presentation({ onExit }: { onExit: () => void }) {
   const st = useStudio(), bk = st.book
   const spreads = st.doc.spreads.length
@@ -24,9 +32,16 @@ export function Presentation({ onExit }: { onExit: () => void }) {
   const swipe = React.useRef<number | null>(null), swiped = React.useRef(false)
   const live = React.useRef({ n, onExit }); live.current = { n, onExit }
   const go = (d: number) => setI((x) => Math.max(0, Math.min(live.current.n - 1, x + d)))
+  // prod modal focus (SpreadPager): take it from the opener, Tab / Shift+Tab stay inside, hand it back on close
+  React.useEffect(() => {
+    const opener = document.activeElement
+    ref.current?.focus()
+    return () => { if (opener instanceof HTMLElement && opener.isConnected) opener.focus() }
+  }, [])
   React.useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey) return // Alt+← / → stay the kit's page navigation
+      if (e.key === "Tab") { e.preventDefault(); e.stopPropagation(); if (ref.current) trapTab(ref.current, e.shiftKey); return }
       const d = e.key === "ArrowRight" || e.key === " " ? 1 : e.key === "ArrowLeft" ? -1 : 0
       if (!d && e.key !== "Escape") return
       e.preventDefault(); e.stopPropagation()
@@ -45,7 +60,7 @@ export function Presentation({ onExit }: { onExit: () => void }) {
     return [SW, SH, <MiniSpread s={st.doc.spreads[j - 1]} width={SW} si={j - 1} folios className="rounded-none shadow-none!" />]
   }
   return (
-    <div ref={ref} className="fixed inset-0 z-[80] touch-pan-y overflow-hidden bg-presentation text-[rgb(255_255_255/0.6)] select-none" role="dialog" aria-modal="true" aria-label="Presentation" data-testid="presentation"
+    <div ref={ref} className="fixed inset-0 z-[80] touch-pan-y overflow-hidden bg-presentation text-[rgb(255_255_255/0.6)] outline-none select-none" tabIndex={-1} role="dialog" aria-modal="true" aria-label="Presentation" data-testid="presentation"
       onPointerDown={(e) => { swipe.current = e.clientX; swiped.current = false }}
       onPointerUp={(e) => { const s = swipe.current; swipe.current = null; if (s !== null && Math.abs(e.clientX - s) > 60) { swiped.current = true; go(e.clientX < s ? 1 : -1) } }}
       onClick={(e) => { if (swiped.current) { swiped.current = false; return } const r = e.currentTarget.getBoundingClientRect(); go(e.clientX - r.left > r.width / 2 ? 1 : -1) }}>
