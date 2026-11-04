@@ -306,6 +306,15 @@ The book SHALL support creating a parent (id unused by any spread or parent, nam
 - **WHEN** rulers are on in Masters mode and a guide is dragged from the top ruler onto Master A, then moved, then undone
 - **THEN** Master A's `guides` hold one horizontal guide at the dropped offset, the move is one history step that undo reverts, and no spread's own `guides` change
 
+### Requirement: Parent overrides ops
+
+A spread SHALL override a resolved parent frame or guide (`overrideParentFrame` / `overrideParentGuide`: a copy with a new id and `overridesId` in `parentOverrides`), hide one (`hideParentItem`: removes its copy, adds the id to `hiddenIds`), reset one (`resetParentItem`: removes copy and hidden id) or reset all (`resetSpreadToParent`: removes `parentOverrides`); empty override lists are dropped, so override then reset restores the spread. Every frame op addressed by spread and frame id (move, resize, rotate, rect, photo, swap, crop, fit, caption, adjust, style, lock) SHALL also edit a copy, which keeps its `overridesId` and never detaches the template; later parent edits never touch a copy. Changing the parent a spread resolves to (set, delete, new book default) SHALL keep the work in the same history step: copies become own frames below the lowest own z in their order without `overridesId`, copy guides become own guides, hidden ids are dropped. Each op MUST be one history step and MUST notify only its spread; a parent edit MUST NOT notify a spread whose painted parent frames are unchanged.
+
+#### Scenario: Override, then switch master
+
+- **WHEN** spread 2 overrides Master A's logo, moves the copy, and then switches to Master B
+- **THEN** the moved logo is an own frame of spread 2 under its other frames, without `overridesId`, and one undo restores the copy and Master A
+
 ### Requirement: Master inspector and inherited grid
 
 In Masters mode the Inspector SHALL show, for the shown parent, a head (parent name; "Used by N pages" / "Used by 1 page" / "Not used yet", counting the pages of every spread that resolves to it) and a GRID section (Columns, Rows, Gutter, Row gap, margins T / B / I / O with a link toggle). A committed field MUST write one `setSpreadGrid` patch to the parent (one history step); while linked, a margin edit writes all four margins. A frame selected on the master SHALL show the spread frame inspector; Esc or an empty click on the master canvas returns to the master inspector; with no parents the Inspector SHALL show "Create a master with New master to set its grid.". The master canvas SHALL always draw the parent's grid (outside Preview) and its name below the spread. The effective grid of a spread SHALL be book → parent → spread, a field set only by the parent reporting source `master`; a parent grid edit MUST re-render only the parent and the spreads resolving to it.
