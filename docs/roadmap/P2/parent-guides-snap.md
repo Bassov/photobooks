@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: /next-roadmap-item parent-guides-snap
+Status: done
 
 ## Scope
 
