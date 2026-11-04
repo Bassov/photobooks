@@ -2252,7 +2252,14 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("kit-sync KS7: My templates + 4+ → empty state", empty?.trim() === "No layouts match.", String(empty))
   const m87 = await r15(sec)
   ok("design-r16 M87/M88: My templates selected + 4+ chip on — label x stays 1308.56, chip text stays 4.5 below the pill top (±0.5)", Math.abs(m87.mineX - 1308.56) <= 0.5 && m87.chipDy.every((d) => Math.abs(d - 4.5) <= 0.5), JSON.stringify(m87))
-  await c(`${sec} [data-chip="all"]`); await c('[data-item="p0"]')
+  await c(`${sec} [data-chip="all"]`)
+  // Designer review UT4: ••• follows the hovered tile (group/cell), not the pointer anywhere in the section
+  const tiles = page.locator(`${sec} [data-testid="tpl-tile"]`)
+  const menuOps = async (target) => { await target.hover(); await page.waitForTimeout(400); return tiles.evaluateAll((ts) => ts.map((t) => +getComputedStyle(t.querySelector('[data-testid="tpl-menu"]')).opacity)) }
+  const onSave = await menuOps(page.locator(`${sec} [data-testid="tpl-save-button"]`)), onT1 = await menuOps(tiles.nth(0).locator("button").first()), onT2 = await menuOps(tiles.nth(1).locator("button").first())
+  const only = (i) => JSON.stringify(onSave.map((_, j) => (j === i ? 1 : 0)))
+  ok("user-templates UT4: ••• shows on the hovered tile only — pointer on Save → all 0, tile 1 → [1,0,…], tile 2 → [0,1,…]", onSave.length >= 2 && onSave.every((o) => o === 0) && JSON.stringify(onT1) === only(0) && JSON.stringify(onT2) === only(1), JSON.stringify({ onSave, onT1, onT2 }))
+  await c('[data-item="p0"]')
   // Designer spec user-templates UT1/UT2/UT4: page 1 lists no two-page template; Save on page 1 adds one, a second Save flashes it
   const tabMine = () => page.locator(`${sec} [data-testid="tab-mine"]`).textContent()
   const p0Empty = await page.locator(`${sec} [data-testid="tpl-empty"]`).textContent().catch(() => null)

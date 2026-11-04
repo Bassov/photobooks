@@ -140,7 +140,7 @@ function TemplateTile({ t, onApply, single, custom, current, flash, renaming, on
   const paper = flash ? cn(current ? "shadow-tile-flash-select" : "shadow-tile-hover", FLASH)
     : current ? "shadow-tile-select" : "group-hover/tile:-translate-y-px group-hover/tile:shadow-tile-hover"
   return (
-    <div className="group relative min-w-0 self-start" data-testid="tpl-tile" data-tid={t.id} data-flash={flash ? "" : undefined}>
+    <div className="group/cell relative min-w-0 self-start" data-testid="tpl-tile" data-tid={t.id} data-flash={flash ? "" : undefined}>
       <button type="button" onClick={onApply} onMouseEnter={() => setTemplatePreview(onPage(t.id, single))} onMouseLeave={() => setTemplatePreview(null)}
         onFocus={() => setTemplatePreview(onPage(t.id, single))} onBlur={() => setTemplatePreview(null)} aria-label={`Apply layout ${t.name}`} aria-pressed={!!current} title={t.name}
         className="group/tile block w-full rounded-md p-1 text-left outline-none">
@@ -156,7 +156,7 @@ function TemplateTile({ t, onApply, single, custom, current, flash, renaming, on
       )}
       {custom && !renaming && (
         <MenuTrigger>
-          <IconButton label={`${t.name} options`} size="sm" className="absolute right-1.5 top-1.5 size-6 bg-popover/90 opacity-0 shadow-xs group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100" data-testid="tpl-menu"><MoreHorizontal /></IconButton>
+          <IconButton label={`${t.name} options`} size="sm" className="absolute right-1.5 top-1.5 size-6 bg-popover/90 opacity-0 shadow-xs group-hover/cell:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100" data-testid="tpl-menu"><MoreHorizontal /></IconButton>
           <MenuPopover placement="bottom end" className="w-44">
             <Menu aria-label={`${t.name} options`}>
               <MenuItem onAction={onStartRename} data-testid="tpl-rename"><Pencil />Rename…</MenuItem>
