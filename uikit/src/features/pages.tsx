@@ -11,6 +11,7 @@ import { WithScenarios } from "./parts"
 import { PhotographerSite } from "./site-photographer"
 import { SiteDemos } from "./site-demo-1/entry"
 import { SiteDemo1 } from "./site-demo-1/site"
+import { SiteDemo2 } from "./site-demo-2/site"
 import type { FeatureDef, Notes } from "./types"
 
 /** Stage height = the #/demo viewport height (+ the 40 px scenario strip), so every slot sits at its #/demo size. */
@@ -226,6 +227,14 @@ export const PAGES: Record<string, FeatureDef> = {
       where: "DEMO branch only. Full window: #/full/site-demo-1.",
       keys: [["← / →", "turn"], ["Home / End", "cover / last spread"], ["Esc", "leave fullscreen"]],
       edge: ["Drag a page; reduced motion = crossfade", "Narrow = one book per shelf"],
+    },
+  },
+  "site-demo-2": {
+    Demo: SiteDemo2, h: SLOT.app.h, notes: {
+      what: "Site demo 2, the night gallery: one room, the books lit on a ledge along a horizontal wall; pages curl like paper.",
+      where: "DEMO branch only. Full window: #/full/site-demo-2.",
+      keys: [["← / →", "walk / turn"], ["Esc", "back to the room"]],
+      edge: ["Wheel or drag walks the wall; reduced motion = crossfade", "Narrow = one book per screen"],
     },
   },
   "site-preview-mode": page([

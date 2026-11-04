@@ -447,6 +447,41 @@ await smoke("shelf → book page → open cover → turn a page → fullscreen",
   const ind = await D('[data-testid="site-fullscreen-indicator"]').textContent()
   return [title === "Lake trip" && leaf === 0 && lb && ind === "Pages 2–3", `title ${title} · reader ${size} · leaf after turn ${leaf} · lightbox ${lb} · ${ind}`]
 })
+{ // site demos 2…5 (Spec site-awards-5): open a book → reader, → turns, Esc home, reduced motion, theme
+  const theme = (p, n) => p.evaluate((n) => {
+    const els = [...document.querySelectorAll(`[data-testid="sd${n}-root"] *`)], greys = new Set(["rgb(242, 242, 242)", "rgb(225, 225, 225)", "rgb(215, 215, 215)"])
+    const grey = els.filter((e) => greys.has(getComputedStyle(e).backgroundColor)).length
+    const small = els.filter((e) => [...e.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim()) && e.checkVisibility({ visibilityProperty: true }) && parseFloat(getComputedStyle(e).fontSize) < 11).map((e) => `${e.textContent.trim().slice(0, 16)} ${getComputedStyle(e).fontSize}`)
+    return { grey, small }
+  }, n)
+  const turned = (p, n, v) => p.waitForFunction(([n, v]) => document.querySelector(`[data-testid="sd${n}-reader"] [data-testid="ps-reader"]`)?.getAttribute("data-view") !== v, [n, v], { timeout: 3000 })
+  const openLake = async (p, n) => {
+    await p.click(`[data-testid="sd${n}-book"][data-id="lake-trip"]`); await p.waitForTimeout(1600)
+    const rd = p.locator(`[data-testid="sd${n}-reader"]`); return { shown: await rd.isVisible(), v0: await rd.getAttribute("data-view") }
+  }
+  for (const n of [2]) {
+    const id = `#/full/site-demo-${n}`, e0 = errs.length
+    let pass = false, info = ""
+    try {
+      await go(id, 700)
+      const th = await theme(page, n)
+      const { shown, v0 } = await openLake(page, n)
+      await page.keyboard.press("ArrowRight"); await turned(page, n, v0)
+      const v1 = await page.getAttribute(`[data-testid="sd${n}-reader"]`, "data-view")
+      await page.keyboard.press("Escape"); await page.waitForTimeout(1200)
+      const home = (await page.locator(`[data-testid="sd${n}-reader"]`).count()) === 0, focus = await page.evaluate(() => document.activeElement?.getAttribute("data-id"))
+      const rctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" }), rp = await rctx.newPage()
+      rp.on("console", (m) => { if (m.type() === "error") errs.push(`[${id} reduced] ${m.text().slice(0, 240)}`) }); rp.on("pageerror", (e) => errs.push(`[${id} reduced] pageerror: ${e.message}`))
+      await rp.goto(url + id); await rp.waitForTimeout(700)
+      const r = await openLake(rp, n)
+      await rp.keyboard.press("ArrowRight"); const t0 = Date.now(); await turned(rp, n, r.v0); const ms = Date.now() - t0
+      await rctx.close()
+      pass = shown && +v1 === +v0 + 1 && home && focus === "lake-trip" && r.shown && ms <= 300 && th.grey === 0 && th.small.length === 0
+      info = `reader ${shown} view ${v0}→${v1} · Esc home ${home} focus ${focus} · reduced ${ms} ms · greys ${th.grey} · small ${th.small.slice(0, 4).join(", ") || "none"}`
+    } catch (e) { info = e.message.split("\n")[0].slice(0, 300) }
+    ok(`site-demo-${n}: open a book → reader, → turns, Esc home, reduced motion, theme`, pass && errs.length === e0, info + (errs.length > e0 ? ` (+${errs.length - e0} console errors)` : ""))
+  }
+}
 // ---------------------------------------------------------------- v5 checks
 const fitAir = async () => page.evaluate(() => {
   const d = document.querySelector('[data-testid="demo"]'); const sp = d.querySelector('.canvas-dots [data-testid="spread"]'); const vp = sp.parentElement.closest(".canvas-dots")
@@ -642,8 +677,8 @@ await page.goto(url + "#/"); await page.waitForTimeout(400)
         const paper = /bg-paper|bg-white|shadow-(thumb|stage|hairline)|\bspread\b/.test(cls) || e.closest('[data-testid="spread"],[data-testid="site"],.site,[class*="shadow-thumb"],[class*="bg-paper"],[class*="shadow-stage"]') || e.style.background || e.style.backgroundColor || /swatch|handle|cursor-/.test(cls + (e.getAttribute("data-testid") ?? ""))
         return paper ? [] : [["W", k, (e.getAttribute("data-testid") || cls).slice(0, 50)]]
       }
-      // [data-surface="site"]: the photographer-site demos' warm paper theme (Spec site-awards)
-      const tinted = !(r === g && g === b) && Math.max(r, g, b) - Math.min(r, g, b) <= 14 && Math.min(r, g, b) >= 112 && !e.closest('[data-surface="site"]')
+      // [data-surface^="site"]: the photographer-site demos' own themes (Specs site-awards, site-awards-5)
+      const tinted = !(r === g && g === b) && Math.max(r, g, b) - Math.min(r, g, b) <= 14 && Math.min(r, g, b) >= 112 && !e.closest('[data-surface^="site"]')
       return tinted ? [["T", k, (e.getAttribute("data-testid") || cls).slice(0, 50)]] : []
     }))
     for (const [w, k, s] of r) { if (w === "W") white.push(`${h} ${s}`); else if (!CONTENT.has(k)) tint.push(`${h} ${k} ${s}`) }
@@ -977,8 +1012,8 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
       const root = document.querySelector('[data-testid="demo"]') || document.body; const out = []
       const sat = (c) => { const m = c.match(/rgba?\(([\d.]+),?\s*([\d.]+),?\s*([\d.]+)(?:[,/]\s*([\d.]+))?/); if (!m) return 0; if (m[4] !== undefined && +m[4] < 0.05) return 0; return Math.max(+m[1], +m[2], +m[3]) - Math.min(+m[1], +m[2], +m[3]) }
       for (const el of root.querySelectorAll("*")) { const r = el.getBoundingClientRect(); if (!r.width || !r.height) continue
-        // [data-surface="site"]: the photographer-site demos carry their own warm site theme (Spec site-awards)
-        if (el.closest('[data-swatch],[data-theme-option],[data-surface="site"]')) continue
+        // [data-surface^="site"]: the photographer-site demos carry their own site themes (Specs site-awards, site-awards-5)
+        if (el.closest('[data-swatch],[data-theme-option],[data-surface^="site"]')) continue
         const cs = getComputedStyle(el); if (cs.visibility === "hidden" || cs.opacity === "0") continue
         for (const p of ["color", "backgroundColor", "outlineColor", "borderTopColor", "fill", "stroke"]) { const v = cs[p]
           if (p === "outlineColor" && (cs.outlineStyle === "none" || cs.outlineWidth === "0px")) continue

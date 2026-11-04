@@ -1,0 +1,84 @@
+/* Photographer site, demo 2 "Night gallery" (Designer Spec site-awards-5, Direction 2): one exhibition room, the books
+   lit on a ledge along one wall. Theme scoped to [data-surface="site-demo-2"]; Book3D / BookReader classes come from demo 1. */
+[data-surface="site-demo-2"] {
+  --d2-text: #EDE7DD; --d2-muted: #9C958A; --d2-hair: rgb(237 231 221 / .14);
+  --d2-wall: radial-gradient(140% 100% at 50% 28%, #24211E 0, #191817 58%, #121110 100%);
+  --d2-spot: radial-gradient(50% 50% at 50% 50%, rgb(255 236 205 / .17), rgb(255 236 205 / 0));
+  /* the reader's paper, title page and cloth read these (demo 1 values: they sit on white paper, not on the wall) */
+  --site-paper: #FFFFFF; --site-ink: #1A1918; --site-muted: #605B54; --site-on-band: #EDE7DD;
+  --site-serif: "Lora Variable", Lora, serif; --site-serif-it: "Site Lora", "Lora Variable", Lora, serif;
+  --site-sans: "Inter Variable", Inter, sans-serif;
+  --site-ease: cubic-bezier(.2, .7, .2, 1); --site-turn: cubic-bezier(.45, .05, .25, 1);
+  background: var(--d2-wall); color: var(--d2-text); font-family: var(--site-sans); -webkit-font-smoothing: antialiased;
+}
+[data-surface="site-demo-2"] .sd-it { font-family: var(--site-serif-it); font-style: italic; font-weight: 400 }
+:where([data-surface="site-demo-2"]) :where(button) { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit }
+:where([data-surface="site-demo-2"]) :where(:focus) { outline: none }
+[data-surface="site-demo-2"] .sd-grain { opacity: .06; mix-blend-mode: screen }
+
+/* type */
+.sd2-display { font: 200 112px/.92 var(--site-sans); letter-spacing: -.05em; color: var(--d2-text) }
+.sd2-title { font: 400 22px/1.2 var(--site-sans); letter-spacing: -.01em; color: var(--d2-text) }
+.sd2-body { font: 400 15px/1.6 var(--site-sans); color: var(--d2-muted) }
+.sd2-cap { font: 500 11px/1 var(--site-sans); letter-spacing: .16em; text-transform: uppercase; color: var(--d2-muted); white-space: nowrap }
+.sd2-cap.sd2-on { color: var(--d2-text) }
+.sd2-name { font-weight: 600; letter-spacing: .22em; color: var(--d2-text) }
+.sd2-meta { font: 400 12px/1.5 var(--site-sans); color: var(--d2-muted); white-space: nowrap; font-variant-numeric: tabular-nums }
+.sd2-nav { padding-bottom: 6px; border-bottom: 1px solid transparent; transition: color 160ms }
+.sd2-nav:hover, .sd2-nav[aria-current] { color: var(--d2-text) }
+.sd2-nav[aria-current] { border-bottom-color: var(--d2-text) }
+.sd2-email { font: 200 56px/1 var(--site-sans); letter-spacing: -.03em; color: var(--d2-text); text-decoration: underline 1px; text-underline-offset: 10px;
+  text-decoration-color: rgb(237 231 221 / .35); transition: text-decoration-color 160ms; white-space: nowrap }
+.sd2-email:hover { text-decoration-color: var(--d2-text) }
+[data-surface="site-demo-2"] .sd2-link:focus-visible, [data-surface="site-demo-2"] .sd2-email:focus-visible { outline: 2px solid var(--d2-text); outline-offset: 3px; border-radius: 2px }
+
+/* the wall: spotlights, ledge, books on it */
+.sd2-abs { position: absolute }
+.sd2-spot { position: absolute; pointer-events: none; background: var(--d2-spot) }
+.sd2-ledge { position: absolute; height: 2px; background: rgb(237 231 221 / .2); pointer-events: none }
+.sd2-ledge::after { content: ""; position: absolute; left: 0; right: 0; top: 2px; height: 12px; background: linear-gradient(rgb(0 0 0 / .45), rgb(0 0 0 / 0)) }
+/* at ±18° the spine is a sliver (T·sin 18° ≈ 7 px): its title would only be sub-11 px noise */
+[data-surface="site-demo-2"] .sd-b3-spine span { visibility: hidden }
+[data-surface="site-demo-2"] .sd-floor { background: radial-gradient(closest-side, rgb(0 0 0 / .7), rgb(0 0 0 / 0)) }
+/* the walk drives the pose every frame (lerped in JS), so the CSS transitions of demo 1's Book3D stay off */
+.sd2-wall .sd-b3, .sd2-wall .sd-b3-cover, .sd2-wall .sd-floor { transition: none }
+.sd2-book { position: absolute; display: block }
+[data-surface="site-demo-2"] .sd2-book:focus-visible .sd-ring { outline: 2px solid var(--d2-text); outline-offset: 8px; border-radius: 4px }
+.sd2-label { position: absolute; text-align: left }
+@media (hover: hover) and (pointer: fine) { .sd2-book { cursor: none } }
+.sd2-ring { position: absolute; left: 0; top: 0; z-index: 70; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%;
+  border: 1px solid rgb(237 231 221 / .7); display: grid; place-items: center; pointer-events: none; opacity: 0; scale: .6;
+  transition: opacity 200ms, scale 200ms var(--site-ease) }
+.sd2-ring[data-on] { opacity: 1; scale: 1 }
+.sd2-ring .sd2-cap { color: var(--d2-text); letter-spacing: .12em }
+@media (hover: none), (pointer: coarse) { .sd2-ring { display: none } }
+
+/* bottom bar */
+.sd2-bar { position: absolute; height: 1px; background: var(--d2-hair) }
+.sd2-tick { position: absolute; top: -4px; width: 1px; height: 9px; background: rgb(237 231 221 / .3) }
+.sd2-progress { position: absolute; left: 0; top: -1px; height: 3px; background: var(--d2-text) }
+
+/* open = the camera walk: the track zooms on the book, the rest fades, at 70 % the reader fades in */
+.sd2-camera { position: absolute; inset: 0; transition: transform 900ms var(--site-ease), opacity 270ms linear }
+.sd2-walk .sd2-camera { opacity: 0; transition: transform 900ms var(--site-ease), opacity 270ms linear 630ms }
+.sd2-fade { transition: opacity 900ms var(--site-ease) }
+.sd2-walk .sd2-fade, .sd2-walk .sd2-bay:not([data-active]), .sd2-walk .sd2-label { opacity: 0 }
+.sd2-bay, .sd2-label { transition: opacity 900ms var(--site-ease) }
+.sd2-link:disabled { opacity: .35; cursor: default }
+.sd2-page { position: absolute; inset: 0; z-index: 30; opacity: 0; pointer-events: none; transition: opacity 270ms linear }
+.sd2-walk .sd2-page { opacity: 1; pointer-events: auto; transition-delay: 630ms }
+@media (prefers-reduced-motion: reduce) {
+  .sd2-camera, .sd2-walk .sd2-camera, .sd2-page, .sd2-walk .sd2-page { transition: opacity 160ms linear }
+  .sd2-fade, .sd2-bay, .sd2-label { transition: none }
+  .sd2-ring { transition: none }
+}
+[data-surface="site-demo-2"] .sd-reader:focus-visible { outline: 2px solid var(--d2-text); outline-offset: 8px; border-radius: 4px }
+
+/* Index overlay: the plain list */
+.sd2-index { position: absolute; inset: 0; z-index: 50; background: rgb(18 17 16 / .96); display: grid; place-content: center }
+.sd2-index .sd2-cap { padding: 12px 0; display: block }
+.sd2-index .sd2-cap:hover { color: var(--d2-text) }
+
+/* narrow: one bay per screen, vertical snap */
+.sd2-snap { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; scroll-snap-type: y mandatory }
+.sd2-snap > section { position: relative; scroll-snap-align: start }

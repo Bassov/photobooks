@@ -1,7 +1,8 @@
 /* BookReader (Spec site-awards): a controlled book that opens its cover and turns rigid layflat pages around the spine.
    Views: 0 closed front cover · 1 endpaper | page 1 · 2… the spreads (the last: last page | endpaper) · last: closed back.
    A ±1 change of `view` turns a leaf (800 ms, the cover / back board 1000 ms); bigger jumps crossfade 240 ms; reduced
-   motion crossfades every change in 160 ms. Click a half, ← / →, or drag a page; the corner lifts under a fine pointer. */
+   motion crossfades every change in 160 ms. Click a half, ← / →, or drag a page; the corner lifts under a fine pointer.
+   Demos 2–5 (Spec site-awards-5) add `leaf="paper"` (a curling leaf), `turnMs` and `board`; the defaults are demo 1's. */
 import * as React from "react"
 import { CoverFace, ENDPAPER, FOLD, SpreadArt, TitlePage } from "./art"
 import { SPREAD_R, src, viewLabel, viewsOf, type SiteBook } from "./data"
@@ -40,14 +41,16 @@ function Face({ b, v, side, W, H }: { b: SiteBook; v: number; side: "L" | "R"; W
   return <div className="absolute top-0" style={{ left: side === "L" ? 0 : -pw }}><SpreadArt b={b} k={k} w={W} fold={false} /></div>
 }
 
-type Geo = { b: SiteBook; W: number; H: number; pw: number; n: number; shadow: string }
+const FaceM = React.memo(Face)
+
+type Geo = { b: SiteBook; W: number; H: number; pw: number; n: number; shadow: string; board: string; paper: boolean }
 const readOf = (g: Geo, v: number) => clamp((v - 1) / (g.n - 3), 0, 1)
 
 /** The book at rest on view v (no leaf). */
 function StaticBook({ g, v, vt }: { g: Geo; v: number; vt?: boolean }) {
   const { b, W, H, pw, n, shadow } = g
   const r = readOf(g, v), eL = 2 + 6 * r, eR = 2 + 6 * (1 - r)
-  const board = (left: boolean, e: number) => <div style={{ left: left ? -BD - e : pw, top: -BD, width: pw + BD + e, height: H + 2 * BD, background: b.spine, borderRadius: left ? "3px 0 0 3px" : "0 3px 3px 0", boxShadow: shadow }} />
+  const board = (left: boolean, e: number) => <div style={{ left: left ? -BD - e : pw, top: -BD, width: pw + BD + e, height: H + 2 * BD, background: g.board, borderRadius: left ? "3px 0 0 3px" : "0 3px 3px 0", boxShadow: shadow }} />
   if (v === 0) return (
     <div className="sd-rbook" style={{ width: W, height: H, transform: `translateX(${-pw / 2}px)` }}>
       {board(false, 8)}
@@ -59,7 +62,7 @@ function StaticBook({ g, v, vt }: { g: Geo; v: number; vt?: boolean }) {
     <div className="sd-rbook" style={{ width: W, height: H, transform: `translateX(${pw / 2}px)` }}>
       {board(true, 8)}
       <div className="sd-edge" style={{ left: -8, top: 2, width: 8, height: H - 4 }} />
-      <div style={{ left: -BD, top: -BD, width: pw + BD, height: H + 2 * BD, background: `linear-gradient(270deg, rgb(0 0 0/.18), rgb(0 0 0/0) 6%), ${b.spine}`, borderRadius: "3px 1px 1px 3px" }} />
+      <div style={{ left: -BD, top: -BD, width: pw + BD, height: H + 2 * BD, background: `linear-gradient(270deg, rgb(0 0 0/.18), rgb(0 0 0/0) 6%), ${g.board}`, borderRadius: "3px 1px 1px 3px" }} />
     </div>
   )
   return (
@@ -91,8 +94,8 @@ function TurningBook({ g, a, th }: { g: Geo; a: number; th: number }) {
   const castR = pw * (0.12 + 0.55 * (1 - f)), castL = (0.35 * pw * (th - 90)) / 90
   return (
     <div className="sd-rbook" style={{ width: W, height: H, transform: `translateX(${tx}px)` }}>
-      {!opening && <div style={{ left: -BD - eL, top: -BD, width: pw + BD + eL, height: H + 2 * BD, background: b.spine, borderRadius: "3px 0 0 3px", boxShadow: shadow }} />}
-      {!closing && <div style={{ left: pw, top: -BD, width: pw + BD + eR, height: H + 2 * BD, background: b.spine, borderRadius: "0 3px 3px 0", boxShadow: shadow }} />}
+      {!opening && <div style={{ left: -BD - eL, top: -BD, width: pw + BD + eL, height: H + 2 * BD, background: g.board, borderRadius: "3px 0 0 3px", boxShadow: shadow }} />}
+      {!closing && <div style={{ left: pw, top: -BD, width: pw + BD + eR, height: H + 2 * BD, background: g.board, borderRadius: "0 3px 3px 0", boxShadow: shadow }} />}
       {!opening && <div className="sd-edge" style={{ left: -eL, top: 2, width: eL, height: H - 4 }} />}
       {!closing && <div className="sd-edge" style={{ left: W, top: 2, width: eR, height: H - 4 }} />}
       {!opening && <div className="sd-pg" style={{ left: 0, top: 0, width: pw, height: H }}><Face b={b} v={a} side="L" W={W} H={H} /></div>}
@@ -100,19 +103,63 @@ function TurningBook({ g, a, th }: { g: Geo; a: number; th: number }) {
       {!opening && !closing && <div className="pointer-events-none" style={{ left: pw - W * 0.015, top: 0, width: W * 0.03, height: H, background: FOLD, transform: "translateZ(.5px)" }} />}
       {!closing && th > 0 && th < 178 && <div className="pointer-events-none" style={{ left: pw, top: 0, width: castR, height: H, background: `linear-gradient(90deg, rgb(0 0 0/${0.34 * s}), rgb(0 0 0/0))`, transform: "translateZ(.3px)" }} />}
       {!opening && th > 92 && <div className="pointer-events-none" style={{ left: pw - castL, top: 0, width: castL, height: H, background: `linear-gradient(270deg, rgb(0 0 0/${0.26 * s}), rgb(0 0 0/0))`, transform: "translateZ(.3px)" }} />}
-      <div className="sd-leaf" style={{ ...leafBox, transform: `translateZ(1px) rotateY(${-th}deg)`, willChange: "transform" }} data-testid="ps-leaf">
-        <div className="sd-face" style={{ background: boardLeaf ? b.spine : undefined, borderRadius: boardLeaf ? "0 3px 3px 0" : undefined }}>{front}<div className="absolute inset-0" style={{ background: frontShade }} /></div>
-        <div className="sd-face sd-back" style={{ background: boardLeaf ? b.spine : undefined, borderRadius: boardLeaf ? "0 3px 3px 0" : undefined }}>{back}<div className="absolute inset-0" style={{ background: backShade }} /></div>
-      </div>
+      {g.paper && !boardLeaf ? <PaperLeaf g={g} a={a} th={th} /> : (
+        <div className="sd-leaf" style={{ ...leafBox, transform: `translateZ(1px) rotateY(${-th}deg)`, willChange: "transform" }} data-testid="ps-leaf">
+          <div className="sd-face" style={{ background: boardLeaf ? g.board : undefined, borderRadius: boardLeaf ? "0 3px 3px 0" : undefined }}>{front}<div className="absolute inset-0" style={{ background: frontShade }} /></div>
+          <div className="sd-face sd-back" style={{ background: boardLeaf ? g.board : undefined, borderRadius: boardLeaf ? "0 3px 3px 0" : undefined }}>{back}<div className="absolute inset-0" style={{ background: backShade }} /></div>
+        </div>
+      )}
     </div>
   )
 }
 
-export const BookReader = React.forwardRef<ReaderApi, { b: SiteBook; view: number; onView: (v: number) => void; width: number; dark?: boolean; keys?: boolean; vt?: boolean }>(
-  function BookReader({ b, view, onView, width: W, dark, keys = true, vt }, apiRef) {
+/** The paper leaf (Spec site-awards-5): 12 nested strips, each bent 7°·sin θ·i/12 past the one before, so the free edge
+   leads mid-turn and the leaf lies flat at 0 and 180. Shading is flat per strip (no seams); the cast shadows stay the board's. */
+const STRIPS = 12
+const STRIP_FACE: React.CSSProperties = { position: "absolute", inset: 0, backfaceVisibility: "hidden", overflow: "hidden", background: "var(--site-paper)" }
+function PaperLeaf({ g, a, th }: { g: Geo; a: number; th: number }) {
+  const { b, W, H, pw } = g
+  const sw = pw / STRIPS, s = Math.sin((th * Math.PI) / 180)
+  const bend = (i: number) => 7 * s * (i / STRIPS)
+  const angs: number[] = []
+  let tot = 0
+  for (let i = 1; i < STRIPS; i++) tot += bend(i)
+  for (let i = 0, x = th - tot / 2; i < STRIPS; i++) { if (i) x += bend(i); angs.push(x) }
+  let inner: React.ReactNode = null
+  for (let i = STRIPS - 1; i >= 0; i--) {
+    const al = angs[i], fa = al < 90 ? (0.3 * al) / 90 : 0, ba = al > 90 ? (0.3 * (180 - al)) / 90 : 0, hi = 0.1 * s * Math.sin((Math.PI * i) / STRIPS)
+    inner = (
+      <div style={{ position: "absolute", left: i === 0 ? pw : sw, top: 0, width: sw + 1.5, height: H, transformStyle: "preserve-3d", transformOrigin: "left center", transform: `${i === 0 ? "translateZ(1px) " : ""}rotateY(${-(i === 0 ? al : bend(i))}deg)` }} data-testid={i === 0 ? "ps-leaf" : undefined}>
+        <div style={STRIP_FACE}>
+          <div className="absolute top-0" style={{ left: -i * sw, width: pw, height: H }}><FaceM b={b} v={a} side="R" W={W} H={H} /></div>
+          <div className="absolute inset-0" style={{ background: `rgb(255 255 255/${hi})`, boxShadow: `inset 0 0 0 999px rgb(0 0 0/${fa})` }} />
+        </div>
+        <div style={{ ...STRIP_FACE, transform: "rotateY(180deg)" }}>
+          <div className="absolute top-0" style={{ left: (i + 1) * sw - pw, width: pw, height: H }}><FaceM b={b} v={a + 1} side="L" W={W} H={H} /></div>
+          <div className="absolute inset-0" style={{ background: `rgb(0 0 0/${ba})` }} />
+        </div>
+        {inner}
+      </div>
+    )
+  }
+  return inner
+}
+
+type ReaderProps = {
+  b: SiteBook; view: number; onView: (v: number) => void; width: number; dark?: boolean; keys?: boolean; vt?: boolean
+  /** "paper" (Spec site-awards-5): interior leaves curl as 12 strips; the cover and back board stay rigid */
+  leaf?: "board" | "paper"
+  /** one interior leaf, ms (the cover / back board stay 1000) */
+  turnMs?: number
+  /** board (cloth) colour, default the spine */
+  board?: string
+}
+
+export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
+  function BookReader({ b, view, onView, width: W, dark, keys = true, vt, leaf = "board", turnMs = 800, board = b.spine }, apiRef) {
     const n = viewsOf(b)
     const H = W / SPREAD_R[b.fmt], pw = W / 2
-    const g: Geo = { b, W, H, pw, n, shadow: dark ? SHADOW_DARK : "var(--site-shadow-book)" }
+    const g: Geo = { b, W, H, pw, n, shadow: dark ? SHADOW_DARK : "var(--site-shadow-book)", board, paper: leaf === "paper" }
     const el = React.useRef<HTMLDivElement>(null)
     const [shown, setShown] = React.useState(view)
     const [turn, setTurnS] = React.useState<Turn | null>(null)
@@ -162,7 +209,7 @@ export const BookReader = React.forwardRef<ReaderApi, { b: SiteBook; view: numbe
       const fwd = view > shown, a = Math.min(view, shown)
       const lift = turnRef.current
       const th0 = lift && lift.a === a ? lift.th : fwd ? 0 : 180, th1 = fwd ? 180 : 0
-      const full = a === 0 || a === n - 2 ? 1000 : 800
+      const full = a === 0 || a === n - 2 ? 1000 : turnMs
       run(a, th0, th1, Math.max(200, (full * Math.abs(th1 - th0)) / 180), TURN, "anim", () => land(view))
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [view, shown, busy])
@@ -253,7 +300,7 @@ export const BookReader = React.forwardRef<ReaderApi, { b: SiteBook; view: numbe
       const done = fwd ? th > 90 || p.vx < -0.5 : th < 90 || p.vx > 0.5
       const to = fwd === done ? 180 : 0
       const target = done ? (fwd ? shown + 1 : shown - 1) : shown
-      run(p.a, th, to, Math.max(200, (800 * Math.abs(to - th)) / 180), EASE, "anim", () => {
+      run(p.a, th, to, Math.max(200, (turnMs * Math.abs(to - th)) / 180), EASE, "anim", () => {
         if (target !== shown) { onView(target); live.current = { ...live.current, view: target } }
         land(target)
       })
