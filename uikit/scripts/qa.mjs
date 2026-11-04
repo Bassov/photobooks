@@ -1964,16 +1964,19 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   }
   const views = await Promise.all(["snap", "grid", "guides", "rulers", "overlays", "dpi"].map((k) => page.locator(`${demo} [data-testid="toggle-${k}"]`).count()))
   ok("kit10 → kit-sync KS1 (M11 widened): #/demo top bar has two view toggles (snap, grid), no guides / rulers / bleed / trim / safe / DPI", views.join() === "1,1,0,0,0,0", views.join())
-  // KS1 (M39): the tools toolbar (4 tools + snap + grid) is 210 wide and centred on the canvas, between the spread list and the inspector
+  // KS1 (M39): the tools toolbar (4 tools + snap + grid) is 210 wide and centred on the canvas, between the spread list and the inspector.
+  // static-export-kit: the kit end group (… Settings · Export site 112.33 · kit-ahead Print · Publish) needs 29.5 px more than its area at 1440,
+  // so the right group reserves its width and moves the tools 14.75 px left (prod, without Print / Publish, stays centred at 717 / 753)
+  const KIT_AHEAD_SHIFT = -14.75
   const tb = await page.evaluate(() => {
     const d = document.querySelector('[data-testid="demo"]'), t = d.querySelector('[data-testid="editor-bar"] [role=toolbar][aria-label="Tools"]').getBoundingClientRect()
     return { w: t.width, cx: t.x + t.width / 2, canvas: (d.querySelector('[data-testid="panel-l"]').getBoundingClientRect().right + d.querySelector('[data-testid="panel-r"]').getBoundingClientRect().left) / 2 }
   })
-  ok("kit-sync KS1 (M39): the tools toolbar is 210 wide, its centre = the canvas centre", Math.abs(tb.w - 210) <= 0.5 && Math.abs(tb.cx - tb.canvas) <= 0.5, `w ${tb.w} cx ${tb.cx} canvas ${tb.canvas}`)
-  // rework (prod SnapToggle / GridToggle .pb-view-toggle): 28 × 28, 8 apart, #CACACA when on, x 717 / 753 at 1440
+  ok("kit-sync KS1 (M39): the tools toolbar is 210 wide, its centre = the canvas centre less the kit-ahead shift", Math.abs(tb.w - 210) <= 0.5 && Math.abs(tb.cx - tb.canvas - KIT_AHEAD_SHIFT) <= 0.5, `w ${tb.w} cx ${tb.cx} canvas ${tb.canvas}`)
+  // rework (prod SnapToggle / GridToggle .pb-view-toggle): 28 × 28, 8 apart, #CACACA when on, x 717 / 753 at 1440 in prod (kit: less the kit-ahead shift)
   await page.mouse.move(0, 899)
   const vt = await page.evaluate(() => ["snap", "grid"].map((k) => { const e = document.querySelector(`[data-testid="demo"] [data-testid="toggle-${k}"]`), b = e.getBoundingClientRect(); return [+b.x.toFixed(2), b.width, b.height, e.getAttribute("aria-pressed") === "true" || e.dataset.selected !== undefined, getComputedStyle(e).backgroundColor] }))
-  ok("kit-sync KS1 rework: Snap / Grid toggles 28 × 28 at x 717 / 753, on = rgb(202, 202, 202)", vt.every(([x, w, h, on, bg], i) => Math.abs(x - [717, 753][i]) <= 0.5 && w === 28 && h === 28 && bg === (on ? "rgb(202, 202, 202)" : "rgba(0, 0, 0, 0)")) && vt.some((t) => t[3]), JSON.stringify(vt))
+  ok("kit-sync KS1 rework: Snap / Grid toggles 28 × 28 at x 702.25 / 738.25 (prod 717 / 753), on = rgb(202, 202, 202)", vt.every(([x, w, h, on, bg], i) => Math.abs(x - [717, 753][i] - KIT_AHEAD_SHIFT) <= 0.5 && w === 28 && h === 28 && bg === (on ? "rgb(202, 202, 202)" : "rgba(0, 0, 0, 0)")) && vt.some((t) => t[3]), JSON.stringify(vt))
   // rework: the side groups never overlap the tools; the right group reserves its width and moves the tools aside when room runs out
   const bars = []
   let title1024

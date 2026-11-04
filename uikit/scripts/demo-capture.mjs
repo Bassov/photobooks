@@ -99,7 +99,16 @@ export async function capture(out, { log = console.log, probe } = {}) {
     ["publish-options", async () => { await c('[data-testid="print-close"]'); await settle(); await c('[data-testid="demo-publish"]') }],
     ["publish-running-50pct", () => midRun('[data-testid="publish-go"]')],
     ["publish-done", async () => { await release(); await page.waitForSelector('[data-testid="publish-dialog"][data-step="done"]', { timeout: 8000 }) }],
-    ["site-catalog", () => c('[data-testid="publish-open-site"]')],
+    // Designer static-export: Export site writes the site to a local folder; Hide keeps the run in the pill, which then shows Exported
+    ["export-site-options", async () => { await dlgBtn(/^Done$/).click(); await settle(); await c('[data-testid="demo-export-site"]') }],
+    ["export-site-running-50pct", async () => {
+      await c('[data-testid="export-site-choose"]'); await settle(); await page.locator("[role=dialog]").getByText("Exports", { exact: true }).click(); await c('[data-testid="picker-select"]'); await settle()
+      await midRun('[data-testid="export-site-go"]') }],
+    ["export-site-running-hidden", () => c('[data-testid="export-site-hide"]')],
+    ["export-site-done", async () => { await release(); await page.waitForSelector('[data-testid="demo-export-site"][data-state="done"]', { timeout: 8000 }); await c('[data-testid="demo-export-site"]') }],
+    ["site-catalog", async () => {
+      await c('[data-testid="export-site-close"]'); await settle(); await c('[data-testid="demo-publish"]'); await settle(); await c('[data-testid="publish-go"]')
+      await page.waitForSelector('[data-testid="publish-dialog"][data-step="done"]', { timeout: 8000 }); await c('[data-testid="publish-open-site"]') }],
     ["site-book", () => c('[data-testid="site-book"]')],
     ["site-share", () => c('[data-testid="site-share"]')],
     ["site-fullscreen", async () => { await page.keyboard.press("Escape"); await settle(200); await c('[data-testid="site-fullscreen-btn"]') }],
