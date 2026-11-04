@@ -22,6 +22,7 @@ import {
 } from './frameSelection'
 import { installFrameGesture } from './frameGesture'
 import { setGridVisible, setSnapOn } from './gridView'
+import { setGuidesVisible } from './guidesView'
 import {
   clearLiveGeometry,
   getLiveGeometry,
@@ -38,22 +39,35 @@ function rect(x: number, y: number, width: number, height: number) {
   return { x, y, width, height }
 }
 
+interface TestGuide {
+  id: string
+  orientation: 'horizontal' | 'vertical'
+  offsetMm: number
+}
+
+/** `parentGuides` puts the spread on master `p1` carrying them (two-page mm). */
 function load(
   frames = [makeFrame({ id: 'a', rect: rect(100, 100, 50, 50) })],
-  spreadGuides: {
-    id: string
-    orientation: 'horizontal' | 'vertical'
-    offsetMm: number
-  }[] = [],
+  spreadGuides: TestGuide[] = [],
+  parentGuides: TestGuide[] = [],
 ) {
+  const parented = parentGuides.length > 0
   resetBookStore({
     book: makeBook({
       guides: [{ id: 'g', orientation: 'vertical', offsetMm: 200 }],
+      ...(parented
+        ? {
+            parents: [
+              { id: 'p1', name: 'A', frames: [], guides: parentGuides },
+            ],
+          }
+        : {}),
       spreads: [
         makeSpread({
           templateId: 'one-per-page',
           frames,
           ...(spreadGuides.length > 0 ? { guides: spreadGuides } : {}),
+          ...(parented ? { parentId: 'p1' } : {}),
         }),
       ],
     }),
@@ -167,6 +181,7 @@ describe('frameGesture · draw', () => {
     resetEditorToolForTests()
     resetFrameSelection()
     resetBookStore()
+    setGuidesVisible(true)
   })
 
   function draw(
@@ -454,6 +469,54 @@ describe('frameGesture · draw', () => {
     expect(frames()[0]?.rect.height).toBe(110)
   })
 
+  function reload(spreadGuides: TestGuide[], parentGuides: TestGuide[]) {
+    stop()
+    spread.remove()
+    load([], spreadGuides, parentGuides)
+    spread = mount().spread
+    stop = installFrameGesture()
+    setEditorTool('frame')
+  }
+
+  it('snaps to the parent guides the spread shows, verticals on its page', () => {
+    // The lone spread is the first single (right) page: 360 mm shows at 60.
+    reload(
+      [],
+      [
+        { id: 'ph', orientation: 'horizontal', offsetMm: 120 },
+        { id: 'pv', orientation: 'vertical', offsetMm: 360 },
+      ],
+    )
+    pointer('pointerdown', spread, 10, 10, ALT)
+    pointer('pointermove', window, 57, 117)
+    expect(
+      [...spread.querySelectorAll('.snap-line-label')].map(
+        (label) => label.textContent,
+      ),
+    ).toEqual(['snap · guide', 'snap · guide'])
+    pointer('pointerup', window, 57, 117)
+    expect(frames()[0]?.rect).toEqual(rect(10, 10, 50, 110))
+  })
+
+  it('hidden guides never snap: book, own or parent', () => {
+    reload(
+      [{ id: 'sg', orientation: 'horizontal', offsetMm: 120 }],
+      [{ id: 'pv', orientation: 'vertical', offsetMm: 360 }],
+    )
+    setGuidesVisible(false)
+    pointer('pointerdown', spread, 10, 10, ALT)
+    pointer('pointermove', window, 197, 117)
+    expect(spread.querySelector('.snap-line')).toBeNull()
+    pointer('pointerup', window, 197, 117)
+    expect(frames()[0]?.rect).toEqual(rect(10, 10, 187, 107))
+    setEditorTool('frame')
+    pointer('pointerdown', spread, 10, 150, ALT)
+    pointer('pointermove', window, 57, 190)
+    expect(spread.querySelector('.snap-line')).toBeNull()
+    pointer('pointerup', window, 57, 190)
+    expect(frames()[1]?.rect).toEqual(rect(10, 150, 47, 40))
+  })
+
   it('swallows only the click that follows a commit', () => {
     vi.useFakeTimers()
     const onClick = vi.fn()
@@ -591,6 +654,27 @@ describe('frameGesture · move', () => {
     pointer('pointermove', window, 30 + dx, 30 + dy, init)
     pointer('pointerup', window, 30 + dx, 30 + dy, init)
   }
+
+  it('snaps the moved top edge onto a parent guide', () => {
+    stop()
+    spread.remove()
+    load(
+      [
+        makeFrame({ id: 'a', rect: rect(100, 100, 50, 50) }),
+        makeFrame({ id: 'b', rect: rect(10, 10, 40, 40), z: 1 }),
+      ],
+      [],
+      [{ id: 'ph', orientation: 'horizontal', offsetMm: 120 }],
+    )
+    const mounted = mount()
+    spread = mounted.spread
+    const second = mounted.buttons[1]
+    assert(second !== undefined, 'expected a second frame')
+    button = second
+    stop = installFrameGesture()
+    drag(0, 107)
+    expect(frames()[1]?.rect).toEqual(rect(10, 120, 40, 40))
+  })
 
   it('moves an empty frame by the pointer travel in mm', () => {
     drag(40, 25, ALT)
