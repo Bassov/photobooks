@@ -312,6 +312,28 @@ describe('viewGuides', () => {
     expect(shown(book, 0, book.spreads[1])).toHaveLength(3)
   })
 
+  const overrideGuide = (book: Book, spreadId: string, parentGuideId: string) =>
+    applyBookOp(book, { type: 'overrideParentGuide', spreadId, parentGuideId })
+
+  it('copies an overridden guide where the single first page shows it', () => {
+    const book = overrideGuide(threeSpreads(), 's0', 'right')
+    expect(shown(book, 0)).toEqual([
+      'parent:fold@0',
+      'parent:top@40',
+      'override:copy-1@150',
+    ])
+    expect(shown(overrideGuide(threeSpreads(), 's1', 'right'), 1)).toContain(
+      'override:copy-1@450',
+    )
+  })
+
+  it('refuses to override a guide off the spread page', () => {
+    const book = threeSpreads()
+    expect(overrideGuide(book, 's0', 'left')).toBe(book)
+    expect(overrideGuide(book, 's1', 'past')).toBe(book)
+    expect(overrideGuide(book, 'missing', 'right')).toBe(book)
+  })
+
   it('keeps an unshifted parent guide as the same object', () => {
     const book = threeSpreads()
     expect(viewGuides(book, 1)[0]?.guide).toBe(masterGuides[0])
@@ -558,7 +580,8 @@ describe('parent overrides ops (property)', () => {
           frames: parentFrameIds.map((id, i) =>
             makeFrame({ id, z: s.parentZ[i] ?? 0 }),
           ),
-          guides: parentGuideIds.map((id, i) => guide(id, 20 + i)),
+          // Right page of the 300 mm trim: on the single first page `s1`.
+          guides: parentGuideIds.map((id, i) => guide(id, 320 + i)),
         }),
         parent({ id: 'p2', name: 'B' }),
       ],

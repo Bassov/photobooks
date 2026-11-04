@@ -295,6 +295,7 @@ function overrideParentItem(
   parentItemId: string,
   id: string | undefined,
   kind: 'frames' | 'guides',
+  placed?: { id: string },
 ): Book {
   return updateSpread(book, spreadId, (spread) => {
     const items: readonly { id: string }[] =
@@ -313,7 +314,11 @@ function overrideParentItem(
     if (taken.has(copyId)) {
       return spread
     }
-    const copy = { ...source, id: copyId, overridesId: parentItemId }
+    const copy = {
+      ...(placed ?? source),
+      id: copyId,
+      overridesId: parentItemId,
+    }
     return {
       ...spread,
       parentOverrides: {
@@ -334,14 +339,28 @@ export function overrideParentFrame(
   return overrideParentItem(book, spreadId, parentFrameId, id, 'frames')
 }
 
-/** Override a parent guide on the spread: a local copy the spread edits on its own. */
+/**
+ * Override a parent guide on the spread: a local copy the spread edits on its
+ * own, in the spread's mm as `viewGuides` shows it. A guide off the spread's
+ * page leaves the book.
+ */
 export function overrideParentGuide(
   book: Book,
   spreadId: string,
   parentGuideId: string,
   id?: string,
 ): Book {
-  return overrideParentItem(book, spreadId, parentGuideId, id, 'guides')
+  const spreadIndex = book.spreads.findIndex((s) => s.id === spreadId)
+  const spread = book.spreads[spreadIndex]
+  const source =
+    spread === undefined
+      ? undefined
+      : spreadParent(book, spread)?.guides.find((g) => g.id === parentGuideId)
+  const placed =
+    source === undefined ? undefined : onSpreadPage(book, spreadIndex, source)
+  return placed === undefined
+    ? book
+    : overrideParentItem(book, spreadId, parentGuideId, id, 'guides', placed)
 }
 
 /** Overrides without the copies and the hidden entry of `parentItemId`. */
@@ -493,6 +512,18 @@ function onPage(
     return undefined
   }
   return shiftMm === 0 ? guide : { ...guide, offsetMm }
+}
+
+/** `onPage` with the page shift and width `viewGuides` uses for `spreadIndex`. */
+function onSpreadPage(
+  book: Book,
+  spreadIndex: number,
+  guide: Guide,
+): Guide | undefined {
+  const trimWidthMm = book.settings.trim.widthMm
+  const single = getSpreadPageCount(spreadIndex, book.spreads.length) === 1
+  const shiftMm = single && spreadIndex === 0 ? trimWidthMm : 0
+  return onPage(guide, shiftMm, single ? trimWidthMm : trimWidthMm * 2)
 }
 
 interface ViewGuidesEntry {
