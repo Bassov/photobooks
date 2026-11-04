@@ -21,10 +21,28 @@ export {
 } from './text/resolveText'
 export {
   defaultCover,
+  defaultCoverPrint,
   defaultCoverStyle,
   defaultEndpapers,
   type CoverPanelName,
 } from './cover'
+export {
+  DEFAULT_PRINT_PROFILE_ID,
+  bookPrintProfileRef,
+  defaultPrintProfileRef,
+  resolvePrintProfile,
+  validatePrintSettings,
+  type PrintProfile,
+  type PrintProfileIssue,
+  type PrintRangeField,
+} from './printProfile'
+export {
+  SPINE_WIDTH_SOURCES,
+  type CoverPrint,
+  type PrintProfileOverrides,
+  type PrintProfileRef,
+  type SpineWidthSource,
+} from './schema'
 export {
   COVER_FINISHES,
   COVER_MATERIALS,
