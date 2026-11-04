@@ -32,8 +32,10 @@ import { PhotoSection } from './PhotoSection'
 import { GridSection } from './GridSection'
 import { LayoutSection } from './LayoutSection'
 import { BackgroundSection, MasterSpacingSection } from './SpreadSections'
+import { TextFrameSections, TextOverflowMeta } from './TextSection'
 import {
   inspectorView,
+  isTextFrameTarget,
   multiSummary,
   sameInspectorPanel,
   spreadSummary,
@@ -60,7 +62,7 @@ type InspectorContext =
   | { kind: 'book' }
   | { kind: 'endpaper'; side: EndpaperSide }
   | {
-      kind: 'photo'
+      kind: 'photo' | 'text'
       target: NonNullable<ReturnType<typeof getFrameSource>>
     }
 
@@ -94,6 +96,7 @@ const CONTEXT_HEADER: Partial<
 > = {
   spread: { title: 'Spread', icon: 'bookOpen' },
   photo: { title: 'Photo', icon: 'image' },
+  text: { title: 'Text', icon: 'text' },
   multi: { title: 'Multiple selection', icon: 'layers' },
 }
 
@@ -169,7 +172,7 @@ export function Inspector() {
     coverSelected || bookSelected || endpaperSide !== null
       ? null
       : (target ?? frameSource)
-  const view: InspectorContext =
+  const framed: InspectorContext =
     leftTab === 'masters'
       ? mastersContext(
           shownParentId(parents, pickedParentId),
@@ -184,6 +187,14 @@ export function Inspector() {
             : section === null
               ? panel
               : { kind: 'photo', target: section }
+  const framedTarget = framed.kind === 'photo' ? framed.target : null
+  const readText = () => isTextFrameTarget(readBook(), framedTarget)
+  const text = useSyncExternalStore(subscribeBookStore, readText, readText)
+  // A text frame opens the Text inspector (Designer text-frames).
+  const view: InspectorContext =
+    text && framedTarget !== null
+      ? { kind: 'text', target: framedTarget }
+      : framed
   const context = CONTEXT_HEADER[view.kind] ?? null
   return (
     <section
@@ -216,6 +227,9 @@ export function Inspector() {
               <SpreadSummary spreadId={view.spreadId} />
             ) : null}
             {view.kind === 'multi' ? <MultiSummary set={view.set} /> : null}
+            {view.kind === 'text' ? (
+              <TextOverflowMeta target={view.target} />
+            ) : null}
           </div>
         </div>
       )}
@@ -233,6 +247,9 @@ export function Inspector() {
             <PhotoRotateSection target={view.target} />
             <PhotoFrameSections target={view.target} />
           </>
+        ) : null}
+        {view.kind === 'text' ? (
+          <TextFrameSections key={view.target.frameId} target={view.target} />
         ) : null}
         {view.kind === 'spread' ? (
           <>

@@ -246,6 +246,26 @@ export function undoStep(
   }
 }
 
+/**
+ * Take back the newest step when it still carries `key` (nothing was recorded
+ * after it): its snapshot comes back with no redo entry.
+ */
+export function dropStep(history: History, key: string): HistoryMove | null {
+  const snapshot = history.past[history.past.length - 1]
+  if (snapshot === undefined || history.key !== key) {
+    return null
+  }
+  return {
+    snapshot,
+    history: {
+      ...history,
+      past: history.past.slice(0, -1),
+      key: undefined,
+      pastLabels: history.pastLabels.slice(0, -1),
+    },
+  }
+}
+
 export function redoStep(
   history: History,
   current: HistorySnapshot,
