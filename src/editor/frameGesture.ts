@@ -358,18 +358,6 @@ export function clearSnapLines(ctx: SpreadContext): void {
   paintSnapLines(ctx, [])
 }
 
-/**
- * Frame tool + free move.
- * - Frame tool: dragging on an empty spread draws an image frame (≥ 5 mm both
- *   edges), selects it and returns to Select.
- * - Select tool: dragging an empty frame moves it; dragging any frame of a
- *   2+ selection moves its unlocked frames together (one `moveFrames`).
- * - Select tool on bare paper or the pasteboard gray: past the slop, a
- *   marquee selects the target spread's frames it touches (marquee.ts).
- * Draw and move snap to other frames / guides / equal gaps through the anchor index
- * built at gesture start; Alt suppresses it. The preview is direct DOM writes;
- * one op is committed at gesture end (one undo step).
- */
 /** Ctrl+Shift (Windows / Linux) or ⌘⇧ (Mac), both accepted everywhere. */
 function overrideModifiers(event: PointerEvent): boolean {
   return event.shiftKey && (event.ctrlKey || event.metaKey)
@@ -468,6 +456,20 @@ function frameButton(
   )
 }
 
+/**
+ * Frame tool + free move.
+ * - Frame tool: dragging on an empty spread draws an image frame (≥ 5 mm both
+ *   edges), selects it and returns to Select.
+ * - Select tool: dragging an empty frame moves it; dragging any frame of a
+ *   2+ selection moves its unlocked frames together (one `moveFrames`).
+ * - Select tool on bare paper or the pasteboard gray: past the slop, a
+ *   marquee selects the target spread's frames it touches (marquee.ts).
+ * - Ctrl/⌘+Shift on a parent item, through own frames: overrides it and
+ *   continues as the copy's move (Designer PO2).
+ * Draw and move snap to other frames / guides / equal gaps through the anchor index
+ * built at gesture start; Alt suppresses it. The preview is direct DOM writes;
+ * one op is committed at gesture end (one undo step).
+ */
 export function installFrameGesture(): () => void {
   let session: Session | null = null
   let swallowClick = false
