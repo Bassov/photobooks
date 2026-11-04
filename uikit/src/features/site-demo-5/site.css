@@ -41,6 +41,7 @@
 .sd5-row { position: absolute; left: 0; right: 0; display: flex; justify-content: center; align-items: flex-end; gap: 3px; pointer-events: none }
 .sd5-row-narrow { justify-content: flex-start; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory;
   padding: 0 calc(50% - 30px); pointer-events: auto; overscroll-behavior-x: contain }
+.sd5-row[data-held], .sd5-row[data-held] .sd5-slot { pointer-events: none }
 .sd5-slot { position: relative; flex: none; pointer-events: auto; transform-origin: 50% 100%; scroll-snap-align: center;
   transition: width 500ms var(--d5-ease), transform 500ms var(--d5-ease) }
 .sd5-slot[data-fly] { transition: width 500ms var(--d5-ease), transform 600ms var(--d5-ease) }

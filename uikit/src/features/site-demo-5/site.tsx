@@ -92,7 +92,8 @@ export function SiteDemo5() {
   const x = l.narrow ? 20 : 48, kt = l.narrow ? 1 : Math.max(0.6, Math.min(1, l.vw / 1440))
   return (
     <div ref={root} className="relative h-full overflow-hidden" style={{ backgroundColor: bg }} data-surface="site-demo-5" data-allow-border data-open={reading || undefined} data-testid="sd5-root">
-      <div className="sd5-home" inert={!!open || undefined}>
+      {/* the kit strips a late `inert` on #/full: an open book hides the home (visibility) and takes the row out of the tab order */}
+      <div className="sd5-home">
         {!l.narrow && <div className="sd5-big sd5-abs" style={{ left: -14, top: l.shelf - 317 * l.k, fontSize: 300 * l.k, opacity: hb ? 1 : 0 }} aria-hidden>{hb ? word(hb) : lb ? word(lb) : ""}</div>}
         <span className="sd5-name sd5-abs" style={{ left: x, top: l.narrow ? 22 : 32, fontSize: l.narrow ? 13 : 14 }}>{l.narrow ? "A. Basov" : AUTHOR}</span>
         {!l.narrow && (
@@ -132,9 +133,9 @@ function Label({ l, b, i, onPull }: { l: L5; b: SiteBook | null; i: number; onPu
 type RowProps = { l: L5; hov: number; open: Open | null; onPtr: (i: number) => void; onFoc: (i: number) => void; onPull: (i: number, el: HTMLElement) => void }
 /** The packed row: each slot is as wide as the turned book; the pulled one lifts, its neighbours lean from the bottom. */
 const Row = React.forwardRef<HTMLDivElement, RowProps>(function Row({ l, hov, open, onPtr, onFoc, onPull }, ref) {
-  const still = reduced()
+  const still = reduced(), held = open !== null && open.phase !== "back"
   return (
-    <div ref={ref} className={l.narrow ? "sd5-row sd5-row-narrow no-scrollbar" : "sd5-row"} style={{ top: 0, height: l.shelf }} onPointerLeave={() => onPtr(-1)} inert={(open && open.phase !== "back") || undefined}>
+    <div ref={ref} className={l.narrow ? "sd5-row sd5-row-narrow no-scrollbar" : "sd5-row"} style={{ top: 0, height: l.shelf }} onPointerLeave={() => onPtr(-1)} data-held={held || undefined}>
       {BOOKS.map((b, i) => {
         const pulled = i === hov && !still, ry = open?.i === i && open.phase !== "back" ? 0 : pulled ? 26 : 86
         const d = i - hov, lean = hov < 0 || still || d === 0 ? 0 : Math.sign(d) * (Math.abs(d) === 1 ? 3 : 1)
@@ -143,7 +144,7 @@ const Row = React.forwardRef<HTMLDivElement, RowProps>(function Row({ l, hov, op
         return (
           <button key={b.id} type="button" className="sd5-slot" data-testid="sd5-book" data-id={b.id} aria-label={`${b.title}, ${b.year}`}
             style={{ width: slotW(b, l.s, still ? 86 : i === hov ? 26 : 86), height: b.h * l.s, transform: tf, zIndex: open?.i === i ? 5 : undefined, visibility: open?.i === i && open.phase === "read" ? "hidden" : undefined }}
-            data-fly={(open?.i === i && open.phase !== "read") || undefined}
+            data-fly={(open?.i === i && open.phase !== "read") || undefined} tabIndex={held ? -1 : undefined}
             onPointerEnter={(e) => { if (e.pointerType === "mouse") onPtr(i) }} onFocus={(e) => onFoc(e.currentTarget.matches(":focus-visible") ? i : -1)} onBlur={() => onFoc(-1)}
             onClick={(e) => onPull(i, e.currentTarget)}>
             <Book3D b={b} s={l.s} pose={{ ry: still ? 86 : ry, rx: ry === 0 ? 0 : -2 }} floor={false} perspective={7000} className="sd5-b3" />
