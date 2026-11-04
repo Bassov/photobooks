@@ -9,11 +9,11 @@ export function frameShowsMissing(
   return assetId !== undefined && isMissingAsset?.(assetId) === true
 }
 
-export function previewUrlUnlessMissing(
+export function previewUrlUnlessMissing<T = string>(
   missing: boolean,
   assetId: string | undefined,
-  previewUrlFor: (id: string) => string | undefined,
-): string | undefined {
+  previewUrlFor: (id: string) => T | undefined,
+): T | undefined {
   if (missing || assetId === undefined) {
     return undefined
   }
