@@ -2,8 +2,8 @@
 
 - [ ] 1. `GuideLine` `passive` prop + `--parent-soft` dash + 24 px overhang; `SpreadSurface` passes `passive`
 - [ ] 2. `viewport.tsx`: drop the inherited-guide status branch
-- [ ] 3. `qa.mjs` parent-guides DOM checks (colour, 1 px, 24 px overhang, pointer-events, elementFromPoint = frame, click selects frame, no status, DOM order)
-- [ ] 4. `demo-capture.mjs` step `editor-parent-guides-inherited`; regenerate baselines
+- [ ] 3. `qa.mjs` parent-guides DOM checks (colour, 1 px, 24 px overhang, pointer-events, elementFromPoint = frame, click selects frame, no status, DOM order); empty observable (Master None → no master guide) stays pinned by the existing v7.3 P1 check
+- [ ] 4. `demo-capture.mjs` step `editor-parent-guides-inherited`; regenerate baselines (untracked, `.cache/agent`)
 
 ## Manual test scenarios
 
