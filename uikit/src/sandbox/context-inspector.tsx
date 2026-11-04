@@ -19,6 +19,7 @@ import { PAGE, SW, SH, effectiveGrid, type Spread, type Grid } from "./model"
 import { TT } from "./templates"
 import { SliderRow, Segmented } from "@/components/app/controls"
 import { mapSpread } from "./store"
+import { useTextOverflow } from "./text-overflow"
 import { BookInspector, pageLabel, GridFields, SegC, Toggle, useMasters } from "./v7"
 
 type Ctx = "spread" | "photo" | "text" | "multi"
@@ -50,6 +51,7 @@ export function ContextInspector() {
   const sel = s.frames.filter((f) => st.sel.includes(f.id))
   const ctx: Ctx = sel.length === 0 ? "spread" : sel.length > 1 ? "multi" : sel[0].kind === "text" ? "text" : "photo"
   React.useEffect(() => () => setTemplatePreview(null), [])
+  const overflow = useTextOverflow(ctx === "text" ? sel[0].id : undefined)
   if (st.node) return <BookInspector />
   if (ctx === "spread") {
     const empty = s.frames.filter((f) => f.kind === "image" && !f.photo).length
@@ -72,7 +74,7 @@ export function ContextInspector() {
     </InspectorShell>
   )
   if (ctx === "text") return (
-    <InspectorShell ctx="text">
+    <InspectorShell ctx="text" meta={overflow ? <span className="text-ink-warning">Text overflows the frame</span> : undefined}>
       <TextSection live />
       <SectionsCollapsed><GeometrySection /><ArrangeSection /></SectionsCollapsed>
       <div className="p-4"><DeleteFrameButton /></div>

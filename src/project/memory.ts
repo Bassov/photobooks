@@ -34,7 +34,7 @@ function mapParseFailure(
 }
 
 export function createMemoryLibraryStorage(): MemoryLibraryStorage {
-  let libraryMeta: LibraryMeta = {}
+  let libraryMeta: LibraryMeta = { books: {} }
   const books = new Map<string, unknown>()
   const editedAtMsById = new Map<string, number>()
   let permissionRequired = false
@@ -79,7 +79,8 @@ export function createMemoryLibraryStorage(): MemoryLibraryStorage {
     updateLibrary(meta: LibraryMeta) {
       return Promise.resolve(
         gateWrite(() => {
-          libraryMeta = structuredClone(meta)
+          // Same shape the FSA adapter reads back from library.json.
+          libraryMeta = { books: structuredClone(meta.books ?? {}) }
           return success(libraryMeta)
         }),
       )

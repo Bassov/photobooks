@@ -41,7 +41,7 @@ export function runLibraryStorageContract(
       const library = await storage.getLibrary()
 
       expect(listed).toEqual({ ok: true, value: [] })
-      expect(library).toEqual({ ok: true, value: {} })
+      expect(library).toEqual({ ok: true, value: { books: {} } })
     })
 
     it('creates a book then includes it in the list', async () => {
@@ -131,11 +131,17 @@ export function runLibraryStorageContract(
     it('replaces library metadata on update', async () => {
       const { storage } = createHarness()
 
-      const updated = await storage.updateLibrary({})
+      const books = {
+        'book-1': { status: 'published' as const },
+        'book-2': { status: 'draft' as const },
+      }
+      const updated = await storage.updateLibrary({ books })
       const got = await storage.getLibrary()
+      const emptied = await storage.updateLibrary({})
 
-      expect(updated).toEqual({ ok: true, value: {} })
-      expect(got).toEqual({ ok: true, value: {} })
+      expect(updated).toEqual({ ok: true, value: { books } })
+      expect(got).toEqual({ ok: true, value: { books } })
+      expect(emptied).toEqual({ ok: true, value: { books: {} } })
     })
 
     it('returns not-found for load, save, and delete of a missing id', async () => {
@@ -245,7 +251,7 @@ export function runLibraryStorageContract(
       })
       expect(await harness.storage.getLibrary()).toEqual({
         ok: true,
-        value: {},
+        value: { books: {} },
       })
       expect(
         await harness.storage.createBook(makeBook({ id: 'other' })),
