@@ -178,10 +178,19 @@ describe('GuidesOverlay', () => {
     cleanup()
     startGuideDrag.mockReset()
     render(<GuidesOverlay spreadId="s1" pxPerMm={2} />)
+    // React reports a handler's throw instead of raising it: catch it here.
+    const reported: unknown[] = []
+    const onError = (event: ErrorEvent) => {
+      reported.push(event.error)
+      event.preventDefault()
+    }
+    window.addEventListener('error', onError)
     const bare = fireEvent.pointerDown(
       screen.getAllByTestId('guide-line')[0] as Element,
       { button: 0 },
     )
+    window.removeEventListener('error', onError)
+    expect(reported).toEqual([])
     expect(startGuideDrag).not.toHaveBeenCalled()
     expect(bare).toBe(true)
     cleanup()
