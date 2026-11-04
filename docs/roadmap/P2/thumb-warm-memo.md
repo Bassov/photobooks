@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: /next-roadmap-item thumb-warm-memo
+Status: done
 
 ## Scope
 
