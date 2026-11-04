@@ -73,26 +73,26 @@ const metaOf = (b: SiteBook) => `${b.year} · ${pagesOf(b)} pages · ${sizeOf(b)
 /** reader geometry in cm: the open spread is H × H·R */
 const spreadW = (b: SiteBook) => b.h * SPREAD_R[b.fmt]
 
-type Geo = { phone: boolean; s: number; stageH: number; sr: number; gap: number; standH: number; listS: number }
+type Geo = { phone: boolean; s: number; stageH: number; sr: number; span: number; standH: number; listS: number }
 function geoOf(books: SiteBook[], w: number, h: number): Geo {
   const phone = w < 768
   const maxW = Math.max(...books.map(spreadW)), maxH = Math.max(...books.map((b) => b.h))
   const listS = 80 / maxH
   if (phone) {
     const s = (w - 32 - 32) / maxW
-    return { phone, s, stageH: Math.round(maxH * s + 40), sr: listS, gap: 0, standH: 0, listS }
+    return { phone, s, stageH: Math.round(maxH * s + 40), sr: listS, span: 0, standH: 0, listS }
   }
   const cw = w - 48, col = (cw - 11 * 16) / 12, playerW = 8 * col + 7 * 16
-  const N = books.length, gap = N > 6 ? 24 : 40
-  const sumW = books.reduce((a, b) => a + b.w, 0)
-  const sr = N > 1 ? Math.min(h < 800 ? 3.6 : 4.6, (cw - (N - 1) * gap - 16) / sumW) : 0
+  // the programme row sits on the grid: each book gets 12 / N columns
+  const N = books.length, span = Math.max(1, Math.floor(12 / N)), cellW = span * col + (span - 1) * 16
+  const sr = N > 1 ? Math.min(h < 800 ? 3.6 : 4.6, (cellW * 0.9) / Math.max(...books.map((b) => b.w))) : 0
   const standH = N > 1 ? Math.ceil(maxH * sr + 16) : 0
   // programme: rule + heading 67, labels 54 (two title lines over six books), page bottom 24
   const rowH = N > 1 ? standH + 67 + (N > 6 ? 77 : 54) : 0
   // header 56, hero: top 24, line and page label 52
   const stageH = Math.max(280, Math.min(N > 1 ? 600 : 760, h - 56 - 24 - 52 - rowH - 24))
   const s = Math.min((playerW - 32) / maxW, (stageH - 24) / maxH)
-  return { phone, s, stageH, sr, gap, standH, listS }
+  return { phone, s, stageH, sr, span, standH, listS }
 }
 
 export function SiteFreshC() {
@@ -276,9 +276,9 @@ function Programme({ books, now, g, n, sel }: { books: SiteBook[]; now: number; 
   return (
     <section className="sfc-prog" aria-label="Programme" data-testid="sfc-row">
       <p className="sfc-meta sfc-prog-h">The programme, one book a minute</p>
-      <ol className="sfc-row" style={{ gap: g.gap }} data-many={books.length > 6 || undefined}>
+      <ol className="sfc-row" data-many={books.length > 6 || undefined}>
         {order.map((j) => { const b = books[j]; return (
-          <li key={b.id} style={{ width: Math.round(b.w * g.sr) }}>
+          <li key={b.id} style={{ gridColumn: `span ${g.span}` }}>
             <a className="sfc-item" href={hrefOf(n, { b: b.id })} data-testid="sfc-item" data-book={b.id} data-now={j === cur.i} aria-current={b.id === sel ? "page" : undefined}>
               <span className="sfc-standbox" style={{ height: g.standH }}><Book3D b={b} s={g.sr} /></span>
               <span className={`sfc-meta sfc-time${j === cur.i ? " sfc-ink" : ""}`}>{label(j)}</span>

@@ -67,8 +67,8 @@
 /* the programme row */
 .sfc-prog { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--rule); }
 .sfc-prog-h { margin-bottom: 8px; }
-.sfc-row { display: flex; align-items: flex-end; }
-.sfc-row > li { flex: none; }
+.sfc-row { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 16px; align-items: end; }
+.sfc-row > li { min-width: 0; }
 .sfc-item { display: flex; flex-direction: column; gap: 4px; }
 .sfc-standbox { display: flex; align-items: flex-end; padding-bottom: 8px; }
 .sfc-time { margin-top: 8px; transition: color .2s var(--change); }
