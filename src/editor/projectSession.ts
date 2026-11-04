@@ -9,6 +9,7 @@ import {
   defaultCover,
   defaultEndpapers,
   defaultPrintProfileRef,
+  ensureDefaultParent,
   type Book,
   type BookOp,
   type GridPatch,
@@ -784,9 +785,11 @@ function createEmptyLibraryBook(
     spreads: [],
     printProfile: defaultPrintProfileRef(),
   }
-  return ['spread-1', 'spread-2', 'spread-3'].reduce<Book>(
-    (book, spreadId) => addSpread(book, { id: spreadId }),
-    empty,
+  return ensureDefaultParent(
+    ['spread-1', 'spread-2', 'spread-3'].reduce<Book>(
+      (book, spreadId) => addSpread(book, { id: spreadId }),
+      empty,
+    ),
   )
 }
 

@@ -4,8 +4,8 @@ import * as React from "react"
 import { useStudio, type Book } from "./store"
 import { Slider as USlider, SliderTrack, SliderFillTrack, SliderThumb } from "@/components/ui/slider"
 import { P } from "@/data"
-import { MASTER_GRIDS, MASTER_GUIDES, MASTER_PN, builtinMaster, type Grid, type Guide } from "./model"
-import { Link2, RotateCcw, Unlink2 } from "lucide-react"
+import { MASTER_GRIDS, MASTER_GUIDES, MASTER_PN, builtinMaster, defaultMasterOf, masterPages, masterUsage, type Grid, type Guide } from "./model"
+import { Check, Link2, RotateCcw, Unlink2 } from "lucide-react"
 
 export const T = "#393738", SUB = "#535152", INK = "#232223", ON_INK = "#F2F2F2", SURROUND = "#C8CACB", BAR = "#E1E1E1", FIELD = "#D7D7D7", PAPER = "#FFFFFF"
 const serif = { fontFamily: "var(--font-heading)" } as const
@@ -35,6 +35,9 @@ export const V7CSS = `
 .e7-ghost { color: ${T}; border: 0; outline: none; transition: background-color .15s } .e7-ghost:hover { background: rgb(57 55 56/.08) }
 .e7-ghost:focus-visible, .e7-item:focus-visible, .e7-title:focus-visible, .e7-sel:focus-visible, .e7-csel:focus-visible, .e7-canvas:focus-visible { outline: 2px solid #535152; outline-offset: 2px }
 .e7-canvas[data-panning], .e7-canvas[data-panning]:focus-visible { outline: none }
+.e7-elink { border: 0; background: none; border-radius: 4px; padding: 0 2px; outline: none; cursor: pointer } .e7-elink:hover { text-decoration: underline; text-underline-offset: 2px } .e7-elink:focus-visible { outline: 2px solid #535152; outline-offset: 1px }
+.e7-tag { height: 14px; padding: 0 5px; border-radius: var(--radius-xs); background: rgb(57 55 56/.08); font-size: 10px; font-weight: 500; line-height: 14px; letter-spacing: .01em }
+.e7-mkdef { border: 0; outline: none; background: ${FIELD}; box-shadow: 0 1px 2px rgba(20,20,19,.06); cursor: pointer } .e7-mkdef:hover { background: #CDCDCD } .e7-mkdef:focus-visible { outline: 2px solid #535152; outline-offset: 2px }
 .cursor-tool-frame { cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M12%201v22M1%2012h22%22%20stroke%3D%22%23232223%22%20stroke-width%3D%223.2%22%20stroke-linecap%3D%22square%22%2F%3E%3Cpath%20d%3D%22M12%201v22M1%2012h22%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22square%22%2F%3E%3C%2Fsvg%3E") 12 12, crosshair }
 .cursor-tool-text { cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2224%22%20viewBox%3D%220%200%2016%2024%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M3%202.5h10M8%202.5v19M3%2021.5h10%22%20stroke%3D%22%23232223%22%20stroke-width%3D%222.6%22%20stroke-linecap%3D%22square%22%2F%3E%3Cpath%20d%3D%22M3%202.5h10M8%202.5v19M3%2021.5h10%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%221.3%22%20stroke-linecap%3D%22square%22%2F%3E%3C%2Fsvg%3E") 7 11, text }
 
@@ -165,7 +168,7 @@ function CoverSel({ l, opts, tid }: { l: string; opts: string[]; tid: string }) 
     className="e7-csel h-9 rounded-md border-0 text-sm outline-none" style={{ backgroundColor: FIELD, color: T }}>{opts.map((o) => <option key={o}>{o}</option>)}</select></Row>
 }
 export const Swatches = ({ cs, on }: { cs: string[]; on: number }) => <div className="flex gap-1.5">{cs.map((c, i) => <span key={c} className={i === on ? "swatch-on size-5 rounded-full" : "size-5 rounded-full"} data-swatch-on={i === on || undefined} style={{ background: c, boxShadow: "0 1px 2px rgb(0 0 0/.15)" }} />)}</div>
-export const Head = ({ t, s }: { t: string; s: string }) => <div className="px-4 pt-4 pb-1" data-testid="inspector-head"><div className="text-sm font-medium">{t}</div><div className="mt-0.5 text-xs" style={{ color: SUB }}>{s}</div></div>
+export const Head = ({ t, s, sTid, children }: { t: string; s: string; sTid?: string; children?: React.ReactNode }) => <div className="px-4 pt-4 pb-1" data-testid="inspector-head"><div className="text-sm font-medium">{t}</div><div className="mt-0.5 text-xs" style={{ color: SUB }} data-testid={sTid}>{s}</div>{children}</div>
 export const Txt = ({ v, ph: p }: { v?: string; ph?: string }) => <div className="flex h-8 items-center rounded-md px-2.5 text-sm" style={{ background: FIELD, color: v ? T : SUB }}>{v ?? p}</div>
 
 /** v0.8.1: editable cover text (front title / spine / back) — persists per book in the demo */
@@ -218,7 +221,7 @@ export function GridFields({ g, set, link, setLink, tid = "master-field", src, p
 export function BookInspector() {
   const masters = useMasters(); const cov = useCoverPhoto(); const ct = useCoverText()
   const st = useStudio(), sel = st.node, book = st.book, setBook = st.setBook
-  const pages = pagesOf(st.doc.spreads.length)
+  const pages = pagesOf(st.doc.spreads.length), def = defaultMasterOf(st.doc)
   if (!sel || sel.k === "none") return <div className="grid h-full place-items-center px-8 text-center text-sm" style={{ color: SUB }} data-testid="inspector-empty">Select a spread or photo</div>
   const pc = <span className="text-sm" style={{ color: SUB }} data-testid="page-colour-readonly">Paper white · coming later</span>
   if (sel.k === "book") return <div data-testid="insp-book">
@@ -229,7 +232,7 @@ export function BookInspector() {
       <Row l="Pages"><span className="flex items-center gap-1" data-testid="book-pages"><Val v={`${pages}`} /><span className="text-2xs" style={{ color: SUB }}>{PAGE_MIN}–{PAGE_MAX}</span></span></Row>
       <div className="mt-1.5 text-2xs" style={{ color: SUB }} data-testid="book-pages-note">{pages < PAGE_MIN ? `Add ${Math.ceil((PAGE_MIN - pages) / 2)} spread${PAGE_MIN - pages > 2 ? "s" : ""} to reach the ${PAGE_MIN}-page minimum` : pages > PAGE_MAX ? `Remove ${Math.ceil((pages - PAGE_MAX) / 2)} spreads to stay within ${PAGE_MAX} pages` : "Pages are added in spreads of 2"}</div></Sec>
     <Sec title="Print"><div className="grid grid-cols-2 gap-2"><Field l="B" v="3" u="mm" /><Field l="S" v="8" u="mm" /></div><Row l="Paper"><Val v="Matte 200 g" /></Row></Sec>
-    <Sec title="Defaults"><Row l="Default master"><Val v="Master A" /></Row><Row l="Page colour">{pc}</Row></Sec></div>
+    <Sec title="Defaults"><Row l="Default master"><Val v={`Master ${def}`} /></Row><Row l="Page colour">{pc}</Row></Sec></div>
   if (sel.k === "cover") return <div data-testid="insp-cover">
     <Head t="Cover" s="Hardcover · back, spine, front · wrap 15 mm" />
     <Sec title="Front"><div className="flex items-center gap-3"><div className="h-13 w-10.5 shrink-0 rounded-xs bg-cover" style={{ backgroundImage: cov ? ph(cov) : undefined, backgroundColor: cov ? undefined : "#8E8E8E" }} data-testid="cover-front-thumb" data-photo-id={cov} /><div className="text-sm"><div>{!cov ? "No photo yet" : cov === "p01" ? "IMG_P01.jpg" : P(cov).name}</div><div className="mt-0.5" style={{ color: SUB }}>Full bleed · 288 ppi</div><div className="mt-0.5 text-2xs" style={{ color: SUB }}>Drag a photo from the filmstrip onto the cover</div></div></div>
@@ -243,12 +246,17 @@ export function BookInspector() {
       <Row l="Pattern"><span className="h-6 w-12 rounded-xs" style={{ background: endpBg }} /></Row></Sec>
     <Sec title="Apply"><Row l="Same on back endpaper"><Toggle label="Same on back endpaper" on={book.endpSame} onClick={() => setBook({ ...book, endpSame: !book.endpSame })} /></Row></Sec></div>
   if (sel.k === "master") { const m = masters[sel.id], id = sel.id; return <div data-testid="insp-master">
-    <Head t={`Master ${sel.id}`} s={`Used by ${sel.id === "A" ? 10 : 4} pages`} />
+    <Head t={`Master ${sel.id}`} s={masterUsage(st.doc, id)} sTid="master-usage">
+      {/* default-master I2 / I3: a master that is not the default can become it (hint while unused) */}
+      {id !== def && <>{masterPages(st.doc, id).used === 0 && <div className="mt-2 text-xs leading-[16.8px]" style={{ color: SUB }} data-testid="master-hint">Pick it for a spread under Master &amp; spacing, or make it the default.</div>}
+        <button type="button" className="e7-mkdef mt-2.5 flex h-7 items-center gap-1.5 rounded-lg px-3 text-sm font-medium" style={{ color: T }} data-testid="master-make-default"
+          onClick={() => st.update((d) => ({ ...d, defaultMaster: id }), "Make default")}><Check className="size-3.5" aria-hidden />Make default</button></>}
+    </Head>
     <Sec title="Grid"><GridFields g={m.grid} set={(grid) => setMaster(id, { grid })} link={m.link} setLink={(link) => setMaster(id, { link })} /></Sec>
     <Sec title="Page numbers"><Row l="Show"><Toggle label="Page numbers" on={m.pn} onClick={() => setMaster(id, { pn: !m.pn })} /></Row><div className="mt-3"><SegC items={["Outer", "Centre", "Inner"]} on={m.pos} set={(i) => setMaster(id, { pos: i })} /></div><Row l="Position"><Val v="Bottom" /></Row></Sec></div> }
   return <div data-testid="insp-page">
     <Head t={`Page ${pages}`} s="Last page · faces the back endpaper" />
-    <Sec title="Page"><Row l="Master"><Val v="Master A" /></Row><Row l="Page colour">{pc}</Row></Sec></div>
+    <Sec title="Page"><Row l="Master"><Val v={`Master ${def}`} /></Row><Row l="Page colour">{pc}</Row></Sec></div>
 }
 
 /** v0.7.1: user-facing name of spread i — page numbers, never "Spread N" / "Cover". */

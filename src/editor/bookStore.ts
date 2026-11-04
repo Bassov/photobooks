@@ -1,5 +1,6 @@
 import {
   addSpread,
+  ensureDefaultParent,
   applyBookOp,
   CURRENT_SCHEMA_VERSION,
   defaultCover,
@@ -103,9 +104,11 @@ function createSessionBook(): Book {
     gallery: [],
     spreads: [],
   }
-  return ['spread-1', 'spread-2', 'spread-3'].reduce<Book>(
-    (book, id) => addSpread(book, { id }),
-    empty,
+  return ensureDefaultParent(
+    ['spread-1', 'spread-2', 'spread-3'].reduce<Book>(
+      (book, id) => addSpread(book, { id }),
+      empty,
+    ),
   )
 }
 

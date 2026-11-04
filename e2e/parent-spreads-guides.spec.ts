@@ -3,6 +3,7 @@ import { expect, test } from './fixtures/coverage'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { createBookViaLibrary } from './fixtures/createBookViaLibrary'
 import { dispatchCtrlWheel } from './fixtures/dispatchCtrlWheel'
+import { pickMaster } from './fixtures/spreadMaster'
 import {
   browserAssertNoLoaf,
   browserBeginLoafScenarioWindow,
@@ -192,10 +193,7 @@ test('Browser check: master guides show dashed and read-only on every spread usi
   await showSpread(page, two)
   const { fx, fy } = await rightPageFrame(page, two)
   await showSpread(page, none)
-  await page
-    .getByRole('radiogroup', { name: 'Master' })
-    .getByRole('radio', { name: 'None', exact: true })
-    .check({ force: true })
+  await pickMaster(page, 'None')
 
   // Two master guides: one across, one down through a right-page frame.
   await openMasters(page)
@@ -406,8 +404,9 @@ test('a master guide survives save and reload', async ({ page }) => {
     timeout: 15_000,
   })
   await createBookViaLibrary(page, 'Master guides')
+  // default-master: the new book's default Master A is shown first.
   await page.getByTestId('left-tab-masters').click()
-  await page.getByRole('button', { name: 'New master' }).click()
+  await expect(page.getByTestId('master-label')).toHaveText('Master A')
   await expect(masterSpread(page)).toBeVisible()
   await showRulers(page)
   await pullOnMaster(page, 0.4)
