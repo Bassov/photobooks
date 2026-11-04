@@ -54,7 +54,7 @@ function PreviewTopBar(props: React.ComponentProps<typeof TopBar>) {
       <TopBar {...props} onPreview={() => setOpen(true)} />
       {open && (
         <div className="fixed inset-0 z-[80]" data-testid="book-preview">
-          <SiteViewer single title="Preview" onClose={() => setOpen(false)} books={[card]} initial={{ page: "book", book: "preview", spread: st.cur }} />
+          <SiteViewer single title="Preview" onClose={() => setOpen(false)} books={[card]} initial={{ page: "book", book: "preview", slide: st.cur + 1 }} />
         </div>
       )}
     </>

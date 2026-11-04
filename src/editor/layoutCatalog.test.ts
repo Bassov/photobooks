@@ -4,6 +4,7 @@ import {
   generateTemplateFrames,
   getSpreadSizeMm,
   type Book,
+  type Spread,
 } from '../core'
 import { makeBook, makeSpread } from '../core/testing/fixtures'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
@@ -205,9 +206,20 @@ describe('mergeLayouts', () => {
   })
 })
 
+const SLOT = [{ x: 0, y: 0, w: 62, h: 100 }]
+
+/** Page 1, spread 2–3, last page (300 × 300 mm pages). */
+const threeSpreads = () =>
+  makeBook({
+    spreads: [
+      makeSpread({ id: 's0' }),
+      makeSpread({ id: 's1' }),
+      makeSpread({ id: 's2' }),
+    ],
+  })
+
 describe('layoutRects', () => {
   afterEach(() => {
-    window.localStorage.clear()
     resetSavedTemplatesForTests()
   })
 
@@ -215,33 +227,79 @@ describe('layoutRects', () => {
     const spread = makeSpread({ id: 's1' })
     const book = makeBook({ spreads: [spread] })
     expect(layoutRects('full-bleed', book, 0, spread)?.length).toBe(1)
-    const saved = addSavedTemplate('Mine', [{ x: 0, y: 0, w: 62, h: 100 }])
+    const saved = addSavedTemplate('Mine', SLOT, 1)
     expect(layoutRects(saved.id, book, 0, spread)).toEqual([
       { x: 0, y: 0, width: 186, height: 300 },
     ])
     expect(layoutRects('user-missing', book, 0, spread)).toBeNull()
+  })
+
+  it('lays a saved layout out only on spreads of its page count', () => {
+    const book = threeSpreads()
+    const [first, middle, last] = book.spreads as [Spread, Spread, Spread]
+    const spreadLayout = addSavedTemplate('Spread', SLOT, 2)
+    const pageLayout = addSavedTemplate('Page', SLOT, 1)
+    expect(layoutRects(spreadLayout.id, book, 1, middle)).toEqual([
+      { x: 0, y: 0, width: 372, height: 300 },
+    ])
+    expect(layoutRects(spreadLayout.id, book, 0, first)).toBeNull()
+    expect(layoutRects(spreadLayout.id, book, 2, last)).toBeNull()
+    expect(layoutRects(pageLayout.id, book, 2, last)).toEqual([
+      { x: 0, y: 0, width: 186, height: 300 },
+    ])
+    expect(layoutRects(pageLayout.id, book, 1, middle)).toBeNull()
+  })
+})
+
+describe('templateName', () => {
+  afterEach(() => {
+    resetSavedTemplatesForTests()
+  })
+
+  it('names a saved layout; with a page count only one saved on it', () => {
+    const saved = addSavedTemplate('Trip opener', SLOT, 2)
+    expect(templateName(saved.id)).toBe('Trip opener')
+    expect(templateName(saved.id, 2)).toBe('Trip opener')
+    expect(templateName(saved.id, 1)).toBeNull()
+    expect(templateName('full-bleed', 1)).toBe('Full bleed')
   })
 })
 
 describe('applyLayout', () => {
   afterEach(() => {
     resetBookStore()
-    window.localStorage.clear()
     resetSavedTemplatesForTests()
   })
 
-  it('applies a saved layout and ignores a deleted one', () => {
+  function seedBook(book = makeBook({ spreads: [makeSpread({ id: 's1' })] })) {
     resetBookStore({
-      book: makeBook({ spreads: [makeSpread({ id: 's1' })] }),
+      book,
       sessionMeta: new Map(),
       importRunning: false,
       importExpectedCount: 0,
     })
+  }
+
+  it('applies a saved layout and ignores a deleted one', () => {
+    seedBook()
     const before = getBookStoreSnapshot().book
     applyLayout('s1', 'user-missing')
     expect(getBookStoreSnapshot().book).toBe(before)
-    const saved = addSavedTemplate('Mine', [{ x: 0, y: 0, w: 62, h: 100 }])
+    const saved = addSavedTemplate('Mine', SLOT, 1)
     applyLayout('s1', saved.id)
     expect(getBookStoreSnapshot().book.spreads[0]?.templateId).toBe(saved.id)
+  })
+
+  it('leaves a spread of another page count unchanged (no squash)', () => {
+    seedBook(threeSpreads())
+    const before = getBookStoreSnapshot().book
+    const spreadLayout = addSavedTemplate('Spread', SLOT, 2)
+    applyLayout('s0', spreadLayout.id)
+    applyLayout('s2', spreadLayout.id)
+    expect(getBookStoreSnapshot().book).toBe(before)
+    applyLayout('s1', spreadLayout.id)
+    expect(getBookStoreSnapshot().book.spreads[1]?.templateId).toBe(
+      spreadLayout.id,
+    )
   })
 })

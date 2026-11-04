@@ -308,7 +308,7 @@ click-suppression can clear.
 
 ### Requirement: Spread pager
 
-The renderer SHALL provide a shared pager showing one spread at a time, navigable by arrow keys, Space, click on either half and horizontal swipe, exiting on Esc; neighbouring spreads SHALL stay mounted for preload and transitions SHALL use only `transform` and `opacity`. The fitted spread SHALL lay out at its on-screen size (never a scaled tree), so text lines sit as on the canvas.
+The renderer SHALL provide a shared pager showing one spread at a time, navigable by arrow keys, Space, click on either half and horizontal swipe, exiting on Esc; neighbouring spreads SHALL stay mounted for preload and transitions SHALL use only `transform` and `opacity`. The fitted spread SHALL lay out at its on-screen size (never a scaled tree), so text lines sit as on the canvas. While open it SHALL hold keyboard focus (Tab / Shift+Tab never leave it) and on exit SHALL return focus to the control that opened it.
 
 #### Scenario: Next on the last spread
 
@@ -318,7 +318,7 @@ The renderer SHALL provide a shared pager showing one spread at a time, navigabl
 #### Scenario: Click halves and Esc
 
 - **WHEN** the user clicks the right (left) half, or presses Esc
-- **THEN** the pager moves forward (back), or calls exit
+- **THEN** the pager moves forward (back), or calls exit and focus returns to the opener
 
 ### Requirement: Empty frames are selectable
 
@@ -363,11 +363,11 @@ For a spread or a photo the inspector SHALL open with one kit `InspectorShell` h
 
 ### Requirement: Saved layout templates
 
-"Save as template" (header `+` or the button under the tiles) SHALL save the selected spread's layout under an inline-editable name. Saved layouts SHALL persist per browser, be listed under "My templates" and under "All" after the builtins with the same slot count, apply like builtins, and offer Rename / Duplicate / Delete from a tile menu.
+"Save as template" (header `+` or the button under the tiles) SHALL save the selected spread's layout under an inline-editable name. Saved layouts SHALL persist in the open library's `library.json` (every change written through the library update, the list reloaded when another library opens; without a library they last for the session), be listed under "My templates" and under "All" after the builtins with the same slot count, apply like builtins, and offer Rename / Duplicate / Delete from a tile menu. Layouts a browser kept under `localStorage` `photobooks.templates.v1` SHALL be imported once as two-page layouts into the first library opened with no templates, and the key removed after the write.
 
 #### Scenario: Save and reload
 
-- **WHEN** a new user (My templates 0) saves spread 2–3, names it "Trip opener" and reloads
+- **WHEN** a new user (My templates 0) in a library saves spread 2–3, names it "Trip opener" and reloads
 - **THEN** "My templates 1" lists "Trip opener" and "All" lists it after the builtins with its slot count
 
 #### Scenario: Kit fixture

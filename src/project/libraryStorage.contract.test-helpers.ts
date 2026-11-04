@@ -41,7 +41,7 @@ export function runLibraryStorageContract(
       const library = await storage.getLibrary()
 
       expect(listed).toEqual({ ok: true, value: [] })
-      expect(library).toEqual({ ok: true, value: { books: {} } })
+      expect(library).toEqual({ ok: true, value: { books: {}, templates: [] } })
     })
 
     it('creates a book then includes it in the list', async () => {
@@ -135,13 +135,49 @@ export function runLibraryStorageContract(
         'book-1': { status: 'published' as const },
         'book-2': { status: 'draft' as const },
       }
-      const updated = await storage.updateLibrary({ books })
+      const templates = [
+        {
+          id: 'user-a',
+          name: 'Opener',
+          pages: 2 as const,
+          slots: [{ x: 0, y: 0, w: 62, h: 100 }],
+        },
+        {
+          id: 'user-b',
+          name: 'Cover',
+          pages: 1 as const,
+          slots: [{ x: 10, y: 10, w: 80, h: 80 }],
+        },
+      ]
+      const updated = await storage.updateLibrary({ books, templates })
       const got = await storage.getLibrary()
       const emptied = await storage.updateLibrary({})
 
-      expect(updated).toEqual({ ok: true, value: { books } })
-      expect(got).toEqual({ ok: true, value: { books } })
-      expect(emptied).toEqual({ ok: true, value: { books: {} } })
+      expect(updated).toEqual({ ok: true, value: { books, templates } })
+      expect(got).toEqual({ ok: true, value: { books, templates } })
+      expect(emptied).toEqual({
+        ok: true,
+        value: { books: {}, templates: [] },
+      })
+    })
+
+    it('drops an invalid template on write and keeps the others in order', async () => {
+      const { storage } = createHarness()
+      const keep = {
+        id: 'user-a',
+        name: 'A',
+        pages: 2 as const,
+        slots: [{ x: 0, y: 0, w: 50, h: 100 }],
+      }
+      const bad = { ...keep, id: 'user-b', pages: 3 as unknown as 2 }
+      const last = { ...keep, id: 'user-c', name: 'C' }
+
+      await storage.updateLibrary({ templates: [keep, bad, last] })
+
+      expect(await storage.getLibrary()).toEqual({
+        ok: true,
+        value: { books: {}, templates: [keep, last] },
+      })
     })
 
     it('returns not-found for load, save, and delete of a missing id', async () => {
@@ -251,7 +287,7 @@ export function runLibraryStorageContract(
       })
       expect(await harness.storage.getLibrary()).toEqual({
         ok: true,
-        value: { books: {} },
+        value: { books: {}, templates: [] },
       })
       expect(
         await harness.storage.createBook(makeBook({ id: 'other' })),

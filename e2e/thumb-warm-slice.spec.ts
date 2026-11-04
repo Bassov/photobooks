@@ -168,7 +168,7 @@ test.describe('frame-budget gates', () => {
       .toBe(COUNT)
     const stats = await warmStats(page)
     console.log(
-      `thumb-warm-slice warm: settled ${String(COUNT)} in ${String(Date.now() - restoredAt)} ms after restore, longest slice ${stats.longestSliceMs.toFixed(1)} ms`,
+      `thumb-warm-slice warm: settled ${String(COUNT)} in ${String(Date.now() - restoredAt)} ms after restore, longest slice ${stats.longestSliceMs.toFixed(1)} ms, ${String(stats.passCount)} passes at ${(stats.passTotalMs / Math.max(1, stats.passCount)).toFixed(2)} ms each`,
     )
     expect(stats.longestSliceMs).toBeLessThan(LONG_TASK_MS)
   })

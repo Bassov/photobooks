@@ -76,6 +76,15 @@ export {
   type ResolvedFrame,
   type ResolvedGuide,
 } from './parentSpreads'
+export {
+  hideParentItem,
+  keepOverridesAsOwn,
+  overrideParentFrame,
+  overrideParentGuide,
+  resetParentItem,
+  resetSpreadToParent,
+} from './parentSpreads'
+export { findBookFrame, findSpreadFrame, spreadFrames } from './update'
 export { TRIM_MAX_MM, TRIM_MIN_MM } from './ops/bookSettings'
 export {
   frameStylePresets,
@@ -161,6 +170,7 @@ export {
   spreadLayoutSlots,
   type LayoutSlotPct,
 } from './templates/custom'
+export type { SavedTemplate } from './templates/custom'
 export { setSpreadBackground, setSpreadParent } from './ops/spreadLook'
 
 export {
@@ -183,6 +193,7 @@ export {
   PAGE_MAX,
   PAGE_MIN,
   PAGE_STEP,
+  pageLabel,
   pagesOf,
   spineWidthForPages,
 } from './pages'

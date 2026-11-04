@@ -548,9 +548,25 @@ test('the kit fixture shows All 13 / My templates 3 by photo count', async ({
     .toEqual(['Quote + photo', 'Travel opener', 'Polaroid pair'])
 })
 
-test('a new user has My templates 0; a saved spread appears in My templates and All and persists', async ({
+/** `library.json` of the `?testLibrary=1` OPFS library, parsed. */
+async function readTestLibraryJson(page: Page): Promise<unknown> {
+  return page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory()
+    const dir = await root.getDirectoryHandle('photobooks-e2e-library')
+    const file = await (await dir.getFileHandle('library.json')).getFile()
+    return JSON.parse(await file.text()) as unknown
+  })
+}
+
+test('a new user has My templates 0; a saved spread appears in My templates and All and persists in library.json', async ({
   page,
 }) => {
+  // Templates live in the library folder: run in the OPFS test library.
+  await page.goto('/?testLibrary=1')
+  await expect(page.getByTestId('book-size')).toContainText(/· saved$/, {
+    timeout: 15_000,
+  })
+  await page.mouse.move(0, 899)
   await expect(page.getByTestId('tab-all')).toHaveText('All 10')
   await expect(page.getByTestId('tab-mine')).toHaveText('My templates 0')
   await selectSecondSpread(page)
@@ -588,7 +604,17 @@ test('a new user has My templates 0; a saved spread appears in My templates and 
       'Hero + grid',
     ])
 
-  await reopenEditor(page)
+  await expect
+    .poll(() => readTestLibraryJson(page))
+    .toMatchObject({
+      schemaVersion: 3,
+      templates: [{ name: 'Trip opener', pages: 2 }],
+    })
+
+  await page.reload()
+  await expect(page.getByTestId('layout-section')).toBeVisible({
+    timeout: 15_000,
+  })
   await expect(page.getByTestId('tab-mine')).toHaveText('My templates 1')
   await page.getByTestId('tab-mine').click()
   await expect(allTiles(page).getByTestId('tpl-name')).toHaveText([

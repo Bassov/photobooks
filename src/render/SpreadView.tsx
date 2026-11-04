@@ -50,6 +50,14 @@ import { PHOTO_CAPTION_SIZE_MM, textNodeStyle } from './textStyles'
 import { ICON_GLYPHS } from '../ui/icons/glyphs'
 import './SpreadView.css'
 
+/** Responsive source of one frame photo (published site): `<img>` attributes. */
+export interface FrameImage {
+  src: string
+  srcset: string
+  sizes: string
+  loading?: 'lazy' | 'eager'
+}
+
 /** Keeps the crop-mode frame (and its ghost) above neighbouring frames. */
 const CROP_Z_BOOST = 1000
 
@@ -62,6 +70,18 @@ const PARENT_LAYER_STYLE: CSSProperties = {
   inset: 0,
   zIndex: 0,
   pointerEvents: 'none',
+}
+
+/** Editor overlay (grid, guides, template preview): clicks fall through. */
+const OVERLAY_LAYER_STYLE: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  pointerEvents: 'none',
+}
+
+/** Just above the highest spread frame, never below 1. */
+function overlayZ(items: readonly ResolvedItem[]): number {
+  return Math.max(0, ...items.map((item) => item.z)) + 1
 }
 
 const FULL_CROP = { x: 0, y: 0, width: 1, height: 1 } as const
@@ -167,6 +187,7 @@ export function SpreadView({
   spreadId,
   resolved,
   previewUrlFor,
+  imageFor,
   tierFor,
   frameControlFor,
   isMissingAsset,
@@ -179,6 +200,11 @@ export function SpreadView({
   spreadId: string
   resolved: ResolvedSpread
   previewUrlFor: (assetId: string) => string | undefined
+  /**
+   * Srcset source per photo; `share` = frame width / spread width, for the
+   * caller's `sizes`. Undefined (or no prop) falls back to `previewUrlFor`.
+   */
+  imageFor?: (assetId: string, share: number) => FrameImage | undefined
   tierFor?: (assetId: string) => number | undefined
   frameControlFor?: (item: ResolvedItem) => FrameControl
   /** When true, show hatched missing placeholder instead of a stale preview. */
@@ -215,6 +241,9 @@ export function SpreadView({
     const inert = thumb || item.parent === true
     const missingId = missingAssetId(item.assetId, isMissingAsset)
     const missing = missingId !== undefined
+    const source = previewUrlUnlessMissing(missing, item.assetId, (id) =>
+      imageFor?.(id, item.rectMm.width / resolved.spreadWidthMm),
+    )
     return (
       <SpreadFrame
         key={item.frameId}
@@ -226,11 +255,11 @@ export function SpreadView({
         assetName={
           missingId === undefined ? undefined : assetNameFor?.(missingId)
         }
-        previewUrl={previewUrlUnlessMissing(
-          missing,
-          item.assetId,
-          previewUrlFor,
-        )}
+        source={source}
+        previewUrl={
+          source?.src ??
+          previewUrlUnlessMissing(missing, item.assetId, previewUrlFor)
+        }
         tier={tierUnlessMissing(missing, item.assetId, tierFor)}
         control={item.parent === true ? undefined : controls.get(item.frameId)}
         handles={pressedItems.length === 1}
@@ -303,7 +332,18 @@ export function SpreadView({
           style={groupBox}
         />
       )}
-      {thumb ? null : overlay}
+      {thumb || overlay === undefined ? null : (
+        // One layer above every spread frame (frames paint at their `z`), so
+        // the grid shows on both pages, not only beside a z-0 frame. A crop
+        // frame (+1000) and the group box (999) stay above it.
+        <div
+          className="spread-view-overlay"
+          data-testid="spread-view-overlay"
+          style={{ ...OVERLAY_LAYER_STYLE, zIndex: overlayZ(spreadItems) }}
+        >
+          {overlay}
+        </div>
+      )}
     </div>
   )
 }
@@ -356,6 +396,7 @@ function TextNode({
 
 function SpreadFrame({
   item,
+  source,
   previewUrl,
   tier,
   pxPerMm,
@@ -372,6 +413,8 @@ function SpreadFrame({
   thumb: boolean
   lowDpiBadge: boolean
   item: ResolvedItem
+  /** Srcset source; `previewUrl` is its `src` when set. */
+  source: FrameImage | undefined
   previewUrl: string | undefined
   tier: number | undefined
   pxPerMm: number
@@ -492,6 +535,9 @@ function SpreadFrame({
           alt=""
           decoding="async"
           src={previewUrl}
+          srcSet={source?.srcset}
+          sizes={source?.sizes}
+          loading={source?.loading}
           data-tier={tier}
           style={imageStyle}
         />,
