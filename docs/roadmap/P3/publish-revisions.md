@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-- [ ] `draft | published` status in `library.json` (no book schema bump; a `library.json` migration on the `schemaVersion` from `library-json-schema`), frozen `published.json` revision, pure "assets needed for the site"
+- [x] `draft | published` status in `library.json` (no book schema bump; a `library.json` migration on the `schemaVersion` from `library-json-schema`), frozen `published.json` revision, pure "assets needed for the site"
 - **Done when:** `library.json` migration with draft / published PBT green; "assets needed for the site" unit tests
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
