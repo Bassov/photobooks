@@ -10,7 +10,6 @@ import {
   nextZoomOut,
   PAGE_MAX,
   PAGE_MIN,
-  pageLabel,
   pagesNote,
   pagesOf,
   panelHotkeyAction,
@@ -84,28 +83,8 @@ describe('editorChromePanels', () => {
     )
   })
 
-  it('labels a 6-page and an 8-page book like the kit list (M46)', () => {
-    expect([0, 1, 2, 3].map((i) => pageLabel(i, 4))).toEqual([
-      '1',
-      '2–3',
-      '4–5',
-      '6',
-    ])
-    expect([0, 1, 2, 3, 4].map((i) => pageLabel(i, 5))).toEqual([
-      '1',
-      '2–3',
-      '4–5',
-      '6–7',
-      '8',
-    ])
-    // A one-spread book is page 1 only.
-    expect(pageLabel(0, 1)).toBe('1')
-  })
-
   it('formats kit page and zoom chrome labels', () => {
     expect(pagesOf(3)).toBe(6)
-    expect(pageLabel(0)).toBe('1')
-    expect(pageLabel(2)).toBe('4–5')
     expect(zoomChromeLabel(0.5, 0.5)).toBe('Fit')
     expect(zoomChromeLabel(0.4985, 0.5)).toBe('Fit')
     expect(zoomChromeLabel(0.5, null)).toBe(formatZoomPercent(0.5))

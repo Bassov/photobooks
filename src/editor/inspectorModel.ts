@@ -1,5 +1,6 @@
 import {
   getSpreadPageCount,
+  pageLabel,
   spreadParent,
   type Book,
   type Frame,
@@ -8,7 +9,6 @@ import {
   type GridValues,
   type Spread,
 } from '../core'
-import { pageLabel } from './editorChromePanels'
 import type { FrameSelection, FrameSource } from './frameSelection'
 
 export type InspectorView =

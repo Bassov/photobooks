@@ -49,6 +49,34 @@ test('present opens fullscreen without editor chrome; keys, click and Esc work',
   await expect(page.getByTestId('pasteboard-scroll')).toBeVisible()
 })
 
+test('Tab and Shift+Tab stay inside the presentation; Esc returns focus to Present', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=painter')
+  const present = page.getByTestId('present')
+  await expect(present).toBeEnabled()
+  await present.click()
+  await expect(page.getByTestId('presentation')).toBeVisible()
+
+  const focusInside = () =>
+    page.evaluate(
+      () =>
+        document.activeElement?.closest('[data-testid="presentation"]') != null,
+    )
+  expect(await focusInside()).toBe(true)
+  for (const key of [
+    ...Array<string>(10).fill('Tab'),
+    ...Array<string>(10).fill('Shift+Tab'),
+  ]) {
+    await page.keyboard.press(key)
+    expect(await focusInside(), key).toBe(true)
+  }
+
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('presentation')).toHaveCount(0)
+  await expect(present).toBeFocused()
+})
+
 test.describe('frame-budget gates', () => {
   test('flipping through 40 spreads in presentation stays within frame-budget gates', async ({
     page,

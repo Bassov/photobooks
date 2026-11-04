@@ -214,11 +214,28 @@
   margin-inline: auto;
   contain: layout paint style;
   content-visibility: auto;
+  /* Paint containment clips at the slot box; the guides overhang the page
+     (Guides.css), so the clip reaches that far out. */
+  overflow-clip-margin: var(--guide-overhang);
+}
+
+/* The paper keeps the slot-box clip it had before the margin: page edges,
+   the gap below, a single page's empty half. Guides are its sibling. */
+.pasteboard-slot .spread-view {
+  clip-path: inset(0 0 calc(-1 * var(--slot-pad)) 0);
+}
+
+.pasteboard-slot[data-page-side='right'] .spread-view {
+  clip-path: inset(0 0 calc(-1 * var(--slot-pad)) -100%);
+}
+
+.pasteboard-slot[data-page-side='left'] .spread-view {
+  clip-path: inset(0 -100% calc(-1 * var(--slot-pad)) 0);
 }
 
 /* Kit #/demo: page 1 is the right half of a spread-wide slot, a single last
    page the left half; the other half has no paper. */
-.pasteboard-slot[data-page-side='right'] > .spread-view {
+.pasteboard-slot[data-page-side='right'] > .spread-stage {
   margin-left: auto;
 }
 
