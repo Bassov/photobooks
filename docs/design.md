@@ -38,6 +38,8 @@ Menus (`src/ui/Menu`, `src/ui/ListSelect` options): kit rows `py-1.5 text-sm` at
 
 Page numbers: 8 screen px under each page, 11 px, at every zoom. Designer-accepted deviation (2026-10-31): page numbers hidden when the gap cannot hold 8 px + 11 px label.
 
+Folios (printed page numbers, Designer `page-numbers` 2026-11-04) are book content, not chrome: Inter 3.1 mm × px/mm (no minimum), 400, line-height 1.4, `#232220`, tabular-nums, in a 20 × 4.34 mm box centred in the master's bottom margin band and kept inside the safe area; Outer / Centre / Inner per page. Painted under the spread's own frames, never in spread-list thumbnails. The chrome page labels above stay physical.
+
 In-canvas chrome (empty / missing hints, crop tag, dpi and lock badges) keeps its screen px through a live zoom: `[data-camera-frame]` + `--cam-scale` undo the world scale in the same rAF as the page numbers. The spine fold is the kit gradient, 3 % of the spread, a plain world child that scales with it (round 11, M73). No frame size pill (Owner, round 7).
 
 UI ref: `uikit#/feature/design-tokens`.
