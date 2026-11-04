@@ -61,7 +61,12 @@ export function isPointerActivation(event?: { detail: number }): boolean {
 export function resolveFrameActivation(input: {
   /** The single selected frame; null when none or 2 or more are selected. */
   source: FrameDragSource | null
-  target: FrameDragSource & { filled: boolean; locked?: boolean }
+  /** `text`: a text frame is never a swap target. */
+  target: FrameDragSource & {
+    filled: boolean
+    locked?: boolean
+    text?: boolean
+  }
   /** False when the selected source is an empty frame (nothing to move). */
   sourceFilled?: boolean
   sourceLocked?: boolean
@@ -84,7 +89,7 @@ export function resolveFrameActivation(input: {
     // Keyboard keeps the aria-pressed toggle ("Cancel move").
     return input.pointer === true ? { type: 'noop' } : { type: 'clear-source' }
   }
-  if (input.sourceFilled === false) {
+  if (input.sourceFilled === false || input.target.text === true) {
     return { type: 'select-source' }
   }
   if (input.sourceLocked === true || input.target.locked === true) {

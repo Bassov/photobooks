@@ -387,7 +387,8 @@ describe('frameGesture · draw', () => {
     pointer('pointermove', window, 200, 200)
     pointer('pointerup', window, 200, 200)
     expect(frames()).toHaveLength(1)
-    for (const tool of ['select', 'text', 'hand'] as const) {
+    // Text draws text frames (frameGesture.text.test.ts).
+    for (const tool of ['select', 'hand'] as const) {
       setEditorTool(tool)
       draw([10, 10], [80, 80])
     }

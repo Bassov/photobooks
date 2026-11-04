@@ -14,6 +14,12 @@ import {
 import { GridOverlay, type GridOverlayVariant } from './GridOverlay'
 import { GuidesOverlay } from './GuidesOverlay'
 import { TemplatePreviewOverlay } from './TemplatePreviewOverlay'
+import { TextEditOverlay } from './TextEditOverlay'
+import {
+  getSpreadTextEditKey,
+  startTextEdit,
+  subscribeTextEdit,
+} from './textEditStore'
 import { armFrameDragClick, activateFrame } from './galleryDrop'
 import { setDragSource } from './dropHover'
 import {
@@ -114,6 +120,11 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     () => cropFrameOnSpread(spreadId),
     () => cropFrameOnSpread(spreadId),
   )
+  const editingId = useSyncExternalStore(
+    subscribeTextEdit,
+    () => getSpreadTextEditKey(spreadId),
+    () => getSpreadTextEditKey(spreadId),
+  )
   const spreadAssetIds =
     snapshot === undefined ? [] : assetIdsOnSpread(snapshot.resolved.items)
   // Per-spread keys: global tier/thumb emits must not re-render unrelated spreads.
@@ -185,11 +196,24 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
           filled,
           isPointerActivation(event),
           event?.shiftKey === true,
+          item.text !== undefined,
         )
       },
     }
     if (pressed) {
       control.pressed = true
+    }
+    if (item.text) {
+      control.onDoubleActivate = (event) => {
+        if (event?.shiftKey === true) {
+          return
+        }
+        setFrameSource(frame)
+        startTextEdit(frame)
+      }
+      if (editingId === item.frameId) {
+        control.editing = true
+      }
     }
     if (filled) {
       control.onDoubleActivate = (event) => {
@@ -246,6 +270,11 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
             />
             <GuidesOverlay spreadId={spreadId} pxPerMm={pxPerMm} />
             <TemplatePreviewOverlay spreadId={spreadId} />
+            <TextEditOverlay
+              spreadId={spreadId}
+              resolved={snapshot.resolved}
+              pxPerMm={pxPerMm}
+            />
           </>
         ),
         frameControlFor,

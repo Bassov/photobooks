@@ -1,4 +1,5 @@
 import {
+  editableSpread,
   getSpreadPageCount,
   spreadParent,
   type Book,
@@ -80,6 +81,20 @@ export function inspectorView(
   return spread
     ? { kind: 'spread', spread, spreadIndex: at }
     : { kind: 'empty' }
+}
+
+/** A selected text frame opens the Text inspector, not the Photo one. */
+export function isTextFrameTarget(
+  book: Book,
+  target: FrameSource | null,
+): boolean {
+  if (target === null) {
+    return false
+  }
+  const frame = editableSpread(book, target.spreadId)?.spread.frames.find(
+    (item) => item.id === target.frameId,
+  )
+  return frame?.kind === 'text'
 }
 
 function multiView(

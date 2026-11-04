@@ -24,6 +24,7 @@ import {
   canRedo,
   canUndo,
   coalesceKey,
+  dropStep,
   EMPTY_HISTORY,
   isUndoableOp,
   opLabel,
@@ -885,7 +886,21 @@ export function redoBook(): void {
   moveHistory(redoStep(history, snapshotOf(state.book)))
 }
 
-export function dispatchBookOp(op: BookOp): void {
+/**
+ * Take back the newest step if it still carries `key` (an empty new text
+ * frame): the book returns to its snapshot and nothing lands in redo.
+ */
+export function discardStep(key: string): boolean {
+  const move = dropStep(history, key)
+  moveHistory(move)
+  return move !== null
+}
+
+/**
+ * `historyKey` replaces the op's own coalesce key: ops sharing it, with
+ * nothing recorded in between, are one step (an edit session).
+ */
+export function dispatchBookOp(op: BookOp, historyKey?: string): void {
   const book = applyBookOp(state.book, op)
   if (book === state.book) {
     return
@@ -896,7 +911,7 @@ export function dispatchBookOp(op: BookOp): void {
       recordStep(
         history,
         snapshotOf(prev.book),
-        coalesceKey(op),
+        historyKey ?? coalesceKey(op),
         undefined,
         opLabel(op),
       ),

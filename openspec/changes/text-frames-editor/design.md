@@ -16,6 +16,7 @@
 | `src/editor/TextEditOverlay.tsx`     | textarea + overflow chips               |
 | `src/editor/TextEditOverlay.css`     | edit / chip chrome                      |
 | `src/editor/TextSection.tsx`         | Text inspector section                  |
+| `src/editor/TextSection.css`         | Text section field + hint               |
 | `src/editor/Inspector.tsx`           | `text` view                             |
 | `src/editor/inspectorModel.ts`       | text target check                       |
 | `src/editor/ConnectedSpreadView.tsx` | `editing`, overlay, dbl-click           |

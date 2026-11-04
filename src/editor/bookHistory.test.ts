@@ -5,6 +5,7 @@ import {
   canRedo,
   canUndo,
   coalesceKey,
+  dropStep,
   EMPTY_HISTORY,
   isUndoableOp,
   recordStep,
@@ -36,6 +37,23 @@ describe('bookHistory', () => {
   it('returns null at the ends', () => {
     expect(undoStep(EMPTY_HISTORY, snap('a'))).toBeNull()
     expect(redoStep(EMPTY_HISTORY, snap('a'))).toBeNull()
+  })
+
+  it('drops the newest step while it still carries its key, with no redo', () => {
+    const a = snap('a')
+    const b = snap('b')
+    const kept = recordStep(EMPTY_HISTORY, a, undefined, undefined, 'Move')
+    const h = recordStep(kept, b, 'add:t:1', undefined, 'Add text')
+    expect(dropStep(h, 'add:t:2')).toBeNull()
+    expect(dropStep(EMPTY_HISTORY, 'add:t:1')).toBeNull()
+    const dropped = dropStep(h, 'add:t:1')
+    expect(dropped?.snapshot).toBe(b)
+    expect(dropped?.history).toMatchObject({
+      past: [a],
+      pastLabels: ['Move'],
+      future: [],
+      key: undefined,
+    })
   })
 
   it('drops redo steps on a new record', () => {
