@@ -3,11 +3,12 @@
 Tag: prep
 Milestone: P3
 Title: spike
+Status: done
 
 ## Scope
 
-- [ ] Verify Workers static-asset limits/terms vs R2 public bucket + custom domain; browser CORS options
-- [ ] Record the decision in `docs/future-architecture.md`
+- [x] Verify Workers static-asset limits/terms vs R2 public bucket + custom domain; browser CORS options
+- [x] Record the decision in `docs/future-architecture.md`
 - **Done when:** decision recorded in `docs/future-architecture.md` with the chosen host, limits and cost
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
