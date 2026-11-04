@@ -7,9 +7,9 @@ Status: done
 
 ## Scope
 
-- [ ] Worker pool: resize presets from config, native JPEG / WebP encode, sRGB
-- [ ] Cache via `DerivedCache` by `(assetHash, presetId)`; benchmark
-- [ ] Derivative jobs at the lowest priority; scenario: edit with drag while derivatives encode — zero LoAF
+- [x] Worker pool: resize presets from config, native JPEG / WebP encode, sRGB
+- [x] Cache via `DerivedCache` by `(assetHash, presetId)`; benchmark
+- [x] Derivative jobs at the lowest priority; scenario: edit with drag while derivatives encode — zero LoAF
 - **Done when:** derivatives for the fixture library are deterministic (same hash twice); worker scenario zero LoAF
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
