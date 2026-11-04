@@ -1,5 +1,6 @@
 import {
   MIN_FRAME_EDGE_MM,
+  MIN_TEXT_FRAME_MM,
   editableSpread,
   findSpreadFrame,
   getSpreadPageCount,
@@ -37,6 +38,7 @@ import {
 } from './marquee'
 import { setSnapHint } from './snapHint'
 import { isTypingTarget } from './isTypingTarget'
+import { nextEditKey, startTextEdit } from './textEditStore'
 import {
   buildSnapIndex,
   paintedBox,
@@ -61,6 +63,7 @@ export interface SpreadContext {
   heightMm: number
   /** Client px per mm (layout px × camera zoom). */
   pxPerMm: number
+  pageCount: number
   index: SnapIndex
 }
 
@@ -71,6 +74,56 @@ interface DrawSession {
   origin: { x: number; y: number }
   rect: RectMm | null
   draft: HTMLElement
+  /** Text tool: below the slop the release is a click (60 × 14 mm). */
+  text: boolean
+  startX: number
+  startY: number
+}
+
+/** A Text click: 3 caption lines, 60 mm wide (Designer text-frames). */
+const TEXT_CLICK_MM = { width: 60, height: 14 } as const
+/** The page's safe area a Text click stays inside. */
+const TEXT_SAFE_MM = 6
+
+/**
+ * Text click box: top-left at the snapped point, clamped inside the clicked
+ * page's 6 mm safe area; never wider than the page allows.
+ */
+export function textClickRect(
+  point: { x: number; y: number },
+  spread: { widthMm: number; heightMm: number; pageCount: number },
+): RectMm {
+  const pageWidth = spread.widthMm / spread.pageCount
+  const page = clamp(Math.floor(point.x / pageWidth), 0, spread.pageCount - 1)
+  const left = page * pageWidth + TEXT_SAFE_MM
+  const width = Math.min(TEXT_CLICK_MM.width, pageWidth - 2 * TEXT_SAFE_MM)
+  const height = Math.min(
+    TEXT_CLICK_MM.height,
+    spread.heightMm - 2 * TEXT_SAFE_MM,
+  )
+  return {
+    x: round(clamp(point.x, left, left + pageWidth - 2 * TEXT_SAFE_MM - width)),
+    y: round(
+      clamp(point.y, TEXT_SAFE_MM, spread.heightMm - TEXT_SAFE_MM - height),
+    ),
+    width: round(width),
+    height: round(height),
+  }
+}
+
+/** Text drag box: the draft, grown to one caption line and 10 mm wide. */
+export function textDragRect(
+  rect: RectMm,
+  spread: { widthMm: number; heightMm: number },
+): RectMm {
+  const width = Math.max(rect.width, MIN_TEXT_FRAME_MM.width)
+  const height = Math.max(rect.height, MIN_TEXT_FRAME_MM.height)
+  return {
+    x: round(clamp(rect.x, 0, spread.widthMm - width)),
+    y: round(clamp(rect.y, 0, spread.heightMm - height)),
+    width: round(width),
+    height: round(height),
+  }
 }
 
 interface MoveSession {
@@ -265,6 +318,7 @@ export function spreadContext(
     return null
   }
   const guidesShown = getGuidesVisible()
+  const pageCount = getSpreadPageCount(spreadIndex, book.spreads.length)
   return {
     spreadId: spread.id,
     spread,
@@ -274,6 +328,7 @@ export function spreadContext(
     widthMm,
     heightMm,
     pxPerMm: box.width / widthMm,
+    pageCount,
     index: buildSnapIndex(
       spread.frames
         .filter((frame) => !excludeFrameIds.includes(frame.id))
@@ -283,11 +338,7 @@ export function spreadContext(
         ...book.guides,
         ...viewGuides(book, spreadIndex, spread).map(({ guide }) => guide),
       ].filter(() => guidesShown),
-      {
-        widthMm,
-        heightMm,
-        pageCount: getSpreadPageCount(spreadIndex, book.spreads.length),
-      },
+      { widthMm, heightMm, pageCount },
       // Built once per gesture, and only while the grid is shown; toggling
       // the grid mid-gesture leaves the anchors as built.
       getGridVisible() && getSnapOn()
@@ -545,14 +596,37 @@ export function installFrameGesture(): () => void {
       return
     }
     const frameEl = event.target.closest<HTMLElement>('.spread-frame')
+    const textFrame =
+      frameEl instanceof HTMLButtonElement &&
+      frameEl.getAttribute('data-kind') === 'text'
+    if (tool === 'text' && textFrame) {
+      // Text on a text frame: select it and type (Designer text-frames).
+      const spreadId = spreadEl.getAttribute('data-spread-id') ?? ''
+      const frameId = frameEl.getAttribute('data-frame-id') ?? ''
+      event.preventDefault()
+      setFrameSource({ spreadId, frameId })
+      setEditorTool('select')
+      // On release: the press would focus the frame button over the textarea.
+      window.addEventListener(
+        'pointerup',
+        () => {
+          armSwallow()
+          startTextEdit({ spreadId, frameId })
+        },
+        { once: true },
+      )
+      return
+    }
     // A set shows no handles: any press on a member's button is its body.
     const group =
       tool === 'select' && frameEl instanceof HTMLButtonElement
         ? groupSession(event, spreadEl, frameEl)
         : null
     if (
-      tool === 'frame' &&
-      (frameEl === null || event.target.closest('[data-handle]') !== null)
+      (tool === 'frame' &&
+        (frameEl === null || event.target.closest('[data-handle]') !== null)) ||
+      // Text starts on paper or over a photo frame (captions on photos).
+      tool === 'text'
     ) {
       const ctx = spreadContext(spreadEl, [])
       if (ctx === null) {
@@ -579,6 +653,9 @@ export function installFrameGesture(): () => void {
         origin: { x: raw.x + snap.dx, y: raw.y + snap.dy },
         rect: null,
         draft,
+        text: tool === 'text',
+        startX: event.clientX,
+        startY: event.clientY,
       }
     } else if (group !== null) {
       session = group
@@ -586,10 +663,10 @@ export function installFrameGesture(): () => void {
       tool === 'select' &&
       frameEl instanceof HTMLButtonElement &&
       event.target.closest('[data-handle]') === null &&
-      // Only an empty frame moves by its body. A filled frame, selected or
-      // not, keeps the photo drag-and-drop (kit #/demo step 17: the swap
-      // drag and its hint win over the move).
-      frameEl.getAttribute('data-filled') === 'false'
+      // Only an empty frame (or a text frame) moves by its body. A filled
+      // frame, selected or not, keeps the photo drag-and-drop (kit #/demo
+      // step 17: the swap drag and its hint win over the move).
+      (frameEl.getAttribute('data-filled') === 'false' || textFrame)
     ) {
       const frameId = frameEl.getAttribute('data-frame-id') ?? ''
       const ctx = spreadContext(spreadEl, [frameId])
@@ -671,6 +748,14 @@ export function installFrameGesture(): () => void {
 
   function drawMove(draw: DrawSession, event: PointerEvent): void {
     const { ctx } = draw
+    if (
+      draw.text &&
+      draw.rect === null &&
+      Math.hypot(event.clientX - draw.startX, event.clientY - draw.startY) <
+        MOVE_SLOP_PX
+    ) {
+      return
+    }
     const raw = {
       x: clamp((event.clientX - ctx.left) / ctx.pxPerMm, 0, ctx.widthMm),
       y: clamp((event.clientY - ctx.top) / ctx.pxPerMm, 0, ctx.heightMm),
@@ -846,7 +931,28 @@ export function installFrameGesture(): () => void {
     })
   }
 
+  function commitText(draw: DrawSession): void {
+    const { ctx } = draw
+    const rect =
+      draw.rect === null
+        ? textClickRect(draw.origin, ctx)
+        : textDragRect(draw.rect, ctx)
+    const { spreadId } = ctx
+    const frameId = nextFrameId(ctx.spread)
+    const key = nextEditKey('add', frameId)
+    dispatchBookOp({ type: 'addTextFrame', spreadId, id: frameId, rect }, key)
+    // The release must not click the photo frame under a Text press.
+    armSwallow()
+    setFrameSource({ spreadId, frameId })
+    setEditorTool('select')
+    startTextEdit({ spreadId, frameId }, key)
+  }
+
   function commitDraw(draw: DrawSession): void {
+    if (draw.text) {
+      commitText(draw)
+      return
+    }
     const rect = draw.rect
     if (
       rect === null ||
@@ -918,14 +1024,16 @@ export function installFrameGesture(): () => void {
     }
   }
 
-  // A group press on a filled frame must never become a native image drag,
-  // and a marquee must not drag or text-select what it crosses.
+  // A group press on a filled frame must never become a native image drag
+  // (nor a Text press over a photo), and a marquee must not drag or
+  // text-select what it crosses.
   // An override press on a filled parent item moves its copy, never drags the photo.
   const onDragStart = (event: Event): void => {
     if (
       session?.kind === 'group' ||
       session?.kind === 'marquee' ||
-      session?.kind === 'move'
+      session?.kind === 'move' ||
+      session?.kind === 'draw'
     ) {
       event.preventDefault()
     }

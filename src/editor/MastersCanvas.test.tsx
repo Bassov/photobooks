@@ -51,8 +51,8 @@ describe('MastersCanvas', () => {
     expect(screen.queryByTestId('masters-canvas')).toBeNull()
   })
 
-  it('shows the empty note for a book that never had parents', () => {
-    resetBookStore()
+  it('shows the empty note for a book without parents', () => {
+    loadParents([])
     setLeftPanelTab('masters')
     render(<MastersCanvas />)
     expect(screen.getByTestId('masters-canvas-empty')).toBeTruthy()

@@ -289,12 +289,17 @@ Schema version 10 SHALL let a book store `parents` (each with id, name, shared f
 
 ### Requirement: Parent spread editing
 
-The book SHALL support creating a parent (id unused by any spread or parent, name "Master `<next free letter>`", no items), renaming it (trimmed, non-empty; else unchanged) and deleting it; deleting SHALL set `parentId` to `null` on spreads that stored its id and drop a matching `defaultParentId`, so those spreads resolve to None. Every spread item op addressed to a parent id SHALL edit that parent's items exactly as it edits a spread's, and the parent SHALL resolve and paint as a two-page spread. Each create / rename / delete / item edit MUST be one history step and MUST notify only the parent and the spreads that resolve to it. The editor's Masters mode SHALL list the book's parents (thumb + name, New master, Rename, Delete) and show the selected parent on the canvas, where its items are added, moved and resized like spread items; the Masters list scrolls inside its panel only. The master canvas SHALL show the parent's `guides` like spread guides, show the rulers while rulers are on, and add / move / remove guides in `parent.guides` exactly as on a spread (ruler drag adds, release commits one history step, drop on its ruler removes).
+The book SHALL support creating a parent (id unused by any spread or parent, name "Master `<next free letter>`", no items), renaming it (trimmed, non-empty; else unchanged) and deleting it; deleting SHALL set `parentId` to `null` on spreads that stored its id, so those spreads resolve to None. Every new book and every book opened from the library SHALL have a default parent: without a known `defaultParentId` an empty parent is added and set as the default (no stored `parentId` changes); deleting the default parent and clearing the default while parents exist MUST leave the book unchanged, and Make default sets `defaultParentId` (spreads without a stored `parentId` follow it). Every spread item op addressed to a parent id SHALL edit that parent's items exactly as it edits a spread's, and the parent SHALL resolve and paint as a two-page spread. Each create / rename / delete / item edit MUST be one history step and MUST notify only the parent and the spreads that resolve to it. The editor's Masters mode SHALL list the book's parents (thumb + name, a "Default" tag on the default, New master, Make default on the others, Rename, Delete disabled on the default) under a note naming the default, and show the selected parent on the canvas, where its items are added, moved and resized like spread items; the Masters list scrolls inside its panel only. The master canvas SHALL show the parent's `guides` like spread guides, show the rulers while rulers are on, and add / move / remove guides in `parent.guides` exactly as on a spread (ruler drag adds, release commits one history step, drop on its ruler removes).
 
 #### Scenario: Delete falls back to None
 
-- **WHEN** parent P is the book default and spread 2 stores `parentId` P
-- **THEN** deleting P removes it, `defaultParentId` and spread 2's parent resolve to none, and no spread paints a parent layer
+- **WHEN** Master A is the book default, spread 2 stores `parentId` Master B, and Master B is deleted, then Master A
+- **THEN** Master B is removed and spread 2 resolves to None; deleting Master A leaves the book unchanged
+
+#### Scenario: A new book has Master A as default
+
+- **WHEN** a new book is created, then Master B is added and made the default
+- **THEN** the book first has one empty parent "Master A" as `defaultParentId` used by every spread, then every spread without a stored `parentId` resolves to Master B
 
 #### Scenario: Move once, every spread updates
 
@@ -317,7 +322,7 @@ A spread SHALL override a resolved parent frame or guide (`overrideParentFrame` 
 
 ### Requirement: Master inspector and inherited grid
 
-In Masters mode the Inspector SHALL show, for the shown parent, a head (parent name; "Used by N pages" / "Used by 1 page" / "Not used yet", counting the pages of every spread that resolves to it) and a GRID section (Columns, Rows, Gutter, Row gap, margins T / B / I / O with a link toggle). A committed field MUST write one `setSpreadGrid` patch to the parent (one history step); while linked, a margin edit writes all four margins. A frame selected on the master SHALL show the spread frame inspector; Esc or an empty click on the master canvas returns to the master inspector; with no parents the Inspector SHALL show "Create a master with New master to set its grid.". The master canvas SHALL always draw the parent's grid (outside Preview) and its name below the spread. The effective grid of a spread SHALL be book → parent → spread, a field set only by the parent reporting source `master`; a parent grid edit MUST re-render only the parent and the spreads resolving to it.
+In Masters mode the Inspector SHALL show, for the shown parent, a head (parent name; for the default "Default · all N pages" / "Default · U of N pages" / "Default · no pages" over all book pages, else "Used by N pages" / "Used by 1 page" / "Not used yet", counting the pages of every spread that resolves to it; a non-default parent shows a "Make default" button, plus a hint when unused) and a GRID section (Columns, Rows, Gutter, Row gap, margins T / B / I / O with a link toggle). A committed field MUST write one `setSpreadGrid` patch to the parent (one history step); while linked, a margin edit writes all four margins. A frame selected on the master SHALL show the spread frame inspector; Esc or an empty click on the master canvas returns to the master inspector; with no parents the Inspector SHALL show "Create a master with New master to set its grid.". The master canvas SHALL always draw the parent's grid (outside Preview) and its name below the spread. The effective grid of a spread SHALL be book → parent → spread, a field set only by the parent reporting source `master`; a parent grid edit MUST re-render only the parent and the spreads resolving to it.
 
 #### Scenario: Master grid reaches its spreads
 
@@ -341,6 +346,15 @@ Trim and bleed SHALL stay user values. A pure validator SHALL report each trim e
 
 - **WHEN** a book's bleed is above the effective profile's `bleedMaxMm`
 - **THEN** the validator returns a bleed issue with the value and the allowed range, and the book is unchanged
+
+### Requirement: Printer profile data
+
+A printer profile SHALL parse with Zod and carry trim and page-bleed ranges, cover bleed, safe margin, page count `{min, step, max}` (`max - min` a multiple of `step`), single first page, printed endpapers, spine (`formula` base + per page, or a `table` ascending by page count; manual override allowed or not), `output` `pages` | `spreads`, crop marks (default off), color space `srgb`, file limits, DPI `warn` ≥ `min`, and minimum font size. Low-DPI checks SHALL use the book's effective profile thresholds; the built-in `generic` profile and an unknown profile id use 200 / 150.
+
+#### Scenario: Profile thresholds drive the low-DPI level
+
+- **WHEN** a frame's effective DPI is 180 and the profile's DPI is `{ warn: 200, min: 150 }`
+- **THEN** the frame reports `warn`, and with `{ warn: 300, min: 200 }` it reports `min`
 
 ### Requirement: Parent guides on child spreads
 

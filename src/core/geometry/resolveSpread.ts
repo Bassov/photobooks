@@ -3,13 +3,16 @@ import {
   resolveParentFrames,
   spreadParent,
 } from '../parentSpreads'
-import type { Book, Frame, FrameStyle, Spread } from '../schema'
+import { spreadFolios } from '../pageNumbers'
+import { bookDpiThresholds } from '../printProfile'
+import type { Book, Frame, FrameStyle, ParentSpread, Spread } from '../schema'
 import { isTextFrame, resolveTextContent } from '../text/resolveText'
 import { sourceCropRect as computeSourceCropRect } from './cropRect'
 import { frameDpi, lowDpi } from './dpi'
 import { getPageCuts, getSpreadSizeMm } from './spreadSize'
 import type {
   AspectRatioLookup,
+  ResolvedFolio,
   ResolvedFrameStyle,
   ResolvedItem,
   ResolvedSpread,
@@ -26,6 +29,10 @@ interface StructuralCache {
   pageCuts: ResolvedSpread['pageCuts']
   spreadWidthMm: number
   spreadHeightMm: number
+  /** Folios also read the numbering and the parent's items (index, count, hiddenIds keyed above). */
+  pageNumbering: Book['pageNumbering']
+  parentPageNumbers: ParentSpread['pageNumbers']
+  folios: ResolvedFolio[]
 }
 
 interface StructuralEntry {
@@ -61,6 +68,7 @@ export function resolveSpread(
 
   const getAspectRatio = options.getAspectRatio ?? defaultAspect
   const structural = getStructural(book, spread, index)
+  const dpiThresholds = bookDpiThresholds(book)
   const items: ResolvedItem[] = structural.entries.map(({ item, frame }) => {
     // Per call, not memoized: templates read the title and anchor meta.
     if (isTextFrame(frame)) {
@@ -96,6 +104,7 @@ export function resolveSpread(
               size.widthPx,
               size.heightPx,
             ),
+            dpiThresholds,
           )
     return {
       ...item,
@@ -117,6 +126,7 @@ export function resolveSpread(
     pageCuts: structural.pageCuts,
     spreadWidthMm: structural.spreadWidthMm,
     spreadHeightMm: structural.spreadHeightMm,
+    ...(structural.folios.length === 0 ? {} : { folios: structural.folios }),
   }
 }
 
@@ -126,14 +136,18 @@ function getStructural(
   index: number,
 ): StructuralCache {
   const spreadCount = book.spreads.length
-  const parentFrames = spreadParent(book, spread)?.frames
+  const parent = spreadParent(book, spread)
+  const parentFrames = parent?.frames
+  const parentPageNumbers = parent?.pageNumbers
   const cached = structuralMemo.get(spread)
   if (
     cached?.settings === book.settings &&
     cached.frameStyles === book.frameStyles &&
     cached.parentFrames === parentFrames &&
     cached.spreadCount === spreadCount &&
-    cached.spreadIndex === index
+    cached.spreadIndex === index &&
+    cached.pageNumbering === book.pageNumbering &&
+    cached.parentPageNumbers === parentPageNumbers
   ) {
     return cached
   }
@@ -159,6 +173,10 @@ function getStructural(
     pageCuts,
     spreadWidthMm: size.widthMm,
     spreadHeightMm: size.heightMm,
+    pageNumbering: book.pageNumbering,
+    parentPageNumbers,
+    // A parent view (Masters, index < 0) sits on no page: no folios.
+    folios: spreadFolios(book, index),
   }
   structuralMemo.set(spread, next)
   return next

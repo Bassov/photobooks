@@ -1,0 +1,71 @@
+/* Text edit box (Designer text-frames): the frame's own font over the frame,
+   WYSIWYG over a photo (no fill), no chrome of its own; the frame control
+   draws the 1 px edit outline. Font, size and colour are inline book units. */
+.text-edit-box {
+  position: absolute;
+  display: block;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  resize: none;
+  outline: none;
+  background: transparent;
+  caret-color: var(--select);
+  letter-spacing: normal;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  pointer-events: auto;
+}
+
+.text-edit-box::selection {
+  background: var(--sel);
+}
+
+/* `Type text` in the printed ink at .4. */
+.text-edit-box::placeholder {
+  color: color-mix(in srgb, currentColor 40%, transparent);
+  opacity: 1;
+}
+
+.text-overflow-layer,
+.text-overflow-anchor {
+  position: absolute;
+  pointer-events: none;
+}
+
+.text-overflow-layer {
+  inset: 0;
+}
+
+/* Kit Overflow chip: the Low-res chip look (M85), right-aligned 4 px under
+   the frame; inside at right 4 / bottom 4 when the paper ends first. Screen
+   px through a live zoom (--cam-scale on [data-camera-frame]). */
+.text-overflow-chip {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px / var(--cam-scale, 1));
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: 14px;
+  padding: 1px 4px;
+  border-radius: var(--radius-xs);
+  background: var(--field);
+  color: var(--ink-warning);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  line-height: 12px;
+  white-space: nowrap;
+  transform-origin: 100% 0;
+  scale: calc(1 / var(--cam-scale, 1));
+}
+
+.text-overflow-chip[data-inside='true'] {
+  top: auto;
+  right: calc(4px / var(--cam-scale, 1));
+  bottom: calc(4px / var(--cam-scale, 1));
+  transform-origin: 100% 100%;
+}

@@ -2,11 +2,15 @@ import assert from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_PRINT_PROFILE_ID,
+  DPI_MIN,
+  DPI_WARN,
   TRIM_MAX_MM,
   TRIM_MIN_MM,
+  bookDpiThresholds,
   bookPrintProfileRef,
   defaultCover,
   defaultPrintProfileRef,
+  genericPrintProfile,
   parseBook,
   resolvePrintProfile,
   serializeBook,
@@ -37,13 +41,31 @@ describe('print profile', () => {
   })
 
   it('the default profile allows the editor trim range and 0–10 mm bleed', () => {
-    expect(resolvePrintProfile(defaultPrintProfileRef())).toEqual({
+    const profile = resolvePrintProfile(defaultPrintProfileRef())
+    expect(profile).toEqual(genericPrintProfile())
+    expect(profile).toMatchObject({
       id: 'generic',
       trimMinMm: TRIM_MIN_MM,
       trimMaxMm: TRIM_MAX_MM,
       bleedMinMm: 0,
       bleedMaxMm: 10,
     })
+  })
+
+  it('the default profile keeps the editor DPI gates', () => {
+    expect(bookDpiThresholds(makeBook())).toEqual({
+      warn: DPI_WARN,
+      min: DPI_MIN,
+    })
+    expect(
+      bookDpiThresholds({ printProfile: defaultPrintProfileRef() }),
+    ).toEqual({ warn: 200, min: 150 })
+  })
+
+  it('an unknown profile falls back to the default DPI gates', () => {
+    expect(
+      bookDpiThresholds({ printProfile: { id: 'lab-x', overrides: {} } }),
+    ).toEqual({ warn: 200, min: 150 })
   })
 
   it.each([

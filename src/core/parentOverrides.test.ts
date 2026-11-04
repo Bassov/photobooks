@@ -320,14 +320,15 @@ describe('override ops guards', () => {
 describe('keeping the work on a parent change', () => {
   it('deleting the parent and a new book default keep copies as own frames', () => {
     const viaDefault = overriddenBook({ defaultParentId: 'p1' })
-    const stored: Book = {
-      ...viaDefault,
-      spreads: [{ ...spreadOf(viaDefault), parentId: 'p1' }],
-    }
+    // The book default is never deleted: delete a picked p1 under default p2.
+    const picked: Book = { ...overriddenBook(), defaultParentId: 'p2' }
     for (const next of [
-      applyBookOp(stored, { type: 'removeParent', parentId: 'p1' }),
+      applyBookOp(picked, { type: 'removeParent', parentId: 'p1' }),
       applyBookOp(
-        { ...stored, spreads: [{ ...spreadOf(stored), parentId: undefined }] },
+        {
+          ...viaDefault,
+          spreads: [{ ...spreadOf(viaDefault), parentId: undefined }],
+        },
         { type: 'setDefaultParent', parentId: 'p2' },
       ),
     ]) {

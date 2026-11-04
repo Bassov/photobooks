@@ -108,6 +108,19 @@ export function addParent(book: Book, id = nextParentId(book)): Book {
   return { ...book, parents: [...parents, parent] }
 }
 
+/**
+ * The book with a default parent: a `defaultParentId` naming a parent
+ * leaves the book; else a new empty parent becomes the default. It changes
+ * no grid, frame or guide, so nothing re-aligns.
+ */
+export function ensureDefaultParent(book: Book): Book {
+  if (book.parents?.some((parent) => parent.id === book.defaultParentId)) {
+    return book
+  }
+  const id = nextParentId(book)
+  return { ...addParent(book, id), defaultParentId: id }
+}
+
 /** Parent `id` replaced by `update(parent)`; an unknown id or the same object leaves the book. */
 export function updateParentSpread(
   book: Book,
@@ -140,20 +153,17 @@ export function renameParent(book: Book, id: string, name: string): Book {
 }
 
 /**
- * Delete a parent: spreads that stored its id and a matching book default
- * fall back to None, and the spreads whose grid changes re-align.
+ * Delete a parent: spreads that stored its id fall back to None, and the
+ * spreads whose grid changes re-align. The book default is never deleted.
  */
 export function removeParent(book: Book, id: string): Book {
   const parents = book.parents
-  if (!parents?.some((parent) => parent.id === id)) {
+  if (id === book.defaultParentId || !parents?.some((p) => p.id === id)) {
     return book
   }
   const next: Book = {
     ...book,
     parents: parents.filter((parent) => parent.id !== id),
-  }
-  if (next.defaultParentId === id) {
-    delete next.defaultParentId
   }
   // Stored like setSpreadParent: absent already means None without a default.
   const none = (spread: Spread): Spread =>
@@ -167,15 +177,16 @@ export function removeParent(book: Book, id: string): Book {
 }
 
 /**
- * The book default parent (`null` = none); an unknown id or the current
- * default leaves the book. Stored `parentId` values stay; the spreads
- * whose grid changes re-align.
+ * The book default parent (`null` = none, only for a book without
+ * parents); an unknown id or the current default leaves the book. Stored
+ * `parentId` values stay; the spreads whose grid changes re-align.
  */
 export function setDefaultParent(book: Book, id: string | null): Book {
-  if (
-    (id ?? undefined) === book.defaultParentId ||
-    (id !== null && !book.parents?.some((parent) => parent.id === id))
-  ) {
+  const known =
+    id === null
+      ? (book.parents?.length ?? 0) === 0
+      : book.parents?.some((parent) => parent.id === id) === true
+  if ((id ?? undefined) === book.defaultParentId || !known) {
     return book
   }
   const next =

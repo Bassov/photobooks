@@ -1,4 +1,5 @@
 import {
+  editableSpread,
   getSpreadPageCount,
   pageLabel,
   spreadParent,
@@ -80,6 +81,20 @@ export function inspectorView(
   return spread
     ? { kind: 'spread', spread, spreadIndex: at }
     : { kind: 'empty' }
+}
+
+/** A selected text frame opens the Text inspector, not the Photo one. */
+export function isTextFrameTarget(
+  book: Book,
+  target: FrameSource | null,
+): boolean {
+  if (target === null) {
+    return false
+  }
+  const frame = editableSpread(book, target.spreadId)?.spread.frames.find(
+    (item) => item.id === target.frameId,
+  )
+  return frame?.kind === 'text'
 }
 
 function multiView(
@@ -226,6 +241,44 @@ export function parentUsageLabel(pages: number): string {
     return 'Not used yet'
   }
   return pages === 1 ? 'Used by 1 page' : `Used by ${String(pages)} pages`
+}
+
+/**
+ * Master head subline (Designer default-master I1): the book default counts
+ * against all book pages, any other master reads `parentUsageLabel`.
+ */
+export function masterUsageLabel(book: Book, parentId: string): string {
+  const used = parentUsage(book, parentId)
+  if (parentId !== book.defaultParentId) {
+    return parentUsageLabel(used)
+  }
+  const total = book.spreads.reduce(
+    (pages, _, index) => pages + getSpreadPageCount(index, book.spreads.length),
+    0,
+  )
+  if (used === 0) {
+    return 'Default · no pages'
+  }
+  const pages = total === 1 ? 'page' : 'pages'
+  return used === total
+    ? `Default · all ${String(total)} ${pages}`
+    : `Default · ${String(used)} of ${String(total)} ${pages}`
+}
+
+/**
+ * Spread Master & spacing status (Designer default-master S2): the shown
+ * master against the book default.
+ */
+export function spreadMasterStatus(book: Book, spread: Spread): string {
+  const shown = spreadParent(book, spread)
+  if (shown === undefined) {
+    return 'No master on this spread'
+  }
+  if (shown.id === book.defaultParentId) {
+    return 'Book default'
+  }
+  const fallback = book.parents?.find((p) => p.id === book.defaultParentId)
+  return fallback === undefined ? shown.name : `Instead of ${fallback.name}`
 }
 
 /** Kit spread label (uikit/src/sandbox/context-inspector.tsx:59): "Page 1" first. */

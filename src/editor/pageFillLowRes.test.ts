@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { DPI_WARN } from '../core'
-import { pageFillLowRes } from './pageFillLowRes'
+import { DPI_MIN, DPI_WARN, type DpiThresholds } from '../core'
+import { pageFillLowRes as pageFillLowResWith } from './pageFillLowRes'
 
 // One inch square page: the page-fill resolution is the short side in px.
 const INCH = { widthMm: 25.4, heightMm: 25.4 }
+const DEFAULTS: DpiThresholds = { warn: DPI_WARN, min: DPI_MIN }
+
+const pageFillLowRes = (
+  trim: { widthMm: number; heightMm: number },
+  size: { widthPx: number; heightPx: number },
+) => pageFillLowResWith(trim, size, DEFAULTS)
 
 describe('pageFillLowRes', () => {
   it('flags a photo just below the canvas badge threshold', () => {
@@ -16,6 +22,12 @@ describe('pageFillLowRes', () => {
     expect(
       pageFillLowRes(INCH, { widthPx: DPI_WARN, heightPx: DPI_WARN }),
     ).toBe(false)
+  })
+
+  it("uses the profile's warn threshold, not the default", () => {
+    const size = { widthPx: 250, heightPx: 250 }
+    expect(pageFillLowResWith(INCH, size, { warn: 300, min: 200 })).toBe(true)
+    expect(pageFillLowResWith(INCH, size, { warn: 250, min: 200 })).toBe(false)
   })
 
   it('fills the page: the short side of a landscape photo decides', () => {

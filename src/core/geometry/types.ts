@@ -69,6 +69,14 @@ export interface ResolvedItem {
   lowDpi?: { dpi: number; level: 'warn' | 'min' }
 }
 
+/** Page number printed on one page of the spread (spread mm). */
+export interface ResolvedFolio {
+  id: string
+  text: string
+  rectMm: RectMm
+  align: 'left' | 'center' | 'right'
+}
+
 export interface ResolvedSpread {
   items: ResolvedItem[]
   pageCuts: PageCut[]
@@ -76,6 +84,8 @@ export interface ResolvedSpread {
   spreadHeightMm: number
   /** sRGB `#rrggbb`; omitted → paper default. */
   backgroundColor?: string
+  /** Page numbers from the parent's items; omitted when none prints. */
+  folios?: ResolvedFolio[]
 }
 
 export type AspectRatioLookup = (assetId: string) => number

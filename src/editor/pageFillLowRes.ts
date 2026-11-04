@@ -1,4 +1,4 @@
-import { frameDpi, lowDpi, sourceCropRect } from '../core'
+import { frameDpi, lowDpi, sourceCropRect, type DpiThresholds } from '../core'
 
 /**
  * Filmstrip "Low-res" rule (Designer r15 M85): the canvas low-res badge
@@ -8,10 +8,10 @@ import { frameDpi, lowDpi, sourceCropRect } from '../core'
 export function pageFillLowRes(
   trim: { widthMm: number; heightMm: number },
   size: { widthPx: number; heightPx: number },
+  thresholds: DpiThresholds,
 ): boolean {
   const pageMm = { x: 0, y: 0, width: trim.widthMm, height: trim.heightMm }
   const crop = sourceCropRect(pageMm, undefined, size.widthPx / size.heightPx)
-  return (
-    lowDpi(frameDpi(pageMm, crop, 0, size.widthPx, size.heightPx)) !== undefined
-  )
+  const dpi = frameDpi(pageMm, crop, 0, size.widthPx, size.heightPx)
+  return lowDpi(dpi, thresholds) !== undefined
 }

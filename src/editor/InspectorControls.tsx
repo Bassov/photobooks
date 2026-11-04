@@ -19,10 +19,13 @@ export function InspectorHead({
   title,
   sub,
   subTestId,
+  children,
 }: {
   title: ReactNode
   sub: ReactNode
   subTestId?: string
+  /** Extra head lines under the sub (master hint, Make default). */
+  children?: ReactNode
 }) {
   return (
     <div className="px-4 pt-4 pb-1" data-testid="inspector-head">
@@ -35,6 +38,7 @@ export function InspectorHead({
       >
         {sub}
       </p>
+      {children}
     </div>
   )
 }
