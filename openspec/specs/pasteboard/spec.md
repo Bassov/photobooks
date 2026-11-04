@@ -193,7 +193,7 @@ The editor header toolbar SHALL hold a single-select tool group (Select · Frame
 
 ### Requirement: Frame tool draws, moves and snaps free frames
 
-With the Frame tool, dragging on bare spread paper SHALL draw an empty image frame, committed only when both edges are at least 5 mm; the new frame is selected and the tool returns to Select. With the Select tool, dragging an empty frame SHALL move it. Delete / Backspace SHALL remove the selected empty frame. Each edit clears the spread's template binding and is one undo step. While drawing or moving, edges and centers SHALL snap (8 px pull) to other frames, guides and equal gaps through an anchor index, showing a grey snap line with a `snap · <kind>` label; Alt suppresses snapping. There is no toast on create.
+With the Frame tool, dragging on bare spread paper SHALL draw an empty image frame, committed only when both edges are at least 5 mm; the new frame is selected and the tool returns to Select. With the Select tool, dragging an empty frame SHALL move it. Delete / Backspace SHALL remove the selected empty frame. Each edit clears the spread's template binding and is one undo step. While drawing or moving, edges and centers SHALL snap (8 px pull) to other frames, guides and equal gaps through an anchor index, showing a grey snap line with a `snap · <kind>` label; Alt suppresses snapping. Guide anchors are the guides the spread shows (the book's, its parent's read-only ones and its own, all kind `guide`); while guides are hidden (Ctrl+;) no guide SHALL snap. There is no toast on create.
 
 #### Scenario: Draw, then delete
 
@@ -209,6 +209,11 @@ With the Frame tool, dragging on bare spread paper SHALL draw an empty image fra
 
 - **WHEN** a draw corner is within the pull distance of a frame edge and Alt is held
 - **THEN** no snap line shows and the corner is not moved
+
+#### Scenario: Parent guide snaps, hidden guides do not
+
+- **WHEN** a draw corner ends within the pull distance of a parent guide shown on the spread, then the same draw runs after Ctrl+; hides guides
+- **THEN** the first shows `snap · guide` with the edge on the guide, the second shows no snap line and leaves the edge at the pointer
 
 ### Requirement: Frame context menu, arrange shortcuts and lock
 

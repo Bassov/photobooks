@@ -308,20 +308,21 @@ function Handles({ r, sc, rotate, onHandle }: { r: Rect & { rot?: number }; sc: 
 }
 
 /* ---------------------------------------------------------------- spread surface */
-/** One guide line with its 7 px grab strip; `inherited` guides come from the parent master (dashed, not draggable on the spread). */
-export function GuideLine({ g, sc, onDown }: { g: Guide & { inherited?: boolean }; sc: number; onDown: (e: React.PointerEvent) => void }) {
+/** One guide line with its 7 px grab strip, 24 px past the page; `inherited` guides come from the parent master (dashed);
+ *  `passive` ones (inherited, outside parent edit) let presses through to the frame / paper below (parent-guides PG2). */
+export function GuideLine({ g, sc, passive, onDown }: { g: Guide & { inherited?: boolean }; sc: number; passive?: boolean; onDown: (e: React.PointerEvent) => void }) {
   return (
-    <div data-guide={g.id} onPointerDown={onDown}
-      className={cn("absolute z-20", g.axis === "v" ? "inset-y-[-12px] w-[7px] -translate-x-[3px] cursor-ew-resize" : "inset-x-[-12px] h-[7px] -translate-y-[3px] cursor-ns-resize", (g.locked || g.inherited) && "cursor-default")}
+    <div data-guide={g.id} data-passive={passive || undefined} onPointerDown={passive ? undefined : onDown}
+      className={cn("absolute z-20", g.axis === "v" ? "inset-y-[-24px] w-[7px] -translate-x-[3px] cursor-ew-resize" : "inset-x-[-24px] h-[7px] -translate-y-[3px] cursor-ns-resize", (g.locked || g.inherited) && "cursor-default", passive && "pointer-events-none")}
       style={g.axis === "v" ? { left: g.pos * sc } : { top: g.pos * sc }}>
-      <div className={cn("absolute", g.axis === "v" ? "inset-y-0 left-[3px] w-px" : "inset-x-0 top-[3px] h-px", g.inherited ? "bg-parent-soft [background:repeating-linear-gradient(var(--dir),#a3a1a2_0_4px,transparent_4px_7px)]" : g.scope === "book" ? "bg-portrait" : "bg-guide")}
+      <div className={cn("absolute", g.axis === "v" ? "inset-y-0 left-[3px] w-px" : "inset-x-0 top-[3px] h-px", g.inherited ? "bg-parent-soft [background:repeating-linear-gradient(var(--dir),var(--parent-soft)_0_4px,transparent_4px_7px)]" : g.scope === "book" ? "bg-portrait" : "bg-guide")}
         style={{ ["--dir" as string]: g.axis === "v" ? "180deg" : "90deg" }} />
     </div>
   )
 }
 export function SpreadSurface({ si, sc, active = true, onGuideDown, className }: {
   si: number; sc: number; active?: boolean; className?: string
-  onGuideDown?: (e: React.PointerEvent, id: string, inherited: boolean) => void
+  onGuideDown?: (e: React.PointerEvent, id: string) => void
 }) {
   const st = useStudio()
   const { doc, features: ft, view } = st
@@ -567,7 +568,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
       ))}
       {view.preview && <div className="pointer-events-none absolute inset-0 outline-[4000px] outline-canvas [outline-style:solid]" />}
       {view.grid && !view.preview && <GridOverlay s={s} sc={sc} />}
-      {view.guides && !view.preview && allGuides(doc, s).map((g) => <GuideLine key={g.id} g={g} sc={sc} onDown={(e) => onGuideDown?.(e, g.id, !!g.inherited)} />)}
+      {view.guides && !view.preview && allGuides(doc, s).map((g) => <GuideLine key={g.id} g={g} sc={sc} passive={!!g.inherited && !ft.parentEdit} onDown={(e) => onGuideDown?.(e, g.id)} />)}
       {view.overlays && <PrintOverlay sc={sc} />}
       {pn && !view.preview && [0, 1].map((side) => (si === 0 && doc.skipFirst && side === 0 ? null :
         <span key={side} className="pointer-events-none absolute text-ink" data-testid="page-number"
