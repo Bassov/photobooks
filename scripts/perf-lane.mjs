@@ -22,7 +22,7 @@ export const HARD_BLOCKING_MS = 50
 export const MAX_FAILED_RUNS = 2
 
 const SCOPE_PATTERNS = [
-  /^src\/(render|perf|photo|assets)\//,
+  /^src\/(render|perf|photo|assets|derivatives)\//,
   /^(src|e2e)\/.*(filmstrip|pasteboard)/i,
   /^e2e\/perf\//,
   /^e2e\/[^/]*frame[^/]*$/,
