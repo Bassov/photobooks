@@ -1,0 +1,168 @@
+/* Site fresh A: the stack, read by scrolling (concept.md). Everything is scoped under .sfa; the sd-* rules give the shared
+   Book3D / BookReader parts (site-demo-1) their boxes here. */
+@font-face {
+  font-family: "SFA Inter Display";
+  src: url("../../fonts/inter-opsz.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+.sfa {
+  --bg: #f4f3f0;
+  --ink: #141414;
+  --muted: #6f6f6b;
+  --line: rgb(20 20 20 / 0.12);
+  --site-paper: #fbfaf7;
+  --site-ink: #141414;
+  --site-muted: #6f6f6b;
+  --site-shadow-book: 0 1px 2px rgb(0 0 0 / 0.1), 0 28px 48px -24px rgb(0 0 0 / 0.38);
+  --cover-k: 0.12;
+  --cover-ls: -0.03em;
+  --in: cubic-bezier(0.16, 1, 0.3, 1);
+  --chg: cubic-bezier(0.4, 0, 0.2, 1);
+  --m: 24px;
+  --g: 16px;
+  position: relative;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "SFA Inter Display", "Inter", system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  font-variation-settings: "opsz" 14;
+  font-feature-settings: "tnum" 1;
+  -webkit-font-smoothing: antialiased;
+}
+.sfa.sfa-snap { scroll-snap-type: y proximity; }
+.sfa.sfa-phone { --m: 16px; --g: 12px; font-size: 15px; }
+.sfa *, .sfa *::before, .sfa *::after { box-sizing: border-box; }
+.sfa button { font: inherit; color: inherit; letter-spacing: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-align: left; }
+.sfa p { margin: 0; }
+.sfa :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+/* type: five sizes at most — meta 13, text 16, lead 24, title 44 (phone 13 / 15 / 19 / 28) */
+.sfa .t-meta { font-size: 13px; line-height: 1.45; letter-spacing: 0; color: var(--muted); }
+.sfa .t-lead { font-size: 24px; line-height: 1.3; letter-spacing: -0.015em; font-variation-settings: "opsz" 32; }
+.sfa .t-title { font-size: 44px; line-height: 1.05; letter-spacing: -0.03em; font-variation-settings: "opsz" 32; }
+.sfa.sfa-phone .t-lead { font-size: 19px; font-variation-settings: "opsz" 14; }
+.sfa.sfa-phone .t-title { font-size: 28px; }
+.sfa .sfa-muted { color: var(--muted); }
+.sfa .sfa-link { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; text-decoration-color: currentColor; transition: color 0.2s var(--chg); }
+.sfa .sfa-link:hover { color: var(--muted); }
+
+.sfa .sfa-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--g); padding: 0 var(--m); }
+.sfa.sfa-phone .sfa-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* header: 56, not sticky */
+.sfa .sfa-head { height: 56px; align-items: center; scroll-snap-align: start; }
+.sfa .sfa-name { grid-column: 1 / span 4; font-weight: 500; height: 44px; }
+.sfa .sfa-nav { grid-column: 7 / -1; display: flex; justify-content: flex-end; gap: 24px; }
+.sfa.sfa-phone .sfa-name { grid-column: 1 / span 3; }
+.sfa.sfa-phone .sfa-nav { grid-column: 4 / -1; grid-row: 1; }
+.sfa .sfa-nav button { height: 44px; color: var(--muted); transition: color 0.2s var(--chg); }
+.sfa .sfa-nav button:hover, .sfa .sfa-nav button[aria-current="page"] { color: var(--ink); }
+.sfa .sfa-nav button[aria-current="page"] { font-weight: 500; }
+.sfa .sfa-menu { position: absolute; z-index: 5; left: 0; right: 0; top: 56px; background: var(--bg); border-bottom: 1px solid var(--line); padding: 8px var(--m) 16px; animation: sfa-fade 0.25s var(--in); }
+.sfa .sfa-menu button { display: flex; align-items: center; width: 100%; height: 48px; font-size: 19px; color: var(--muted); }
+.sfa .sfa-menu button[aria-current="page"] { color: var(--ink); font-weight: 500; }
+
+/* page swap: opacity only */
+.sfa .sfa-page { animation: sfa-fade 0.45s var(--in); }
+@keyframes sfa-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* home */
+.sfa .sfa-aside { grid-column: 1 / span 2; grid-row: 1 / span 2; align-self: start; position: sticky; top: 40px; padding-top: 40px; }
+.sfa .sfa-main { grid-column: 4 / -1; min-width: 0; }
+.sfa .sfa-hero { display: flex; flex-direction: column; padding-top: 40px; }
+.sfa .sfa-hero-pile { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
+.sfa .sfa-hero-meta { height: 64px; display: flex; align-items: center; justify-content: center; }
+
+/* contents list */
+.sfa .sfa-list { display: flex; flex-direction: column; }
+.sfa .sfa-year { margin-top: 16px; height: 24px; display: flex; align-items: center; }
+.sfa .sfa-year:first-child { margin-top: 0; }
+.sfa .sfa-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 32px; color: var(--ink); transition: color 0.2s var(--chg); }
+.sfa .sfa-list[data-cur] .sfa-row { color: var(--muted); }
+.sfa .sfa-list .sfa-row:hover, .sfa .sfa-list .sfa-row[data-hot], .sfa .sfa-list .sfa-row[aria-current="true"] { color: var(--ink); }
+.sfa .sfa-row .t-meta { transition: color 0.2s var(--chg); }
+.sfa .sfa-row > :first-child { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.sfa .sfa-back { height: 32px; margin-bottom: 24px; display: inline-flex; align-items: center; }
+.sfa.sfa-phone .sfa-row { height: 48px; border-top: 1px solid var(--line); }
+.sfa.sfa-phone .sfa-list .sfa-row:last-child { border-bottom: 1px solid var(--line); }
+.sfa.sfa-phone .sfa-year { margin-top: 24px; height: 32px; }
+
+/* the pile (stack.tsx): one perspective, books lying flat in one 3D world */
+.sfa .stk { position: relative; perspective: 2600px; perspective-origin: 50% 30%; }
+.sfa .stk-world { position: absolute; transform-style: preserve-3d; }
+.sfa .stk-item { position: absolute; transform-style: preserve-3d; cursor: pointer;
+  transform: translate3d(var(--tx), calc(var(--ty) + var(--pull, 0px)), var(--z));
+  transition: transform 0.3s var(--in); }
+.sfa .stk-item[data-hot] { --pull: 14px; }
+.sfa .stk-shadow { position: absolute; background: rgb(30 26 20 / 0.32); filter: blur(14px); border-radius: 8px; transform: translateZ(-1px); }
+.sfa .stk .sd-b3wrap { perspective: none; transform-style: preserve-3d; }
+/* only the book faces take the pointer: the flat item boxes stick out of the rotated footprints */
+.sfa .stk-item, .sfa .stk .sd-b3wrap, .sfa .stk .sd-b3 { pointer-events: none; }
+.sfa .stk .sd-b3 > div { pointer-events: auto; }
+
+/* chapters (chapter.tsx) */
+.sfa .sfa-ch { position: relative; }
+.sfa .sfa-snapat { position: absolute; left: 0; width: 1px; height: 1px; scroll-snap-align: start; pointer-events: none; }
+.sfa .sfa-frame { position: sticky; top: 0; display: flex; flex-direction: column; padding: 24px 0; }
+.sfa .sfa-stage { flex: none; display: flex; align-items: flex-end; justify-content: center; }
+.sfa.sfa-phone .sfa-stage { align-items: center; }
+.sfa .sfa-obj { position: relative; flex: none; }
+.sfa .sfa-l3, .sfa .sfa-lr { position: absolute; top: 0; }
+.sfa .sfa-lr { left: 0; }
+.sfa .sfa-fadey .sfa-l3, .sfa .sfa-fadey .sfa-lr { transition: opacity 0.3s var(--chg); }
+.sfa .sfa-hit { position: absolute; inset: -8px; z-index: 2; cursor: pointer; }
+.sfa .sfa-cap { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); column-gap: var(--g); margin-top: 40px; min-height: 152px; }
+.sfa .sfa-cap-l { grid-column: 1 / span 4; display: flex; flex-direction: column; gap: 8px; }
+.sfa .sfa-cap-r { grid-column: 5 / -1; display: flex; flex-direction: column; align-items: flex-start; gap: 16px; }
+.sfa .sfa-ptop { display: flex; flex-direction: column; gap: 4px; margin-bottom: 24px; }
+.sfa .sfa-pbot { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; margin-top: 24px; }
+.sfa .sfa-pbot .sfa-link, .sfa .sfa-cap-r .sfa-link, .sfa .sfa-cap-l .sfa-link { min-height: 32px; display: inline-flex; align-items: center; }
+.sfa.sfa-phone .sfa-pbot .sfa-link { min-height: 44px; }
+
+.sfa .sfa-next { padding: 64px 0 0; display: flex; gap: 16px; align-items: baseline; }
+.sfa .sfa-foot { padding-top: 96px; padding-bottom: 40px; align-items: end; }
+.sfa .sfa-foot > :first-child { grid-column: 1 / span 6; }
+.sfa .sfa-foot > :last-child { grid-column: 7 / -1; justify-self: end; }
+.sfa.sfa-phone .sfa-foot > * { grid-column: 1 / -1; justify-self: start; }
+.sfa .sfa-text-page { grid-column: 4 / span 6; padding-top: 160px; min-height: calc(100vh - 56px - 160px); display: flex; flex-direction: column; gap: 24px; }
+.sfa.sfa-phone .sfa-text-page { grid-column: 1 / -1; padding-top: 96px; }
+
+/* ---- shared parts: Book3D (standing / lying box) ---- */
+.sfa .sd-b3wrap { position: relative; perspective: 1800px; }
+.sfa .sd-b3 { position: absolute; left: 0; top: 0; transform-style: preserve-3d;
+  transform: translateY(calc(var(--lift, 0) * -1px)) rotateX(calc(var(--rx, 0) * 1deg)) rotateY(calc(var(--ry, 0) * 1deg)) rotateZ(calc(var(--rz, 0) * 1deg)); }
+.sfa .sd-b3 > div { position: absolute; backface-visibility: hidden; }
+.sfa .sd-b3-cover { left: 0; top: 0; width: 100%; height: 100%; transform: translateZ(var(--t2)); border-radius: 1px 2px 2px 1px; }
+.sfa .sd-b3-spine { display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.sfa .b3-spine-t { writing-mode: vertical-rl; white-space: nowrap; line-height: 1; letter-spacing: 0; font-weight: 500; }
+.sfa .sd-b3-fore { background: repeating-linear-gradient(0deg, #fbfaf7 0 1px, #dcd7cd 1px 2px); }
+.sfa .sd-b3-top { background: repeating-linear-gradient(0deg, #fbfaf7 0 1px, #dcd7cd 1px 2px); }
+.sfa .sd-b3-page { background: var(--site-paper); }
+.sfa .sd-floor { position: absolute; border-radius: 50%; background: radial-gradient(closest-side, rgb(30 26 20 / 0.28), rgb(30 26 20 / 0)); }
+.sfa .sd-it { font-family: inherit; font-style: normal; font-weight: 500; font-variation-settings: "opsz" 32; }
+
+/* ---- shared parts: BookReader ---- */
+.sfa .sd-reader { position: relative; outline-offset: 12px; }
+.sfa .sd-rbook { position: absolute; left: 0; top: 0; transform-style: preserve-3d; }
+.sfa .sd-rbook > div { position: absolute; }
+.sfa .sd-edge { background: repeating-linear-gradient(90deg, #fbfaf7 0 1px, #d9d4ca 1px 2px); }
+.sfa .sd-pg { overflow: hidden; background: var(--site-paper); }
+.sfa .sd-leaf { transform-style: preserve-3d; transform-origin: left center; }
+.sfa .sd-face { position: absolute; inset: 0; overflow: hidden; backface-visibility: hidden; background: var(--site-paper); }
+.sfa .sd-back { transform: rotateY(180deg); }
+.sfa .sd-fade { position: absolute; inset: 0; pointer-events: none; animation: sfa-out var(--fd) linear forwards; }
+@keyframes sfa-out { from { opacity: 1; } to { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sfa .stk-item { transition: none; }
+  .sfa .stk-item[data-hot] { --pull: 0px; }
+}

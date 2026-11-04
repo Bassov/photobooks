@@ -110,6 +110,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [design-r17](roadmap/P2/design-r17.md) — Bug: /next-roadmap-item design-r17
 - [x] [feature] [design-r16-kit-book](roadmap/P2/design-r16-kit-book.md) — Bug: /next-roadmap-item design-r16-kit-book
 - [x] [feature] [site-photographer-demo](roadmap/P2/site-photographer-demo.md) — Bug: /next-roadmap-item site-photographer-demo
+- [ ] [feature] [site-awards-demos](roadmap/P2/site-awards-demos.md) — Bug: /next-roadmap-item site-awards-demos
 - [ ] [feature] [parent-overrides-core](roadmap/P2/parent-overrides-core.md) — Bug: /next-roadmap-item parent-overrides-core
 - [ ] [feature] [text-frames-core](roadmap/P2/text-frames-core.md) — Bug: /next-roadmap-item text-frames-core
 - [ ] [feature] [text-frames-kit](roadmap/P2/text-frames-kit.md) — Bug: /next-roadmap-item text-frames-kit
@@ -177,6 +178,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
 - [ ] [feature] [connect-own-hosting](roadmap/P5/connect-own-hosting.md) — bring your own hosting (Security Review)
 - [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
+- [ ] [feature] [site-fresh-a](roadmap/P5/site-fresh-a.md) — Bug: /next-roadmap-item site-fresh-a
 
 ## Deferred (not scheduled)
 
