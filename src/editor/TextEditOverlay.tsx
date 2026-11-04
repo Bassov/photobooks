@@ -149,17 +149,16 @@ function TextEditBox({
   // Mount only: the textarea is uncontrolled while it is edited.
   useLayoutEffect(() => {
     const el = ref.current
-    if (el === null) {
-      return
+    if (el !== null) {
+      el.value = live.current.item.text.text
+      growBox(el, live.current)
+      // Setting the value already put the caret at the end.
+      el.focus({ preventScroll: true })
+      return registerTextDraft(() => ({
+        text: el.value,
+        fitHeightMm: live.current.fitMm,
+      }))
     }
-    el.value = live.current.item.text.text
-    growBox(el, live.current)
-    // Setting the value already put the caret at the end.
-    el.focus({ preventScroll: true })
-    return registerTextDraft(() => ({
-      text: el.value,
-      fitHeightMm: live.current.fitMm,
-    }))
   }, [])
 
   const style = textNodeStyle(item.text, item.rectMm.height, pxPerMm)
