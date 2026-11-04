@@ -1,4 +1,10 @@
-import { defaultCover, defaultCoverStyle, defaultEndpapers } from './cover'
+import {
+  defaultCover,
+  defaultCoverPrint,
+  defaultCoverStyle,
+  defaultEndpapers,
+} from './cover'
+import { defaultPrintProfileRef } from './printProfile'
 import { CURRENT_SCHEMA_VERSION } from './schema'
 
 export type MigrateResult =
@@ -183,6 +189,19 @@ function migrateV9ToV10(
   return { ...input, schemaVersion: 10 }
 }
 
+/** v11: print profile reference and cover print fields — defaults. */
+function migrateV10ToV11(
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  const cover = isRecord(input.cover) ? input.cover : {}
+  return {
+    ...input,
+    schemaVersion: 11,
+    printProfile: defaultPrintProfileRef(),
+    cover: { ...cover, print: defaultCoverPrint() },
+  }
+}
+
 /**
  * Pure migration: reject newer versions; upgrade supported older versions
  * before Zod validation of the current shape.
@@ -248,6 +267,10 @@ export function migrateToCurrent(input: unknown): MigrateResult {
   }
   if (version === 9) {
     value = migrateV9ToV10(value as Record<string, unknown>)
+    version = 10
+  }
+  if (version === 10) {
+    value = migrateV10ToV11(value as Record<string, unknown>)
   }
   return { ok: true, value }
 }

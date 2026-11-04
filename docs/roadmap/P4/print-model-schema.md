@@ -3,10 +3,11 @@
 Tag: prep
 Milestone: P4
 Title: print settings and cover in the document
+Status: done
 
 ## Scope
 
-- [ ] Schema version bump with migration: book references a print profile (id + overrides); print fields on the cover from `cover-endpaper-schema` (spine width source); trim and bleed stay user values that the profile validates
+- [x] Schema version bump with migration: book references a print profile (id + overrides); print fields on the cover from `cover-endpaper-schema` (spine width source); trim and bleed stay user values that the profile validates
 - **Done when:** book carries `printProfile {id, overrides}`; migrate / parse PBT green
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
