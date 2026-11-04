@@ -9,14 +9,15 @@
 
 ## Touch-set & Test Plan
 
-| Path                                  | Why                        |
-| ------------------------------------- | -------------------------- |
-| `src/site/export/types.ts`            | input / model / tree types |
-| `src/site/export/buildSiteTree.ts`    | builder                    |
-| `src/site/export/defaultRenderer.tsx` | minimal default pages      |
-| `src/site/export/index.ts`            | public API                 |
-| `src/site/export/*.test.ts(x)`        | unit + snapshot + PBT      |
-| `openspec/specs/site-export/spec.md`  | new capability spec        |
+| Path                                         | Why                        |
+| -------------------------------------------- | -------------------------- |
+| `src/site/export/types.ts`                   | input / model / tree types |
+| `src/site/export/buildSiteTree.ts`           | builder                    |
+| `src/site/export/defaultRenderer.tsx`        | minimal default pages      |
+| `src/site/export/index.ts`                   | public API                 |
+| `src/site/export/*.test.ts(x)`               | unit + snapshot + PBT      |
+| `src/site/export/siteExport.test-helpers.ts` | shared test fixtures       |
+| `openspec/specs/site-export/spec.md`         | new capability spec        |
 
 - Reuse (import only): `bookPublishStatus`, `siteAssetIds`, `displayBookTitle`, `resolveParentFrames`, `resolvePresets` (preset id → mime, unknown id throws), `sha256HexSync` (book ids only).
 - Tests: inline snapshot + double export byte-equality; PBT ≥1000 runs (shuffled books/derivatives, unpublished + draft edits absent, every referenced path present); unit for throws, viewer, missing. No e2e.

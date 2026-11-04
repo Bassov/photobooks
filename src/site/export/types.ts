@@ -83,6 +83,6 @@ export interface SiteMissingDerivative {
 export interface SiteTree {
   /** Sorted by path (code-unit order), unique paths. */
   files: readonly SiteFile[]
-  /** Derivatives a published book wants but the input lacks, sorted. */
+  /** Derivatives a published book wants but the input lacks: by asset hash, presets in config order. */
   missing: readonly SiteMissingDerivative[]
 }
