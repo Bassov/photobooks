@@ -1,5 +1,6 @@
 import { getSpreadPageCount } from '../geometry/spreadSize'
 import type { Book, Frame, Spread } from '../schema'
+import { isTextFrame } from '../text/resolveText'
 import { updateSpread } from '../update'
 import { frameIdFor, generateTemplateFrames } from './catalog'
 import {
@@ -93,10 +94,15 @@ function withLayout(
   return { ...spread, templateId, frames }
 }
 
-/** Generated geometry on the previous frames; an unmoved frame stays the same object. */
+/**
+ * Generated geometry on the previous image frames (by index); an unmoved frame
+ * stays the same object. Text frames keep their box and content and stay on
+ * top, in their relative order.
+ */
 function rebindFrames(generated: Frame[], previous: Frame[]): Frame[] {
-  return generated.map((frame, index) => {
-    const prev = previous[index]
+  const images = previous.filter((frame) => !isTextFrame(frame))
+  const laid = generated.map((frame, index) => {
+    const prev = images[index]
     if (prev === undefined) {
       return frame
     }
@@ -116,6 +122,18 @@ function rebindFrames(generated: Frame[], previous: Frame[]): Frame[] {
     }
     return next
   })
+  return [...laid, ...textsAbove(laid, previous.filter(isTextFrame))]
+}
+
+/** Text frames above every laid frame; unchanged when they already are. */
+function textsAbove(laid: Frame[], texts: Frame[]): Frame[] {
+  const top = laid.reduce((max, frame) => Math.max(max, frame.z), 0)
+  if (texts.every((frame) => frame.z > top)) {
+    return texts
+  }
+  return texts
+    .toSorted((a, b) => a.z - b.z)
+    .map((frame, index) => ({ ...frame, z: top + 1 + index }))
 }
 
 function rectsEqual(a: Frame['rect'], b: Frame['rect']): boolean {

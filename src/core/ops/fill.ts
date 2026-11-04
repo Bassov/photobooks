@@ -3,7 +3,7 @@ import { applyTemplate } from '../templates/apply'
 import { photoAspectClass, type AspectClass } from '../templates/aspect'
 import { bestTemplateId } from '../templates/best'
 import { updateSpread } from '../update'
-import { withPlacedAsset } from './place'
+import { takesPhoto, withPlacedAsset } from './place'
 import { addSpread, nextSpreadId } from './spreads'
 
 type Asset = Book['assets'][string]
@@ -45,12 +45,8 @@ function fillFrames(
     const first = spread.frames.findIndex((frame) => frame.id === firstFrameId)
     const order: number[] = first < 0 ? [] : [first]
     spread.frames.forEach((frame, index) => {
-      // A locked frame never takes a photo.
-      if (
-        index !== first &&
-        frame.assetId === undefined &&
-        frame.locked !== true
-      ) {
+      // A locked or text frame never takes a photo.
+      if (index !== first && frame.assetId === undefined && takesPhoto(frame)) {
         order.push(index)
       }
     })
@@ -75,7 +71,7 @@ export function fillSpread(
 ): Book {
   const spread = book.spreads.find((candidate) => candidate.id === spreadId)
   const target = spread?.frames.find((frame) => frame.id === frameId)
-  if (target === undefined || target.locked === true) {
+  if (target === undefined || !takesPhoto(target)) {
     return book
   }
   const usable = usableAssets(book, assetIds)

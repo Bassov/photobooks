@@ -16,7 +16,15 @@ import {
   removeManyFromGallery,
 } from './gallery'
 import { resetCrop, setCrop, setFit } from './crop'
-import { addFrame, removeFrames, setFrameRect } from './frames'
+import {
+  addFrame,
+  addTextFrame,
+  editText,
+  removeFrames,
+  setFrameRect,
+  setTextAlign,
+  setTextStyle,
+} from './frames'
 import {
   alignFrames,
   distributeFrames,
@@ -52,7 +60,12 @@ import {
   setPageColor,
   type CoverPanelName,
 } from '../cover'
-import type { CoverStyle, FrameAdjust, FrameStyle } from '../schema'
+import type {
+  CoverStyle,
+  FrameAdjust,
+  FrameStyle,
+  TextStyleId,
+} from '../schema'
 import { setTrim } from './bookSettings'
 import {
   applyFrameStyle,
@@ -133,6 +146,32 @@ export type BookOp =
       spreadId: string
       rect: Frame['rect']
       id?: string
+    }
+  | {
+      type: 'addTextFrame'
+      spreadId: string
+      rect: Frame['rect']
+      id?: string
+    }
+  | {
+      type: 'editText'
+      spreadId: string
+      frameId: string
+      text: string
+      /** Whole-line height the text needs; grows the box (capped at the paper). */
+      fitHeightMm?: number
+    }
+  | {
+      type: 'setTextStyle'
+      spreadId: string
+      frameId: string
+      styleId: TextStyleId
+    }
+  | {
+      type: 'setTextAlign'
+      spreadId: string
+      frameId: string
+      align: NonNullable<Frame['align']>
     }
   | { type: 'removeFrames'; spreadId: string; frameIds: readonly string[] }
   | {
@@ -395,6 +434,14 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return setDefaultParent(book, op.parentId)
     case 'addFrame':
       return addFrame(book, op.spreadId, op.rect, op.id)
+    case 'addTextFrame':
+      return addTextFrame(book, op.spreadId, op.rect, op.id)
+    case 'editText':
+      return editText(book, op.spreadId, op.frameId, op.text, op.fitHeightMm)
+    case 'setTextStyle':
+      return setTextStyle(book, op.spreadId, op.frameId, op.styleId)
+    case 'setTextAlign':
+      return setTextAlign(book, op.spreadId, op.frameId, op.align)
     case 'removeFrames':
       return removeFrames(book, op.spreadId, op.frameIds)
     case 'setFrameRect':
