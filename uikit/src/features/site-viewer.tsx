@@ -28,6 +28,8 @@ export const slideLabel = (s: number, n: number) => {
   const i = s - 1
   return `${i === 0 ? "Page 1" : i === n - 1 ? `Page ${i * 2}` : `Pages ${i * 2}–${i * 2 + 1}`} · ${s} / ${n}`
 }
+/** Site page count (Designer site-viewer review): the last page number, 2(n − 1) — the first and last spreads show one page each. */
+const sitePages = (n: number) => 2 * (n - 1)
 const RATIO = { portrait: 4 / 5, landscape: 5 / 4, square: 1 } as const
 /** Root-width layout (spec §3–§4): narrow < 768; catalog columns by content width; stage width clamps to the content and the height left for it.
     `R` = spread width / height (SW / SH are live: setGeom changes them per book, so read them at render). */
@@ -72,7 +74,8 @@ export function SiteViewer({ title = "Aleksandr’s photobooks", author = AUTHOR
   // the cover is wider than a spread for most trims: fit it inside the w × w / R stage (never taller)
   const coverFit = (w: number) => Math.min(w, (w / R) * (coverW(st.book) / st.book.h))
   const page = (i: number, w: number) => {
-    if (i > 0) return <MiniSpread s={sp[i - 1]} width={w} si={i - 1} />
+    // the last spread shows its left page only (mirror of MiniSpread's si === 0 clip)
+    if (i > 0) return i === n && n > 1 ? <div style={{ clipPath: "inset(0 50% 0 0)" }}><MiniSpread s={sp[i - 1]} width={w} si={i - 1} /></div> : <MiniSpread s={sp[i - 1]} width={w} si={i - 1} />
     const cw = coverFit(w)
     return <div className="mx-auto" style={{ width: cw }}>{cover ? cover(cw) : <div style={{ width: cw, height: (cw * st.book.h) / coverW(st.book) }} data-testid="site-cover"><CoverSpread /></div>}</div>
   }
@@ -98,9 +101,9 @@ export function SiteViewer({ title = "Aleksandr’s photobooks", author = AUTHOR
           <p className="mt-1 text-base text-[color:var(--site-muted)]">{author} · {books.length} photobook{books.length === 1 ? "" : "s"}</p>
           <div className={cn("grid items-end", l.narrow ? "mt-6" : "mt-8")} style={{ gridTemplateColumns: `repeat(${l.cols}, ${l.col}px)`, columnGap: l.gapX, rowGap: l.gapY }}>
             {books.map((b) => (
-              <button key={b.id} type="button" onClick={() => { setS({ page: "book", book: b.id, slide: 0, lb: false }); onBookSelect?.(b.id) }} className={cn("site-card group flex min-w-0 flex-col items-center gap-3 rounded-md text-left focus-visible:outline-offset-4", focus)} data-testid="site-book" data-book={b.id}>
+              <button key={b.id} type="button" onClick={() => { setS({ page: "book", book: b.id, slide: 0, lb: false }); onBookSelect?.(b.id) }} className={cn("site-card group flex min-w-0 cursor-pointer flex-col items-center gap-3 rounded-md text-left focus-visible:outline-offset-4", focus)} data-testid="site-book" data-book={b.id}>
                 <div className="site-card-obj"><BookObject src={b.cover ? P(b.cover)?.src : undefined} title={b.title} fmt={b.format ?? "portrait"} h={Math.min(200, l.col / RATIO[b.format ?? "portrait"])} /></div>
-                <div className="w-full"><div className="truncate text-base font-medium">{b.title}</div><div className="mt-0.5 text-xs tabular-nums text-[color:var(--site-muted)]">{pagesOf(b.spreads)} pages</div></div>
+                <div className="w-full"><div className="truncate text-base font-medium">{b.title}</div><div className="mt-0.5 text-xs tabular-nums text-[color:var(--site-muted)]">{sitePages(b.spreads)} pages</div></div>
               </button>
             ))}
           </div>
@@ -111,7 +114,7 @@ export function SiteViewer({ title = "Aleksandr’s photobooks", author = AUTHOR
             <div className="min-w-0">
               {!single && <button type="button" onClick={toCatalog} className={cn("-ml-1 mb-1 inline-flex h-8 items-center gap-1 rounded-full px-1 text-sm text-[color:var(--site-muted)] hover:text-[color:var(--site-text)]", focus)} data-testid="site-all-books"><ArrowLeft className="size-4" />All books</button>}
               <h1 className="site-h1" style={serif} data-testid="site-title">{book.title}</h1>
-              <div className="text-sm text-[color:var(--site-muted)]" data-testid="site-author">by {author} · {pagesOf(n)} pages</div>
+              <div className="text-sm text-[color:var(--site-muted)]" data-testid="site-author">by {author} · {sitePages(n)} pages</div>
             </div>
             <div className={cn("flex items-center gap-2", l.narrow ? "mt-3" : "ml-auto")}>
               <button type="button" className={cn(quietBtn, "inline-grid")} onClick={share} data-testid="site-share">
@@ -125,8 +128,8 @@ export function SiteViewer({ title = "Aleksandr’s photobooks", author = AUTHOR
           <div className={cn("grid shrink-0 place-items-center", l.narrow ? "mt-5" : "mt-8")} style={{ width: l.stage, height: l.stage / R }} data-testid="site-stage">
             <button type="button" onClick={() => setS((x) => ({ ...x, lb: true }))} className={cn("relative block cursor-zoom-in rounded-2xs focus-visible:outline-offset-4", focus)} aria-label="Open fullscreen" data-testid="site-spread">
               {page(s.slide, l.stage)}
-              {/* page shadow over the visible page(s) only: spread 0 shows its right page */}
-              <span aria-hidden className="pointer-events-none absolute inset-y-0 right-0 rounded-2xs" style={{ left: s.slide === 1 ? "50%" : 0, boxShadow: "var(--site-page-shadow)" }} />
+              {/* page shadow over the visible page(s) only: spread 0 shows its right page, the last spread its left page */}
+              <span aria-hidden className="pointer-events-none absolute inset-y-0 rounded-2xs" style={{ left: s.slide === 1 ? "50%" : 0, right: s.slide === n && n > 1 ? "50%" : 0, boxShadow: "var(--site-page-shadow)" }} />
             </button>
           </div>
           <div className={cn("flex items-center gap-3", l.narrow ? "mt-4" : "mt-6")} data-testid="site-pager">
