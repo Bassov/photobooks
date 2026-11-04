@@ -129,4 +129,15 @@ describe('loadPainterFixture', () => {
     loadPainterFixture('?fixture=painter&parent=b')
     expect(getBookStoreSnapshot().book.defaultParentId).toBeUndefined()
   })
+
+  it('has the first n spreads override the Master A logo with overrides=n', () => {
+    loadPainterFixture('?fixture=painter&parent=a&overrides=10')
+    const copies = getBookStoreSnapshot().book.spreads.map(
+      (spread) => spread.parentOverrides?.frames?.[0]?.overridesId,
+    )
+    expect(copies.slice(0, 10)).toEqual(
+      Array.from({ length: 10 }, () => 'painter-parent-logo'),
+    )
+    expect(copies.slice(10).every((id) => id === undefined)).toBe(true)
+  })
 })

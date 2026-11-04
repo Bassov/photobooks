@@ -1,5 +1,5 @@
 import { Button } from '../ui/Button'
-import { BookObject } from './BookObject'
+import { BookObject } from '../render/BookObject'
 import { LIBRARY_EXAMPLE_SRC } from './welcomeCredits'
 import { WelcomePhotoCaption } from './WelcomePhotoCaption'
 

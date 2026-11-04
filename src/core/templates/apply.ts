@@ -1,3 +1,4 @@
+import { getSpreadPageCount } from '../geometry/spreadSize'
 import type { Book, Frame, Spread } from '../schema'
 import { isTextFrame } from '../text/resolveText'
 import { updateSpread } from '../update'
@@ -43,16 +44,24 @@ export function templatedSpread(
   return withLayout(spread, templateId, generated)
 }
 
-/** Kit applyTemplate for a saved layout: its slots scaled to this spread. */
+/**
+ * Kit applyTemplate for a saved layout: its slots scaled to this spread. A
+ * layout saved on another page count (`pages`) leaves the book unchanged.
+ */
 export function applyCustomLayout(
   book: Book,
   spreadId: string,
   templateId: string,
   slots: readonly LayoutSlotPct[],
+  pages: 1 | 2,
 ): Book {
   const spreadIndex = book.spreads.findIndex((spread) => spread.id === spreadId)
   // An unknown spread falls through: `updateSpread` returns the book as is.
-  if (slots.length === 0 || !isCustomLayoutId(templateId)) {
+  if (
+    slots.length === 0 ||
+    !isCustomLayoutId(templateId) ||
+    pages !== getSpreadPageCount(spreadIndex, book.spreads.length)
+  ) {
     return book
   }
   const rects = customLayoutRects(book, spreadIndex, slots)

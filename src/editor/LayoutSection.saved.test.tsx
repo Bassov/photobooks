@@ -207,9 +207,12 @@ describe('LayoutSection: saved templates in the lists', () => {
   })
 
   it('a saved tile applies its slots, shows as selected and names the header', () => {
-    const saved = addSavedTemplate('Travel opener', [
-      { x: 0, y: 0, w: 62, h: 100 },
-    ])
+    // Saved on a single page: it applies to the single-page spread s1.
+    const saved = addSavedTemplate(
+      'Travel opener',
+      [{ x: 0, y: 0, w: 62, h: 100 }],
+      1,
+    )
     seed()
     render(<LayoutSection spreadId="s1" />)
     const tile = screen.getByRole('button', {

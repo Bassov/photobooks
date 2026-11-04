@@ -91,7 +91,7 @@ describe('spreadLayoutSlots', () => {
 describe('applyCustomLayout', () => {
   it('lays the slots out on the spread, keeps photos in order, records the id', () => {
     const book = threeSpreads()
-    const next = applyCustomLayout(book, 'b', 'user-opener', OPENER)
+    const next = applyCustomLayout(book, 'b', 'user-opener', OPENER, 2)
     const spread = next.spreads[1]
     expect(spread?.templateId).toBe('user-opener')
     expect(spread?.frames).toEqual([
@@ -106,14 +106,25 @@ describe('applyCustomLayout', () => {
     // Other spreads are shared, untouched.
     expect(next.spreads[0]).toBe(book.spreads[0])
     expect(next.spreads[2]).toBe(book.spreads[2])
-    // The single-page first spread scales the slots to one page.
-    const first = applyCustomLayout(book, 'a', 'user-opener', OPENER)
+    // A single-page layout on the first page scales the slots to one page.
+    const first = applyCustomLayout(book, 'a', 'user-opener', OPENER, 1)
     expect(first.spreads[0]?.frames[0]?.rect.width).toBe(186)
+  })
+
+  it('a layout of another page count returns the same book (no squash)', () => {
+    const book = threeSpreads()
+    expect(applyCustomLayout(book, 'a', 'user-opener', OPENER, 2)).toBe(book)
+    expect(applyCustomLayout(book, 'c', 'user-opener', OPENER, 2)).toBe(book)
+    expect(applyCustomLayout(book, 'b', 'user-opener', OPENER, 1)).toBe(book)
+    expect(
+      applyCustomLayout(book, 'c', 'user-opener', OPENER, 1).spreads[2]
+        ?.templateId,
+    ).toBe('user-opener')
   })
 
   it('names new frames after the spread when it had fewer', () => {
     const book = makeBook({ spreads: [makeSpread({ id: 's', frames: [] })] })
-    const next = applyCustomLayout(book, 's', 'user-x', OPENER)
+    const next = applyCustomLayout(book, 's', 'user-x', OPENER, 1)
     expect(next.spreads[0]?.frames.map((f) => [f.id, f.z])).toEqual([
       ['s-f0', 0],
       ['s-f1', 1],
@@ -122,16 +133,18 @@ describe('applyCustomLayout', () => {
 
   it('returns the same book when nothing changes or the input is unusable', () => {
     const book = threeSpreads()
-    const once = applyCustomLayout(book, 'b', 'user-opener', OPENER)
-    expect(applyCustomLayout(once, 'b', 'user-opener', OPENER)).toBe(once)
-    expect(applyCustomLayout(book, 'missing', 'user-opener', OPENER)).toBe(book)
-    expect(applyCustomLayout(book, 'b', 'user-opener', [])).toBe(book)
-    expect(applyCustomLayout(book, 'b', 'full-bleed', OPENER)).toBe(book)
+    const once = applyCustomLayout(book, 'b', 'user-opener', OPENER, 2)
+    expect(applyCustomLayout(once, 'b', 'user-opener', OPENER, 2)).toBe(once)
+    expect(applyCustomLayout(book, 'missing', 'user-opener', OPENER, 2)).toBe(
+      book,
+    )
+    expect(applyCustomLayout(book, 'b', 'user-opener', [], 2)).toBe(book)
+    expect(applyCustomLayout(book, 'b', 'full-bleed', OPENER, 2)).toBe(book)
   })
 
   it('a second layout with the same frames but another id still records the id', () => {
-    const once = applyCustomLayout(threeSpreads(), 'b', 'user-a', OPENER)
-    const again = applyCustomLayout(once, 'b', 'user-b', OPENER)
+    const once = applyCustomLayout(threeSpreads(), 'b', 'user-a', OPENER, 2)
+    const again = applyCustomLayout(once, 'b', 'user-b', OPENER, 2)
     expect(again).not.toBe(once)
     expect(again.spreads[1]?.templateId).toBe('user-b')
   })
@@ -142,12 +155,19 @@ describe('applyCustomLayout', () => {
       spreadId: 'b',
       templateId: 'user-opener',
       slots: OPENER,
+      pages: 2,
     })
     expect(next.spreads[1]?.frames).toHaveLength(2)
   })
 
   it('a book with a saved-layout template id still parses', () => {
-    const next = applyCustomLayout(threeSpreads(), 'b', 'user-opener', OPENER)
+    const next = applyCustomLayout(
+      threeSpreads(),
+      'b',
+      'user-opener',
+      OPENER,
+      2,
+    )
     expect(parseBook(JSON.parse(JSON.stringify(next)))).toMatchObject({
       ok: true,
     })

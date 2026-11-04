@@ -1,5 +1,5 @@
 import { omitKey } from '../omitKey'
-import { spreadParent } from '../parentSpreads'
+import { keepOverridesAsOwn, spreadParent } from '../parentSpreads'
 import type { Book } from '../schema'
 import { updateSpread } from '../update'
 import { realign } from './grid'
@@ -39,7 +39,8 @@ export function setSpreadParent(
     if ((spreadParent(book, spread)?.id ?? null) === parentId) {
       return spread
     }
-    const rest = omitKey(spread, 'parentId')
+    // The work on the old parent's items stays as the spread's own.
+    const rest = keepOverridesAsOwn(omitKey(spread, 'parentId'))
     const inherited = spreadParent(book, rest)?.id ?? null
     return inherited === parentId ? rest : { ...rest, parentId }
   })

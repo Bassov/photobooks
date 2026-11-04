@@ -109,16 +109,20 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [design-r17](roadmap/P2/design-r17.md) — Bug: /next-roadmap-item design-r17
 - [x] [feature] [design-r16-kit-book](roadmap/P2/design-r16-kit-book.md) — Bug: /next-roadmap-item design-r16-kit-book
 - [x] [feature] [site-photographer-demo](roadmap/P2/site-photographer-demo.md) — Bug: /next-roadmap-item site-photographer-demo
+- [ ] [feature] [parent-overrides-core](roadmap/P2/parent-overrides-core.md) — Bug: /next-roadmap-item parent-overrides-core
 - [ ] [feature] [text-frames-core](roadmap/P2/text-frames-core.md) — Bug: /next-roadmap-item text-frames-core
 - [ ] [feature] [text-frames-kit](roadmap/P2/text-frames-kit.md) — Bug: /next-roadmap-item text-frames-kit
 - [ ] [feature] [parent-guides-kit](roadmap/P2/parent-guides-kit.md) — Bug: /next-roadmap-item parent-guides-kit
 - [ ] [feature] [roadmap-index-no-tick](roadmap/P2/roadmap-index-no-tick.md) — Bug: /next-roadmap-item roadmap-index-no-tick
+- [ ] [feature] [tab-leaves-presentation](roadmap/P2/tab-leaves-presentation.md) — Bug: /next-roadmap-item tab-leaves-presentation
+- [ ] [feature] [thumb-warm-memo](roadmap/P2/thumb-warm-memo.md) — Bug: /next-roadmap-item thumb-warm-memo
 - [ ] [feature] [master-spread-both-pages](roadmap/P2/master-spread-both-pages.md) — Bug: /next-roadmap-item master-spread-both-pages
 - [ ] [feature] [kit-thumbgrid-page-select](roadmap/P2/kit-thumbgrid-page-select.md) — Bug: /next-roadmap-item kit-thumbgrid-page-select
 - [ ] [feature] [prod-arrange-rulers-parity](roadmap/P2/prod-arrange-rulers-parity.md) — Bug: /next-roadmap-item prod-arrange-rulers-parity
 - [x] [feature] [kit-focus-ring-style](roadmap/P2/kit-focus-ring-style.md) — Bug: /next-roadmap-item kit-focus-ring-style
 - [ ] [feature] [parent-guides](roadmap/P2/parent-guides.md) — guides on parent spreads
 - [ ] [feature] [parent-guides-snap](roadmap/P2/parent-guides-snap.md) — Bug: /next-roadmap-item parent-guides-snap
+- [ ] [feature] [parent-guides-prod-overhang](roadmap/P2/parent-guides-prod-overhang.md) — Bug: /next-roadmap-item parent-guides-prod-overhang
 - [ ] [feature] [parent-overrides](roadmap/P2/parent-overrides.md) — change one spread without touching the parent
 - [ ] [feature] [page-numbers](roadmap/P2/page-numbers.md) — page numbers
 - [ ] [feature] [user-templates](roadmap/P2/user-templates.md) — your own layouts
@@ -130,7 +134,10 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [image-derivatives](roadmap/P3/image-derivatives.md) — web image pipeline
 - [ ] [prep] [avif-encoder](roadmap/P3/avif-encoder.md) — AVIF derivatives (Security Review: dependency)
 - [ ] [prep] [publish-revisions](roadmap/P3/publish-revisions.md) — draft vs published
+- [ ] [feature] [user-templates-store](roadmap/P3/user-templates-store.md) — Bug: /next-roadmap-item user-templates-store
 - [ ] [feature] [site-viewer](roadmap/P3/site-viewer.md) — viewer entry
+- [ ] [feature] [site-viewer-render](roadmap/P3/site-viewer-render.md) — Bug: /next-roadmap-item site-viewer-render
+- [ ] [feature] [site-viewer-kit](roadmap/P3/site-viewer-kit.md) — Bug: /next-roadmap-item site-viewer-kit
 - [ ] [feature] [site-preview-mode](roadmap/P3/site-preview-mode.md) — preview the site from the editor
 - [ ] [feature] [site-lightbox](roadmap/P3/site-lightbox.md) — fullscreen and swipe
 - [ ] [prep] [static-export-core](roadmap/P3/static-export-core.md) — deterministic site tree
