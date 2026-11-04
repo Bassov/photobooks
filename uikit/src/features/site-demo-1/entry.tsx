@@ -14,7 +14,7 @@ const DEMOS: Demo[] = [
 const SYS: Demo[] = [
   { n: 6, name: "Gallery on the system: the dark wall, one spotlight per book", ready: true },
   { n: 7, name: "Index on the system: the list and a sticky preview", ready: true },
-  { n: 8, name: "Desk on the system: books lying flat, drag and throw", ready: false },
+  { n: 8, name: "Desk on the system: books lying flat, drag and throw", ready: true },
   { n: 9, name: "Shelf on the system: spines on a plank, the newest face-out", ready: false },
 ]
 
