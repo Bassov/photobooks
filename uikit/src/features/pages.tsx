@@ -220,7 +220,7 @@ export const PAGES: Record<string, FeatureDef> = {
   },
   "site-demos": {
     Demo: SiteDemos, h: SLOT.app.h, notes: {
-      what: "Entry for five demos of the photographer's personal site: one line per demo; 2–5 are coming.",
+      what: "Entry for the four v2 demos of the photographer's personal site (Spec site-awards-v2); each takes ?books=1|3|6|12.",
       where: "DEMO branch only. Full window: #/full/site-demos.",
     },
   },
@@ -258,10 +258,10 @@ export const PAGES: Record<string, FeatureDef> = {
   },
   "site-demo-5": {
     Demo: SiteDemo5, h: SLOT.app.h, notes: {
-      what: "Site demo 5, the spines: a bookcase of spines at true height and thickness; pull one out, the page takes its colour; riffle the pages on the strip under the book.",
-      where: "DEMO branch only. Full window: #/full/site-demo-5.",
-      keys: [["← / →", "walk the shelf / turn"], ["Enter", "open"], ["Esc", "back to the shelf"]],
-      edge: ["Drag the riffle strip = 180 ms per leaf; reduced motion = crossfade, rest pose", "Narrow = the shelf scrolls; tap pulls, tap opens"],
+      what: "Site demo 5 v2, the shelf: one long shelf, the newest book face-out, the rest spine-out; hover slides one spine up.",
+      where: "DEMO branch only. Full window: #/full/site-demo-5 (?books=1|3|6|12).",
+      keys: [["← / →", "turn"], ["Enter", "open"], ["Esc", "back to the shelf"]],
+      edge: ["Reduced motion = opacity only", "Phone: tap pulls a spine, tap again opens"],
     },
   },
   "site-preview-mode": page([

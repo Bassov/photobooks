@@ -15,7 +15,7 @@ export function CoverFace({ b, w, h }: { b: SiteBook; w: number; h: number }) {
   return (
     <div className="absolute inset-0 overflow-hidden bg-cover bg-center" style={{ backgroundImage: `url(${src(b.cover)})`, backgroundColor: b.spine }}>
       <div className="absolute inset-y-0 left-0" style={{ width: Math.max(8, h / 30), background: HINGE }} />
-      <div className="sd-it absolute inset-x-0 text-center leading-none" style={{ padding: "0 8%", color: b.ink, letterSpacing: "-0.02em", fontSize: Math.round(Math.min(w, h) * 0.14), [b.place ?? "top"]: "9%" } as React.CSSProperties}>{b.title}</div>
+      <div className="sd-it absolute inset-x-0 text-center leading-none" style={{ padding: "0 8%", color: b.ink, letterSpacing: "var(--cover-ls, -0.02em)", fontSize: `calc(var(--cover-k, 0.14) * ${Math.min(w, h)}px)`, [b.place ?? "top"]: "9%" } as React.CSSProperties}>{b.title}</div>
     </div>
   )
 }
