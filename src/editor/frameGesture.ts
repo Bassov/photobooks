@@ -4,6 +4,7 @@ import {
   getSpreadPageCount,
   getSpreadSizeMm,
   nextFrameId,
+  viewGuides,
   type RectMm,
   type Spread,
 } from '../core'
@@ -16,6 +17,7 @@ import { STATUS_FRAME_LOCKED, setEditorStatus } from './editorStatus'
 import { getFrameSelection, setFrameSource } from './frameSelection'
 import { buildGridAnchors } from './gridSnap'
 import { getGridVisible, getSnapOn } from './gridView'
+import { getGuidesVisible } from './guidesView'
 import { clearLiveGeometry, publishLiveGeometry } from './liveGeometry'
 import {
   cancelMarquee,
@@ -264,7 +266,14 @@ export function spreadContext(
       spread.frames
         .filter((frame) => !excludeFrameIds.includes(frame.id))
         .map((frame) => frame.rect),
-      [...book.guides, ...(spread.guides ?? [])],
+      // The guides the spread shows (its parent's too); none while hidden.
+      getGuidesVisible()
+        ? [
+            ...book.guides,
+            ...viewGuides(book, spreadIndex, spread).map(({ guide }) => guide),
+          ]
+        : // Stryker disable next-line ArrayDeclaration: a non-guide entry has no offsetMm, so its anchor never snaps (equivalent)
+          [],
       {
         widthMm,
         heightMm,
