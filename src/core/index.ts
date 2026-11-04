@@ -57,6 +57,15 @@ export {
   type ResolvedFrame,
   type ResolvedGuide,
 } from './parentSpreads'
+export {
+  hideParentItem,
+  keepOverridesAsOwn,
+  overrideParentFrame,
+  overrideParentGuide,
+  resetParentItem,
+  resetSpreadToParent,
+} from './parentSpreads'
+export { findBookFrame, findSpreadFrame, spreadFrames } from './update'
 export { TRIM_MAX_MM, TRIM_MIN_MM } from './ops/bookSettings'
 export {
   frameStylePresets,

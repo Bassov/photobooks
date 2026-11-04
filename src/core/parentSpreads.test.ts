@@ -7,11 +7,13 @@ import {
   type Frame,
   type ParentSpread,
   type Spread,
+  applyBookOp,
   resolveParentFrames,
   resolveParentGrid,
   resolveParentGuides,
   spreadParent,
 } from './index'
+import { omitKey } from './omitKey'
 import type { Guide } from './ops/guides'
 import { makeBook, makeFrame, makeSpread } from './testing/fixtures'
 
@@ -369,3 +371,279 @@ interface Scenario {
   ownFrames: Frame[]
   ownGuides: Guide[]
 }
+
+describe('parent overrides ops (property)', () => {
+  const parentFrameIds = ['logo', 'folio', 'band', 'mark'] as const
+  const parentGuideIds = ['pg1', 'pg2', 'pg3'] as const
+  const parentItemIds = [...parentFrameIds, ...parentGuideIds]
+  const z = fc.integer({ min: -5, max: 5 })
+  const scenario = fc.record({
+    parentZ: fc.array(z, { minLength: 4, maxLength: 4 }),
+    ownZ: fc.array(z, { maxLength: 4 }),
+    ownGuides: fc.integer({ min: 0, max: 2 }),
+    templated: fc.boolean(),
+    viaDefault: fc.boolean(),
+    hidden: fc.subarray(parentItemIds),
+    copied: fc.subarray(parentItemIds),
+    copyZ: z,
+  })
+  const pick = fc.constantFrom(...parentItemIds)
+
+  type OverridesScenario =
+    typeof scenario extends fc.Arbitrary<infer T> ? T : never
+
+  /** Spread `s1` on Master `p1` (stored or the book default) with normalised overrides. */
+  function build(s: OverridesScenario): Book {
+    const copied = s.copied.filter((id) => !s.hidden.includes(id))
+    const isFrame = (id: string) =>
+      (parentFrameIds as readonly string[]).includes(id)
+    const overrides = {
+      hiddenIds: s.hidden,
+      frames: copied.filter(isFrame).map((id, i) => ({
+        ...makeFrame({ id: `own-copy-${id}`, z: s.copyZ + i }),
+        overridesId: id,
+      })),
+      guides: copied
+        .filter((id) => !isFrame(id))
+        .map((id) => ({ ...guide(`own-copy-${id}`, 40), overridesId: id })),
+    }
+    const parentOverrides = Object.fromEntries(
+      Object.entries(overrides).filter(([, list]) => list.length > 0),
+    )
+    const spread = makeSpread({
+      id: 's1',
+      frames: s.ownZ.map((zValue, i) =>
+        makeFrame({ id: `own-${String(i)}`, z: zValue }),
+      ),
+      ...(s.ownGuides === 0
+        ? {}
+        : {
+            guides: Array.from({ length: s.ownGuides }, (_, i) =>
+              guide(`g-${String(i)}`, 5 + i),
+            ),
+          }),
+      ...(s.templated ? { templateId: 'not-a-template' } : {}),
+      ...(s.viaDefault ? {} : { parentId: 'p1' }),
+      ...(Object.keys(parentOverrides).length === 0 ? {} : { parentOverrides }),
+    })
+    return bookWith(spread, {
+      parents: [
+        parent({
+          frames: parentFrameIds.map((id, i) =>
+            makeFrame({ id, z: s.parentZ[i] ?? 0 }),
+          ),
+          guides: parentGuideIds.map((id, i) => guide(id, 20 + i)),
+        }),
+        parent({ id: 'p2', name: 'B' }),
+      ],
+      ...(s.viaDefault ? { defaultParentId: 'p1' } : {}),
+    })
+  }
+
+  const spreadOf = (book: Book): Spread => {
+    const spread = book.spreads[0]
+    if (spread === undefined) {
+      throw new Error('no spread')
+    }
+    return spread
+  }
+
+  const suppressed = (book: Book, id: string) => {
+    const overrides = spreadOf(book).parentOverrides
+    return [
+      ...(overrides?.hiddenIds ?? []),
+      ...(overrides?.frames ?? []).map((copy) => copy.overridesId),
+      ...(overrides?.guides ?? []).map((copy) => copy.overridesId),
+    ].includes(id)
+  }
+
+  const override = (book: Book, id: string) =>
+    (parentFrameIds as readonly string[]).includes(id)
+      ? applyBookOp(book, {
+          type: 'overrideParentFrame',
+          spreadId: 's1',
+          parentFrameId: id,
+        })
+      : applyBookOp(book, {
+          type: 'overrideParentGuide',
+          spreadId: 's1',
+          parentGuideId: id,
+        })
+
+  const reset = (book: Book, id: string) =>
+    applyBookOp(book, {
+      type: 'resetParentItem',
+      spreadId: 's1',
+      parentItemId: id,
+    })
+
+  /** Every resolved item id with its layer. */
+  const resolvedItems = (book: Book) => {
+    const spread = spreadOf(book)
+    return [
+      ...resolveParentFrames(book, spread).map(({ frame, layer }) => ({
+        id: frame.id,
+        layer,
+        overridesId: (frame as { overridesId?: string }).overridesId,
+      })),
+      ...resolveParentGuides(book, spread).map(({ guide: item, layer }) => ({
+        id: item.id,
+        layer,
+        overridesId: (item as { overridesId?: string }).overridesId,
+      })),
+    ]
+  }
+
+  it('override then reset restores the spread; a suppressed item leaves the book', () => {
+    fc.assert(
+      fc.property(scenario, pick, (s, id) => {
+        const book = build(s)
+        const overridden = override(book, id)
+        if (suppressed(book, id)) {
+          expect(overridden).toBe(book)
+          return
+        }
+        const items = resolvedItems(overridden)
+        expect(items).not.toContainEqual(
+          expect.objectContaining({ id, layer: 'parent' }),
+        )
+        expect(items).toContainEqual(
+          expect.objectContaining({ layer: 'override', overridesId: id }),
+        )
+        expect(reset(overridden, id)).toStrictEqual(book)
+      }),
+      runs,
+    )
+  })
+
+  it('hide hides the item and its copy; reset brings the parent item back', () => {
+    fc.assert(
+      fc.property(scenario, pick, (s, id) => {
+        const book = build(s)
+        const hidden = applyBookOp(book, {
+          type: 'hideParentItem',
+          spreadId: 's1',
+          parentItemId: id,
+        })
+        const items = resolvedItems(hidden)
+        expect(items.some((item) => item.id === id)).toBe(false)
+        expect(items.some((item) => item.overridesId === id)).toBe(false)
+        expect(spreadOf(hidden).parentOverrides?.hiddenIds).toContain(id)
+        const back = resolvedItems(reset(hidden, id))
+        expect(back).toContainEqual(
+          expect.objectContaining({ id, layer: 'parent' }),
+        )
+        if (!suppressed(book, id)) {
+          expect(reset(hidden, id)).toStrictEqual(book)
+        }
+      }),
+      runs,
+    )
+  })
+
+  it('reset spread to parent drops every override', () => {
+    fc.assert(
+      fc.property(scenario, (s) => {
+        const book = build(s)
+        const next = applyBookOp(book, {
+          type: 'resetSpreadToParent',
+          spreadId: 's1',
+        })
+        if (spreadOf(book).parentOverrides === undefined) {
+          expect(next).toBe(book)
+          return
+        }
+        expect(spreadOf(next)).toStrictEqual(
+          omitKey(spreadOf(book), 'parentOverrides'),
+        )
+        expect(
+          resolvedItems(next).filter(({ layer }) => layer === 'parent'),
+        ).toHaveLength(parentItemIds.length)
+      }),
+      runs,
+    )
+  })
+
+  it('a parent switch keeps copies as own frames below the own frames, in order', () => {
+    fc.assert(
+      fc.property(
+        scenario,
+        fc.constantFrom<string | null>(null, 'p2'),
+        (s, target) => {
+          const book = build(s)
+          const before = spreadOf(book)
+          const next = applyBookOp(book, {
+            type: 'setSpreadParent',
+            spreadId: 's1',
+            parentId: target,
+          })
+          const after = spreadOf(next)
+          expect(after.parentOverrides).toBeUndefined()
+          const copies = (before.parentOverrides?.frames ?? []).toSorted(
+            (a, b) => a.z - b.z,
+          )
+          const kept = after.frames.slice(0, copies.length)
+          expect(kept.map((frame) => frame.id)).toEqual(
+            copies.map((copy) => copy.id),
+          )
+          expect(kept.every((frame) => !('overridesId' in frame))).toBe(true)
+          for (const [i, frame] of kept.entries()) {
+            expect(frame.rect).toEqual(copies[i]?.rect)
+            if (i > 0) {
+              expect(frame.z).toBeGreaterThan(kept[i - 1]?.z ?? Infinity)
+            }
+          }
+          const own = after.frames.slice(copies.length)
+          expect(own).toEqual(before.frames)
+          own.forEach((frame, i) => {
+            expect(frame).toBe(before.frames[i])
+          })
+          const lowest = Math.min(...own.map((frame) => frame.z))
+          expect(kept.every((frame) => frame.z < lowest)).toBe(true)
+          expect('templateId' in after).toBe(s.templated && copies.length === 0)
+          const copyGuides = (before.parentOverrides?.guides ?? []).map(
+            (copy) => copy.id,
+          )
+          expect((after.guides ?? []).map((item) => item.id)).toEqual([
+            ...(before.guides ?? []).map((item) => item.id),
+            ...copyGuides,
+          ])
+        },
+      ),
+      runs,
+    )
+  })
+
+  it('frame ops edit a copy in place and keep the template', () => {
+    fc.assert(
+      fc.property(
+        scenario,
+        fc.constantFrom(...parentFrameIds),
+        fc.integer({ min: 1, max: 20 }),
+        (s, id, dx) => {
+          const book = build({ ...s, hidden: [], copied: [] })
+          const overridden = applyBookOp(book, {
+            type: 'overrideParentFrame',
+            spreadId: 's1',
+            parentFrameId: id,
+            id: 'mine',
+          })
+          const moved = applyBookOp(overridden, {
+            type: 'moveFrame',
+            spreadId: 's1',
+            frameId: 'mine',
+            dx,
+            dy: 0,
+          })
+          const copy = spreadOf(moved).parentOverrides?.frames?.[0]
+          expect(copy?.overridesId).toBe(id)
+          expect(copy?.rect.x).toBe(10 + dx)
+          expect(spreadOf(moved).frames).toBe(spreadOf(book).frames)
+          expect(spreadOf(moved).templateId).toBe(spreadOf(book).templateId)
+          expect(moved.parents).toBe(book.parents)
+        },
+      ),
+      runs,
+    )
+  })
+})

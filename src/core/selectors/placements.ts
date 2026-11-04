@@ -1,10 +1,11 @@
 import type { Book } from '../schema'
+import { spreadFrames } from '../update'
 
-/** Placements per asset: spread frames plus cover panels and endpapers. */
+/** Placements per asset: spread frames and local copies plus cover panels and endpapers. */
 export function placementCountByAsset(book: Book): ReadonlyMap<string, number> {
   const counts = new Map<string, number>()
   for (const spread of book.spreads) {
-    for (const frame of spread.frames) {
+    for (const frame of spreadFrames(spread)) {
       if (frame.assetId === undefined) {
         continue
       }
@@ -29,7 +30,7 @@ export function placementCountByAsset(book: Book): ReadonlyMap<string, number> {
 /** True when any frame in the book has a placed asset. */
 export function bookHasAnyPlacement(book: Book): boolean {
   return book.spreads.some((spread) =>
-    spread.frames.some((frame) => frame.assetId !== undefined),
+    spreadFrames(spread).some((frame) => frame.assetId !== undefined),
   )
 }
 

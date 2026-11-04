@@ -2,7 +2,7 @@ import type { Book, Frame } from '../schema'
 import { applyTemplate } from '../templates/apply'
 import { photoAspectClass, type AspectClass } from '../templates/aspect'
 import { bestTemplateId } from '../templates/best'
-import { updateSpread } from '../update'
+import { findSpreadFrame, updateFrame, updateSpread } from '../update'
 import { withPlacedAsset } from './place'
 import { addSpread, nextSpreadId } from './spreads'
 
@@ -74,20 +74,24 @@ export function fillSpread(
   assetIds: readonly string[],
 ): Book {
   const spread = book.spreads.find((candidate) => candidate.id === spreadId)
-  const target = spread?.frames.find((frame) => frame.id === frameId)
+  const target =
+    spread === undefined ? spread : findSpreadFrame(spread, frameId)
   if (target === undefined || target.locked === true) {
     return book
   }
   const usable = usableAssets(book, assetIds)
-  if (usable.length === 0) {
+  const [first, ...rest] = usable.map(({ id }) => id)
+  if (first === undefined) {
     return book
   }
-  return fillFrames(
-    book,
-    spreadId,
-    frameId,
-    usable.map(({ id }) => id),
-  )
+  if (spread?.frames.includes(target) !== true) {
+    // A local copy of a parent item takes the first photo, own frames the rest.
+    const placed = updateFrame(book, spreadId, frameId, (frame) =>
+      withAsset(frame, first),
+    )
+    return fillFrames(placed, spreadId, undefined, rest)
+  }
+  return fillFrames(book, spreadId, frameId, [first, ...rest])
 }
 
 function assetAspectClass({ asset }: UsableAsset): AspectClass {
