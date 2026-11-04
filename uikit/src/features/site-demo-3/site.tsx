@@ -1,34 +1,36 @@
-/* Photographer site, demo 3 "Index" (Designer Spec site-awards-5, Direction 3): a catalogue raisonné. The home is a
-   typographic index of the books in Lora 112; hovering a row dims the others, slides the title into italic and lets the
-   closed book float after the pointer, tilting with its speed (lerp .14). The book page turns its pages as you scroll
-   (./book). Paper white #F7F5F0, ink #111110, one vermilion mark #C8401E. */
+/* Photographer site, demo 3 v2 "Index" (Spec site-awards-v2 §3): a typographic list on paper. Left: rows of 112 with the
+   number, the title 62 and the meta; right of a hairline: a sticky preview (Book3D 12.5 px/cm, ry −14) with the statement.
+   Hover / focus a row: the other rows fade to .3, the preview crossfades to that book. A click opens the scroll-scrubbed
+   book page (./book). 12 books: rows grouped by year; 1 book: one big row. Phone ≤ 640: rows with a flat cover thumbnail.
+   `?books=1|3|6|12`. */
 import * as React from "react"
 import { Book3D } from "../site-demo-1/book3d"
-import { AUTHOR, BOOKS, EMAIL, italics } from "../site-demo-1/data"
-import "../site-demo-1/site.css"
-import { BookPage, IndexRow, layoutOf, reduced, type L3 } from "./book"
+import { AUTHOR, EMAIL, pad2, pagesOf, src, type SiteBook } from "../site-demo-1/data"
+import { BooksSwitch, clamp, countLabel, Header, metaOf, reduced, Statement, useBooks, useBox, type Box } from "../site-demo-1/v2"
+import { BookPage, layoutOf } from "./book"
 import "./site.css"
 
-const STATEMENT = "Six books about lakes, coasts and *the people I travel with.*"
-const ABOUT = "I make books of the trips I take and the people I take them with, printed and bound by hand. *Based in Tbilisi,* working wherever the road goes."
-const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x))
-const rich = (s: string) => italics(s).map((x, i) => (x.it ? <em key={i}>{x.t}</em> : <React.Fragment key={i}>{x.t}</React.Fragment>))
-const fine = () => matchMedia("(hover: hover) and (pointer: fine)").matches
+const ABOUT = "I make books of the trips I take and the people I take them with, printed and bound by hand. *Based in Tbilisi, working wherever the road goes.*"
+const intro = (n: number) => `${countLabel(n, n === 1)} about lakes, coasts and *the people I travel with.*`
+
+/** desktop columns: list from 48, the rule 40 left of the preview, the preview (≤ 420) 48 from the right */
+const colsOf = (box: Box) => {
+  const pw = Math.round(clamp(box.w * 0.29, 300, 420)), px = box.w - 48 - pw, rx = px - 40
+  return { pw, px, rx, lw: rx - 64 - 48 }
+}
 
 export function SiteDemo3() {
-  const root = React.useRef<HTMLDivElement>(null)
+  const books = useBooks()
+  return <Index key={books.length} books={books} />
+}
+
+function Index({ books }: { books: SiteBook[] }) {
+  const [root, box] = useBox<HTMLDivElement>()
   const scroller = React.useRef<HTMLDivElement>(null)
   const homeTop = React.useRef(0)
-  const [box, setBox] = React.useState({ w: 1440, h: 900 })
   const [open, setOpen] = React.useState<string | null>(null)
   const [back, setBack] = React.useState<{ id: string; to?: "about" | "contact" } | null>(null)
-  React.useLayoutEffect(() => {
-    const el = root.current; if (!el) return
-    const r = () => setBox({ w: el.clientWidth, h: el.clientHeight }); r()
-    const ro = new ResizeObserver(r); ro.observe(el); return () => ro.disconnect()
-  }, [])
-  const l = layoutOf(box.w, box.h)
-  const b = BOOKS.find((x) => x.id === open)
+  const b = books.find((x) => x.id === open)
 
   const openBook = (id: string) => {
     const s = scroller.current
@@ -40,10 +42,9 @@ export function SiteDemo3() {
   // back home: the index scrolls to where it was (or to About / Contact) and the book's row takes the focus
   React.useLayoutEffect(() => {
     const s = scroller.current; if (!back || !s) return
-    const row = s.querySelector<HTMLElement>(`[data-testid="sd3-book"][data-id="${back.id}"]`)
-    if (back.to) s.querySelector(`#sd3-${back.to}`)?.scrollIntoView()
+    if (back.to) s.querySelector(`#sv3-${back.to}`)?.scrollIntoView()
     else s.scrollTop = homeTop.current
-    row?.focus({ preventScroll: true })
+    s.querySelector<HTMLElement>(`[data-testid="sd3-book"][data-id="${back.id}"]`)?.focus({ preventScroll: true })
     setBack(null)
   }, [back])
   const esc = React.useRef(close)
@@ -56,143 +57,129 @@ export function SiteDemo3() {
     if (open) { close(to); return }
     const s = scroller.current; if (!s) return
     const smooth: ScrollBehavior = reduced() ? "auto" : "smooth"
-    if (to) s.querySelector(`#sd3-${to}`)?.scrollIntoView({ behavior: smooth })
+    if (to) s.querySelector(`#sv3-${to}`)?.scrollIntoView({ behavior: smooth })
     else s.scrollTo({ top: 0, behavior: smooth })
   }
+  const items = [
+    { label: "Index", href: "#/full/site-demo-3", current: !b, onClick: () => nav() },
+    { label: "About", href: "#about", onClick: () => nav("about") },
+    { label: "Contact", href: "#contact", onClick: () => nav("contact") },
+  ]
   return (
-    <div ref={root} className="relative h-full overflow-hidden" data-surface="site-demo-3" data-allow-border data-testid="sd3-root">
-      <div ref={scroller} className="sd3-scroll" data-testid="sd3-scroll">
-        {b ? <BookPage key={b.id} b={b} l={l} scroller={scroller} onOpen={openBook} /> : <Home l={l} onOpen={openBook} />}
+    <div ref={root} className={`sv2${box.narrow ? " sv2-narrow" : ""}`} data-surface="site-demo-3" data-allow-border data-testid="sd3-root">
+      <div ref={scroller} className="sv3-scroll" data-testid="sd3-scroll">
+        {b ? <BookPage key={b.id} b={b} books={books} l={layoutOf(box.w, box.h)} scroller={scroller} onOpen={openBook} /> : <Home books={books} box={box} onOpen={openBook} />}
+        <Header items={items} narrow={box.narrow} />
       </div>
-      <Mast l={l} open={!!b} onNav={nav} />
+      <BooksSwitch demo={3} n={books.length} />
       <div className="sd-grain" aria-hidden />
     </div>
   )
 }
 
-/** height 56: the name (Lora 20) and "Index · About · Contact"; narrow: "A. Basov" and a Menu */
-function Mast({ l, open, onNav }: { l: L3; open: boolean; onNav: (to?: "about" | "contact") => void }) {
-  const [menu, setMenu] = React.useState(false)
-  const go = (to?: "about" | "contact") => { setMenu(false); onNav(to) }
-  const links = (
-    <>
-      <button type="button" className="sd3-link" aria-current={!open ? "page" : undefined} onClick={() => go()} data-testid={open ? "sd3-close" : "sd3-nav-index"}>Index</button>
-      <button type="button" className="sd3-link" onClick={() => go("about")} data-testid="sd3-nav-about">About</button>
-      <button type="button" className="sd3-link" onClick={() => go("contact")}>Contact</button>
-    </>
-  )
-  return (
-    <header className="sd3-mast">
-      <button type="button" className="sd3-link sd3-abs" style={{ left: l.m, top: l.narrow ? 18 : 20, font: `400 ${l.narrow ? 18 : 20}px/1 var(--site-serif)`, letterSpacing: "-.01em", color: "var(--d3-ink)" }} onClick={() => go()}>
-        {l.narrow ? "A. Basov" : AUTHOR}
-      </button>
-      {l.narrow
-        ? <>
-            <button type="button" className="sd3-link sd3-abs" style={{ right: l.m, top: 20, color: "var(--d3-ink)" }} aria-expanded={menu} onClick={() => setMenu((m) => !m)}>Menu</button>
-            {menu && <nav className="sd3-menu">{links}</nav>}
-          </>
-        : <nav className="sd3-abs flex" style={{ right: l.m, top: 22, gap: 28 }}>{links}</nav>}
-    </header>
-  )
+/** rows, grouped by year when there are 12 */
+const groupsOf = (books: SiteBook[]) => {
+  if (books.length < 12) return [{ label: "", items: books.map((b, i) => ({ b, i })) }]
+  const g: { label: string; items: { b: SiteBook; i: number }[] }[] = []
+  books.forEach((b, i) => { const y = `${b.year}`; if (g[g.length - 1]?.label !== y) g.push({ label: y, items: [] }); g[g.length - 1].items.push({ b, i }) })
+  return g
 }
 
-type Float = { id: string; kb: boolean }
-/** the index, the book that floats after the pointer, About and Contact */
-function Home({ l, onOpen }: { l: L3; onOpen: (id: string) => void }) {
-  const [float, setFloat] = React.useState<Float | null>(null)
-  const [on, setOn] = React.useState(false)
-  const [follow, setFollow] = React.useState(false)
-  const main = React.useRef<HTMLElement>(null)
-  const box = React.useRef<HTMLDivElement>(null), book = React.useRef<HTMLDivElement>(null), dot = React.useRef<HTMLDivElement>(null)
-  const st = React.useRef({ x: 0, y: 0, tx: 0, ty: 0, init: false, on: false, raf: 0 })
-  React.useEffect(() => { setFollow(fine()) }, [])
-  React.useEffect(() => () => cancelAnimationFrame(st.current.raf), [])
-
-  const pose = (ry: number, rz: number) => {
-    const s = book.current?.style; if (!s) return
-    s.setProperty("--ry", `${ry}`); s.setProperty("--rx", "-8"); s.setProperty("--rz", `${rz}`); s.setProperty("--lift", "6")
-  }
-  const place = (x: number, y: number) => { st.current.x = x; st.current.y = y; if (box.current) box.current.style.transform = `translate(${x}px, ${y}px)` }
-  /** one frame: lerp .14 toward the pointer; the speed tilts the book (ry 18 + vx·.6, rz vx·.15) */
-  const tick = () => {
-    const s = st.current, nx = s.x + (s.tx - s.x) * 0.14, vx = nx - s.x
-    place(nx, s.y + (s.ty - s.y) * 0.14); pose(18 + clamp(vx * 0.6, -20, 20), clamp(vx * 0.15, -6, 6))
-    s.raf = s.on || Math.abs(vx) > 0.05 || Math.abs(s.ty - s.y) > 0.5 ? requestAnimationFrame(tick) : 0
-  }
-  /** client → main (the float's containing block, which scrolls with the index) */
-  const rel = (cx: number, cy: number) => { const r = main.current!.getBoundingClientRect(); return { x: cx - r.left, y: cy - r.top } }
-  const onMove = (e: React.PointerEvent) => {
-    if (!follow || e.pointerType !== "mouse") return
-    const p = rel(e.clientX, e.clientY), s = st.current
-    if (dot.current) dot.current.style.transform = `translate(${p.x}px, ${p.y}px)`
-    if (reduced() || !s.on) return
-    s.tx = p.x + 24; s.ty = p.y - 170
-    if (!s.init) { s.init = true; place(s.tx, s.ty) }
-    if (!s.raf) s.raf = requestAnimationFrame(tick)
-  }
-  /** keyboard focus (and reduced motion): the book rests at x vw − 360, centred on the row */
-  const pin = (row: HTMLElement, id: string) => {
-    const bk = BOOKS.find((x) => x.id === id)!, r = row.getBoundingClientRect(), p = rel(r.left, r.top + r.height / 2)
-    place(l.vw - 360, p.y - (bk.h * 10) / 2); pose(18, 0)
-  }
-  /** show the float: a fresh one mounts at scale .6 / opacity 0 and comes in on the next frame */
-  const show = (f: Float) => {
-    const fresh = !float; setFloat(f)
-    if (fresh) requestAnimationFrame(() => setOn(true)); else setOn(true)
-  }
-  const enter = (e: React.PointerEvent<HTMLButtonElement>, id: string) => {
-    if (!follow || l.narrow || e.pointerType !== "mouse") return
-    st.current.on = true; show({ id, kb: false })
-    if (reduced()) pin(e.currentTarget, id)
-  }
-  const leave = () => { st.current.on = false; st.current.init = false; setOn(false) }
-  const focus = (e: React.FocusEvent<HTMLButtonElement>, id: string) => {
-    if (l.narrow || !e.currentTarget.matches(":focus-visible")) return
-    show({ id, kb: true }); pin(e.currentTarget, id)
-  }
-  const fb = BOOKS.find((x) => x.id === float?.id)
-  // a freshly mounted float starts where the pointer or the row put it
-  React.useLayoutEffect(() => { if (fb) place(st.current.x, st.current.y) }, [fb])
-
-  const listTop = l.narrow ? 236 : 298
-  return (
-    <main ref={main} className={follow && !l.narrow ? "sd3-fine relative" : "relative"} onPointerMove={onMove}>
-      <div className="relative" style={{ height: listTop }}>
-        {!l.narrow && <div className="sd3-mono sd3-abs" style={{ left: l.m, top: 112 }}>Photobooks<br />2023 — 2026<br />{String(BOOKS.length).padStart(2, "0")} titles</div>}
-        <p className="sd3-statement sd3-abs" style={l.narrow ? { left: l.m, top: 84, width: l.vw - 40, fontSize: 22, lineHeight: 1.35 } : { left: Math.max(l.m + 200, l.vw - 624), top: 106, width: 576 }}>{rich(STATEMENT)}</p>
-        {!l.stack && (
-          <div className="sd3-mono sd3-s sd3-abs" style={{ left: l.m, right: l.m, top: listTop - 26, lineHeight: 1 }} aria-hidden>
-            <span className="sd3-abs" style={{ left: 0 }}>No.</span><span className="sd3-abs" style={{ left: 120 }}>Title</span>
-            <span className="sd3-abs" style={{ left: l.vw - 2 * l.m - 408 }}>Year</span><span className="sd3-abs" style={{ left: l.vw - 2 * l.m - 312 }}>Pages</span>
-            <span className="sd3-abs" style={{ right: 0 }}>Size, cm</span>
-          </div>
-        )}
-      </div>
-      <ol className="sd3-list" style={{ margin: `0 ${l.m}px` }} aria-label="Photobooks" data-testid="sd3-index">
-        {BOOKS.map((bk, i) => (
-          <li key={bk.id}>
-            <IndexRow b={bk} i={i} l={l} onOpen={(id) => onOpen(id)} onPointerEnter={(e) => enter(e, bk.id)} onPointerLeave={leave}
-              onFocus={(e) => focus(e, bk.id)} onBlur={() => { if (float?.kb) setOn(false) }} />
+function Home({ books, box, onOpen }: { books: SiteBook[]; box: Box; onOpen: (id: string) => void }) {
+  const [hov, setHov] = React.useState(-1), [shown, setShown] = React.useState(0)
+  const n = books.length, one = n === 1, c = colsOf(box)
+  const on = (i: number) => { setHov(i); if (i >= 0) setShown(i) }
+  const k = Math.min(1, box.h / 900), s = (one ? 15 : 12.5) * k
+  const fs = one ? Math.min(150, c.lw / 5.4) : Math.min(62, c.lw / 13.2), rowH = one ? 170 : 112
+  const rows = groupsOf(books).map((g) => (
+    <li key={g.label || "all"} className="sv3-group">
+      {g.label && <div className="sv2-meta sv3-year">{g.label}</div>}
+      <ol className="sv3-rows">
+        {g.items.map(({ b, i }) => (
+          <li key={b.id}>
+            {box.narrow ? <PhoneRow b={b} i={i} w={box.w} onOpen={onOpen} />
+              : <button type="button" className="sv3-row" style={{ height: rowH }} data-on={hov === i || undefined} aria-label={`${b.title}, ${b.year}`} data-testid="sd3-book" data-id={b.id}
+                  onPointerEnter={(e) => { if (e.pointerType === "mouse") on(i) }} onFocus={(e) => { if (e.currentTarget.matches(":focus-visible")) on(i) }} onBlur={() => setHov(-1)} onClick={() => onOpen(b.id)}>
+                  <span className="sv2-num">{pad2(i + 1)}</span>
+                  <span className="sv3-title" style={{ fontSize: fs }}>{b.title}</span>
+                  <span className="sv2-meta sv3-meta">{b.year}<br />{pagesOf(b)} pp</span>
+                </button>}
           </li>
         ))}
       </ol>
-      <section id="sd3-about" className="relative" style={{ padding: `${l.stack ? 120 : 200}px ${l.m}px 0`, display: "grid", gridTemplateColumns: l.stack ? "1fr" : "1fr 576px", gap: 24 }}>
-        <div className="sd3-mono sd3-s">About</div>
-        <p className="sd3-statement" style={l.narrow ? { fontSize: 22, lineHeight: 1.35 } : undefined}>{rich(ABOUT)}</p>
-      </section>
-      <section id="sd3-contact" className="relative" style={{ padding: `${l.stack ? 96 : 140}px ${l.m}px ${l.stack ? 72 : 96}px` }}>
-        <div className="sd3-mono sd3-s" style={{ marginBottom: 20 }}>Contact</div>
-        <a className="sd3-email" style={l.narrow ? { fontSize: 28 } : undefined} href={`mailto:${EMAIL}`}>{EMAIL}</a>
-        <div className="sd3-mono sd3-s" style={{ marginTop: l.stack ? 72 : 120 }}>© 2026 {AUTHOR}</div>
-      </section>
-      {fb && (
-        <div ref={box} className="sd3-float" aria-hidden data-testid="sd3-float" data-id={fb.id}>
-          <div className="sd3-float-in" data-on={on || undefined} onTransitionEnd={() => { if (!on) setFloat(null) }}>
-            <Book3D ref={book} b={fb} s={10} pose={{ ry: 18, rx: -8, lift: 6 }} />
-          </div>
-        </div>
-      )}
-      {follow && <div ref={dot} className="sd3-cursor sd3-mono sd3-s" style={{ color: "var(--d3-ink)" }} data-on={(on && !float?.kb) || undefined} aria-hidden>Open</div>}
+    </li>
+  ))
+  if (box.narrow) return (
+    <main className="relative" style={{ padding: "100px 20px 0" }}>
+      <p className="sv2-intro"><Statement s={intro(n)} /></p>
+      <ol className="sv3-list" style={{ marginTop: 40 }} aria-label="Photobooks" data-testid="sd3-index">{rows}</ol>
+      <More narrow />
     </main>
+  )
+  return (
+    <main className="relative" style={{ paddingTop: 250 }}>
+      <p className="sv2-intro sv2-abs" style={{ left: 48, top: 132, width: Math.min(600, c.lw) }}><Statement s={intro(n)} /></p>
+      <div className="relative flex">
+        <ol className="sv3-list" style={{ marginLeft: 48, width: c.lw }} data-hov={hov >= 0 || undefined} onPointerLeave={() => setHov(-1)} aria-label="Photobooks" data-testid="sd3-index">{rows}</ol>
+        <div className="sv3-rule" style={{ left: c.rx }} aria-hidden />
+        <div className="relative" style={{ marginLeft: c.px - 48 - c.lw, width: c.pw, marginTop: -130 }}>
+          <Preview b={books[shown]} s={s} k={k} onOpen={onOpen} />
+        </div>
+      </div>
+      <More narrow={false} />
+    </main>
+  )
+}
+
+/** phone row: a flat cover 64 wide at its true ratio, the title (36, fitted) and the meta */
+function PhoneRow({ b, i, w, onOpen }: { b: SiteBook; i: number; w: number; onOpen: (id: string) => void }) {
+  const fs = Math.min(36, (w - 40 - 64 - 18) / (b.title.length * 0.52))
+  return (
+    <button type="button" className="sv3-row sv3-row-phone" aria-label={`${b.title}, ${b.year}`} data-testid="sd3-book" data-id={b.id} onClick={() => onOpen(b.id)}>
+      <span className="sv3-thumb" style={{ width: 64, height: (64 * b.h) / b.w, backgroundImage: `url(${src(b.cover)})`, backgroundColor: b.spine }} />
+      <span className="min-w-0">
+        <span className="sv3-title block" style={{ fontSize: fs }}>{b.title}</span>
+        <span className="sv2-meta block" style={{ marginTop: 6 }}>{pad2(i + 1)} · {b.year} · {pagesOf(b)} pp</span>
+      </span>
+    </button>
+  )
+}
+
+/** the sticky preview: the book standing over a soft floor shadow, its statement, meta and link; it crossfades */
+function Preview({ b, s, k, onOpen }: { b: SiteBook; s: number; k: number; onOpen: (id: string) => void }) {
+  const [st, setSt] = React.useState({ cur: b, prev: null as SiteBook | null, id: 0 })
+  if (b !== st.cur) setSt({ cur: b, prev: st.cur, id: st.id + 1 })
+  const card = (x: SiteBook, live: boolean) => (
+    <>
+      <div className="sv3-stand" style={{ height: 480 * k }}><Book3D b={x} s={s} pose={{ ry: -14, rx: -3 }} /></div>
+      <p className="sv3-pv-st"><Statement s={x.statement} /></p>
+      <div className="sv2-meta" style={{ marginTop: 12 }}>{metaOf(x)}</div>
+      <button type="button" className="sv2-link" style={{ marginTop: 16 }} tabIndex={live ? undefined : -1} onClick={() => onOpen(x.id)}>Open the book</button>
+    </>
+  )
+  return (
+    <div className="sv3-prev" data-testid="sd3-preview" data-id={st.cur.id}>
+      {st.prev && <div key={`o${st.id}`} className="sv3-pv sv3-pv-out" aria-hidden>{card(st.prev, false)}</div>}
+      <div key={`i${st.id}`} className={st.id ? "sv3-pv sv3-pv-in" : "sv3-pv"}>{card(st.cur, true)}</div>
+    </div>
+  )
+}
+
+function More({ narrow }: { narrow: boolean }) {
+  const m = narrow ? 0 : 48
+  return (
+    <>
+      <section id="sv3-about" className="sv3-sec" style={{ padding: `${narrow ? 120 : 200}px ${m}px 0` }}>
+        <div className="sv2-meta">About</div>
+        <p className="sv2-intro" style={{ maxWidth: 600 }}><Statement s={ABOUT} /></p>
+      </section>
+      <section id="sv3-contact" className="sv3-sec" style={{ padding: `${narrow ? 96 : 140}px ${m}px ${narrow ? 88 : 96}px` }}>
+        <div className="sv2-meta">Contact</div>
+        <div>
+          <a className="sv3-email" style={narrow ? { fontSize: 26 } : undefined} href={`mailto:${EMAIL}`}>{EMAIL}</a>
+          <div className="sv2-meta" style={{ marginTop: narrow ? 72 : 120 }}>© 2026 {AUTHOR}</div>
+        </div>
+      </section>
+    </>
   )
 }
