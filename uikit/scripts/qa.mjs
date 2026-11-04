@@ -2138,6 +2138,12 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const cv = await page.locator(`${demo} [data-testid="spread"][data-current]`).first().evaluate((s) => ({ o: s.getBoundingClientRect().toJSON(), boxes: [...s.querySelectorAll('[data-testid="frame"]')].map((f) => f.getBoundingClientRect().toJSON()) })).catch(() => null)
   const note1 = await page.locator(`${demo} [data-testid="section-note"]`).textContent().catch(() => null)
   ok("kit-sync KS7: page 1 Hero + two — tile, hover preview and canvas all show 3 frames inside the page", tile === 3 && prev && prev.boxes.length === 3 && inside(prev.boxes, prev.o) && cv && cv.boxes.length === 3 && inside(cv.boxes, cv.o) && note1 === "· Hero + two", JSON.stringify({ tile, preview: prev?.boxes.length, prevInside: prev && inside(prev.boxes, prev.o), canvas: cv?.boxes.length, canvasInside: cv && inside(cv.boxes, cv.o), note1 }))
+  // kit-thumbgrid-page-select: page 1 stores t-hero2@page; its base tile is the selected one (box-shadow = the shadow-tile-select token)
+  const sel1 = await page.locator(hero).evaluate((t) => {
+    const q = document.createElement("div"); q.className = "shadow-tile-select"; document.body.append(q); const want = getComputedStyle(q).boxShadow; q.remove()
+    return { pressed: [...document.querySelectorAll('[data-testid="tpl-tile"] button[aria-pressed="true"]')].map((b) => b.closest("[data-tid]").dataset.tid), shadow: getComputedStyle(t.querySelector('[data-testid="tpl-paper"]')).boxShadow, want }
+  })
+  ok("kit-thumbgrid-page-select: page 1 Hero + two (t-hero2@page) → only the t-hero2 tile pressed, paper box-shadow = shadow-tile-select", sel1.pressed.join() === "t-hero2" && sel1.shadow === sel1.want && sel1.want !== "none", JSON.stringify(sel1))
   ok("kit-sync W3: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
 
@@ -2261,6 +2267,32 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("r16 M92: before the press (Esc ×2) no row and the empty inspector; page 1 above the centred spread 2–3 (label y < 100)", before.rows.length === 0 && before.insp === "Select a spread or photo" && before.y < 100, JSON.stringify(before))
   ok("r16 M92: grey press at canvas 20,20 → row p0 (page 1) selected, inspector Spread · Page 1, page-1 label y unchanged ±0.5 (no re-centre)", after.rows.join() === "p0" && /^Spread · Page 1\b/.test(after.insp) && Math.abs(after.y - before.y) <= 0.5, JSON.stringify(after))
   ok("r16 M92: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
+}
+
+// Designer r17 (kit-thumbgrid-page-select, = prod centerSpreadScroll): Masters → Pages remounts the stack and centres the current spread
+// even when it was fully in view — zoomed out 6 steps, spread 4–5 sits fully in view at scrollTop 0 and is not centred by the pick
+{
+  const e0 = errs.length
+  await go("#/demo", 500); await page.evaluate(() => window.__demo.reset()); await page.waitForTimeout(500)
+  const c = async (sel) => { await page.locator(sel).first().click(); await page.waitForTimeout(300) }
+  await c('[data-testid="create-library"]'); await c('[data-testid="picker-select"]')
+  await c(`${demo} [data-testid="new-book"]`); await page.locator("[role=dialog] input").first().fill("Lake trip"); await c('[data-testid="create-book"]')
+  for (let i = 0; i < 6; i++) { await page.locator('[data-testid="pasteboard"]').hover(); await page.keyboard.press("Control+Minus"); await page.waitForTimeout(200) }
+  await c('[data-item="p2"]')
+  const read = () => page.evaluate(() => {
+    const pb = document.querySelector('[data-testid="pasteboard"]'), el = pb?.querySelector('[data-stack-item="2"]')
+    if (!el) return null
+    return { top: pb.scrollTop, want: Math.max(0, Math.min(el.offsetTop + el.offsetHeight / 2 - pb.clientHeight / 2, pb.scrollHeight - pb.clientHeight)) }
+  })
+  const before = await read()
+  const seg = page.locator('[data-testid="mode-seg"]')
+  await seg.getByText("Masters", { exact: true }).click(); await page.waitForTimeout(300)
+  const gone = await page.locator("[data-stack-item]").count()
+  await seg.getByText("Pages", { exact: true }).click(); await page.waitForTimeout(500)
+  const after = await read()
+  ok("Designer r17: picked spread 4–5 fully in view keeps scrollTop 0 (not yet centred)", before?.top === 0 && before.want > 50, JSON.stringify(before))
+  ok("Designer r17: Masters → Pages remounts the stack and centres spread 4–5 (scrollTop = centre ±1)", gone === 0 && after && Math.abs(after.top - after.want) <= 1, JSON.stringify({ gone, after }))
+  ok("Designer r17: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
 
 // text-frames (Designer text-frames Spec "Kit changes"): Text click / drag, edit look, whole lines, Overflow chip, grow, inspector
