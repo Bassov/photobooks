@@ -2038,6 +2038,29 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await page.locator(`${demo} [data-testid="mode-seg"]`).getByText("Pages", { exact: true }).click(); await page.waitForTimeout(250); await c('[data-item="p1"]'); await page.waitForTimeout(250)
   ok("kit10: a guide dragged on a master is kept and inherited (dashed) by its spreads", m1 === m0 + 1 && (await page.locator(`${demo} [data-testid="spread"] [data-guide]`).count()) >= m1, `master ${m0}→${m1}`)
   ok("kit10: master Page numbers toggle wires Parent.pageNumbers — spreads show page numbers", (await page.locator(`${demo} [data-testid="spread"][data-current] [data-testid="page-number"]`).count()) === 2)
+  // parent-guides PG5: inherited guides are dashed --parent-soft, 24 px past the page, under own guides and pointer-transparent
+  const pg = await page.evaluate((demo) => {
+    const sp = document.querySelector(`${demo} [data-testid="spread"][data-current]`)
+    const all = [...sp.querySelectorAll("[data-guide]")], inh = all.filter((g) => g.dataset.passive !== undefined)
+    const order = all.findIndex((g) => g.dataset.passive === undefined) === -1 || all.findIndex((g) => g.dataset.passive === undefined) > all.indexOf(inh.at(-1))
+    const look = inh.map((g) => { const ln = g.firstElementChild, cs = getComputedStyle(ln), v = g.offsetHeight > g.offsetWidth, par = g.offsetParent
+      return { v, img: cs.backgroundImage, w: v ? ln.offsetWidth : ln.offsetHeight, pe: getComputedStyle(g).pointerEvents, over: v ? [-g.offsetTop, g.offsetHeight - par.clientHeight + g.offsetTop] : [-g.offsetLeft, g.offsetWidth - par.clientWidth + g.offsetLeft] } })
+    // a point on an inherited line inside an own frame: elementFromPoint must be that frame
+    let hit = null
+    for (const g of inh) { const r = g.firstElementChild.getBoundingClientRect(), v = r.height > r.width
+      for (const f of sp.querySelectorAll('[data-testid="frame"]')) { const b = f.getBoundingClientRect()
+        const x = v ? r.left + r.width / 2 : b.left + b.width / 2, y = v ? b.top + b.height / 2 : r.top + r.height / 2
+        if (x > b.left + 2 && x < b.right - 2 && y > b.top + 2 && y < b.bottom - 2) { hit = { x, y, id: f.dataset.frame, at: document.elementFromPoint(x, y)?.closest("[data-frame]")?.dataset.frame ?? null }; break } }
+      if (hit) break }
+    return { n: inh.length, order, look, hit }
+  }, demo)
+  ok("parent-guides PG5: a Master A spread shows its master's guides dashed rgb(163, 161, 162), 1 px, 24 px past the page, pointer-events none, under own guides",
+    pg.n >= 1 && pg.order && pg.look.every((l) => /repeating-linear-gradient\(.*rgb\(163, 161, 162\)/.test(l.img) && l.w === 1 && l.pe === "none" && l.over[0] === 24 && l.over[1] === 24), JSON.stringify({ n: pg.n, order: pg.order, look: pg.look[0] }))
+  ok("parent-guides PG2: elementFromPoint on a parent guide over a frame is the frame", !!pg.hit && pg.hit.at === pg.hit.id, JSON.stringify(pg.hit))
+  if (pg.hit) { await page.mouse.click(pg.hit.x, pg.hit.y); await page.waitForTimeout(200) }
+  const pgStatus = (await page.locator(`${demo} [data-testid="status"]`).textContent()) ?? ""
+  ok("parent-guides PG2: a click on a parent guide selects the frame below, no status", (await page.locator(`${demo} [data-current] [data-testid="sel-handle"]`).count()) > 0 && !/parent spread/.test(pgStatus), pgStatus)
+  await page.keyboard.press("Escape"); await page.waitForTimeout(150)
   await page.locator(`${demo} [data-current] [data-testid="master-frame"]`).first().click({ modifiers: ["Alt"], force: true }); await page.waitForTimeout(250)
   ok("kit10: Alt+click on a parent item makes an override copy", (await page.locator(`${demo} [data-testid="spread"][data-current]`).getByText("override", { exact: true }).count()) === 1)
   // missing photo + Relink
@@ -2195,6 +2218,12 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const cv = await page.locator(`${demo} [data-testid="spread"][data-current]`).first().evaluate((s) => ({ o: s.getBoundingClientRect().toJSON(), boxes: [...s.querySelectorAll('[data-testid="frame"]')].map((f) => f.getBoundingClientRect().toJSON()) })).catch(() => null)
   const note1 = await page.locator(`${demo} [data-testid="section-note"]`).textContent().catch(() => null)
   ok("kit-sync KS7: page 1 Hero + two — tile, hover preview and canvas all show 3 frames inside the page", tile === 3 && prev && prev.boxes.length === 3 && inside(prev.boxes, prev.o) && cv && cv.boxes.length === 3 && inside(cv.boxes, cv.o) && note1 === "· Hero + two", JSON.stringify({ tile, preview: prev?.boxes.length, prevInside: prev && inside(prev.boxes, prev.o), canvas: cv?.boxes.length, canvasInside: cv && inside(cv.boxes, cv.o), note1 }))
+  // kit-thumbgrid-page-select: page 1 stores t-hero2@page; its base tile is the selected one (box-shadow = the shadow-tile-select token)
+  const sel1 = await page.locator(hero).evaluate((t) => {
+    const q = document.createElement("div"); q.className = "shadow-tile-select"; document.body.append(q); const want = getComputedStyle(q).boxShadow; q.remove()
+    return { pressed: [...document.querySelectorAll('[data-testid="tpl-tile"] button[aria-pressed="true"]')].map((b) => b.closest("[data-tid]").dataset.tid), shadow: getComputedStyle(t.querySelector('[data-testid="tpl-paper"]')).boxShadow, want }
+  })
+  ok("kit-thumbgrid-page-select: page 1 Hero + two (t-hero2@page) → only the t-hero2 tile pressed, paper box-shadow = shadow-tile-select", sel1.pressed.join() === "t-hero2" && sel1.shadow === sel1.want && sel1.want !== "none", JSON.stringify(sel1))
   ok("kit-sync W3: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
 
@@ -2318,6 +2347,32 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("r16 M92: before the press (Esc ×2) no row and the empty inspector; page 1 above the centred spread 2–3 (label y < 100)", before.rows.length === 0 && before.insp === "Select a spread or photo" && before.y < 100, JSON.stringify(before))
   ok("r16 M92: grey press at canvas 20,20 → row p0 (page 1) selected, inspector Spread · Page 1, page-1 label y unchanged ±0.5 (no re-centre)", after.rows.join() === "p0" && /^Spread · Page 1\b/.test(after.insp) && Math.abs(after.y - before.y) <= 0.5, JSON.stringify(after))
   ok("r16 M92: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
+}
+
+// Designer r17 (kit-thumbgrid-page-select, = prod centerSpreadScroll): Masters → Pages remounts the stack and centres the current spread
+// even when it was fully in view — zoomed out 6 steps, spread 4–5 sits fully in view at scrollTop 0 and is not centred by the pick
+{
+  const e0 = errs.length
+  await go("#/demo", 500); await page.evaluate(() => window.__demo.reset()); await page.waitForTimeout(500)
+  const c = async (sel) => { await page.locator(sel).first().click(); await page.waitForTimeout(300) }
+  await c('[data-testid="create-library"]'); await c('[data-testid="picker-select"]')
+  await c(`${demo} [data-testid="new-book"]`); await page.locator("[role=dialog] input").first().fill("Lake trip"); await c('[data-testid="create-book"]')
+  for (let i = 0; i < 6; i++) { await page.locator('[data-testid="pasteboard"]').hover(); await page.keyboard.press("Control+Minus"); await page.waitForTimeout(200) }
+  await c('[data-item="p2"]')
+  const read = () => page.evaluate(() => {
+    const pb = document.querySelector('[data-testid="pasteboard"]'), el = pb?.querySelector('[data-stack-item="2"]')
+    if (!el) return null
+    return { top: pb.scrollTop, want: Math.max(0, Math.min(el.offsetTop + el.offsetHeight / 2 - pb.clientHeight / 2, pb.scrollHeight - pb.clientHeight)) }
+  })
+  const before = await read()
+  const seg = page.locator('[data-testid="mode-seg"]')
+  await seg.getByText("Masters", { exact: true }).click(); await page.waitForTimeout(300)
+  const gone = await page.locator("[data-stack-item]").count()
+  await seg.getByText("Pages", { exact: true }).click(); await page.waitForTimeout(500)
+  const after = await read()
+  ok("Designer r17: picked spread 4–5 fully in view keeps scrollTop 0 (not yet centred)", before?.top === 0 && before.want > 50, JSON.stringify(before))
+  ok("Designer r17: Masters → Pages remounts the stack and centres spread 4–5 (scrollTop = centre ±1)", gone === 0 && after && Math.abs(after.top - after.want) <= 1, JSON.stringify({ gone, after }))
+  ok("Designer r17: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
 
 // text-frames (Designer text-frames Spec "Kit changes"): Text click / drag, edit look, whole lines, Overflow chip, grow, inspector

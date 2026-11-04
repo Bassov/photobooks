@@ -228,11 +228,10 @@ export function Viewport({ className, children, pad = 40 }: { className?: string
     else if (st.features.parentEdit) { const pid = st.features.parentEdit; st.update((d) => ({ ...d, parents: d.parents.map((pp) => pp.id === pid ? { ...pp, guides: pp.guides.filter((x) => x.id !== id) } : pp) }), "Delete guide") }
     else st.update((d) => mapSpread(d, si, (s) => ({ ...s, guides: s.guides.filter((x) => x.id !== id) })), "Delete guide")
   }
-  const onGuideDown = (e: React.PointerEvent, id: string, inherited: boolean) => {
+  const onGuideDown = (e: React.PointerEvent, id: string) => {
     const s = st.doc.spreads[si]
     const par = st.features.parentEdit ? st.doc.parents.find((p) => p.id === st.features.parentEdit) : undefined
     const g = (mid ? masterGuides(mid) : par?.guides ?? []).find((x) => x.id === id) ?? s.guides.find((x) => x.id === id)
-    if (inherited && !st.features.parentEdit) { e.stopPropagation(); st.setStatus("Guide from the parent spread — edit it on the parent, or Alt+click to override"); return }
     if (!g) return
     if (g.locked) { e.stopPropagation(); st.setStatus("Guide is locked"); return }
     guideDrag(e, g.axis, g)
@@ -248,7 +247,7 @@ export function Viewport({ className, children, pad = 40 }: { className?: string
         className)} data-testid="viewport">
       {size.w > 0 && (
         <div className="absolute" style={{ left: ox, top: oy, width: VW * sc, height: SH * sc }} data-testid="spread-layer">
-          {nd ? <div className="size-full" data-testid="node-view">{nd.k === "cover" ? <CoverDrop /> : nd.k === "endpaper" ? <EndpaperSpread big which={nd.w} /> : nd.k === "master" ? <><MasterSpread big id={nd.id} m={masters[nd.id]} />{view.guides && !view.preview && masterGuides(nd.id).map((g) => <GuideLine key={g.id} g={g} sc={sc} onDown={(e) => onGuideDown(e, g.id, false)} />)}</> : <LastPage big />}</div>
+          {nd ? <div className="size-full" data-testid="node-view">{nd.k === "cover" ? <CoverDrop /> : nd.k === "endpaper" ? <EndpaperSpread big which={nd.w} /> : nd.k === "master" ? <><MasterSpread big id={nd.id} m={masters[nd.id]} />{view.guides && !view.preview && masterGuides(nd.id).map((g) => <GuideLine key={g.id} g={g} sc={sc} onDown={(e) => onGuideDown(e, g.id)} />)}</> : <LastPage big />}</div>
             : <SpreadSurface si={si} sc={sc} onGuideDown={onGuideDown} />}
           {(!nd || mid) && newGuide && <div className={cn("pointer-events-none absolute z-50 bg-guide", newGuide.axis === "v" ? "w-px" : "h-px")} style={newGuide.axis === "v" ? { left: newGuide.pos * sc, top: -40, height: SH * sc + 80 } : { top: newGuide.pos * sc, left: -40, width: SW * sc + 80 }}>
             <span className="absolute whitespace-nowrap rounded-xs bg-guide-solid px-1.5 py-px text-2xs font-semibold text-white" style={newGuide.axis === "v" ? { left: 4, top: 0 } : { left: 0, top: 4 }}>{newGuide.pos} mm</span>
@@ -302,6 +301,7 @@ function Stack({ className, pad, children }: { className?: string; pad: number; 
   const [ref, size] = useSize<HTMLDivElement>()
   const sc = fitScale(size.w, size.h, pad) * st.view.zoom, gap = SH * sc * STACK_GAP
   const last = st.node?.k === "last", ready = size.w > 0
+  const centred = React.useRef(false)
   React.useEffect(() => {
     // a current spread (or the last page) not fully in view is centred in the viewport (prod centerSpreadScroll);
     // a grey-press activation keeps the scroll (r16 M92, prod pasteboardClickSpreadId)
@@ -309,8 +309,10 @@ function Stack({ className, pad, children }: { className?: string; pad: number; 
     if (picked) return
     const el = ref.current?.querySelector(`[data-stack-item="${last ? "last" : st.cur}"]`) as HTMLElement | null
     if (!el || !ref.current) return
-    const c = ref.current, top = el.offsetTop + el.offsetHeight / 2 - c.clientHeight / 2
-    if (el.offsetTop < c.scrollTop || el.offsetTop + el.offsetHeight > c.scrollTop + c.clientHeight) c.scrollTo({ top })
+    // Designer r17: a remount (Masters → Pages) centres the current spread even when it is fully in view, as prod does
+    const c = ref.current, top = el.offsetTop + el.offsetHeight / 2 - c.clientHeight / 2, mount = !centred.current
+    centred.current = true
+    if (mount || el.offsetTop < c.scrollTop || el.offsetTop + el.offsetHeight > c.scrollTop + c.clientHeight) c.scrollTo({ top })
   }, [st.cur, last, ready])
   // prod usePasteboardCamera: a zoom keeps the content point under the cursor (wheel) or the pasteboard centre (keys, menu) fixed.
   // Everything but the padding scales with sc: x from the stack's centre line, y from the top padding.

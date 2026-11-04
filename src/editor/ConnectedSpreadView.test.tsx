@@ -8,7 +8,7 @@ import {
   within,
 } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { addSpread, applyTemplate, placeAsset } from '../core'
+import { addSpread, addTextFrame, applyTemplate, placeAsset } from '../core'
 import { makeBook } from '../core/testing/fixtures'
 import { selectImageTier } from '../photo/imageTiers'
 import * as assetPool from '../photo/assetPool'
@@ -278,6 +278,29 @@ describe('per-spread paint subscription', () => {
     expect(getCropTarget()).toBeNull()
     // The empty frame stays selected.
     expect(getFrameSource()).toMatchObject({ spreadId: 's0', frameId })
+  })
+
+  it('names a text frame "Text frame", even while a photo is selected to move', () => {
+    let book = twoSpreadBook()
+    book = addTextFrame(book, 's0', { x: 0, y: 0, width: 60, height: 14 }, 't1')
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<ConnectedSpreadView spreadId="s0" />)
+    const text = () =>
+      screen
+        .getAllByTestId('spread-frame')
+        .find((frame) => frame.getAttribute('data-kind') === 'text')
+    expect(text()?.getAttribute('aria-label')).toBe('Text frame')
+    const photoId = book.spreads[0]?.frames[0]?.id ?? ''
+    act(() => {
+      setFrameSource({ spreadId: 's0', frameId: photoId })
+    })
+    expect(text()?.getAttribute('aria-label')).toBe('Text frame')
   })
 
   it('dims the dragged frame after dragstart and restores it at dragend', () => {
