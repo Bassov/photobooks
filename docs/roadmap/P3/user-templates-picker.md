@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P3
 Title: Bug: /next-roadmap-item user-templates-picker
+Status: done
 
 ## Scope
 
