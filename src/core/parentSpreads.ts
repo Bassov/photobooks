@@ -1,3 +1,4 @@
+import { getSpreadPageCount } from './geometry/spreadSize'
 import { mergeGridLevels } from './grid/layoutGrid'
 import { omitKey } from './omitKey'
 import { realignResolvedGrids } from './ops/grid'
@@ -476,4 +477,77 @@ function keepOverridesOnParentChange(before: Book, after: Book): Book {
   return spreads.some((spread, index) => spread !== after.spreads[index])
     ? { ...after, spreads }
     : after
+}
+
+/** A parent guide (two-page mm) on this spread's page, or `undefined` when off it. */
+function onPage(
+  guide: Guide,
+  shiftMm: number,
+  widthMm: number,
+): Guide | undefined {
+  if (guide.orientation === 'horizontal') {
+    return guide
+  }
+  const offsetMm = guide.offsetMm - shiftMm
+  if (offsetMm < 0 || offsetMm > widthMm) {
+    return undefined
+  }
+  return shiftMm === 0 ? guide : { ...guide, offsetMm }
+}
+
+interface ViewGuidesEntry {
+  parentGuides: Guide[] | undefined
+  trimWidthMm: number
+  spreadIndex: number
+  spreadCount: number
+  result: readonly ResolvedGuide[]
+}
+
+const viewGuidesCache = new WeakMap<Spread, ViewGuidesEntry>()
+
+/**
+ * Guides a spread shows, in its own mm: `resolveParentGuides` with the parent
+ * layer moved onto the page. A single first page (right) shows parent verticals
+ * from the trim width on; a single last page (left) up to it. Cached per spread
+ * object, so an unrelated edit returns the same array.
+ */
+export function viewGuides(
+  book: Book,
+  spreadIndex: number,
+  spread: Spread | undefined = book.spreads[spreadIndex],
+): readonly ResolvedGuide[] {
+  if (spread === undefined) {
+    return []
+  }
+  const parentGuides = spreadParent(book, spread)?.guides
+  const trimWidthMm = book.settings.trim.widthMm
+  const spreadCount = book.spreads.length
+  const hit = viewGuidesCache.get(spread)
+  if (
+    hit !== undefined &&
+    hit.parentGuides === parentGuides &&
+    hit.trimWidthMm === trimWidthMm &&
+    hit.spreadIndex === spreadIndex &&
+    hit.spreadCount === spreadCount
+  ) {
+    return hit.result
+  }
+  const single = getSpreadPageCount(spreadIndex, spreadCount) === 1
+  const shiftMm = single && spreadIndex === 0 ? trimWidthMm : 0
+  const widthMm = single ? trimWidthMm : trimWidthMm * 2
+  const result = resolveParentGuides(book, spread).flatMap((item) => {
+    if (item.layer !== 'parent') {
+      return [item]
+    }
+    const guide = onPage(item.guide, shiftMm, widthMm)
+    return guide === undefined ? [] : [{ guide, layer: item.layer }]
+  })
+  viewGuidesCache.set(spread, {
+    parentGuides,
+    trimWidthMm,
+    spreadIndex,
+    spreadCount,
+    result,
+  })
+  return result
 }

@@ -53,6 +53,7 @@ export {
   resolveParentGrid,
   resolveParentGuides,
   spreadParent,
+  viewGuides,
   type ParentLayer,
   type ResolvedFrame,
   type ResolvedGuide,
