@@ -44,10 +44,18 @@ function sessionOnly(): void {
   // Without a library the list lives for this session only.
 }
 
+/**
+ * Queues a write of `next`. If `target` is still bound when the write runs,
+ * the write takes the current list instead, which includes a load that
+ * finished in between.
+ */
 function writeTo(target: LibraryStorage) {
   return (next: readonly SavedTemplate[]): void => {
     void enqueue(async () => {
-      await writeTemplates(target, next)
+      await writeTemplates(
+        target,
+        target === library ? getSavedTemplates() : next,
+      )
     })
   }
 }
@@ -84,11 +92,16 @@ async function load(target: LibraryStorage): Promise<void> {
   }
   const stored = meta.ok ? (meta.value.templates ?? []) : []
   const legacy = meta.ok && stored.length === 0 ? readLegacyTemplates() : []
-  templates = legacy.length > 0 ? legacy : stored
+  // Saves made while the list was loading follow the stored ones.
+  const added = getSavedTemplates()
+  templates = [...(legacy.length > 0 ? legacy : stored), ...added]
   seedSavedTemplatesFromQuery()
   notify()
   // One-time import: the key goes only once library.json holds the list.
-  if (legacy.length > 0 && (await writeTemplates(target, legacy))) {
+  if (
+    legacy.length > 0 &&
+    (await writeTemplates(target, getSavedTemplates()))
+  ) {
     removeLegacyTemplates()
   }
 }

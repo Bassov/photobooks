@@ -187,6 +187,29 @@ describe('saved templates in library.json', () => {
     expect(window.localStorage.getItem(LEGACY_KEY)).not.toBeNull()
   })
 
+  it('a save while the library is still loading keeps the stored templates', async () => {
+    const library = createMemoryLibraryStorage()
+    await library.updateLibrary({ templates: [template('user-a')] })
+    void bindSavedTemplatesLibrary(library)
+    const added = addSavedTemplate('X', SLOTS)
+    await flushSavedTemplatesForTests()
+    expect(getSavedTemplates()).toEqual([template('user-a'), added])
+    expect(await storedTemplates(library)).toEqual([template('user-a'), added])
+  })
+
+  it('a save queued just before another library opens lands in its own library', async () => {
+    const first = createMemoryLibraryStorage()
+    const second = createMemoryLibraryStorage()
+    await second.updateLibrary({ templates: [template('user-b')] })
+    await bindSavedTemplatesLibrary(first)
+    const added = addSavedTemplate('X', SLOTS)
+    void bindSavedTemplatesLibrary(second)
+    await flushSavedTemplatesForTests()
+    expect(await storedTemplates(first)).toEqual([added])
+    expect(await storedTemplates(second)).toEqual([template('user-b')])
+    expect(getSavedTemplates()).toEqual([template('user-b')])
+  })
+
   it('a library.json read without a templates list reads as none', async () => {
     const library = createMemoryLibraryStorage()
     vi.spyOn(library, 'getLibrary').mockResolvedValue({
