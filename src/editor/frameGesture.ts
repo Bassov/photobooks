@@ -7,6 +7,7 @@ import {
   nextFrameId,
   spreadFrames,
   viewGuides,
+  type Frame,
   type RectMm,
   type Spread,
 } from '../core'
@@ -377,22 +378,20 @@ function overrideModifiers(event: PointerEvent): boolean {
 /** The parent item under a press, through own frames (`parentHit.ts`). */
 function parentHitOf(
   event: PointerEvent,
-  spreadEl: HTMLElement,
+  ctx: SpreadContext | null,
 ): ParentHit | null {
-  const ctx = spreadContext(spreadEl, [])
-  if (ctx === null) {
-    return null
-  }
-  return parentHitAt(
-    getBookStoreSnapshot().book,
-    ctx.spreadId,
-    {
-      x: (event.clientX - ctx.left) / ctx.pxPerMm,
-      y: (event.clientY - ctx.top) / ctx.pxPerMm,
-    },
-    ctx.pxPerMm,
-    getGuidesVisible(),
-  )
+  return ctx === null
+    ? null
+    : parentHitAt(
+        getBookStoreSnapshot().book,
+        ctx.spreadId,
+        {
+          x: (event.clientX - ctx.left) / ctx.pxPerMm,
+          y: (event.clientY - ctx.top) / ctx.pxPerMm,
+        },
+        ctx.pxPerMm,
+        getGuidesVisible(),
+      )
 }
 
 /**
@@ -403,27 +402,36 @@ function overrideSession(
   event: PointerEvent,
   spreadEl: HTMLElement,
 ): MoveSession | null {
-  const hit = parentHitOf(event, spreadEl)
-  const spreadId = spreadEl.getAttribute('data-spread-id') ?? ''
-  if (hit?.kind !== 'frame') {
+  const ctx = spreadContext(spreadEl, [])
+  const hit = parentHitOf(event, ctx)
+  if (ctx === null || hit?.kind !== 'frame') {
     return null
   }
   dispatchBookOp({
     type: 'overrideParentFrame',
-    spreadId,
+    spreadId: ctx.spreadId,
     parentFrameId: hit.frameId,
   })
-  const copy = getBookStoreSnapshot()
-    .book.spreads.find((spread) => spread.id === spreadId)
-    ?.parentOverrides?.frames?.find(
-      (frame) => frame.overridesId === hit.frameId,
-    )
-  // Built after the op: the copy leaves the snap anchors.
-  const ctx = copy === undefined ? null : spreadContext(spreadEl, [copy.id])
-  if (copy === undefined || ctx === null) {
-    return null
-  }
-  setFrameSource({ spreadId, frameId: copy.id })
+  const spread = getBookStoreSnapshot().book.spreads.find(
+    (item) => item.id === ctx.spreadId,
+  )
+  const copy = spread?.parentOverrides?.frames?.find(
+    (frame) => frame.overridesId === hit.frameId,
+  )
+  // Copies sit outside `spread.frames`, so the snap anchors stay as built;
+  // only `ctx.spread` must carry the copy.
+  return spread === undefined || copy === undefined
+    ? null
+    : copyMoveSession(event, { ...ctx, spread }, copy)
+}
+
+/** The move a fresh copy continues as. */
+function copyMoveSession(
+  event: PointerEvent,
+  ctx: SpreadContext,
+  copy: Frame,
+): MoveSession {
+  setFrameSource({ spreadId: ctx.spreadId, frameId: copy.id })
   return {
     kind: 'move',
     pointerId: event.pointerId,
@@ -610,7 +618,7 @@ export function installFrameGesture(): () => void {
         return
       }
       session = marquee
-      const hit = parentHitOf(event, spreadEl)
+      const hit = parentHitOf(event, spreadContext(spreadEl, []))
       parentStatus =
         hit?.kind === 'frame'
           ? parentItemStatus(hit.parentName, isMacPlatform())

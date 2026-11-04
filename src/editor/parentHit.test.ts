@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fc } from '@fast-check/vitest'
+import assert from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
 import { applyBookOp, type Book, type Frame } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
@@ -71,6 +72,43 @@ describe('parentHitAt', () => {
     expect(hit(wide, 147.75, 10)).toEqual({ kind: 'guide', guideId: 'pg' })
     expect(hit(wide, 152.5, 10)).toMatchObject({ kind: 'frame' })
     expect(hit(wide, 150, 10, false)).toMatchObject({ kind: 'frame' })
+    // Guides show by default.
+    expect(parentHitAt(wide, 's2', { x: 150, y: 10 }, PX_PER_MM)).toEqual({
+      kind: 'guide',
+      guideId: 'pg',
+    })
+  })
+
+  it('takes the nearest parent guide by its axis and skips the spread own guides', () => {
+    const base = book()
+    const parent = base.parents?.[0]
+    assert(parent !== undefined, 'expected Master A')
+    const target: Book = {
+      ...base,
+      parents: [
+        {
+          ...parent,
+          guides: [
+            ...parent.guides,
+            { id: 'pg2', orientation: 'vertical', offsetMm: 152 },
+            { id: 'ph', orientation: 'horizontal', offsetMm: 100 },
+          ],
+        },
+      ],
+      spreads: base.spreads.map((spread) => ({
+        ...spread,
+        guides: [{ id: 'own-g', orientation: 'vertical', offsetMm: 181 }],
+      })),
+    }
+    expect(hit(target, 151.5, 30)).toEqual({ kind: 'guide', guideId: 'pg2' })
+    expect(hit(target, 150.5, 30)).toEqual({ kind: 'guide', guideId: 'pg' })
+    expect(hit(target, 250, 101)).toEqual({ kind: 'guide', guideId: 'ph' })
+    expect(hit(target, 180, 30)).toBeNull()
+  })
+
+  it('counts a press on the frame edge as inside', () => {
+    expect(hit(book(), 20, 8)).toMatchObject({ frameId: 'logo' })
+    expect(hit(book(), 30, 4)).toMatchObject({ frameId: 'logo' })
   })
 
   it('never hits a copy, a hidden item, a spread without a parent or an unknown spread', () => {

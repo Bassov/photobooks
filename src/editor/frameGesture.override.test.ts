@@ -24,14 +24,22 @@ const ORIGIN = { x: 40, y: 30 }
 const LOGO = { x: 20, y: 4, width: 24, height: 8 }
 
 /** Spread on Master A (logo + a vertical guide at 200 mm); own frame `own` covers the logo. */
-function load() {
+function load(locked = false) {
   resetBookStore({
     book: makeBook({
       parents: [
         {
           id: 'p1',
           name: 'Master A',
-          frames: [makeFrame({ id: 'logo', rect: LOGO, z: 1, assetId: 'a1' })],
+          frames: [
+            makeFrame({
+              id: 'logo',
+              rect: LOGO,
+              z: 1,
+              assetId: 'a1',
+              ...(locked ? { locked } : {}),
+            }),
+          ],
           guides: [{ id: 'pg', orientation: 'vertical', offsetMm: 200 }],
         },
       ],
@@ -190,6 +198,30 @@ describe('frameGesture · parent item override (PO2)', () => {
     pointer('pointerup', window, 201, 8, CTRL_SHIFT)
 
     expect(spreadNow().parentOverrides).toBeUndefined()
+  })
+
+  it('ignores Ctrl+Shift on a spread that is not laid out yet', () => {
+    spread.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 0, height: 0 }) as DOMRect
+
+    pointer('pointerdown', own, 30, 8, CTRL_SHIFT)
+    pointer('pointerup', window, 30, 8, CTRL_SHIFT)
+
+    expect(spreadNow().parentOverrides).toBeUndefined()
+    expect(getFrameSource()).toBeNull()
+  })
+
+  it('a locked parent item overrides into a locked copy that the drag leaves in place', () => {
+    load(true)
+    pointer('pointerdown', own, 30, 8, CTRL_SHIFT)
+    pointer('pointermove', window, 45, 8)
+    pointer('pointerup', window, 45, 8)
+
+    expect(copies()).toEqual([
+      expect.objectContaining({ id: 'copy-1', locked: true, rect: LOGO }),
+    ])
+    expect(getFrameSource()?.frameId).toBe('copy-1')
+    expect(getHistorySnapshot().undoLabel).toBe('Override parent item')
   })
 
   it('Escape mid-drag puts the copy back where the press made it', () => {
