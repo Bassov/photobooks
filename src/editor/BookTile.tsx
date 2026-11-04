@@ -4,8 +4,8 @@ import {
   bookFloorBackground,
   bookObjectDisplayHeight,
   bookObjectWidthForHeight,
-} from './bookObjectLayout'
-import { BookObject } from './BookObject'
+} from '../render/bookObjectLayout'
+import { BookObject } from '../render/BookObject'
 import type { LibraryGridBook } from './libraryBookFilter'
 import { formatLibraryBookMeta } from './libraryEditedLabel'
 import { useCachedCoverUrl } from './useCachedCoverUrl'

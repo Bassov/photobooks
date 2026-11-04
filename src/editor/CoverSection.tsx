@@ -18,9 +18,9 @@ import {
   getBookStoreSnapshot,
   subscribeBookStore,
 } from './bookStore'
-import { COVER_WRAP_MM, coverPanelPpi } from './coverLayout'
+import { COVER_WRAP_MM, coverPanelPpi } from '../render/coverLayout'
 import { SUB, fmtN } from './editorChromeTokens'
-import './CoverCanvas.css'
+import '../render/CoverView.css'
 import { useThumbUrl } from './useThumbUrl'
 
 function readBook() {

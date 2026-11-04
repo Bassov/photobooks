@@ -6,6 +6,7 @@ import {
   PAGE_MAX,
   PAGE_MIN,
   PAGE_STEP,
+  pageLabel,
   pagesOf,
   spineWidthForPages,
 } from './pages'
@@ -37,6 +38,32 @@ describe('page count', () => {
     expect(clampPageCount(121)).toBe(120)
     expect(clampPageCount(200)).toBe(120)
     expect(clampPageCount(Number.NaN)).toBeNaN()
+  })
+})
+
+describe('pageLabel', () => {
+  it('labels a 6-page and an 8-page book like the kit list (M46)', () => {
+    expect([0, 1, 2, 3].map((i) => pageLabel(i, 4))).toEqual([
+      '1',
+      '2–3',
+      '4–5',
+      '6',
+    ])
+    expect([0, 1, 2, 3, 4].map((i) => pageLabel(i, 5))).toEqual([
+      '1',
+      '2–3',
+      '4–5',
+      '6–7',
+      '8',
+    ])
+    // A one-spread book is page 1 only.
+    expect(pageLabel(0, 1)).toBe('1')
+  })
+
+  it('pairs pages when the spread count is unknown', () => {
+    expect(pageLabel(0)).toBe('1')
+    expect(pageLabel(1)).toBe('2–3')
+    expect(pageLabel(2)).toBe('4–5')
   })
 })
 
