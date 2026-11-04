@@ -146,6 +146,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 **Review cut:** a print PDF from the `#/demo` Print dialog (1 per sheet with a bleed checkbox; 2-up saddle-stitch and 4-up duplex with `booklet-imposition`) and a cover with the right spine; exporting never freezes the editor.
 
 - [ ] [prep] [print-model-schema](roadmap/P4/print-model-schema.md) — print settings and cover in the document
+- [ ] [feature] [print-model-pbt-timeout](roadmap/P4/print-model-pbt-timeout.md) — Bug: /next-roadmap-item print-model-pbt-timeout
 - [ ] [prep] [print-profiles](roadmap/P4/print-profiles.md) — printer data
 - [ ] [prep] [preflight-core](roadmap/P4/preflight-core.md) — pure preflight
 - [ ] [prep] [pdf-painter](roadmap/P4/pdf-painter.md) — worker PDF painter (Security Review: dependency)
