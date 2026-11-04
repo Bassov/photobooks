@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { createElement } from 'react'
 import { unpublishBook } from '../../project'
+import type { SitePageAssets, SitePageInput } from '../siteInput'
 import {
   buildSiteTree,
   SITE_MANIFEST_PATH,
-  type SiteBookPageModel,
   type SiteExportInput,
-  type SiteIndexPageModel,
   type SiteTree,
 } from '.'
 import {
@@ -23,6 +21,7 @@ import {
 const encoder = new TextEncoder()
 
 const MAIN_JS = { path: 'main.js', bytes: encoder.encode('console.log(1)') }
+const MAIN_CSS = { path: 'main.css', bytes: encoder.encode('a{}') }
 const VIEWER = {
   entry: 'main.js',
   files: [MAIN_JS, { path: 'chunks/a.js', bytes: encoder.encode('export {}') }],
@@ -50,9 +49,10 @@ function sampleInput(): SiteExportInput {
   }
 }
 
+/** Pages by size (renderSitePage.test.tsx pins their markup), JSON in full. */
 function summary(tree: SiteTree): string[] {
   return tree.files.map((file) =>
-    /\.(html|json)$/.test(file.path)
+    file.path.endsWith('.json')
       ? `${file.path}\n${new TextDecoder().decode(file.bytes)}`
       : `${file.path} (${String(file.bytes.byteLength)} B)`,
   )
@@ -94,12 +94,9 @@ describe('buildSiteTree', () => {
         "assets/bf621cdd1f3c1fc4758f4796dc7fa3206fb7c5f82b5e0a978432e1a1bace6d57.jpg (75 B)",
         "assets/ce0ca0b8db36493cf4fcc8b960bcdfcffb9ae80a7a375880105bfddbcd87880a.webp (75 B)",
         "assets/dbd5c370258b773cdbdd43046464945c6e37fd469d45f76dd6ee5704439420bf.webp (77 B)",
-        "books/4bd1c37bb40aa516/index.html
-      <!doctype html><html><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Alps</title></head><body><h1>Alps</h1><section><img src="../../assets/1bb7fd15bc7f25afe356d3f8babc7fed6bb6126f657db6e2091b6c78ff061fdc.webp" width="160" height="120" alt="" loading="lazy" decoding="async"/><img src="../../assets/be138880457e2a48dd3f527a186e11d58da43090fc2798ad02133b48d1f85067.webp" width="160" height="120" alt="" loading="lazy" decoding="async"/></section><section><img src="../../assets/dbd5c370258b773cdbdd43046464945c6e37fd469d45f76dd6ee5704439420bf.webp" width="160" height="120" alt="" loading="lazy" decoding="async"/></section><script type="module" src="../../viewer/main.js"></script></body></html>",
-        "books/91f8c6c636f0b969/index.html
-      <!doctype html><html><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Sea</title></head><body><h1>Sea</h1><section><img src="../../assets/dbd5c370258b773cdbdd43046464945c6e37fd469d45f76dd6ee5704439420bf.webp" width="160" height="120" alt="" loading="lazy" decoding="async"/><img src="../../assets/4a4541838d7867e75286072761dfc473f7dbbc12d6dda003cb4ab815fa67c2db.webp" width="160" height="120" alt="" loading="lazy" decoding="async"/></section><script type="module" src="../../viewer/main.js"></script></body></html>",
-        "index.html
-      <!doctype html><html><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Photobooks</title></head><body><ul><li><a href="books/91f8c6c636f0b969/">Sea</a></li><li><a href="books/4bd1c37bb40aa516/">Alps</a></li></ul><script type="module" src="viewer/main.js"></script></body></html>",
+        "books/4bd1c37bb40aa516/index.html (9237 B)",
+        "books/91f8c6c636f0b969/index.html (8670 B)",
+        "index.html (4053 B)",
         "site.json
       {"version":1,"viewer":"viewer/main.js","books":[{"id":"book-sea","title":"Sea","path":"books/91f8c6c636f0b969/","assets":["0000000000000000000000000000000000000000000000000000000000000003","0000000000000000000000000000000000000000000000000000000000000004"],"spreads":[{"id":"book-sea-spread-0","images":["0000000000000000000000000000000000000000000000000000000000000003","0000000000000000000000000000000000000000000000000000000000000004"]}]},{"id":"book-alps","title":"Alps","path":"books/4bd1c37bb40aa516/","assets":["0000000000000000000000000000000000000000000000000000000000000001","0000000000000000000000000000000000000000000000000000000000000002","0000000000000000000000000000000000000000000000000000000000000003"],"spreads":[{"id":"book-alps-spread-0","images":["0000000000000000000000000000000000000000000000000000000000000001","0000000000000000000000000000000000000000000000000000000000000002"]},{"id":"book-alps-spread-1","images":["0000000000000000000000000000000000000000000000000000000000000003"]}]}],"assets":[{"hash":"0000000000000000000000000000000000000000000000000000000000000001","files":[{"preset":"site-thumb","path":"assets/a28c7bbdd1ab04137021db6f45e83440ee033428f97671d095984e4e8ee48ce5.webp","width":160,"height":120},{"preset":"site-display","path":"assets/1bb7fd15bc7f25afe356d3f8babc7fed6bb6126f657db6e2091b6c78ff061fdc.webp","width":160,"height":120},{"preset":"site-large","path":"assets/89c6d954b459d27e934a3e23f502c80ff6861b4af6c0e0467ea6f792118c7833.webp","width":160,"height":120},{"preset":"site-share","path":"assets/560cd55110945e7b6d126e9becab89709fa197a708dd82bb93d3bb6249a9154d.jpg","width":160,"height":120}]},{"hash":"0000000000000000000000000000000000000000000000000000000000000002","files":[{"preset":"site-thumb","path":"assets/218e3e3a0e1b57bd293262a65067fb9df352472e3a9ddac6116c34d4722540ef.webp","width":160,"height":120},{"preset":"site-display","path":"assets/be138880457e2a48dd3f527a186e11d58da43090fc2798ad02133b48d1f85067.webp","width":160,"height":120},{"preset":"site-large","path":"assets/9613e727e0a8e27b6d5d6137a9e09f9d067c229b40390bdf629cef9d515e757e.webp","width":160,"height":120},{"preset":"site-share","path":"assets/ad259fcd599c50c77dcc654336fafaa01324bd5c6916b5ce0a04e07d26cd82e4.jpg","width":160,"height":120}]},{"hash":"0000000000000000000000000000000000000000000000000000000000000003","files":[{"preset":"site-thumb","path":"assets/ce0ca0b8db36493cf4fcc8b960bcdfcffb9ae80a7a375880105bfddbcd87880a.webp","width":160,"height":120},{"preset":"site-display","path":"assets/dbd5c370258b773cdbdd43046464945c6e37fd469d45f76dd6ee5704439420bf.webp","width":160,"height":120},{"preset":"site-large","path":"assets/25d3da1664df0d17a8e37d935176b3f18c2d22c56728f689ca353c3ec57f95df.webp","width":160,"height":120},{"preset":"site-share","path":"assets/214cb6774dbb5222b2be5e02440b7cf9a3d362f636b576f2f9b83c17ee306751.jpg","width":160,"height":120}]},{"hash":"0000000000000000000000000000000000000000000000000000000000000004","files":[{"preset":"site-thumb","path":"assets/bc01d13df6ec8705ec67073a384672a7f906dc8f8594e4f58e8c4eecf6627777.webp","width":160,"height":120},{"preset":"site-display","path":"assets/4a4541838d7867e75286072761dfc473f7dbbc12d6dda003cb4ab815fa67c2db.webp","width":160,"height":120},{"preset":"site-large","path":"assets/3c424d013c99bcc2a9cdb09210ff5f3bb8f354ce1f9e8e59135de637730d12d8.webp","width":160,"height":120},{"preset":"site-share","path":"assets/bf621cdd1f3c1fc4758f4796dc7fa3206fb7c5f82b5e0a978432e1a1bace6d57.jpg","width":160,"height":120}]}]}
       ",
@@ -205,37 +202,43 @@ describe('buildSiteTree', () => {
   })
 
   it('renders through an injected renderer with page-relative URLs', async () => {
-    const books: SiteBookPageModel[] = []
-    const indexes: SiteIndexPageModel[] = []
-    const renderer = {
-      index: (page: SiteIndexPageModel) => {
-        indexes.push(page)
-        return createElement('main', null, 'index')
-      },
-      book: (page: SiteBookPageModel) => {
-        books.push(page)
-        return createElement('main', null, page.title)
-      },
+    const pages: { input: SitePageInput; assets: SitePageAssets }[] = []
+    const renderer = (input: SitePageInput, assets: SitePageAssets) => {
+      pages.push({ input, assets })
+      return input.kind === 'catalog'
+        ? '<main>index</main>'
+        : `<main>${input.book.title ?? ''}</main>`
+    }
+    const viewer = {
+      ...VIEWER,
+      css: ['main.css'],
+      files: [...VIEWER.files, MAIN_CSS],
     }
 
-    const tree = await buildSiteTree({ ...sampleInput(), renderer })
+    const tree = await buildSiteTree({ ...sampleInput(), viewer, renderer })
 
-    expect(fileText(tree, 'index.html')).toBe(
-      '<!doctype html><main>index</main>',
-    )
-    expect(bookPageText(tree)).toMatch(
-      /^<!doctype html><main>(Alps|Sea)<\/main>$/,
-    )
-    expect(indexes[0]?.viewerSrc).toBe('viewer/main.js')
-    expect(indexes[0]?.books.map((book) => book.title)).toStrictEqual([
-      'Sea',
-      'Alps',
-    ])
-    expect(indexes[0]?.books[0]?.href).toMatch(/^books\/[0-9a-f]{16}\/$/)
-    expect(books[1]?.viewerSrc).toBe('../../viewer/main.js')
-    expect(books[1]?.spreads[0]?.images[0]?.sources[0]?.src).toMatch(
-      /^\.\.\/\.\.\/assets\/[0-9a-f]{64}\.webp$/,
-    )
+    expect(fileText(tree, 'index.html')).toBe('<main>index</main>')
+    expect(bookPageText(tree)).toMatch(/^<main>(Alps|Sea)<\/main>$/)
+    const index = pages.find((page) => page.input.kind === 'catalog')
+    const book = pages.find((page) => page.input.kind === 'book')
+    expect(index?.assets).toStrictEqual({
+      css: ['viewer/main.css'],
+      js: 'viewer/main.js',
+    })
+    expect(
+      index?.input.kind === 'catalog' &&
+        index.input.books.map((entry) => entry.title),
+    ).toStrictEqual(['Sea', 'Alps'])
+    expect(
+      index?.input.kind === 'catalog' && index.input.books[0]?.href,
+    ).toMatch(/^books\/[0-9a-f]{16}\/$/)
+    expect(book?.assets).toStrictEqual({
+      css: ['../../viewer/main.css'],
+      js: '../../viewer/main.js',
+    })
+    expect(
+      book?.input.kind === 'book' && Object.values(book.input.images)[0]?.src,
+    ).toMatch(/^\.\.\/\.\.\/assets\/[0-9a-f]{64}\.webp$/)
   })
 
   it('omits the viewer script and manifest entry without a bundle', async () => {
@@ -243,27 +246,26 @@ describe('buildSiteTree', () => {
 
     const tree = await buildSiteTree({ meta, revisions, derivatives })
 
-    expect(allText(tree)).not.toMatch(/<script|"viewer"/)
+    expect(allText(tree)).not.toMatch(/<script type="module"|"viewer"/)
     expect(tree.files.map((file) => file.path)).not.toContain('viewer/main.js')
   })
 
   it('passes no viewer URL to the renderer without a bundle', async () => {
     const { meta, revisions, derivatives } = sampleInput()
-    const models: object[] = []
-    const record = (page: object) => {
-      models.push(page)
-      return createElement('main')
-    }
+    const seen: SitePageAssets[] = []
 
     await buildSiteTree({
       meta,
       revisions,
       derivatives,
-      renderer: { index: record, book: record },
+      renderer: (_input, assets) => {
+        seen.push(assets)
+        return ''
+      },
     })
 
-    expect(models.filter((model) => 'viewerSrc' in model)).toStrictEqual([])
-    expect(models).toHaveLength(3)
+    expect(seen.filter((assets) => 'js' in assets)).toStrictEqual([])
+    expect(seen).toHaveLength(3)
   })
 
   it('orders books published at the same time by id, in any input order', async () => {

@@ -22,7 +22,7 @@ function resolved() {
 }
 
 function paint(
-  imageFor?: (assetId: string, share: number) => FrameImage | undefined,
+  imageFor?: (assetId: string, widthMm: number) => FrameImage | undefined,
 ) {
   return render(
     <SpreadView
@@ -39,7 +39,7 @@ describe('SpreadView imageFor', () => {
     cleanup()
   })
 
-  it('paints the srcset source with the frame share of the spread width', () => {
+  it('paints the srcset source with the frame width, on a single page too', () => {
     const spread = resolved()
     const frame = spread.items[0]
     assert(frame !== undefined, 'expected one frame')
@@ -47,10 +47,9 @@ describe('SpreadView imageFor', () => {
 
     paint(imageFor)
 
-    expect(imageFor).toHaveBeenCalledWith(
-      'asset-1',
-      frame.rectMm.width / spread.spreadWidthMm,
-    )
+    // One-spread book: a single page, one trim wide; the caller's stage is two.
+    expect(spread.spreadWidthMm).toBe(makeBookWithAsset().settings.trim.widthMm)
+    expect(imageFor).toHaveBeenCalledWith('asset-1', frame.rectMm.width)
     const img = screen.getByTestId('spread-frame-image')
     expect(img.getAttribute('src')).toBe('a-400.jpg')
     expect(img.getAttribute('srcset')).toBe('a-400.jpg 400w, a-2000.jpg 2000w')

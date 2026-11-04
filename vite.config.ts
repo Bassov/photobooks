@@ -58,7 +58,11 @@ export default defineConfig({
         ]
       : []),
   ],
-  ...(withE2eCoverage ? { build: { sourcemap: true as const } } : {}),
+  build: {
+    // Second entry: the static site viewer (prerendered pages hydrate it).
+    rolldownOptions: { input: { main: 'index.html', site: 'site.html' } },
+    ...(withE2eCoverage ? { sourcemap: true as const } : {}),
+  },
   server: {
     headers: { ...isolationHeaders },
   },

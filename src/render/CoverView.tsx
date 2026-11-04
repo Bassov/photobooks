@@ -1,5 +1,7 @@
 import type { DragEvent } from 'react'
-import { bookSpineWidthMm, type Book } from '../core'
+import type { Book } from '../core'
+// Not the barrel: the site entry must not pull the zod schemas in.
+import { bookSpineWidthMm } from '../core/pages'
 import { COVER_WRAP_MM, coverLayout } from './coverLayout'
 import './CoverView.css'
 
