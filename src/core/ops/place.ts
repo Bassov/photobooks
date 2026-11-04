@@ -1,5 +1,5 @@
 import type { Book, Frame } from '../schema'
-import { updateFrame } from '../update'
+import { findBookFrame, updateFrame } from '../update'
 
 /**
  * Put a new photo in a frame: cover crop (zoom 1, centered) and fill. A `fit`
@@ -153,6 +153,5 @@ function findFrame(
   spreadId: string,
   frameId: string,
 ): Frame | undefined {
-  const spread = book.spreads.find((candidate) => candidate.id === spreadId)
-  return spread?.frames.find((frame) => frame.id === frameId)
+  return findBookFrame(book, spreadId, frameId)
 }

@@ -11,6 +11,17 @@ export interface LayoutSlotPct {
   h: number
 }
 
+/**
+ * A user's saved layout: slots in percent of the trim it was saved on, and
+ * that spread's page count (a spread layout never lands on a single page).
+ */
+export interface SavedTemplate {
+  id: string
+  name: string
+  pages: 1 | 2
+  slots: readonly LayoutSlotPct[]
+}
+
 /** Saved-layout slots scaled to the trim of spread `spreadIndex`. */
 export function customLayoutRects(
   book: Book,

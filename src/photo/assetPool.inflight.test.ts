@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getPendingRetryAssetIdsForTests,
   getQueuedDecodeAssetIds,
+  hasPendingThumbDecode,
   processAsset,
   resetAssetPool,
   runImportBatch,
@@ -71,6 +72,14 @@ class ManualWorker {
         previewMimeType: 'image/webp',
       },
     } as MessageEvent
+    for (const listener of [...this.listeners]) {
+      listener(event)
+    }
+  }
+
+  fail(id: string): void {
+    this.open.delete(id)
+    const event = { data: { id, ok: false, error: 'corrupt' } } as MessageEvent
     for (const listener of [...this.listeners]) {
       listener(event)
     }
@@ -285,5 +294,110 @@ describe('assetPool in-flight decode across aborts', () => {
     await expect(first).resolves.toMatchObject({ assetId: 'first' })
     expect(postedIds(worker)).toEqual(['first.png', 'second.png'])
     expect(worker.maxOpen).toBe(1)
+  })
+})
+
+describe('assetPool pending thumb decodes', () => {
+  beforeEach(() => {
+    ManualWorker.instances = []
+    Object.defineProperty(navigator, 'hardwareConcurrency', {
+      configurable: true,
+      value: 2,
+    })
+    vi.stubGlobal('Worker', ManualWorker)
+    warmAssetPool()
+  })
+
+  afterEach(() => {
+    resetAssetPool()
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  function visibleThumb(assetId: string, signal?: AbortSignal) {
+    return processAsset({
+      assetId,
+      file: png(`${assetId}.png`),
+      priority: 'visible',
+      ...(signal === undefined ? {} : { signal }),
+    })
+  }
+
+  it('tracks a thumb from enqueue through the slot until it finishes', async () => {
+    const worker = onlyWorker()
+    setVisibleAssetIds(['running', 'waiting'])
+    const running = visibleThumb('running')
+    const runningId = lastRequestId(worker)
+    const waiting = visibleThumb('waiting')
+
+    expect(hasPendingThumbDecode('running')).toBe(true)
+    expect(hasPendingThumbDecode('waiting')).toBe(true)
+    expect(hasPendingThumbDecode('other')).toBe(false)
+
+    worker.reply(runningId)
+    await expect(running).resolves.toMatchObject({ assetId: 'running' })
+    expect(hasPendingThumbDecode('running')).toBe(false)
+    expect(hasPendingThumbDecode('waiting')).toBe(true)
+
+    worker.reply(lastRequestId(worker))
+    await expect(waiting).resolves.toMatchObject({ assetId: 'waiting' })
+    expect(hasPendingThumbDecode('waiting')).toBe(false)
+  })
+
+  it('does not count a working-tier job as a pending thumb', () => {
+    setVisibleAssetIds(['zoomed'])
+    void processAsset({
+      assetId: 'zoomed',
+      file: png('zoomed.png'),
+      priority: 'zoom',
+      maxEdge: PREVIEW_MAX_EDGE,
+    })
+
+    expect(hasPendingThumbDecode('zoomed')).toBe(false)
+  })
+
+  it('drops a thumb whose decode fails', async () => {
+    const worker = onlyWorker()
+    setVisibleAssetIds(['broken'])
+    const broken = visibleThumb('broken')
+
+    worker.fail(lastRequestId(worker))
+
+    await expect(broken).rejects.toThrow('corrupt')
+    expect(hasPendingThumbDecode('broken')).toBe(false)
+  })
+
+  it('drops queued thumbs cancelled on leave-now and caller-aborted ones once skipped', async () => {
+    const worker = onlyWorker()
+    const controller = new AbortController()
+    setVisibleAssetIds(['running', 'left', 'aborted'])
+    const running = visibleThumb('running')
+    const runningId = lastRequestId(worker)
+    const left = visibleThumb('left')
+    const aborted = visibleThumb('aborted', controller.signal)
+
+    setVisibleAssetIds(['running', 'aborted'])
+    await expect(left).rejects.toMatchObject({ name: 'AbortError' })
+    expect(hasPendingThumbDecode('left')).toBe(false)
+
+    controller.abort()
+    expect(hasPendingThumbDecode('aborted')).toBe(true)
+    worker.reply(runningId)
+    await expect(running).resolves.toMatchObject({ assetId: 'running' })
+    await expect(aborted).rejects.toMatchObject({ name: 'AbortError' })
+    expect(hasPendingThumbDecode('aborted')).toBe(false)
+  })
+
+  it('reset forgets queued and in-flight thumbs', async () => {
+    setVisibleAssetIds(['running', 'waiting'])
+    const running = visibleThumb('running')
+    const waiting = visibleThumb('waiting')
+
+    resetAssetPool()
+
+    await expect(running).rejects.toMatchObject({ name: 'AbortError' })
+    await expect(waiting).rejects.toMatchObject({ name: 'AbortError' })
+    expect(hasPendingThumbDecode('running')).toBe(false)
+    expect(hasPendingThumbDecode('waiting')).toBe(false)
   })
 })

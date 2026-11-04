@@ -43,12 +43,17 @@ export function cacheKeyFromIdentity(identity: AssetIdentityKey): string {
   return digest
 }
 
-export function tryCacheKeyFromAsset(asset: {
+/** Identity fields as an asset record carries them (any may be missing). */
+export interface AssetIdentityFields {
   sourceRootId?: string | undefined
   relativePath?: string | undefined
   byteSize?: number | undefined
   mtimeMs?: number | undefined
-}): string | undefined {
+}
+
+export function tryCacheKeyFromAsset(
+  asset: AssetIdentityFields,
+): string | undefined {
   const { sourceRootId, relativePath, byteSize, mtimeMs } = asset
   if (
     sourceRootId === undefined ||
@@ -68,4 +73,23 @@ export function tryCacheKeyFromAsset(asset: {
     byteSize,
     mtimeMs,
   })
+}
+
+/** Key per record object; `null` = identity incomplete. */
+const keysByRecord = new WeakMap<AssetIdentityFields, string | null>()
+
+/**
+ * `tryCacheKeyFromAsset` memoized per record revision: records are replaced,
+ * never mutated, so a changed asset is a new object and misses.
+ */
+export function cacheKeyFromRecord(
+  record: AssetIdentityFields,
+): string | undefined {
+  const known = keysByRecord.get(record)
+  if (known !== undefined) {
+    return known ?? undefined
+  }
+  const key = tryCacheKeyFromAsset(record)
+  keysByRecord.set(record, key ?? null)
+  return key
 }

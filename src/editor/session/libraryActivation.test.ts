@@ -695,17 +695,28 @@ describe('createLibraryActivation', () => {
     })
   })
 
-  it('createLibrary keeps the publish statuses of an existing library.json', async () => {
+  it('createLibrary keeps the publish statuses and templates of an existing library.json', async () => {
     const lib = createMemoryLibraryStorage()
     const books = { 'book-1': { status: 'published' as const } }
-    await lib.updateLibrary({ books })
+    const templates = [
+      {
+        id: 'user-a',
+        name: 'A',
+        pages: 2 as const,
+        slots: [{ x: 0, y: 0, w: 50, h: 100 }],
+      },
+    ]
+    await lib.updateLibrary({ books, templates })
     const handle = createFakeBrowserDirectory({ name: 'CreateKeep' })
     storagesByHandle.set('CreateKeep', lib)
     pickDirectory = () => Promise.resolve(handle)
 
     const created = await controller.createLibrary()
     expect(created.ok).toBe(true)
-    expect(await lib.getLibrary()).toEqual({ ok: true, value: { books } })
+    expect(await lib.getLibrary()).toEqual({
+      ok: true,
+      value: { books, templates },
+    })
   })
 
   it('createLibrary on an unreadable library.json still writes a fresh one', async () => {
