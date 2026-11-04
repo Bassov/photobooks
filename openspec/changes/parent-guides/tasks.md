@@ -8,3 +8,5 @@
 ## Manual test scenarios
 
 1. Painter fixture `&parent=a`: add a guide on Master A, switch to Pages — every spread shows it dashed, a press on it over a frame selects the frame; Ctrl+; hides it.
+
+- problem (harness, not product): `pnpm agent manual-qa --change parent-guides` blocked at welcome (start-session click intercepted by the welcome header, 30 s timeout); no scenario ran. Covered instead by e2e `parent-spreads-guides.spec.ts` "Browser check: master guides show dashed and read-only…" (display, None spread, click-through via `elementFromPoint`, Ctrl+;, `assertDocumentFitsViewport`) and the 40-spread gate (0 LoAF on the guide drag).
