@@ -8,6 +8,7 @@ import {
   CURRENT_SCHEMA_VERSION,
   defaultCover,
   defaultEndpapers,
+  defaultPrintProfileRef,
   type Book,
   type BookOp,
   type GridPatch,
@@ -781,6 +782,7 @@ function createEmptyLibraryBook(
     assets: {},
     gallery: [],
     spreads: [],
+    printProfile: defaultPrintProfileRef(),
   }
   return ['spread-1', 'spread-2', 'spread-3'].reduce<Book>(
     (book, spreadId) => addSpread(book, { id: spreadId }),
