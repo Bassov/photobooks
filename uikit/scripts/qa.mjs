@@ -2323,6 +2323,32 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const ti = await ita.evaluate((e) => { const s = getComputedStyle(e); return { max: s.maxHeight, oy: s.overflowY, shadow: s.boxShadow } })
   ok("text-frames: inspector textarea max-height 160, scrolls, focus ring inset 1 px #535152", ti.max === "160px" && ti.oy === "auto" && /rgb\(83, 81, 82\) 0px 0px 0px 1px inset/.test(ti.shadow), JSON.stringify(ti))
   await ita.blur()
+  // review #445: an inspector content edit grows the box to whole lines like the canvas edit, capped at the paper bottom
+  await ita.fill(["Lake", "Pier", "Boats", "Dock", "Pines", "Dusk"].join("\n")); await page.waitForTimeout(400)
+  const s6 = await read(), t6 = s6.texts.at(-1), n6 = s6.body && s6.body.h / s6.body.lh
+  ok("text-frames: inspector TEXT edit grows the box to whole lines (taller, no chip, no meta)", t6.h > t5.h + 1 && !s6.chip && s6.meta === null && Math.abs(n6 - Math.round(n6)) < 0.01 && Math.round(n6) >= 6, JSON.stringify({ t5, t6, body: s6.body }))
+  await ita.fill(Array.from({ length: 14 }, (_, i) => `Line ${i + 1}`).join("\n")); await page.waitForTimeout(400)
+  const s7 = await read(), t7 = s7.texts.at(-1)
+  ok("text-frames: inspector TEXT growth stops at the paper bottom (then the chip shows)", Math.abs(t7.y + t7.h - (paper.y + paper.height)) <= 1 && !!s7.chip, JSON.stringify({ t7, paper, chip: s7.chip }))
+  await ita.blur()
+  // review #445: Enter on one selected text frame (Select tool) edits it, caret at the end
+  await page.locator(paperSel).locator('[data-testid="text-body"]').last().click(); await page.waitForTimeout(200)
+  await page.keyboard.press("Enter"); await page.waitForTimeout(300)
+  const s8 = await read(), caret = await page.evaluate(() => { const t = document.activeElement; return t?.tagName === "TEXTAREA" ? { at: t.selectionStart, len: t.value.length } : null })
+  ok("text-frames: Enter on a selected text frame starts editing, caret at the end", s8.editing && s8.focused && caret?.at === caret?.len && caret?.len > 0, JSON.stringify({ editing: s8.editing, caret }))
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300)
+  // review #445 (Designer decision): Text pressed on a text frame edits it and the tool returns to Select
+  await tool(); await page.locator(paperSel).locator('[data-testid="text-body"]').last().click(); await page.waitForTimeout(300)
+  const s9 = await read(), toolSel = await page.locator('[aria-label="Select (V)"]').getAttribute("data-selected")
+  ok("text-frames: Text press on a text frame edits it, the tool returns to Select", s9.editing && toolSel === "true", JSON.stringify({ editing: s9.editing, toolSel }))
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300)
+  // review #445: Esc during a Text drag cancels (no frame, no undo step)
+  const undoLabel = () => page.locator(`${demo} [data-testid="undo"]`).first().getAttribute("aria-label")
+  const undo0 = await undoLabel(), s10a = await read()
+  await tool(); await page.mouse.move(x - 120, y - 120); await page.mouse.down(); await page.mouse.move(x - 20, y - 90, { steps: 5 })
+  await page.keyboard.press("Escape"); await page.mouse.up(); await page.waitForTimeout(300)
+  const s10 = await read(), undo1 = await undoLabel()
+  ok("text-frames: Esc during a Text drag cancels (no frame, no edit, no undo step)", s10.frames === s10a.frames && !s10.editing && undo1 === undo0, JSON.stringify({ before: s10a.frames, after: s10.frames, undo0, undo1 }))
   ok("text-frames: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
 

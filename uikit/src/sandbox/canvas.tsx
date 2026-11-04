@@ -11,9 +11,9 @@ import {
   allGuides, clamp, round, effectiveDpi, orientedSize, photoOf, uid, framesFromTemplate,
   parentOf, pageNumbersOf, type Guide,
 } from "./model"
-import { useStudio, mapSpread, mapFrames, type Studio } from "./store"
+import { useStudio, mapSpread, mapFrames, useKeys, type Studio } from "./store"
 import { fillTokens } from "./meta"
-import { setTextOverflow, useTextOverflow } from "./text-overflow"
+import { setTextOverflow, takeTextGrow, useTextOverflow } from "./text-overflow"
 
 export const PHOTO_TYPE = "application/x-photobooks-photo"
 export const FRAME_TYPE = "application/x-photobooks-frame"
@@ -47,10 +47,13 @@ const TEXT = {
 /** Designer text-frames: a text box shows whole lines only, floor(h / line) of them; below that it is empty paper. */
 const wholeLines = (h: number, line: number) => Math.floor(h / line + 1e-6) * line
 
-function TextView({ f, text, css, vis, preview }: { f: Frame; text: string; css: React.CSSProperties; vis: number; preview: boolean }) {
+function TextView({ f, text, css, vis, line, preview, onGrow }: { f: Frame; text: string; css: React.CSSProperties; vis: number; line: number; preview: boolean; onGrow: (lines: number) => void }) {
   const ref = React.useRef<HTMLDivElement>(null)
   React.useLayoutEffect(() => {
     let live = true
+    // an inspector content edit grows the box to whole lines, like the canvas edit (onGrow caps it at the paper bottom)
+    const el = ref.current
+    if (el && takeTextGrow(f.id) && el.scrollHeight > vis + 0.5) { onGrow(Math.round(el.scrollHeight / line)); return }
     const measure = () => { const el = ref.current; if (live && el) setTextOverflow(f.id, !!text && el.scrollHeight > vis + 0.5) }
     measure(); void document.fonts?.ready.then(measure)
     return () => { live = false }
@@ -104,7 +107,11 @@ function FrameBody({ f, s, sc, missing, inherited, editing, onEditDone }: {
     const css: React.CSSProperties = { fontFamily: t.font, fontSize: t.size * sc, fontWeight: t.weight, lineHeight: t.lh, textAlign: f.align ?? "left", color: "#232220" }
     const line = t.size * t.lh * sc
     if (editing) return <TextEdit f={f} css={css} line={line} sc={sc} onEditDone={onEditDone} />
-    return <TextView f={f} text={text} css={css} vis={wholeLines(f.h * sc, line)} preview={st.view.preview} />
+    const onGrow = (n: number) => {
+      const h = Math.max(f.h, Math.min(round(SH - f.y, 2), round(n * t.size * t.lh, 2)))
+      if (h > f.h) st.update((d) => mapFrames(d, d.spreads.findIndex((x) => x.id === s.id), [f.id], (x) => ({ ...x, h })), "Edit text", `txt-${f.id}`)
+    }
+    return <TextView f={f} text={text} css={css} vis={wholeLines(f.h * sc, line)} line={line} preview={st.view.preview} onGrow={onGrow} />
   }
   return (
     <div className="absolute inset-0 overflow-hidden" style={{ background: style?.mat ? "#fff" : undefined, borderRadius: (style?.radius ?? 0) * sc, boxShadow: style?.shadow ? "0 1px 3px rgb(0 0 0 / .18)" : undefined, outline: style?.stroke ? `${Math.max(1, style.stroke * sc)}px solid ${style.strokeColor}` : undefined, outlineOffset: style?.stroke ? -Math.max(1, style.stroke * sc) : undefined }}>
@@ -334,11 +341,15 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
     return { x: (e.clientX - b.left) / sc, y: (e.clientY - b.top) / sc }
   }
   const th = 6 / sc
-  const gesture = (e: React.PointerEvent, onMove: (p: { x: number; y: number }, ev: PointerEvent) => void, onUp: (moved: boolean) => void) => {
+  const gesture = (e: React.PointerEvent, onMove: (p: { x: number; y: number }, ev: PointerEvent) => void, onUp: (moved: boolean) => void, onCancel?: () => void) => {
     const start = pt(e); let moved = false
-    const mv = (ev: PointerEvent) => { if (!ref.current) { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); return } const p = pt(ev); if (!moved && Math.hypot(p.x - start.x, p.y - start.y) * sc < 3) return; moved = true; onMove(p, ev) }
-    const up = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); setLines([]); onUp(moved) }
+    const off = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); window.removeEventListener("keydown", key, true) }
+    const mv = (ev: PointerEvent) => { if (!ref.current) { off(); return } const p = pt(ev); if (!moved && Math.hypot(p.x - start.x, p.y - start.y) * sc < 3) return; moved = true; onMove(p, ev) }
+    const up = () => { off(); setLines([]); onUp(moved) }
+    // with onCancel, Esc during the press ends the gesture without onUp
+    const key = (ev: KeyboardEvent) => { if (ev.key !== "Escape") return; ev.stopPropagation(); off(); setLines([]); onCancel!() }
     window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up)
+    if (onCancel) window.addEventListener("keydown", key, true)
     return start
   }
   const snapOn = view.snap
@@ -353,7 +364,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
     if (view.tool === "text" && st.cropId !== f.id) {
       e.stopPropagation()
       if (f.kind !== "text") { drawFrame(e, "text"); return }
-      e.preventDefault(); st.setSel([f.id]); setEditing(f.id); return
+      e.preventDefault(); st.setSel([f.id]); st.setView({ tool: "select" }); setEditing(f.id); return
     }
     if (st.cropId === f.id) { // pan inside the frame
       e.stopPropagation()
@@ -457,7 +468,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
         put({ x: round(clamp(start.x + sn.dx, x0 + 6, x0 + PAGE - 6 - w), 2), y: round(clamp(start.y + sn.dy, 6, SH - 6 - h), 2), w, h })
       }
       fresh.current = id; st.setSel([id]); st.setView({ tool: "select" }); setEditing(id)
-    })
+    }, st.cancelPreview) // Esc during the draw: no frame, no step
   }
   const endEdit = (f: Frame, t: string, h: number) => {
     setEditing(null)
@@ -509,6 +520,14 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
     if (f.kind === "text" && ft.textEdit) { setEditing(f.id); return }
     if (f.kind === "image" && f.photo && ft.crop) { st.setCropId(f.id); st.setSel([f.id]); st.setStatus("Crop: drag to move the photo, wheel or slider to zoom, Esc to finish") }
   }
+  // Designer text-frames: Enter on one selected text frame (Select tool) edits it, caret at the end (TextEdit's mount)
+  const enterText = active && si === st.cur && view.tool === "select" && !editing && st.sel.length === 1 && ft.textEdit
+    ? s.frames.find((f) => f.id === st.sel[0] && f.kind === "text") : undefined
+  useKeys((e) => {
+    if (!enterText || e.key !== "Enter" || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return
+    if ((e.target as HTMLElement).closest?.("button, a, select, [role=button], [role=menuitem], [role=option], [role=tab], [role=switch], [role=checkbox], [role=radio], [role=slider], [role=combobox], [role=gridcell]")) return
+    e.preventDefault(); setEditing(enterText.id)
+  }, [enterText?.id])
   const onWheel = (e: React.WheelEvent) => {
     if (!st.cropId) return
     const f = s.frames.find((x) => x.id === st.cropId); if (!f) return
