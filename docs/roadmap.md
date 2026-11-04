@@ -113,6 +113,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [text-frames-kit](roadmap/P2/text-frames-kit.md) — Bug: /next-roadmap-item text-frames-kit
 - [ ] [feature] [parent-guides-kit](roadmap/P2/parent-guides-kit.md) — Bug: /next-roadmap-item parent-guides-kit
 - [ ] [feature] [roadmap-index-no-tick](roadmap/P2/roadmap-index-no-tick.md) — Bug: /next-roadmap-item roadmap-index-no-tick
+- [ ] [feature] [master-spread-both-pages](roadmap/P2/master-spread-both-pages.md) — Bug: /next-roadmap-item master-spread-both-pages
 - [ ] [feature] [kit-thumbgrid-page-select](roadmap/P2/kit-thumbgrid-page-select.md) — Bug: /next-roadmap-item kit-thumbgrid-page-select
 - [ ] [feature] [prod-arrange-rulers-parity](roadmap/P2/prod-arrange-rulers-parity.md) — Bug: /next-roadmap-item prod-arrange-rulers-parity
 - [x] [feature] [kit-focus-ring-style](roadmap/P2/kit-focus-ring-style.md) — Bug: /next-roadmap-item kit-focus-ring-style
