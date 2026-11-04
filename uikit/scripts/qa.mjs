@@ -1981,6 +1981,29 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await page.locator(`${demo} [data-testid="mode-seg"]`).getByText("Pages", { exact: true }).click(); await page.waitForTimeout(250); await c('[data-item="p1"]'); await page.waitForTimeout(250)
   ok("kit10: a guide dragged on a master is kept and inherited (dashed) by its spreads", m1 === m0 + 1 && (await page.locator(`${demo} [data-testid="spread"] [data-guide]`).count()) >= m1, `master ${m0}→${m1}`)
   ok("kit10: master Page numbers toggle wires Parent.pageNumbers — spreads show page numbers", (await page.locator(`${demo} [data-testid="spread"][data-current] [data-testid="page-number"]`).count()) === 2)
+  // parent-guides PG5: inherited guides are dashed --parent-soft, 24 px past the page, under own guides and pointer-transparent
+  const pg = await page.evaluate((demo) => {
+    const sp = document.querySelector(`${demo} [data-testid="spread"][data-current]`)
+    const all = [...sp.querySelectorAll("[data-guide]")], inh = all.filter((g) => g.dataset.passive !== undefined)
+    const order = all.findIndex((g) => g.dataset.passive === undefined) === -1 || all.findIndex((g) => g.dataset.passive === undefined) > all.indexOf(inh.at(-1))
+    const look = inh.map((g) => { const ln = g.firstElementChild, cs = getComputedStyle(ln), v = g.offsetHeight > g.offsetWidth, par = g.offsetParent
+      return { v, img: cs.backgroundImage, w: v ? ln.offsetWidth : ln.offsetHeight, pe: getComputedStyle(g).pointerEvents, over: v ? [-g.offsetTop, g.offsetHeight - par.clientHeight + g.offsetTop] : [-g.offsetLeft, g.offsetWidth - par.clientWidth + g.offsetLeft] } })
+    // a point on an inherited line inside an own frame: elementFromPoint must be that frame
+    let hit = null
+    for (const g of inh) { const r = g.firstElementChild.getBoundingClientRect(), v = r.height > r.width
+      for (const f of sp.querySelectorAll('[data-testid="frame"]')) { const b = f.getBoundingClientRect()
+        const x = v ? r.left + r.width / 2 : b.left + b.width / 2, y = v ? b.top + b.height / 2 : r.top + r.height / 2
+        if (x > b.left + 2 && x < b.right - 2 && y > b.top + 2 && y < b.bottom - 2) { hit = { x, y, id: f.dataset.frame, at: document.elementFromPoint(x, y)?.closest("[data-frame]")?.dataset.frame ?? null }; break } }
+      if (hit) break }
+    return { n: inh.length, order, look, hit }
+  }, demo)
+  ok("parent-guides PG5: a Master A spread shows its master's guides dashed rgb(163, 161, 162), 1 px, 24 px past the page, pointer-events none, under own guides",
+    pg.n >= 1 && pg.order && pg.look.every((l) => /repeating-linear-gradient\(.*rgb\(163, 161, 162\)/.test(l.img) && l.w === 1 && l.pe === "none" && l.over[0] === 24 && l.over[1] === 24), JSON.stringify({ n: pg.n, order: pg.order, look: pg.look[0] }))
+  ok("parent-guides PG2: elementFromPoint on a parent guide over a frame is the frame", !!pg.hit && pg.hit.at === pg.hit.id, JSON.stringify(pg.hit))
+  if (pg.hit) { await page.mouse.click(pg.hit.x, pg.hit.y); await page.waitForTimeout(200) }
+  const pgStatus = (await page.locator(`${demo} [data-testid="status"]`).textContent()) ?? ""
+  ok("parent-guides PG2: a click on a parent guide selects the frame below, no status", (await page.locator(`${demo} [data-current] [data-testid="sel-handle"]`).count()) > 0 && !/parent spread/.test(pgStatus), pgStatus)
+  await page.keyboard.press("Escape"); await page.waitForTimeout(150)
   await page.locator(`${demo} [data-current] [data-testid="master-frame"]`).first().click({ modifiers: ["Alt"], force: true }); await page.waitForTimeout(250)
   ok("kit10: Alt+click on a parent item makes an override copy", (await page.locator(`${demo} [data-testid="spread"][data-current]`).getByText("override", { exact: true }).count()) === 1)
   // missing photo + Relink
