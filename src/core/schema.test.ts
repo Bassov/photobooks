@@ -192,6 +192,15 @@ describe('bookSchema', () => {
       expect(result.data.endpapers).toEqual(value.endpapers)
     })
 
+    it('keeps each parse independent across repeated parses', () => {
+      const bad = populated()
+      bad.cover.front.crop = badCrop
+      const outcomes = [populated(), bad, populated()].map(
+        (patch) => parse(patch).success,
+      )
+      expect(outcomes).toEqual([true, false, true])
+    })
+
     it('accepts panels and endpapers without photo', () => {
       expect(
         parse({

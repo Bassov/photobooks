@@ -293,10 +293,15 @@ function makeEndpapersSchema() {
   return z.object({ front: endpaper, back: endpaper })
 }
 
-/** Defers building `make()` to parse time, forwarding its issues. */
+/**
+ * Defers building `make()` to the first parse and reuses it, forwarding its
+ * issues. A rebuild per parse made `parseBook` ~20× slower.
+ */
 function atParseTime<S extends z.ZodType>(make: () => S) {
+  let built: S | undefined
   return z.unknown().transform((value, ctx): z.output<S> => {
-    const result = make().safeParse(value)
+    built ??= make()
+    const result = built.safeParse(value)
     if (!result.success) {
       for (const issue of result.error.issues) {
         ctx.addIssue({
