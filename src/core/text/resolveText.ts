@@ -32,35 +32,41 @@ function fillTemplate(
   )
 }
 
+/** Pure: one text frame's content resolved against the book (and `spread` for tokens). */
+export function resolveTextContent(
+  book: Book,
+  spread: Spread,
+  frame: Frame,
+): ResolvedTextItem {
+  const content = frame.content
+  const text =
+    content === undefined
+      ? ''
+      : content.type === 'static'
+        ? content.text
+        : fillTemplate(content.template, {
+            title: book.title ?? '',
+            caption: anchorCaption(book, spread, frame),
+            spread: String(book.spreads.indexOf(spread) + 1),
+          })
+  return {
+    frameId: frame.id,
+    text,
+    styleId: frame.styleId ?? DEFAULT_TEXT_STYLE,
+    align: frame.align ?? DEFAULT_TEXT_ALIGN,
+    ...(frame.anchorFrameId === undefined
+      ? {}
+      : { anchorFrameId: frame.anchorFrameId }),
+  }
+}
+
 /** Pure: text frames of a spread with content resolved against the book, in z order. */
 export function resolveTextItems(
   book: Book,
   spread: Spread,
 ): ResolvedTextItem[] {
-  const spreadNo = String(book.spreads.indexOf(spread) + 1)
   return spread.frames
     .filter(isTextFrame)
     .toSorted((a, b) => a.z - b.z)
-    .map((frame) => {
-      const content = frame.content
-      const text =
-        content === undefined
-          ? ''
-          : content.type === 'static'
-            ? content.text
-            : fillTemplate(content.template, {
-                title: book.title ?? '',
-                caption: anchorCaption(book, spread, frame),
-                spread: spreadNo,
-              })
-      return {
-        frameId: frame.id,
-        text,
-        styleId: frame.styleId ?? DEFAULT_TEXT_STYLE,
-        align: frame.align ?? DEFAULT_TEXT_ALIGN,
-        ...(frame.anchorFrameId === undefined
-          ? {}
-          : { anchorFrameId: frame.anchorFrameId }),
-      }
-    })
+    .map((frame) => resolveTextContent(book, spread, frame))
 }

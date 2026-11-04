@@ -171,9 +171,8 @@ export function SpreadPager({
             inert={active ? undefined : true}
             style={{ transform: `translateX(${String((i - index) * 100)}%)` }}
           >
-            {/* The shadow sits on an unscaled box: a blurred shadow painted
-                under scale() loses the cached fast path and re-rasters on
-                every flip, stalling frames on software compositors. */}
+            {/* The shadow sits on an unzoomed box: a blurred shadow painted
+                in the zoomed tree re-rasters on every fit change. */}
             <div
               className="shadow-[var(--shadow-stage-dark)]"
               style={{
@@ -181,10 +180,13 @@ export function SpreadPager({
                 height: fit.height * fit.scale,
               }}
             >
+              {/* `zoom`, not scale(): the spread lays out at its on-screen
+                  size, so text baselines snap to screen px with an even line
+                  pitch (a transform rounds them at the unscaled px size). */}
               <div
                 ref={active ? fitRef : undefined}
-                className="w-max origin-top-left"
-                style={{ transform: `scale(${String(fit.scale)})` }}
+                className="w-max"
+                style={{ zoom: fit.scale }}
               >
                 {renderSpread(i)}
               </div>

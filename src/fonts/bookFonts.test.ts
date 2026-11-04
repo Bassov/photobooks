@@ -12,7 +12,7 @@ import {
   facesForCodePoint,
   unicodeRangeCss,
 } from './bookFonts'
-import { faceDescriptors, loadBookFonts } from './loadBookFonts'
+import { faceDescriptors, loadBookFonts, loadFonts } from './loadBookFonts'
 
 const FONTS_DIR = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -298,5 +298,51 @@ describe('registry lookups', () => {
 
   it('lists files in registry order', () => {
     expect(bookFontFiles()).toEqual(BOOK_FONT_FACES.map((f) => f.file))
+  })
+})
+
+describe('loadFonts', () => {
+  it('loads every font, then waits for fonts.ready', async () => {
+    const order: string[] = []
+    let settle = (): void => undefined
+    const fontSet = {
+      load: vi.fn((font: string) => {
+        order.push(font)
+        return Promise.resolve([])
+      }),
+      ready: new Promise<void>((resolve) => {
+        settle = () => {
+          order.push('ready')
+          resolve()
+        }
+      }),
+    }
+    let finished = false
+    const done = loadFonts(
+      ["500 16px 'Lora Variable'", '400 16px Inter'],
+      fontSet,
+    ).then(() => {
+      finished = true
+    })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(finished).toBe(false)
+    settle()
+    await done
+    expect(finished).toBe(true)
+    expect(order).toEqual([
+      "500 16px 'Lora Variable'",
+      '400 16px Inter',
+      'ready',
+    ])
+  })
+
+  it('rejects when a font fails to load', async () => {
+    const fontSet = {
+      load: () => Promise.reject(new Error('offline')),
+      ready: Promise.resolve(),
+    }
+    await expect(loadFonts(['400 16px Inter'], fontSet)).rejects.toThrow(
+      'offline',
+    )
   })
 })

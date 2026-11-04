@@ -285,8 +285,10 @@ describe('SpreadPager', () => {
     stubSizes({ w: 1000, h: 500, stageW: 2000, stageH: 1064 })
     render(<Harness />)
     // min(2000*.94/1000, (1064-64)*.96/500) = min(1.88, 1.92)
-    expect(firstFit()?.style.transform).toBe('scale(1.88)')
-    // The shadow box stays unscaled and wraps the scaled spread exactly.
+    // `zoom` lays the spread out at its on-screen size (no scale transform).
+    expect(firstFit()?.style.zoom).toBe('1.88')
+    expect(firstFit()?.style.transform).toBe('')
+    // The shadow box stays unzoomed and wraps the zoomed spread exactly.
     expect(firstShadowBox()?.style.width).toBe('1880px')
     expect(firstShadowBox()?.style.height).toBe('940px')
     expect(firstShadowBox()?.style.transform).toBe('')
@@ -295,7 +297,7 @@ describe('SpreadPager', () => {
   it('lets the height bound the scale when the stage is wide', () => {
     stubSizes({ w: 1000, h: 500, stageW: 4000, stageH: 1064 })
     render(<Harness />)
-    expect(firstFit()?.style.transform).toBe('scale(1.92)')
+    expect(firstFit()?.style.zoom).toBe('1.92')
   })
 
   it.each([
@@ -304,7 +306,7 @@ describe('SpreadPager', () => {
   ])('keeps scale 1 while the spread has no %s', (_, w, h) => {
     stubSizes({ w, h, stageW: 2000, stageH: 1064 })
     render(<Harness />)
-    expect(firstFit()?.style.transform).toBe('scale(1)')
+    expect(firstFit()?.style.zoom).toBe('1')
     expect(firstShadowBox()?.style.width).toBe('0px')
   })
 
@@ -376,7 +378,7 @@ describe('SpreadPager', () => {
       measure()
     })
     expect(renderSpread.mock.calls.length).toBeGreaterThan(baseline)
-    expect(firstFit()?.style.transform).toBe('scale(1.88)')
+    expect(firstFit()?.style.zoom).toBe('1.88')
     expect(parseFloat(box()?.style.height ?? '')).toBeCloseTo(846, 6)
     expect(box()?.style.width).toBe('1880px')
 
@@ -388,7 +390,7 @@ describe('SpreadPager', () => {
       measure()
     })
     expect(renderSpread.mock.calls.length).toBeGreaterThan(afterHeight)
-    expect(firstFit()?.style.transform).toBe('scale(0.94)')
+    expect(firstFit()?.style.zoom).toBe('0.94')
 
     // Width halves while the stage halves too: the scale is back to 1.88.
     sizes.w = 500
@@ -397,7 +399,7 @@ describe('SpreadPager', () => {
     act(() => {
       measure()
     })
-    expect(firstFit()?.style.transform).toBe('scale(1.88)')
+    expect(firstFit()?.style.zoom).toBe('1.88')
     expect(box()?.style.width).toBe('940px')
   })
 
