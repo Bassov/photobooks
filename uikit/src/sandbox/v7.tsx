@@ -4,7 +4,7 @@ import * as React from "react"
 import { useStudio, type Book } from "./store"
 import { Slider as USlider, SliderTrack, SliderFillTrack, SliderThumb } from "@/components/ui/slider"
 import { P } from "@/data"
-import { MASTER_GRIDS, MASTER_GUIDES, MASTER_PN, builtinMaster, defaultMasterOf, masterPages, masterUsage, type Grid, type Guide } from "./model"
+import { MASTER_GRIDS, MASTER_GUIDES, MASTER_PN, MASTER_POS, FOLIO_W, builtinMaster, defaultMasterOf, folioBox, formatPageNumber, lastPageFolios, masterPages, masterUsage, pageNumbersOf, type Doc, type Folio, type Grid, type Guide, type PageFormat, type PnPos } from "./model"
 import { Check, Link2, RotateCcw, Unlink2 } from "lucide-react"
 
 export const T = "#393738", SUB = "#535152", INK = "#232223", ON_INK = "#F2F2F2", SURROUND = "#C8CACB", BAR = "#E1E1E1", FIELD = "#D7D7D7", PAPER = "#FFFFFF"
@@ -99,6 +99,7 @@ const syncGrids = () => {
   MASTER_GRIDS.mA = MASTERS.A.grid; MASTER_GRIDS.mB = MASTERS.B.grid
   MASTER_GUIDES.mA = MASTERS.A.guides; MASTER_GUIDES.mB = MASTERS.B.guides
   MASTER_PN.mA = MASTERS.A.pn; MASTER_PN.mB = MASTERS.B.pn
+  MASTER_POS.mA = MASTERS.A.pos as PnPos; MASTER_POS.mB = MASTERS.B.pos as PnPos
 }
 /** The guides a master shows (and edits): its own list once edited, else the built-in ones. */
 export const guidesOfMaster = (id: "A" | "B", m: Master): Guide[] => m.guides ?? builtinMaster(id).guides
@@ -112,29 +113,45 @@ export function MasterSpread({ id, big, m }: { id: "A" | "B"; big?: boolean; m: 
   const bk = useBook()
   const g = m.grid, PW = bk.w * 10, PH = bk.h * 10, pc = (v: number, d: number) => `${(v / d) * 100}%`
   const cw = (PW - g.inside - g.outside - g.colGutter * (g.cols - 1)) / g.cols, ch = PH - g.top - g.bottom, rh = (ch - g.rowGutter * (g.rows - 1)) / g.rows
-  const mx = pc(g.outside, PW)
+  const mx = pc(g.outside, PW), cq = (mm: number) => `${(mm / PW) * 100}cqw`
+  /* Designer page-numbers: the `#` chip sits at the folio box in the folio font at true scale (cqw of its page) */
+  const chip = (side: "l" | "r") => {
+    const b = folioBox(g, PW, PH, m.pos as PnPos, side === "l" ? 0 : 1, bk.safe)
+    const at = b.align === "center" ? { left: pc(b.x + FOLIO_W / 2, PW), transform: "translateX(-50%)" } : b.align === "left" ? { left: pc(b.x, PW) } : { right: pc(PW - b.x - FOLIO_W, PW) }
+    return <span className="pointer-events-none absolute whitespace-nowrap" data-testid="master-pn" data-align={b.align}
+      style={{ top: pc(b.y, PH), ...at, fontFamily: "'Inter Variable', system-ui, sans-serif", fontSize: cq(3.1), fontWeight: 400, lineHeight: 1.4, padding: `0 ${cq(1)}`, borderRadius: 2, color: SUB, background: "rgb(57 55 56/.08)" }}>#</span>
+  }
   const page = (side: "l" | "r") => (
-    <div className="relative h-full flex-1" style={{ background: PAPER }} data-paper>
+    <div className="relative h-full flex-1" style={{ background: PAPER, containerType: big ? "inline-size" : undefined }} data-paper>
       <div className="absolute" style={{ inset: `${pc(g.top, PH)} ${pc(side === "l" ? g.inside : g.outside, PW)} ${pc(g.bottom, PH)} ${pc(side === "l" ? g.outside : g.inside, PW)}` }} data-testid={big ? "master-margin" : undefined}>
         {Array.from({ length: g.cols }, (_, i) => <div key={i} className="absolute inset-y-0" data-testid={big ? "master-col" : undefined} style={{ left: pc(i * (cw + g.colGutter), PW - g.inside - g.outside), width: pc(cw, PW - g.inside - g.outside) }}>
           {Array.from({ length: g.rows }, (_, j) => <div key={j} className="absolute inset-x-0" data-testid={big ? "master-cell" : undefined} style={{ top: pc(j * (rh + g.rowGutter), ch), height: pc(rh, ch), background: "rgb(57 55 56/.06)" }} />)}</div>)}
         {big && <div data-allow-border className="absolute inset-0" style={{ outline: "1px dashed #9A9A9A" }} />}
       </div>
-      {m.pn && <span className="absolute grid place-items-center rounded-2xs font-mono" data-testid={big ? "master-pn" : undefined} style={{ bottom: "3.5%", ...(m.pos === 1 ? { left: "50%", transform: "translateX(-50%)" } : { [(side === "l") === (m.pos === 0) ? "left" : "right"]: mx }), fontSize: big ? 10.5 : 3, color: SUB, background: big ? "rgb(57 55 56/.08)" : undefined, padding: big ? "1px 5px" : 0 }}>#</span>}
+      {big && m.pn && chip(side)}
       {id === "B" && <div className="absolute rounded-2xs" style={{ top: `calc(${pc(g.top, PH)} - 5%)`, left: mx, right: mx, height: "2.5%", background: "rgb(57 55 56/.16)" }} />}
     </div>)
   return <div className="relative flex h-full w-full" style={{ boxShadow: big ? shadowBig : shadowSm }} data-testid={big ? "canvas-master" : undefined}>{page("l")}{page("r")}<Gutter /></div>
 }
-export function LastPage({ big }: { big?: boolean }) {
+/* Designer page-numbers: folios at `sc` px / mm (spread mm), printed parent content on the canvas, the last page and Preview;
+   never in spread-list thumbnails */
+export const FolioMarks = ({ folios, sc }: { folios: Folio[]; sc: number }) => <>{folios.map((p) => (
+  <span key={p.side} className="pointer-events-none absolute select-none whitespace-nowrap" data-testid="page-number" data-side={p.side}
+    style={{ left: p.x * sc, top: p.y * sc, width: p.w * sc, height: p.h * sc, textAlign: p.align, fontFamily: "'Inter Variable', system-ui, sans-serif", fontSize: 3.1 * sc, fontWeight: 400, lineHeight: 1.4, color: "#232220", fontVariantNumeric: "tabular-nums", letterSpacing: "normal" }}>{p.text}</span>
+))}</>
+/** the single last page; with `sc` (px / mm, the canvas) it prints the left-page folio of the last spread's parent */
+export function LastPage({ big, sc }: { big?: boolean; sc?: number }) {
+  const st = useStudio()
   return (
     <div className="relative flex h-full w-full" data-testid={big ? "canvas-last" : undefined}>
       <div className="h-full flex-1" style={{ background: PAPER, boxShadow: big ? shadowBig : shadowSm }} data-paper />
       <div className="h-full flex-1" />
+      {sc !== undefined && <FolioMarks folios={lastPageFolios(st.doc, st.book.safe, st.view.pageNumbers)} sc={sc} />}
     </div>)
 }
 
-export const Sec = ({ title, children, right }: { title: string; children: React.ReactNode; right?: React.ReactNode }) => (
-  <section className="px-4 py-4"><div className="mb-3 flex items-center justify-between"><h3 className="text-2xs font-semibold tracking-[0.12em] uppercase" style={{ color: SUB }}>{title}</h3>{right}</div>{children}</section>)
+export const Sec = ({ title, children, right, tid }: { title: string; children: React.ReactNode; right?: React.ReactNode; tid?: string }) => (
+  <section className="px-4 py-4" data-testid={tid}><div className="mb-3 flex items-center justify-between"><h3 className="text-2xs font-semibold tracking-[0.12em] uppercase" style={{ color: SUB }}>{title}</h3>{right}</div>{children}</section>)
 /** layout-grids-parent-inherit GP2/GP3: with `src` (tooltip + description) the value reads grey 400 when inherited, dark 600 + ↺ when `own` */
 export const Field = ({ l, v, u, set, min = 0, max = 99, cap, name, tid = "master-field", own, src, onReset, resetLabel }: { l: string; v: string; u?: string; set?: (n: number) => void; min?: number; max?: number; cap?: string; name?: string; tid?: string; own?: boolean; src?: string; onReset?: () => void; resetLabel?: string }) => {
   const descId = React.useId(), shade = src === undefined ? { color: T } : { color: own ? T : SUB, fontWeight: own ? 600 : 400 }
@@ -147,16 +164,16 @@ export const Field = ({ l, v, u, set, min = 0, max = 99, cap, name, tid = "maste
     {own && onReset && <button type="button" aria-label={resetLabel} title={resetLabel} data-testid={`${tid}-reset-${l}`} onClick={(e) => { e.preventDefault(); onReset() }}
       className="-ml-1 grid size-4 shrink-0 place-items-center rounded-xs border-0 bg-transparent p-0 text-[#535152] outline-none transition-colors hover:bg-[rgb(57_55_56/.08)] hover:text-[#393738] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#535152] [&_svg]:size-3"><RotateCcw /></button>}</label>
 }
-export const SegC = ({ items, on, set }: { items: React.ReactNode[]; on: number; set?: (i: number) => void }) => (
-  <div className="flex rounded-md p-0.5" style={{ background: FIELD }}>
+export const SegC = ({ items, on, set, label, tid }: { items: React.ReactNode[]; on: number; set?: (i: number) => void; label?: string; tid?: string }) => (
+  <div className="flex rounded-md p-0.5" style={{ background: FIELD }} role={label ? "group" : undefined} aria-label={label} data-testid={tid}>
     {items.map((it, i) => <button key={i} type="button" aria-pressed={i === on} onClick={() => set?.(i)} className="e7-ghost flex h-6.5 flex-1 items-center justify-center rounded-sm text-sm font-medium [&_svg]:size-3.5" style={i === on ? { background: BAR, color: T, boxShadow: "0 1px 2px rgb(35 34 35/.14)" } : { color: SUB }}>{it}</button>)}
   </div>)
 export const Slider = ({ l, v, pct }: { l: string; v: string; pct: number }) => (
   <div className="mt-3"><div className="mb-1 flex justify-between text-sm"><span style={{ color: SUB }}>{l}</span><span className="font-mono tabular-nums" style={{ color: T }}>{v}</span></div>
     <USlider aria-label={l} defaultValue={pct} className="w-full" data-testid="e7-slider"><SliderTrack><SliderFillTrack /><SliderThumb /></SliderTrack></USlider></div>)
 export const Row = ({ l, children }: { l: string; children: React.ReactNode }) => <div className="mt-3 flex items-center justify-between text-sm"><span style={{ color: SUB }}>{l}</span>{children}</div>
-export const Toggle = ({ on, onClick, label }: { on: boolean; onClick?: () => void; label: string }) => (
-  <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={onClick} className="e7-tg relative h-4.5 w-8 rounded-full border-0 p-0" data-on={on || undefined}>
+export const Toggle = ({ on, onClick, label, tid }: { on: boolean; onClick?: () => void; label: string; tid?: string }) => (
+  <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={onClick} data-testid={tid} className="e7-tg relative h-4.5 w-8 rounded-full border-0 p-0" data-on={on || undefined}>
     <span className="e7-knob absolute top-0.5 size-3.5 rounded-full transition-[left]" style={{ left: on ? 16 : 2 }} /></button>)
 export const Val = ({ v }: { v: string }) => <span className="rounded-sm px-2 py-1 text-sm" style={{ background: FIELD, color: T }}>{v}</span>
 /** kit-sync KS10: read-only pill + note as one right-aligned group (prod ReadOnlyPill) */
@@ -217,6 +234,20 @@ export function GridFields({ g, set, link, setLink, tid = "master-field", src, p
   </div>
 }
 
+/* Designer page-numbers: the book owns how folios count (Start at, Format, Skip first page); masters own Show + position */
+const PN_FORMATS: PageFormat[] = ["decimal", "lower-roman", "upper-roman"], PN_LABELS = ["1, 2, 3", "i, ii, iii", "I, II, III"]
+const pnStart = (d: Doc) => formatPageNumber(d.pageStart ?? 1, d.pageFormat)
+/** Start at: the Pages field look as a real number input; commits on Enter / blur (rounded, 1–999), Esc reverts, empty keeps the value */
+function StartAt({ v, set }: { v: number; set: (n: number) => void }) {
+  const [t, setT] = React.useState(`${v}`)
+  React.useEffect(() => setT(`${v}`), [v])
+  const commit = () => { const n = Math.round(parseFloat(t)); const c = Number.isFinite(n) ? Math.min(999, Math.max(1, n)) : v; setT(`${c}`); if (c !== v) set(c) }
+  return <input type="number" inputMode="numeric" min={1} max={999} step={1} aria-label="Start page numbers at" data-testid="book-pn-start" value={t}
+    onChange={(e) => setT(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") commit(); else if (e.key === "Escape") { e.stopPropagation(); setT(`${v}`) } }}
+    className="rounded-sm border-0 px-2 py-1 text-center text-sm tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#535152]"
+    style={{ background: FIELD, color: T, width: `calc(${Math.max(2, t.length)}ch + 1rem)` }} />
+}
+
 /** book-level inspector: Book settings, Cover, Endpaper, Master, last page, nothing selected */
 export function BookInspector() {
   const masters = useMasters(); const cov = useCoverPhoto(); const ct = useCoverText()
@@ -224,6 +255,7 @@ export function BookInspector() {
   const pages = pagesOf(st.doc.spreads.length), def = defaultMasterOf(st.doc)
   if (!sel || sel.k === "none") return <div className="grid h-full place-items-center px-8 text-center text-sm" style={{ color: SUB }} data-testid="inspector-empty">Select a spread or photo</div>
   const pc = <span className="text-sm" style={{ color: SUB }} data-testid="page-colour-readonly">Paper white · coming later</span>
+  const doc = st.doc, pnFmt = PN_FORMATS.indexOf(doc.pageFormat ?? "decimal"), pnAny = masters.A.pn || masters.B.pn || doc.parents.some((p) => pageNumbersOf(p))
   if (sel.k === "book") return <div data-testid="insp-book">
     <Head t="Book settings" s={`${ct.back || ct.front || "Untitled book"} · applies to the whole book`} />
     <Sec title="Page size"><SizeEditor book={book} setBook={setBook} /></Sec>
@@ -231,7 +263,11 @@ export function BookInspector() {
       <Row l="Endpapers"><Toggle label="Endpapers" on={book.endp} onClick={() => setBook({ ...book, endp: !book.endp })} /></Row>
       <Row l="Pages"><span className="flex items-center gap-1" data-testid="book-pages"><Val v={`${pages}`} /><span className="text-2xs" style={{ color: SUB }}>{PAGE_MIN}–{PAGE_MAX}</span></span></Row>
       <div className="mt-1.5 text-2xs" style={{ color: SUB }} data-testid="book-pages-note">{pages < PAGE_MIN ? `Add ${Math.ceil((PAGE_MIN - pages) / 2)} spread${PAGE_MIN - pages > 2 ? "s" : ""} to reach the ${PAGE_MIN}-page minimum` : pages > PAGE_MAX ? `Remove ${Math.ceil((pages - PAGE_MAX) / 2)} spreads to stay within ${PAGE_MAX} pages` : "Pages are added in spreads of 2"}</div></Sec>
-    <Sec title="Print"><div className="grid grid-cols-2 gap-2"><Field l="B" v="3" u="mm" /><Field l="S" v="8" u="mm" /></div><Row l="Paper"><Val v="Matte 200 g" /></Row></Sec>
+    <Sec title="Page numbers" tid="book-page-numbers"><Row l="Start at"><StartAt v={doc.pageStart ?? 1} set={(n) => st.update((d) => ({ ...d, pageStart: n }), "Start page numbers at")} /></Row>
+      <div className="mt-3"><SegC label="Page number format" tid="book-pn-format" items={PN_LABELS} on={pnFmt} set={(i) => st.update((d) => ({ ...d, pageFormat: PN_FORMATS[i] }), "Page number format")} /></div>
+      <Row l="Skip first page"><Toggle label="Skip first page" tid="book-pn-skip-first" on={!!doc.skipFirst} onClick={() => st.update((d) => ({ ...d, skipFirst: !d.skipFirst }), "Skip first page")} /></Row>
+      <div className="mt-1.5 text-2xs leading-[1.35]" style={{ color: SUB }} data-testid="book-pn-note">{!pnAny ? "No master prints page numbers yet. Turn them on in Masters." : doc.skipFirst ? `Page 1 has no number · page 2 is ${formatPageNumber((doc.pageStart ?? 1) + 1, doc.pageFormat)}` : `Page 1 is ${pnStart(doc)}`}</div></Sec>
+    <Sec title="Print"><div className="grid grid-cols-2 gap-2"><Field l="B" v="3" u="mm" /><Field l="S" v={`${book.safe}`} u="mm" /></div><Row l="Paper"><Val v="Matte 200 g" /></Row></Sec>
     <Sec title="Defaults"><Row l="Default master"><Val v={`Master ${def}`} /></Row><Row l="Page colour">{pc}</Row></Sec></div>
   if (sel.k === "cover") return <div data-testid="insp-cover">
     <Head t="Cover" s="Hardcover · back, spine, front · wrap 15 mm" />
@@ -253,7 +289,10 @@ export function BookInspector() {
           onClick={() => st.update((d) => ({ ...d, defaultMaster: id }), "Make default")}><Check className="size-3.5" aria-hidden />Make default</button></>}
     </Head>
     <Sec title="Grid"><GridFields g={m.grid} set={(grid) => setMaster(id, { grid })} link={m.link} setLink={(link) => setMaster(id, { link })} /></Sec>
-    <Sec title="Page numbers"><Row l="Show"><Toggle label="Page numbers" on={m.pn} onClick={() => setMaster(id, { pn: !m.pn })} /></Row><div className="mt-3"><SegC items={["Outer", "Centre", "Inner"]} on={m.pos} set={(i) => setMaster(id, { pos: i })} /></div><Row l="Position"><Val v="Bottom" /></Row></Sec></div> }
+    <Sec title="Page numbers" tid="master-page-numbers"><Row l="Show"><Toggle label="Page numbers" tid="master-pn-toggle" on={m.pn} onClick={() => setMaster(id, m.pn ? { pn: false } : { pn: true, pos: 0 })} /></Row>
+      {m.pn && <><div className="mt-3"><SegC label="Page number position" tid="master-pn-position" items={["Outer", "Centre", "Inner"]} on={m.pos} set={(i) => setMaster(id, { pos: i })} /></div>
+        <div className="mt-1.5 text-2xs leading-[1.35]" style={{ color: SUB }} data-testid="master-pn-note">Starts at {pnStart(doc)} · {PN_LABELS[pnFmt]}{doc.skipFirst ? " · page 1 blank" : ""} · <button type="button" data-testid="master-pn-book-settings" onClick={() => st.setNode({ k: "book" })}
+          className="rounded-2xs border-0 bg-transparent p-0 text-2xs font-medium text-[#393738] underline decoration-[rgb(57_55_56/.45)] underline-offset-2 outline-none hover:decoration-[#393738] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#535152]">Book settings</button></div></>}</Sec></div> }
   return <div data-testid="insp-page">
     <Head t={`Page ${pages}`} s="Last page · faces the back endpaper" />
     <Sec title="Page"><Row l="Master"><Val v={`Master ${def}`} /></Row><Row l="Page colour">{pc}</Row></Sec></div>

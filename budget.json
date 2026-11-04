@@ -8,5 +8,15 @@
       { "resourceType": "total", "budget": 500 }
     ],
     "resourceCounts": [{ "resourceType": "third-party", "budget": 0 }]
+  },
+  {
+    "path": "/site.html",
+    "resourceSizes": [
+      { "resourceType": "document", "budget": 20 },
+      { "resourceType": "script", "budget": 200 },
+      { "resourceType": "stylesheet", "budget": 30 },
+      { "resourceType": "total", "budget": 450 }
+    ],
+    "resourceCounts": [{ "resourceType": "third-party", "budget": 0 }]
   }
 ]

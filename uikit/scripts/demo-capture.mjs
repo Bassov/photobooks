@@ -83,6 +83,8 @@ export async function capture(out, { log = console.log, probe } = {}) {
     ["editor-parent-guides-inherited", async () => { await page.locator('[data-testid="mode-seg"]').getByText("Pages", { exact: true }).click(); await settle(250) }],
     ["editor-master-page-numbers-on", async () => { await page.locator('[data-testid="mode-seg"]').getByText("Masters", { exact: true }).click(); await settle(250); await c('[data-testid="insp-master"] [role=switch][aria-label="Page numbers"]') }],
     ["editor-spread-inherits-master", async () => { await page.locator('[data-testid="mode-seg"]').getByText("Pages", { exact: true }).click(); await settle(250); await c('[data-item="p1"]') }],
+    // page-numbers-kit: Book settings → Page numbers (Start at, Format, Skip first page) between Binding and Print
+    ["editor-book-page-numbers", () => c('[data-testid="book-title"]')],
     ["editor-parent-item-overridden", async () => { await page.locator('[data-current] [data-testid="master-frame"]').first().click({ modifiers: ["Alt"], force: true }) }],
     ["editor-missing-photos", async () => { await page.evaluate(() => window.__demo.missing(2)); await settle(400) }],
     ["editor-relink-dialog", () => c('[data-testid="demo-relink"]')],

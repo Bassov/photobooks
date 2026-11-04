@@ -1,5 +1,5 @@
-import type { ReactElement } from 'react'
 import type { LibraryMeta, PublishedRevision } from '../../project'
+import type { SiteMeta, SitePageAssets, SitePageInput } from '../siteInput'
 
 /** One file of the exported site; `path` is site-root relative, `/`-separated. */
 export interface SiteFile {
@@ -19,6 +19,8 @@ export interface SiteDerivativeInput {
 /** Built viewer bundle, copied under `viewer/`; `entry` is one of its paths. */
 export interface SiteViewerBundle {
   entry: string
+  /** Stylesheets every page links, in order; each one of `files`. */
+  css?: readonly string[]
   files: readonly SiteFile[]
 }
 
@@ -34,7 +36,7 @@ export interface SiteImageSource {
  * A photo with every derivative present in the tree, presets in config order;
  * photos without any derivative are left out, so `sources` is never empty.
  */
-export interface SiteImage {
+interface SiteImage {
   assetHash: string
   sources: readonly [SiteImageSource, ...SiteImageSource[]]
 }
@@ -45,25 +47,11 @@ export interface SiteSpreadModel {
   images: readonly SiteImage[]
 }
 
-export interface SiteBookPageModel {
-  bookId: string
-  title: string
-  spreads: readonly SiteSpreadModel[]
-  /** Page-relative viewer entry URL, when a bundle is exported. */
-  viewerSrc?: string
-}
-
-export interface SiteIndexPageModel {
-  /** Newest published first. */
-  books: readonly { bookId: string; title: string; href: string }[]
-  viewerSrc?: string
-}
-
-/** Injectable page markup; `renderToStaticMarkup` turns it into HTML. */
-export interface SitePageRenderer {
-  index: (page: SiteIndexPageModel) => ReactElement
-  book: (page: SiteBookPageModel) => ReactElement
-}
+/**
+ * Injectable page renderer: one complete HTML document per page (catalog
+ * newest published first; book pages with page-relative URLs).
+ */
+type SitePageRenderer = (input: SitePageInput, assets: SitePageAssets) => string
 
 export interface SiteExportInput {
   meta: LibraryMeta
@@ -71,6 +59,8 @@ export interface SiteExportInput {
   revisions: readonly PublishedRevision[]
   /** Encoded derivatives, any order; one per `(assetHash, presetId)`. */
   derivatives: readonly SiteDerivativeInput[]
+  /** Site settings; absent → title `Photobooks`, no author, no URL. */
+  site?: SiteMeta
   viewer?: SiteViewerBundle
   renderer?: SitePageRenderer
 }
