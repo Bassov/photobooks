@@ -21,6 +21,7 @@ export type FrameTarget = FrameDragSource
 
 export type ArrangeAction = { kind: 'z'; move: ZMove } | { kind: 'lock' }
 
+/** `keys` in the kit's wording (`uikit/src/sandbox/inspector.tsx` Arrange). */
 export const Z_MOVES: readonly {
   move: ZMove
   label: string
@@ -31,7 +32,7 @@ export const Z_MOVES: readonly {
     move: 'front',
     label: 'Bring to front',
     icon: 'bringToFront',
-    keys: 'Ctrl+Shift+]',
+    keys: 'Shift+Ctrl+]',
   },
   { move: 'forward', label: 'Bring forward', icon: 'arrowUp', keys: 'Ctrl+]' },
   {
@@ -44,7 +45,7 @@ export const Z_MOVES: readonly {
     move: 'back',
     label: 'Send to back',
     icon: 'sendToBack',
-    keys: 'Ctrl+Shift+[',
+    keys: 'Shift+Ctrl+[',
   },
 ]
 
