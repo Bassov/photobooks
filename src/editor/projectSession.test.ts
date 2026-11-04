@@ -120,6 +120,12 @@ describe('projectSession', () => {
     expect(created).toMatchObject({ ok: true })
     assert(created.ok, 'expected createBookInLibrary success')
     expect(getEditorStatus()).toBe('Book created')
+    // A new book has one empty default master, used by every spread.
+    expect(created.value.parents).toEqual([
+      { id: 'parent-1', name: 'Master A', frames: [], guides: [] },
+    ])
+    expect(created.value.defaultParentId).toBe('parent-1')
+    expect(created.value.spreads.some((s) => 'parentId' in s)).toBe(false)
     expect(isLibraryBacked()).toBe(true)
     expect(getProjectSessionSnapshot()).toMatchObject({
       libraryOpen: true,

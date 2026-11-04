@@ -63,6 +63,7 @@ export {
   PARENT_SPREAD_INDEX,
   addParent,
   editableSpread,
+  ensureDefaultParent,
   nextParentId,
   parentAsSpread,
   removeParent,

@@ -8,6 +8,7 @@ import {
   addParent,
   applyBookOp,
   editableSpread,
+  ensureDefaultParent,
   getSpreadPageCount,
   nextParentId,
   parentAsSpread,
@@ -197,21 +198,13 @@ describe('removeParent', () => {
     ])
   })
 
-  it('drops a matching book default so spreads without parentId show None', () => {
-    const book = makeBook({
-      spreads: spreads(2),
-      parents: [parent({ frames: [logo] })],
-      defaultParentId: 'p1',
-    })
+  it('never deletes the book default', () => {
+    const book = bookWithLogo({ defaultParentId: 'p1' })
 
-    const next = removeParent(book, 'p1')
-
-    expect('defaultParentId' in next).toBe(false)
-    expect(next.spreads).toEqual(book.spreads)
-    expect(next.spreads.map((spread) => spreadParent(next, spread))).toEqual([
-      undefined,
-      undefined,
-    ])
+    expect(removeParent(book, 'p1')).toBe(book)
+    expect(applyBookOp(book, { type: 'removeParent', parentId: 'p1' })).toBe(
+      book,
+    )
   })
 
   it('leaves the book for an unknown id', () => {
@@ -251,12 +244,99 @@ describe('removeParent', () => {
           const next = removeParent(book, gone)
 
           expect(shown(next)).toEqual(
-            before.map((id) => (id === gone ? undefined : id)),
+            gone === defaultParentId
+              ? before
+              : before.map((id) => (id === gone ? undefined : id)),
           )
         },
       ),
       runs,
     )
+  })
+})
+
+describe('ensureDefaultParent', () => {
+  it('gives a book without parents an empty default "Master A"', () => {
+    const book = makeBook({ spreads: spreads(3) })
+
+    const next = ensureDefaultParent(book)
+
+    expect(next.parents).toEqual([
+      { id: 'parent-1', name: 'Master A', frames: [], guides: [] },
+    ])
+    expect(next.defaultParentId).toBe('parent-1')
+    expect(next.spreads).toBe(book.spreads)
+    expect(next.spreads.map((s) => spreadParent(next, s)?.id)).toEqual([
+      'parent-1',
+      'parent-1',
+      'parent-1',
+    ])
+  })
+
+  it('appends the next free master when parents have no (known) default', () => {
+    for (const extra of [{}, { defaultParentId: 'gone' }]) {
+      const book = bookWithLogo(extra)
+
+      const next = ensureDefaultParent(book)
+
+      expect(next.parents?.map((item) => [item.id, item.name])).toEqual([
+        ['p1', 'Master A'],
+        ['p2', 'Master B'],
+        ['parent-3', 'Master C'],
+      ])
+      expect(next.defaultParentId).toBe('parent-3')
+      expect(next.spreads).toBe(book.spreads)
+    }
+  })
+
+  it('keeps a book whose default names a parent', () => {
+    const book = bookWithLogo({ defaultParentId: 'p2' })
+
+    expect(ensureDefaultParent(book)).toBe(book)
+  })
+})
+
+describe('setDefaultParent', () => {
+  it('Make default: spreads without a stored parent follow the new default', () => {
+    const book = makeBook({
+      spreads: [...spreads(2), makeSpread({ id: 'own', parentId: 'p1' })],
+      parents: [parent(), parent({ id: 'p2', name: 'Master B' })],
+      defaultParentId: 'p1',
+    })
+
+    const next = applyBookOp(book, { type: 'setDefaultParent', parentId: 'p2' })
+
+    expect(next.defaultParentId).toBe('p2')
+    expect(next.spreads.map((s) => spreadParent(next, s)?.id)).toEqual([
+      'p2',
+      'p2',
+      'p1',
+    ])
+  })
+
+  it('never clears the default while the book has parents', () => {
+    const book = bookWithLogo({ defaultParentId: 'p1' })
+
+    expect(
+      applyBookOp(book, { type: 'setDefaultParent', parentId: null }),
+    ).toBe(book)
+  })
+
+  it('clears a stale default on a book without parents', () => {
+    for (const parents of [undefined, []]) {
+      const book = makeBook({
+        spreads: spreads(1),
+        defaultParentId: 'gone',
+        ...(parents === undefined ? {} : { parents }),
+      })
+
+      const next = applyBookOp(book, {
+        type: 'setDefaultParent',
+        parentId: null,
+      })
+
+      expect('defaultParentId' in next).toBe(false)
+    }
   })
 })
 

@@ -141,6 +141,8 @@
   --heading-weight: 500;
 
   --spacing: 0.25rem;
+  /* Designer default-master P2: the masters list "Default" tag. */
+  --text-3xs: 10px;
   --text-2xs: 11px;
   --text-xs: 12px;
   --text-sm: 13px;
@@ -202,6 +204,10 @@
   --t-panel: #e1e1e1;
   --t-raised: #e1e1e1;
   --t-field: #d7d7d7;
+  /* Kit secondary button hover on a field fill (default-master I3). */
+  --t-field-hover: #cdcdcd;
+  /* Quiet ink tint behind small tags (kit ghost hover, default-master P2). */
+  --t-tag: rgb(57 55 56 / 0.08);
   --t-text: #393738;
   --t-ink: #232223;
   --t-ink-hover: #3a3839;

@@ -118,6 +118,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [tab-leaves-presentation](roadmap/P2/tab-leaves-presentation.md) — Bug: /next-roadmap-item tab-leaves-presentation
 - [ ] [feature] [thumb-warm-memo](roadmap/P2/thumb-warm-memo.md) — Bug: /next-roadmap-item thumb-warm-memo
 - [ ] [feature] [master-spread-both-pages](roadmap/P2/master-spread-both-pages.md) — Bug: /next-roadmap-item master-spread-both-pages
+- [ ] [feature] [default-master](roadmap/P2/default-master.md) — Bug: /next-roadmap-item default-master
 - [ ] [feature] [kit-thumbgrid-page-select](roadmap/P2/kit-thumbgrid-page-select.md) — Bug: /next-roadmap-item kit-thumbgrid-page-select
 - [ ] [feature] [prod-arrange-rulers-parity](roadmap/P2/prod-arrange-rulers-parity.md) — Bug: /next-roadmap-item prod-arrange-rulers-parity
 - [x] [feature] [kit-focus-ring-style](roadmap/P2/kit-focus-ring-style.md) — Bug: /next-roadmap-item kit-focus-ring-style
