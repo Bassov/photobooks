@@ -48,11 +48,14 @@ function chapterGeo(books: SiteBook[], L: Lay) {
   const maxSpread = Math.max(...books.map((b) => 2 * b.w)), maxH = Math.max(...books.map((b) => b.h))
   if (L.phone) {
     const stageH = Math.min(L.vh * 0.42, L.vh - 48 - 96 - 200)
-    return { s: Math.min((L.W - 32) / maxSpread, (stageH - 16) / maxH), stageH }
+    const s = Math.min((L.W - 32) / maxSpread, (stageH - 16) / maxH)
+    // the closed book is shown larger (one factor for all books), still inside the stage
+    const maxW = Math.max(...books.map((b) => b.w))
+    return { s, stageH, grow: Math.max(1, Math.min(1.8, (stageH - 24) / (maxH * s), ((L.W - 32) * 0.8) / (maxW * s))) }
   }
   // the caption takes ~152 px under a 40 px gap; a turning leaf reaches ~10 % past the book toward the viewer
   const stageH = L.vh - 48 - 152 - 40
-  return { s: Math.min(L.span(9) / maxSpread, (stageH - 16) / (maxH * 1.12), 24), stageH }
+  return { s: Math.min(L.span(9) / maxSpread, (stageH - 16) / (maxH * 1.12), 24), stageH, grow: 1 }
 }
 
 function Header({ page, multi, phone, go }: { page: string; multi: boolean; phone: boolean; go: (p: string) => void }) {
@@ -117,7 +120,7 @@ function Home({ books, L, open }: { books: SiteBook[]; L: Lay; open: (id: string
   React.useEffect(() => ctx?.sub(() => { const sc = ctx.el.current; if (sc && sc.scrollTop < L.vh * 0.5) setCur(null) }), [ctx, L.vh])
 
   const chapters = books.map((b) => (
-    <Chapter key={b.id} b={b} s={geo.s} vh={L.vh} phone={L.phone} stageH={geo.stageH} mode="home" steps={steps} step={step} onActive={onActive} onOpen={open} />
+    <Chapter key={b.id} b={b} s={geo.s} vh={L.vh} phone={L.phone} stageH={geo.stageH} grow={geo.grow} mode="home" steps={steps} step={step} onActive={onActive} onOpen={open} />
   ))
   const pile = <Pile books={books} s={pileS} hot={hot} onHot={setHot} onPick={jump} />
   if (L.phone) return (
@@ -149,7 +152,7 @@ function BookPage({ b, books, L, open, home }: { b: SiteBook; books: SiteBook[];
   const step = Math.round(L.vh * (L.phone ? 0.5 : 0.6))
   const multi = books.length > 1
   const next = books[(books.indexOf(b) + 1) % books.length]
-  const chapter = <Chapter key={b.id} b={b} s={geo.s} vh={L.vh} phone={L.phone} stageH={geo.stageH} mode="book" steps={b.spreads.length + 2} step={step} />
+  const chapter = <Chapter key={b.id} b={b} s={geo.s} vh={L.vh} phone={L.phone} stageH={geo.stageH} grow={geo.grow} mode="book" steps={b.spreads.length + 2} step={step} />
   const tail = multi && (
     <p className="sfa-next"><span className="t-meta">Next book</span><button className="sfa-link" onClick={() => open(next.id)}>{next.title}</button></p>
   )

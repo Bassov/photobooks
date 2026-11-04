@@ -15,11 +15,14 @@ const ss = (t: number) => t * t * (3 - 2 * t)
 
 export type ChapterProps = {
   b: SiteBook; s: number; vh: number; phone: boolean; stageH: number
+  /** the closed book starts `grow` × larger and settles to the reader's size as it turns face-on (one factor for every
+     book, so relative sizes stay true) */
+  grow: number
   mode: "home" | "book"; steps: number; step: number
   onActive?: (id: string) => void; onOpen?: (id: string) => void
 }
 
-export function Chapter({ b, s, vh, phone, stageH, mode, steps, step, onActive, onOpen }: ChapterProps) {
+export function Chapter({ b, s, vh, phone, stageH, grow, mode, steps, step, onActive, onOpen }: ChapterProps) {
   const ctx = React.useContext(Scroll)
   const track = React.useRef<HTMLElement>(null)
   const [q, setQ] = React.useState(0)
@@ -42,9 +45,6 @@ export function Chapter({ b, s, vh, phone, stageH, mode, steps, step, onActive, 
   const show3d = reduced ? q < 0.5 : q < 1
   const e = reduced ? 0 : ss(Math.min(1, q))
   const RW = 2 * b.w * s, RH = b.h * s
-  /** the closed book starts `grow` × larger and settles to the reader's size as it turns face-on (same factor for every
-     book, so relative sizes stay true) */
-  const grow = phone ? 1.8 : 1
 
   // book page: ← / → scroll one view
   React.useEffect(() => {
