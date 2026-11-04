@@ -1,4 +1,4 @@
-import { updateSpread } from '../update'
+import { updateFrame, updateSpread } from '../update'
 import type { Book, Frame, Spread } from '../schema'
 import { detached } from './frames'
 
@@ -147,24 +147,15 @@ export function setFrameLocked(
   frameId: string,
   locked: boolean,
 ): Book {
-  return updateSpread(book, spreadId, (spread) => {
-    const current = spread.frames.find((frame) => frame.id === frameId)
-    if (current === undefined || (current.locked === true) === locked) {
-      return spread
+  return updateFrame(book, spreadId, frameId, (frame) => {
+    if ((frame.locked === true) === locked) {
+      return frame
     }
-    return {
-      ...spread,
-      frames: spread.frames.map((frame) => {
-        if (frame.id !== frameId) {
-          return frame
-        }
-        if (locked) {
-          return { ...frame, locked: true }
-        }
-        const open = { ...frame }
-        delete open.locked
-        return open
-      }),
+    if (locked) {
+      return { ...frame, locked: true }
     }
+    const open = { ...frame }
+    delete open.locked
+    return open
   })
 }

@@ -1,4 +1,9 @@
-import { updateFrame, updateSpread } from '../update'
+import {
+  findSpreadFrame,
+  updateFrame,
+  updateSpread,
+  withChangedCopies,
+} from '../update'
 import type { Book, Frame, Spread, TextStyleId } from '../schema'
 
 type Rect = Frame['rect']
@@ -66,7 +71,7 @@ export function removeFrames(
   })
 }
 
-/** Move / resize one frame; the spread leaves its template. */
+/** Move / resize one frame; the spread leaves its template (a local copy keeps it). */
 export function setFrameRect(
   book: Book,
   spreadId: string,
@@ -74,7 +79,7 @@ export function setFrameRect(
   rect: Rect,
 ): Book {
   return updateSpread(book, spreadId, (spread) => {
-    const current = spread.frames.find((frame) => frame.id === frameId)
+    const current = findSpreadFrame(spread, frameId)
     if (
       current === undefined ||
       rect.width <= 0 ||
@@ -85,6 +90,12 @@ export function setFrameRect(
         current.rect.height === rect.height)
     ) {
       return spread
+    }
+    if (!spread.frames.includes(current)) {
+      return withChangedCopies(
+        spread,
+        new Map([[frameId, { ...current, rect }]]),
+      )
     }
     return detached(
       spread,

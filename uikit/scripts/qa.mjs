@@ -1368,7 +1368,12 @@ await smokeS("layout-grids-parent-inherit GP5: link on writes only the margins �
     W.siteMeta = (await page.locator('[data-testid="site-author"]').textContent()).trim()
     W.siteCover = await page.locator('[data-testid="site-cover"]').evaluate((e) => ({ txt: e.innerText, img: [...e.querySelectorAll("*")].map((x) => getComputedStyle(x).backgroundImage).find((b) => b !== "none") ?? "none", h: e.getBoundingClientRect().height })).catch(() => null)
     W.siteInd = (await page.locator('[data-testid="site-page-indicator"]').textContent()).trim()
-    await page.click('[data-testid="site-share"]'); await page.waitForTimeout(200); W.link = (await page.locator('[data-testid="site-share-link"]').textContent()).trim()
+    // Designer site-viewer D3: Share swaps its label in a width-locked button for 2000 ms; the link goes to a hidden role=status, no link line
+    const shareBox = () => page.locator('[data-testid="site-share"]').evaluate((e) => ({ w: e.getBoundingClientRect().width, txt: e.innerText.trim(), y: document.querySelector('[data-testid="site-stage"]')?.getBoundingClientRect().y }))
+    W.share0 = await shareBox()
+    await page.click('[data-testid="site-share"]'); await page.waitForTimeout(200); W.share1 = await shareBox()
+    W.link = (await page.locator('[data-testid="site-book-page"] [role="status"]').textContent()).trim(); W.linkLine = await page.locator('[data-testid="site-share-link"]').count()
+    await page.waitForTimeout(2000); W.share2 = await shareBox()
     // fullscreen: Esc returns focus to the Fullscreen button
     await page.click('[data-testid="site-fullscreen-btn"]'); await page.waitForTimeout(300); W.fsCover = await page.locator('[data-testid="lightbox"] [data-testid="site-cover"]').count()
     await page.keyboard.press("Escape"); await page.waitForTimeout(300)
@@ -1390,8 +1395,11 @@ await smokeS("layout-grids-parent-inherit GP5: link on writes only the margins �
   ok("v8.1 P1-1 per-book state: edit cover photo + title + master grid, leave, reopen → cover, text, masters, size and spreads kept; library card shows the current cover",
     !W.err && W.reCover === W.pick && W.reFront === "Lake trip 2026" && W.col0 === "5" && W.reCol === "5" && W.reSize === "19x23" && W.reSpreads === W.spreads && !!W.cardSrc && W.cardSrc === W.pickSrc, J({ err: W.err, pick: W.pick, reCover: W.reCover, reFront: W.reFront, col: [W.col0, W.reCol], size: W.reSize, card: W.cardSrc, pickSrc: W.pickSrc }))
   ok("v8.1 P1-2 / v0.9.3: Open site → library home then book: catalog of published books; book title, cover, pages, slug; fullscreen on cover",
-    W.stage === "site" && W.catalog === 1 && W.siteBooks >= 1 && W.siteTitle === "Lake trip" && new RegExp(`\\b${pages} pages`).test(W.siteMeta) && !!W.siteCover && W.siteCover.h > 100 && /Lake trip 2026/.test(W.siteCover.txt) && W.siteCover.img !== "none" && W.siteInd.startsWith("Cover") && /\/lake-trip$/.test(W.link) && W.fsCover === 1,
+    W.stage === "site" && W.catalog === 1 && W.siteBooks >= 1 && W.siteTitle === "Lake trip" && new RegExp(`\\b${pages - 2} pages`).test(W.siteMeta) && !!W.siteCover && W.siteCover.h > 100 && /Lake trip 2026/.test(W.siteCover.txt) && W.siteCover.img !== "none" && W.siteInd.startsWith("Cover") && /\/lake-trip$/.test(W.link) && W.fsCover === 1,
     J({ stage: W.stage, catalog: W.catalog, books: W.siteBooks, t: W.siteTitle, meta: W.siteMeta, cover: W.siteCover, ind: W.siteInd, link: W.link, fs: W.fsCover }))
+  ok("site-viewer D3: Share → 'Link copied' for 2000 ms in a width-locked button; link in role=status, no link line, the stage does not move",
+    W.share0?.txt === "Share" && W.share1?.txt === "Link copied" && W.share2?.txt === "Share" && Math.abs(W.share1.w - W.share0.w) <= 0.5 && Math.abs(W.share2.w - W.share0.w) <= 0.5
+      && Math.abs(W.share1.y - W.share0.y) <= 0.5 && W.link === "Link copied: https://aleksandr.photos/lake-trip" && W.linkLine === 0, J({ s: [W.share0, W.share1, W.share2], link: W.link, line: W.linkLine }))
   ok("v8.1 P1-3 demo filmstrip: one plain label 'Photos · N · M used', no Photos/Templates capsule", /^Photos · \d+ · \d+ used$/.test(W.film ?? "") && /^Photos · \d+ · \d+ used$/.test(W.film2 ?? "") && W.tabs === 0, J([W.film, W.film2, W.tabs]))
   ok("v8.1 P1-4 library path is not doubled", W.path === "~/Pictures/Photobooks" || (/^~\/Pictures\/[^~/]+$/.test(W.path ?? "")), W.path)
   ok("v8.1 P2-1 demo library '…' menu: Rename, Duplicate, Remove work", J(W.items).includes("Rename") && J(W.items).includes("Duplicate") && J(W.items).includes("Remove") && W.afterDup?.length === 2 && W.afterDup.includes("Lake trip ’26") && W.afterDup.includes("Lake trip ’26 (copy)") && W.afterRm?.length === 1, J([W.items, W.afterDup, W.afterRm]))
@@ -1642,16 +1650,44 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("v0.9.1 §2 Preview opens in-app book preview (not Site stage) — kit-sync KS14: the presentation mode", prevOpen === 1 && stage === "editor" && kitPrev === 1, `demoPrev=${prevOpen} stage=${stage} kit=${kitPrev}`)
   await page.keyboard.press("Escape")
 
-  // §3 page counts: site indicator uses pagesOf (denominator = spreads*2); deep-link into the book (v0.9.3 catalog home)
+  // §3 page counts (Designer site-viewer D1/D2/D5): slides = cover + every spread; indicator = page label + spread counter (prod Preview), meta pages = last page number 2(n − 1) (Designer review); deep-link into the book (v0.9.3 catalog home)
   await go("#/demo", 400); await page.evaluate(() => { const d = window.__demo; d.reset(); d.state().path = "~/Pictures/Photobooks"; d.state().books = [{ id: "s1", title: "Pages", book: { endp: true, endpSame: true, w: 14.8, h: 21, preset: "A5" }, published: true }]; d.state().open = "s1"; d.openSite("book") })
   await page.waitForTimeout(900)
-  const ind = (await page.locator('[data-testid="site-page-indicator"]').textContent()).trim()
   const meta = (await page.locator('[data-testid="site-author"]').textContent()).trim()
-  const nSpreads = await page.evaluate(() => window.__demo.state().books[0].doc?.spreads?.length ?? 10)
-  // blank book may have no doc — SiteViewer uses studio SAMPLE doc spreads
-  const den = await page.evaluate(() => { const t = document.querySelector('[data-testid="site-page-indicator"]')?.textContent || ""; const m = t.match(/\/\s*(\d+)/); return m ? +m[1] : 0 })
-  const pagesMeta = /(\d+)\s*pages/.exec(meta)
-  ok("v0.9.1 §3 site pager denominator matches page model (spreads×2), meta agrees", den >= 2 && den % 2 === 0 && !!pagesMeta && +pagesMeta[1] === den && /Cover/.test(ind), `ind=${ind} meta=${meta} den=${den}`)
+  const J = (o) => String(JSON.stringify(o)).slice(0, 600)
+  // blank book may have no doc — SiteViewer uses studio SAMPLE doc spreads; meta pages = 2(n − 1) → n = meta pages / 2 + 1
+  const pagesMeta = /(\d+)\s*pages/.exec(meta), nSp = pagesMeta ? +pagesMeta[1] / 2 + 1 : 0
+  const slideTxt = (s) => (s === 0 ? "Cover" : `${s === 1 ? "Page 1" : s === nSp ? `Page ${2 * (s - 1)}` : `Pages ${2 * (s - 1)}–${2 * s - 1}`} · ${s} / ${nSp}`)
+  const siteRects = () => page.evaluate(() => { const r = (s) => { const b = document.querySelector(`[data-testid="${s}"]`)?.getBoundingClientRect(); return b ? [b.x, b.y, b.width, b.height].map((v) => Math.round(v * 100) / 100) : null }; return { ind: document.querySelector('[data-testid="site-page-indicator"]')?.textContent.trim(), stage: r("site-stage"), pager: r("site-pager"), indW: r("site-page-indicator")?.[2], spreadH: r("site-spread")?.[3] } })
+  const slides = []
+  for (let i = 0; i <= nSp && i < 40; i++) { slides.push(await siteRects()); if (i < nSp) { await page.locator('[data-testid="site-pager"] [aria-label="Next spread"]').click(); await page.waitForTimeout(120) } }
+  await page.keyboard.press("Home"); await page.waitForTimeout(120); const home = await siteRects()
+  await page.keyboard.press("End"); await page.waitForTimeout(120); const end = await siteRects()
+  const drift = (k) => Math.max(...slides.flatMap((x) => x[k].map((v, j) => Math.abs(v - slides[0][k][j]))))
+  const badLabels = slides.map((x, i) => [i, x.ind]).filter(([i, t]) => t !== slideTxt(i))
+  ok("site-viewer D1/D5 §3: slides = cover + every spread; labels Cover, Page 1 · 1 / n … last page · n / n (denominator = spread count, meta pages = 2(n − 1)); Home / End",
+    nSp >= 2 && slides.length === nSp + 1 && badLabels.length === 0 && slides[1].ind === `Page 1 · 1 / ${nSp}` && home.ind === "Cover" && end.ind === slideTxt(nSp), J({ meta, nSp, badLabels, home: home.ind, end: end.ind }))
+  ok("site-viewer D2: stage and pager rects constant on every slide (≤ 0.5 px), slide never taller than the stage, indicator 176 wide",
+    slides.length > 2 && drift("stage") <= 0.5 && drift("pager") <= 0.5 && slides.every((x) => x.indW === 176 && x.spreadH <= x.stage[3] + 0.5), J({ stage: drift("stage"), pager: drift("pager"), s0: slides[0], s1: slides[1] }))
+  // Designer review §4 (M45): the last slide shows its left page only — clipped, page shadow over the left half
+  const last = await page.evaluate(() => { const sp = document.querySelector('[data-testid="site-spread"]'), b = sp.getBoundingClientRect(), sh = sp.querySelector(":scope > span[aria-hidden]").getBoundingClientRect(); return { clip: getComputedStyle(sp.firstElementChild).clipPath, dx: Math.round((sh.x - b.x) * 100) / 100, shW: Math.round(sh.width * 100) / 100, w: Math.round(b.width * 100) / 100 } })
+  ok("site-viewer §4: last slide paints the left page only (clip inset(0 50% 0 0), shadow left half)", last.clip === "inset(0px 50% 0px 0px)" && last.dx === 0 && Math.abs(last.shW - last.w / 2) <= 0.5, J(last))
+
+  // catalog: a landscape book fits its column (h = min(200, col / ratio)); D4: 390 px root → no horizontal overflow on catalog and book page
+  await page.evaluate(() => { const d = window.__demo; d.state().books = [...d.state().books, { id: "s2", title: "Wide", book: { endp: true, endpSame: true, w: 21, h: 14.8, preset: "A5" }, published: true }]; d.openSite("catalog") })
+  await page.waitForTimeout(600)
+  const fit = await page.evaluate(() => [...document.querySelectorAll('[data-testid="site-book"]')].map((b) => [b.dataset.book, Math.round(b.querySelector(".site-card-obj").getBoundingClientRect().width * 100) / 100, Math.round(b.getBoundingClientRect().width * 100) / 100]))
+  const cardCur = await page.locator('[data-testid="site-catalog"] [data-testid="site-book"]').evaluateAll((els) => els.map((e) => getComputedStyle(e).cursor))
+  ok("site-viewer §3: catalog cards use the pointer cursor", cardCur.length > 0 && cardCur.every((c) => c === "pointer"), J(cardCur))
+  const narrow = async () => { await page.evaluate(() => { document.querySelector('[data-testid="site"]').parentElement.style.width = "390px" }); await page.waitForTimeout(300)
+    return page.evaluate(() => { const s = document.querySelector('[data-testid="site"]'), x0 = s.getBoundingClientRect().left; return { sw: s.scrollWidth, cw: s.clientWidth, right: Math.max(...[...s.querySelectorAll("*")].map((e) => e.getBoundingClientRect().right - x0)), cols: getComputedStyle(s.querySelector('[data-testid="site-catalog"] .grid') ?? s).gridTemplateColumns } }) }
+  const nCat = await narrow()
+  await page.locator('[data-testid="site-book"]').first().click(); await page.waitForTimeout(600)
+  const nBook = await narrow()
+  const nShare = await page.evaluate(() => { const a = document.querySelector('[data-testid="site-author"]').getBoundingClientRect(), s = document.querySelector('[data-testid="site-share"]').getBoundingClientRect(); return { under: s.top >= a.bottom, stageW: document.querySelector('[data-testid="site-stage"]').getBoundingClientRect().width } })
+  ok("site-viewer §3 catalog: every book object fits its column (landscape h = col / ratio)", fit.length === 2 && fit.every(([, o, c]) => o <= c + 0.5) && fit.some(([id]) => id === "s2"), J(fit))
+  ok("site-viewer D4: 390 px root — scrollWidth === clientWidth on catalog and book page, 2 columns, Share under the meta, stage ≤ content",
+    nCat.sw === nCat.cw && nBook.sw === nBook.cw && nCat.right <= nCat.cw + 0.5 && nBook.right <= nBook.cw + 0.5 && nCat.cols.split(" ").length === 2 && nShare.under && nShare.stageW <= nBook.cw - 40 + 0.5, J({ nCat, nBook, nShare }))
 
   // §4 no rename-dialog in demo; inline rename-input (Stage 2: the library moved to src/demo-parts/library.tsx)
   const renameDlgSrc = fs.readFileSync(new URL("../src/demo-parts/library.tsx", import.meta.url), "utf8")
