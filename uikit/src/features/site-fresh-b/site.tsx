@@ -17,16 +17,16 @@ const PHONE = 720
 const plain = (s: string) => s.replace(/\*/g, "")
 const meta = (b: SiteBook) => `${b.year} · ${sizeOf(b)} · ${pagesOf(b)} pages`
 
+const readQuery = (full: boolean) => new URLSearchParams(full ? (location.hash.split("?")[1] ?? "") : "")
+
 /** the query of #/full/site-fresh-b?…; on the kit feature page the state stays in memory */
 function useQuery() {
   const full = typeof location !== "undefined" && location.hash.startsWith(`#/full/${SLUG}`)
-  const read = () => new URLSearchParams(full ? (location.hash.split("?")[1] ?? "") : "")
-  const [q, setQ] = React.useState(read)
+  const [q, setQ] = React.useState(() => readQuery(full))
   React.useEffect(() => {
     if (!full) return
-    const on = () => setQ(read())
+    const on = () => setQ(readQuery(true))
     addEventListener("hashchange", on); return () => removeEventListener("hashchange", on)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [full])
   const nav = (patch: Record<string, string | null>) => {
     const nq = new URLSearchParams(q)
@@ -233,8 +233,7 @@ function Held({ b, W, m, flat, req, onOpen }: { b: SiteBook; W: number; m: numbe
   React.useEffect(() => {
     if (!flat) return
     const r = requestAnimationFrame(() => { setRy(ANG); setScale(m) }); return () => cancelAnimationFrame(r)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flat])
+  }, [flat, m])
   const ptr = React.useRef<{ id: number; x0: number; ry0: number; on: boolean } | null>(null)
   const live = React.useRef(ry); live.current = ry
   const open = () => {
@@ -247,7 +246,8 @@ function Held({ b, W, m, flat, req, onOpen }: { b: SiteBook; W: number; m: numbe
   }
   // "Open the book" outside the book asks through `req`
   const req0 = React.useRef(req)
-  React.useEffect(() => { if (req !== req0.current) open() }, [req]) // eslint-disable-line react-hooks/exhaustive-deps
+  const openRef = React.useRef(open); openRef.current = open
+  React.useEffect(() => { if (req !== req0.current) openRef.current() }, [req])
   return (
     <div className={grab ? "sfb-held is-grab" : "sfb-held"} style={{ width: W, height: H * m, "--m": scale, "--hm": `${(H * m - H) / 2}px` } as React.CSSProperties} data-testid="sfb-held"
       role="button" tabIndex={0} aria-label={`${b.title}. Open the book`}

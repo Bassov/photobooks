@@ -36,7 +36,7 @@ export const Row = React.forwardRef<RowApi, Props>(function Row({ books, front, 
   const T = books.map((b) => thick(b, s))
   const gap = GAP_CM * s
   /** centre-plane z of every book when book f stands in front */
-  const zsFor = React.useCallback((f: number) => {
+  const zsFor = (f: number) => {
     const z: number[] = new Array(n)
     let acc = 0
     for (let j = 0; j < n; j++) {
@@ -45,8 +45,7 @@ export const Row = React.forwardRef<RowApi, Props>(function Row({ books, front, 
       z[i] = acc
     }
     return z
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [n, s])
+  }
   const z = zsFor(front)
   // the layout does not depend on the order, so nothing shifts when the front book changes
   const depth = T.reduce((a, t) => a + t, 0) + (n - 1) * gap
