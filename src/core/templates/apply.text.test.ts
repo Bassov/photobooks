@@ -47,6 +47,8 @@ const LAYOUTS = [
           { x: 0, y: 0, w: 50, h: 100 },
           { x: 50, y: 0, w: 50, h: 100 },
         ],
+        // The only spread of the book is a single page.
+        pages: 1,
       }),
   },
 ]

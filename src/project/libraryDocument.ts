@@ -1,7 +1,8 @@
 import { z } from 'zod'
+import type { SavedTemplate } from '../core'
 import type { LibraryMeta } from './types'
 
-export const LIBRARY_SCHEMA_VERSION = 2
+export const LIBRARY_SCHEMA_VERSION = 3
 
 export type LibraryParseResult =
   | { ok: true; meta: LibraryMeta }
@@ -27,6 +28,60 @@ function makeLibrarySchema() {
   return z.object({ books: z.record(z.string().min(1), entry) })
 }
 
+/*
+ * Bounded so a crafted file cannot overflow the frame math to `Infinity` (a
+ * book that no longer saves) or ask for unbounded frames. Slots may sit off
+ * the trim (bleed, pasteboard), so the bounds are wide.
+ */
+const MAX_SLOT_PCT = 1000
+const MAX_SLOTS = 500
+
+function makeTemplateSchema() {
+  const pct = z.number().min(-MAX_SLOT_PCT).max(MAX_SLOT_PCT)
+  return z.object({
+    id: z.string().regex(/^user-[\w-]+$/),
+    name: z.string().trim().min(1),
+    pages: z.union([z.literal(1), z.literal(2)]),
+    slots: z
+      .array(z.object({ x: pct, y: pct, w: pct.positive(), h: pct.positive() }))
+      .min(1)
+      .max(MAX_SLOTS),
+  })
+}
+
+/**
+ * Saved layouts from untrusted input (`library.json`, the legacy
+ * `localStorage` list): a non-list reads as none, and each invalid entry is
+ * dropped on its own so one bad template never loses the others.
+ */
+export function parseSavedTemplates(input: unknown): SavedTemplate[] {
+  return parseEach(input, makeTemplateSchema())
+}
+
+/**
+ * The pre-`library.json` `localStorage` list: entries carry no `pages`, and
+ * every one was saved on a two-page spread.
+ */
+export function parseLegacySavedTemplates(input: unknown): SavedTemplate[] {
+  const legacy = makeTemplateSchema()
+    .omit({ pages: true })
+    .transform((entry) => ({ ...entry, pages: 2 as const }))
+  return parseEach(input, legacy)
+}
+
+function parseEach(
+  input: unknown,
+  schema: z.ZodType<SavedTemplate>,
+): SavedTemplate[] {
+  if (!Array.isArray(input)) {
+    return []
+  }
+  return input.flatMap((entry: unknown) => {
+    const parsed = schema.safeParse(entry)
+    return parsed.success ? [parsed.data] : []
+  })
+}
+
 function isRecord(input: unknown): input is Record<string, unknown> {
   return input !== null && typeof input === 'object' && !Array.isArray(input)
 }
@@ -43,6 +98,13 @@ function migrateV1ToV2(
   input: Record<string, unknown>,
 ): Record<string, unknown> {
   return { ...input, schemaVersion: 2, books: {} }
+}
+
+/** v3 adds the user's saved layouts (My templates). */
+function migrateV2ToV3(
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  return { ...input, schemaVersion: 3, templates: [] }
 }
 
 /**
@@ -70,6 +132,9 @@ export function migrateLibrary(
   if (version < 2) {
     doc = migrateV1ToV2(doc)
   }
+  if (version < 3) {
+    doc = migrateV2ToV3(doc)
+  }
   return { ok: true, value: doc }
 }
 
@@ -82,9 +147,19 @@ export function parseLibrary(input: unknown): LibraryParseResult {
   if (!parsed.success) {
     return { ok: false, code: 'corrupted' }
   }
-  return { ok: true, meta: { books: parsed.data.books } }
+  return {
+    ok: true,
+    meta: {
+      books: parsed.data.books,
+      templates: parseSavedTemplates(migrated.value.templates),
+    },
+  }
 }
 
 export function serializeLibrary(meta: LibraryMeta): Record<string, unknown> {
-  return { schemaVersion: LIBRARY_SCHEMA_VERSION, books: meta.books ?? {} }
+  return {
+    schemaVersion: LIBRARY_SCHEMA_VERSION,
+    books: meta.books ?? {},
+    templates: meta.templates ?? [],
+  }
 }
