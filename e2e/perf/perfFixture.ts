@@ -288,6 +288,8 @@ declare global {
         phase: 'idle' | 'permission-required' | 'locked-elsewhere',
       ) => void
       setBookGridForTests: (patch: Record<string, number>) => void
+      /** One `BookOp` (src/core) with no UI yet, e.g. `addTextFrame`. */
+      dispatchBookOpForTests: (op: Record<string, unknown>) => void
       holdExternalBookLockForTests: (
         bookId: string,
       ) => Promise<{ ok: boolean; code?: string }>

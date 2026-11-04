@@ -4,6 +4,7 @@ import {
   spreadParent,
 } from '../parentSpreads'
 import type { Book, Frame, FrameStyle, Spread } from '../schema'
+import { isTextFrame, resolveTextContent } from '../text/resolveText'
 import { sourceCropRect as computeSourceCropRect } from './cropRect'
 import { frameDpi, lowDpi } from './dpi'
 import { getPageCuts, getSpreadSizeMm } from './spreadSize'
@@ -61,6 +62,11 @@ export function resolveSpread(
   const getAspectRatio = options.getAspectRatio ?? defaultAspect
   const structural = getStructural(book, spread, index)
   const items: ResolvedItem[] = structural.entries.map(({ item, frame }) => {
+    // Per call, not memoized: templates read the title and anchor meta.
+    if (isTextFrame(frame)) {
+      const { text, styleId, align } = resolveTextContent(book, spread, frame)
+      return { ...item, text: { text, styleId, align } }
+    }
     if (item.assetId === undefined) {
       return { ...item }
     }
