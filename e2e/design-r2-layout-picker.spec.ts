@@ -163,6 +163,8 @@ test('the spread inspector: kit header, no Spread properties, sections in order 
 })
 
 test('My templates shows a readable one-line empty state', async ({ page }) => {
+  // Page 1 asks for a page; this is the two-page copy.
+  await selectSecondSpread(page)
   await page.getByTestId('tab-mine').click()
   await expect(allTiles(page)).toHaveCount(0)
   const empty = page.getByTestId('tpl-empty')
@@ -275,6 +277,7 @@ test('a single page lays tiles out in 3 columns, a spread in 2; the paper fills 
 
 test('My templates keep the kit caption box and type', async ({ page }) => {
   await reopenEditor(page, '?templates=kit')
+  await selectSecondSpread(page)
   // The caption wrap depends on Inter's metrics: measure after the
   // self-hosted face (font-display: swap) has replaced the fallback.
   await expect
@@ -512,23 +515,24 @@ async function reopenEditor(page: Page, search = '') {
   await page.mouse.move(0, 899)
 }
 
-test('the kit fixture shows All 13 / My templates 3 by photo count', async ({
+test('the kit fixture shows All 12 / My templates 3 by photo count on spread 2–3', async ({
   page,
 }) => {
   await reopenEditor(page, '?templates=kit')
-  await expect(page.getByTestId('tab-all')).toHaveText('All 13')
+  // The kit seeds are two-page layouts (Designer spec user-templates UT1).
+  await selectSecondSpread(page)
+  await expect(page.getByTestId('tab-all')).toHaveText('All 12')
   await expect(page.getByTestId('tab-mine')).toHaveText('My templates 3')
   // Saved layouts follow the builtins of their photo count (1, 2, 2).
   await expect
     .poll(() => tileNames(page))
     .toEqual([
       'Full bleed',
-      'One per page',
       'Panorama',
       'Framed single',
       'Quote + photo',
+      'One per page',
       'Offset pair',
-      'Two portraits',
       'Travel opener',
       'Polaroid pair',
       'Hero + two',
@@ -546,6 +550,85 @@ test('the kit fixture shows All 13 / My templates 3 by photo count', async ({
   await expect
     .poll(() => tileNames(page))
     .toEqual(['Quote + photo', 'Travel opener', 'Polaroid pair'])
+})
+
+test('page 1 offers no two-page template: My templates 0 asks for a page', async ({
+  page,
+}) => {
+  await reopenEditor(page, '?templates=kit')
+  await stayOnFirstSpread(page)
+  await expect(page.getByTestId('tab-all')).toHaveText('All 10')
+  await expect(page.getByTestId('tab-mine')).toHaveText('My templates 0')
+  await page.getByTestId('tab-mine').click()
+  await expect(allTiles(page)).toHaveCount(0)
+  await expect(page.getByTestId('tpl-empty')).toHaveText(
+    'No templates yet. Save a page you like.',
+  )
+})
+
+async function selectLastSpread(page: Page) {
+  // The spread list is virtualized: bring the last row in first.
+  await page.getByTestId('spreads-list').evaluate((el) => {
+    el.scrollTop = el.scrollHeight
+  })
+  await page.locator('[data-testid^="spread-list-item-"]').last().click()
+  // The session book's third spread is its last page (the summary's page
+  // label is not asserted here).
+  await expect(page.getByTestId('inspector-spread-summary')).not.toHaveText(
+    /^(Page 1|Pages 2–3) /,
+  )
+  await page.mouse.move(0, 899)
+}
+
+test('a template saved on page 1 is offered on page 1 and the last page, not on spread 2–3', async ({
+  page,
+}) => {
+  await stayOnFirstSpread(page)
+  await page.getByTestId('tpl-save').click()
+  await expect(page.getByTestId('editor-status')).toHaveText(
+    'Saved “My layout 1” to My templates',
+  )
+  await page.getByTestId('tpl-rename-input').press('Enter')
+  await expect(page.getByTestId('tab-mine')).toHaveText('My templates 1')
+  await selectLastSpread(page)
+  await expect(page.getByTestId('tab-mine')).toHaveText('My templates 1')
+  await page.getByTestId('tab-mine').click()
+  await expect(allTiles(page).getByTestId('tpl-name')).toHaveText([
+    'My layout 1',
+  ])
+  await selectSecondSpread(page)
+  await expect(page.getByTestId('tab-mine')).toHaveText('My templates 0')
+  await expect(page.getByTestId('tpl-empty')).toHaveText(
+    'No templates yet. Save a spread you like.',
+  )
+})
+
+test('saving the same layout twice keeps one template and flashes its tile', async ({
+  page,
+}) => {
+  await selectSecondSpread(page)
+  await page.getByTestId('tpl-save').click()
+  await page.getByTestId('tpl-rename-input').press('Enter')
+  await page.getByTestId('tab-all').click()
+  await page.getByTestId('tpl-save-button').click()
+  await expect(page.getByTestId('editor-status')).toHaveText(
+    'Already in My templates as “My layout 1”',
+  )
+  await expect(page.getByTestId('tab-mine')).toHaveText('My templates 1')
+  await expect(page.getByTestId('tab-mine')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(page.getByTestId('tpl-rename-input')).toHaveCount(0)
+  const tile = layoutTile(page, 'My layout 1')
+  await expect(tile).toHaveAttribute('data-flash', '')
+  await page.mouse.move(0, 899)
+  // Flash = the hover look (ring + 1 px lift), then back to idle.
+  const paper = () =>
+    tileState(tile)().then(({ ring, transform }) => ({ ring, transform }))
+  await expect.poll(paper).toEqual({ ring: PAPER_HOVER, transform: LIFT })
+  await expect(tile).not.toHaveAttribute('data-flash')
+  await expect.poll(paper).toEqual({ ring: PAPER_IDLE, transform: 'none' })
 })
 
 /** `library.json` of the `?testLibrary=1` OPFS library, parsed. */
@@ -615,6 +698,8 @@ test('a new user has My templates 0; a saved spread appears in My templates and 
   await expect(page.getByTestId('layout-section')).toBeVisible({
     timeout: 15_000,
   })
+  // The reload opens page 1; the saved layout is a two-page one.
+  await selectSecondSpread(page)
   await expect(page.getByTestId('tab-mine')).toHaveText('My templates 1')
   await page.getByTestId('tab-mine').click()
   await expect(allTiles(page).getByTestId('tpl-name')).toHaveText([

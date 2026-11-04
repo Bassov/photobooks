@@ -1,13 +1,15 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
   screen,
   within,
 } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
+import { getEditorStatus, setEditorStatus } from './editorStatus'
 import { LayoutSection } from './LayoutSection'
 import {
   addSavedTemplate,
@@ -153,13 +155,20 @@ describe('LayoutSection: save as template (kit context-inspector.tsx:145-150)', 
 
 describe('LayoutSection: saved templates in the lists', () => {
   it('All = builtins and saved by photo count; My templates = saved only', () => {
-    const travel = addSavedTemplate('Travel opener', [
-      { x: 0, y: 0, w: 62, h: 100 },
-    ])
-    const polaroid = addSavedTemplate('Polaroid pair', [
-      { x: 10, y: 14, w: 30, h: 60 },
-      { x: 60, y: 24, w: 30, h: 60 },
-    ])
+    // s1 is a single page: it lists the layouts saved on a single page.
+    const travel = addSavedTemplate(
+      'Travel opener',
+      [{ x: 0, y: 0, w: 62, h: 100 }],
+      1,
+    )
+    const polaroid = addSavedTemplate(
+      'Polaroid pair',
+      [
+        { x: 10, y: 14, w: 30, h: 60 },
+        { x: 60, y: 24, w: 30, h: 60 },
+      ],
+      1,
+    )
     seed()
     render(<LayoutSection spreadId="s1" />)
     expect(screen.getByTestId('tab-all').textContent).toBe('All 12')
@@ -241,8 +250,8 @@ describe('LayoutSection: saved templates in the lists', () => {
     )
   })
 
-  it('the tile menu renames, duplicates and deletes a saved template', () => {
-    addSavedTemplate('Travel opener', [{ x: 0, y: 0, w: 62, h: 100 }])
+  it('the tile menu renames, duplicates and deletes a saved template, announcing each', () => {
+    addSavedTemplate('Travel opener', [{ x: 0, y: 0, w: 62, h: 100 }], 1)
     seed()
     render(<LayoutSection spreadId="s1" />)
     // Builtins have no options menu.
@@ -255,17 +264,231 @@ describe('LayoutSection: saved templates in the lists', () => {
       'Travel opener',
       'Travel opener copy',
     ])
+    expect(getEditorStatus()).toBe('Duplicated as “Travel opener copy”')
     fireEvent.click(menu())
     fireEvent.click(screen.getByRole('menuitem', { name: /Rename/ }))
     const input = screen.getByTestId<HTMLInputElement>('tpl-rename-input')
-    fireEvent.change(input, { target: { value: 'Opener' } })
+    expect(input.maxLength).toBe(60)
+    fireEvent.change(input, { target: { value: '  Opener ' } })
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(getSavedTemplates()[0]?.name).toBe('Opener')
+    expect(getEditorStatus()).toBe('Renamed to “Opener”')
     fireEvent.click(screen.getByRole('button', { name: 'Opener options' }))
     fireEvent.click(screen.getByRole('menuitem', { name: /Delete/ }))
     expect(getSavedTemplates().map((t) => t.name)).toEqual([
       'Travel opener copy',
     ])
+    expect(getEditorStatus()).toBe('Deleted “Opener”')
     expect(screen.getByTestId('tab-mine').textContent).toBe('My templates 1')
+  })
+
+  it('an unchanged or blank name keeps the template and announces nothing', () => {
+    addSavedTemplate('Travel opener', [{ x: 0, y: 0, w: 62, h: 100 }], 1)
+    seed()
+    render(<LayoutSection spreadId="s1" />)
+    setEditorStatus('')
+    for (const value of [' Travel opener ', '   ']) {
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Travel opener options' }),
+      )
+      fireEvent.click(screen.getByRole('menuitem', { name: /Rename/ }))
+      const input = screen.getByTestId('tpl-rename-input')
+      fireEvent.change(input, { target: { value } })
+      fireEvent.keyDown(input, { key: 'Enter' })
+      expect(screen.queryByTestId('tpl-rename-input')).toBeNull()
+    }
+    expect(getSavedTemplates()[0]?.name).toBe('Travel opener')
+    expect(getEditorStatus()).toBe('')
+  })
+})
+
+/** Spreads s1 (page 1), s2 (pages 2–3) and s3 (the last page), each with TWO_FRAMES. */
+function seedThree() {
+  resetBookStore({
+    book: makeBook({
+      spreads: ['s1', 's2', 's3'].map((id) =>
+        makeSpread({ id, frames: TWO_FRAMES }),
+      ),
+    }),
+    sessionMeta: new Map(),
+    importRunning: false,
+    importExpectedCount: 0,
+  })
+}
+
+describe('LayoutSection: a template belongs to its page shape (Designer spec user-templates UT1)', () => {
+  it('a single-page template shows on page 1 and the last page, not on spread 2–3', () => {
+    seedThree()
+    const { unmount } = render(<LayoutSection spreadId="s1" />)
+    fireEvent.click(screen.getByTestId('tpl-save'))
+    expect(getSavedTemplates().map((t) => t.pages)).toEqual([1])
+    unmount()
+    for (const [spreadId, count] of [
+      ['s1', 1],
+      ['s3', 1],
+      ['s2', 0],
+    ] as const) {
+      const view = render(<LayoutSection spreadId={spreadId} />)
+      expect(screen.getByTestId('tab-mine').textContent).toBe(
+        `My templates ${String(count)}`,
+      )
+      view.unmount()
+    }
+  })
+
+  it('a two-page template applied to spread 2–3 names nothing on a single page', () => {
+    seedThree()
+    const spread = addSavedTemplate('Trip', [{ x: 0, y: 0, w: 50, h: 100 }], 2)
+    const view = render(<LayoutSection spreadId="s2" />)
+    expect(screen.getByTestId('tab-all').textContent).toBe('All 10')
+    fireEvent.click(screen.getByRole('button', { name: 'Apply layout Trip' }))
+    expect(screen.getByTestId('layout-note').textContent).toBe('· Trip')
+    view.unmount()
+    // A stale id on a single page: no note, no pressed tile.
+    resetBookStore({
+      book: makeBook({
+        spreads: [makeSpread({ id: 's1', templateId: spread.id })],
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<LayoutSection spreadId="s1" />)
+    expect(screen.queryByTestId('layout-note')).toBeNull()
+    expect(
+      document.querySelectorAll(
+        '[data-testid="layout-tile"][aria-pressed="true"]',
+      ),
+    ).toHaveLength(0)
+    fireEvent.click(screen.getByTestId('tab-mine'))
+    expect(screen.getByTestId('tpl-empty').textContent).toBe(
+      'No templates yet. Save a page you like.',
+    )
+  })
+})
+
+it('an empty My templates on a two-page spread asks for a spread', () => {
+  seedThree()
+  render(<LayoutSection spreadId="s2" />)
+  fireEvent.click(screen.getByTestId('tab-mine'))
+  expect(screen.getByTestId('tpl-empty').textContent).toBe(
+    'No templates yet. Save a spread you like.',
+  )
+})
+
+describe('LayoutSection: Save never duplicates (Designer spec user-templates UT2)', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  it('a second Save adds nothing, opens My templates / Any and flashes the tile for 1200 ms', () => {
+    vi.useFakeTimers()
+    const scrolled: Element[] = []
+    const scrollIntoView = vi
+      .spyOn(Element.prototype, 'scrollIntoView')
+      .mockImplementation(function (this: Element) {
+        scrolled.push(this)
+      })
+    seed()
+    // Three photos: listed after the two-photo template that flashes.
+    const other = addSavedTemplate(
+      'Other',
+      [
+        { x: 0, y: 0, w: 30, h: 30 },
+        { x: 40, y: 0, w: 30, h: 30 },
+        { x: 0, y: 40, w: 30, h: 30 },
+      ],
+      1,
+    )
+    render(<LayoutSection spreadId="s1" />)
+    fireEvent.click(screen.getByTestId('tpl-save'))
+    expect(getEditorStatus()).toBe('Saved “My layout 1” to My templates')
+    // The name field is still open when Save is pressed again.
+    fireEvent.click(screen.getByTestId('tab-all'))
+    fireEvent.click(
+      within(screen.getByTestId('tpl-chips')).getByRole('button', {
+        name: '1',
+      }),
+    )
+    fireEvent.click(screen.getByTestId('tpl-save-button'))
+    expect(getSavedTemplates().map((t) => t.name)).toEqual([
+      'Other',
+      'My layout 1',
+    ])
+    expect(getEditorStatus()).toBe('Already in My templates as “My layout 1”')
+    expect(screen.getByTestId('tab-mine').getAttribute('aria-pressed')).toBe(
+      'true',
+    )
+    expect(
+      screen
+        .getByTestId('tpl-chips')
+        .querySelector('[aria-pressed="true"]')
+        ?.getAttribute('data-chip'),
+    ).toBe('all')
+    expect(screen.queryByTestId('tpl-rename-input')).toBeNull()
+    const tile = screen.getByRole('button', {
+      name: 'Apply layout My layout 1',
+    })
+    expect(tile.hasAttribute('data-flash')).toBe(true)
+    expect(
+      screen
+        .getByRole('button', { name: `Apply layout ${other.name}` })
+        .hasAttribute('data-flash'),
+    ).toBe(false)
+    expect(scrolled).toEqual([tile.parentElement])
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
+    // A Save during the flash restarts its 1200 ms and scrolls again.
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    fireEvent.click(screen.getByTestId('tpl-save'))
+    expect(scrolled).toEqual([tile.parentElement, tile.parentElement])
+    act(() => {
+      vi.advanceTimersByTime(1199)
+    })
+    expect(tile.hasAttribute('data-flash')).toBe(true)
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
+    expect(tile.hasAttribute('data-flash')).toBe(false)
+  })
+
+  it('slots within 0.5 points are the same; further apart, or on the other page shape, a new template', () => {
+    seed()
+    addSavedTemplate(
+      'Near',
+      [
+        { x: 0.5, y: 0, w: 50, h: 100 },
+        { x: 60, y: 10, w: 30, h: 40.5 },
+      ],
+      1,
+    )
+    render(<LayoutSection spreadId="s1" />)
+    fireEvent.click(screen.getByTestId('tpl-save'))
+    expect(getSavedTemplates()).toHaveLength(1)
+    resetSavedTemplatesForTests()
+    addSavedTemplate(
+      'Far',
+      [
+        { x: 0, y: 0, w: 50, h: 100 },
+        { x: 60, y: 10.6, w: 30, h: 40 },
+      ],
+      1,
+    )
+    addSavedTemplate(
+      'Spread',
+      [
+        { x: 0, y: 0, w: 50, h: 100 },
+        { x: 60, y: 10, w: 30, h: 40 },
+      ],
+      2,
+    )
+    fireEvent.click(screen.getByTestId('tpl-save'))
+    expect(getSavedTemplates().map((t) => t.name)).toEqual([
+      'Far',
+      'Spread',
+      'My layout 1',
+    ])
   })
 })
