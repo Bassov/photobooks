@@ -165,16 +165,19 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     const frame = { spreadId, frameId: item.frameId }
     const pressed = isFramePressed(frameSourceKey, item.frameId)
     const control: FrameControl = {
-      label: frameControlLabel(
-        filled,
-        frameSource,
-        frame,
-        // Another spread keeps the move wording (its key does not track
-        // whether the selected frame is empty).
-        frameSource === null ||
-          frameSourceKey === '' ||
-          sourceFrameFilled(frameSource),
-      ),
+      // A text frame takes no photo: never announce photo-move wording.
+      label: item.text
+        ? 'Text frame'
+        : frameControlLabel(
+            filled,
+            frameSource,
+            frame,
+            // Another spread keeps the move wording (its key does not track
+            // whether the selected frame is empty).
+            frameSource === null ||
+              frameSourceKey === '' ||
+              sourceFrameFilled(frameSource),
+          ),
       onActivate: (event) => {
         activateFrame(
           spreadId,

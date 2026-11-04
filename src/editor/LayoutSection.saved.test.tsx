@@ -221,9 +221,12 @@ describe('LayoutSection: saved templates in the lists', () => {
     expect(templatePreviewOn('s1')).toBe('')
     const spread = getBookStoreSnapshot().book.spreads[0]
     expect(spread?.templateId).toBe(saved.id)
+    // Image frames take the slots; the text frame keeps its box (text-frames).
     expect(spread?.frames.map((f) => f.rect)).toEqual([
       { x: 0, y: 0, width: 186, height: 300 },
+      { x: 10, y: 270, width: 100, height: 20 },
     ])
+    expect(spread?.frames[1]?.kind).toBe('text')
     expect(
       screen
         .getByRole('button', { name: 'Apply layout Travel opener' })

@@ -250,6 +250,23 @@ describe('step label bookkeeping', () => {
     expect(opLabel(move(['a', 'b', 'c']))).toBe('Move 3 frames')
   })
 
+  it('names the text frame steps; each text edit is its own step', () => {
+    const rect = { x: 0, y: 0, width: 60, height: 14 }
+    const at = { spreadId: 's', frameId: 'f' }
+    const edit: BookOp = { type: 'editText', ...at, text: 'x' }
+    expect(opLabel({ type: 'addTextFrame', spreadId: 's', rect })).toBe(
+      'Add text',
+    )
+    expect(opLabel(edit)).toBe('Edit text')
+    expect(opLabel({ type: 'setTextStyle', ...at, styleId: 'title' })).toBe(
+      'Text style',
+    )
+    expect(opLabel({ type: 'setTextAlign', ...at, align: 'right' })).toBe(
+      'Align text',
+    )
+    expect(coalesceKey(edit)).toBeUndefined()
+  })
+
   it('keeps the newest labels when over the limit', () => {
     const h = labelled(['a', 'b', 'c', 'd', 'e'], 3)
     expect(h.past).toHaveLength(3)
