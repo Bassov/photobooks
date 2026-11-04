@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P3
 Title: Bug: /next-roadmap-item site-viewer-render
+Status: done
 
 Render refactor for the site viewer (Designer design site-viewer, Item 2 of 3; spec §6, §8). No visible change: editor, Preview and library look exactly as before.
 
