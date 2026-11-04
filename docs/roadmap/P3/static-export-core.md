@@ -3,11 +3,12 @@
 Tag: prep
 Milestone: P3
 Title: deterministic site tree
+Status: done
 
 ## Scope
 
-- [ ] Prerendered HTML via `react-dom/server`, viewer bundle, derivatives, manifest; deterministic output
-- [ ] Only published books, using their frozen revision
+- [x] Prerendered HTML via `react-dom/server`, viewer bundle, derivatives, manifest; deterministic output
+- [x] Only published books, using their frozen revision
 - **Done when:** the same book twice yields a byte-identical site tree (snapshot); PBT green
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)

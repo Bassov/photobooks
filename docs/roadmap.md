@@ -114,6 +114,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [parent-guides-kit](roadmap/P2/parent-guides-kit.md) — Bug: /next-roadmap-item parent-guides-kit
 - [x] [feature] [roadmap-index-no-tick](roadmap/P2/roadmap-index-no-tick.md) — Bug: /next-roadmap-item roadmap-index-no-tick
 - [x] [feature] [roadmap-tick-tidy](roadmap/P2/roadmap-tick-tidy.md) — Bug: /next-roadmap-item roadmap-tick-tidy
+- [x] [feature] [master-spread-both-pages](roadmap/P2/master-spread-both-pages.md) — Bug: /next-roadmap-item master-spread-both-pages
 - [x] [feature] [kit-thumbgrid-page-select](roadmap/P2/kit-thumbgrid-page-select.md) — Bug: /next-roadmap-item kit-thumbgrid-page-select
 - [x] [feature] [prod-arrange-rulers-parity](roadmap/P2/prod-arrange-rulers-parity.md) — Bug: /next-roadmap-item prod-arrange-rulers-parity
 - [x] [feature] [kit-focus-ring-style](roadmap/P2/kit-focus-ring-style.md) — Bug: /next-roadmap-item kit-focus-ring-style
@@ -133,7 +134,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [site-viewer](roadmap/P3/site-viewer.md) — viewer entry
 - [ ] [feature] [site-preview-mode](roadmap/P3/site-preview-mode.md) — preview the site from the editor
 - [ ] [feature] [site-lightbox](roadmap/P3/site-lightbox.md) — fullscreen and swipe
-- [ ] [prep] [static-export-core](roadmap/P3/static-export-core.md) — deterministic site tree
+- [x] [prep] [static-export-core](roadmap/P3/static-export-core.md) — deterministic site tree
 - [ ] [feature] [static-export](roadmap/P3/static-export.md) — write `dist/`
 - [ ] [prep] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
 - [x] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
@@ -145,7 +146,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 
 **Review cut:** a print PDF from the `#/demo` Print dialog (1 per sheet with a bleed checkbox; 2-up saddle-stitch and 4-up duplex with `booklet-imposition`) and a cover with the right spine; exporting never freezes the editor.
 
-- [ ] [prep] [print-model-schema](roadmap/P4/print-model-schema.md) — print settings and cover in the document
+- [x] [prep] [print-model-schema](roadmap/P4/print-model-schema.md) — print settings and cover in the document
 - [ ] [prep] [print-profiles](roadmap/P4/print-profiles.md) — printer data
 - [ ] [prep] [preflight-core](roadmap/P4/preflight-core.md) — pure preflight
 - [ ] [prep] [pdf-painter](roadmap/P4/pdf-painter.md) — worker PDF painter (Security Review: dependency)
