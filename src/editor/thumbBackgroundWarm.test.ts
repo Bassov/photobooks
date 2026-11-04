@@ -430,6 +430,8 @@ describe('thumb background warm lane', () => {
       inFlight: 0,
       settledCount: 0,
       longestSliceMs: 0,
+      passCount: 0,
+      passTotalMs: 0,
     })
 
     uninstall = installThumbBackgroundWarm()
@@ -488,9 +490,14 @@ describe('thumb background warm lane', () => {
       expect(Math.max(...reads)).toBe(WARM_SLICE_BUDGET_MS)
       expect(reads.reduce((sum, n) => sum + n, 0)).toBe(44)
       // A start step also reads the clock once (scroll-quiet slot cap).
-      const { longestSliceMs } = getBackgroundWarmStatsForTests()
+      const { longestSliceMs, passCount, passTotalMs } =
+        getBackgroundWarmStatsForTests()
       expect(longestSliceMs).toBeGreaterThanOrEqual(WARM_SLICE_BUDGET_MS)
       expect(longestSliceMs).toBeLessThanOrEqual(WARM_SLICE_BUDGET_MS + 1)
+      // One pass, timed as the sum of its slices: 44 units + the closing
+      // step, plus a slot-cap clock read at pass start and per start step.
+      expect(passCount).toBe(1)
+      expect(passTotalMs).toBe(50)
       await drain()
       expect(warmedIds()).toEqual(ids.slice(0, 4))
     })
