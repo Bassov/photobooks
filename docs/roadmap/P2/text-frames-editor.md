@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-- [ ] Prod editor part of text frames (Designer `text-frames` spec, Items 3): the Text tool creates text frames (drag ≥ 3 px draws the frame draft with snapping, min 10 × 4.5 mm; a click makes 60 × 14 mm clamped to the page's 6 mm safe area; starts on paper or over a photo frame; new = Caption, left, empty; editing starts at once; the tool returns to Select; an empty new frame is removed on exit with no history step)
+- [x] Prod editor part of text frames (Designer `text-frames` spec, Items 3): the Text tool creates text frames (drag ≥ 3 px draws the frame draft with snapping, min 10 × 4.5 mm; a click makes 60 × 14 mm clamped to the page's 6 mm safe area; starts on paper or over a photo frame; new = Caption, left, empty; editing starts at once; the tool returns to Select; an empty new frame is removed on exit with no history step)
 - **Edit overlay:** transparent textarea at the frame rect in the style font (caret and outline `#232223`, selection `#cacaca`, placeholder `Type text` at .4), the box grows to whole lines while typing (capped at the paper bottom), only the edited frame re-renders; edit mode shows a 1 px outline and no handles
 - **Overflow chip:** amber `Overflow` chip (`text-overflow-chip`) at a constant screen size, right under the frame, or inside at right 4 / bottom 4 near the paper bottom; editor only (never in Preview or thumbnails), hidden while that frame is edited
 - **Keys:** double-click or Enter edits (caret at the end), Esc or Ctrl/⌘+Enter leaves and keeps the frame selected, Esc again deselects; a Text press on a text frame edits it
