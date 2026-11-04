@@ -82,7 +82,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [filmstrip-stuck-thumbs](roadmap/P2/filmstrip-stuck-thumbs.md) — Bug: after a fling back and forth some filmstrip tiles never get a thumb
 - [x] [feature] [warm-slice-scheduler-loaf](roadmap/P2/warm-slice-scheduler-loaf.md) — Bug: CI perf red on main (thumb warm slice / bulk hydrate fling LoAF)
 - [x] [feature] [layout-picker-simplify](roadmap/P2/layout-picker-simplify.md) — Simpler Layout picker in the spread inspector (Owner product decision 2026-11-02)
-- [ ] [lite] [worker-ctx-trim](roadmap/P2/worker-ctx-trim.md) — worker-ctx-trim: compact preflight output and a short must-read for unattended workers
+- [x] [lite] [worker-ctx-trim](roadmap/P2/worker-ctx-trim.md) — worker-ctx-trim: compact preflight output and a short must-read for unattended workers
 - [x] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
 - [x] [feature] [parent-spreads-edit](roadmap/P2/parent-spreads-edit.md) — parent spreads: edit in Masters mode
 - [x] [prep] [perf-baseline-aware](roadmap/P2/perf-baseline-aware.md) — Bug: perf lane — a scenario red on main does not fail PRs that leave it alone
@@ -109,7 +109,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [design-r17](roadmap/P2/design-r17.md) — Bug: /next-roadmap-item design-r17
 - [x] [feature] [design-r16-kit-book](roadmap/P2/design-r16-kit-book.md) — Bug: /next-roadmap-item design-r16-kit-book
 - [x] [feature] [site-photographer-demo](roadmap/P2/site-photographer-demo.md) — Bug: /next-roadmap-item site-photographer-demo
-- [ ] [feature] [roadmap-index-no-tick](roadmap/P2/roadmap-index-no-tick.md) — Bug: /next-roadmap-item roadmap-index-no-tick
+- [x] [feature] [roadmap-index-no-tick](roadmap/P2/roadmap-index-no-tick.md) — Bug: /next-roadmap-item roadmap-index-no-tick
 - [ ] [feature] [roadmap-tick-tidy](roadmap/P2/roadmap-tick-tidy.md) — Bug: /next-roadmap-item roadmap-tick-tidy
 - [x] [feature] [kit-focus-ring-style](roadmap/P2/kit-focus-ring-style.md) — Bug: /next-roadmap-item kit-focus-ring-style
 - [ ] [feature] [parent-guides](roadmap/P2/parent-guides.md) — guides on parent spreads
