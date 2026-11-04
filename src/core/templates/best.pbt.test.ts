@@ -115,7 +115,7 @@ describe('bestTemplateId with saved templates (PBT)', () => {
         arbPhotos,
         arbSaved,
         ({ book, index }, photos, saved) => {
-          const builtin = bestTemplateId(book, index, photos)
+          const builtin = bestTemplateId(book, index, photos, [])
           const pages = pagesOf(book, index)
           let expected = builtin
           let best = score(builtinSlots(book, index, builtin), photos)
@@ -150,7 +150,7 @@ describe('bestTemplateId with saved templates (PBT)', () => {
           slots,
         }
         const fit: SavedTemplate = { id: 'user-fit', name: 'Fit', pages, slots }
-        const builtin = bestTemplateId(book, index, photos)
+        const builtin = bestTemplateId(book, index, photos, [])
         const exact =
           score(builtinSlots(book, index, builtin), photos)?.join() === '0,0'
         expect(bestTemplateId(book, index, photos, [wrong, fit])).toBe(
@@ -165,7 +165,7 @@ describe('bestTemplateId with saved templates (PBT)', () => {
   it('a saved copy of the builtin pick ties, so the builtin stays', () => {
     fc.assert(
       fc.property(arbTarget, arbPhotos, ({ book, index }, photos) => {
-        const builtin = bestTemplateId(book, index, photos)
+        const builtin = bestTemplateId(book, index, photos, [])
         if (!isTemplateId(builtin)) {
           throw new Error(`builtin pick expected, got ${builtin}`)
         }

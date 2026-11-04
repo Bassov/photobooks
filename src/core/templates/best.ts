@@ -33,22 +33,25 @@ function smallestContactSheet(perPage: number): TemplateId {
   return contactSheetId(best.cols, best.rows)
 }
 
+/** A catalog template or one of the user's saved layouts. */
+type Layout = TemplateId | SavedTemplate
+
 interface Candidate {
-  id: string
+  layout: Layout
   slots: readonly AspectClass[]
 }
 
 /**
- * Pure best-fit template for photos in order, by count then orientation.
+ * Pure best-fit layout for photos in order, by count then orientation.
  * Builtins come first, then `saved` layouts of this spread's page count in
  * save order; on an equal score the earlier candidate wins.
  */
-export function bestTemplateId(
+export function bestLayout(
   book: Book,
   spreadIndex: number,
   photos: readonly AspectClass[],
-  saved: readonly SavedTemplate[] = [],
-): string {
+  saved: readonly SavedTemplate[],
+): Layout {
   if (photos.length === 0) {
     return 'one-per-page'
   }
@@ -59,21 +62,21 @@ export function bestTemplateId(
   ]
   const candidates: Candidate[] = [
     ...builtins.map((id) => ({
-      id,
+      layout: id,
       slots: templateSlotAspects(id, book, spreadIndex),
     })),
     ...saved
       .filter((template) => template.pages === pages)
       .map((template) => ({
-        id: template.id,
+        layout: template,
         slots: customLayoutRects(book, spreadIndex, template.slots).map(
           slotAspect,
         ),
       })),
   ]
-  let winner: string = contactSheetId(CONTACT_MAX_COLS, CONTACT_MAX_ROWS)
+  let winner: Layout = contactSheetId(CONTACT_MAX_COLS, CONTACT_MAX_ROWS)
   let winnerScore: [number, number] | null = null
-  for (const { id, slots } of candidates) {
+  for (const { layout, slots } of candidates) {
     if (slots.length < photos.length) {
       continue
     }
@@ -90,9 +93,20 @@ export function bestTemplateId(
       score[0] < winnerScore[0] ||
       (score[0] === winnerScore[0] && score[1] < winnerScore[1])
     ) {
-      winner = id
+      winner = layout
       winnerScore = score
     }
   }
   return winner
+}
+
+/** Id of the best-fit layout; a saved layout's is its own `user-…` id. */
+export function bestTemplateId(
+  book: Book,
+  spreadIndex: number,
+  photos: readonly AspectClass[],
+  saved: readonly SavedTemplate[],
+): string {
+  const layout = bestLayout(book, spreadIndex, photos, saved)
+  return typeof layout === 'string' ? layout : layout.id
 }

@@ -1,9 +1,8 @@
 import type { Book, Frame } from '../schema'
 import { applyCustomLayout, applyTemplate } from '../templates/apply'
 import { photoAspectClass, type AspectClass } from '../templates/aspect'
-import { bestTemplateId } from '../templates/best'
+import { bestLayout } from '../templates/best'
 import type { SavedTemplate } from '../templates/custom'
-import { isTemplateId } from '../templates/types'
 import { findSpreadFrame, updateFrame, updateSpread } from '../update'
 import { takesPhoto, withPlacedAsset } from './place'
 import { addSpread, nextSpreadId } from './spreads'
@@ -99,27 +98,6 @@ function assetAspectClass({ asset }: UsableAsset): AspectClass {
     : photoAspectClass(widthPx, heightPx)
 }
 
-function applyBestLayout(
-  book: Book,
-  spreadId: string,
-  templateId: string,
-  saved: readonly SavedTemplate[],
-): Book {
-  if (isTemplateId(templateId)) {
-    return applyTemplate(book, spreadId, templateId)
-  }
-  const template = saved.find(({ id }) => id === templateId)
-  return template === undefined
-    ? book
-    : applyCustomLayout(
-        book,
-        spreadId,
-        template.id,
-        template.slots,
-        template.pages,
-      )
-}
-
 /**
  * Insert a spread at `index` with the best-fit template (a builtin or one of
  * the user's `saved` layouts) and place photos in order.
@@ -128,7 +106,7 @@ export function insertSpreadWithAssets(
   book: Book,
   index: number,
   assetIds: readonly string[],
-  saved: readonly SavedTemplate[] = [],
+  saved: readonly SavedTemplate[],
 ): Book {
   const usable = usableAssets(book, assetIds)
   if (usable.length === 0) {
@@ -137,12 +115,17 @@ export function insertSpreadWithAssets(
   const spreadId = nextSpreadId(book)
   const added = addSpread(book, { index, id: spreadId })
   const at = Math.max(0, Math.min(index, book.spreads.length))
-  const templated = applyBestLayout(
-    added,
-    spreadId,
-    bestTemplateId(added, at, usable.map(assetAspectClass), saved),
-    saved,
-  )
+  const layout = bestLayout(added, at, usable.map(assetAspectClass), saved)
+  const templated =
+    typeof layout === 'string'
+      ? applyTemplate(added, spreadId, layout)
+      : applyCustomLayout(
+          added,
+          spreadId,
+          layout.id,
+          layout.slots,
+          layout.pages,
+        )
   return fillFrames(
     templated,
     spreadId,

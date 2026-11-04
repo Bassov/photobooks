@@ -41,13 +41,6 @@ const MIXED: AspectClass[] = [
 ]
 
 describe('bestTemplateId with saved templates', () => {
-  it('keeps the builtin pick when nothing is saved', () => {
-    const book = interiorBook()
-    expect(bestTemplateId(book, 1, MIXED, [])).toBe(
-      bestTemplateId(book, 1, MIXED),
-    )
-  })
-
   it('a saved template that scores strictly better wins', () => {
     expect(
       bestTemplateId(interiorBook(), 1, MIXED, [saved('user-fit', MIXED)]),
@@ -76,14 +69,14 @@ describe('bestTemplateId with saved templates', () => {
 
   it('never picks a saved template of another page count', () => {
     const book = interiorBook()
-    const builtin = bestTemplateId(book, 1, MIXED)
+    const builtin = bestTemplateId(book, 1, MIXED, [])
     expect(bestTemplateId(book, 1, MIXED, [saved('user-page', MIXED, 1)])).toBe(
       builtin,
     )
     const single = makeBook()
     expect(
       bestTemplateId(single, 0, MIXED, [saved('user-spread', MIXED, 2)]),
-    ).toBe(bestTemplateId(single, 0, MIXED))
+    ).toBe(bestTemplateId(single, 0, MIXED, []))
     expect(
       bestTemplateId(single, 0, MIXED, [saved('user-page', MIXED, 1)]),
     ).toBe('user-page')
@@ -93,7 +86,7 @@ describe('bestTemplateId with saved templates', () => {
     const book = interiorBook()
     expect(
       bestTemplateId(book, 1, MIXED, [saved('user-short', MIXED.slice(1))]),
-    ).toBe(bestTemplateId(book, 1, MIXED))
+    ).toBe(bestTemplateId(book, 1, MIXED, []))
   })
 
   it('returns one-per-page for no photos', () => {

@@ -123,7 +123,7 @@ export type BookOp =
       index: number
       assetIds: readonly string[]
       /** The user's saved layouts best fit may pick, in save order. */
-      templates?: readonly SavedTemplate[]
+      templates: readonly SavedTemplate[]
     }
   | {
       type: 'setCrop'

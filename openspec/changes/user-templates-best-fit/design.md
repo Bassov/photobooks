@@ -1,8 +1,8 @@
 ## Decisions
 
-1. `bestTemplateId(book, spreadIndex, photos, saved = [])` returns `string`. Candidates in order: the 6 builtins, the smallest contact sheet, then `saved` filtered to `pages === getSpreadPageCount(...)` in save order. Saved slot classes = `slotAspect` of `customLayoutRects(book, spreadIndex, slots)` (the target trim). Same score `[mismatches, spare slots]`; only a strictly smaller score replaces the winner, so ties keep the earlier candidate (builtins first, then save order).
-2. The op `insertSpreadWithAssets` gains `templates?: readonly SavedTemplate[]` (default `[]`). `src/core` stays pure: the editor passes the list, the op replays deterministically from its payload. A builtin winner goes through `applyTemplate`; a custom winner through `applyCustomLayout(…, slots, pages)` with the entry matched by id.
-3. `bestTemplateId` callers: `src/core/ops/fill.ts` (`insertSpreadWithAssets`) is the only one. Wiring: `src/editor/multiDrop.ts` `dropAssets` adds `templates: getSavedTemplates()` to the gap op; `src/editor/galleryDrop.ts` calls `dropAssets` and needs no change. `fillSpread` (frame drop) does not pick a template.
+1. `bestLayout(book, spreadIndex, photos, saved)` returns the winning builtin id or `SavedTemplate`; `bestTemplateId` (same args, `saved` required) returns its id as `string`. Candidates in order: the 6 builtins, the smallest contact sheet, then `saved` filtered to `pages === getSpreadPageCount(...)` in save order. Saved slot classes = `slotAspect` of `customLayoutRects(book, spreadIndex, slots)` (the target trim). Same score `[mismatches, spare slots]`; only a strictly smaller score replaces the winner, so ties keep the earlier candidate (builtins first, then save order).
+2. The op `insertSpreadWithAssets` gains a required `templates: readonly SavedTemplate[]`. `src/core` stays pure: the editor passes the list, the op replays from its payload. A builtin winner goes through `applyTemplate`, a saved one through `applyCustomLayout(…, slots, pages)`.
+3. Best-fit callers: `src/core/ops/fill.ts` (`insertSpreadWithAssets`, via `bestLayout`) is the only one. Wiring: `src/editor/multiDrop.ts` `dropAssets` adds `templates: getSavedTemplates()` to the gap op; `src/editor/galleryDrop.ts` calls `dropAssets` and needs no change. `fillSpread` (frame drop) does not pick a template.
 
 ## Touch-set & Test Plan
 

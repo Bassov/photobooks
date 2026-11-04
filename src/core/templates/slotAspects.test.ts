@@ -13,6 +13,8 @@ import {
   photoAspectClass,
   slotAspect,
   templateSlotAspects,
+  type AspectClass,
+  type Book,
 } from '../index'
 import { makeBook, makeSpread } from '../testing/fixtures'
 import { placeAsset } from '../ops/place'
@@ -25,6 +27,15 @@ function interiorBook() {
       makeSpread({ id: 'c' }),
     ],
   })
+}
+
+/** Best fit with no saved layouts: the builtin catalog only. */
+function builtinBest(
+  book: Book,
+  spreadIndex: number,
+  photos: readonly AspectClass[],
+): string {
+  return bestTemplateId(book, spreadIndex, photos, [])
 }
 
 describe('contact sheet ids', () => {
@@ -100,12 +111,12 @@ describe('portrait template geometry', () => {
 
 describe('bestTemplateId', () => {
   it('returns one-per-page for no photos', () => {
-    expect(bestTemplateId(interiorBook(), 1, [])).toBe('one-per-page')
+    expect(builtinBest(interiorBook(), 1, [])).toBe('one-per-page')
   })
 
   it('two portraits pick a template with two portrait slots', () => {
     const book = interiorBook()
-    const id = bestTemplateId(book, 1, ['portrait', 'portrait'])
+    const id = builtinBest(book, 1, ['portrait', 'portrait'])
     expect(isTemplateId(id) && templateSlotAspects(id, book, 1)).toEqual([
       'portrait',
       'portrait',
@@ -114,15 +125,15 @@ describe('bestTemplateId', () => {
 
   it('landscape + two portraits picks the mixed template', () => {
     expect(
-      bestTemplateId(interiorBook(), 1, ['landscape', 'portrait', 'portrait']),
+      builtinBest(interiorBook(), 1, ['landscape', 'portrait', 'portrait']),
     ).toBe('landscape-two-portraits')
   })
 
   it('many photos fall back to a contact sheet, capped at 5x4', () => {
     const book = interiorBook()
-    const six = bestTemplateId(book, 1, Array(6).fill('landscape'))
+    const six = builtinBest(book, 1, Array(6).fill('landscape'))
     expect(parseContactSheetId(six)).not.toBeNull()
-    expect(bestTemplateId(book, 1, Array(60).fill('landscape'))).toBe(
+    expect(builtinBest(book, 1, Array(60).fill('landscape'))).toBe(
       'contact-5x4',
     )
   })
@@ -140,29 +151,23 @@ describe('bestTemplateId', () => {
     ],
     ['three portraits', 1, ['portrait', 'portrait', 'portrait'], 'contact-2x1'],
   ] as const)('%s (spread %i)', (_name, spread, photos, expected) => {
-    expect(bestTemplateId(interiorBook(), spread, photos)).toBe(expected)
+    expect(builtinBest(interiorBook(), spread, photos)).toBe(expected)
   })
 
   it('single-page spread uses the page count for fit', () => {
     const one = makeBook()
-    expect(bestTemplateId(one, 0, ['landscape', 'landscape'])).toBe('4-grid')
-    expect(bestTemplateId(one, 0, ['portrait', 'portrait'])).toBe(
-      'two-portraits',
-    )
-    expect(bestTemplateId(one, 0, Array(13).fill('landscape'))).toBe(
-      'contact-5x3',
-    )
-    expect(bestTemplateId(one, 0, Array(15).fill('landscape'))).toBe(
-      'contact-5x3',
-    )
+    expect(builtinBest(one, 0, ['landscape', 'landscape'])).toBe('4-grid')
+    expect(builtinBest(one, 0, ['portrait', 'portrait'])).toBe('two-portraits')
+    expect(builtinBest(one, 0, Array(13).fill('landscape'))).toBe('contact-5x3')
+    expect(builtinBest(one, 0, Array(15).fill('landscape'))).toBe('contact-5x3')
   })
 
   it('picks the smallest contact sheet that fits per page', () => {
     const book = interiorBook()
-    expect(bestTemplateId(book, 1, Array(30).fill('landscape'))).toBe(
+    expect(builtinBest(book, 1, Array(30).fill('landscape'))).toBe(
       'contact-5x3',
     )
-    expect(bestTemplateId(book, 1, Array(21).fill('landscape'))).toBe(
+    expect(builtinBest(book, 1, Array(21).fill('landscape'))).toBe(
       'contact-4x3',
     )
   })
@@ -175,7 +180,7 @@ describe('bestTemplateId', () => {
     'result always has a valid id and enough slots when possible',
     (photos) => {
       const book = interiorBook()
-      const id = bestTemplateId(book, 1, photos)
+      const id = builtinBest(book, 1, photos)
       expect(isTemplateId(id)).toBe(true)
       const slots = isTemplateId(id)
         ? templateSlotAspects(id, book, 1).length
