@@ -9,7 +9,7 @@ import { P } from "@/data"
 import {
   SW, SH, PAGE, type Doc, type Frame, type Spread, type Rect, type SnapLine, type Anchor, anchors, snapRect, resolveGrid, effectiveGrid,
   allGuides, clamp, round, effectiveDpi, orientedSize, photoOf, uid, framesFromTemplate,
-  parentOf, pageNumbersOf, type Guide,
+  parentOf, pageNumbersOf, foliosOf, type Guide,
 } from "./model"
 import { useStudio, mapSpread, mapFrames, useKeys, type Studio } from "./store"
 import { fillTokens } from "./meta"
@@ -543,8 +543,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   })
   const showSel = active && selFrames.length > 0 && !st.cropId && !view.preview
   const single = selFrames.length === 1 ? selFrames[0] : null
-  const pn = view.pageNumbers || pageNumbersOf(par)
-  const pageNo = (side: 0 | 1) => (doc.pageStart ?? 1) + si * 2 - 1 + side
+  const folios = view.pageNumbers || pageNumbersOf(par) ? foliosOf(doc, s, si) : []
   return (
     <div ref={ref} {...dropProps} onPointerDown={onBgDown} onWheel={onWheel} data-testid="spread" data-spread={si} data-current={si === st.cur || undefined}
       className={cn("relative shrink-0 select-none", view.preview ? "" : "shadow-page", isDropTarget && "outline-2 outline-offset-4 outline-mark [outline-style:dashed]",
@@ -562,6 +561,11 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
           }}
           onDouble={() => { }} editing={false} onEditDone={() => { }} />
       ))}
+      {/* Designer page-numbers: the folio is printed parent content, under the spread's own frames (a full-bleed photo hides it) */}
+      {folios.map((p) => (
+        <span key={p.side} className="pointer-events-none absolute select-none whitespace-nowrap" data-testid="page-number" data-side={p.side}
+          style={{ left: p.x * sc, top: p.y * sc, width: p.w * sc, height: p.h * sc, textAlign: p.align, fontFamily: "'Inter Variable', system-ui, sans-serif", fontSize: 3.1 * sc, fontWeight: 400, lineHeight: 1.4, color: "#232220", fontVariantNumeric: "tabular-nums", letterSpacing: "normal" }}>{p.text}</span>
+      ))}
       {s.frames.map((f) => (
         <FrameEl key={f.id} f={f} si={si} s={s} sc={sc} selected={st.sel.includes(f.id)} onDown={onFrameDown} onDouble={onDouble}
           editing={editing === f.id} onEditDone={(t, h) => endEdit(f, t, h)} />
@@ -570,11 +574,6 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
       {view.grid && !view.preview && <GridOverlay s={s} sc={sc} />}
       {view.guides && !view.preview && allGuides(doc, s).map((g) => <GuideLine key={g.id} g={g} sc={sc} passive={!!g.inherited && !ft.parentEdit} onDown={(e) => onGuideDown?.(e, g.id)} />)}
       {view.overlays && <PrintOverlay sc={sc} />}
-      {pn && !view.preview && [0, 1].map((side) => (si === 0 && doc.skipFirst && side === 0 ? null :
-        <span key={side} className="pointer-events-none absolute text-ink" data-testid="page-number"
-          style={{ bottom: 7 * sc, [side === 0 ? "left" : "right"]: 12 * sc, fontSize: Math.max(8, 3 * sc), fontFamily: "'Inter Variable', sans-serif" }}>{pageNo(side as 0 | 1)}</span>
-      ))}
-      {pn && view.preview && [0, 1].map((side) => <span key={side} className="pointer-events-none absolute text-ink" style={{ bottom: 7 * sc, [side === 0 ? "left" : "right"]: 12 * sc, fontSize: Math.max(8, 3 * sc) }}>{pageNo(side as 0 | 1)}</span>)}
       {!view.preview && <div className="pointer-events-none absolute inset-y-0 left-1/2 w-[3%] -translate-x-1/2 bg-gradient-to-r from-transparent via-black/[0.06] to-transparent" />}
       {lines.map((l, i) => (
         <React.Fragment key={i}>

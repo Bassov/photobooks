@@ -53,7 +53,8 @@ export type Spread = {
   /** v0.7.2 spread inspector: master page + layout margin / gap (mm) */
   master?: "A" | "B" | "none"; margin?: number; gap?: number
 }
-export type Doc = { spreads: Spread[]; grid: Grid; styles: FrameStyle[]; parents: Parent[]; gallery: string[]; pageStart?: number; skipFirst?: boolean
+export type PageFormat = "decimal" | "lower-roman" | "upper-roman"
+export type Doc = { spreads: Spread[]; grid: Grid; styles: FrameStyle[]; parents: Parent[]; gallery: string[]; pageStart?: number; skipFirst?: boolean; pageFormat?: PageFormat
   /** sketch-only: book spreads stashed while a parent spread is open for editing */
   stash?: { spreads: Spread[]; cur: number; parent: string }
   userTemplates?: { id: string; name: string; frames: Frame[] }[] }
@@ -69,7 +70,7 @@ export function frame(p: Partial<Frame> & { x: number; y: number; w: number; h: 
 export function textFrame(p: Partial<Frame> & { x: number; y: number; w: number; h: number }): Frame {
   return frame({ kind: "text", text: "Caption", textStyle: "caption", align: "left", ...p })
 }
-/** v0.7.3 built-in masters (Spread.master). A = folios, B = running head + caption band. Built per book geometry,
+/** v0.7.3 built-in masters (Spread.master). A = chapter line, B = running head + caption band. Built per book geometry,
  *  memoised so frame/guide ids stay stable. A spread with an explicit `parent` keeps using that parent. */
 const masterCache = new Map<string, Parent>()
 export function builtinMaster(k: "A" | "B"): Parent {
@@ -78,7 +79,7 @@ export function builtinMaster(k: "A" | "B"): Parent {
   const mk = (id: string, f: Partial<Frame> & { x: number; y: number; w: number; h: number }) => ({ ...textFrame(f), id: `m${k}-${id}` })
   const par: Parent = k === "A"
     ? { id: "mA", name: "Master A", pageNumbers: false,
-        frames: [mk("fl", { x: m, y: SH - m + 2, w: 24, h: 7, text: "Folio", align: "left" }), mk("fr", { x: SW - m - 24, y: SH - m + 2, w: 24, h: 7, text: "Folio", align: "right" })],
+        frames: [mk("ch", { x: P + m, y: 4, w: P - 2 * m, h: 7, text: "Chapter", align: "right" })],
         guides: [{ id: "mA-gt", axis: "h", pos: m }, { id: "mA-gb", axis: "h", pos: SH - m }, { id: "mA-gl", axis: "v", pos: m }, { id: "mA-gr", axis: "v", pos: SW - m }] }
     : { id: "mB", name: "Master B", pageNumbers: false,
         frames: [mk("rh", { x: m, y: 4, w: P - 2 * m, h: 7, text: "Running head", align: "left" }), mk("cap", { x: P + m, y: SH - m + 2, w: P - 2 * m, h: 7, text: "Caption band", align: "right" })],
@@ -183,6 +184,43 @@ export const MASTER_GUIDES: Record<string, Guide[] | undefined> = {}
 export const MASTER_PN: Record<string, boolean | undefined> = {}
 export const guidesOf = (p?: Parent): Guide[] => (p ? MASTER_GUIDES[p.id] ?? p.guides : [])
 export const pageNumbersOf = (p?: Parent): boolean => (p ? MASTER_PN[p.id] ?? !!p.pageNumbers : false)
+/** Page number position per master: 0 Outer, 1 Centre, 2 Inner (unset = Outer). */
+export type PnPos = 0 | 1 | 2
+export const MASTER_POS: Record<string, PnPos | undefined> = {}
+export const pageNumberPosOf = (p?: Parent): PnPos => (p ? MASTER_POS[p.id] ?? 0 : 0)
+
+/* Designer page-numbers: the folio is one caption line (20 × 4.34 mm) centred in the master's bottom margin band and
+   kept inside the safe area (5 mm, the prod default). x per page: Outer at the outside margin, Centre on the page centre,
+   Inner at the inside margin. */
+export const FOLIO_W = 20, FOLIO_H = 4.34, FOLIO_SAFE = 5
+export type Folio = { side: 0 | 1; x: number; y: number; w: number; h: number; align: "left" | "center" | "right"; text: string }
+/** folio box of one page in page mm (x from that page's left edge) */
+export function folioBox(g: Pick<Grid, "bottom" | "inside" | "outside">, P: number, H: number, pos: PnPos, side: 0 | 1) {
+  const y = Math.min(H - g.bottom / 2 - FOLIO_H / 2, H - FOLIO_SAFE - FOLIO_H)
+  const mg = pos === 0 ? g.outside : g.inside, left = (pos === 0) === (side === 0)
+  const x = pos === 1 ? P / 2 - FOLIO_W / 2 : left ? mg : P - mg - FOLIO_W
+  return { x, y, w: FOLIO_W, h: FOLIO_H, align: pos === 1 ? "center" as const : left ? "left" as const : "right" as const }
+}
+const ROMAN: [number, string][] = [[1000, "m"], [900, "cm"], [500, "d"], [400, "cd"], [100, "c"], [90, "xc"], [50, "l"], [40, "xl"], [10, "x"], [9, "ix"], [5, "v"], [4, "iv"], [1, "i"]]
+/** decimal n, or lower / upper roman for n ≥ 1 (roman 0 = no folio, "") */
+export function formatPageNumber(n: number, f: PageFormat = "decimal"): string {
+  if (f === "decimal") return `${n}`
+  let r = ""
+  for (const [v, s] of ROMAN) while (n >= v) { r += s; n -= v }
+  return f === "upper-roman" ? r.toUpperCase() : r
+}
+/** Folios of spread si (spread mm): physical page 2·si + side, spread 0 has the right page only; n = start + page − 1.
+ *  None on page 1 with Skip first page or when the spread hides the parent's `${parentId}-pn-l|r` item. */
+export function foliosOf(doc: Doc, s: Spread, si: number): Folio[] {
+  const par = parentOf(doc, s), g = effectiveGrid(doc, { ...s, grid: undefined }), pos = pageNumberPosOf(par)
+  return ([0, 1] as const).flatMap((side) => {
+    const page = 2 * si + side
+    if (page < 1 || (doc.skipFirst && page === 1) || (s.hiddenParent ?? []).includes(`${par?.id}-pn-${side ? "r" : "l"}`)) return []
+    const text = formatPageNumber((doc.pageStart ?? 1) + page - 1, doc.pageFormat)
+    const b = folioBox(g, PAGE, SH, pos, side)
+    return text ? [{ side, ...b, x: b.x + side * PAGE, text }] : []
+  })
+}
 export function allGuides(doc: Doc, s: Spread): (Guide & { inherited?: boolean })[] {
   const par = parentOf(doc, s)
   const pg = guidesOf(par).filter((g) => !(s.hiddenParent ?? []).includes(g.id)).map((g) => ({ ...g, inherited: true }))
