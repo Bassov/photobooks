@@ -240,8 +240,14 @@ test.describe('M79: spread-list page cards are the kit card', () => {
 
     // Selected spread (kit editor-spread-1) and a spread at rest.
     for (const i of [1, 2].filter((n) => n < last)) {
+      // The card is the paper; the row-wide box paints nothing
+      // (spread-thumb-grey-backing).
       const thumb = rows.nth(i).locator('.editor-spread-thumb')
-      await expectCard(thumb, `row ${String(i)}`)
+      await expectCard(thumb.locator('.spread-view'), `row ${String(i)}`)
+      await expect(thumb, `row ${String(i)} box`).toHaveCSS(
+        'box-shadow',
+        'none',
+      )
       await expect(thumb.locator('.spread-view')).toHaveCSS(
         'background-color',
         KIT.card.paper,
