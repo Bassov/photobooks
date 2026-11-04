@@ -17,6 +17,12 @@
   background: var(--paper);
 }
 
+/* Text sits over photos and the spread background (kit text FrameBody has no
+   fill): an empty text frame prints nothing. */
+.spread-frame[data-kind='text'] {
+  background: transparent;
+}
+
 button.spread-frame {
   display: block;
   margin: 0;

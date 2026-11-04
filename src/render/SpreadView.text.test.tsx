@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolveSpread, type Frame } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
@@ -56,6 +57,20 @@ describe('SpreadView text frames', () => {
     expect(screen.getByTestId('frame-text').textContent).toBe(
       'Morning on the lake',
     )
+  })
+
+  it('paints no fill: text sits over photos, an empty frame prints nothing', () => {
+    const sheet = document.createElement('style')
+    sheet.textContent = readFileSync('src/render/SpreadView.css', 'utf8')
+    document.head.append(sheet)
+    try {
+      paint(textFrame({ content: { type: 'static', text: '' } }))
+      const frame = screen.getByTestId('spread-frame')
+      expect(getComputedStyle(frame).backgroundColor).toBe('transparent')
+      expect(screen.getByTestId('frame-text').textContent).toBe('')
+    } finally {
+      sheet.remove()
+    }
   })
 
   it('shows whole lines only, in the style scaled by px/mm', () => {
