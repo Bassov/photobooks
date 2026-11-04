@@ -55,6 +55,7 @@ describe('SpreadView frame look', () => {
     expect(caption.style.top).toBe(
       `calc(100% + ${String(1.5 * SPREAD_PX_PER_MM)}px)`,
     )
+    expect(caption.style.fontSize).toBe(`${String(3.1 * SPREAD_PX_PER_MM)}px`)
   })
 
   it('has no caption node without a caption', () => {

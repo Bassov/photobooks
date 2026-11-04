@@ -7,7 +7,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react'
-import type { ResolvedItem, ResolvedSpread } from '../core'
+import type { ResolvedItem, ResolvedSpread, ResolvedText } from '../core'
 
 export interface FrameControl {
   label: string
@@ -46,6 +46,7 @@ import {
   tierUnlessMissing,
 } from './spreadMissing'
 import { spreadFrameControlStyle } from './spreadChromeStyles'
+import { PHOTO_CAPTION_SIZE_MM, textNodeStyle } from './textStyles'
 import { ICON_GLYPHS } from '../ui/icons/glyphs'
 import './SpreadView.css'
 
@@ -330,6 +331,52 @@ export function SpreadView({
   )
 }
 
+/**
+ * Kind markers on the frame node: text frames take no photo, so they carry no
+ * fill state or drop label (pasteboard selectors never treat them as slots).
+ */
+function kindAttrs(
+  item: ResolvedItem,
+  thumb: boolean,
+): Record<string, string | undefined> {
+  if (item.text) {
+    return { 'data-kind': 'text' }
+  }
+  const filled = item.assetId !== undefined
+  return {
+    'data-filled': filled ? 'true' : 'false',
+    'data-drop-label': thumb ? undefined : dropChipLabel(filled),
+    'data-asset-id': thumb ? undefined : item.assetId,
+  }
+}
+
+/** Text in its book style, whole lines only; `Empty text` is editor chrome. */
+function TextNode({
+  text,
+  heightMm,
+  pxPerMm,
+  editor,
+  thumb,
+}: {
+  text: ResolvedText
+  heightMm: number
+  pxPerMm: number
+  editor: boolean
+  thumb: boolean
+}) {
+  const placeholder = editor && text.text === ''
+  return (
+    <div
+      className="spread-frame-text"
+      data-testid={thumb ? undefined : 'frame-text'}
+      data-placeholder={placeholder ? 'true' : undefined}
+      style={textNodeStyle(text, heightMm, pxPerMm)}
+    >
+      {placeholder ? 'Empty text' : text.text}
+    </div>
+  )
+}
+
 function SpreadFrame({
   item,
   previewUrl,
@@ -475,7 +522,17 @@ function SpreadFrame({
     )
   // Stay mounted when a frame empties mid-drop so dragend still reaches document.
   // A draggable element inside a button is invalid HTML; Chromium still drags it.
-  const body = (
+  const body = item.text ? (
+    <div className="spread-frame-body">
+      <TextNode
+        text={item.text}
+        heightMm={item.rectMm.height}
+        pxPerMm={pxPerMm}
+        editor={control !== undefined}
+        thumb={thumb}
+      />
+    </div>
+  ) : (
     <div
       ref={bodyRef}
       className="spread-frame-body"
@@ -508,7 +565,10 @@ function SpreadFrame({
       <span
         className="spread-frame-caption"
         data-testid={thumb ? undefined : 'frame-caption'}
-        style={{ top: `calc(100% + ${String(CAPTION_GAP_MM * pxPerMm)}px)` }}
+        style={{
+          top: `calc(100% + ${String(CAPTION_GAP_MM * pxPerMm)}px)`,
+          fontSize: PHOTO_CAPTION_SIZE_MM * pxPerMm,
+        }}
       >
         {item.caption}
       </span>
@@ -519,11 +579,7 @@ function SpreadFrame({
         className="spread-frame"
         data-testid={thumb ? undefined : 'spread-frame'}
         data-frame-id={thumb ? undefined : item.frameId}
-        data-filled={item.assetId === undefined ? 'false' : 'true'}
-        data-drop-label={
-          thumb ? undefined : dropChipLabel(item.assetId !== undefined)
-        }
-        data-asset-id={thumb ? undefined : item.assetId}
+        {...kindAttrs(item, thumb)}
         style={style}
       >
         {body}
@@ -537,9 +593,7 @@ function SpreadFrame({
       className="spread-frame"
       data-testid="spread-frame"
       data-frame-id={item.frameId}
-      data-filled={item.assetId === undefined ? 'false' : 'true'}
-      data-drop-label={dropChipLabel(item.assetId !== undefined)}
-      data-asset-id={item.assetId}
+      {...kindAttrs(item, false)}
       data-crop-active={cropActive ? 'true' : undefined}
       data-locked={item.locked === true ? 'true' : undefined}
       aria-label={control.label}
