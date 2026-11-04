@@ -216,6 +216,46 @@ describe('SpreadPager', () => {
     expect(onExit).not.toHaveBeenCalled()
   })
 
+  it('takes focus on open, keeps Tab inside and returns focus to the opener', () => {
+    const opener = document.createElement('button')
+    const behind = document.createElement('button')
+    document.body.append(opener, behind)
+    opener.focus()
+    const bubbled = vi.fn()
+    document.addEventListener('keydown', bubbled)
+    const { unmount } = render(<Harness />)
+    const stage = screen.getByTestId('presentation')
+    expect(document.activeElement).toBe(stage)
+    // Focusable by script only: never a stop in the page's Tab order.
+    expect(stage.getAttribute('tabindex')).toBe('-1')
+    for (const shiftKey of [false, false, true, true]) {
+      const key = { key: 'Tab', shiftKey }
+      expect(
+        fireEvent.keyDown(document.activeElement ?? document.body, key),
+      ).toBe(false)
+      expect(document.activeElement).toBe(
+        screen.getByTestId('presentation-exit'),
+      )
+    }
+    expect(bubbled).not.toHaveBeenCalled()
+    unmount()
+    expect(document.activeElement).toBe(opener)
+    document.removeEventListener('keydown', bubbled)
+    opener.remove()
+    behind.remove()
+  })
+
+  it('skips the focus return when the opener is gone', () => {
+    const opener = document.createElement('button')
+    document.body.append(opener)
+    opener.focus()
+    const { unmount } = render(<Harness />)
+    opener.remove()
+    const focus = vi.spyOn(opener, 'focus')
+    unmount()
+    expect(focus).not.toHaveBeenCalled()
+  })
+
   it('does not report an index change at the edges', () => {
     const onIndexChange = vi.fn()
     render(
