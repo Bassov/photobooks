@@ -9,8 +9,9 @@ import {
   insertSpreadWithAssets,
   placeAsset,
   type Book,
+  type SavedTemplate,
 } from '../index'
-import { makeBook } from '../testing/fixtures'
+import { makeBook, makeSpread } from '../testing/fixtures'
 
 function gridBook(assetIds: readonly string[]): Book {
   return applyTemplate(addToGallery(makeBook(), assetIds), 'spread-1', '4-grid')
@@ -213,6 +214,58 @@ describe('insertSpreadWithAssets', () => {
     const filled = placed(next, 0).filter((id) => id !== undefined)
     expect(filled.length).toBeLessThan(ids.length)
     expect(filled).toEqual(ids.slice(0, filled.length))
+  })
+
+  describe('with saved templates', () => {
+    const landscape = { widthPx: 3000, heightPx: 2000 }
+    const ids = ['p1', 'l1', 'p2', 'l2', 'p3']
+    const tall = { x: 0, y: 0, w: 5, h: 90 }
+    const wide = { x: 0, y: 0, w: 90, h: 5 }
+    const fit: SavedTemplate = {
+      id: 'user-fit',
+      name: 'Fit',
+      pages: 2,
+      slots: [tall, wide, tall, wide, tall],
+    }
+
+    function mixedBook(): Book {
+      const book = addToGallery(
+        makeBook({
+          spreads: [makeSpread({ id: 'a' }), makeSpread({ id: 'b' })],
+        }),
+        ids,
+      )
+      return {
+        ...book,
+        assets: {
+          p1: portrait,
+          l1: landscape,
+          p2: portrait,
+          l2: landscape,
+          p3: portrait,
+        },
+      }
+    }
+
+    it('applies a saved layout that fits strictly better and fills it in order', () => {
+      const next = applyBookOp(mixedBook(), {
+        type: 'insertSpreadWithAssets',
+        index: 1,
+        assetIds: ids,
+        templates: [fit],
+      })
+      expect(next.spreads[1]?.templateId).toBe('user-fit')
+      expect(placed(next, 1)).toEqual(ids)
+      expect(checkBookInvariants(next)).toEqual({ ok: true })
+    })
+
+    it('keeps a builtin when the saved layout has another page count', () => {
+      const next = insertSpreadWithAssets(mixedBook(), 1, ids, [
+        { ...fit, pages: 1 },
+      ])
+      expect(next.spreads[1]?.templateId).not.toBe('user-fit')
+      expect(placed(next, 1).filter((id) => id !== undefined)).toEqual(ids)
+    })
   })
 
   it('returns the same book when no photo is usable', () => {

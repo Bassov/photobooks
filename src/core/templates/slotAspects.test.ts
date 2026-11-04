@@ -106,7 +106,10 @@ describe('bestTemplateId', () => {
   it('two portraits pick a template with two portrait slots', () => {
     const book = interiorBook()
     const id = bestTemplateId(book, 1, ['portrait', 'portrait'])
-    expect(templateSlotAspects(id, book, 1)).toEqual(['portrait', 'portrait'])
+    expect(isTemplateId(id) && templateSlotAspects(id, book, 1)).toEqual([
+      'portrait',
+      'portrait',
+    ])
   })
 
   it('landscape + two portraits picks the mixed template', () => {
@@ -174,7 +177,9 @@ describe('bestTemplateId', () => {
       const book = interiorBook()
       const id = bestTemplateId(book, 1, photos)
       expect(isTemplateId(id)).toBe(true)
-      const slots = templateSlotAspects(id, book, 1).length
+      const slots = isTemplateId(id)
+        ? templateSlotAspects(id, book, 1).length
+        : 0
       expect(slots).toBeGreaterThanOrEqual(Math.min(photos.length, 40))
     },
   )

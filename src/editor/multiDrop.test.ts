@@ -7,6 +7,7 @@ import {
   orderedGalleryIds,
   placedInChangedSpreads,
 } from './multiDrop'
+import { addSavedTemplate, resetSavedTemplatesForTests } from './savedTemplates'
 
 function seed(prepare: (book: Book) => Book = (book) => book): Book {
   resetBookStore()
@@ -49,6 +50,7 @@ describe('multiDrop', () => {
 
   afterEach(() => {
     resetBookStore()
+    resetSavedTemplatesForTests()
     setEditorStatus('')
   })
 
@@ -145,6 +147,18 @@ describe('multiDrop', () => {
     expect(getEditorStatus()).toBe('')
     undoBook()
     expect(getBookStoreSnapshot().book.spreads).toHaveLength(count)
+  })
+
+  it('a gap drop picks a saved template that fits better', () => {
+    // Seven photos on an interior spread: the nearest contact sheet has 8 cells.
+    seed((book) => addToGallery(book, ['f', 'g']))
+    const seven = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+    const slot = { x: 0, y: 0, w: 10, h: 10 }
+    const { id } = addSavedTemplate('Seven', Array(7).fill(slot), 2)
+    dropAssets({ type: 'gap', insertIndex: 1 }, seven)
+    const spread = getBookStoreSnapshot().book.spreads[1]
+    expect(spread?.templateId).toBe(id)
+    expect(spread?.frames.map((frame) => frame.assetId)).toEqual(seven)
   })
 
   it('a gap drop announces photos that do not fit the new spread', () => {

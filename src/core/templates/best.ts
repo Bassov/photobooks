@@ -1,6 +1,7 @@
 import type { Book } from '../schema'
 import { getSpreadPageCount } from '../geometry/spreadSize'
-import { templateSlotAspects, type AspectClass } from './aspect'
+import { slotAspect, templateSlotAspects, type AspectClass } from './aspect'
+import { customLayoutRects, type SavedTemplate } from './custom'
 import {
   CONTACT_MAX_COLS,
   CONTACT_MAX_ROWS,
@@ -32,24 +33,47 @@ function smallestContactSheet(perPage: number): TemplateId {
   return contactSheetId(best.cols, best.rows)
 }
 
-/** Pure best-fit template for photos in order, by count then orientation. */
+interface Candidate {
+  id: string
+  slots: readonly AspectClass[]
+}
+
+/**
+ * Pure best-fit template for photos in order, by count then orientation.
+ * Builtins come first, then `saved` layouts of this spread's page count in
+ * save order; on an equal score the earlier candidate wins.
+ */
 export function bestTemplateId(
   book: Book,
   spreadIndex: number,
   photos: readonly AspectClass[],
-): TemplateId {
+  saved: readonly SavedTemplate[] = [],
+): string {
   if (photos.length === 0) {
     return 'one-per-page'
   }
   const pages = getSpreadPageCount(spreadIndex, book.spreads.length)
-  const candidates = [
+  const builtins = [
     ...CANDIDATES,
     smallestContactSheet(Math.ceil(photos.length / pages)),
   ]
-  let winner: TemplateId = contactSheetId(CONTACT_MAX_COLS, CONTACT_MAX_ROWS)
+  const candidates: Candidate[] = [
+    ...builtins.map((id) => ({
+      id,
+      slots: templateSlotAspects(id, book, spreadIndex),
+    })),
+    ...saved
+      .filter((template) => template.pages === pages)
+      .map((template) => ({
+        id: template.id,
+        slots: customLayoutRects(book, spreadIndex, template.slots).map(
+          slotAspect,
+        ),
+      })),
+  ]
+  let winner: string = contactSheetId(CONTACT_MAX_COLS, CONTACT_MAX_ROWS)
   let winnerScore: [number, number] | null = null
-  for (const id of candidates) {
-    const slots = templateSlotAspects(id, book, spreadIndex)
+  for (const { id, slots } of candidates) {
     if (slots.length < photos.length) {
       continue
     }
