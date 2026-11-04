@@ -241,14 +241,13 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
               pxPerMm={pxPerMm}
               variant={gridVariant}
             />
-            <GuidesOverlay spreadId={spreadId} pxPerMm={pxPerMm} />
             <TemplatePreviewOverlay spreadId={spreadId} />
           </>
         ),
         frameControlFor,
       }
     : {}
-  return (
+  const paper = (
     <SpreadView
       spreadId={spreadId}
       resolved={snapshot.resolved}
@@ -266,5 +265,14 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       }
       tierFor={(assetId) => tierNumberFromKey(tierDisplayKey, assetId)}
     />
+  )
+  if (!editorLayer) return paper
+  // Guides sit beside the paper, not in it: the paper keeps its clip while
+  // the lines overhang the page by 24 px on every side (PG1).
+  return (
+    <div className="spread-stage" data-testid="spread-stage">
+      {paper}
+      <GuidesOverlay spreadId={spreadId} pxPerMm={pxPerMm} />
+    </div>
   )
 })

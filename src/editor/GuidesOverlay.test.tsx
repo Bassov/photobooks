@@ -68,12 +68,26 @@ function seedChildren() {
   })
 }
 
+/** ConnectedSpreadView's stage: the paper with the guides as its sibling. */
+function Stage({
+  spreadId,
+  pxPerMm = 2,
+}: {
+  spreadId: string
+  pxPerMm?: number
+}) {
+  return (
+    <div className="spread-stage">
+      <div data-testid="spread-view" data-spread-id={spreadId} />
+      <GuidesOverlay spreadId={spreadId} pxPerMm={pxPerMm} />
+    </div>
+  )
+}
+
 function renderInSpread(spreadId: string, pxPerMm = 2) {
   return render(
     <div data-rulers="true">
-      <div data-testid="spread-view" data-spread-id={spreadId}>
-        <GuidesOverlay spreadId={spreadId} pxPerMm={pxPerMm} />
-      </div>
+      <Stage spreadId={spreadId} pxPerMm={pxPerMm} />
       <div data-testid="ruler-x" />
       <div data-testid="ruler-y" />
     </div>,
@@ -143,9 +157,7 @@ describe('GuidesOverlay', () => {
     const parentDown = vi.fn()
     render(
       <div className="pasteboard-stage" onPointerDown={parentDown}>
-        <div data-testid="spread-view" data-spread-id="s1">
-          <GuidesOverlay spreadId="s1" pxPerMm={2} />
-        </div>
+        <Stage spreadId="s1" />
       </div>,
     )
     const [vertical] = screen.getAllByTestId('guide-line')
@@ -156,13 +168,9 @@ describe('GuidesOverlay', () => {
     expect(parentDown).not.toHaveBeenCalled()
   })
 
-  it('starts without a ruler when the spread has no stage, and not at all outside a spread', () => {
+  it('starts without a ruler when the spread has no rulers stage, and not at all outside a spread', () => {
     seed()
-    render(
-      <div data-testid="spread-view" data-spread-id="s1">
-        <GuidesOverlay spreadId="s1" pxPerMm={2} />
-      </div>,
-    )
+    render(<Stage spreadId="s1" />)
     fireEvent.pointerDown(screen.getAllByTestId('guide-line')[0] as Element, {
       button: 0,
     })
@@ -176,6 +184,17 @@ describe('GuidesOverlay', () => {
     )
     expect(startGuideDrag).not.toHaveBeenCalled()
     expect(bare).toBe(true)
+    cleanup()
+    // A stage without its paper (mid-unmount) starts nothing either.
+    render(
+      <div className="spread-stage">
+        <GuidesOverlay spreadId="s1" pxPerMm={2} />
+      </div>,
+    )
+    fireEvent.pointerDown(screen.getAllByTestId('guide-line')[0] as Element, {
+      button: 0,
+    })
+    expect(startGuideDrag).not.toHaveBeenCalled()
   })
 
   it('draws and follows a parent’s guides on the Masters canvas', () => {

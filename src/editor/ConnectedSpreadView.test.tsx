@@ -1009,6 +1009,7 @@ describe('Preview render (editorLayer off)', () => {
       templatePreview: 0,
     })
     expect(screen.getByTestId('spread-frame').tagName).toBe('DIV')
+    expect(screen.queryByTestId('spread-stage')).toBeNull()
     // Selection is untouched: the editor shows it again after Preview.
     expect(getFrameSource()).toEqual({ spreadId: 's0', frameId })
   })
@@ -1025,6 +1026,18 @@ describe('Preview render (editorLayer off)', () => {
       guides: 1,
       templatePreview: 1,
     })
+  })
+
+  it('puts the guides beside the paper so its clip leaves their overhang', () => {
+    selectFrameWithEditorChrome()
+    render(<ConnectedSpreadView spreadId="s0" />)
+    const stage = screen.getByTestId('spread-stage')
+    const paper = screen.getByTestId('spread-view')
+    const guides = screen.getByTestId('guides-layer')
+    expect([...stage.children]).toEqual([paper, guides])
+    // Grid and template preview stay on the paper, under its clip.
+    expect(paper.contains(screen.getByTestId('grid-overlay'))).toBe(true)
+    expect(paper.contains(screen.getByTestId('tpl-preview'))).toBe(true)
   })
 })
 
