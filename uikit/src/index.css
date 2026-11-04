@@ -262,6 +262,22 @@ html[data-density="compact"], .density-compact {
   .pb-badge-dot { background: var(--b-dot); }
 }
 
+/* Published site (Designer site-viewer §1): the site's own token layer, today's kit values; a later site direction changes only these.
+   Classes in features/site-viewer.tsx read them through [color:var(--site-*)] utilities. */
+.site {
+  --site-bg: #E1E1E1; --site-text: #393738; --site-muted: #535152; --site-control: #D7D7D7; --site-control-hover: #CFCFCF; --site-focus: #535152;
+  --site-font: "Inter Variable", Inter, system-ui, sans-serif; --site-heading: "Lora Variable", Lora, serif;
+  --site-page-shadow: 0 2px 6px rgb(0 0 0 / .10), 0 12px 32px rgb(0 0 0 / .14);
+  background: var(--site-bg); color: var(--site-text); font: 400 13px/1.5 var(--site-font);
+}
+/* page headings: Lora 32/40, narrow (< 768) 28/36 */
+.site-h1 { font-size: 32px; line-height: 40px; }
+.site[data-narrow] .site-h1 { font-size: 28px; line-height: 36px; }
+/* catalog card: the book object lifts 2px on hover; none with reduced motion */
+.site-card .site-card-obj { transition: transform 160ms cubic-bezier(.2, 0, 0, 1); }
+.site-card:hover .site-card-obj { transform: translateY(-2px); }
+@media (prefers-reduced-motion: reduce) { .site-card:hover .site-card-obj { transform: none; } }
+
 /* UI kit: monospace for checkbox ids (system stack, no download) */
 @theme { --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace; }
 
