@@ -5,6 +5,7 @@ import {
   useSyncExternalStore,
   type CSSProperties,
 } from 'react'
+import { bookDpiThresholds } from '../core'
 import { Icon } from '../ui/Icon'
 import {
   getAssetAspectSnapshot,
@@ -145,10 +146,11 @@ const FilmstripItemBody = memo(function FilmstripItemBody({
 /** Stored or decoded pixel size against the current trim; unknown → false. */
 function isAssetLowRes(id: string): boolean {
   const size = getAssetPixelSizeSnapshot(id)
-  return (
-    size !== undefined &&
-    pageFillLowRes(getBookStoreSnapshot().book.settings.trim, size)
-  )
+  if (size === undefined) {
+    return false
+  }
+  const { book } = getBookStoreSnapshot()
+  return pageFillLowRes(book.settings.trim, size, bookDpiThresholds(book))
 }
 
 function matchesFocusVisible(element: Element): boolean {

@@ -340,6 +340,43 @@
   color: var(--muted-foreground);
 }
 
+/* Designer default-master P1: the note above the Masters list, text at the
+   row label x (12 px list inset + 8 px). */
+.editor-masters-intro {
+  margin: 0;
+  padding: 2px 8px 10px;
+  font-size: var(--text-xs);
+  line-height: 16.8px;
+  font-weight: 400;
+}
+
+.editor-masters-intro b {
+  font-weight: 500;
+}
+
+/* Designer default-master P2: "Default" tag at the end of the row label. */
+.editor-master-default-tag {
+  margin-left: auto;
+  height: 14px;
+  padding: 0 5px;
+  border-radius: var(--radius-xs);
+  background: var(--t-tag);
+  font-size: var(--text-3xs);
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0.01em;
+}
+
+/* Designer default-master P3: the default's disabled Delete still shows
+   its title on hover. */
+.editor-master-menu-label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: inherit;
+  pointer-events: auto;
+}
+
 /* Kit .eyebrow (uikit/src/index.css): quiet muted section title. */
 .inspector-eyebrow {
   font-size: var(--text-2xs);

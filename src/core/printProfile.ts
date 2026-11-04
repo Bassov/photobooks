@@ -1,31 +1,14 @@
-import { TRIM_MAX_MM, TRIM_MIN_MM } from './ops/bookSettings'
+import { DPI_MIN, DPI_WARN, type DpiThresholds } from './geometry/dpi'
+import {
+  DEFAULT_PRINT_PROFILE_ID,
+  genericPrintProfile,
+  type PrintProfile,
+} from './print/profileSchema'
 import type { Book, PrintProfileOverrides, PrintProfileRef } from './schema'
 
-/** Trim / bleed limits a print profile puts on the book's own values (mm). */
-export interface PrintProfile {
-  id: string
-  trimMinMm: number
-  trimMaxMm: number
-  bleedMinMm: number
-  bleedMaxMm: number
-}
-
-export const DEFAULT_PRINT_PROFILE_ID = 'generic'
-
-/**
- * Built-in profiles; `print-profiles` grows this into printer data. Built per
- * call (not at module load) so that its mutants are reachable per test.
- */
+/** Built per call (not at module load) so that its mutants are reachable. */
 function builtInProfiles(): readonly PrintProfile[] {
-  return [
-    {
-      id: DEFAULT_PRINT_PROFILE_ID,
-      trimMinMm: TRIM_MIN_MM,
-      trimMaxMm: TRIM_MAX_MM,
-      bleedMinMm: 0,
-      bleedMaxMm: 10,
-    },
-  ]
+  return [genericPrintProfile()]
 }
 
 export function defaultPrintProfileRef(): PrintProfileRef {
@@ -49,12 +32,24 @@ export function resolvePrintProfile(
   }
   const overrides: PrintProfileOverrides = ref.overrides
   return {
-    id: base.id,
+    ...base,
     trimMinMm: overrides.trimMinMm ?? base.trimMinMm,
     trimMaxMm: overrides.trimMaxMm ?? base.trimMaxMm,
     bleedMinMm: overrides.bleedMinMm ?? base.bleedMinMm,
     bleedMaxMm: overrides.bleedMaxMm ?? base.bleedMaxMm,
   }
+}
+
+/** DPI gates of the book's effective profile; unknown id → the defaults. */
+export function bookDpiThresholds(
+  book: Pick<Book, 'printProfile'>,
+): DpiThresholds {
+  return (
+    resolvePrintProfile(bookPrintProfileRef(book))?.dpi ?? {
+      warn: DPI_WARN,
+      min: DPI_MIN,
+    }
+  )
 }
 
 export type PrintRangeField = 'trim-width' | 'trim-height' | 'bleed'

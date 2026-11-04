@@ -430,19 +430,11 @@ describe('parent changes re-align the spreads whose grid changes', () => {
       patch: { columnGutterMm: 30 },
     })
 
-  it('deleting the default master re-aligns its spreads to the book grid', () => {
+  it('deleting the default master is refused', () => {
     const book = bookWithMasters({ columnGutterMm: 20, margins: { top: 25 } })
-    const next = applyBookOp(book, { type: 'removeParent', parentId: 'ma' })
-    // `c` overrides the gutter but reads Master A's top.
-    expect(changedIds(book, next)).toEqual(['a', 'b', 'c'])
-    expect(spreadOf(next, 'a')?.frames[0]?.rect).not.toEqual(
-      spreadOf(book, 'a')?.frames[0]?.rect,
+    expect(applyBookOp(book, { type: 'removeParent', parentId: 'ma' })).toBe(
+      book,
     )
-    expect(spreadOf(next, 'a')?.frames[0]?.assetId).toBe('p')
-    expect(spreadOf(next, 'c')?.layoutGrid).toEqual({ columnGutterMm: 12 })
-    for (const id of ['a', 'b', 'c']) {
-      expect(isAligned(next, id)).toBe(true)
-    }
   })
 
   it('deleting a stored master re-aligns only the spreads that stored it', () => {
@@ -458,9 +450,10 @@ describe('parent changes re-align the spreads whose grid changes', () => {
 
   it('deleting a master without a grid of its own re-aligns nothing', () => {
     const book = offGrid(bookWithMasters())
-    const next = applyBookOp(book, { type: 'removeParent', parentId: 'ma' })
-    expect(next).not.toBe(book)
-    expect(changedIds(book, next)).toEqual([])
+    const next = applyBookOp(book, { type: 'removeParent', parentId: 'mb' })
+    // `d` only drops its parent; its frames stay where they were.
+    expect(changedIds(book, next)).toEqual(['d'])
+    expect(spreadOf(next, 'd')?.frames).toBe(spreadOf(book, 'd')?.frames)
   })
 
   it('a new default re-aligns only the spreads with no stored parent', () => {
@@ -477,28 +470,16 @@ describe('parent changes re-align the spreads whose grid changes', () => {
     expect(spreadOf(next, 'c')?.layoutGrid).toEqual({ columnGutterMm: 12 })
   })
 
-  it('clearing the default re-aligns the unset spreads to the book grid', () => {
-    const book = bookWithMasters({ margins: { top: 25 } })
-    const next = applyBookOp(book, { type: 'setDefaultParent', parentId: null })
-    expect(next).not.toHaveProperty('defaultParentId')
-    expect(changedIds(book, next)).toEqual(['a', 'b', 'c'])
-    expect(isAligned(next, 'c')).toBe(true)
-  })
-
-  it('the current default, an unknown id or null without a default is a no-op', () => {
+  it('the current default, an unknown id or null while masters exist is a no-op', () => {
     const book = bookWithMasters({ columnGutterMm: 20 })
-    for (const parentId of ['ma', 'gone']) {
+    for (const parentId of ['ma', 'gone', null]) {
       expect(applyBookOp(book, { type: 'setDefaultParent', parentId })).toBe(
         book,
       )
     }
-    const none = applyBookOp(book, { type: 'setDefaultParent', parentId: null })
-    expect(
-      applyBookOp(none, { type: 'setDefaultParent', parentId: null }),
-    ).toBe(none)
   })
 
-  it('switching to or deleting the default master re-aligns all 40 painter spreads', () => {
+  it('switching the default master re-aligns all 40 painter spreads; deleting it is refused', () => {
     const { book: painter } = makePainterFixture()
     const gridded = applyBookOp(painter, {
       type: 'setSpreadGrid',
@@ -510,11 +491,17 @@ describe('parent changes re-align the spreads whose grid changes', () => {
       parentId: 'painter-parent-a',
     })
     expect(changedIds(gridded, withDefault)).toHaveLength(40)
-    const removed = applyBookOp(withDefault, {
-      type: 'removeParent',
-      parentId: 'painter-parent-a',
+    const switched = applyBookOp(withDefault, {
+      type: 'setDefaultParent',
+      parentId: 'painter-parent-b',
     })
-    expect(changedIds(withDefault, removed)).toHaveLength(40)
+    expect(changedIds(withDefault, switched)).toHaveLength(40)
+    expect(
+      applyBookOp(withDefault, {
+        type: 'removeParent',
+        parentId: 'painter-parent-a',
+      }),
+    ).toBe(withDefault)
   })
 })
 
