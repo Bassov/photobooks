@@ -128,6 +128,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [parent-overrides](roadmap/P2/parent-overrides.md) — change one spread without touching the parent
 - [ ] [feature] [page-numbers](roadmap/P2/page-numbers.md) — page numbers
 - [ ] [feature] [page-numbers-kit](roadmap/P2/page-numbers-kit.md) — Bug: /next-roadmap-item page-numbers-kit
+- [ ] [feature] [page-numbers-core](roadmap/P2/page-numbers-core.md) — Bug: /next-roadmap-item page-numbers-core
 - [ ] [feature] [user-templates](roadmap/P2/user-templates.md) — your own layouts
 
 ## P3 — Personal site

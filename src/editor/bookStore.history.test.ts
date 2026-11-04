@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { makeBookWithAsset } from '../core/testing/fixtures'
+import { makeBook, makeBookWithAsset } from '../core/testing/fixtures'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
@@ -224,5 +224,65 @@ describe('bookStore history: cover', () => {
     dispatchBookOp({ type: 'setCoverText', panel: 'back', text: 'Th' })
     undoBook()
     expect(getBookStoreSnapshot().book.cover.back.text).toBe('')
+  })
+})
+
+describe('bookStore history: page numbers', () => {
+  afterEach(() => {
+    resetBookStore()
+  })
+
+  function loadMasterBook(): void {
+    resetBookStore({
+      book: makeBook({
+        parents: [{ id: 'pA', name: 'Master A', frames: [], guides: [] }],
+        defaultParentId: 'pA',
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+  }
+
+  it('undo and redo step master page numbers and book numbering', () => {
+    loadMasterBook()
+    dispatchBookOp({
+      type: 'setParentPageNumbers',
+      parentId: 'pA',
+      position: 'outer',
+    })
+    expect(getHistorySnapshot().undoLabel).toBe('Page numbers')
+    dispatchBookOp({
+      type: 'setPageNumbering',
+      patch: { start: 5, format: 'upper-roman' },
+    })
+    expect(getHistorySnapshot().undoLabel).toBe('Page numbering')
+    expect(getBookStoreSnapshot().book.pageNumbering).toEqual({
+      start: 5,
+      skipFirst: false,
+      format: 'upper-roman',
+    })
+
+    undoBook()
+    expect('pageNumbering' in getBookStoreSnapshot().book).toBe(false)
+    undoBook()
+    expect(getBookStoreSnapshot().book.parents?.[0]?.pageNumbers).toBe(
+      undefined,
+    )
+
+    redoBook()
+    redoBook()
+    const { book } = getBookStoreSnapshot()
+    expect(book.parents?.[0]?.pageNumbers?.map((item) => item.id)).toEqual([
+      'pA-pn-l',
+      'pA-pn-r',
+    ])
+    expect(book.pageNumbering?.start).toBe(5)
+  })
+
+  it('a numbering patch that changes nothing records no step', () => {
+    loadMasterBook()
+    dispatchBookOp({ type: 'setPageNumbering', patch: { start: 1 } })
+    expect(getHistorySnapshot().canUndo).toBe(false)
   })
 })
