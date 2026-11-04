@@ -77,7 +77,9 @@ export async function capture(out, { log = console.log, probe } = {}) {
     ["editor-spread-duplicated", async () => { await page.getByRole("menuitem", { name: /Duplicate/ }).click() }],
     ["editor-spread-reordered", async () => { await page.locator('[data-item="p2"]').dragTo(page.locator('[data-item="p4"]')); await settle(300) }],
     ["editor-master-guides-edit", async () => { await page.locator('[data-testid="mode-seg"]').getByText("Masters", { exact: true }).click(); await settle(250); await page.keyboard.press("Shift+R"); await page.keyboard.press("Control+;"); await settle(200); const r = await page.locator('[data-testid="ruler-y"]').boundingBox(); const t = await page.locator('[data-testid="canvas-master"]').boundingBox(); await page.mouse.move(Math.round(r.x + 10), Math.round(r.y + r.height / 2)); await page.mouse.down(); await page.mouse.move(Math.round(t.x + t.width * 0.3), Math.round(r.y + r.height / 2), { steps: 6 }); await page.mouse.up(); return "keep" }],
-    ["editor-master-page-numbers-on", async () => { await c('[data-testid="insp-master"] [role=switch][aria-label="Page numbers"]') }],
+    // parent-guides PG5: Master A's guides (incl. the one just added) show dashed on its child spread
+    ["editor-parent-guides-inherited", async () => { await page.locator('[data-testid="mode-seg"]').getByText("Pages", { exact: true }).click(); await settle(250) }],
+    ["editor-master-page-numbers-on", async () => { await page.locator('[data-testid="mode-seg"]').getByText("Masters", { exact: true }).click(); await settle(250); await c('[data-testid="insp-master"] [role=switch][aria-label="Page numbers"]') }],
     ["editor-spread-inherits-master", async () => { await page.locator('[data-testid="mode-seg"]').getByText("Pages", { exact: true }).click(); await settle(250); await c('[data-item="p1"]') }],
     ["editor-parent-item-overridden", async () => { await page.locator('[data-current] [data-testid="master-frame"]').first().click({ modifiers: ["Alt"], force: true }) }],
     ["editor-missing-photos", async () => { await page.evaluate(() => window.__demo.missing(2)); await settle(400) }],

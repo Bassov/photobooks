@@ -8,7 +8,9 @@ import {
   CURRENT_SCHEMA_VERSION,
   defaultCover,
   defaultEndpapers,
+  defaultPrintProfileRef,
   type Book,
+  type BookOp,
   type GridPatch,
 } from '../core'
 import {
@@ -780,6 +782,7 @@ function createEmptyLibraryBook(
     assets: {},
     gallery: [],
     spreads: [],
+    printProfile: defaultPrintProfileRef(),
   }
   return ['spread-1', 'spread-2', 'spread-3'].reduce<Book>(
     (book, spreadId) => addSpread(book, { id: spreadId }),
@@ -1256,6 +1259,11 @@ export function setBookGridForTests(patch: GridPatch): void {
   dispatchBookOp({ type: 'setBookGrid', patch })
 }
 
+/** Test seam: one book op with no UI yet (e.g. text frames before the Text tool). */
+function dispatchBookOpForTests(op: BookOp): void {
+  dispatchBookOp(op)
+}
+
 /** Test seam: force access chrome phase without a real FSA denial. */
 export function setSurfaceForTests(next: ProjectSessionSurface): void {
   surface = next
@@ -1407,6 +1415,7 @@ export function exposeProjectSessionTestApi(
     regrantLibraryWithHandleForTests,
     setAccessPhaseForTests,
     setBookGridForTests,
+    dispatchBookOpForTests,
     holdExternalBookLockForTests,
     tryActivateLibraryBookForTests,
     configureProjectSession,
@@ -1459,6 +1468,7 @@ declare global {
       regrantLibraryWithHandleForTests: typeof regrantLibraryWithHandleForTests
       setAccessPhaseForTests: typeof setAccessPhaseForTests
       setBookGridForTests: typeof setBookGridForTests
+      dispatchBookOpForTests: typeof dispatchBookOpForTests
       holdExternalBookLockForTests: typeof holdExternalBookLockForTests
       tryActivateLibraryBookForTests: typeof tryActivateLibraryBookForTests
       configureProjectSession: typeof configureProjectSession
