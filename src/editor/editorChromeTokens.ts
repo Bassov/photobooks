@@ -17,7 +17,6 @@ export {
   mmToCm,
   PAGE_MAX,
   PAGE_MIN,
-  pageLabel,
   pagesNote,
   pagesOf,
 } from './editorChromePanels'

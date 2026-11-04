@@ -164,6 +164,7 @@ export {
   PAGE_MAX,
   PAGE_MIN,
   PAGE_STEP,
+  pageLabel,
   pagesOf,
   spineWidthForPages,
 } from './pages'

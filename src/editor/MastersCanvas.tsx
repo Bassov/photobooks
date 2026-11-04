@@ -12,7 +12,7 @@ import {
   shownParentId,
   subscribeLeftPanelTab,
 } from './leftPanelTabStore'
-import './CoverCanvas.css'
+import '../render/CoverView.css'
 
 /** Kit viewport.tsx:110-121 band: 56 px top, 48 px bottom, 40 px sides (`.cover-stage`). */
 const STAGE_PAD_X_PX = 80

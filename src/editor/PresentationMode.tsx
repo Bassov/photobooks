@@ -1,33 +1,34 @@
 import { useState, useSyncExternalStore } from 'react'
 import { bookSpineWidthMm } from '../core'
+import { CoverView } from '../render/CoverView'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import { SpreadPager } from '../render/SpreadPager'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
-import { CoverCanvas } from './CoverCanvas'
 import {
   getBookStoreSnapshot,
   getSpreadIdsSnapshot,
   subscribeBookStore,
 } from './bookStore'
+import { useTierPreviewUrl } from './useTierPreviewUrl'
 
-function readCoverWidthMm(): number {
-  const { book } = getBookStoreSnapshot()
-  return 2 * book.settings.trim.widthMm + bookSpineWidthMm(book)
+function readBook() {
+  return getBookStoreSnapshot().book
 }
 
 /** The cover slide at the spreads' px / mm, so the pager fits it the same way. */
 function PresentationCover() {
-  const widthMm = useSyncExternalStore(
-    subscribeBookStore,
-    readCoverWidthMm,
-    readCoverWidthMm,
+  const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
+  const { url, tier } = useTierPreviewUrl(
+    book.cover.front.assetId,
+    'cover:preview',
   )
+  const widthMm = 2 * book.settings.trim.widthMm + bookSpineWidthMm(book)
   return (
     <div
       data-testid="presentation-cover"
       style={{ width: widthMm * SPREAD_PX_PER_MM }}
     >
-      <CoverCanvas mini tierSlot="cover:preview" />
+      <CoverView book={book} frontUrl={url} frontTier={tier} />
     </div>
   )
 }
