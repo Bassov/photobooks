@@ -1,64 +1,33 @@
-/* site-awards v2 common (Spec site-awards-v2 "Common"): one family, General Sans (ITF Free Font License,
-   ../../fonts/LICENSE-GeneralSans-ITF-FFL.txt), sentence case, no tracked caps, no mono. Scoped to .sv2 (each demo root). */
+/* site-awards v2 common (Spec site-awards-v2 "Common"): one family, Inter Display — Inter variable with the opsz axis
+   (OFL, ../../fonts/LICENSE-Inter-OFL.txt). Titles / large: opsz 32, 400, −0.035em; text / UI ≤ 20 px: opsz 14, 400
+   (name / links 500), −0.01em. Emphasis = muted colour, no italic. Sentence case, no tracked caps, no mono. Scoped to .sv2. */
 @font-face {
-  font-family: 'General Sans';
+  font-family: 'Inter Display';
   font-style: normal;
   font-display: swap;
-  font-weight: 300;
-  src: url('../../fonts/general-sans-300.woff2') format('woff2');
+  font-weight: 100 900;
+  src: url('../../fonts/inter-opsz.woff2') format('woff2-variations');
 }
 @font-face {
-  font-family: 'General Sans';
+  font-family: 'Inter Display';
   font-style: italic;
   font-display: swap;
-  font-weight: 300;
-  src: url('../../fonts/general-sans-300i.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'General Sans';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 400;
-  src: url('../../fonts/general-sans-400.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'General Sans';
-  font-style: italic;
-  font-display: swap;
-  font-weight: 400;
-  src: url('../../fonts/general-sans-400i.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'General Sans';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 500;
-  src: url('../../fonts/general-sans-500.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'General Sans';
-  font-style: italic;
-  font-display: swap;
-  font-weight: 500;
-  src: url('../../fonts/general-sans-500i.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'General Sans';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 600;
-  src: url('../../fonts/general-sans-600.woff2') format('woff2');
+  font-weight: 100 900;
+  src: url('../../fonts/inter-opsz-i.woff2') format('woff2-variations');
 }
 
 .sv2 {
-  --gs: 'General Sans', system-ui, sans-serif;
+  --gs: 'Inter Display', system-ui, sans-serif;
+  /* opsz per role: text / UI 14, titles 32 */
+  --sv2-text: 'opsz' 14;
+  --sv2-title: 'opsz' 32;
   --sv2-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --sv2-ink: #1e1c19;
   --sv2-muted: #5f5950;
   --sv2-rule: rgb(30 28 25 / 0.12);
-  /* the cover title on Book3D / CoverFace: 500, min(w, h) × .105, −.025em */
+  /* the cover title on Book3D / CoverFace: 400, opsz 32, min(w, h) × .105, −.035em */
   --cover-k: 0.105;
-  --cover-ls: -0.025em;
+  --cover-ls: -0.035em;
   /* what the demo-1 reader, Book3D and art read */
   --site-paper: #ffffff;
   --site-ink: #1a1918;
@@ -76,17 +45,45 @@
   overflow: hidden;
   font-family: var(--gs);
   font-weight: 400;
+  font-variation-settings: var(--sv2-text);
+  letter-spacing: -0.01em;
   color: var(--sv2-ink);
   -webkit-font-smoothing: antialiased;
   font-kerning: normal;
 }
+.sv2 em,
+.sv2 i {
+  font-style: normal;
+}
 .sv2 .sd-it {
   font-family: var(--gs);
   font-style: normal;
-  font-weight: 500;
+  font-weight: 400;
+  font-variation-settings: var(--sv2-title);
 }
 .sv2 .b3-spine-t {
-  letter-spacing: 0.01em;
+  font-weight: 500;
+  font-variation-settings: var(--sv2-text);
+  letter-spacing: -0.01em;
+}
+/* the demos' own large type (> 20 px) and text classes, one place for the Inter Display roles */
+.sv2
+  :is(
+    .sv2-display,
+    .sv2g-title,
+    .sv2g-email,
+    .sv3-title,
+    .sv3-email,
+    .sd3-book-title,
+    .sd3-slot,
+    .sv5-cap-t
+  ) {
+  font-weight: 400;
+  font-variation-settings: var(--sv2-title);
+  letter-spacing: -0.035em;
+}
+.sv2 :is(.sv3-pv-st, .sd3-statement, .sv4-row-t, .sv5-spine-t) {
+  letter-spacing: -0.01em;
 }
 :where(.sv2) :where(button) {
   font: inherit;
@@ -155,7 +152,6 @@
   font-weight: 400;
   font-size: 20px;
   line-height: 1.4;
-  letter-spacing: -0.005em;
   color: var(--sv2-ink);
   text-wrap: pretty;
 }
@@ -180,7 +176,8 @@
   margin: 0;
   font-weight: 400;
   line-height: 1.04;
-  letter-spacing: -0.03em;
+  font-variation-settings: var(--sv2-title);
+  letter-spacing: -0.035em;
   color: var(--sv2-ink);
   text-wrap: balance;
 }

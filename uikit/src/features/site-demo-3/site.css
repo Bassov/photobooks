@@ -42,7 +42,7 @@
   text-underline-offset: 8px; text-decoration-color: var(--sv2-rule) }
 .sv3-email:hover { text-decoration-color: var(--sv2-ink) }
 
-/* the book page (./book), re-set in General Sans */
+/* the book page (./book), re-set in Inter Display */
 .sd3-abs { position: absolute }
 .sd3-mono { font-weight: 400; font-size: 13px; line-height: 1.6; color: var(--sv2-muted); font-variant-numeric: tabular-nums; white-space: nowrap }
 .sd3-mono.sd3-s { font-size: 13px }

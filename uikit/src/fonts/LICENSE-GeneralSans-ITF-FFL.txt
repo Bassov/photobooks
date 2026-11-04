@@ -1,9 +1,0 @@
-General Sans (general-sans-*.woff2)
-Published by the Indian Type Foundry (ITF) on Fontshare: https://www.fontshare.com/fonts/general-sans
-
-Licence: ITF Free Font License (FFL), https://www.fontshare.com/licenses/itf-ffl
-The fonts are free for personal and commercial use. They may be embedded in websites and applications. The font files
-may not be sold on their own or redistributed as a font product. Copyright (c) Indian Type Foundry. All rights reserved
-by the copyright holder except as granted by the licence above.
-
-Used only by the photographer-site demos of the kit (uikit/src/features/site-demo-*, Spec site-awards-v2).

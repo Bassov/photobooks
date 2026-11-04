@@ -41,7 +41,7 @@ export function SpreadArt({ b, k, w, shadow, fold = true }: { b: SiteBook; k: nu
 export function TitlePage({ b, h }: { b: SiteBook; h: number }) {
   return (
     <div className="absolute inset-0 grid place-content-center text-center" style={{ background: "var(--site-paper)" }}>
-      <div className="sd-it leading-none" style={{ fontSize: Math.round(h * 0.055), color: "var(--site-ink)", letterSpacing: "-0.02em" }}>{b.title}</div>
+      <div className="sd-it leading-none" style={{ fontSize: Math.round(h * 0.055), color: "var(--site-ink)", letterSpacing: "var(--cover-ls, -0.02em)" }}>{b.title}</div>
       <div className="leading-none" style={{ marginTop: Math.round(h * 0.025), fontSize: Math.max(12, Math.round(h * 0.018)), letterSpacing: ".2em", color: "var(--site-muted)" }}>{AUTHOR.toUpperCase()} · {b.year}</div>
     </div>
   )

@@ -21,7 +21,7 @@ export const Book3D = React.forwardRef<HTMLDivElement, { b: SiteBook; s: number;
       <div className="sd-b3" style={{ width: W, height: H }}>
         <div style={{ left: 0, top: 0, width: W, height: H, background: b.spine, transform: `translateZ(${-T / 2}px) rotateY(180deg)` }} />
         <div className="sd-b3-spine" style={{ width: T, height: H, left: (W - T) / 2, top: 0, background: `${SPINE_SHADE}, ${b.spine}`, transform: `rotateY(-90deg) translateZ(${W / 2}px)` }}>
-          <span className="sd-it b3-spine-t" style={{ fontSize: Math.min(13, T * 0.5), color: b.spineInk }}>{b.title}</span>
+          <span className="sd-it b3-spine-t" style={{ fontSize: Math.max(11, Math.min(13, T * 0.5)), color: b.spineInk }}>{b.title}</span>
         </div>
         <div className="sd-b3-fore" style={{ width: T - 4, height: H - 6, left: (W - T + 4) / 2, top: 3, transform: `rotateY(90deg) translateZ(${W / 2 - 3}px)` }} />
         <div className="sd-b3-top" style={{ width: W - 3, height: T - 4, left: 0, top: (H - T + 4) / 2, transform: `rotateX(90deg) translateZ(${H / 2 - 3}px)` }} />
