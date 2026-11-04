@@ -42,6 +42,30 @@
   inset: -4px 0;
 }
 
+/* A parent's guide on a spread using it (kit inherited `GuideLine`): read-only
+   4 / 3 px dashes in screen px from the line start, a press reaches what is under it. */
+.guide-line[data-layer='parent'] {
+  pointer-events: none;
+  cursor: auto;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--parent-soft) 0 4px,
+    transparent 4px 7px
+  );
+}
+
+.guide-line[data-layer='parent'][data-orientation='horizontal'] {
+  background: repeating-linear-gradient(
+    to right,
+    var(--parent-soft) 0 4px,
+    transparent 4px 7px
+  );
+}
+
+.guide-line[data-layer='parent']::before {
+  content: none;
+}
+
 .guide-line[data-dragging='true'] {
   pointer-events: none;
 }

@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { Profiler } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeSpread } from '../core/testing/fixtures'
 import { dispatchBookOp, resetBookStore } from './bookStore'
@@ -27,6 +28,37 @@ function seed(locked = false) {
           name: 'Master A',
           frames: [],
           guides: [{ id: 'pg', orientation: 'horizontal', offsetMm: 30 }],
+        },
+      ],
+    }),
+    sessionMeta: new Map(),
+    importRunning: false,
+    importExpectedCount: 0,
+  })
+}
+
+/** Master A (horizontal 30, vertical 400 mm) on `first` and `child`; `none` has no parent. */
+function seedChildren() {
+  resetBookStore({
+    book: makeBook({
+      spreads: [
+        makeSpread({ id: 'first', parentId: 'pa' }),
+        makeSpread({
+          id: 'child',
+          parentId: 'pa',
+          guides: [{ id: 'own', orientation: 'vertical', offsetMm: 50 }],
+        }),
+        makeSpread({ id: 'none', parentId: null }),
+      ],
+      parents: [
+        {
+          id: 'pa',
+          name: 'Master A',
+          frames: [],
+          guides: [
+            { id: 'pg', orientation: 'horizontal', offsetMm: 30 },
+            { id: 'pv', orientation: 'vertical', offsetMm: 400 },
+          ],
         },
       ],
     }),
@@ -172,6 +204,70 @@ describe('GuidesOverlay', () => {
     renderInSpread('nope')
     expect(screen.getByTestId('guides-layer')).toBeTruthy()
     expect(screen.queryAllByTestId('guide-line')).toHaveLength(0)
+  })
+
+  it('draws the parent’s guides read-only under the spread’s own, mapped onto a single page', () => {
+    seedChildren()
+    renderInSpread('child')
+    const lines = screen
+      .getByTestId('guides-layer')
+      .querySelectorAll<HTMLElement>('.guide-line')
+    expect([...lines].map((line) => line.dataset.testid)).toEqual([
+      'guide-line-parent',
+      'guide-line-parent',
+      'guide-line',
+    ])
+    const [across, down] = screen.getAllByTestId('guide-line-parent')
+    expect(across?.dataset.layer).toBe('parent')
+    expect(across?.style.top).toBe('60px')
+    expect(down?.style.left).toBe('800px')
+    fireEvent.pointerDown(across as Element, { button: 0 })
+    expect(startGuideDrag).not.toHaveBeenCalled()
+    cleanup()
+
+    // Page 1 is a right page: the 400 mm guide sits 100 mm into it.
+    renderInSpread('first')
+    const [, first] = screen.getAllByTestId('guide-line-parent')
+    expect(first?.dataset.offsetMm).toBe('100')
+    expect(first?.style.left).toBe('200px')
+  })
+
+  it('follows a new spread id', () => {
+    seedChildren()
+    const view = render(<GuidesOverlay spreadId="none" pxPerMm={2} />)
+    expect(screen.queryAllByTestId('guide-line-parent')).toHaveLength(0)
+    view.rerender(<GuidesOverlay spreadId="child" pxPerMm={2} />)
+    expect(screen.getAllByTestId('guide-line-parent')).toHaveLength(2)
+  })
+
+  it('re-renders only the overlays of spreads using an edited parent', () => {
+    seedChildren()
+    const renders = { child: 0, none: 0 }
+    const count = (id: string) => () => {
+      renders[id as keyof typeof renders] += 1
+    }
+    render(
+      <>
+        <Profiler id="child" onRender={count('child')}>
+          <GuidesOverlay spreadId="child" pxPerMm={2} />
+        </Profiler>
+        <Profiler id="none" onRender={count('none')}>
+          <GuidesOverlay spreadId="none" pxPerMm={2} />
+        </Profiler>
+      </>,
+    )
+    const before = { ...renders }
+    act(() => {
+      dispatchBookOp({
+        type: 'addGuide',
+        spreadId: 'pa',
+        orientation: 'horizontal',
+        offsetMm: 80,
+      })
+    })
+    expect(renders.none).toBe(before.none)
+    expect(renders.child).toBeGreaterThan(before.child)
+    expect(screen.getAllByTestId('guide-line-parent')).toHaveLength(3)
   })
 
   it('ignores other buttons and locked guides', () => {

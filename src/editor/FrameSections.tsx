@@ -323,10 +323,10 @@ function ArrangeRow({
         aria-label="Arrange"
         className="flex items-center gap-1"
       >
-        {Z_BUTTONS.map(({ move, label: name, icon }) => (
+        {Z_BUTTONS.map(({ move, label: name, icon, keys }) => (
           <IconButton
             key={move}
-            label={name}
+            label={`${name} (${keys})`}
             className="frame-z-button"
             data-testid={`z-${move}`}
             onPress={() => {
