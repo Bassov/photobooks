@@ -1,135 +1,121 @@
-/* Photographer site, demo 4 "Desk" (Designer Spec site-awards-5, Direction 4): seen from above, the books lie on a linen
-   desk under a lamp, at true size, slightly turned. Drag a book (it follows the hand, turns with its speed, lifts 18) and
-   throw it (×.92 per frame, bounces off the edges ×−.4); a click opens it: it slides to the centre and straightens
-   (600 ms), the others move aside, the desk darkens, then the cover opens in place. Double-click the desk to tidy up.
-   Narrow (< 768): one pile; tap the top book to open it, swipe it away to send it to the bottom. */
+/* Photographer site, demo 4 v2 "Desk" (Spec site-awards-v2 §4): a pale table in window light, the books lying top-down in a
+   loose even grid on its right part (3 × 2 at 9.5 px/cm, odd rows +40, turned within ±3.5°). Drag a book and throw it
+   (×.92 per frame, bounces off the edges ×−.4). Hover lifts it (scale 1.045, rotation × .3) and the fixed caption at the
+   bottom-left changes its text. A click: the book rises to the centre and opens in place, the table dims.
+   1 book: large next to its text; 12: 4 × 3 at 6.2 px/cm. Phone ≤ 640: the table scrolls, the books zigzag, tap opens.
+   `?books=1|3|6|12`. */
 import * as React from "react"
-import { BOOKS, EMAIL } from "../site-demo-1/data"
-import "../site-demo-1/site.css"
-import { BookPage, FlatBook, layoutOf, readerBox, reduced, tagOf, type L4 } from "./book"
+import { EMAIL, type SiteBook } from "../site-demo-1/data"
+import { BooksSwitch, clamp, countLabel, coverAt, Header, metaOf, ReaderPage, reduced, Statement, useBooks, useBox, yearsOf, type Box } from "../site-demo-1/v2"
+import { FlatBook } from "./book"
 import "./site.css"
 
-const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x))
-const ABOUT = "I make books of the trips I take and the people I take them with, printed and bound by hand. Based in Tbilisi."
-/** centre x, y, rz on the 1440×900 desk */
-const SEED: Record<string, [number, number, number]> = {
-  "lake-trip": [452, 330, -6], coast: [790, 246, 4], "summer-family": [1108, 372, -3], "desert-road": [640, 612, 7], forest: [958, 640, -9], city: [1262, 668, 5],
+const ABOUT = "I make books of the trips I take and the people I take them with, printed and bound by hand. *Based in Tbilisi, working wherever the road goes.*"
+const ROT = [-3.5, 2.2, -1.2, 3.1, -2.6, 1.6, 2.8, -1.8, 1.1, -3, 2.4, -1.4]
+/** the slots on the 1440 × 900 table: px per cm and the centres */
+const slotsOf = (n: number) => {
+  if (n === 1) return { S: 18, at: [[860, 470, -2]] }
+  const [cols, S, step, rowH, x0, y0] = n === 12 ? [4, 6.2, 250, 230, 490, 200] : [3, 9.5, 370, 326, 440, n === 3 ? 440 : 294]
+  return { S, at: Array.from({ length: n }, (_, i) => { const r = Math.floor(i / cols), c = i % cols; return [x0 + c * step + (r % 2) * 40, y0 + r * rowH, ROT[i]] }) }
 }
-/** the narrow pile, bottom → top: offset x, rz */
-const PILE: [number, number][] = [[-10, 9], [8, -7], [-6, 5], [6, -4], [-4, 3], [0, -2]]
+/** design units are the 1440 × 900 table: px = o + u·k, centred, k = min(vw / 1440, vh / 900) */
+const tableOf = (box: Box) => { const k = Math.min(box.w / 1440, box.h / 900); return { k, ox: box.w / 2 - 720 * k, oy: box.h / 2 - 450 * k } }
 type Pos = { x: number; y: number; rz: number; vx: number; vy: number }
-const seeds = (): Pos[] => BOOKS.map((b) => { const [x, y, rz] = SEED[b.id]; return { x, y, rz, vx: 0, vy: 0 } })
-/** positions, z-order and the pile live until reload */
-const desk = { pos: seeds(), order: BOOKS.map((_, i) => i), pile: BOOKS.map((_, i) => BOOKS.length - 1 - i), hinted: false }
 type Open = { i: number; phase: "fly" | "read" | "back" }
 
 export function SiteDemo4() {
-  const root = React.useRef<HTMLDivElement>(null)
-  const opener = React.useRef<HTMLElement | null>(null)
-  const timer = React.useRef(0)
-  const [box, setBox] = React.useState({ w: 1440, h: 900 })
-  const [open, setOpen] = React.useState<Open | null>(null)
-  const [view, setView] = React.useState(0)
-  const [flip, setFlip] = React.useState(false)
-  const live = React.useRef({ open, view }); live.current = { open, view }
-  React.useLayoutEffect(() => {
-    const el = root.current; if (!el) return
-    const r = () => setBox({ w: el.clientWidth, h: el.clientHeight }); r()
-    const ro = new ResizeObserver(r); ro.observe(el); return () => ro.disconnect()
-  }, [])
-  const l = layoutOf(box.w, box.h)
+  const books = useBooks()
+  return <Table key={books.length} books={books} />
+}
+
+function Table({ books }: { books: SiteBook[] }) {
+  const [root, box] = useBox<HTMLDivElement>()
+  const opener = React.useRef<HTMLElement | null>(null), timer = React.useRef(0)
+  const [open, setOpen] = React.useState<Open | null>(null), [view, setView] = React.useState(0), [about, setAbout] = React.useState(false)
+  const live = React.useRef({ open, view, narrow: box.narrow }); live.current = { open, view, narrow: box.narrow }
   const later = (ms: number, f: () => void) => { window.clearTimeout(timer.current); timer.current = window.setTimeout(f, ms) }
   React.useEffect(() => () => window.clearTimeout(timer.current), [])
 
   const openBook = (i: number, el: HTMLElement) => {
     if (live.current.open) return
-    opener.current = el; desk.hinted = true; setFlip(false); setView(0)
-    if (reduced()) { setOpen({ i, phase: "read" }); return }
+    opener.current = el; setView(0)
+    if (reduced() || live.current.narrow) { setOpen({ i, phase: "read" }); return }
     setOpen({ i, phase: "fly" }); later(600, () => setOpen({ i, phase: "read" }))
   }
   // the reader is in place of the flat book: the cover opens
   React.useEffect(() => {
-    if (open?.phase !== "read") return
-    const r = requestAnimationFrame(() => setView((v) => (v === 0 ? 1 : v))); return () => cancelAnimationFrame(r)
+    if (open?.phase !== "read" || reduced()) return
+    const r = requestAnimationFrame(() => requestAnimationFrame(() => setView((v) => (v === 0 ? 1 : v)))); return () => cancelAnimationFrame(r)
   }, [open?.phase])
-  /** the book closes, then flies back to its spot (600 ms) while the desk relights */
+  /** the book closes, then flies back to its spot (600 ms) while the table relights */
   const close = React.useCallback(() => {
-    const { open: o, view: v } = live.current; if (!o || o.phase === "back") return
-    const back = () => { if (reduced()) { setOpen(null); return } setOpen({ ...o, phase: "back" }); later(600, () => setOpen(null)) }
-    if (o.phase === "fly") { back(); return }
+    const { open: o, view: v, narrow } = live.current; if (!o || o.phase === "back") return
+    const back = () => { if (reduced() || narrow) { setOpen(null); return } setOpen({ ...o, phase: "back" }); later(600, () => setOpen(null)) }
+    if (o.phase === "fly" || narrow) { back(); return }
     setView(0)
     later(reduced() ? 170 : v === 1 ? 1020 : v === 0 ? 0 : 260, back)
   }, [])
-  // back on the desk: the focus returns to the book that opened
   React.useEffect(() => {
     if ((open === null || open.phase === "back") && opener.current) { opener.current.focus({ preventScroll: true }); opener.current = null }
   }, [open])
   React.useEffect(() => {
-    const k = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return
-      if (live.current.open) { e.preventDefault(); close() } else if (flip) { e.preventDefault(); setFlip(false) }
-    }
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape" && live.current.open) { e.preventDefault(); close() } }
     window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k)
-  }, [flip, close])
+  }, [close])
 
   const reading = open !== null && open.phase !== "back"
-  const b = open && open.phase === "read" ? BOOKS[open.i] : null
+  const ob = open?.phase === "read" ? books[open.i] : null
+  const items = [
+    { label: "About", pressed: about, onClick: () => setAbout((a) => !a) },
+    { label: "Contact", href: `mailto:${EMAIL}` },
+  ]
   return (
-    <div ref={root} className="relative h-full overflow-hidden" data-surface="site-demo-4" data-allow-border data-open={reading || undefined} data-testid="sd4-root">
-      <Desk l={l} open={open} flip={flip} onFlip={setFlip} onOpen={openBook} />
-      <div className="sd4-dim" aria-hidden />
-      {b && <BookPage key={b.id} b={b} l={l} view={view} onView={setView} onClose={close} />}
-      <header className="sd4-head">
-        <span className="sd4-name sd4-abs" style={{ left: l.narrow ? 20 : 48, top: l.narrow ? 22 : 36, fontSize: l.narrow ? 20 : 26 }}>{l.narrow ? "A. Basov" : "Aleksandr Basov"}</span>
-        {!l.narrow && (
-          <nav className="sd4-abs flex" style={{ right: 48, top: 42, gap: 28 }}>
-            <button type="button" className="sd4-nav" aria-pressed={flip} onClick={() => setFlip((f) => !f)} data-testid="sd4-nav-about">About</button>
-            <a className="sd4-nav" href={`mailto:${EMAIL}`}>Contact</a>
-          </nav>
-        )}
-      </header>
-      {l.narrow && <p className="sd4-mono sd4-abs" style={{ left: 20, bottom: 40, fontSize: 12, lineHeight: 1.6, color: "var(--d4-card-ink)" }}>Tap to open · swipe the top<br />book away to see the next</p>}
+    <div ref={root} className={`sv2 sv4${box.narrow ? " sv2-narrow" : ""}`} data-surface="site-demo-4" data-allow-border data-open={reading || undefined} data-testid="sd4-root">
+      {box.narrow ? <Phone books={books} box={box} about={about} onOpen={openBook} />
+        : <Desk books={books} box={box} open={open} about={about} onOpen={openBook} />}
+      <div className="sv4-dim" aria-hidden />
+      <Header items={items} narrow={box.narrow} />
+      {ob && <ReaderPage n={4} b={ob} box={box} view={view} onView={setView} onClose={close} back="Put the book back" />}
+      <BooksSwitch demo={4} n={books.length} />
       <div className="sd-grain" aria-hidden />
     </div>
   )
 }
 
-type DeskProps = { l: L4; open: Open | null; flip: boolean; onFlip: (f: boolean) => void; onOpen: (i: number, el: HTMLElement) => void }
+type DeskProps = { books: SiteBook[]; box: Box; open: Open | null; about: boolean; onOpen: (i: number, el: HTMLElement) => void }
 type Drag = { i: number; id: number; x0: number; y0: number; px: number; py: number; lx: number; ly: number; lt: number; vx: number; vy: number; on: boolean }
 
-/** The desk: the books (one transform per book, written by React and, while they move, by the rAF loop) and the card. */
-function Desk({ l, open, flip, onFlip, onOpen }: DeskProps) {
-  const host = React.useRef<HTMLDivElement>(null), hint = React.useRef<HTMLSpanElement>(null)
-  const els = React.useRef<(HTMLButtonElement | null)[]>([]), wraps = React.useRef<(HTMLDivElement | null)[]>([])
-  const [, bump] = React.useReducer((x: number) => x + 1, 0)
-  const [glide, setGlide] = React.useState(false)
-  const lr = React.useRef(l); lr.current = l
-  const or = React.useRef(open); or.current = open
-  const drag = React.useRef<Drag | null>(null), moved = React.useRef(false), raf = React.useRef(0), gt = React.useRef(0)
-  React.useEffect(() => () => { cancelAnimationFrame(raf.current); window.clearTimeout(gt.current) }, [])
-  const glideFor = (ms: number) => { setGlide(true); window.clearTimeout(gt.current); gt.current = window.setTimeout(() => setGlide(false), ms) }
+/** desktop: the books (one transform per book, written by React and, while they move, by the rAF loop) and the caption */
+function Desk({ books, box, open, about, onOpen }: DeskProps) {
+  const n = books.length, { S, at } = slotsOf(n), t = tableOf(box), s = S * t.k
+  const host = React.useRef<HTMLDivElement>(null), els = React.useRef<(HTMLButtonElement | null)[]>([])
+  const pos = React.useRef<Pos[]>(at.map(([x, y, rz]) => ({ x, y, rz, vx: 0, vy: 0 })))
+  const order = React.useRef(books.map((_, i) => i))
+  const g = React.useRef({ box, t, s, open }); g.current = { box, t, s, open }
+  const drag = React.useRef<Drag | null>(null), moved = React.useRef(false), raf = React.useRef(0)
+  const [hov, setHov] = React.useState(-1)
+  React.useEffect(() => () => cancelAnimationFrame(raf.current), [])
 
   /** the slot transform of book i, px */
   const pose = (i: number) => {
-    const g = lr.current, b = BOOKS[i], W = b.w * g.s, H = b.h * g.s, o = or.current
-    if (o && o.i === i && o.phase !== "back") { const rb = readerBox(g, b); return `translate(${g.vw / 2 - W / 2}px, ${rb.top + rb.h / 2 - H / 2}px) scale(${rb.w / 2 / W})` }
-    if (g.narrow) { const k = desk.pile.indexOf(i), [dx, rz] = PILE[k]; return `translate(${g.vw / 2 + dx - W / 2}px, ${g.vh * 0.43 + k * 4 - H / 2}px) rotate(${rz}deg)` }
-    const p = desk.pos[i]; return `translate(${g.ox + p.x * g.k - W / 2}px, ${g.oy + p.y * g.k - H / 2}px) rotate(${p.rz}deg)`
+    const { box: B, t: T, s: sp, open: o } = g.current, b = books[i], W = b.w * sp, H = b.h * sp
+    if (o && o.i === i && o.phase !== "back") { const c = coverAt(B, b); return `translate(${c.cx - W / 2}px, ${c.cy - H / 2}px) scale(${c.w / W})` }
+    const p = pos.current[i]; return `translate(${T.ox + p.x * T.k - W / 2}px, ${T.oy + p.y * T.k - H / 2}px) rotate(${p.rz}deg)`
   }
-  const write = (i: number) => { const e = els.current[i]; if (e) { e.style.transform = pose(i); e.style.setProperty("--rz", desk.pos[i].rz.toFixed(2)) } }
+  const write = (i: number) => { const e = els.current[i]; if (e) { e.style.transform = pose(i); e.style.setProperty("--rz", pos.current[i].rz.toFixed(2)) } }
   // the transforms are not in the JSX: the loop writes them too, so React could skip a write it thinks is unchanged
-  React.useLayoutEffect(() => { BOOKS.forEach((_, i) => write(i)) })
-  /** fully on screen; a moving book bounces off the edge ×−.4 */
+  React.useLayoutEffect(() => { books.forEach((_, i) => write(i)) })
+  /** fully on the table; a moving book bounces off the edge ×−.4 */
   const keep = (i: number, p: Pos) => {
-    const g = lr.current, b = BOOKS[i], a = (p.rz * Math.PI) / 180, c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a)), W = b.w * 9, H = b.h * 9
-    const hw = (W * c + H * s) / 2 + 4, hh = (W * s + H * c) / 2 + 10
-    const x0 = -g.ox / g.k + hw, x1 = (g.vw - g.ox) / g.k - hw, y0 = -g.oy / g.k + hh, y1 = (g.vh - g.oy) / g.k - hh
+    const { box: B, t: T } = g.current, b = books[i], a = (p.rz * Math.PI) / 180, c = Math.abs(Math.cos(a)), sn = Math.abs(Math.sin(a)), W = b.w * S, H = b.h * S
+    const hw = (W * c + H * sn) / 2 + 4, hh = (W * sn + H * c) / 2 + 10
+    const x0 = -T.ox / T.k + hw, x1 = (B.w - T.ox) / T.k - hw, y0 = (84 - T.oy) / T.k + hh, y1 = (B.h - T.oy) / T.k - hh
     if (p.x < x0) { p.x = x0; p.vx = Math.abs(p.vx) * 0.4 } else if (p.x > x1) { p.x = Math.max(x0, x1); p.vx = -Math.abs(p.vx) * 0.4 }
     if (p.y < y0) { p.y = y0; p.vy = Math.abs(p.vy) * 0.4 } else if (p.y > y1) { p.y = Math.max(y0, y1); p.vy = -Math.abs(p.vy) * 0.4 }
   }
   const step = () => {
     let busy = false
-    desk.pos.forEach((p, i) => {
+    pos.current.forEach((p, i) => {
       if (drag.current?.i === i || Math.hypot(p.vx, p.vy) < 0.05) { p.vx = p.vy = 0; return }
       p.x += p.vx; p.y += p.vy; p.vx *= 0.92; p.vy *= 0.92
       p.rz = clamp(p.rz + p.vx * 0.05, -12, 12)
@@ -138,36 +124,28 @@ function Desk({ l, open, flip, onFlip, onOpen }: DeskProps) {
     raf.current = busy ? requestAnimationFrame(step) : 0
   }
   const toTop = (i: number) => {
-    desk.order = [...desk.order.filter((x) => x !== i), i]
-    desk.order.forEach((x, z) => { const w = wraps.current[x]; if (w) w.style.zIndex = String(z + 1) })
+    order.current = [...order.current.filter((x) => x !== i), i]
+    order.current.forEach((x, z) => { const e = els.current[x]; if (e) e.style.zIndex = String(z + 1) })
   }
-  const tidy = (e: React.MouseEvent) => {
-    if (e.target !== e.currentTarget || or.current || l.narrow) return
-    cancelAnimationFrame(raf.current); raf.current = 0; desk.pos = seeds()
-    if (!reduced()) glideFor(600)
-    bump()
-  }
-  const unit = (e: React.PointerEvent) => { const h = host.current!, r = h.getBoundingClientRect(); return (r.width / h.clientWidth || 1) * (lr.current.narrow ? 1 : lr.current.k) }
+  const unit = () => { const h = host.current!, r = h.getBoundingClientRect(); return (r.width / h.clientWidth || 1) * g.current.t.k }
 
   const onDown = (i: number) => (e: React.PointerEvent<HTMLButtonElement>) => {
-    if (e.button !== 0 || or.current || reduced() || (l.narrow && desk.pile[desk.pile.length - 1] !== i)) return
-    const p = desk.pos[i]; p.vx = p.vy = 0
+    if (e.button !== 0 || g.current.open || reduced()) return
+    const p = pos.current[i]; p.vx = p.vy = 0
     drag.current = { i, id: e.pointerId, x0: e.clientX, y0: e.clientY, px: p.x, py: p.y, lx: e.clientX, ly: e.clientY, lt: e.timeStamp, vx: 0, vy: 0, on: false }
     moved.current = false
   }
   const onMove = (i: number) => (e: React.PointerEvent<HTMLButtonElement>) => {
     const d = drag.current; if (!d || d.i !== i || d.id !== e.pointerId) return
-    const u = unit(e), el = e.currentTarget
+    const u = unit(), el = e.currentTarget
     if (!d.on) {
       if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 4) return
-      d.on = true; el.setPointerCapture(e.pointerId); el.setAttribute("data-drag", ""); desk.hinted = true; hint.current?.removeAttribute("data-on")
-      if (!lr.current.narrow) toTop(i)
+      d.on = true; el.setPointerCapture(e.pointerId); el.setAttribute("data-drag", ""); toTop(i)
     }
     const dt = e.timeStamp - d.lt
     if (dt > 0) { d.vx = ((e.clientX - d.lx) / u / dt) * 16.7; d.vy = ((e.clientY - d.ly) / u / dt) * 16.7 }
     d.lx = e.clientX; d.ly = e.clientY; d.lt = e.timeStamp
-    if (lr.current.narrow) { const sw = (e.clientX - d.x0) / u; el.style.transform = `translateX(${sw}px) ${pose(i)} rotate(${sw * 0.04}deg)`; return }
-    const p = desk.pos[i]
+    const p = pos.current[i]
     p.x = d.px + (e.clientX - d.x0) / u; p.y = d.py + (e.clientY - d.y0) / u
     if (dt > 0) p.rz = clamp(p.rz + d.vx * 0.05 * Math.min(2, dt / 16.7), -12, 12)
     keep(i, p); write(i)
@@ -177,68 +155,90 @@ function Desk({ l, open, flip, onFlip, onOpen }: DeskProps) {
     drag.current = null
     if (!d.on) return
     moved.current = true; e.currentTarget.removeAttribute("data-drag")
-    const rested = e.timeStamp - d.lt > 100 // the pointer rested before release: no throw
-    if (lr.current.narrow) {
-      const sw = (e.clientX - d.x0) / unit(e), el = e.currentTarget, dir = Math.sign(sw) || 1
-      if (Math.abs(sw) > 90 || (!rested && Math.abs(d.vx) > 8)) {
-        el.style.transition = "transform 280ms cubic-bezier(.4, 0, 1, 1)"
-        el.style.transform = `translateX(${dir * lr.current.vw}px) ${pose(i)} rotate(${dir * 20}deg)`
-        window.setTimeout(() => { el.style.transition = ""; desk.pile = [i, ...desk.pile.filter((x) => x !== i)]; glideFor(600); bump() }, 280)
-      } else { glideFor(600); bump() } // springs back: the layout effect writes the pile pose under the glide
-      return
-    }
-    const p = desk.pos[i]
-    if (!rested) { p.vx = d.vx; p.vy = d.vy; if (!raf.current) raf.current = requestAnimationFrame(step) }
+    const p = pos.current[i]
+    if (e.timeStamp - d.lt <= 100) { p.vx = d.vx; p.vy = d.vy; if (!raf.current) raf.current = requestAnimationFrame(step) } // a rested pointer: no throw
   }
   const onCancel = () => { const d = drag.current; drag.current = null; if (d) { els.current[d.i]?.removeAttribute("data-drag"); write(d.i) } }
-  // the cursor hint "Drag · click to open", the first time only
-  const onHover = (on: boolean) => (e: React.PointerEvent) => { if (e.pointerType === "mouse" && !desk.hinted && !l.narrow && !reduced()) hint.current?.toggleAttribute("data-on", on) }
-  const onDeskMove = (e: React.PointerEvent) => {
-    const h = host.current, t = hint.current; if (!h || !t || desk.hinted) return
-    const r = h.getBoundingClientRect(), k = r.width / h.clientWidth || 1
-    t.style.transform = `translate(${(e.clientX - r.left) / k + 16}px, ${(e.clientY - r.top) / k - 36}px)`
-  }
 
   const reading = open !== null && open.phase !== "back"
-  const top = desk.pile[desk.pile.length - 1]
-  const card = { left: l.ox + 70 * l.k, top: l.oy + 560 * l.k }
+  const hb = hov >= 0 && !reading ? books[hov] : null
+  const one = n === 1
   return (
-    <div ref={host} className="sd4-desk absolute inset-0" data-glide={glide || (open && !reduced()) || undefined} data-narrow={l.narrow || undefined} data-still={reading || undefined} onDoubleClick={tidy} onPointerMove={onDeskMove} data-testid="sd4-desk">
-      {!l.narrow && (
-        <div className="sd4-card" style={card} data-flip={flip || undefined} data-testid="sd4-card">
-          <div className="sd4-card-f" aria-hidden={flip}>
-            ALEKSANDR BASOV<br />Photobooks, 2023–2026<br /><br />Six books on the desk.<br />Pick one up, or open it.<br /><br />
-            <a href={`mailto:${EMAIL}`} className="sd4-card-mail" tabIndex={flip || reading ? -1 : undefined}>{EMAIL}</a>
+    <div ref={host} className="sv4-desk" data-glide={(open && !reduced()) || undefined} data-still={reading || undefined} data-testid="sd4-desk">
+      {one ? (
+        <div className="sv4-cap" style={{ left: 48, top: Math.round((520 * box.h) / 900) - 60, width: 380 }}>
+          <div key={about ? "a" : "b"} className="sv4-fade">
+            <div className="sv2-meta">{about ? "About" : metaOf(books[0])}</div>
+            <h1 className="sv2-display" style={{ fontSize: 36, marginTop: 6 }}>{books[0].title}</h1>
+            <p className="sv4-text"><Statement s={about ? ABOUT : books[0].statement} /></p>
+            <button type="button" className="sv2-link" style={{ marginTop: 14 }} tabIndex={reading ? -1 : undefined} onClick={() => { const el = els.current[0]; if (el) onOpen(0, el) }}>Open the book</button>
           </div>
-          <div className="sd4-card-b" aria-hidden={!flip}>
-            ABOUT<br /><br />{ABOUT}<br /><br />
-            <button type="button" className="sd4-card-mail" tabIndex={!flip || reading ? -1 : undefined} onClick={() => onFlip(false)}>Turn the card over</button>
+        </div>
+      ) : (
+        <div className="sv4-cap" style={{ left: 48, bottom: 48, width: 380, height: 150 }} aria-live="polite">
+          <div key={hb ? hb.id : about ? "about" : "rest"} className="sv4-fade">
+            {hb ? <>
+              <div className="sv2-meta">{metaOf(hb)}</div>
+              <div className="sv2-display" style={{ fontSize: 36, marginTop: 6 }}>{hb.title}</div>
+              <div className="sv4-hint">Click to open · drag to move</div>
+            </> : about ? <>
+              <div className="sv2-meta">About</div>
+              <p className="sv4-text" style={{ marginTop: 6 }}><Statement s={ABOUT} /></p>
+            </> : <>
+              <div className="sv2-meta">Photobooks, {yearsOf(books)}</div>
+              <h1 className="sv2-display" style={{ fontSize: 36, marginTop: 6 }}>{countLabel(n)} on the table</h1>
+              <p className="sv4-text">Pick one up, or move them around.</p>
+            </>}
           </div>
         </div>
       )}
-      {BOOKS.map((b, i) => {
-        const W = b.w * l.s, H = b.h * l.s, active = open?.i === i, z = l.narrow ? desk.pile.indexOf(i) + 1 : desk.order.indexOf(i) + 1
-        let away: string | undefined
-        if (reading && !active && !reduced()) {
-          const p = desk.pos[i], cx = l.narrow ? 0 : l.ox + p.x * l.k - l.vw / 2, cy = l.narrow ? -1 : l.oy + p.y * l.k - l.vh / 2, n = Math.hypot(cx, cy) || 1
-          away = `translate(${(cx / n) * 260}px, ${(cy / n) * 260}px)`
-        }
-        const lower = l.narrow && i !== top
+      {books.map((b, i) => {
+        const W = b.w * s, H = b.h * s, active = open?.i === i
         return (
-          <div key={b.id} ref={(x) => { wraps.current[i] = x }} className="sd4-away" style={{ zIndex: active && open ? 30 : z, transform: away }} data-away={away ? "" : undefined}>
-            <button ref={(x) => { els.current[i] = x }} type="button" className="sd4-book" style={{ width: W, height: H }}
-              aria-label={`Open ${b.title}, ${b.year}`} tabIndex={lower || reading ? -1 : undefined} data-top={l.narrow && i === top ? "" : undefined}
-              data-hidden={active && open?.phase === "read" ? "" : undefined} data-testid="sd4-book" data-id={b.id}
-              onPointerDown={onDown(i)} onPointerMove={onMove(i)} onPointerUp={onUp(i)} onPointerCancel={onCancel} onPointerEnter={onHover(true)} onPointerLeave={onHover(false)}
-              onClick={(e) => { if (moved.current) { moved.current = false; return } hint.current?.removeAttribute("data-on"); onOpen(i, e.currentTarget) }}>
-              <FlatBook b={b} s={l.s}>
-                <span className="sd4-paper sd4-tag" aria-hidden>{l.narrow ? `${b.title} · ${b.year}` : tagOf(b)}</span>
-              </FlatBook>
-            </button>
-          </div>
+          <button key={b.id} ref={(x) => { els.current[i] = x }} type="button" className="sv4-book" style={{ width: W, height: H, zIndex: active && open ? 40 : order.current.indexOf(i) + 1 }}
+            aria-label={`Open ${b.title}, ${b.year}`} tabIndex={reading ? -1 : undefined}
+            data-hidden={active && open?.phase === "read" ? "" : undefined} data-testid="sd4-book" data-id={b.id}
+            onPointerDown={onDown(i)} onPointerMove={onMove(i)} onPointerUp={onUp(i)} onPointerCancel={onCancel}
+            onPointerEnter={(e) => { if (e.pointerType === "mouse") setHov(i) }} onPointerLeave={() => setHov((h) => (h === i ? -1 : h))}
+            onFocus={(e) => { if (e.currentTarget.matches(":focus-visible")) setHov(i) }} onBlur={() => setHov((h) => (h === i ? -1 : h))}
+            onClick={(e) => { if (moved.current) { moved.current = false; return } setHov(-1); onOpen(i, e.currentTarget) }}>
+            <FlatBook b={b} s={s} />
+          </button>
         )
       })}
-      <span ref={hint} className="sd4-hint" aria-hidden>Drag · click to open</span>
+    </div>
+  )
+}
+
+/** phone: the table scrolls; one book per row, zigzag left / right, its title and year on the free side; tap opens */
+function Phone({ books, box, about, onOpen }: { books: SiteBook[]; box: Box; about: boolean; onOpen: (i: number, el: HTMLElement) => void }) {
+  const n = books.length
+  return (
+    <div className="sv2-scroll" data-testid="sd4-phone">
+      <div style={{ padding: "84px 20px 96px" }}>
+        <div key={about ? "a" : "b"} className="sv4-fade">
+          <div className="sv2-meta">{about ? "About" : `Photobooks, ${yearsOf(books)}`}</div>
+          {about ? <p className="sv2-intro" style={{ marginTop: 6 }}><Statement s={ABOUT} /></p>
+            : <h1 className="sv2-display" style={{ fontSize: 28, marginTop: 4 }}>{countLabel(n, true)} on the table</h1>}
+        </div>
+        <ol className="sv4-rows">
+          {books.map((b, i) => {
+            const W = Math.min(b.w > b.h ? 288 : 230, box.w - 40 - 110), s = W / b.w, right = i % 2 === 1
+            return (
+              <li key={b.id} className="sv4-row" style={{ flexDirection: right ? "row-reverse" : "row" }}>
+                <button type="button" className="sv4-book sv4-book-phone" style={{ width: W, height: b.h * s, transform: `rotate(${right ? 2.5 : -2.5}deg)` }}
+                  aria-label={`Open ${b.title}, ${b.year}`} data-testid="sd4-book" data-id={b.id} onClick={(e) => onOpen(i, e.currentTarget)}>
+                  <FlatBook b={b} s={s} />
+                </button>
+                <div className="sv4-row-cap" style={{ textAlign: right ? "left" : "right" }}>
+                  <div className="sv4-row-t">{b.title}</div>
+                  <div className="sv2-meta">{b.year}</div>
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+      </div>
     </div>
   )
 }
