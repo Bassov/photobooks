@@ -96,6 +96,25 @@ describe('startGuideDrag', () => {
     resetBookStore()
   })
 
+  it('pulls the new line beside the paper when it sits in a spread stage', () => {
+    const { spreadEl, rulerX } = mount()
+    const stage = document.createElement('div')
+    stage.className = 'spread-stage'
+    document.body.append(stage)
+    stage.append(spreadEl)
+    startGuideDrag({
+      event: pointer(500, 40),
+      spreadEl,
+      orientation: 'horizontal',
+      rulerEl: rulerX,
+    })
+    const line = stage.querySelector<HTMLElement>(':scope > .guide-line')
+    expect(line?.dataset.testid).toBe('guide-line-new')
+    expect(spreadEl.querySelector('.guide-line')).toBeNull()
+    up(500, 250)
+    expect(stage.querySelector('.guide-line')).toBeNull()
+  })
+
   it('pulls a new horizontal guide from the ruler: a transform while dragging, one op on release', () => {
     const { spreadEl, rulerX } = mount()
     startGuideDrag({

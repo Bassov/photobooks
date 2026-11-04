@@ -32,7 +32,11 @@ function beginDrag(
 ): void {
   if (event.button !== 0) return
   const lineEl = event.currentTarget
-  const spreadEl = lineEl.closest<HTMLElement>('[data-testid="spread-view"]')
+  // The paper is the line's sibling in the spread stage (ConnectedSpreadView).
+  const spreadEl =
+    lineEl
+      .closest('.spread-stage')
+      ?.querySelector<HTMLElement>('[data-testid="spread-view"]') ?? null
   if (spreadEl === null) return
   event.preventDefault()
   event.stopPropagation()

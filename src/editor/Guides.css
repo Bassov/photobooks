@@ -1,4 +1,17 @@
 /* Editor-layer guides (kit `GuideLine`): hairline in the grayscale `--guide` token, wide invisible hit strip. */
+:root {
+  /* How far a line runs past the page on each side (PG1); the pasteboard
+     slot widens its paint clip by the same amount (EditorShell.css). */
+  --guide-overhang: 24px;
+}
+
+/* The paper and its guides (ConnectedSpreadView): the guides layer is the
+   paper's sibling, so the paper's clip never cuts the overhang. */
+.spread-stage {
+  position: relative;
+  width: fit-content;
+}
+
 .guides-layer {
   position: absolute;
   inset: 0;
@@ -13,16 +26,16 @@
 }
 
 .guide-line[data-orientation='vertical'] {
-  top: -24px;
-  bottom: -24px;
+  top: calc(-1 * var(--guide-overhang));
+  bottom: calc(-1 * var(--guide-overhang));
   width: 1px;
   margin-left: -0.5px;
   cursor: ew-resize;
 }
 
 .guide-line[data-orientation='horizontal'] {
-  left: -24px;
-  right: -24px;
+  left: calc(-1 * var(--guide-overhang));
+  right: calc(-1 * var(--guide-overhang));
   height: 1px;
   margin-top: -0.5px;
   cursor: ns-resize;
