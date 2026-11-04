@@ -7,3 +7,5 @@
 ## Manual test scenarios
 
 1. Open a 15 × 21 cm book with three spreads: rows 2–3 and 4–5 show white paper on the list background with only the paper's soft shadow; page 1 and the last page look as before; the Masters tab thumb has no grey sides.
+
+manual-qa: problem (harness) — `start-session` click intercepted by the welcome header for 30 s, the scenario never ran. Covered by `e2e/spread-thumb-backing.spec.ts` (box / paper computed styles + margin pixels for spread 2–3, selected 4–5 and the master) and `e2e/design-r12-surfaces.spec.ts` (page 1 / last page unchanged): green locally.
