@@ -1,8 +1,16 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createRef, type RefObject } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GuideDragStart } from './guideGesture'
 import { Rulers } from './Rulers'
+
+const rulersCss = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), 'Rulers.css'),
+  'utf8',
+)
 
 const startGuideDrag = vi.hoisted(() =>
   vi.fn<(start: import('./guideGesture').GuideDragStart) => void>(),
@@ -130,6 +138,20 @@ describe('Rulers', () => {
     expect(screen.getByTestId('ruler-x')).toBeTruthy()
     expect(screen.getByTestId('ruler-y')).toBeTruthy()
     expect(screen.getByTestId('ruler-corner').textContent).toBe('mm')
+  })
+
+  it('shows the kit resize cursors: s-resize on the top strip, e-resize on the left', () => {
+    const style = document.createElement('style')
+    style.textContent = rulersCss
+    document.head.append(style)
+    render(<Stage scrollRef={createRef()} />)
+    expect(getComputedStyle(screen.getByTestId('ruler-x')).cursor).toBe(
+      's-resize',
+    )
+    expect(getComputedStyle(screen.getByTestId('ruler-y')).cursor).toBe(
+      'e-resize',
+    )
+    style.remove()
   })
 
   it('pulls a horizontal guide from the top strip and a vertical one from the left strip', () => {
