@@ -1,6 +1,7 @@
 import { BookObject } from '../render/BookObject'
 import type { SitePageInput } from './siteInput'
 import { bookObjectHeight, catalogColumnWidth, catalogMeta } from './siteModel'
+import { pageHref } from './siteUrl'
 import type { Viewport } from './useViewport'
 
 type CatalogInput = Extract<SitePageInput, { kind: 'catalog' }>
@@ -29,7 +30,7 @@ export function SiteCatalog({
             <a
               key={book.id}
               className="site-card"
-              href={book.href}
+              href={pageHref(book.href)}
               data-testid="site-book"
               data-book={book.id}
             >

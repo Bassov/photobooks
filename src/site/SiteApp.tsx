@@ -3,6 +3,7 @@ import { SiteBookPage } from './SiteBookPage'
 import { SiteCatalog } from './SiteCatalog'
 import type { SitePageInput } from './siteInput'
 import { siteTitle } from './siteModel'
+import { pageHref } from './siteUrl'
 import { useViewport } from './useViewport'
 
 /** One site page: the tree `renderSitePage` prerenders and `main.tsx` hydrates. */
@@ -20,7 +21,7 @@ export function SiteApp({ input }: { input: SitePageInput }) {
         ) : (
           <a
             className="site-title"
-            href={input.catalogHref}
+            href={pageHref(input.catalogHref)}
             data-testid="site-title-link"
           >
             {title}

@@ -45,7 +45,7 @@ describe('SiteBookPage', () => {
       'by A. Photographer · 20 pages',
     )
     expect(screen.getByTestId('site-all-books').getAttribute('href')).toBe(
-      'site.html',
+      './site.html',
     )
     expect(screen.getByTestId('site-title-link').textContent).toBe(
       'Sample photobooks',
@@ -207,6 +207,20 @@ describe('SiteBookPage details', () => {
     )
   })
 
+  it('sizes photos by their share of the spread-wide stage, single pages too', () => {
+    openBook()
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+
+    const sizes = (slide: number) =>
+      [...(slideEl(slide)?.querySelectorAll('img') ?? [])].map((img) =>
+        img.getAttribute('sizes'),
+      )
+    const half =
+      '(max-width: 767px) calc((100vw - 40px) * 0.42), min(319px, calc((100vw - 64px) * 0.42))'
+    expect(sizes(1)).toStrictEqual([half])
+    expect(sizes(2)).toStrictEqual([half, half])
+  })
+
   it('ignores a pointer-up without a pointer-down', () => {
     openBook()
     fireEvent.keyDown(window, { key: 'ArrowRight' })
@@ -336,8 +350,8 @@ describe('SiteCatalog', () => {
 
     const cards = screen.getAllByTestId('site-book')
     expect(cards.map((card) => card.getAttribute('href'))).toStrictEqual([
-      'site.html?book=alps',
-      'site.html?book=sea',
+      './site.html?book=alps',
+      './site.html?book=sea',
     ])
     expect(cards[1]?.textContent).toContain('6 pages')
     expect(screen.getByText('A. Photographer · 2 photobooks')).toBeTruthy()

@@ -13,6 +13,7 @@ import {
   stageWidth,
 } from './siteModel'
 import { SiteStage } from './SiteStage'
+import { pageHref, sitePageUrl } from './siteUrl'
 import type { Viewport } from './useViewport'
 
 type BookInput = Extract<SitePageInput, { kind: 'book' }>
@@ -22,8 +23,8 @@ type BookInput = Extract<SitePageInput, { kind: 'book' }>
  * (the query stays: the sample site picks its book with `?book=`).
  */
 function bookUrl(input: BookInput): string {
-  const { url } = input.site
-  if (url !== undefined && url !== '') return `${url}/${input.path}`
+  const url = sitePageUrl(input.site.url, input.path)
+  if (url !== undefined) return url
   const { origin, pathname, search } = window.location
   return `${origin}${pathname}${search}`
 }
@@ -110,7 +111,7 @@ export function SiteBookPage({
         <div className="site-title-block">
           <a
             className="site-all-books"
-            href={input.catalogHref}
+            href={pageHref(input.catalogHref)}
             data-testid="site-all-books"
           >
             <Icon name="arrowLeft" />

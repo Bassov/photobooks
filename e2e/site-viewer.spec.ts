@@ -176,6 +176,32 @@ test.describe('site viewer', () => {
     expectSameRect(await rect(page, 'site-share'), before)
   })
 
+  test('the cover sits on the page shadow; a single page asks for its drawn width', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto(ALPS)
+    await expect(indicator(page)).toHaveText('Cover')
+
+    const shadow = await page
+      .getByTestId('site-spread')
+      .locator('.cover-spread')
+      .evaluate((el) => getComputedStyle(el).boxShadow)
+    expect(shadow).toContain('0px 12px 32px 0px')
+
+    await stepTo(page, 1)
+    await expect(indicator(page)).toHaveText(LABELS[1] ?? '')
+    const img = page
+      .getByTestId('site-spread')
+      .getByTestId('spread-frame-image')
+    const drawn = await img.evaluate((el) => el.getBoundingClientRect().width)
+    expect(drawn).toBeCloseTo(760 * 0.42, 0)
+    await expect(img).toHaveAttribute(
+      'sizes',
+      /min\(319px, calc\(\(100vw - 64px\) \* 0\.42\)\)$/,
+    )
+  })
+
   test('#p6 opens the spread holding page 6', async ({ page }) => {
     await page.goto(`${ALPS}#p6`)
 

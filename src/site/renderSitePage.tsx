@@ -3,6 +3,7 @@ import { displayBookTitle } from '../project/bookTitle'
 import { SiteApp } from './SiteApp'
 import type { SitePageAssets, SitePageInput } from './siteInput'
 import { bookMeta, catalogMeta, sitePageCount, siteTitle } from './siteModel'
+import { sitePageUrl } from './siteUrl'
 
 /** Same value with object keys in code-unit order at every depth. */
 function sortKeys(value: unknown): unknown {
@@ -56,9 +57,7 @@ export function renderSitePage(
   assets: SitePageAssets,
 ): string {
   const head = pageHead(input)
-  const { url } = input.site
-  const pageUrl =
-    url === undefined || url === '' ? undefined : `${url}/${input.path}`
+  const pageUrl = sitePageUrl(input.site.url, input.path)
   const ogImage =
     input.ogImage === undefined
       ? undefined

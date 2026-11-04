@@ -49,14 +49,14 @@ const SlideContent = memo(function SlideContent({
       pxPerMm={width / (2 * trim.widthMm)}
       lowDpiBadge={false}
       previewUrlFor={noPreview}
-      imageFor={(assetId, share) => {
+      imageFor={(assetId, widthMm) => {
         const ref = images[assetId]
         return ref === undefined
           ? undefined
           : {
               src: ref.src,
               srcset: ref.srcset,
-              sizes: frameSizes(share),
+              sizes: frameSizes(widthMm / (2 * trim.widthMm)),
               loading: slide <= 1 ? 'eager' : 'lazy',
             }
       }}

@@ -201,10 +201,11 @@ export function SpreadView({
   resolved: ResolvedSpread
   previewUrlFor: (assetId: string) => string | undefined
   /**
-   * Srcset source per photo; `share` = frame width / spread width, for the
-   * caller's `sizes`. Undefined (or no prop) falls back to `previewUrlFor`.
+   * Srcset source per photo; `widthMm` = frame width, for the caller's
+   * `sizes` (a single page is half of the caller's spread-wide stage).
+   * Undefined (or no prop) falls back to `previewUrlFor`.
    */
-  imageFor?: (assetId: string, share: number) => FrameImage | undefined
+  imageFor?: (assetId: string, widthMm: number) => FrameImage | undefined
   tierFor?: (assetId: string) => number | undefined
   frameControlFor?: (item: ResolvedItem) => FrameControl
   /** When true, show hatched missing placeholder instead of a stale preview. */
@@ -242,7 +243,7 @@ export function SpreadView({
     const missingId = missingAssetId(item.assetId, isMissingAsset)
     const missing = missingId !== undefined
     const source = previewUrlUnlessMissing(missing, item.assetId, (id) =>
-      imageFor?.(id, item.rectMm.width / resolved.spreadWidthMm),
+      imageFor?.(id, item.rectMm.width),
     )
     return (
       <SpreadFrame

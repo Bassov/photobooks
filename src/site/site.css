@@ -272,6 +272,12 @@ body {
   justify-content: flex-start;
 }
 
+/* The cover slide sits on the page shadow like every spread slide (the
+   spread-list thumbnail keeps the mini shadow alone, M74). */
+.site .site-slide .cover-spread {
+  box-shadow: var(--cover-shadow-mini), var(--site-page-shadow);
+}
+
 .site-slide[data-off] {
   opacity: 0;
   pointer-events: none;
