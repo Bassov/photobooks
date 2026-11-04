@@ -5,10 +5,16 @@ const PATH_CHARS =
 /** `URL.host` characters (punycode hostname, `:port`). */
 const HOST_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789-.:'
 
-/** `text` without the characters `allowed` does not list. */
+/**
+ * `text` without the characters `allowed` does not list; every kept character
+ * is read from `allowed`, so nothing of `text` itself reaches the result.
+ */
 function keep(text: string, allowed: string): string {
   let kept = ''
-  for (const ch of text) kept += allowed.includes(ch) ? ch : ''
+  for (const ch of text) {
+    const at = allowed.indexOf(ch)
+    if (at >= 0) kept += allowed.charAt(at)
+  }
   return kept
 }
 
