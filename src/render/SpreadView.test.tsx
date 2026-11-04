@@ -55,6 +55,72 @@ describe('SpreadView', () => {
     expect(root.hasAttribute('aria-hidden')).toBe(false)
   })
 
+  it('paints the editor overlay above every spread frame (master-spread-both-pages)', () => {
+    // A 2-up: the left frame z 0, the right one z 3. The overlay must not sit
+    // between them, or the grid shows on the left page only.
+    const book = makeBook({
+      spreads: [
+        {
+          id: 'spread-1',
+          frames: [
+            { id: 'left', rect: { x: 0, y: 0, width: 100, height: 100 }, z: 0 },
+            {
+              id: 'right',
+              rect: { x: 200, y: 0, width: 100, height: 100 },
+              z: 3,
+            },
+          ],
+        },
+      ],
+    })
+    const resolved = resolveSpread(book, 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+        overlay={<div data-testid="probe" />}
+      />,
+    )
+
+    const layer = screen.getByTestId('spread-view-overlay')
+    const frameZ = screen
+      .getAllByTestId('spread-frame')
+      .map((frame) => Number(frame.style.zIndex))
+    expect(frameZ).toEqual([0, 3])
+    expect(Number(layer.style.zIndex)).toBe(4)
+    expect(layer.style.pointerEvents).toBe('none')
+    expect(layer.parentElement).toBe(screen.getByTestId('spread-view'))
+    expect(screen.getByTestId('probe').parentElement).toBe(layer)
+  })
+
+  it('mounts no overlay layer without an overlay, nor in a thumb', () => {
+    const resolved = resolveSpread(makeBook(), 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    const { container, rerender } = render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+      />,
+    )
+    expect(screen.queryByTestId('spread-view-overlay')).toBeNull()
+
+    rerender(
+      <SpreadView
+        thumb
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+        overlay={<div className="probe" />}
+      />,
+    )
+    expect(container.querySelector('.probe')).toBeNull()
+    expect(container.querySelector('.spread-view-overlay')).toBeNull()
+  })
+
   it('shows a placeholder and no image for an empty frame', () => {
     const book = makeBook()
     const resolved = resolveSpread(book, 'spread-1')
