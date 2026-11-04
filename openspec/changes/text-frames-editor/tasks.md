@@ -13,3 +13,6 @@
 1. Text tool: click on paper → a 60 × 14 mm frame is editing; type `Morning`; Esc → stays selected; Esc → deselected.
 2. Text tool: drag over a photo → a text frame on the photo; leave it empty → it disappears, Undo shows the previous step.
 3. Select a text frame → Enter edits; Inspector Style Title → Overflow chip under the frame and `Text overflows the frame`; Preview shows no chip.
+
+- manual-qa (2026-11-04): harness problem on 1–3: the welcome header intercepts the `start-session` click (30 s timeout), so no flow ran; not a product verdict.
+- Covered by `e2e/text-frames.spec.ts`: 1 → `a Text click makes a 60 × 14 mm frame…`; 2 → `a Text drag over a photo frame…` + `an empty new frame is removed…` (Undo stays disabled: no step); 3 → `Title restyle shows the Overflow chip…; Preview shows none`.
