@@ -5,8 +5,13 @@ import type { LayoutSlotPct } from '../templates/custom'
 import type { TemplateId } from '../templates/types'
 import {
   addParent,
+  hideParentItem,
+  overrideParentFrame,
+  overrideParentGuide,
   removeParent,
   renameParent,
+  resetParentItem,
+  resetSpreadToParent,
   setDefaultParent,
 } from '../parentSpreads'
 import { setSpreadBackground, setSpreadParent } from './spreadLook'
@@ -307,6 +312,21 @@ export type BookOp =
   | { type: 'renameParent'; parentId: string; name: string }
   | { type: 'removeParent'; parentId: string }
   | { type: 'setDefaultParent'; parentId: string | null }
+  | {
+      type: 'overrideParentFrame'
+      spreadId: string
+      parentFrameId: string
+      id?: string
+    }
+  | {
+      type: 'overrideParentGuide'
+      spreadId: string
+      parentGuideId: string
+      id?: string
+    }
+  | { type: 'hideParentItem'; spreadId: string; parentItemId: string }
+  | { type: 'resetParentItem'; spreadId: string; parentItemId: string }
+  | { type: 'resetSpreadToParent'; spreadId: string }
 
 export function applyBookOp(book: Book, op: BookOp): Book {
   switch (op.type) {
@@ -425,6 +445,16 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return removeParent(book, op.parentId)
     case 'setDefaultParent':
       return setDefaultParent(book, op.parentId)
+    case 'overrideParentFrame':
+      return overrideParentFrame(book, op.spreadId, op.parentFrameId, op.id)
+    case 'overrideParentGuide':
+      return overrideParentGuide(book, op.spreadId, op.parentGuideId, op.id)
+    case 'hideParentItem':
+      return hideParentItem(book, op.spreadId, op.parentItemId)
+    case 'resetParentItem':
+      return resetParentItem(book, op.spreadId, op.parentItemId)
+    case 'resetSpreadToParent':
+      return resetSpreadToParent(book, op.spreadId)
     case 'addFrame':
       return addFrame(book, op.spreadId, op.rect, op.id)
     case 'addTextFrame':
