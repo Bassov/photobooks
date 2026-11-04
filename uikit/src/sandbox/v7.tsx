@@ -249,7 +249,7 @@ export function BookInspector() {
     <Head t={`Master ${sel.id}`} s={masterUsage(st.doc, id)} sTid="master-usage">
       {/* default-master I2 / I3: a master that is not the default can become it (hint while unused) */}
       {id !== def && <>{masterPages(st.doc, id).used === 0 && <div className="mt-2 text-xs leading-[16.8px]" style={{ color: SUB }} data-testid="master-hint">Pick it for a spread under Master &amp; spacing, or make it the default.</div>}
-        <button type="button" className="e7-mkdef mt-2.5 flex h-7 items-center gap-1.5 rounded-lg px-3 text-sm font-medium" style={{ color: T }} data-testid="master-make-default"
+        <button type="button" className="e7-mkdef mt-2.5 flex h-7 items-center gap-1.5 rounded-md px-3 text-sm font-medium" style={{ color: T }} data-testid="master-make-default"
           onClick={() => st.update((d) => ({ ...d, defaultMaster: id }), "Make default")}><Check className="size-3.5" aria-hidden />Make default</button></>}
     </Head>
     <Sec title="Grid"><GridFields g={m.grid} set={(grid) => setMaster(id, { grid })} link={m.link} setLink={(link) => setMaster(id, { link })} /></Sec>
