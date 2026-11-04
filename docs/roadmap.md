@@ -83,6 +83,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [warm-slice-scheduler-loaf](roadmap/P2/warm-slice-scheduler-loaf.md) — Bug: CI perf red on main (thumb warm slice / bulk hydrate fling LoAF)
 - [x] [feature] [layout-picker-simplify](roadmap/P2/layout-picker-simplify.md) — Simpler Layout picker in the spread inspector (Owner product decision 2026-11-02)
 - [ ] [lite] [worker-ctx-trim](roadmap/P2/worker-ctx-trim.md) — worker-ctx-trim: compact preflight output and a short must-read for unattended workers
+- [ ] [lite] [worker-batch-tool-calls](roadmap/P2/worker-batch-tool-calls.md) — worker-batch-tool-calls: headless workers send independent tool calls in one message
 - [x] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
 - [x] [feature] [parent-spreads-edit](roadmap/P2/parent-spreads-edit.md) — parent spreads: edit in Masters mode
 - [x] [prep] [perf-baseline-aware](roadmap/P2/perf-baseline-aware.md) — Bug: perf lane — a scenario red on main does not fail PRs that leave it alone
@@ -142,6 +143,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [site-preview-mode](roadmap/P3/site-preview-mode.md) — preview the site from the editor
 - [ ] [feature] [site-lightbox](roadmap/P3/site-lightbox.md) — fullscreen and swipe
 - [ ] [prep] [static-export-core](roadmap/P3/static-export-core.md) — deterministic site tree
+- [ ] [feature] [static-export-writer](roadmap/P3/static-export-writer.md) — Bug: /next-roadmap-item static-export-writer
 - [ ] [feature] [static-export](roadmap/P3/static-export.md) — write `dist/`
 - [ ] [prep] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
 - [ ] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike

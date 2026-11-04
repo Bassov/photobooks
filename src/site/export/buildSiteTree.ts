@@ -54,7 +54,10 @@ function html(element: ReactElement): Uint8Array {
   return encoder.encode(`<!doctype html>${renderToStaticMarkup(element)}`)
 }
 
-function publishedRevisions(input: SiteExportInput): PublishedRevision[] {
+/** The revisions `buildSiteTree` exports: published books only, newest first. */
+export function publishedRevisions(
+  input: Pick<SiteExportInput, 'meta' | 'revisions'>,
+): PublishedRevision[] {
   const seen = new Set<string>()
   for (const { bookId } of input.revisions) {
     if (seen.has(bookId)) {
