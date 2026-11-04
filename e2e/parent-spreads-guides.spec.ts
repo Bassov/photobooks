@@ -137,8 +137,8 @@ test('Browser check: a top-ruler drag onto Master A adds a master guide, not a s
   ).toHaveCount(0)
   const child = canvasSpread(page, 'painter-spread-2')
   await page.getByTestId('spread-list-item-painter-spread-2').click()
-  await expect(child.getByTestId('guide-line-parent')).toHaveCount(1)
-  const parentLine = child.getByTestId('guide-line-parent')
+  await expect(parentLines(page, 'painter-spread-2')).toHaveCount(1)
+  const parentLine = parentLines(page, 'painter-spread-2')
   expect(await offsetMm(parentLine)).toBe(placed)
   const childBox = await box(child)
   const at = await middleOf(parentLine)
@@ -147,10 +147,15 @@ test('Browser check: a top-ruler drag onto Master A adds a master guide, not a s
   await expect(masterGuides(page)).toHaveCount(1)
 })
 
+/** A spread's pasteboard slot: its guides sit beside the paper, not in it. */
+const canvasSlot = (page: Page, id: string) =>
+  page
+    .getByTestId('pasteboard-scroll')
+    .locator(`[data-pasteboard-slot][data-spread-id="${id}"]`)
 const parentLines = (page: Page, id: string) =>
-  canvasSpread(page, id).getByTestId('guide-line-parent')
+  canvasSlot(page, id).getByTestId('guide-line-parent')
 const ownLines = (page: Page, id: string) =>
-  canvasSpread(page, id).getByTestId('guide-line')
+  canvasSlot(page, id).getByTestId('guide-line')
 
 async function showSpread(page: Page, id: string) {
   await page.getByTestId(`spread-list-item-${id}`).click()
@@ -268,7 +273,7 @@ test('Browser check: master guides show dashed and read-only on every spread usi
   await expect(ownLines(page, two)).toHaveCount(1)
   await expect(ownLines(page, three)).toHaveCount(0)
   expect(
-    await canvasSpread(page, two)
+    await canvasSlot(page, two)
       .locator('.guide-line')
       .last()
       .getAttribute('data-testid'),

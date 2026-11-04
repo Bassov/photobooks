@@ -42,7 +42,8 @@ function newLine(
   line.className = 'guide-line'
   line.dataset.orientation = orientation
   line.dataset.testid = 'guide-line-new'
-  spreadEl.append(line)
+  // Beside the paper, which clips its content (ConnectedSpreadView stage).
+  ;(spreadEl.closest('.spread-stage') ?? spreadEl).append(line)
   return line
 }
 
