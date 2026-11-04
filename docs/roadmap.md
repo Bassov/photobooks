@@ -109,12 +109,12 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [design-r17](roadmap/P2/design-r17.md) — Bug: /next-roadmap-item design-r17
 - [x] [feature] [design-r16-kit-book](roadmap/P2/design-r16-kit-book.md) — Bug: /next-roadmap-item design-r16-kit-book
 - [x] [feature] [site-photographer-demo](roadmap/P2/site-photographer-demo.md) — Bug: /next-roadmap-item site-photographer-demo
-- [ ] [feature] [text-frames-kit](roadmap/P2/text-frames-kit.md) — Bug: /next-roadmap-item text-frames-kit
+- [x] [feature] [text-frames-kit](roadmap/P2/text-frames-kit.md) — Bug: /next-roadmap-item text-frames-kit
 - [x] [feature] [roadmap-index-no-tick](roadmap/P2/roadmap-index-no-tick.md) — Bug: /next-roadmap-item roadmap-index-no-tick
-- [ ] [feature] [roadmap-tick-tidy](roadmap/P2/roadmap-tick-tidy.md) — Bug: /next-roadmap-item roadmap-tick-tidy
-- [ ] [feature] [prod-arrange-rulers-parity](roadmap/P2/prod-arrange-rulers-parity.md) — Bug: /next-roadmap-item prod-arrange-rulers-parity
+- [x] [feature] [roadmap-tick-tidy](roadmap/P2/roadmap-tick-tidy.md) — Bug: /next-roadmap-item roadmap-tick-tidy
+- [x] [feature] [prod-arrange-rulers-parity](roadmap/P2/prod-arrange-rulers-parity.md) — Bug: /next-roadmap-item prod-arrange-rulers-parity
 - [x] [feature] [kit-focus-ring-style](roadmap/P2/kit-focus-ring-style.md) — Bug: /next-roadmap-item kit-focus-ring-style
-- [ ] [feature] [parent-guides](roadmap/P2/parent-guides.md) — guides on parent spreads
+- [x] [feature] [parent-guides](roadmap/P2/parent-guides.md) — guides on parent spreads
 - [ ] [feature] [parent-overrides](roadmap/P2/parent-overrides.md) — change one spread without touching the parent
 - [ ] [feature] [page-numbers](roadmap/P2/page-numbers.md) — page numbers
 - [ ] [feature] [user-templates](roadmap/P2/user-templates.md) — your own layouts
@@ -123,16 +123,16 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 
 **Review cut:** your own live site with your books: viewer, lightbox, preview, publish, site and hosting settings, at 60 fps on a phone and a 27″ 4K screen.
 
-- [ ] [prep] [image-derivatives](roadmap/P3/image-derivatives.md) — web image pipeline
+- [x] [prep] [image-derivatives](roadmap/P3/image-derivatives.md) — web image pipeline
 - [ ] [prep] [avif-encoder](roadmap/P3/avif-encoder.md) — AVIF derivatives (Security Review: dependency)
-- [ ] [prep] [publish-revisions](roadmap/P3/publish-revisions.md) — draft vs published
+- [x] [prep] [publish-revisions](roadmap/P3/publish-revisions.md) — draft vs published
 - [ ] [feature] [site-viewer](roadmap/P3/site-viewer.md) — viewer entry
 - [ ] [feature] [site-preview-mode](roadmap/P3/site-preview-mode.md) — preview the site from the editor
 - [ ] [feature] [site-lightbox](roadmap/P3/site-lightbox.md) — fullscreen and swipe
 - [ ] [prep] [static-export-core](roadmap/P3/static-export-core.md) — deterministic site tree
 - [ ] [feature] [static-export](roadmap/P3/static-export.md) — write `dist/`
 - [ ] [prep] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
-- [ ] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
+- [x] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
 - [ ] [feature] [publish-credentials](roadmap/P3/publish-credentials.md) — connect the editor to your hosting (Security Review)
 - [ ] [feature] [in-app-publish](roadmap/P3/in-app-publish.md) — publish button (Security Review)
 - [ ] [feature] [site-settings](roadmap/P3/site-settings.md) — personalize the showcase

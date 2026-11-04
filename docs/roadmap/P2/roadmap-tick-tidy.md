@@ -3,7 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: /next-roadmap-item roadmap-tick-tidy
-Status: open
+Status: done
 
 Process item (Owner brief 2026-11-04). After #435 item PRs no longer tick the shared index `docs/roadmap.md`, so lines drift from their item files: `worker-ctx-trim` (merged #397) and `roadmap-index-no-tick` (merged #435) still show `[ ]`.
 
