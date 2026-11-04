@@ -1,5 +1,10 @@
-import { editableSpread, getSpreadSizeMm } from '../core'
+import { editableSpread, getSinglePageSide, getSpreadSizeMm } from '../core'
 import { dispatchBookOp, getBookStoreSnapshot } from './bookStore'
+import {
+  guideStatus,
+  setEditorStatus,
+  type GuideStatusPage,
+} from './editorStatus'
 import { setGuidesVisible } from './guidesView'
 import {
   guideDropOutcome,
@@ -43,8 +48,9 @@ function newLine(
 
 /**
  * Guide drag: the line moves with a `transform` once per animation frame and
- * the document changes once, on release. Dropping on the ruler or off the
- * spread removes a placed guide and abandons a new one.
+ * the document changes once, on release, and the status names the placed
+ * position (kit). Dropping on the ruler or off the spread removes a placed
+ * guide and abandons a new one.
  */
 export function startGuideDrag(start: GuideDragStart): void {
   const { spreadEl, orientation, rulerEl, existing } = start
@@ -61,6 +67,13 @@ export function startGuideDrag(start: GuideDragStart): void {
   const layoutPerMm = spreadEl.offsetWidth / size.widthMm
   const originPx = horizontal ? box.top : box.left
   const baseMm = existing?.offsetMm ?? 0
+  const page: GuideStatusPage =
+    size.pageCount === 2
+      ? { pages: 2, pageWidthMm: book.settings.trim.widthMm }
+      : {
+          pages: 1,
+          side: getSinglePageSide(target.index, book.spreads.length),
+        }
 
   setGuidesVisible(true)
   const line = existing?.lineEl ?? newLine(spreadEl, orientation)
@@ -117,6 +130,9 @@ export function startGuideDrag(start: GuideDragStart): void {
           ? { type: 'moveGuide', spreadId, guideId: existing.id, offsetMm }
           : { type: 'removeGuide', spreadId, guideId: existing.id },
       )
+    }
+    if (outcome === 'commit') {
+      setEditorStatus(guideStatus(orientation, offsetMm, page))
     }
   }
   window.addEventListener('pointermove', onMove)

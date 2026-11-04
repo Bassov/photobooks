@@ -1,25 +1,28 @@
 import {
+  useCallback,
   useSyncExternalStore,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import { editableSpread } from '../core'
-import { getBookStoreSnapshot, subscribeSpread } from './bookStore'
+import { editableSpread, viewGuides, type ResolvedGuide } from '../core'
+import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import { startGuideDrag } from './guideGesture'
 import { getGuidesVisible, subscribeGuidesVisible } from './guidesView'
 import type { GuideOrientation } from './guidesMath'
 import './Guides.css'
 
-type SpreadGuides = NonNullable<
-  ReturnType<typeof getBookStoreSnapshot>['book']['spreads'][number]['guides']
->
+const NONE: readonly ResolvedGuide[] = []
 
-const NONE: SpreadGuides = []
-
-/** A spread's guides, or a parent's on the Masters canvas. */
-function guidesOf(spreadId: string): SpreadGuides {
-  return (
-    editableSpread(getBookStoreSnapshot().book, spreadId)?.spread.guides ?? NONE
-  )
+/**
+ * A spread's guides with its parent's under them, or a parent's own on the
+ * Masters canvas. `viewGuides` caches per spread object, so an edit elsewhere
+ * (another master, another spread) returns the same array and skips the render.
+ */
+function guidesOf(spreadId: string): readonly ResolvedGuide[] {
+  const book = getBookStoreSnapshot().book
+  const target = editableSpread(book, spreadId)
+  return target === undefined
+    ? NONE
+    : viewGuides(book, target.index, target.spread)
 }
 
 function beginDrag(
@@ -62,18 +65,35 @@ export function GuidesOverlay({
     getGuidesVisible,
     getGuidesVisible,
   )
-  const readGuides = () => guidesOf(spreadId)
+  // The book store, not the spread paint: a parent guide edit leaves the
+  // spreads using it unpainted, yet their overlays show it.
+  const readGuides = useCallback(() => guidesOf(spreadId), [spreadId])
   const guides = useSyncExternalStore(
-    (listener) => subscribeSpread(spreadId, listener),
+    subscribeBookStore,
     readGuides,
     readGuides,
   )
   if (!visible) return null
   return (
     <div className="guides-layer" data-testid="guides-layer" aria-hidden="true">
-      {guides.map((guide) => {
+      {guides.map(({ guide, layer }) => {
         const horizontal = guide.orientation === 'horizontal'
         const at = `${String(guide.offsetMm * pxPerMm)}px`
+        if (layer === 'parent') {
+          // Read-only and pointer-transparent: edited on the Masters canvas.
+          return (
+            <div
+              key={`parent:${guide.id}`}
+              className="guide-line"
+              data-testid="guide-line-parent"
+              data-layer="parent"
+              data-orientation={guide.orientation}
+              data-guide-id={guide.id}
+              data-offset-mm={guide.offsetMm}
+              style={horizontal ? { top: at } : { left: at }}
+            />
+          )
+        }
         return (
           <div
             key={guide.id}

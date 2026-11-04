@@ -7,10 +7,13 @@ import {
   type Frame,
   type ParentSpread,
   type Spread,
+  PARENT_SPREAD_INDEX,
+  parentAsSpread,
   resolveParentFrames,
   resolveParentGrid,
   resolveParentGuides,
   spreadParent,
+  viewGuides,
 } from './index'
 import type { Guide } from './ops/guides'
 import { makeBook, makeFrame, makeSpread } from './testing/fixtures'
@@ -188,6 +191,129 @@ describe('resolveParentGuides', () => {
   it('is empty without a parent, overrides or spread guides', () => {
     const spread = makeSpread()
     expect(resolveParentGuides(bookWith(spread), spread)).toEqual([])
+  })
+})
+
+describe('viewGuides', () => {
+  const across = (id: string, offsetMm: number): Guide => ({
+    id,
+    orientation: 'horizontal',
+    offsetMm,
+  })
+  // Trim 300 mm: a two-page parent is 600 mm wide.
+  const masterGuides = [
+    guide('left', 100),
+    guide('fold', 300),
+    guide('right', 450),
+    guide('past', 610),
+    across('top', 40),
+  ]
+
+  function threeSpreads(own: Guide[] = []): Book {
+    return makeBook({
+      spreads: [
+        makeSpread({ id: 's0', parentId: 'p1', guides: own }),
+        makeSpread({ id: 's1', parentId: 'p1', guides: own }),
+        makeSpread({ id: 's2', parentId: 'p1', guides: own }),
+      ],
+      parents: [parent({ guides: masterGuides })],
+    })
+  }
+
+  const shown = (book: Book, index: number, spread?: Spread) =>
+    viewGuides(book, index, spread).map(
+      ({ guide: g, layer }) => `${layer}:${g.id}@${String(g.offsetMm)}`,
+    )
+
+  it('shows parent guides on a two-page spread as stored, minus those off it', () => {
+    expect(shown(threeSpreads([guide('own', 5)]), 1)).toEqual([
+      'parent:left@100',
+      'parent:fold@300',
+      'parent:right@450',
+      'parent:top@40',
+      'spread:own@5',
+    ])
+  })
+
+  it('moves right-page verticals onto a single first page', () => {
+    expect(shown(threeSpreads([guide('own', 5)]), 0)).toEqual([
+      'parent:fold@0',
+      'parent:right@150',
+      'parent:top@40',
+      'spread:own@5',
+    ])
+  })
+
+  it('keeps left-page verticals on a single last page', () => {
+    expect(shown(threeSpreads(), 2)).toEqual([
+      'parent:left@100',
+      'parent:fold@300',
+      'parent:top@40',
+    ])
+  })
+
+  it('maps the only spread of a one-spread book as page 1', () => {
+    const spread = makeSpread({ parentId: 'p1' })
+    const book = bookWith(spread, {
+      parents: [parent({ guides: masterGuides })],
+    })
+    expect(shown(book, 0)).toEqual([
+      'parent:fold@0',
+      'parent:right@150',
+      'parent:top@40',
+    ])
+  })
+
+  it('shows a parent its own guides and an unknown index nothing', () => {
+    const master = parent({ guides: masterGuides })
+    const book = makeBook({ parents: [master] })
+    expect(
+      viewGuides(book, PARENT_SPREAD_INDEX, parentAsSpread(master)).map(
+        ({ layer }) => layer,
+      ),
+    ).toEqual(['spread', 'spread', 'spread', 'spread', 'spread'])
+    expect(viewGuides(book, 99)).toEqual([])
+  })
+
+  it('returns the same array until the spread, parent guides or page change', () => {
+    const book = threeSpreads()
+    const first = viewGuides(book, 1)
+    expect(viewGuides({ ...book, title: 'renamed' }, 1)).toBe(first)
+
+    const regridded = {
+      ...book,
+      parents: [{ ...parent({ guides: masterGuides }), layoutGrid: {} }],
+    }
+    expect(viewGuides(regridded, 1)).toBe(first)
+
+    const moved = { ...book, parents: [parent({ guides: [guide('g', 1)] })] }
+    expect(shown(moved, 1)).toEqual(['parent:g@1'])
+
+    // Same spread object and index, but now the last single page.
+    expect(shown(book, 1)).toHaveLength(4)
+    const shortened = { ...book, spreads: book.spreads.slice(0, 2) }
+    expect(shown(shortened, 1)).toEqual([
+      'parent:left@100',
+      'parent:fold@300',
+      'parent:top@40',
+    ])
+
+    expect(shown(book, 0)).toHaveLength(3)
+    const resized = makeBook({
+      spreads: book.spreads,
+      parents: book.parents,
+      settings: { trim: { widthMm: 200, heightMm: 300 } },
+    })
+    expect(shown(resized, 0)).toEqual(['parent:fold@100', 'parent:top@40'])
+
+    expect(shown(book, 1)).toHaveLength(4)
+    expect(shown(book, 0, book.spreads[1])).toHaveLength(3)
+  })
+
+  it('keeps an unshifted parent guide as the same object', () => {
+    const book = threeSpreads()
+    expect(viewGuides(book, 1)[0]?.guide).toBe(masterGuides[0])
+    expect(viewGuides(book, 0)[0]?.guide).not.toBe(masterGuides[1])
   })
 })
 
@@ -369,3 +495,109 @@ interface Scenario {
   ownFrames: Frame[]
   ownGuides: Guide[]
 }
+
+describe('viewGuides (property)', () => {
+  const ids = ['g1', 'g2', 'g3', 'g4', 'g5', 'g6']
+  const anyGuide = (id: string, maxMm: number) =>
+    fc.record({
+      id: fc.constant(id),
+      orientation: fc.constantFrom<Guide['orientation'][]>(
+        'vertical',
+        'horizontal',
+      ),
+      offsetMm: fc.integer({ min: -20, max: maxMm + 20 }),
+    })
+  const scenario = fc
+    .record({
+      widthMm: fc.integer({ min: 50, max: 400 }),
+      spreadCount: fc.integer({ min: 1, max: 5 }),
+      at: fc.nat(),
+      parentIds: fc.uniqueArray(fc.constantFrom(...ids), { maxLength: 6 }),
+      hiddenIds: fc.subarray(ids),
+      copyIds: fc.subarray(ids),
+      ownCount: fc.integer({ min: 0, max: 3 }),
+    })
+    .chain((base) =>
+      fc.record({
+        base: fc.constant(base),
+        parentGuides: fc.tuple(
+          ...base.parentIds.map((id) => anyGuide(id, base.widthMm * 2)),
+        ),
+        ownGuides: fc.tuple(
+          ...Array.from({ length: base.ownCount }, (_, n) =>
+            anyGuide(`own${String(n)}`, base.widthMm),
+          ),
+        ),
+      }),
+    )
+
+  it('maps parent guides onto the page, in range, after suppression; keeps the rest', () => {
+    fc.assert(
+      fc.property(scenario, ({ base, parentGuides, ownGuides }) => {
+        const index = base.at % base.spreadCount
+        const spreads = Array.from({ length: base.spreadCount }, (_, n) =>
+          makeSpread({
+            id: `s${String(n)}`,
+            parentId: 'p1',
+            guides: n === index ? ownGuides : [],
+            parentOverrides:
+              n === index
+                ? {
+                    hiddenIds: base.hiddenIds,
+                    guides: base.copyIds.map((id) => ({
+                      ...guide(`copy-${id}`, 7),
+                      overridesId: id,
+                    })),
+                  }
+                : undefined,
+          }),
+        )
+        const book = makeBook({
+          spreads,
+          parents: [parent({ guides: parentGuides })],
+          settings: { trim: { widthMm: base.widthMm, heightMm: 300 } },
+        })
+        const spread = spreads[index]
+        if (spread === undefined) throw new Error('no spread at index')
+        const result = viewGuides(book, index)
+        const single =
+          base.spreadCount === 1 ||
+          index === 0 ||
+          index === base.spreadCount - 1
+        const shift = single && index === 0 ? base.widthMm : 0
+        const width = single ? base.widthMm : base.widthMm * 2
+
+        const rank = { parent: 0, override: 1, spread: 2 }
+        const ranks = result.map(({ layer }) => rank[layer])
+        expect(ranks).toEqual(ranks.toSorted((a, b) => a - b))
+
+        const resolved = resolveParentGuides(book, spread)
+        expect(result.filter(({ layer }) => layer !== 'parent')).toEqual(
+          resolved.filter(({ layer }) => layer !== 'parent'),
+        )
+        const expected = resolved
+          .filter(({ layer }) => layer === 'parent')
+          .map(({ guide: g }) =>
+            g.orientation === 'horizontal'
+              ? g
+              : { ...g, offsetMm: g.offsetMm - shift },
+          )
+          .filter(
+            (g) =>
+              g.orientation === 'horizontal' ||
+              (g.offsetMm >= 0 && g.offsetMm <= width),
+          )
+        const parents = result
+          .filter(({ layer }) => layer === 'parent')
+          .map(({ guide: g }) => g)
+        expect(parents).toEqual(expected)
+        for (const g of parents) {
+          expect(base.hiddenIds).not.toContain(g.id)
+          expect(base.copyIds).not.toContain(g.id)
+        }
+        expect(viewGuides(book, index)).toBe(result)
+      }),
+      runs,
+    )
+  })
+})
