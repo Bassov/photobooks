@@ -85,7 +85,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 
 - Write OpenSpec artifacts via `pnpm agent instructions` / run card.
 - **How:** `openspec/config.yaml` `rules.*` (incl. prep/contingency fast-track).
-- **Lite track (`[lite]` items):** no `openspec/changes/<slug>`; the roadmap item and the PR body are the plan. Skip stages 1–2 and archive: in 10–11 `pnpm -s agent finalize <slug>` (no change dir → no delta-spec/archive; it proceeds to roadmap done+sync, C1, C2, stamp; if it errors on the missing change, run `pnpm roadmap done <slug>` + `sync`, `check:integrity`, `quality:self-check`, `stamp-green` by hand). Everything else stays: A, B (changed specs), `ui-review` + evidenced browser smoke when UI is in scope, stage 6 implementation reviewer on the diff, thin finish. The PR body MUST carry the plan (scope, touch-set, Done when).
+- **Lite track (`[lite]` items):** no `openspec/changes/<slug>`; the roadmap item and the PR body are the plan. Skip stages 1–2 and archive: in 10–11 `pnpm -s agent finalize <slug>` (no change dir → no delta-spec/archive; it proceeds to roadmap done, C1, C2, stamp; if it errors on the missing change, run `pnpm roadmap done <slug>`, `check:integrity`, `quality:self-check`, `stamp-green` by hand). Everything else stays: A, B (changed specs), `ui-review` + evidenced browser smoke when UI is in scope, stage 6 implementation reviewer on the diff, thin finish. The PR body MUST carry the plan (scope, touch-set, Done when).
 - **Escalation:** apply passes ~200 changed lines or needs a spec delta / domain behavior → stop, re-tag the item `[feature]`/`[prep]` (or `roadmap add --after`) and run the normal track.
 
 ### 2 · Plan review
@@ -130,7 +130,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 
 ### 10–11 · Finalize
 
-- `pnpm -s agent finalize <slug>`: delta-spec sync check → archive → roadmap done+sync → `check:integrity` → `quality:self-check` → `stamp-green`. Prints only failures + one OK line; fix what it prints, re-run, commit.
+- `pnpm -s agent finalize <slug>`: delta-spec sync check → archive → roadmap done (item file only) → `check:integrity` → `quality:self-check` → `stamp-green`. Prints only failures + one OK line; fix what it prints, re-run, commit.
 - **How:** `operations.archive`.
 
 ### 12 · Thin finish
@@ -154,7 +154,7 @@ Owner decision (c) on #267 (2026-10-29): killing mutants is not feature work. Th
 
 ## Parallel agents
 
-Any open slug, out of order: `/next-roadmap-item <slug>` (preflight `--slug`). Claimed slug + non-overlapping touch-sets / worktrees. Index tick conflicts: skill `roadmap` (Close). Do not `git merge origin/main` in preflight/finish/apply on the happy path. Behind main without conflicts is OK for PR create.
+Any open slug, out of order: `/next-roadmap-item <slug>` (preflight `--slug`). Claimed slug + non-overlapping touch-sets / worktrees. Item PRs never touch `docs/roadmap.md` (skill `roadmap`, Close). Do not `git merge origin/main` in preflight/finish/apply on the happy path. Behind main without conflicts is OK for PR create.
 
 ## Harnesses
 

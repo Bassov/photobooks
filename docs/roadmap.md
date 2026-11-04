@@ -70,7 +70,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [multi-select](roadmap/P2/multi-select.md) — group operations
 - [x] [feature] [multi-select-move](roadmap/P2/multi-select-move.md) — group move
 - [x] [feature] [multi-select-marquee](roadmap/P2/multi-select-marquee.md) — marquee selection
-- [ ] [feature] [locked-frame-swap](roadmap/P2/locked-frame-swap.md) — Bug: /next-roadmap-item locked-frame-swap
+- [x] [feature] [locked-frame-swap](roadmap/P2/locked-frame-swap.md) — Bug: /next-roadmap-item locked-frame-swap
 - [x] [feature] [unsupported-browser](roadmap/P2/unsupported-browser.md) — Bug: /next-roadmap-item unsupported-browser
 - [x] [feature] [multi-select-inspector](roadmap/P2/multi-select-inspector.md) — multi-selection inspector: align, distribute, arrange, delete
 - [x] [feature] [inspector-empty-after-grey](roadmap/P2/inspector-empty-after-grey.md) — Bug: /next-roadmap-item inspector-empty-after-grey
@@ -85,11 +85,11 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [worker-ctx-trim](roadmap/P2/worker-ctx-trim.md) — worker-ctx-trim: compact preflight output and a short must-read for unattended workers
 - [x] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
 - [x] [feature] [parent-spreads-edit](roadmap/P2/parent-spreads-edit.md) — parent spreads: edit in Masters mode
-- [ ] [prep] [perf-baseline-aware](roadmap/P2/perf-baseline-aware.md) — Bug: perf lane — a scenario red on main does not fail PRs that leave it alone
-- [ ] [feature] [editor-hidpi-photos](roadmap/P2/editor-hidpi-photos.md) — Bug: photos in the book editor look soft on 4K / HiDPI screens and visibly upgrade after a drop
+- [x] [prep] [perf-baseline-aware](roadmap/P2/perf-baseline-aware.md) — Bug: perf lane — a scenario red on main does not fail PRs that leave it alone
+- [x] [feature] [editor-hidpi-photos](roadmap/P2/editor-hidpi-photos.md) — Bug: photos in the book editor look soft on 4K / HiDPI screens and visibly upgrade after a drop
 - [x] [feature] [filmstrip-appledouble-skip](roadmap/P2/filmstrip-appledouble-skip.md) — Bug: filmstrip gray tiles from `._*` AppleDouble files; decode-failed photos return as blank tiles after reload
-- [ ] [feature] [kit-sync-canvas](roadmap/P2/kit-sync-canvas.md) — Bug: Kit sync W1: canvas strip, page numbers, new-spread pill, size pill, K1 (Designer kit-sync Spec)
-- [ ] [feature] [photo-slot-stretch](roadmap/P2/photo-slot-stretch.md) — Bug: a photo in a frame is stretched instead of cover-cropped
+- [x] [feature] [kit-sync-canvas](roadmap/P2/kit-sync-canvas.md) — Bug: Kit sync W1: canvas strip, page numbers, new-spread pill, size pill, K1 (Designer kit-sync Spec)
+- [x] [feature] [photo-slot-stretch](roadmap/P2/photo-slot-stretch.md) — Bug: a photo in a frame is stretched instead of cover-cropped
 - [x] [feature] [layout-tile-states](roadmap/P2/layout-tile-states.md) — Bug: Layout tiles: hover/selected on the paper, thumb box follows the trim
 - [x] [feature] [prod-kit-fixes](roadmap/P2/prod-kit-fixes.md) — Bug: prod differs from kit in 3 places (Designer kit-sync Spec P1–P3)
 - [x] [feature] [kit-sync-book](roadmap/P2/kit-sync-book.md) — Kit sync W4: pastedown caption, cover inspector, library card title
@@ -99,16 +99,17 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [parent-spreads-inspector-guides](roadmap/P2/parent-spreads-inspector-guides.md) — parent spreads: master guides and rulers on the master canvas
 - [x] [feature] [layout-grids-parent-inherit-core](roadmap/P2/layout-grids-parent-inherit-core.md) — Bug: /next-roadmap-item layout-grids-parent-inherit-core
 - [x] [feature] [parent-spreads-perf](roadmap/P2/parent-spreads-perf.md) — parent spreads: edit perf gate
-- [ ] [feature] [kit-sync-chrome](roadmap/P2/kit-sync-chrome.md) — Bug: Kit sync W2: top-bar view toggles, no Add spread row, Preview = presentation mode (Designer kit-sync Spec)
-- [ ] [feature] [kit-sync-filmstrip](roadmap/P2/kit-sync-filmstrip.md) — Bug: Kit sync W5: filmstrip header Unplaced toggle + sort menu (Designer kit-sync Spec)
+- [x] [feature] [kit-sync-chrome](roadmap/P2/kit-sync-chrome.md) — Bug: Kit sync W2: top-bar view toggles, no Add spread row, Preview = presentation mode (Designer kit-sync Spec)
+- [x] [feature] [kit-sync-filmstrip](roadmap/P2/kit-sync-filmstrip.md) — Bug: Kit sync W5: filmstrip header Unplaced toggle + sort menu (Designer kit-sync Spec)
 - [x] [feature] [design-r16-prod](roadmap/P2/design-r16-prod.md) — Bug: /next-roadmap-item design-r16-prod
 - [x] [feature] [design-r16-kit-inspector](roadmap/P2/design-r16-kit-inspector.md) — Bug: /next-roadmap-item design-r16-kit-inspector
-- [ ] [feature] [kit-sync-inspector](roadmap/P2/kit-sync-inspector.md) — Bug: kit sync W3 — inspector head, layout picker, flip icons, page size chevron
+- [x] [feature] [kit-sync-inspector](roadmap/P2/kit-sync-inspector.md) — Bug: kit sync W3 — inspector head, layout picker, flip icons, page size chevron
 - [x] [feature] [layout-grids-parent-inherit](roadmap/P2/layout-grids-parent-inherit.md) — grids on parent spreads
 - [x] [feature] [parent-realign-gaps](roadmap/P2/parent-realign-gaps.md) — Bug: /next-roadmap-item parent-realign-gaps
 - [x] [feature] [design-r17](roadmap/P2/design-r17.md) — Bug: /next-roadmap-item design-r17
 - [x] [feature] [design-r16-kit-book](roadmap/P2/design-r16-kit-book.md) — Bug: /next-roadmap-item design-r16-kit-book
 - [x] [feature] [site-photographer-demo](roadmap/P2/site-photographer-demo.md) — Bug: /next-roadmap-item site-photographer-demo
+- [ ] [feature] [roadmap-index-no-tick](roadmap/P2/roadmap-index-no-tick.md) — Bug: /next-roadmap-item roadmap-index-no-tick
 - [ ] [feature] [prod-arrange-rulers-parity](roadmap/P2/prod-arrange-rulers-parity.md) — Bug: /next-roadmap-item prod-arrange-rulers-parity
 - [x] [feature] [kit-focus-ring-style](roadmap/P2/kit-focus-ring-style.md) — Bug: /next-roadmap-item kit-focus-ring-style
 - [ ] [feature] [parent-guides](roadmap/P2/parent-guides.md) — guides on parent spreads
