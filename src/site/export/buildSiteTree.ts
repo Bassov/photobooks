@@ -100,10 +100,14 @@ function assetHashes(book: Book): Map<string | undefined, string | undefined> {
   )
 }
 
+/** `/`-separated, no empty / `.` / `..` segments and no `\` (Windows separator). */
 function isSafeRelativePath(path: string): boolean {
-  return path
-    .split('/')
-    .every((segment) => segment !== '' && segment !== '.' && segment !== '..')
+  return (
+    !path.includes('\\') &&
+    path
+      .split('/')
+      .every((segment) => segment !== '' && segment !== '.' && segment !== '..')
+  )
 }
 
 function viewerFiles(viewer: SiteViewerBundle): SiteFile[] {

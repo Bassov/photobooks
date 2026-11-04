@@ -309,19 +309,23 @@ describe('buildSiteTree', () => {
     })
   })
 
-  it.each(['../escape.js', '/abs.js', 'a//b.js', './main.js', 'main.js/'])(
-    'rejects viewer path %s',
-    async (path) => {
-      const viewer = {
-        entry: 'main.js',
-        files: [...VIEWER.files, { path, bytes: new Uint8Array() }],
-      }
+  it.each([
+    '../escape.js',
+    '/abs.js',
+    'a//b.js',
+    './main.js',
+    'main.js/',
+    'chunks\\..\\..\\x.js',
+  ])('rejects viewer path %s', async (path) => {
+    const viewer = {
+      entry: 'main.js',
+      files: [...VIEWER.files, { path, bytes: new Uint8Array() }],
+    }
 
-      await expect(buildSiteTree({ ...sampleInput(), viewer })).rejects.toThrow(
-        `Invalid viewer path: ${path}`,
-      )
-    },
-  )
+    await expect(buildSiteTree({ ...sampleInput(), viewer })).rejects.toThrow(
+      `Invalid viewer path: ${path}`,
+    )
+  })
 
   it('rejects a duplicate viewer path', async () => {
     const viewer = { entry: 'main.js', files: [...VIEWER.files, MAIN_JS] }
