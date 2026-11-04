@@ -197,7 +197,7 @@ describe('frame ops on a local copy', () => {
     ).toBe(1)
   })
 
-  it('a locked copy does not move; z-order and delete stay own-only', () => {
+  it('a locked copy does not move; z-order stays own-only; delete hides the parent item', () => {
     const locked = applyBookOp(overriddenBook(), {
       type: 'setFrameLocked',
       ...at,
@@ -216,7 +216,13 @@ describe('frame ops on a local copy', () => {
         spreadId: 's1',
         frameIds: ['copy'],
       }),
-    ).toBe(book)
+    ).toEqual(
+      applyBookOp(book, {
+        type: 'hideParentItem',
+        spreadId: 's1',
+        parentItemId: 'logo',
+      }),
+    )
   })
 
   it('a copy photo counts as a placement and leaves with the gallery', () => {

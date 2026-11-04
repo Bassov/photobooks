@@ -145,8 +145,8 @@ function getStructural(
     ({ layer }) => layer !== 'spread',
   )
   const entries: StructuralEntry[] = [
-    ...inherited.map(({ frame }) => structuralEntry(book, frame, true)),
-    ...spread.frames.map((frame) => structuralEntry(book, frame, false)),
+    ...inherited.map(({ frame, layer }) => structuralEntry(book, frame, layer)),
+    ...spread.frames.map((frame) => structuralEntry(book, frame, 'spread')),
   ]
 
   const next: StructuralCache = {
@@ -167,7 +167,7 @@ function getStructural(
 function structuralEntry(
   book: Book,
   frame: Frame,
-  parent: boolean,
+  layer: 'parent' | 'override' | 'spread',
 ): StructuralEntry {
   const base: Omit<ResolvedItem, 'sourceCropRect'> = {
     frameId: frame.id,
@@ -175,8 +175,11 @@ function structuralEntry(
     z: frame.z,
     rotation: frame.rotationDeg ?? 0,
   }
-  if (parent) {
+  if (layer !== 'spread') {
     base.parent = true
+  }
+  if (layer === 'override') {
+    base.override = true
   }
   if (frame.locked === true) {
     base.locked = true

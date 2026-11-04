@@ -1,4 +1,4 @@
-import { editableSpread, type Frame } from '../core'
+import { editableSpread, findSpreadFrame, type Frame } from '../core'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import { setCoverSelected } from './coverSelection'
 import type { FrameDragSource } from './dropTargets'
@@ -199,12 +199,12 @@ function emit(): void {
   }
 }
 
-/** The frame on its spread or parent (Masters canvas) in the current book. */
+/** The frame (own or a local copy) on its spread or parent (Masters canvas) in the current book. */
 export function sourceFrame(current: FrameSource): Frame | undefined {
-  return editableSpread(
-    getBookStoreSnapshot().book,
-    current.spreadId,
-  )?.spread.frames.find((item) => item.id === current.frameId)
+  const found = editableSpread(getBookStoreSnapshot().book, current.spreadId)
+  return found === undefined
+    ? undefined
+    : findSpreadFrame(found.spread, current.frameId)
 }
 
 export function sourceFrameFilled(current: FrameSource): boolean {

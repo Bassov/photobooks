@@ -25,6 +25,7 @@ export interface FrameControl {
   onDoubleActivate?: (event?: { shiftKey?: boolean }) => void
 }
 import { dropChipLabel } from './dropChip'
+import { overrideBadgeFit, type OverrideBadgeFit } from './overrideBadge'
 import { adjustFilter, frameStyleCss } from './frameLookCss'
 import {
   clearPhotoPreview,
@@ -148,6 +149,27 @@ function FrameGlyph({
   )
 }
 
+/** Designer PO3 badge on a local copy: full, icon-only or none by frame size. */
+function OverrideBadge({ fit }: { fit: OverrideBadgeFit }) {
+  if (fit === 'none') {
+    return null
+  }
+  const iconOnly = fit === 'icon'
+  return (
+    <span
+      className="spread-frame-override"
+      data-testid="override-badge"
+      data-fit={fit}
+      data-camera-frame=""
+      title={iconOnly ? 'Override' : undefined}
+      aria-label={iconOnly ? 'Override' : undefined}
+    >
+      <FrameGlyph nodes={ICON_GLYPHS.unlink2} size={10} name="unlink2" />
+      {iconOnly ? null : 'override'}
+    </span>
+  )
+}
+
 /** Kit spine fold: 3 % of the spread across, centred on the page cut. */
 const FOLD_SHARE = '3%'
 
@@ -224,21 +246,28 @@ export function SpreadView({
 }) {
   const parentItems = resolved.items.filter((item) => item.parent === true)
   const spreadItems = resolved.items.filter((item) => item.parent !== true)
-  const controls = new Map(
-    spreadItems.map((item) => [item.frameId, frameControlFor?.(item)]),
+  // Own frames and local copies take the editor controls; inherited items stay inert.
+  const editable = resolved.items.filter(
+    (item) => item.parent !== true || item.override === true,
   )
-  const pressedItems = spreadItems.filter(
+  const controls = new Map(
+    editable.map((item) => [item.frameId, frameControlFor?.(item)]),
+  )
+  const pressedItems = editable.filter(
     (item) => controls.get(item.frameId)?.pressed === true,
   )
-  const cropping = spreadItems.some(
+  const cropping = editable.some(
     (item) => controls.get(item.frameId)?.cropActive === true,
   )
+  // Editor canvas only: thumbs and Preview mount no frame controls.
+  const markParents = !thumb && frameControlFor !== undefined
   const groupBox =
     pressedItems.length > 1 && !cropping
       ? groupBoxPx(pressedItems, pxPerMm)
       : null
   const paintFrame = (item: ResolvedItem) => {
-    const inert = thumb || item.parent === true
+    const inherited = item.parent === true && item.override !== true
+    const inert = thumb || inherited
     const missingId = missingAssetId(item.assetId, isMissingAsset)
     const missing = missingId !== undefined
     const source = previewUrlUnlessMissing(missing, item.assetId, (id) =>
@@ -261,8 +290,9 @@ export function SpreadView({
           previewUrlUnlessMissing(missing, item.assetId, previewUrlFor)
         }
         tier={tierUnlessMissing(missing, item.assetId, tierFor)}
-        control={item.parent === true ? undefined : controls.get(item.frameId)}
+        control={inert ? undefined : controls.get(item.frameId)}
         handles={pressedItems.length === 1}
+        parentMark={inherited && markParents}
       />
     )
   }
@@ -281,8 +311,8 @@ export function SpreadView({
       }}
     >
       {parentItems.length > 0 ? (
-        // Own stacking context below every spread frame; inert markup, so
-        // parent items are never selected, dragged or hit as drop targets.
+        // Own stacking context below every spread frame. Inherited items are
+        // inert markup; only a local copy's button takes the pointer.
         <div
           className="spread-view-parent-layer"
           data-testid={thumb ? undefined : 'parent-layer'}
@@ -406,9 +436,12 @@ function SpreadFrame({
   thumb,
   lowDpiBadge,
   handles,
+  parentMark,
 }: {
   /** False while 2 or more frames are selected: the group box replaces handles. */
   handles: boolean
+  /** Inherited parent item on the editor canvas: the dashed outline. */
+  parentMark: boolean
   assetName: string | undefined
   thumb: boolean
   lowDpiBadge: boolean
@@ -603,6 +636,9 @@ function SpreadFrame({
         data-testid={thumb ? undefined : 'spread-frame'}
         data-frame-id={thumb ? undefined : item.frameId}
         {...kindAttrs(item, thumb)}
+        {...(parentMark
+          ? { 'data-parent-item': 'true', 'data-camera-frame': '' }
+          : {})}
         style={style}
       >
         {body}
@@ -619,6 +655,7 @@ function SpreadFrame({
       {...kindAttrs(item, false)}
       data-crop-active={cropActive ? 'true' : undefined}
       data-locked={item.locked === true ? 'true' : undefined}
+      data-override={item.override === true ? 'true' : undefined}
       aria-label={control.label}
       aria-pressed={control.pressed === true ? true : undefined}
       style={spreadFrameControlStyle(style, control.pressed === true)}
@@ -645,6 +682,9 @@ function SpreadFrame({
         >
           <FrameGlyph nodes={ICON_GLYPHS.lock} size={12} name="lock" />
         </span>
+      ) : null}
+      {item.override === true && !cropActive ? (
+        <OverrideBadge fit={overrideBadgeFit(box.width, box.height)} />
       ) : null}
       {item.lowDpi !== undefined && !missing && !thumb && lowDpiBadge ? (
         <span

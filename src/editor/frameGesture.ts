@@ -1,9 +1,11 @@
 import {
   MIN_FRAME_EDGE_MM,
   editableSpread,
+  findSpreadFrame,
   getSpreadPageCount,
   getSpreadSizeMm,
   nextFrameId,
+  spreadFrames,
   viewGuides,
   type RectMm,
   type Spread,
@@ -13,12 +15,17 @@ import { dispatchBookOp, getBookStoreSnapshot } from './bookStore'
 import { getCropTarget } from './cropMode'
 import { isSpacePanCode } from './editorChromePanels'
 import { getEditorTool, setEditorTool } from './editorToolStore'
-import { STATUS_FRAME_LOCKED, setEditorStatus } from './editorStatus'
+import {
+  STATUS_FRAME_LOCKED,
+  parentItemStatus,
+  setEditorStatus,
+} from './editorStatus'
 import { getFrameSelection, setFrameSource } from './frameSelection'
 import { buildGridAnchors } from './gridSnap'
 import { getGridVisible, getSnapOn } from './gridView'
 import { getGuidesVisible } from './guidesView'
 import { clearLiveGeometry, publishLiveGeometry } from './liveGeometry'
+import { isMacPlatform, parentHitAt, type ParentHit } from './parentHit'
 import {
   cancelMarquee,
   clearMarquee,
@@ -70,7 +77,8 @@ interface MoveSession {
   pointerId: number
   ctx: SpreadContext
   frameId: string
-  button: HTMLElement
+  /** Null until the first move for a copy made by this press (not painted yet). */
+  button: HTMLElement | null
   startX: number
   startY: number
   rect0: RectMm
@@ -79,6 +87,8 @@ interface MoveSession {
   /** A locked frame only reports; it never moves. */
   locked: boolean
   saved: { left: string; top: string }
+  /** The press overrode a parent item: its click must not reach the frames. */
+  override?: true
 }
 
 interface GroupMember {
@@ -160,8 +170,8 @@ function groupSession(
     return null
   }
   const found = editableSpread(getBookStoreSnapshot().book, selection.spreadId)
-  const picked = (found?.spread.frames ?? []).filter((frame) =>
-    selection.frameIds.includes(frame.id),
+  const picked = (found === undefined ? [] : spreadFrames(found.spread)).filter(
+    (frame) => selection.frameIds.includes(frame.id),
   )
   const moving = picked.filter((frame) => frame.locked !== true)
   // Only the frames that move leave the snap anchors; a locked one stays a target.
@@ -359,10 +369,103 @@ export function clearSnapLines(ctx: SpreadContext): void {
  * built at gesture start; Alt suppresses it. The preview is direct DOM writes;
  * one op is committed at gesture end (one undo step).
  */
+/** Ctrl+Shift (Windows / Linux) or ⌘⇧ (Mac), both accepted everywhere. */
+function overrideModifiers(event: PointerEvent): boolean {
+  return event.shiftKey && (event.ctrlKey || event.metaKey)
+}
+
+/** The parent item under a press, through own frames (`parentHit.ts`). */
+function parentHitOf(
+  event: PointerEvent,
+  spreadEl: HTMLElement,
+): ParentHit | null {
+  const ctx = spreadContext(spreadEl, [])
+  if (ctx === null) {
+    return null
+  }
+  return parentHitAt(
+    getBookStoreSnapshot().book,
+    ctx.spreadId,
+    {
+      x: (event.clientX - ctx.left) / ctx.pxPerMm,
+      y: (event.clientY - ctx.top) / ctx.pxPerMm,
+    },
+    ctx.pxPerMm,
+    getGuidesVisible(),
+  )
+}
+
+/**
+ * Designer PO2: a modifier press on a parent frame overrides it, selects the
+ * copy and continues as the copy's move. A parent guide (PO5) or no hit → null.
+ */
+function overrideSession(
+  event: PointerEvent,
+  spreadEl: HTMLElement,
+): MoveSession | null {
+  const hit = parentHitOf(event, spreadEl)
+  const spreadId = spreadEl.getAttribute('data-spread-id') ?? ''
+  if (hit?.kind !== 'frame') {
+    return null
+  }
+  dispatchBookOp({
+    type: 'overrideParentFrame',
+    spreadId,
+    parentFrameId: hit.frameId,
+  })
+  const copy = getBookStoreSnapshot()
+    .book.spreads.find((spread) => spread.id === spreadId)
+    ?.parentOverrides?.frames?.find(
+      (frame) => frame.overridesId === hit.frameId,
+    )
+  // Built after the op: the copy leaves the snap anchors.
+  const ctx = copy === undefined ? null : spreadContext(spreadEl, [copy.id])
+  if (copy === undefined || ctx === null) {
+    return null
+  }
+  setFrameSource({ spreadId, frameId: copy.id })
+  return {
+    kind: 'move',
+    pointerId: event.pointerId,
+    ctx,
+    frameId: copy.id,
+    button: null,
+    startX: event.clientX,
+    startY: event.clientY,
+    rect0: copy.rect,
+    rect: copy.rect,
+    started: false,
+    locked: copy.locked === true,
+    saved: { left: '', top: '' },
+    override: true,
+  }
+}
+
+function restoreMove(move: MoveSession): void {
+  if (move.button !== null) {
+    move.button.style.left = move.saved.left
+    move.button.style.top = move.saved.top
+  }
+}
+
+/** The painted control of a frame on the spread, if React has drawn it. */
+function frameButton(
+  spreadEl: HTMLElement,
+  frameId: string,
+): HTMLElement | null {
+  return (
+    Array.from(
+      spreadEl.querySelectorAll<HTMLElement>('button.spread-frame'),
+    ).find((el) => el.getAttribute('data-frame-id') === frameId) ?? null
+  )
+}
+
 export function installFrameGesture(): () => void {
   let session: Session | null = null
   let swallowClick = false
   let spaceDown = false
+  /** Hint for a plain press on a parent item, announced once its click ends. */
+  let parentStatus: string | null = null
 
   const finish = (): void => {
     const current = session
@@ -420,6 +523,17 @@ export function installFrameGesture(): () => void {
       }
       return
     }
+    const override =
+      tool === 'select' && overrideModifiers(event)
+        ? overrideSession(event, spreadEl)
+        : null
+    if (override !== null) {
+      // The press belongs to the parent item, not to the frames over it.
+      event.preventDefault()
+      session = override
+      listen()
+      return
+    }
     const frameEl = event.target.closest<HTMLElement>('.spread-frame')
     // A set shows no handles: any press on a member's button is its body.
     const group =
@@ -469,7 +583,8 @@ export function installFrameGesture(): () => void {
     ) {
       const frameId = frameEl.getAttribute('data-frame-id') ?? ''
       const ctx = spreadContext(spreadEl, [frameId])
-      const frame = ctx?.spread.frames.find((item) => item.id === frameId)
+      const frame =
+        ctx === null ? undefined : findSpreadFrame(ctx.spread, frameId)
       if (ctx === null || frame === undefined) {
         return
       }
@@ -495,6 +610,11 @@ export function installFrameGesture(): () => void {
         return
       }
       session = marquee
+      const hit = parentHitOf(event, spreadEl)
+      parentStatus =
+        hit?.kind === 'frame'
+          ? parentItemStatus(hit.parentName, isMacPlatform())
+          : null
     } else {
       return
     }
@@ -578,6 +698,13 @@ export function installFrameGesture(): () => void {
         setEditorStatus(STATUS_FRAME_LOCKED)
       }
     }
+    if (move.button === null) {
+      move.button = frameButton(ctx.element, move.frameId)
+      move.saved = {
+        left: move.button?.style.left ?? '',
+        top: move.button?.style.top ?? '',
+      }
+    }
     if (move.locked) {
       return
     }
@@ -602,17 +729,17 @@ export function installFrameGesture(): () => void {
       grid: gridSnapActive(event),
     })
     move.rect = { ...moved, x: moved.x + snap.dx, y: moved.y + snap.dy }
-    move.button.style.left = pct(move.rect.x, ctx.widthMm)
-    move.button.style.top = pct(move.rect.y, ctx.heightMm)
+    if (move.button !== null) {
+      move.button.style.left = pct(move.rect.x, ctx.widthMm)
+      move.button.style.top = pct(move.rect.y, ctx.heightMm)
+    }
     paintSnapLines(ctx, snap.lines)
     setSnapHint(snap.hint, ctx.spreadId)
     publishLiveGeometry({
       spreadId: ctx.spreadId,
       frameId: move.frameId,
       rect: move.rect,
-      rotationDeg:
-        ctx.spread.frames.find((frame) => frame.id === move.frameId)
-          ?.rotationDeg ?? 0,
+      rotationDeg: findSpreadFrame(ctx.spread, move.frameId)?.rotationDeg ?? 0,
     })
   }
 
@@ -679,7 +806,14 @@ export function installFrameGesture(): () => void {
       if (current.started) {
         armSwallow()
         commitMarquee(current)
+      } else if (parentStatus !== null) {
+        // After the click, whose paper deselect clears the status.
+        const status = parentStatus
+        setTimeout(() => {
+          setEditorStatus(status)
+        }, 0)
       }
+      parentStatus = null
     } else {
       commitMove(current)
     }
@@ -731,6 +865,11 @@ export function installFrameGesture(): () => void {
 
   function commitMove(move: MoveSession): void {
     if (!move.started) {
+      if (move.override === true) {
+        armSwallow()
+        // The pasteboard's paper press deselects after this capture handler.
+        setFrameSource({ spreadId: move.ctx.spreadId, frameId: move.frameId })
+      }
       return
     }
     armSwallow()
@@ -744,8 +883,7 @@ export function installFrameGesture(): () => void {
       width: move.rect.width,
       height: move.rect.height,
     }
-    move.button.style.left = move.saved.left
-    move.button.style.top = move.saved.top
+    restoreMove(move)
     dispatchBookOp({
       type: 'setFrameRect',
       spreadId,
@@ -760,8 +898,7 @@ export function installFrameGesture(): () => void {
     const current = session
     finish()
     if (current?.kind === 'move' && current.started) {
-      current.button.style.left = current.saved.left
-      current.button.style.top = current.saved.top
+      restoreMove(current)
     }
     if (current?.kind === 'group' && current.started) {
       restoreGroup(current)
@@ -773,8 +910,13 @@ export function installFrameGesture(): () => void {
 
   // A group press on a filled frame must never become a native image drag,
   // and a marquee must not drag or text-select what it crosses.
+  // An override press on a filled parent item moves its copy, never drags the photo.
   const onDragStart = (event: Event): void => {
-    if (session?.kind === 'group' || session?.kind === 'marquee') {
+    if (
+      session?.kind === 'group' ||
+      session?.kind === 'marquee' ||
+      session?.kind === 'move'
+    ) {
       event.preventDefault()
     }
   }

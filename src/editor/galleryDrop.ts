@@ -24,7 +24,7 @@ import {
   type DropSpreadInput,
   type FrameDragSource,
 } from './dropTargets'
-import { frameLocked } from './frameArrange'
+import { deleteFramesOp, frameLocked } from './frameArrange'
 import { dropAssets } from './multiDrop'
 import {
   STATUS_FRAME_LOCKED,
@@ -79,6 +79,9 @@ let localFrameDrag: FrameDragSource | null = null
 let frameDragSeen = false
 let suppressFrameClick = false
 
+/** Drop-target z shift for local copies: below any own frame `z` (≥ 0). */
+const COPY_Z_BELOW = 1_000_000
+
 export function dropSpreadsFromBook(
   book: Book,
   geometry: DropGeometry,
@@ -91,12 +94,13 @@ export function dropSpreadsFromBook(
     }
     const items = []
     for (const item of resolved.items) {
-      if (item.parent === true) {
+      if (item.parent === true && item.override !== true) {
         continue
       }
       items.push({
         frameId: item.frameId,
-        z: item.z,
+        // A copy keeps the parent slot, under every own frame.
+        z: item.override === true ? item.z - COPY_Z_BELOW : item.z,
         filled: item.assetId !== undefined,
         rectMm: item.rectMm,
       })
@@ -229,11 +233,13 @@ function removeSelectedFrames(): boolean {
   if (selection === null || selection.frameIds.length < 2) {
     return false
   }
-  dispatchBookOp({
-    type: 'removeFrames',
-    spreadId: selection.spreadId,
-    frameIds: selection.frameIds,
-  })
+  dispatchBookOp(
+    deleteFramesOp(
+      getBookStoreSnapshot().book,
+      selection.spreadId,
+      selection.frameIds,
+    ),
+  )
   return true
 }
 
@@ -243,12 +249,13 @@ function removeSelectedEmptyFrame(): boolean {
   if (selected === null || sourceFrameFilled(selected)) {
     return false
   }
-  // The book change also ends the selection (the frame is gone).
-  dispatchBookOp({
-    type: 'removeFrames',
-    spreadId: selected.spreadId,
-    frameIds: [selected.frameId],
-  })
+  // The book change also ends the selection (the frame is gone); a local
+  // copy hides its parent item.
+  dispatchBookOp(
+    deleteFramesOp(getBookStoreSnapshot().book, selected.spreadId, [
+      selected.frameId,
+    ]),
+  )
   return true
 }
 

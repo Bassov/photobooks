@@ -219,6 +219,57 @@ button.spread-frame[data-crop-active='true']:not(
   font-weight: 600;
 }
 
+/* Designer PO1: an inherited parent item on the editor canvas wears a 1 px
+   dashed outline at constant screen px (counter-scaled ::after, as the group
+   box); own frames above it cover the outline. */
+.spread-frame[data-parent-item='true']::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(100% * var(--cam-scale, 1));
+  height: calc(100% * var(--cam-scale, 1));
+  transform-origin: 0 0;
+  scale: calc(1 / var(--cam-scale, 1));
+  outline: 1px dashed var(--parent-soft);
+  pointer-events: none;
+}
+
+/* PO3: a local copy is the only pointer target in the inert parent layer. */
+.spread-view-parent-layer > button.spread-frame {
+  pointer-events: auto;
+}
+
+/* Designer PO3 override badge (kit canvas.tsx), top-left of a copy. */
+.spread-frame-override {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: 16.85px;
+  padding: 1px 4px;
+  border-radius: var(--radius-xs);
+  background: var(--parent);
+  color: var(--paper);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  line-height: 14.85px;
+  white-space: nowrap;
+  pointer-events: none;
+  /* Screen px through a live zoom, about the frame's top-left corner. */
+  transform-origin: -4px -4px;
+  scale: calc(1 / var(--cam-scale, 1));
+}
+
+.spread-frame-override[data-fit='icon'] {
+  width: 18px;
+}
+
 /* Kit lock badge: 20px round, top-right. */
 .spread-frame-lock {
   position: absolute;

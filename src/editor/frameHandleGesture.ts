@@ -1,4 +1,4 @@
-import { MIN_FRAME_EDGE_MM, type Frame } from '../core'
+import { findSpreadFrame, MIN_FRAME_EDGE_MM, type Frame } from '../core'
 import { measureHandlerSync } from '../perf/measureHandler'
 import { dispatchBookOp } from './bookStore'
 import { getCropTarget } from './cropMode'
@@ -138,7 +138,7 @@ export function installFrameHandleGesture(): () => void {
     if (ctx === null) {
       return
     }
-    const frame = ctx.spread.frames.find((item) => item.id === frameId)
+    const frame = findSpreadFrame(ctx.spread, frameId)
     if (frame === undefined) {
       return
     }
