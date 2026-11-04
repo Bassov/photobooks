@@ -17,7 +17,7 @@ import {
   type ResolvedSpread,
   type Spread,
 } from '../core'
-import { tryCacheKeyFromAsset } from '../assets/cacheKey'
+import { cacheKeyFromRecord, tryCacheKeyFromAsset } from '../assets/cacheKey'
 import { setBookUsedAssetIds, setDecodeImportActive } from '../photo/assetPool'
 import type { ExifOrientation } from '../photo/types'
 import {
@@ -447,6 +447,9 @@ export function getAssetCacheKey(assetId: string): string | undefined {
   const book = state.book.assets[assetId]
   const pending = pendingAssetRecords.get(assetId)
   const patch = pendingAssetPatches.get(assetId)
+  if (book !== undefined && pending === undefined && patch === undefined) {
+    return cacheKeyFromRecord(book)
+  }
   return tryCacheKeyFromAsset({
     sourceRootId:
       book?.sourceRootId ?? pending?.sourceRootId ?? patch?.sourceRootId,

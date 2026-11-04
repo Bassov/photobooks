@@ -120,14 +120,14 @@ let passScheduled = false
 let pass: WarmPass | null = null
 let rerunRequested = false
 const inFlight = new Set<string>()
-/** `assetId\ncacheKey` that has a stored thumb or failed (never retried). */
-const settled = new Set<string>()
+/** assetId → cacheKey that has a stored thumb or failed (never retried). */
+const settled = new Map<string, string>()
 let encodedCount = 0
 let longestSliceMs = 0
-
-function settledKey(assetId: string, cacheKey: string): string {
-  return `${assetId}\n${cacheKey}`
-}
+/** Main-thread time of the open pass, then summed over finished passes. */
+let openPassMs = 0
+let passCount = 0
+let passTotalMs = 0
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
@@ -220,7 +220,7 @@ function isWarmCandidate(assetId: string): boolean {
   const cacheKey = getAssetCacheKey(assetId)
   return (
     cacheKey !== undefined &&
-    !settled.has(settledKey(assetId, cacheKey)) &&
+    settled.get(assetId) !== cacheKey &&
     !inFlight.has(assetId) &&
     (hasDeferredLazyDecode(assetId) || !hasPendingThumbDecode(assetId))
   )
@@ -248,7 +248,7 @@ function startWarmJob(assetId: string): void {
   inFlight.add(assetId)
   void encodeWarmThumb(assetId, cacheKey).then((done) => {
     if (done) {
-      settled.add(settledKey(assetId, cacheKey))
+      settled.set(assetId, cacheKey)
     }
     inFlight.delete(assetId)
     requestWarmPass()
@@ -302,6 +302,7 @@ function runWarmSlice(): void {
   // Import keeps its own batch; gallery emit on import end re-arms the lane.
   if (!installed || getBookStoreSnapshot().importRunning) {
     pass = null
+    openPassMs = 0
     rerunRequested = false
     return
   }
@@ -321,11 +322,15 @@ function runWarmSlice(): void {
     now = performance.now()
   } while (more && now - sliceStart < WARM_SLICE_BUDGET_MS)
   longestSliceMs = Math.max(longestSliceMs, now - sliceStart)
+  openPassMs += now - sliceStart
   if (more) {
     scheduleWarmSlice()
     return
   }
   pass = null
+  passCount += 1
+  passTotalMs += openPassMs
+  openPassMs = 0
   if (rerunRequested) {
     rerunRequested = false
     scheduleWarmSlice()
@@ -351,10 +356,13 @@ export function installThumbBackgroundWarm(): () => void {
 export interface BackgroundWarmStats {
   encoded: number
   inFlight: number
-  /** `assetId + cacheKey` entries the lane is done with (stored or failed). */
+  /** Assets the lane is done with at their current cacheKey (stored or failed). */
   settledCount: number
   /** Longest main-thread slice of a warm pass so far. */
   longestSliceMs: number
+  /** Finished passes and their summed main-thread time. */
+  passCount: number
+  passTotalMs: number
 }
 
 /** e2e / unit seam: warm-lane progress. */
@@ -364,6 +372,8 @@ export function getBackgroundWarmStatsForTests(): BackgroundWarmStats {
     inFlight: inFlight.size,
     settledCount: settled.size,
     longestSliceMs,
+    passCount,
+    passTotalMs,
   }
 }
 
@@ -373,6 +383,9 @@ export function resetThumbBackgroundWarmForTests(): void {
   pass = null
   rerunRequested = false
   longestSliceMs = 0
+  openPassMs = 0
+  passCount = 0
+  passTotalMs = 0
   inFlight.clear()
   settled.clear()
   encodedCount = 0
