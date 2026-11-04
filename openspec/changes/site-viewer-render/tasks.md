@@ -9,3 +9,4 @@
 ## Manual test scenarios
 
 1. Editor: cover canvas, spread-list cover row, Preview cover slide and library tiles look as before (no visual baseline change).
+   - problem (harness, not product): `pnpm agent manual-qa` timed out on `start-session` click (welcome header intercepts pointer events). Evidence instead: e2e `kit10-cover`, `cover-hires`, `design-filmstrip-cover`, `design-r2-cover-book`, `design-inspector-book-cover`, `presentation-mode`, `preview-no-overlays`, `library-screens`, `specimen-forms` (screenshots), `spread-view`: 57 passed, no baseline change.
