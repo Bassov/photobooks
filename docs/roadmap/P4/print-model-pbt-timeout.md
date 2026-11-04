@@ -2,7 +2,7 @@
 
 Tag: feature
 Milestone: P4
-Title: Bug: /next-roadmap-item print-model-pbt-timeout
+Title: Bug: print-model PBT times out in loaded pre-push runs
 Status: done
 
 ## Scope
