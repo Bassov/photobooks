@@ -140,7 +140,7 @@ export function IndexPage() {
             ))}
           </dl>
         </div>
-        <Link href={href.demo} className="group mt-7 flex items-center gap-4 rounded-xl p-5 text-foreground shadow-xs outline-hidden data-[focus-visible]:outline-2 data-[focus-visible]:outline-offset-2 data-[focus-visible]:outline-[#535152]" data-testid="demo-link" data-featured style={{ background: "#D7D7D7" }}>
+        <Link href={href.demo} className="group mt-7 flex items-center gap-4 rounded-xl p-5 text-foreground shadow-xs outline-hidden data-[focus-visible]:outline-solid data-[focus-visible]:outline-2 data-[focus-visible]:outline-offset-2 data-[focus-visible]:outline-[#535152]" data-testid="demo-link" data-featured style={{ background: "#D7D7D7" }}>
           <span className="grid size-11 place-items-center rounded-lg bg-background shadow-xs"><Play className="size-5" /></span>
           <span className="min-w-0"><span className="block text-lg font-semibold">Interactive demo — the whole app, end to end</span><span className="block text-sm opacity-80">Welcome → library → create a book → edit → publish the site → print. Everything is clickable; state lives in memory.</span></span>
           <ChevronRight className="ml-auto size-5 opacity-80 transition-transform group-data-[hovered]:translate-x-0.5" />
