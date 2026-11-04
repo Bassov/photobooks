@@ -259,6 +259,23 @@ describe('Inspector frame sections', () => {
     expect(label()).toBe('layer 2 of 3')
   })
 
+  it('names each Arrange button with its kit shortcut, photo or empty frame', () => {
+    seed()
+    render(<Inspector />)
+    for (const frameId of ['f1', 'f2']) {
+      select(frameId)
+      const names = ['z-back', 'z-backward', 'z-forward', 'z-front'].map(
+        (testId) => screen.getByTestId(testId).getAttribute('aria-label'),
+      )
+      expect(names).toEqual([
+        'Send to back (Shift+Ctrl+[)',
+        'Send backward (Ctrl+[)',
+        'Bring forward (Ctrl+])',
+        'Bring to front (Shift+Ctrl+])',
+      ])
+    }
+  })
+
   it('deletes the frame and leaves the template', () => {
     seed()
     render(<Inspector />)

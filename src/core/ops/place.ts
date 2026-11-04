@@ -27,6 +27,11 @@ export function withoutPlacement(frame: Frame): Frame {
   return next
 }
 
+/** A frame that can take or give a photo: an unlocked image frame. */
+export function takesPhoto(frame: Frame): boolean {
+  return frame.kind !== 'text' && frame.locked !== true
+}
+
 export function placeAsset(
   book: Book,
   spreadId: string,
@@ -37,7 +42,7 @@ export function placeAsset(
     return book
   }
   return updateFrame(book, spreadId, frameId, (frame) => {
-    if (frame.assetId !== undefined || frame.locked === true) {
+    if (frame.assetId !== undefined || !takesPhoto(frame)) {
       return frame
     }
     return withPlacedAsset(frame, assetId)
@@ -54,7 +59,7 @@ export function replaceAsset(
     return book
   }
   return updateFrame(book, spreadId, frameId, (frame) => {
-    if (frame.assetId === assetId || frame.locked === true) {
+    if (frame.assetId === assetId || !takesPhoto(frame)) {
       return frame
     }
     return withPlacedAsset(frame, assetId)
@@ -89,8 +94,9 @@ export function swapFrames(
   if (spreadIdA === spreadIdB && frameIdA === frameIdB) {
     return book
   }
-  // A locked frame keeps its photo: neither gives nor takes one.
-  if (frameA.locked === true || frameB.locked === true) {
+  // A locked frame keeps its photo and a text frame has none: neither gives
+  // nor takes one.
+  if (!takesPhoto(frameA) || !takesPhoto(frameB)) {
     return book
   }
 

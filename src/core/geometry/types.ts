@@ -1,3 +1,5 @@
+import type { TextStyleId } from '../schema'
+
 export interface RectMm {
   x: number
   y: number
@@ -27,6 +29,13 @@ export interface ResolvedFrameStyle {
   cornerRadiusMm: number
 }
 
+/** Text of a text frame, resolved for painting. */
+export interface ResolvedText {
+  text: string
+  styleId: TextStyleId
+  align: 'left' | 'center' | 'right'
+}
+
 export interface ResolvedItem {
   frameId: string
   rectMm: RectMm
@@ -50,6 +59,8 @@ export interface ResolvedItem {
   caption?: string
   /** Tone adjustments; omitted when untouched. */
   adjust?: { brightness: number; contrast: number; saturation: number }
+  /** Set on text frames only; such items never carry `assetId`. */
+  text?: ResolvedText
   assetId?: string
   sourceCropRect?: NormalizedRect
   /** Editor-only: set when the photo prints below the warn DPI. */
