@@ -52,6 +52,14 @@ import { PHOTO_CAPTION_SIZE_MM, textNodeStyle } from './textStyles'
 import { ICON_GLYPHS } from '../ui/icons/glyphs'
 import './SpreadView.css'
 
+/** Responsive source of one frame photo (published site): `<img>` attributes. */
+export interface FrameImage {
+  src: string
+  srcset: string
+  sizes: string
+  loading?: 'lazy' | 'eager'
+}
+
 /** Keeps the crop-mode frame (and its ghost) above neighbouring frames. */
 const CROP_Z_BOOST = 1000
 
@@ -181,6 +189,7 @@ export function SpreadView({
   spreadId,
   resolved,
   previewUrlFor,
+  imageFor,
   tierFor,
   frameControlFor,
   isMissingAsset,
@@ -193,6 +202,11 @@ export function SpreadView({
   spreadId: string
   resolved: ResolvedSpread
   previewUrlFor: (assetId: string) => string | undefined
+  /**
+   * Srcset source per photo; `share` = frame width / spread width, for the
+   * caller's `sizes`. Undefined (or no prop) falls back to `previewUrlFor`.
+   */
+  imageFor?: (assetId: string, share: number) => FrameImage | undefined
   tierFor?: (assetId: string) => number | undefined
   frameControlFor?: (item: ResolvedItem) => FrameControl
   /** When true, show hatched missing placeholder instead of a stale preview. */
@@ -229,6 +243,9 @@ export function SpreadView({
     const inert = thumb || item.parent === true
     const missingId = missingAssetId(item.assetId, isMissingAsset)
     const missing = missingId !== undefined
+    const source = previewUrlUnlessMissing(missing, item.assetId, (id) =>
+      imageFor?.(id, item.rectMm.width / resolved.spreadWidthMm),
+    )
     return (
       <SpreadFrame
         key={item.frameId}
@@ -240,11 +257,11 @@ export function SpreadView({
         assetName={
           missingId === undefined ? undefined : assetNameFor?.(missingId)
         }
-        previewUrl={previewUrlUnlessMissing(
-          missing,
-          item.assetId,
-          previewUrlFor,
-        )}
+        source={source}
+        previewUrl={
+          source?.src ??
+          previewUrlUnlessMissing(missing, item.assetId, previewUrlFor)
+        }
         tier={tierUnlessMissing(missing, item.assetId, tierFor)}
         control={item.parent === true ? undefined : controls.get(item.frameId)}
         handles={pressedItems.length === 1}
@@ -381,6 +398,7 @@ function TextNode({
 
 function SpreadFrame({
   item,
+  source,
   previewUrl,
   tier,
   pxPerMm,
@@ -397,6 +415,8 @@ function SpreadFrame({
   thumb: boolean
   lowDpiBadge: boolean
   item: ResolvedItem
+  /** Srcset source; `previewUrl` is its `src` when set. */
+  source: FrameImage | undefined
   previewUrl: string | undefined
   tier: number | undefined
   pxPerMm: number
@@ -517,6 +537,9 @@ function SpreadFrame({
           alt=""
           decoding="async"
           src={previewUrl}
+          srcSet={source?.srcset}
+          sizes={source?.sizes}
+          loading={source?.loading}
           data-tier={tier}
           style={imageStyle}
         />,

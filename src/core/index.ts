@@ -27,15 +27,26 @@ export {
   type CoverPanelName,
 } from './cover'
 export {
-  DEFAULT_PRINT_PROFILE_ID,
+  bookDpiThresholds,
   bookPrintProfileRef,
   defaultPrintProfileRef,
   resolvePrintProfile,
   validatePrintSettings,
-  type PrintProfile,
   type PrintProfileIssue,
   type PrintRangeField,
 } from './printProfile'
+export {
+  DEFAULT_PRINT_PROFILE_ID,
+  PRINT_COLOR_SPACES,
+  PRINT_OUTPUTS,
+  genericPrintProfile,
+  parsePrintProfile,
+  type PrintOutput,
+  type PrintProfile,
+  type PrintProfileInput,
+  type PrintProfileParseResult,
+  type SpineWidthRule,
+} from './print/profileSchema'
 export {
   SPINE_WIDTH_SOURCES,
   type CoverPrint,
@@ -63,6 +74,7 @@ export {
   PARENT_SPREAD_INDEX,
   addParent,
   editableSpread,
+  ensureDefaultParent,
   nextParentId,
   parentAsSpread,
   removeParent,
@@ -122,7 +134,13 @@ export {
   getSpreadSizeMm,
   getSpreadSlotPageCount,
 } from './geometry/spreadSize'
-export { DPI_MIN, DPI_WARN, frameDpi, lowDpi } from './geometry/dpi'
+export {
+  DPI_MIN,
+  DPI_WARN,
+  frameDpi,
+  lowDpi,
+  type DpiThresholds,
+} from './geometry/dpi'
 export {
   clampCrop,
   MAX_CROP_ZOOM,
@@ -193,6 +211,7 @@ export {
   PAGE_MAX,
   PAGE_MIN,
   PAGE_STEP,
+  pageLabel,
   pagesOf,
   spineWidthForPages,
 } from './pages'

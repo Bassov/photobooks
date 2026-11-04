@@ -1,8 +1,14 @@
 import type { NormalizedRect, RectMm } from './types'
 
-/** Book-editor default thresholds until `print-profiles` supplies them. */
+/** The default (`generic`) print profile's thresholds. */
 export const DPI_WARN = 200
 export const DPI_MIN = 150
+
+/** Print profile DPI gates: below `warn` warns, below `min` is an error. */
+export interface DpiThresholds {
+  warn: number
+  min: number
+}
 
 const MM_PER_INCH = 25.4
 
@@ -34,9 +40,12 @@ export function frameDpi(
   return (sourcePx * MM_PER_INCH) / rectMm.width
 }
 
-export function lowDpi(dpi: number): LowDpi | undefined {
-  if (!Number.isFinite(dpi) || dpi >= DPI_WARN) {
+export function lowDpi(
+  dpi: number,
+  thresholds: DpiThresholds,
+): LowDpi | undefined {
+  if (!Number.isFinite(dpi) || dpi >= thresholds.warn) {
     return undefined
   }
-  return { dpi: Math.round(dpi), level: dpi < DPI_MIN ? 'min' : 'warn' }
+  return { dpi: Math.round(dpi), level: dpi < thresholds.min ? 'min' : 'warn' }
 }

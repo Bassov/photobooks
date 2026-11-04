@@ -1,13 +1,16 @@
 import { useSyncExternalStore } from 'react'
 import { effectiveGrid, isTemplateId, spreadParent } from '../core'
 import { Disclosure } from '../ui/Disclosure'
-import { SegmentedControl } from '../ui/SegmentedControl'
+import { Select } from '../ui/Select'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
   subscribeBookStore,
 } from './bookStore'
+import { setFrameSource } from './frameSelection'
 import { InspectorSlider } from './InspectorControls'
+import { spreadMasterStatus } from './inspectorModel'
+import { setLeftPanelTab, setPickedParentId } from './leftPanelTabStore'
 import './SpreadSections.css'
 
 /** Master choice for None (parent ids are never empty). */
@@ -48,6 +51,7 @@ export function MasterSpacingSection({ spreadId }: { spreadId: string }) {
   }
   const { values } = effectiveGrid(book, spread)
   const parents = book.parents ?? []
+  const shown = spreadParent(book, spread)
   return (
     <Disclosure
       title="Master & spacing"
@@ -55,28 +59,53 @@ export function MasterSpacingSection({ spreadId }: { spreadId: string }) {
       data-testid="spread-master-spacing"
     >
       <div className="px-4 pt-0.5 pb-3">
-        {/* Kit SpreadPageSection Master choices (context-inspector.tsx:246-247): the book's parents + None. */}
+        {/* Owner amendment (default-master): always the Cover inspector select, the book's parents + None. */}
         {parents.length > 0 ? (
-          <SegmentedControl
-            label="Master"
-            size="sm"
-            className="spread-segmented"
-            value={spreadParent(book, spread)?.id ?? NO_PARENT}
-            onChange={(id) => {
-              dispatchBookOp({
-                type: 'setSpreadParent',
-                spreadId,
-                parentId: id === NO_PARENT ? null : id,
-              })
-            }}
-            items={[
-              ...parents.map((parent) => ({
-                id: parent.id,
-                label: parent.name,
-              })),
-              { id: NO_PARENT, label: 'None' },
-            ]}
-          />
+          <>
+            <Select
+              aria-label="Master"
+              data-testid="spread-master-select"
+              value={shown?.id ?? NO_PARENT}
+              onChange={(id) => {
+                dispatchBookOp({
+                  type: 'setSpreadParent',
+                  spreadId,
+                  parentId: id === NO_PARENT ? null : id,
+                })
+              }}
+              options={[
+                ...parents.map((parent) => ({
+                  value: parent.id,
+                  label:
+                    parent.id === book.defaultParentId
+                      ? `${parent.name} · default`
+                      : parent.name,
+                })),
+                { value: NO_PARENT, label: 'None' },
+              ]}
+            />
+            <div
+              className="spread-master-status"
+              data-testid="spread-master-status"
+            >
+              <span>{spreadMasterStatus(book, spread)}</span>
+              {shown === undefined ? null : (
+                <button
+                  type="button"
+                  className="spread-master-edit"
+                  data-testid="spread-master-edit"
+                  onClick={() => {
+                    // A frame picked on a page is not on the master canvas.
+                    setFrameSource(null)
+                    setPickedParentId(shown.id)
+                    setLeftPanelTab('masters')
+                  }}
+                >
+                  Edit master
+                </button>
+              )}
+            </div>
+          </>
         ) : null}
         <div className="spread-spacing" data-testid="spread-spacing">
           <InspectorSlider

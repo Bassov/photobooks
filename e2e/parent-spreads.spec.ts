@@ -2,6 +2,12 @@ import type { Page } from '@playwright/test'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { expect, test } from './fixtures/coverage'
 import { pointOf } from './fixtures/locatorBox'
+import {
+  masterOptions,
+  masterSelect,
+  pickMaster,
+  shownMaster,
+} from './fixtures/spreadMaster'
 
 // parent-spreads part 1: the painter fixture has parents "Master A" (one logo
 // in the top margin) and "Master B" (empty), applied to no spread.
@@ -13,40 +19,24 @@ const listLogo = (page: Page, id: string) =>
   page
     .getByTestId(`spread-list-item-${id}`)
     .locator('.spread-view-parent-layer .spread-frame')
-const master = (page: Page, name: string) =>
-  page
-    .getByRole('radiogroup', { name: 'Master' })
-    .getByRole('radio', { name, exact: true })
-
 async function applyMaster(page: Page, spreadId: string, name: string) {
   await page.getByTestId(`spread-list-item-${spreadId}`).click()
   await expect(canvasSpread(page, spreadId)).toBeVisible()
-  await master(page, name).check({ force: true })
-  await expect(master(page, name)).toBeChecked()
+  await pickMaster(page, name)
 }
 
 const pressedFrames = (page: Page) =>
   page.locator('button.spread-frame[aria-pressed="true"]')
 
-/** Kit #/demo spread 2–3 at 1440 × 900: section 170.59 px, three 86.66 × 24 px segments. */
+/** default-master S1 / S2 at 1440 × 900: a full-width 268 px select, then the 16.8 px status line. */
 async function expectKitMasterBoxes(page: Page) {
-  const section = await page.getByTestId('spread-master-spacing').boundingBox()
-  expect(Math.abs((section?.height ?? 0) - 170.59)).toBeLessThanOrEqual(0.5)
-  const radios = page
-    .getByRole('radiogroup', { name: 'Master' })
-    .getByRole('radio')
-  await expect(radios).toHaveCount(3)
-  const boxes = await radios.evaluateAll((els) =>
-    els.map((el) => {
-      const rect = el.getBoundingClientRect()
-      return { width: rect.width, height: rect.height }
-    }),
-  )
+  const select = await masterSelect(page).boundingBox()
+  expect(Math.abs((select?.width ?? 0) - 268)).toBeLessThanOrEqual(0.5)
+  const status = await page.getByTestId('spread-master-status').boundingBox()
+  expect(Math.abs((status?.height ?? 0) - 16.8)).toBeLessThanOrEqual(0.05)
   expect(
-    boxes.every(
-      (b) => Math.abs(b.width - 86.66) <= 0.5 && Math.round(b.height) === 24,
-    ),
-  ).toBe(true)
+    Math.abs((status?.y ?? 0) - ((select?.y ?? 0) + (select?.height ?? 0) + 6)),
+  ).toBeLessThanOrEqual(0.5)
 }
 
 /** The parent logo paints on the canvas spread (with its photo) and its list thumb. */
@@ -72,10 +62,8 @@ test('a parent applied to two spreads paints its item on both, inert; None remov
 
   // Empty: no spread uses a parent yet.
   await page.getByTestId(`spread-list-item-${a}`).click()
-  await expect(master(page, 'None')).toBeChecked()
-  await expect(page.getByRole('radiogroup', { name: 'Master' })).toHaveText(
-    /^Master A\s*Master B\s*None$/,
-  )
+  await expect.poll(() => shownMaster(page)).toBe('None')
+  expect(await masterOptions(page)).toEqual(['Master A', 'Master B', 'None'])
   await expect(canvasSpread(page, a).getByTestId('parent-layer')).toHaveCount(0)
   await expectKitMasterBoxes(page)
 

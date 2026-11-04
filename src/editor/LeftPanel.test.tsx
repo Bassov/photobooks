@@ -56,9 +56,15 @@ describe('LeftPanel', () => {
     ).toBe('true')
 
     fireEvent.click(screen.getByTestId('left-tab-masters'))
-    expect(screen.getByTestId('masters-empty').textContent).toContain(
-      'No masters yet',
+    // A new book has its empty default master, named in the note and tagged.
+    expect(screen.queryByTestId('masters-empty')).toBeNull()
+    expect(screen.getByTestId('masters-intro').textContent).toBe(
+      'Anything on a master repeats on its pages. Spreads use the default, Master A, unless they pick another.',
     )
+    expect(options().map((o) => o.getAttribute('aria-label'))).toEqual([
+      'Master A, default',
+    ])
+    expect(screen.getByTestId('master-default-tag').textContent).toBe('Default')
     expect(screen.queryByTestId('spreads-panel')).toBeNull()
     expect(
       screen.getByTestId('left-tab-masters').getAttribute('aria-selected'),
@@ -186,6 +192,62 @@ describe('MastersPanel', () => {
     expect(screen.queryByTestId('master-rename-input') !== null).toBe(renaming)
     expect(getBookStoreSnapshot().book.spreads[0]?.parentId).toBe(
       renaming ? 'p1' : undefined,
+    )
+  })
+
+  it('row menu: Make default moves the tag and the note; the default cannot be deleted', async () => {
+    resetBookStore({
+      book: makeBook({
+        parents: ['A', 'B'].map((letter) => ({
+          id: `p${letter}`,
+          name: `Master ${letter}`,
+          frames: [],
+          guides: [],
+        })),
+        defaultParentId: 'pA',
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    setLeftPanelTab('masters')
+    render(<LeftPanel />)
+    const tagged = () =>
+      options()
+        .filter((o) => within(o).queryByTestId('master-default-tag') !== null)
+        .map((o) => o.getAttribute('data-item'))
+
+    // Kit tokens: the note in SUB with the name in T; the tag on the shown
+    // (selected) row in T, on another row in SUB.
+    const intro = screen.getByTestId('masters-intro')
+    expect(intro.style.color.toUpperCase()).toBe(SUB)
+    expect(intro.querySelector('b')?.style.color.toUpperCase()).toBe(T)
+    const tagColor = () =>
+      screen.getByTestId('master-default-tag').style.color.toUpperCase()
+    expect(tagColor()).toBe(T)
+
+    fireEvent.click(screen.getByTestId('master-menu-pA'))
+    expect(await screen.findByTestId('master-menu-rename')).toBeTruthy()
+    expect(screen.queryByTestId('master-menu-make-default')).toBeNull()
+    const remove = screen.getByTestId('master-menu-delete')
+    expect(remove.getAttribute('aria-disabled')).toBe('true')
+    expect(
+      within(remove).getByTitle('Make another master the default first'),
+    ).toBeTruthy()
+    fireEvent.keyDown(remove, { key: 'Escape' })
+
+    fireEvent.click(screen.getByTestId('master-menu-pB'))
+    fireEvent.click(await screen.findByTestId('master-menu-make-default'))
+
+    expect(getBookStoreSnapshot().book.defaultParentId).toBe('pB')
+    expect(options().map((o) => o.getAttribute('data-item'))).toEqual([
+      'pA',
+      'pB',
+    ])
+    expect(tagged()).toEqual(['pB'])
+    expect(tagColor()).toBe(SUB)
+    expect(screen.getByTestId('masters-intro').textContent).toContain(
+      'the default, Master B, unless',
     )
   })
 

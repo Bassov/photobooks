@@ -1,5 +1,8 @@
 import { displayBookTitle, type BookSummary } from '../project'
-import { bookFormatFromTrim, type BookObjectFmt } from './bookObjectLayout'
+import {
+  bookFormatFromTrim,
+  type BookObjectFmt,
+} from '../render/bookObjectLayout'
 
 export type LibrarySortKey = 'edited' | 'title' | 'created'
 

@@ -5,13 +5,15 @@ import {
   getBookStoreSnapshot,
   subscribeBookStore,
 } from './bookStore'
+import { Button } from '../ui/Button'
+import { Icon } from '../ui/Icon'
 import { GridFields } from './GridFields'
 import { InspectorHead, InspectorSec } from './InspectorControls'
 import {
   marginsEqual,
   masterGridPatch,
+  masterUsageLabel,
   parentUsage,
-  parentUsageLabel,
 } from './inspectorModel'
 
 const MASTER_TEST_IDS = {
@@ -47,9 +49,35 @@ export function MasterSection({ parentId }: { parentId: string }) {
     <section data-testid="insp-master" aria-label="Master">
       <InspectorHead
         title={parent.name}
-        sub={parentUsageLabel(parentUsage(book, parent.id))}
+        sub={masterUsageLabel(book, parent.id)}
         subTestId="master-usage"
-      />
+      >
+        {parent.id === book.defaultParentId ? null : (
+          <>
+            {parentUsage(book, parent.id) === 0 ? (
+              <p className="master-hint" data-testid="master-hint">
+                Pick it for a spread under Master &amp; spacing, or make it the
+                default.
+              </p>
+            ) : null}
+            <Button
+              variant="outline"
+              size="sm"
+              className="master-make-default"
+              data-testid="master-make-default"
+              onPress={() => {
+                dispatchBookOp({
+                  type: 'setDefaultParent',
+                  parentId: parent.id,
+                })
+              }}
+            >
+              <Icon name="check" size={14} />
+              Make default
+            </Button>
+          </>
+        )}
+      </InspectorHead>
       <InspectorSec title="Grid" testId="master-grid">
         <GridFields
           values={values}

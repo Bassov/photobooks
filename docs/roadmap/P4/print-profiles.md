@@ -3,11 +3,12 @@
 Tag: prep
 Milestone: P4
 Title: printer data
+Status: done
 
 ## Scope
 
-- [ ] Profile schema: trim, page and cover bleed, safe margin, page count `{min, step, max}`, single first page, printed endpapers, spine (formula or table, manual override), `output: pages | spreads` (jpeg-spreads held in `docs/backlog/`), crop marks (default off), color space (sRGB), file limits, warn / min DPI, min font size
-- [ ] Pure effective-DPI function in `src/core` (from the asset record's oriented pixels, frame size and crop zoom)
+- [x] Profile schema: trim, page and cover bleed, safe margin, page count `{min, step, max}`, single first page, printed endpapers, spine (formula or table, manual override), `output: pages | spreads` (jpeg-spreads held in `docs/backlog/`), crop marks (default off), color space (sRGB), file limits, warn / min DPI, min font size
+- [x] Pure effective-DPI function in `src/core` (from the asset record's oriented pixels, frame size and crop zoom)
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
 - **Done when:** profile schema parses / round-trips with PBT; effective DPI matches hand-computed fixtures (oriented pixels, frame size, crop zoom)
