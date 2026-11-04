@@ -82,6 +82,7 @@ import {
   type LibraryActivationHost,
 } from './session/libraryActivation'
 import { upgradeSessionAssetsForLibrary } from './upgradeSessionAssets'
+import { bindSavedTemplatesLibrary } from './savedTemplates'
 import { exposeDerivativesTestApi } from '../derivatives/pool'
 
 const DEFAULT_AUTOSAVE_DEBOUNCE_MS = 1000
@@ -149,6 +150,13 @@ let storageKey: Storage | null =
 let nowId: () => string = () => crypto.randomUUID()
 
 let storage: LibraryStorage | null = null
+
+/** Every library switch goes here: My templates follow `library.json`. */
+function setLibraryStorage(next: LibraryStorage | null): void {
+  storage = next
+  void bindSavedTemplatesLibrary(next)
+}
+
 let libraryId: string | null = null
 let bookId: string | null = null
 let status: ProjectSessionStatus = { kind: 'idle' }
@@ -233,7 +241,7 @@ function buildBookLockHost(): BookLockControllerHost {
     },
     getStorage: () => storage,
     setStorage: (next) => {
-      storage = next
+      setLibraryStorage(next)
     },
     getLibraryId: () => libraryId,
     setLibraryId: (id) => {
@@ -364,7 +372,7 @@ function buildLibraryActivationHost(): LibraryActivationHost {
     },
     getStorage: () => storage,
     setStorage: (next) => {
-      storage = next
+      setLibraryStorage(next)
     },
     getLibraryId: () => libraryId,
     setLibraryId: (id) => {
@@ -833,7 +841,7 @@ export function resetProjectSessionForTests(): void {
     isGestureActive: isEditorGestureActive,
     awaitPendingHashes,
   })
-  storage = null
+  setLibraryStorage(null)
   libraryId = null
   bookId = null
   status = { kind: 'idle' }
@@ -949,7 +957,7 @@ export async function leaveEditorForLibrary(): Promise<void> {
     if (storage === null && keepLibraryId !== null) {
       const recalled = await session.recallLibraryHandle(keepLibraryId)
       if (recalled.ok) {
-        storage = createStorageFromHandle(recalled.value)
+        setLibraryStorage(createStorageFromHandle(recalled.value))
         libraryId = keepLibraryId
         libraryLabel = await session.getLibraryLabel(keepLibraryId)
       }
@@ -1346,7 +1354,7 @@ async function seedHomeRecentsForTests(count: number): Promise<void> {
     }
   }
   session = next
-  storage = memStorage
+  setLibraryStorage(memStorage)
   libraryId = DEFAULT_LIBRARY_ID
   libraryLabel = label
   bookId = null

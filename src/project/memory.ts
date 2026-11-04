@@ -1,6 +1,7 @@
 import { parseBook, type Book } from '../core'
 import { bookSummaryFromBook } from './bookSummary'
 import { bookTitleFromUnknown } from './bookTitle'
+import { parseSavedTemplates } from './libraryDocument'
 import type {
   BookSummary,
   LibraryMeta,
@@ -34,7 +35,7 @@ function mapParseFailure(
 }
 
 export function createMemoryLibraryStorage(): MemoryLibraryStorage {
-  let libraryMeta: LibraryMeta = { books: {} }
+  let libraryMeta: LibraryMeta = { books: {}, templates: [] }
   const books = new Map<string, unknown>()
   const editedAtMsById = new Map<string, number>()
   let permissionRequired = false
@@ -80,7 +81,10 @@ export function createMemoryLibraryStorage(): MemoryLibraryStorage {
       return Promise.resolve(
         gateWrite(() => {
           // Same shape the FSA adapter reads back from library.json.
-          libraryMeta = { books: structuredClone(meta.books ?? {}) }
+          libraryMeta = {
+            books: structuredClone(meta.books ?? {}),
+            templates: parseSavedTemplates(meta.templates),
+          }
           return success(libraryMeta)
         }),
       )

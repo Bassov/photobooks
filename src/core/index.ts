@@ -142,6 +142,7 @@ export {
   spreadLayoutSlots,
   type LayoutSlotPct,
 } from './templates/custom'
+export type { SavedTemplate } from './templates/custom'
 export { setSpreadBackground, setSpreadParent } from './ops/spreadLook'
 
 export {

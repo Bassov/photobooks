@@ -1,56 +1,125 @@
-import { z } from 'zod'
-import type { LayoutSlotPct } from '../core'
+import type { LayoutSlotPct, SavedTemplate } from '../core'
+import { parseLegacySavedTemplates } from '../project/libraryDocument'
+import type { LibraryStorage } from '../project/types'
 
-/** Kit "My templates" entry: a named layout in percent of the spread trim. */
-export interface SavedTemplate {
-  id: string
-  name: string
-  slots: readonly LayoutSlotPct[]
-}
+/** Kit "My templates" entry: `{ id, name, pages, slots }` (see core). */
+export type { SavedTemplate } from '../core'
 
-const STORAGE_KEY = 'photobooks.templates.v1'
-
-const pct = z.number()
-const storedSchema = z.array(
-  z.object({
-    id: z.string().regex(/^user-[\w-]+$/),
-    name: z.string().trim().min(1),
-    slots: z
-      .array(z.object({ x: pct, y: pct, w: pct.positive(), h: pct.positive() }))
-      .min(1),
-  }),
-)
+/** Where templates lived before `library.json` (one list per browser profile). */
+const LEGACY_KEY = 'photobooks.templates.v1'
 
 let templates: readonly SavedTemplate[] | null = null
+let library: LibraryStorage | null = null
+/** Writes a changed list to the bound library; a no-op without one. */
+let persist: (next: readonly SavedTemplate[]) => void = sessionOnly
+/** Loads and writes of `library.json`, one at a time in call order. */
+let queue: Promise<void> = Promise.resolve()
 const listeners = new Set<() => void>()
 
-function load(): readonly SavedTemplate[] {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    // A missing key parses as `null`, which fails the schema: no templates.
-    const parsed = storedSchema.safeParse(JSON.parse(String(raw)))
-    return parsed.success ? parsed.data : []
-  } catch {
-    return []
-  }
+function enqueue(task: () => Promise<void>): Promise<void> {
+  queue = queue.then(task).catch(() => undefined)
+  return queue
 }
 
-function commit(next: readonly SavedTemplate[]): void {
-  templates = next
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-  } catch {
-    // Storage full or blocked: the list still lives for this session.
-  }
+function notify(): void {
   for (const listener of listeners) {
     listener()
   }
 }
 
-/** The user's saved layouts in save order (persisted across reloads). */
+/** Read-modify-write so the publish statuses in `library.json` survive. */
+async function writeTemplates(
+  target: LibraryStorage,
+  next: readonly SavedTemplate[],
+): Promise<boolean> {
+  const meta = await target.getLibrary()
+  if (!meta.ok) {
+    return false
+  }
+  const written = await target.updateLibrary({ ...meta.value, templates: next })
+  return written.ok
+}
+
+function sessionOnly(): void {
+  // Without a library the list lives for this session only.
+}
+
+function writeTo(target: LibraryStorage) {
+  return (next: readonly SavedTemplate[]): void => {
+    void enqueue(async () => {
+      await writeTemplates(target, next)
+    })
+  }
+}
+
+function commit(next: readonly SavedTemplate[]): void {
+  templates = next
+  persist(next)
+  notify()
+}
+
+function readLegacyTemplates(): SavedTemplate[] {
+  try {
+    // A missing key parses as `null`: nothing to import.
+    const raw = window.localStorage.getItem(LEGACY_KEY)
+    return parseLegacySavedTemplates(JSON.parse(String(raw)))
+  } catch {
+    return []
+  }
+}
+
+function removeLegacyTemplates(): void {
+  try {
+    window.localStorage.removeItem(LEGACY_KEY)
+  } catch {
+    // Blocked storage: the next empty library imports the list again.
+  }
+}
+
+async function load(target: LibraryStorage): Promise<void> {
+  const meta = await target.getLibrary()
+  // Another library (or none) was bound meanwhile: its list wins.
+  if (target !== library) {
+    return
+  }
+  const stored = meta.ok ? (meta.value.templates ?? []) : []
+  const legacy = meta.ok && stored.length === 0 ? readLegacyTemplates() : []
+  templates = legacy.length > 0 ? legacy : stored
+  seedSavedTemplatesFromQuery()
+  notify()
+  // One-time import: the key goes only once library.json holds the list.
+  if (legacy.length > 0 && (await writeTemplates(target, legacy))) {
+    removeLegacyTemplates()
+  }
+}
+
+/**
+ * Binds the store to the open library (`null`: none, a session-only list) and
+ * reloads the list from its `library.json`; resolves once it is loaded.
+ */
+export function bindSavedTemplatesLibrary(
+  next: LibraryStorage | null,
+): Promise<void> {
+  if (next === library) {
+    return queue
+  }
+  library = next
+  templates = []
+  if (next === null) {
+    persist = sessionOnly
+    seedSavedTemplatesFromQuery()
+    notify()
+    return queue
+  }
+  persist = writeTo(next)
+  notify()
+  return enqueue(() => load(next))
+}
+
+/** The user's saved layouts in save order (persisted in `library.json`). */
 export function getSavedTemplates(): readonly SavedTemplate[] {
   if (templates === null) {
-    templates = load()
+    templates = []
     seedSavedTemplatesFromQuery()
   }
   return templates
@@ -63,8 +132,14 @@ export function subscribeSavedTemplates(listener: () => void): () => void {
   }
 }
 
-export function findSavedTemplate(id: string): SavedTemplate | undefined {
-  return getSavedTemplates().find((t) => t.id === id)
+/** A saved layout by id; with `pages`, only one saved on that page count. */
+export function findSavedTemplate(
+  id: string,
+  pages?: 1 | 2,
+): SavedTemplate | undefined {
+  return getSavedTemplates().find(
+    (t) => t.id === id && (pages === undefined || t.pages === pages),
+  )
 }
 
 function newId(): string {
@@ -81,11 +156,13 @@ export function nextTemplateName(): string {
   return `My layout ${String(n)}`
 }
 
+/** `pages`: page count of the spread the slots come from. */
 export function addSavedTemplate(
   name: string,
   slots: readonly LayoutSlotPct[],
+  pages: 1 | 2 = 2,
 ): SavedTemplate {
-  const saved = { id: newId(), name, slots }
+  const saved = { id: newId(), name, pages, slots }
   commit([...getSavedTemplates(), saved])
   return saved
 }
@@ -114,7 +191,7 @@ export function duplicateSavedTemplate(id: string): SavedTemplate | undefined {
   for (let k = 2; names.has(name); k += 1) {
     name = `${source.name} copy ${String(k)}`
   }
-  const copy = { id: newId(), name, slots: source.slots }
+  const copy = { ...source, id: newId(), name }
   commit([...list.slice(0, index + 1), copy, ...list.slice(index + 1)])
   return copy
 }
@@ -128,6 +205,7 @@ export const KIT_TEMPLATES: readonly SavedTemplate[] = [
   {
     id: 'user-kit-opener',
     name: 'Travel opener',
+    pages: 2,
     slots: [
       { x: 0, y: 0, w: 62, h: 100 },
       { x: 68, y: 30, w: 28, h: 40 },
@@ -136,6 +214,7 @@ export const KIT_TEMPLATES: readonly SavedTemplate[] = [
   {
     id: 'user-kit-polaroid',
     name: 'Polaroid pair',
+    pages: 2,
     slots: [
       { x: 10, y: 14, w: 30, h: 60 },
       { x: 60, y: 24, w: 30, h: 60 },
@@ -144,6 +223,7 @@ export const KIT_TEMPLATES: readonly SavedTemplate[] = [
   {
     id: 'user-kit-quote',
     name: 'Quote + photo',
+    pages: 2,
     slots: [{ x: 52, y: 8, w: 44, h: 84 }],
   },
 ]
@@ -168,7 +248,15 @@ export function seedSavedTemplatesFromQuery(
   }
 }
 
-/** Test-only: forget the cached list so the next read hits storage. */
+/** Test-only: forget the list and the library so the next read starts over. */
 export function resetSavedTemplatesForTests(): void {
   templates = null
+  library = null
+  persist = sessionOnly
+  queue = Promise.resolve()
+}
+
+/** Test-only: settles once every queued load / write has run. */
+export function flushSavedTemplatesForTests(): Promise<void> {
+  return queue
 }
