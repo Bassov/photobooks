@@ -1,0 +1,94 @@
+/* Photographer site, demo 4 "Desk" (Designer Spec site-awards-5, Direction 4): the books lie on a linen desk under a lamp.
+   Theme scoped to [data-surface="site-demo-4"]; the reader classes come from demo 1. */
+[data-surface="site-demo-4"] {
+  --d4-ink: #22201C; --d4-muted: #574E42; --d4-card: #FBF8F2; --d4-card-ink: #3A342C; --d4-card-muted: #7A7062;
+  --d4-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --d4-rest: 0 14px 24px -8px rgb(50 35 15 / .38), 0 2px 4px rgb(50 35 15 / .2);
+  --d4-lift: 0 40px 60px -10px rgb(50 35 15 / .45), 0 0 0 transparent;
+  --d4-drag: 0 44px 64px -10px rgb(50 35 15 / .45), 0 0 0 transparent;
+  /* the reader's paper, title page and cloth read these */
+  --site-paper: #FFFFFF; --site-ink: #1A1918; --site-muted: #605B54; --site-on-band: #ECE8E1;
+  --site-serif: "Lora Variable", Lora, serif; --site-serif-it: "Site Lora", "Lora Variable", Lora, serif;
+  --site-sans: "Inter Variable", Inter, sans-serif;
+  --site-ease: cubic-bezier(.2, .7, .2, 1); --site-turn: cubic-bezier(.45, .05, .25, 1);
+  --site-shadow-book: 0 2px 4px rgb(50 35 15 / .2), 0 34px 60px -22px rgb(50 35 15 / .5);
+  background:
+    radial-gradient(70% 80% at 32% 18%, rgb(255 248 236 / .55), rgb(255 248 236 / 0) 70%),
+    repeating-linear-gradient(0deg, rgb(60 45 25 / .035) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgb(60 45 25 / .03) 0 1px, transparent 1px 3px), #D3C6B1;
+  color: var(--d4-ink); font-family: var(--site-sans); -webkit-font-smoothing: antialiased;
+}
+[data-surface="site-demo-4"] .sd-it { font-family: var(--site-serif-it); font-style: italic; font-weight: 400 }
+:where([data-surface="site-demo-4"]) :where(button) { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit }
+:where([data-surface="site-demo-4"]) :where(:focus) { outline: none }
+[data-surface="site-demo-4"] .sd-grain { opacity: .07; mix-blend-mode: multiply }
+
+/* type */
+.sd4-abs { position: absolute }
+.sd4-mono { font-family: var(--d4-mono) }
+.sd4-name { font-family: var(--site-serif-it); font-style: italic; font-weight: 400; line-height: 1; letter-spacing: -.01em; color: var(--d4-ink); white-space: nowrap }
+.sd4-nav { font: 500 13px/1 var(--site-sans); color: var(--d4-ink); text-decoration: none; padding: 4px 0 }
+.sd4-nav:hover, .sd4-nav[aria-pressed="true"] { text-decoration: underline 1px; text-underline-offset: 5px }
+.sd4-link { font: 500 13px/1 var(--site-sans); color: var(--d4-ink); text-decoration: underline 1px; text-underline-offset: 5px }
+.sd4-link-q { font: 400 15px/1 var(--d4-mono); color: var(--d4-card-ink); padding: 0 4px }
+.sd4-link-q:disabled { opacity: .35; cursor: default }
+[data-surface="site-demo-4"] :is(.sd4-nav, .sd4-link, .sd4-link-q, .sd4-card-mail):focus-visible { outline: 2px solid var(--d4-ink); outline-offset: 3px; border-radius: 2px }
+.sd4-head { position: absolute; inset: 0 0 auto; z-index: 50; transition: opacity 400ms var(--site-ease) }
+[data-open] .sd4-head { opacity: 0; visibility: hidden; transition: opacity 400ms var(--site-ease), visibility 0s 400ms }
+
+/* paper: the index card, the tags */
+.sd4-paper { background: var(--d4-card); color: var(--d4-card-ink); border-radius: 4px; box-shadow: 0 2px 6px rgb(60 40 20 / .25); font: 400 11px/1 var(--d4-mono); white-space: nowrap }
+.sd4-card { position: absolute; z-index: 0; width: 262px; rotate: -3deg; perspective: 1200px; display: grid; transform-style: preserve-3d;
+  font: 400 12px/1.65 var(--d4-mono); color: var(--d4-card-ink); transition: translate 600ms var(--site-ease), filter 600ms, opacity 600ms }
+[data-open] .sd4-card { translate: -260px 0; filter: blur(2px); opacity: .9 }
+.sd4-card > div { grid-area: 1 / 1; padding: 18px 20px; background: var(--d4-card); backface-visibility: hidden;
+  box-shadow: 0 1px 1px rgb(60 40 20 / .15), 0 10px 22px -8px rgb(60 40 20 / .35); transition: transform 600ms var(--site-ease) }
+.sd4-card-b { transform: rotateY(180deg) }
+.sd4-card[data-flip] .sd4-card-f { transform: rotateY(-180deg) }
+.sd4-card[data-flip] .sd4-card-b { transform: rotateY(0deg) }
+.sd4-card-mail { color: var(--d4-card-muted); text-decoration: none }
+.sd4-card-mail:hover { color: var(--d4-card-ink); text-decoration: underline 1px; text-underline-offset: 3px }
+
+/* the books: away (open: others move aside) > book (the slot, JS) > pose (hover / drag, CSS) > face */
+.sd4-away { position: absolute; left: 0; top: 0; transition: transform 600ms var(--site-ease), filter 600ms, opacity 600ms }
+.sd4-away[data-away] { filter: blur(2px); opacity: .9 }
+.sd4-book { position: absolute; left: 0; top: 0; display: block; transform-origin: 50% 50%; touch-action: none; -webkit-tap-highlight-color: transparent }
+.sd4-desk[data-glide] .sd4-book { transition: transform 600ms var(--site-ease) }
+.sd4-book[data-hidden] { visibility: hidden }
+.sd4-pose { position: absolute; inset: 0; display: block; border-radius: 1px 3px 3px 1px; box-shadow: var(--edge), var(--d4-rest);
+  transition: transform 300ms var(--site-ease), box-shadow 300ms var(--site-ease) }
+.sd4-face { position: absolute; inset: 0; display: block; overflow: hidden; border-radius: inherit }
+/* data-still = a book is open: the desk holds still (the kit strips late `inert` on #/full routes, so no inert here) */
+.sd4-desk[data-still] { pointer-events: none }
+@media (hover: hover) {
+  .sd4-desk:not([data-narrow], [data-still]) .sd4-book:hover .sd4-pose { transform: translateY(-4.2px) scale(1.04) rotate(calc(var(--rz) * -.3deg)); box-shadow: var(--edge), var(--d4-lift) }
+}
+.sd4-desk:not([data-narrow], [data-still]) .sd4-book:focus-visible .sd4-pose { transform: translateY(-4.2px) scale(1.04) rotate(calc(var(--rz) * -.3deg)); box-shadow: var(--edge), var(--d4-lift) }
+.sd4-desk .sd4-book[data-drag] .sd4-pose { transform: translateY(-5.4px) scale(1.04); box-shadow: var(--edge), var(--d4-drag); cursor: grabbing }
+[data-surface="site-demo-4"] .sd4-book:focus-visible .sd4-pose { outline: 2px solid var(--d4-ink); outline-offset: 8px }
+.sd4-tag { position: absolute; left: 50%; top: calc(100% + 14px); padding: 6px 9px; transform: translateX(-50%) rotate(2deg); opacity: 0; pointer-events: none; transition: opacity 200ms }
+@media (hover: hover) { .sd4-desk:not([data-narrow], [data-still]) .sd4-book:not([data-drag]):hover .sd4-tag { opacity: 1 } }
+.sd4-desk:not([data-still]) .sd4-book:focus-visible .sd4-tag, .sd4-desk:not([data-still]) .sd4-book[data-top]:not([data-drag]) .sd4-tag { opacity: 1 }
+.sd4-hint { position: absolute; left: 0; top: 0; z-index: 55; padding: 6px 9px; border-radius: 4px; background: var(--d4-ink); color: var(--d4-card);
+  font: 400 11px/1 var(--d4-mono); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 200ms }
+.sd4-hint[data-on] { opacity: 1 }
+
+/* open: the desk darkens, the book page */
+.sd4-dim { position: absolute; inset: 0; z-index: 20; pointer-events: none; opacity: 0; transition: opacity 400ms var(--site-ease);
+  background: radial-gradient(62% 72% at 50% 50%, rgb(30 20 10 / 0), rgb(30 20 10 / .42)) }
+[data-open] .sd4-dim { opacity: 1 }
+.sd4-page { position: absolute; inset: 0; z-index: 40 }
+.sd4-page > :not([data-testid="sd4-reader"]) { animation: sd4-in 300ms var(--site-ease) both }
+@keyframes sd4-in { from { opacity: 0 } }
+.sd4-pages { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 9px 14px; font-size: 12px; font-variant-numeric: tabular-nums }
+[data-surface="site-demo-4"] .sd-reader:focus-visible { outline: 2px solid var(--d4-ink); outline-offset: 8px; border-radius: 4px }
+
+@media (prefers-reduced-motion: reduce) {
+  .sd4-pose, .sd4-away, .sd4-card > div, .sd4-head, .sd4-tag { transition: none }
+  .sd4-desk .sd4-book:is(:hover, :focus-visible, [data-drag]) .sd4-pose { transform: none; box-shadow: var(--edge), var(--d4-rest) }
+  .sd4-card { transition: none }
+  .sd4-away[data-away], [data-open] .sd4-card { translate: none; filter: none; opacity: 1 }
+  .sd4-dim { transition: opacity 160ms linear }
+  .sd4-page { animation: sd4-in 160ms linear both }
+  .sd4-page > :not([data-testid="sd4-reader"]) { animation: none }
+}

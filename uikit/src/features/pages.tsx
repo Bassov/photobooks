@@ -13,6 +13,7 @@ import { SiteDemos } from "./site-demo-1/entry"
 import { SiteDemo1 } from "./site-demo-1/site"
 import { SiteDemo2 } from "./site-demo-2/site"
 import { SiteDemo3 } from "./site-demo-3/site"
+import { SiteDemo4 } from "./site-demo-4/site"
 import type { FeatureDef, Notes } from "./types"
 
 /** Stage height = the #/demo viewport height (+ the 40 px scenario strip), so every slot sits at its #/demo size. */
@@ -244,6 +245,14 @@ export const PAGES: Record<string, FeatureDef> = {
       where: "DEMO branch only. Full window: #/full/site-demo-3.",
       keys: [["← / → / Space", "turn (scrolls one view)"], ["Esc", "back to the index"]],
       edge: ["Scroll settles on whole spreads; reduced motion = crossfade", "Narrow = Lora 46 rows, no floating book"],
+    },
+  },
+  "site-demo-4": {
+    Demo: SiteDemo4, h: SLOT.app.h, notes: {
+      what: "Site demo 4, the desk: books lie on a linen desk; drag and throw them; a click slides one to the centre and opens it in the lamp light.",
+      where: "DEMO branch only. Full window: #/full/site-demo-4.",
+      keys: [["← / →", "turn"], ["Esc", "put the book back"]],
+      edge: ["Double-click the desk = tidy up; reduced motion = crossfade, no physics", "Narrow = one pile, swipe the top book away"],
     },
   },
   "site-preview-mode": page([

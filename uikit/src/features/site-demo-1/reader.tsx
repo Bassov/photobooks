@@ -3,7 +3,7 @@
    A ±1 change of `view` turns a leaf (800 ms, the cover / back board 1000 ms); bigger jumps crossfade 240 ms; reduced
    motion crossfades every change in 160 ms. Click a half, ← / →, or drag a page; the corner lifts under a fine pointer.
    Demos 2–5 (Spec site-awards-5) add `leaf="paper"` (a curling leaf), `turnMs`, `board` and `scrub` (the page follows the
-   scroll); the defaults are demo 1's. */
+   scroll), demo 4 `corner`; the defaults are demo 1's. */
 import * as React from "react"
 import { CoverFace, ENDPAPER, FOLD, SpreadArt, TitlePage } from "./art"
 import { SPREAD_R, src, viewLabel, viewsOf, type SiteBook } from "./data"
@@ -157,10 +157,12 @@ type ReaderProps = {
   /** scroll position in views (Spec site-awards-5): draws view floor(scrub) with θ = smoothstep(frac)·180; no animation,
      no pointer or keys, and `onView` is not called */
   scrub?: number
+  /** the outer band of a page where the corner lifts under a fine pointer, px (demo 4: 80) */
+  corner?: number
 }
 
 export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
-  function BookReader({ b, view, onView, width: W, dark, keys = true, vt, leaf = "board", turnMs = 800, board = b.spine, scrub }, apiRef) {
+  function BookReader({ b, view, onView, width: W, dark, keys = true, vt, leaf = "board", turnMs = 800, board = b.spine, scrub, corner = 64 }, apiRef) {
     const n = viewsOf(b)
     const sc = scrub === undefined ? null : clamp(scrub, 0, n - 1)
     const sa = sc === null ? 0 : Math.min(Math.floor(sc), n - 2), sf = sc === null ? 0 : sc - sa
@@ -279,11 +281,11 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
         }
         return
       }
-      // corner lift: the outer 64 px of a page
+      // corner lift: the outer `corner` px of a page
       if (e.pointerType !== "mouse" || !fine() || reduced() || busy) return
       const { r, k } = geo(), x = (e.clientX - r.left) / k, y = (e.clientY - r.top) / k
       const inY = y >= 0 && y <= H
-      const want = inY && x > W - 64 && x <= W + 8 && canDrag("R") ? { a: shown, th: 10 } : inY && x < 64 && x >= -8 && canDrag("L") ? { a: shown - 1, th: 170 } : null
+      const want = inY && x > W - corner && x <= W + 8 && canDrag("R") ? { a: shown, th: 10 } : inY && x < corner && x >= -8 && canDrag("L") ? { a: shown - 1, th: 170 } : null
       const cur = turnRef.current
       if (want && (!cur || cur.a !== want.a)) run(want.a, cur?.a === want.a ? cur.th : want.th === 10 ? 0 : 180, want.th, 240, EASE, "lift")
       if (!want && cur?.kind === "lift") unlift()

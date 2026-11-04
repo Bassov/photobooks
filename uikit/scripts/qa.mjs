@@ -457,9 +457,11 @@ await smoke("shelf → book page → open cover → turn a page → fullscreen",
   const turned = (p, n, v) => p.waitForFunction(([n, v]) => document.querySelector(`[data-testid="sd${n}-reader"] [data-testid="ps-reader"]`)?.getAttribute("data-view") !== v, [n, v], { timeout: 3000 })
   const openLake = async (p, n) => {
     await p.click(`[data-testid="sd${n}-book"][data-id="lake-trip"]`); await p.waitForTimeout(1600)
+    // D4 opens the cover in place after the slide (600 + 1000 ms): let the reader land on the view it reports
+    await p.waitForFunction((n) => { const w = document.querySelector(`[data-testid="sd${n}-reader"]`); return !w || w.querySelector('[data-testid="ps-reader"]')?.getAttribute("data-view") === w.getAttribute("data-view") }, n, { timeout: 3000 })
     const rd = p.locator(`[data-testid="sd${n}-reader"]`); return { shown: await rd.isVisible(), v0: await rd.getAttribute("data-view") }
   }
-  for (const n of [2, 3]) {
+  for (const n of [2, 3, 4]) {
     const id = `#/full/site-demo-${n}`, e0 = errs.length
     let pass = false, info = ""
     try {
