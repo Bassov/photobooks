@@ -234,10 +234,10 @@ export const PAGES: Record<string, FeatureDef> = {
   },
   "site-demo-2": {
     Demo: SiteDemo2, h: SLOT.app.h, notes: {
-      what: "Site demo 2, the night gallery: one room, the books lit on a ledge along a horizontal wall; pages curl like paper.",
-      where: "DEMO branch only. Full window: #/full/site-demo-2.",
-      keys: [["← / →", "walk / turn"], ["Esc", "back to the room"]],
-      edge: ["Wheel or drag walks the wall; reduced motion = crossfade", "Narrow = one book per screen"],
+      what: "Site demo 2 v2, the gallery: a warm black room, one book per wall under its spotlight, a museum label beside it.",
+      where: "DEMO branch only. Full window: #/full/site-demo-2?books=1|3|6|12.",
+      keys: [["← / →", "walk / turn"], ["Esc", "back to the wall"]],
+      edge: ["Wheel or drag walks the wall; 12 books: Books = All books", "Phone = one book per screen"],
     },
   },
   "site-demo-3": {
