@@ -139,6 +139,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [avif-encoder](roadmap/P3/avif-encoder.md) — AVIF derivatives (Security Review: dependency)
 - [ ] [prep] [publish-revisions](roadmap/P3/publish-revisions.md) — draft vs published
 - [ ] [feature] [user-templates-store](roadmap/P3/user-templates-store.md) — Bug: /next-roadmap-item user-templates-store
+- [ ] [feature] [user-templates-picker](roadmap/P3/user-templates-picker.md) — Bug: /next-roadmap-item user-templates-picker
 - [ ] [feature] [site-viewer](roadmap/P3/site-viewer.md) — viewer entry
 - [ ] [feature] [site-viewer-render](roadmap/P3/site-viewer-render.md) — Bug: /next-roadmap-item site-viewer-render
 - [ ] [feature] [site-viewer-kit](roadmap/P3/site-viewer-kit.md) — Bug: /next-roadmap-item site-viewer-kit
