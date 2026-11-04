@@ -6,6 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
+import { takeFocus, trapTab } from '../lib/focusTrap'
 import { halfDelta, stepIndex, swipeDelta } from './pagerIndex'
 
 const defaultPosition = (index: number, count: number): string =>
@@ -51,7 +52,16 @@ export function SpreadPager({
   }
 
   useEffect(() => {
+    // Modal focus: taken from the opener, Tab stays inside, handed back on close.
+    const stage = stageRef.current
+    const restoreFocus = takeFocus(stage)
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        e.stopPropagation()
+        trapTab(stage, e.shiftKey)
+        return
+      }
       let delta: number
       if (e.key === 'ArrowRight' || e.key === ' ') {
         delta = 1
@@ -72,6 +82,7 @@ export function SpreadPager({
     window.addEventListener('keydown', onKey, true)
     return () => {
       window.removeEventListener('keydown', onKey, true)
+      restoreFocus()
     }
   }, [])
 
@@ -131,8 +142,9 @@ export function SpreadPager({
   return (
     <div
       ref={stageRef}
-      className="fixed inset-0 z-60 touch-pan-y overflow-hidden bg-(--presentation) text-(--presentation-ink) select-none"
+      className="fixed inset-0 z-60 touch-pan-y overflow-hidden bg-(--presentation) text-(--presentation-ink) outline-none select-none"
       data-testid="presentation"
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label="Presentation"
