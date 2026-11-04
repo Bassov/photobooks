@@ -333,6 +333,15 @@ Trim and bleed SHALL stay user values. A pure validator SHALL report each trim e
 - **WHEN** a book's bleed is above the effective profile's `bleedMaxMm`
 - **THEN** the validator returns a bleed issue with the value and the allowed range, and the book is unchanged
 
+### Requirement: Printer profile data
+
+A printer profile SHALL parse with Zod and carry trim and page-bleed ranges, cover bleed, safe margin, page count `{min, step, max}` (`max - min` a multiple of `step`), single first page, printed endpapers, spine (`formula` base + per page, or a `table` ascending by page count; manual override allowed or not), `output` `pages` | `spreads`, crop marks (default off), color space `srgb`, file limits, DPI `warn` ≥ `min`, and minimum font size. Low-DPI checks SHALL use the book's effective profile thresholds; the built-in `generic` profile and an unknown profile id use 200 / 150.
+
+#### Scenario: Profile thresholds drive the low-DPI level
+
+- **WHEN** a frame's effective DPI is 180 and the profile's DPI is `{ warn: 200, min: 150 }`
+- **THEN** the frame reports `warn`, and with `{ warn: 300, min: 200 }` it reports `min`
+
 ### Requirement: Parent guides on child spreads
 
 While guides are shown, every book spread SHALL show the guides of its resolved parent read-only, under its own guides (order parent → local copies → own), as dashed 1 px `--parent-soft` lines with the own guides' 24 px overhang, pointer-transparent (a press reaches what is under the line), and absent from thumbs, Preview and exports. Parent guides are in two-page mm: on the first single page (right) a vertical guide `v ≥ trim width` SHALL show at `v − trim width`, on the last single page (left) only `v ≤ trim width` shows; a mapped vertical outside the spread width SHALL NOT show; horizontals show unchanged. The Masters canvas SHALL keep showing the parent's guides as editable own guides. A parent edit that changes only its guides MUST NOT repaint child spreads.
