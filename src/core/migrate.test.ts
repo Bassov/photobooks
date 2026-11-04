@@ -5,8 +5,10 @@ import {
   type Book,
   CURRENT_SCHEMA_VERSION,
   defaultCover,
+  defaultCoverPrint,
   defaultCoverStyle,
   defaultEndpapers,
+  defaultPrintProfileRef,
   migrateToCurrent,
   parseBook,
   serializeBook,
@@ -19,6 +21,27 @@ import {
   makePlacedTemplateBook,
   makeSpread,
 } from './testing/fixtures'
+
+/** A pre-v11 document: the current fixture minus the v11 print fields. */
+function asPreV11(book: Book, schemaVersion: number): Record<string, unknown> {
+  const doc: Record<string, unknown> = { ...book, schemaVersion }
+  delete doc.printProfile
+  const cover: Record<string, unknown> = { ...book.cover }
+  delete cover.print
+  return { ...doc, cover }
+}
+
+/** What v10 → v11 makes of a v10 document: the print defaults, nothing else. */
+function withPrintDefaults(
+  doc: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    ...doc,
+    schemaVersion: 11,
+    printProfile: defaultPrintProfileRef(),
+    cover: { ...(doc.cover as object), print: defaultCoverPrint() },
+  }
+}
 
 /** A pre-v5 document: the current fixture minus the v5 fields. */
 function withoutCover(book: Book): Record<string, unknown> {
@@ -337,6 +360,7 @@ describe('migrateToCurrent', () => {
         spine: { text: 'Summer' },
         back: { text: 'Summer' },
         style: defaultCoverStyle(),
+        print: defaultCoverPrint(),
       })
       expect(result.book.endpapers).toEqual({ front: {}, back: {} })
       expect(result.book.title).toBe('Summer')
@@ -379,11 +403,16 @@ describe('migrateToCurrent', () => {
         ...input,
         schemaVersion: CURRENT_SCHEMA_VERSION,
         frameStyles: {},
-        cover: { ...(input.cover as object), style: defaultCoverStyle() },
+        cover: {
+          ...(input.cover as object),
+          style: defaultCoverStyle(),
+          print: defaultCoverPrint(),
+        },
         settings: {
           ...(input.settings as object),
           endpapers: { enabled: true, same: true },
         },
+        printProfile: defaultPrintProfileRef(),
       })
     })
 
@@ -566,24 +595,25 @@ describe('v9 to v10 (parent spreads)', () => {
     'placed template': makePlacedTemplateBook('4-grid', ['a', 'b', 'c']),
     'large book': largeBook(8, 40),
   }
-  const asV9 = (book: Book) => ({ ...book, schemaVersion: 9 })
+  const asV9 = (book: Book) => asPreV11(book, 9)
 
   it.each(Object.entries(v9Fixtures))(
-    '%s: only the version moves',
+    '%s: only the version and the v11 print defaults move',
     (_name, book) => {
       const input = asV9(book)
       const result = migrateToCurrent(input)
       assert.equal(result.ok, true)
-      expect(result.value).toEqual({ ...input, schemaVersion: 10 })
+      expect(result.value).toEqual(withPrintDefaults(input))
     },
   )
 
   it.each(Object.entries(v9Fixtures))(
     '%s: loads unchanged and round-trips',
     (_name, book) => {
-      const loaded = parseBook(structuredClone(asV9(book)))
+      const input = asV9(book)
+      const loaded = parseBook(structuredClone(input))
       assert.equal(loaded.ok, true)
-      expect(loaded.book).toEqual({ ...book, schemaVersion: 10 })
+      expect(loaded.book).toEqual(withPrintDefaults(input))
       const again = parseBook(serializeBook(loaded.book))
       assert.equal(again.ok, true)
       expect(again.book).toEqual(loaded.book)

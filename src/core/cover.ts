@@ -3,6 +3,7 @@ import {
   SPINE_WIDTH_MIN_MM,
   type Book,
   type Cover,
+  type CoverPrint,
   type CoverStyle,
   type Endpapers,
 } from './schema'
@@ -29,7 +30,13 @@ export function defaultCover(title: string): Cover {
     spine: { text: title },
     back: { text: title },
     style: defaultCoverStyle(),
+    print: defaultCoverPrint(),
   }
+}
+
+/** Spine width comes from the print profile until the user sets it. */
+export function defaultCoverPrint(): CoverPrint {
+  return { spineWidthSource: 'profile' }
 }
 
 export function defaultEndpapers(): Endpapers {
