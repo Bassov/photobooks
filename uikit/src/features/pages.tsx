@@ -16,6 +16,7 @@ import { SiteDemo3 } from "./site-demo-3/site"
 import { SiteDemo4 } from "./site-demo-4/site"
 import { SiteDemo5 } from "./site-demo-5/site"
 import { SiteDemo6 } from "./site-demo-6/site"
+import { SiteDemo7 } from "./site-demo-7/site"
 import type { FeatureDef, Notes } from "./types"
 
 /** Stage height = the #/demo viewport height (+ the 40 px scenario strip), so every slot sits at its #/demo size. */
@@ -271,6 +272,14 @@ export const PAGES: Record<string, FeatureDef> = {
       where: "DEMO branch only. Full window: #/full/site-demo-6?books=1|3|6|12.",
       keys: [["← / →", "walk / turn"], ["Esc", "close the book · back"]],
       edge: ["Wheel or drag walks the wall", "Phone = one book per screen"],
+    },
+  },
+  "site-demo-7": {
+    Demo: SiteDemo7, h: SLOT.app.h, notes: {
+      what: "Site demo 7, the index on the design system (spec-sys): a typographic list, the other rows dim on hover, a sticky preview.",
+      where: "DEMO branch only. Full window: #/full/site-demo-7?books=1|3|6|12.",
+      keys: [["Tab", "preview"], ["Esc", "close the book · back"]],
+      edge: ["Phone = rows with a small cover"],
     },
   },
   "site-preview-mode": page([
