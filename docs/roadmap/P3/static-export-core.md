@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P3
 Title: deterministic site tree
+Status: done
 
 ## Scope
 
