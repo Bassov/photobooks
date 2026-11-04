@@ -1673,6 +1673,28 @@ describe('bookStore spread paint covers the parent layer', () => {
     expect(gridEdit).toEqual({ notified: ['pA'], invalidated: ['pA'] })
   })
 
+  it('a parent guide edit repaints only the parent, not the spreads using it', () => {
+    loadMasters()
+
+    const guideEdits = repaintsFor(() => {
+      dispatchBookOp({
+        type: 'addGuide',
+        spreadId: 'pA',
+        orientation: 'vertical',
+        offsetMm: 40,
+        id: 'g',
+      })
+      dispatchBookOp({
+        type: 'moveGuide',
+        spreadId: 'pA',
+        guideId: 'g',
+        offsetMm: 60,
+      })
+    })
+
+    expect(guideEdits).toEqual({ notified: ['pA', 'pA'], invalidated: ['pA'] })
+  })
+
   it('flags a publish repainting more than 8 spreads as a bulk repaint', () => {
     const spread = (index: number) =>
       makeSpread({

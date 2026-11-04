@@ -100,6 +100,13 @@ export async function capture(out, { log = console.log, probe } = {}) {
     ["site-share", () => c('[data-testid="site-share"]')],
     ["site-fullscreen", async () => { await page.keyboard.press("Escape"); await settle(200); await c('[data-testid="site-fullscreen-btn"]') }],
     ["editor-after-site", async () => { await page.keyboard.press("Escape"); await settle(); await c('[data-testid="demo-site-back"]') }],
+    // Designer text-frames: Text draws a caption frame and typing starts at once (the kit has no T key: the toolbar button); Esc + Title → whole lines + Overflow chip
+    ["editor-text-editing", async () => {
+      await c('[data-item="p1"]'); await settle(250); await c('[aria-label="Text (T)"]')
+      const b = await page.locator('[data-testid="canvas"] [data-testid="spread"][data-current]').boundingBox(), x = Math.round(b.x + b.width * 0.56), y = Math.round(b.y + b.height * 0.62)
+      await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 200, y + 40, { steps: 6 }); await page.mouse.up(); await settle(200)
+      await page.keyboard.type("Morning on the lake, 6:40") }],
+    ["editor-text-overflow", async () => { await page.keyboard.press("Escape"); await settle(200); await page.locator('[data-testid="ctx-inspector"]').getByText("Title", { exact: true }).click() }],
     ["settings-from-editor", () => c('[data-testid="demo-editor-settings"]')],
     ["library-one-book", async () => { await c('[data-testid="demo-settings-back"]'); await settle(); await c('[data-testid="editor-library"]') }],
     ["library-book-menu", async () => { await page.locator('[data-testid="demo"] [data-testid="book-cover"]').first().hover(); await c('[data-testid="demo"] [data-testid="book-menu"]') }],

@@ -82,6 +82,7 @@ import {
   type LibraryActivationHost,
 } from './session/libraryActivation'
 import { upgradeSessionAssetsForLibrary } from './upgradeSessionAssets'
+import { exposeDerivativesTestApi } from '../derivatives/pool'
 
 const DEFAULT_AUTOSAVE_DEBOUNCE_MS = 1000
 
@@ -1378,6 +1379,7 @@ export function exposeProjectSessionTestApi(
     getThumbCacheStatsForTests,
     getThumbBulkHydrateStatsForTests,
   }
+  exposeDerivativesTestApi(win)
   win.__photobooksProject = {
     attachLibraryForTests,
     attachMemoryLibraryForTests,
