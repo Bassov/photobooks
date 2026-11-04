@@ -1,6 +1,7 @@
+import { z } from 'zod'
 import type { LibraryMeta } from './types'
 
-export const LIBRARY_SCHEMA_VERSION = 1
+export const LIBRARY_SCHEMA_VERSION = 2
 
 export type LibraryParseResult =
   | { ok: true; meta: LibraryMeta }
@@ -10,6 +11,21 @@ export type LibraryParseResult =
       schemaVersion: number
       supportedVersion: number
     }
+  | { ok: false; code: 'corrupted' }
+
+type LibraryMigrateFailure = Extract<
+  LibraryParseResult,
+  { ok: false; code: 'newer-schema' }
+>
+
+/*
+ * Built per parse (like the book cover schema) so that its mutants are
+ * reachable by per-test mutant switching.
+ */
+function makeLibrarySchema() {
+  const entry = z.object({ status: z.enum(['draft', 'published']) })
+  return z.object({ books: z.record(z.string().min(1), entry) })
+}
 
 function isRecord(input: unknown): input is Record<string, unknown> {
   return input !== null && typeof input === 'object' && !Array.isArray(input)
@@ -22,6 +38,13 @@ function migrateV0ToV1(
   return { ...input, schemaVersion: 1 }
 }
 
+/** v1 holds no fields; v2 adds the per-book publish status map. */
+function migrateV1ToV2(
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  return { ...input, schemaVersion: 2, books: {} }
+}
+
 /**
  * Pure parse + migration chain for `library.json`. Anything that is not a
  * JSON object is treated as an empty v0 document; versions above
@@ -29,10 +52,8 @@ function migrateV0ToV1(
  */
 export function migrateLibrary(
   input: unknown,
-):
-  | { ok: true; value: Record<string, unknown> }
-  | Extract<LibraryParseResult, { ok: false }> {
-  const doc: Record<string, unknown> = isRecord(input) ? input : {}
+): { ok: true; value: Record<string, unknown> } | LibraryMigrateFailure {
+  let doc: Record<string, unknown> = isRecord(input) ? input : {}
   const raw = doc.schemaVersion
   const version = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0
   if (version > LIBRARY_SCHEMA_VERSION) {
@@ -43,7 +64,13 @@ export function migrateLibrary(
       supportedVersion: LIBRARY_SCHEMA_VERSION,
     }
   }
-  return { ok: true, value: version < 1 ? migrateV0ToV1(doc) : doc }
+  if (version < 1) {
+    doc = migrateV0ToV1(doc)
+  }
+  if (version < 2) {
+    doc = migrateV1ToV2(doc)
+  }
+  return { ok: true, value: doc }
 }
 
 export function parseLibrary(input: unknown): LibraryParseResult {
@@ -51,10 +78,13 @@ export function parseLibrary(input: unknown): LibraryParseResult {
   if (!migrated.ok) {
     return migrated
   }
-  // v1 carries no fields beyond `schemaVersion`.
-  return { ok: true, meta: {} }
+  const parsed = makeLibrarySchema().safeParse(migrated.value)
+  if (!parsed.success) {
+    return { ok: false, code: 'corrupted' }
+  }
+  return { ok: true, meta: { books: parsed.data.books } }
 }
 
 export function serializeLibrary(meta: LibraryMeta): Record<string, unknown> {
-  return { ...meta, schemaVersion: LIBRARY_SCHEMA_VERSION }
+  return { schemaVersion: LIBRARY_SCHEMA_VERSION, books: meta.books ?? {} }
 }

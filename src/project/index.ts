@@ -1,7 +1,9 @@
 export type {
+  BookPublishEntry,
   BookSummary,
   LibraryMeta,
   LibraryStorage,
+  PublishStatus,
   StorageFailure,
   StorageFailureCode,
   StorageResult,
@@ -13,6 +15,16 @@ export {
   normalizeBookTitleInput,
 } from './bookTitle'
 export { bookSummaryFromBook } from './bookSummary'
+export {
+  bookPublishStatus,
+  parsePublished,
+  publishBook,
+  serializePublished,
+  siteAssetIds,
+  unpublishBook,
+  type PublishedParseResult,
+  type PublishedRevision,
+} from './publish'
 export { createMemoryLibraryStorage, type MemoryLibraryStorage } from './memory'
 export {
   createFsaLibraryStorage,
