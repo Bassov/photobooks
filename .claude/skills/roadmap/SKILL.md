@@ -30,14 +30,14 @@ Run `pnpm -s roadmap <cmd>` (`-s` drops pnpm's banner; `--json` for JSON). Error
 
 ## Close
 
-- The item PR closes its own item. Right after the OpenSpec archive, on the change branch: `done <slug> [--note "how it shipped"]`, then `sync` (ticks `[x]` on its index line). Commit both with the archive, so `main` never has a merged item that is still open.
-- Unneeded `[contingency]`: `done <slug> --note "not needed (gate passed in <gate-item>)"` + `sync` in the gate item's PR (note required).
-- Index conflict with a sibling PR (parallel items, adjacent tick lines): keep every line from both sides, `[x]` wins over `[ ]`, then `sync && check`. Never drop a line or an `add`.
+- The item PR closes its own item in its item file only. Right after the OpenSpec archive, on the change branch: `done <slug> [--note "how it shipped"]` (writes `Status: done`; `next` / `check` read it). Commit it with the archive. Item PRs never touch `docs/roadmap.md` and never run `sync`.
+- Unneeded `[contingency]`: `done <slug> --note "not needed (gate passed in <gate-item>)"` in the gate item's PR (note required).
+- `check` warns `sync:` for done items whose index line is still `[ ]`; that is expected until the owner runs `sync` / `archive <M>` on `main`.
 - `archive <M>` (**retire**: drop index block + delete `docs/roadmap/<M>/`; git history is SoT) stays an owner step at the milestone review cut, in a small docs PR. Until then `check` warns that the milestone is fully done.
 - `check` validates the layout (runs in `pnpm check:integrity`); fully-done-but-active is a warning until `archive`. Legacy `## Archive` / `docs/roadmap/archive/` are errors.
 
 ## Never
 
-- Hand-edit `docs/roadmap.md` (ticks, order, wording) or delete item files; the one exception is the tick-conflict merge above.
+- Hand-edit `docs/roadmap.md` (ticks, order, wording) or delete item files.
 - `move <slug> (--after S | --before S | --milestone M [--top|--bottom])` unless the owner asks to reprioritize.
-- `done` an item other than the current PR's (`sync` ticking already-done siblings is fine).
+- `done` an item other than the current PR's, or `sync` in an item PR.

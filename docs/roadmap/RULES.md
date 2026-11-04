@@ -27,8 +27,8 @@ The plan is the index `docs/roadmap.md` plus one file per item under `docs/roadm
 ## Order, milestones, closing
 
 - Items run in index order; `pnpm roadmap next` returns the first open item, skipping `[contingency]` items and slugs with an open PR.
-- Milestones are review cuts. An item PR closes its own item: `done` writes `Status: done` in the item file and `pnpm roadmap sync` ticks its index line, both in that PR, so a merged item is never left open on `main`. Milestone `archive <M>` (retire) lands through a small docs PR by the owner at the review cut (`main` is protected; no direct pushes); `check` warns about a fully-done milestone until then. Milestone IDs are stable labels referenced from docs and specs, so inserted milestones take fractional numbers (M2.1, M2.2, M2.5, M4.5) and a moved milestone keeps its number (M7 runs before M6).
-- An item is closed in the change's own PR right after the OpenSpec archive with `pnpm roadmap done <slug>` + `pnpm roadmap sync` (`openspec/config.yaml` `operations.archive`). `--note` records how it was closed. Each item PR ticks only its own index line. Any open item can run out of order (`/next-roadmap-item <slug>`), so the orchestrator may run several agents in parallel, one worktree each.
+- Milestones are review cuts. Item PRs never touch `docs/roadmap.md`; `next` / `check` read done state from the item file. Milestone `archive <M>` (retire) lands through a small docs PR by the owner at the review cut (`main` is protected; no direct pushes); `check` warns about a fully-done milestone until then. Milestone IDs are stable labels referenced from docs and specs, so inserted milestones take fractional numbers (M2.1, M2.2, M2.5, M4.5) and a moved milestone keeps its number (M7 runs before M6).
+- The item PR writes `Status: done` in its item file only: `pnpm roadmap done <slug>` right after the OpenSpec archive (`openspec/config.yaml` `operations.archive`); `--note` records how it was closed. `check` warns `sync:` until the owner runs `sync` / `archive <M>` on `main`. Any open item can run out of order (`/next-roadmap-item <slug>`), so the orchestrator may run several agents in parallel, one worktree each.
 - Reprioritizing is the owner's call: `pnpm roadmap move`. Deferred ideas are scheduled with `pnpm roadmap add`.
 
 ## Change size
@@ -57,7 +57,7 @@ Slicing rules when adding or splitting items:
 
 ## Known limits
 
-- Parallel PRs: two branches that `add` after the same item can conflict on the index; re-run `add` on a clean index after merge instead of hand-merging. Two item PRs that tick adjacent index lines conflict in git: keep every line from both sides, `[x]` wins, then `pnpm roadmap sync && pnpm roadmap check`.
+- Parallel PRs: two branches that `add` after the same item can conflict on the index; re-run `add` on a clean index after merge instead of hand-merging.
 - Titles and tags live in both the index line and the item file; `check` requires them to match. There is no retitle command: the owner edits both lines together.
 - LF line endings only (`.gitattributes` sets `eol=lf`); an index with CRLF line endings is not supported.
 - Stale remote branches of merged items inflate `roadmap next --skip`; prune them on the owner side (do not fix by editing the index by hand).
