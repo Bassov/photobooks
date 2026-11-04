@@ -733,6 +733,9 @@ describe('projectSession', () => {
     expect(window.__photobooksThumbs?.getThumbBulkHydrateStatsForTests).toBe(
       getThumbBulkHydrateStatsForTests,
     )
+    expect(window.__photobooksDerivatives?.requestDerivatives).toBeTypeOf(
+      'function',
+    )
   })
 
   it('setBookGridForTests patches the book-wide layout grid', () => {
@@ -766,6 +769,7 @@ describe('projectSession', () => {
       exposeProjectSessionTestApi(bare)
       expect(bare.__photobooksProject).toBeUndefined()
       expect(bare.__photobooksThumbs).toBeUndefined()
+      expect(bare.__photobooksDerivatives).toBeUndefined()
     } finally {
       vi.unstubAllEnvs()
     }
