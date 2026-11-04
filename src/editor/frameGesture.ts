@@ -253,6 +253,7 @@ export function spreadContext(
   if (box.width <= 0 || box.height <= 0) {
     return null
   }
+  const guidesShown = getGuidesVisible()
   return {
     spreadId: spread.id,
     spread,
@@ -267,13 +268,10 @@ export function spreadContext(
         .filter((frame) => !excludeFrameIds.includes(frame.id))
         .map((frame) => frame.rect),
       // The guides the spread shows (its parent's too); none while hidden.
-      getGuidesVisible()
-        ? [
-            ...book.guides,
-            ...viewGuides(book, spreadIndex, spread).map(({ guide }) => guide),
-          ]
-        : // Stryker disable next-line ArrayDeclaration: a non-guide entry has no offsetMm, so its anchor never snaps (equivalent)
-          [],
+      [
+        ...book.guides,
+        ...viewGuides(book, spreadIndex, spread).map(({ guide }) => guide),
+      ].filter(() => guidesShown),
       {
         widthMm,
         heightMm,
