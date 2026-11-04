@@ -177,6 +177,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
 - [ ] [feature] [connect-own-hosting](roadmap/P5/connect-own-hosting.md) — bring your own hosting (Security Review)
 - [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
+- [ ] [feature] [site-fresh-b](roadmap/P5/site-fresh-b.md) — Bug: /next-roadmap-item site-fresh-b
 
 ## Deferred (not scheduled)
 
