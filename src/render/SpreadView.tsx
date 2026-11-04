@@ -656,7 +656,10 @@ function SpreadFrame({
       data-crop-active={cropActive ? 'true' : undefined}
       data-locked={item.locked === true ? 'true' : undefined}
       data-override={item.override === true ? 'true' : undefined}
-      aria-label={control.label}
+      // The button name hides the badge text, so a copy says it in its name.
+      aria-label={
+        item.override === true ? `${control.label}, override` : control.label
+      }
       aria-pressed={control.pressed === true ? true : undefined}
       style={spreadFrameControlStyle(style, control.pressed === true)}
       onClick={control.onActivate}

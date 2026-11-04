@@ -153,12 +153,11 @@ describe('SpreadView override copies', () => {
     expect(badge.dataset.fit).toBe('full')
     expect(badge.textContent).toBe('override')
     expect(badge.querySelector('[data-glyph="unlink2"]')).not.toBeNull()
+    expect(copy?.getAttribute('aria-label')).toBe('Frame, override')
     // The own frame is not a copy.
-    expect(
-      root()
-        .querySelector('[data-frame-id="own"]')
-        ?.hasAttribute('data-override'),
-    ).toBe(false)
+    const own = root().querySelector('[data-frame-id="own"]')
+    expect(own?.hasAttribute('data-override')).toBe(false)
+    expect(own?.getAttribute('aria-label')).toBe('Frame')
   })
 
   it('shows the icon-only badge on a narrow copy and none on a short one', () => {
