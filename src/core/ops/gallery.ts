@@ -1,6 +1,6 @@
 import type { Book } from '../schema'
 import { clearRemovedCoverAssets } from '../cover'
-import { updateSpread } from '../update'
+import { spreadFrames, updateSpread, withChangedCopies } from '../update'
 import { withoutPlacement } from './place'
 
 export function addToGallery(book: Book, assetIds: readonly string[]): Book {
@@ -55,16 +55,18 @@ export function removeManyFromGallery(
   let next: Book = clearRemovedCoverAssets({ ...book, assets, gallery }, remove)
   for (const spread of book.spreads) {
     next = updateSpread(next, spread.id, (current) => {
-      const frames = current.frames.map((frame) => {
-        if (frame.assetId !== undefined && remove.has(frame.assetId)) {
-          return withoutPlacement(frame)
-        }
-        return frame
-      })
-      if (frames.every((frame, index) => frame === current.frames[index])) {
+      const unplaced = new Map(
+        spreadFrames(current)
+          .filter(({ assetId }) => assetId !== undefined && remove.has(assetId))
+          .map((frame) => [frame.id, withoutPlacement(frame)]),
+      )
+      if (unplaced.size === 0) {
         return current
       }
-      return { ...current, frames }
+      const frames = current.frames.map(
+        (frame) => unplaced.get(frame.id) ?? frame,
+      )
+      return withChangedCopies({ ...current, frames }, unplaced)
     })
   }
   return next

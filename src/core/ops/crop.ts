@@ -1,6 +1,6 @@
 import { MAX_CROP_ZOOM } from '../geometry/cropRect'
 import type { Book, Frame } from '../schema'
-import { updateFrame } from '../update'
+import { findBookFrame, updateFrame } from '../update'
 
 export const COVER_CROP: NonNullable<Frame['crop']> = {
   zoom: 1,
@@ -90,9 +90,7 @@ export function setFit(
 
 /** Reset to cover: zoom 1, centered; the photo keeps its rotation. */
 export function resetCrop(book: Book, spreadId: string, frameId: string): Book {
-  const frame = book.spreads
-    .find((spread) => spread.id === spreadId)
-    ?.frames.find((item) => item.id === frameId)
+  const frame = findBookFrame(book, spreadId, frameId)
   return setCrop(book, spreadId, frameId, {
     ...COVER_CROP,
     ...(frame?.crop === undefined ? {} : rotationOf(frame.crop)),

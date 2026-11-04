@@ -1,6 +1,7 @@
 import {
   customLayoutRects,
   generateTemplateFrames,
+  getSpreadPageCount,
   isTemplateId,
   parseContactSheetId,
   TEMPLATE_IDS,
@@ -146,8 +147,14 @@ export function mergeLayouts<T extends LayoutItem>(
   return { items: items.filter((item) => !aliases.has(item.id)), aliases }
 }
 
-/** Summary / preview name of a stored template id, or null if unknown. */
-export function templateName(templateId: string | undefined): string | null {
+/**
+ * Summary / preview name of a stored template id, or null if unknown. With
+ * `pages`, a saved layout of another page count is unknown too.
+ */
+export function templateName(
+  templateId: string | undefined,
+  pages?: 1 | 2,
+): string | null {
   if (templateId === undefined) {
     return null
   }
@@ -159,10 +166,13 @@ export function templateName(templateId: string | undefined): string | null {
   if (fixed !== undefined) {
     return TEMPLATE_NAMES[fixed]
   }
-  return findSavedTemplate(templateId)?.name ?? null
+  return findSavedTemplate(templateId, pages)?.name ?? null
 }
 
-/** Slot rects (mm) of a catalog template or saved layout on a spread; null if unknown. */
+/**
+ * Slot rects (mm) of a catalog template or saved layout on a spread; null if
+ * unknown or saved on another page count (it would not apply there).
+ */
 export function layoutRects(
   templateId: string,
   book: Book,
@@ -174,13 +184,17 @@ export function layoutRects(
       (frame) => frame.rect,
     )
   }
-  const saved = findSavedTemplate(templateId)
+  const pages = getSpreadPageCount(spreadIndex, book.spreads.length)
+  const saved = findSavedTemplate(templateId, pages)
   return saved === undefined
     ? null
     : customLayoutRects(book, spreadIndex, saved.slots)
 }
 
-/** Apply a catalog template or a saved layout to a spread. */
+/**
+ * Apply a catalog template or a saved layout to a spread; the op skips a
+ * saved layout of another page count.
+ */
 export function applyLayout(spreadId: string, templateId: string): void {
   if (isTemplateId(templateId)) {
     applyMarkedSpreadTemplate(spreadId, templateId)
@@ -193,6 +207,7 @@ export function applyLayout(spreadId: string, templateId: string): void {
       spreadId,
       templateId,
       slots: saved.slots,
+      pages: saved.pages,
     })
   }
 }

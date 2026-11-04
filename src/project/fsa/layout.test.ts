@@ -46,7 +46,7 @@ describe('fsa layout helpers', () => {
 
   it('treats missing, empty, and non-object library.json as empty meta', async () => {
     const root = createMemoryDirectory()
-    const empty_ = { ok: true, meta: { books: {} } }
+    const empty_ = { ok: true, meta: { books: {}, templates: [] } }
     expect(await readLibraryMeta(root)).toEqual(empty_)
 
     const empty = await root.getFile(LIBRARY_JSON, { create: true })
@@ -65,17 +65,17 @@ describe('fsa layout helpers', () => {
     await writeLibraryMeta(root, {})
     expect(await readLibraryMeta(root)).toEqual(empty_)
     expect(await readMemoryFileText(root, [LIBRARY_JSON])).toBe(
-      '{"schemaVersion":2,"books":{}}',
+      '{"schemaVersion":3,"books":{},"templates":[]}',
     )
   })
 
-  it('upgrades a v1 library.json to v2 on read', async () => {
+  it('upgrades a v1 library.json to v3 on read', async () => {
     const root = createMemoryDirectory()
     const file = await root.getFile(LIBRARY_JSON, { create: true })
     await file.writeText('{"schemaVersion":1}')
     expect(await readLibraryMeta(root)).toEqual({
       ok: true,
-      meta: { books: {} },
+      meta: { books: {}, templates: [] },
     })
   })
 

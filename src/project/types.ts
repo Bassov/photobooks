@@ -1,4 +1,4 @@
-import type { Book } from '../core'
+import type { Book, SavedTemplate } from '../core'
 
 export type PublishStatus = 'draft' | 'published'
 
@@ -7,9 +7,13 @@ export interface BookPublishEntry {
   status: PublishStatus
 }
 
-/** `library.json` content; `books` absent reads as an empty map. */
+/**
+ * `library.json` content; `books` absent reads as an empty map, `templates`
+ * (the user's saved layouts, in save order) as an empty list.
+ */
 export interface LibraryMeta {
   books?: Readonly<Record<string, BookPublishEntry>>
+  templates?: readonly SavedTemplate[]
 }
 
 export interface BookSummary {

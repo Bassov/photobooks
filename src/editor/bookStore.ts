@@ -8,11 +8,13 @@ import {
   PARENT_SPREAD_INDEX,
   parentAsSpread,
   placementCountByAsset,
+  resolveParentFrames,
   resolveSpread,
   spreadParent,
   type Asset,
   type Book,
   type BookOp,
+  type Frame,
   type ParentSpread,
   type ResolvedSpread,
   type Spread,
@@ -1136,6 +1138,28 @@ function paintInputKey(
   return key
 }
 
+/** Parent frames the spread paints (hidden and copied ids never do). */
+function paintedParentFrames(book: Book, spread: Spread): Frame[] {
+  return resolveParentFrames(book, spread).flatMap(({ frame, layer }) =>
+    layer === 'parent' ? [frame] : [],
+  )
+}
+
+/** Same parent frames painted; a parent edit on an item the spread hides or copies keeps it quiet. */
+function sameParentPaint(
+  prevBook: Book,
+  nextBook: Book,
+  before: PaintSource,
+  after: PaintSource,
+): boolean {
+  if (before.parent?.frames === after.parent?.frames) {
+    return true
+  }
+  const was = paintedParentFrames(prevBook, before.spread)
+  const now = paintedParentFrames(nextBook, after.spread)
+  return was.length === now.length && was.every((frame, i) => frame === now[i])
+}
+
 function notifySpread(spreadId: string): void {
   const set = spreadListeners.get(spreadId)
   if (set === undefined) {
@@ -1164,7 +1188,7 @@ function paintChanged(
   }
   return (
     before.spread !== after.spread ||
-    before.parent?.frames !== after.parent?.frames ||
+    !sameParentPaint(prev.book, next.book, before, after) ||
     before.index !== after.index ||
     (!sharedSame &&
       paintInputKey(prev.book, before, prev.sessionMeta, prev.previewUrls) !==

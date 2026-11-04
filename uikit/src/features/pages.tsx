@@ -199,7 +199,7 @@ export const PAGES: Record<string, FeatureDef> = {
   }),
   "site-lightbox": page([
     ["lightbox", "Fullscreen", root(onSite({ page: "book", lb: true }, "book"))],
-    ["spread", "Spread 2", root(onSite({ page: "book", spread: 2, lb: true }, "book"))],
+    ["spread", "Spread 2", root(onSite({ page: "book", slide: 3, lb: true }, "book"))],
   ], {
     what: "Fullscreen viewing of one book on the site; arrows step through spreads.",
     where: "#/demo step 38.",

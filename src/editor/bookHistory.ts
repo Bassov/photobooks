@@ -117,6 +117,11 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
   addGuide: 'Add guide',
   moveGuide: 'Move guide',
   removeGuide: 'Delete guide',
+  overrideParentFrame: 'Override parent item',
+  overrideParentGuide: 'Override parent guide',
+  hideParentItem: 'Hide parent item',
+  resetParentItem: 'Reset to parent',
+  resetSpreadToParent: 'Reset spread to parent',
 }
 
 /** Short name of the step an op creates, for the undo / redo tooltip. */
