@@ -1,12 +1,12 @@
 ## Implementation
 
-- [ ] 1. History key override + `discardStep` (`bookStore.ts`, `bookHistory.ts`), `textEditStore.ts` (start / commit / discard, per-spread subscribe).
-- [ ] 2. Text tool in `frameGesture.ts`: click 60 × 14 mm in the safe area, drag draft min 10 × 4.5 mm, press over photo frames, press on a text frame edits; text frames move by their body.
-- [ ] 3. `TextEditOverlay.tsx` (+ css): transparent textarea, whole-line growth, Esc / Ctrl+Enter / blur commit; `SpreadView` / `ConnectedSpreadView` editing chrome, dbl-click and Enter edit.
-- [ ] 4. Overflow chips + overflow ids in `textEditStore.ts` (fonts before measure, constant screen size, inside near the paper bottom, editor only).
-- [ ] 5. Drop exclusion: `dropSpreadsFromBook` skips text, text activation never swaps.
-- [ ] 6. Text inspector: `TextSection.tsx` ("Text style" / "Align text" / per-focus typing steps), view `text` in `Inspector.tsx` / `inspectorModel.ts`, align glyphs.
-- [ ] 7. `e2e/text-frames.spec.ts` (Done when flows + INP ≤ 100 ms over 200 chars); pinned tests stay unchanged; PR body carries the inspector dy and chip DOM measurements.
+- [x] 1. History key override + `discardStep` (`bookStore.ts`, `bookHistory.ts`), `textEditStore.ts` (start / commit / discard, per-spread subscribe).
+- [x] 2. Text tool in `frameGesture.ts`: click 60 × 14 mm in the safe area, drag draft min 10 × 4.5 mm, press over photo frames, press on a text frame edits; text frames move by their body.
+- [x] 3. `TextEditOverlay.tsx` (+ css): transparent textarea, whole-line growth, Esc / Ctrl+Enter / blur commit; `SpreadView` / `ConnectedSpreadView` editing chrome, dbl-click and Enter edit.
+- [x] 4. Overflow chips + overflow ids in `textEditStore.ts` (fonts before measure, constant screen size, inside near the paper bottom, editor only).
+- [x] 5. Drop exclusion: `dropSpreadsFromBook` skips text, text activation never swaps.
+- [x] 6. Text inspector: `TextSection.tsx` ("Text style" / "Align text" / per-focus typing steps), view `text` in `Inspector.tsx` / `inspectorModel.ts`, align glyphs.
+- [x] 7. `e2e/text-frames.spec.ts` (Done when flows + INP ≤ 100 ms over 200 chars); pinned tests stay unchanged; PR body carries the inspector dy and chip DOM measurements.
 
 ## Manual test scenarios
 
