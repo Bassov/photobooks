@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { bookSchema, CURRENT_SCHEMA_VERSION, defaultCoverStyle } from './index'
 import { makeBook, makeBookWithAsset } from './testing/fixtures'
 
@@ -190,6 +190,37 @@ describe('bookSchema', () => {
       assert.equal(result.success, true)
       expect(result.data.cover).toEqual(value.cover)
       expect(result.data.endpapers).toEqual(value.endpapers)
+    })
+
+    it('keeps each parse independent across repeated parses', () => {
+      const bad = populated()
+      bad.cover.front.crop = badCrop
+      const outcomes = [populated(), bad, populated()].map(
+        (patch) => parse(patch).success,
+      )
+      expect(outcomes).toEqual([true, false, true])
+    })
+
+    // Zod compiles each new object shape with `new Function` on first parse.
+    const compilesOnParse = () => {
+      const compile = vi.spyOn(globalThis, 'Function')
+      try {
+        expect(parse(populated()).success).toBe(true)
+        return compile.mock.calls.length > 0
+      } finally {
+        compile.mockRestore()
+      }
+    }
+
+    it('reuses the built shapes for the rest of the task', () => {
+      parse(populated())
+      expect(compilesOnParse()).toBe(false)
+    })
+
+    it('rebuilds the shapes in the next task', async () => {
+      parse(populated())
+      await Promise.resolve()
+      expect(compilesOnParse()).toBe(true)
     })
 
     it('accepts panels and endpapers without photo', () => {
