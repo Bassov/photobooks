@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P3
 Title: draft vs published
+Status: done
 
 ## Scope
 
