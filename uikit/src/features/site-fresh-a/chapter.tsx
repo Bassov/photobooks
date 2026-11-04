@@ -59,8 +59,9 @@ export function Chapter({ b, s, vh, phone, stageH, mode, steps, step, onActive, 
   const click = (ev: React.MouseEvent) => {
     if (mode === "home") { onOpen?.(b.id); return }
     const r = (ev.currentTarget as HTMLElement).getBoundingClientRect()
-    const right = q < 1 || at === 0 || ev.clientX > r.left + r.width / 2
-    to(Math.round(q) + (right ? 1 : -1))
+    // closed: one click opens the cover; open: the right half turns forward, the left half back
+    if (q < 1.5) { to(2); return }
+    to(Math.round(q) + (ev.clientX > r.left + r.width / 2 ? 1 : -1))
   }
 
   const title = <h2 className="t-title" style={{ margin: 0, fontWeight: 400 }}>{b.title}</h2>
@@ -69,14 +70,14 @@ export function Chapter({ b, s, vh, phone, stageH, mode, steps, step, onActive, 
   const lead = <p className="t-lead"><Statement text={b.statement} /></p>
   const link = mode === "home"
     ? <button className="sfa-link" onClick={() => onOpen?.(b.id)} data-testid="sfa-open">Open the book</button>
-    : <button className="sfa-link" onClick={() => to(at >= n - 1 ? 0 : 2)}>{at >= n - 1 ? "Back to the cover" : "Open the book"}</button>
+    : <button className="sfa-link" onClick={() => to(at === 0 ? 2 : 1)}>{at === 0 ? "Open the book" : "Close the book"}</button>
 
   return (
     <section ref={track} className="sfa-ch" style={{ height: vh + max * step }} data-testid="sfa-chapter" data-book={b.id} data-q={q.toFixed(2)} aria-label={b.title}>
       {mode === "book" && Array.from({ length: max + 1 }, (_, i) => <span key={i} className="sfa-snapat" style={{ top: i * step }} />)}
       <div className={`sfa-frame${reduced ? " sfa-fadey" : ""}`} style={{ height: vh, justifyContent: phone ? "center" : "flex-end" }}>
         {phone && <div className="sfa-ptop">{title}{meta}{where}</div>}
-        <div className="sfa-stage" style={{ height: stageH }}>
+        <div className="sfa-stage" style={{ height: stageH, paddingBottom: phone ? 0 : Math.round(stageH * 0.06) }}>
           <div className="sfa-obj" style={{ width: RW, height: RH }}>
             <div className="sfa-l3" style={{ left: RW / 4, opacity: show3d ? 1 : 0, transform: grow > 1 ? `scale(${1 + (grow - 1) * (1 - e)})` : undefined }} aria-hidden={!show3d}>
               <Book3D b={b} s={s} pose={{ ry: 32 * (1 - e) + (reduced ? 18 : 0), rx: -3 * (1 - e), lift: 0 }} />

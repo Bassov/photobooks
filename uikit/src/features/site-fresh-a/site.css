@@ -59,7 +59,7 @@
 .sfa.sfa-phone .sfa-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
 /* header: 56, not sticky */
-.sfa .sfa-head { height: 56px; align-items: center; }
+.sfa .sfa-head { height: 56px; align-items: center; scroll-snap-align: start; }
 .sfa .sfa-name { grid-column: 1 / span 4; font-weight: 500; height: 44px; }
 .sfa .sfa-nav { grid-column: 7 / -1; display: flex; justify-content: flex-end; gap: 24px; }
 .sfa.sfa-phone .sfa-name { grid-column: 1 / span 3; }
@@ -79,7 +79,7 @@
 .sfa .sfa-aside { grid-column: 1 / span 2; grid-row: 1 / span 2; align-self: start; position: sticky; top: 40px; padding-top: 40px; }
 .sfa .sfa-main { grid-column: 4 / -1; min-width: 0; }
 .sfa .sfa-hero { display: flex; flex-direction: column; padding-top: 40px; }
-.sfa .sfa-hero-pile { flex: 1; display: flex; align-items: flex-end; justify-content: center; min-height: 0; }
+.sfa .sfa-hero-pile { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
 .sfa .sfa-hero-meta { height: 64px; display: flex; align-items: center; justify-content: center; }
 
 /* contents list */
@@ -90,6 +90,7 @@
 .sfa .sfa-list[data-cur] .sfa-row { color: var(--muted); }
 .sfa .sfa-list .sfa-row:hover, .sfa .sfa-list .sfa-row[data-hot], .sfa .sfa-list .sfa-row[aria-current="true"] { color: var(--ink); }
 .sfa .sfa-row .t-meta { transition: color 0.2s var(--chg); }
+.sfa .sfa-row > :first-child { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .sfa .sfa-back { height: 32px; margin-bottom: 24px; display: inline-flex; align-items: center; }
 .sfa.sfa-phone .sfa-row { height: 48px; border-top: 1px solid var(--line); }
 .sfa.sfa-phone .sfa-list .sfa-row:last-child { border-bottom: 1px solid var(--line); }
@@ -112,7 +113,8 @@
 .sfa .sfa-ch { position: relative; }
 .sfa .sfa-snapat { position: absolute; left: 0; width: 1px; height: 1px; scroll-snap-align: start; pointer-events: none; }
 .sfa .sfa-frame { position: sticky; top: 0; display: flex; flex-direction: column; padding: 24px 0; }
-.sfa .sfa-stage { flex: none; display: flex; align-items: center; justify-content: center; }
+.sfa .sfa-stage { flex: none; display: flex; align-items: flex-end; justify-content: center; }
+.sfa.sfa-phone .sfa-stage { align-items: center; }
 .sfa .sfa-obj { position: relative; flex: none; }
 .sfa .sfa-l3, .sfa .sfa-lr { position: absolute; top: 0; }
 .sfa .sfa-lr { left: 0; }

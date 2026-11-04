@@ -6,4 +6,4 @@
 
 ## 2. Self-check
 
-- [ ] 2.1 Playwright: 1440 and 390, books = 1 / 6 / 12, hover and click, no overflow, no console errors
+- [x] 2.1 Playwright: 1440 and 390, books = 1 / 6 / 12, hover and click, no overflow, no console errors
