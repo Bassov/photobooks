@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P3
 Title: web image pipeline
+Status: done
 
 ## Scope
 
