@@ -273,7 +273,7 @@ test('Browser check: master guides show dashed and read-only on every spread usi
   await expect(ownLines(page, two)).toHaveCount(1)
   await expect(ownLines(page, three)).toHaveCount(0)
   expect(
-    await canvasSpread(page, two)
+    await canvasSlot(page, two)
       .locator('.guide-line')
       .last()
       .getAttribute('data-testid'),
