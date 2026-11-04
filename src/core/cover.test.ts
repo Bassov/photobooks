@@ -19,6 +19,7 @@ describe('cover ops', () => {
       spine: { text: 'Lake trip' },
       back: { text: 'Lake trip' },
       style: defaultCoverStyle(),
+      print: { spineWidthSource: 'profile' },
     })
   })
 

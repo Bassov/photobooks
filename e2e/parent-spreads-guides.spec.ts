@@ -295,6 +295,83 @@ test('Browser check: master guides show dashed and read-only on every spread usi
   await assertDocumentFitsViewport(page)
 })
 
+/** A point on bare paper of the spread above `belowY` (client px), scanned on a 2 % grid. */
+async function barePaper(page: Page, id: string, belowY: number) {
+  const spread = await box(canvasSpread(page, id))
+  const point = await page.evaluate(
+    ([sx, sy, sw, top, spreadId]) => {
+      for (let fy = 0.02; fy < 1; fy += 0.02) {
+        const y = sy + (top - sy) * fy
+        for (let fx = 0.04; fx < 0.96; fx += 0.02) {
+          const x = sx + sw * fx
+          const el = document.elementFromPoint(x, y)
+          const view = el?.closest('[data-testid="spread-view"]')
+          if (
+            view?.getAttribute('data-spread-id') === spreadId &&
+            el?.closest('button, .guide-line') === null
+          ) {
+            return { x, y }
+          }
+        }
+      }
+      return null
+    },
+    [spread.x, spread.y, spread.width, belowY - 40, id] as const,
+  )
+  if (point === null) throw new Error('no bare paper')
+  return point
+}
+
+test('Browser check: a frame drawn near a master guide snaps to it; hidden guides do not snap', async ({
+  page,
+}) => {
+  await page.goto(PAINTER)
+  const two = 'painter-spread-2'
+  await openMasters(page)
+  await showRulers(page)
+  await pullOnMaster(page, 0.3)
+  await expect(masterGuides(page)).toHaveCount(1)
+  await page.getByTestId('left-tab-pages').click()
+  await showSpread(page, two)
+  await expect(parentLines(page, two)).toHaveCount(1)
+  const lineY = (await middleOf(parentLines(page, two))).y
+  const start = await barePaper(page, two, lineY)
+  const end = { x: start.x + 60, y: lineY - 3 }
+  const snapLines = page.getByTestId('snap-line')
+  const drawn = canvasSpread(page, two).locator(
+    'button.spread-frame[aria-pressed="true"]',
+  )
+
+  const drawToLine = async (midDrag: () => Promise<void>) => {
+    await page.keyboard.press('f')
+    await page.mouse.move(start.x, start.y)
+    await page.mouse.down()
+    await page.mouse.move(end.x, end.y, { steps: 6 })
+    await midDrag()
+    await page.mouse.up()
+    await expect(drawn).toHaveCount(1)
+    const rect = await box(drawn)
+    return rect.y + rect.height
+  }
+
+  // Shown: the bottom edge lands on the dashed master line.
+  const snapped = await drawToLine(async () => {
+    await expect(snapLines.filter({ hasText: 'snap · guide' })).toHaveCount(1)
+  })
+  expect(snapped).toBeCloseTo(lineY, 0)
+  await page.keyboard.press('Control+z')
+  await expect(drawn).toHaveCount(0)
+
+  // Ctrl+; hides guides: the same draw keeps the edge at the pointer.
+  await page.keyboard.press('Control+;')
+  await expect(parentLines(page, two)).toHaveCount(0)
+  const raw = await drawToLine(async () => {
+    await expect(snapLines).toHaveCount(0)
+  })
+  expect(raw).toBeCloseTo(end.y, 0)
+  await page.keyboard.press('Control+;')
+})
+
 test('a master guide move is one undo step; dropped on its ruler it is removed', async ({
   page,
 }) => {
