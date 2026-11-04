@@ -9,8 +9,9 @@ import {
   insertSpreadWithAssets,
   placeAsset,
   type Book,
+  type SavedTemplate,
 } from '../index'
-import { makeBook } from '../testing/fixtures'
+import { makeBook, makeSpread } from '../testing/fixtures'
 
 function gridBook(assetIds: readonly string[]): Book {
   return applyTemplate(addToGallery(makeBook(), assetIds), 'spread-1', '4-grid')
@@ -154,7 +155,7 @@ describe('insertSpreadWithAssets', () => {
       },
     }
     expect(
-      insertSpreadWithAssets(book, 1, ['l1', 'l2']).spreads[1]?.templateId,
+      insertSpreadWithAssets(book, 1, ['l1', 'l2'], []).spreads[1]?.templateId,
     ).not.toBe('two-portraits')
   })
 
@@ -170,27 +171,27 @@ describe('insertSpreadWithAssets', () => {
       },
     }
     expect(
-      insertSpreadWithAssets(book, 1, ['p1', 'p2']).spreads[1]?.templateId,
+      insertSpreadWithAssets(book, 1, ['p1', 'p2'], []).spreads[1]?.templateId,
     ).toBe('two-portraits')
     // Missing width or height counts as square, which matches every slot.
-    const unknown = insertSpreadWithAssets(book, 1, ['w', 'h'])
+    const unknown = insertSpreadWithAssets(book, 1, ['w', 'h'], [])
     expect(unknown.spreads[1]?.templateId).toBe('two-portraits')
     expect(placed(unknown, 1)).toEqual(['w', 'h'])
   })
 
   it('clamps the insert index into the book', () => {
     const book = addToGallery(makeBook(), ['a'])
-    const low = insertSpreadWithAssets(book, -3, ['a'])
+    const low = insertSpreadWithAssets(book, -3, ['a'], [])
     expect(low.spreads).toHaveLength(2)
     expect(placed(low, 0)).toContain('a')
     expect(placed(low, 1)).toEqual([undefined])
-    const high = insertSpreadWithAssets(book, 99, ['a'])
+    const high = insertSpreadWithAssets(book, 99, ['a'], [])
     expect(placed(high, 1)).toContain('a')
   })
 
   it('gives placed frames the default crop', () => {
     const book = addToGallery(makeBook(), ['a'])
-    const next = insertSpreadWithAssets(book, 1, ['a'])
+    const next = insertSpreadWithAssets(book, 1, ['a'], [])
     expect(next.spreads[1]?.frames[0]?.crop).toEqual(DEFAULT_CROP)
   })
 
@@ -200,7 +201,7 @@ describe('insertSpreadWithAssets', () => {
       ...book,
       assets: { p1: portrait, p2: portrait },
     }
-    const next = insertSpreadWithAssets(book, 1, ['p1', 'p2'])
+    const next = insertSpreadWithAssets(book, 1, ['p1', 'p2'], [])
     expect(next.spreads).toHaveLength(2)
     expect(next.spreads[1]?.templateId).toBe('two-portraits')
     expect(placed(next, 1)).toEqual(['p1', 'p2'])
@@ -209,15 +210,68 @@ describe('insertSpreadWithAssets', () => {
   it('leaves overflow photos unplaced', () => {
     const ids = Array.from({ length: 40 }, (_, i) => `p${String(i)}`)
     const book = addToGallery(makeBook(), ids)
-    const next = insertSpreadWithAssets(book, 0, ids)
+    const next = insertSpreadWithAssets(book, 0, ids, [])
     const filled = placed(next, 0).filter((id) => id !== undefined)
     expect(filled.length).toBeLessThan(ids.length)
     expect(filled).toEqual(ids.slice(0, filled.length))
   })
 
+  describe('with saved templates', () => {
+    const landscape = { widthPx: 3000, heightPx: 2000 }
+    const ids = ['p1', 'l1', 'p2', 'l2', 'p3']
+    const tall = { x: 0, y: 0, w: 5, h: 90 }
+    const wide = { x: 0, y: 0, w: 90, h: 5 }
+    const fit: SavedTemplate = {
+      id: 'user-fit',
+      name: 'Fit',
+      pages: 2,
+      slots: [tall, wide, tall, wide, tall],
+    }
+
+    function mixedBook(): Book {
+      const book = addToGallery(
+        makeBook({
+          spreads: [makeSpread({ id: 'a' }), makeSpread({ id: 'b' })],
+        }),
+        ids,
+      )
+      return {
+        ...book,
+        assets: {
+          p1: portrait,
+          l1: landscape,
+          p2: portrait,
+          l2: landscape,
+          p3: portrait,
+        },
+      }
+    }
+
+    it('applies a saved layout that fits strictly better and fills it in order', () => {
+      const next = applyBookOp(mixedBook(), {
+        type: 'insertSpreadWithAssets',
+        index: 1,
+        assetIds: ids,
+        templates: [fit],
+      })
+      expect(next.spreads[1]?.templateId).toBe('user-fit')
+      expect(placed(next, 1)).toEqual(ids)
+      expect(checkBookInvariants(next)).toEqual({ ok: true })
+    })
+
+    it('skips a saved layout of another page count', () => {
+      const page: SavedTemplate = { ...fit, id: 'user-page', pages: 1 }
+      const kept = insertSpreadWithAssets(mixedBook(), 1, ids, [page])
+      expect(kept.spreads[1]?.templateId).not.toBe('user-page')
+      expect(placed(kept, 1).filter((id) => id !== undefined)).toEqual(ids)
+      const next = insertSpreadWithAssets(mixedBook(), 1, ids, [page, fit])
+      expect(next.spreads[1]?.templateId).toBe('user-fit')
+    })
+  })
+
   it('returns the same book when no photo is usable', () => {
     const book = makeBook()
-    expect(insertSpreadWithAssets(book, 0, ['nope'])).toBe(book)
+    expect(insertSpreadWithAssets(book, 0, ['nope'], [])).toBe(book)
   })
 
   it('is reachable through applyBookOp', () => {
@@ -226,6 +280,7 @@ describe('insertSpreadWithAssets', () => {
       type: 'insertSpreadWithAssets',
       index: 5,
       assetIds: ['a'],
+      templates: [],
     })
     expect(next.spreads).toHaveLength(2)
     expect(placed(next, 1)).toContain('a')
