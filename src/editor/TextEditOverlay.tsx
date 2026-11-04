@@ -35,6 +35,14 @@ const ROUNDING_PX = 1
 
 type TextItem = ResolvedItem & { text: ResolvedText }
 
+let fontsReady: Promise<void> | null = null
+
+/** Faces never unload: one load serves every later measure (drag frames too). */
+function textFontsReady(): Promise<void> {
+  fontsReady ??= loadFonts(textStyleFonts())
+  return fontsReady
+}
+
 function textItems(resolved: ResolvedSpread): TextItem[] {
   return resolved.items.filter(
     (item): item is TextItem => item.text !== undefined && item.parent !== true,
@@ -238,7 +246,7 @@ function OverflowChips({
         setSpreadOverflow(spreadId, measureOverflow(view, textItems(resolved)))
       }
     }
-    loadFonts(textStyleFonts()).then(measure, measure)
+    textFontsReady().then(measure, measure)
   }, [spreadId, resolved, pxPerMm])
   useEffect(
     () => () => {
