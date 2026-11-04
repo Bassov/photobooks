@@ -461,7 +461,7 @@ await smoke("shelf → book page → open cover → turn a page → fullscreen",
     await p.waitForFunction((n) => { const w = document.querySelector(`[data-testid="sd${n}-reader"]`); return !w || w.querySelector('[data-testid="ps-reader"]')?.getAttribute("data-view") === w.getAttribute("data-view") }, n, { timeout: 3000 })
     const rd = p.locator(`[data-testid="sd${n}-reader"]`); return { shown: await rd.isVisible(), v0: await rd.getAttribute("data-view") }
   }
-  for (const n of [2, 3, 4]) {
+  for (const n of [2, 3, 4, 5]) {
     const id = `#/full/site-demo-${n}`, e0 = errs.length
     let pass = false, info = ""
     try {

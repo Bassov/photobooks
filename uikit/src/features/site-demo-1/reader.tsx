@@ -3,12 +3,14 @@
    A ±1 change of `view` turns a leaf (800 ms, the cover / back board 1000 ms); bigger jumps crossfade 240 ms; reduced
    motion crossfades every change in 160 ms. Click a half, ← / →, or drag a page; the corner lifts under a fine pointer.
    Demos 2–5 (Spec site-awards-5) add `leaf="paper"` (a curling leaf), `turnMs`, `board` and `scrub` (the page follows the
-   scroll), demo 4 `corner`; the defaults are demo 1's. */
+   scroll), demo 4 `corner`, demo 5 `api.riffle`; the defaults are demo 1's. */
 import * as React from "react"
 import { CoverFace, ENDPAPER, FOLD, SpreadArt, TitlePage } from "./art"
 import { SPREAD_R, src, viewLabel, viewsOf, type SiteBook } from "./data"
 
-export type ReaderApi = { go: (d: number) => void }
+/** `riffle(target, ms)` turns one leaf after another toward `target`, `ms` (default `turnMs`) each with an ease-out; a new
+   target replaces the old one and a ← / → press ends it; reduced motion crossfades straight to `target` */
+export type ReaderApi = { go: (d: number) => void; riffle: (target: number, ms?: number) => void }
 type Turn = { a: number; th: number; kind: "anim" | "drag" | "lift" }
 
 const BD = 5
@@ -26,6 +28,7 @@ const bezier = (x1: number, y1: number, x2: number, y2: number) => {
 }
 const TURN = bezier(0.45, 0.05, 0.25, 1)
 const EASE = bezier(0.2, 0.7, 0.2, 1)
+const OUT = bezier(0, 0, 0.58, 1)
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches
 const fine = () => matchMedia("(hover: hover) and (pointer: fine)").matches
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x))
@@ -177,8 +180,9 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
     const setTurn = (t: Turn | null) => { turnRef.current = t; setTurnS(t) }
     const raf = React.useRef(0)
     const pending = React.useRef<number | null>(null)
-    const live = React.useRef({ view, shown, onView })
-    live.current = { view, shown, onView }
+    const riffleRef = React.useRef<{ target: number; ms: number } | null>(null)
+    const live = React.useRef({ view, shown, onView, turnMs })
+    live.current = { view, shown, onView, turnMs }
     const busy = turn !== null && turn.kind !== "lift"
     /** the view on screen: a scrubbed leaf past 90° shows the next one */
     const at = sc === null ? shown : sth >= 90 ? sa + 1 : sa
@@ -201,16 +205,26 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
       setTurn(null); setShown(v)
       const d = pending.current; pending.current = null
       if (live.current.view !== v) return
+      const r = riffleRef.current
+      if (r) { if (r.target === v) riffleRef.current = null; else live.current.onView(v + Math.sign(r.target - v)); return }
       if (d !== null) { const t = clamp(v + d, 0, n - 1); if (t !== v) live.current.onView(t) }
     }
     const stop = () => { cancelAnimationFrame(raf.current); setTurn(null) }
     const request = React.useCallback((d: number) => {
       const { view: v, onView: go } = live.current
+      riffleRef.current = null
       if (turnRef.current && turnRef.current.kind !== "lift") { if (pending.current === null) pending.current = d; return }
       const t = clamp(v + d, 0, n - 1)
       if (t !== v) go(t)
     }, [n])
-    React.useImperativeHandle(apiRef, () => ({ go: request }), [request])
+    const riffle = React.useCallback((target: number, ms?: number) => {
+      const t = clamp(Math.round(target), 0, n - 1), { view: v, onView: go } = live.current
+      pending.current = null
+      if (reduced()) { riffleRef.current = null; if (t !== v) go(t); return }
+      riffleRef.current = t === v ? null : { target: t, ms: ms ?? live.current.turnMs }
+      if (t !== v && !(turnRef.current && turnRef.current.kind !== "lift")) go(v + Math.sign(t - v))
+    }, [n])
+    React.useImperativeHandle(apiRef, () => ({ go: request, riffle }), [request, riffle])
 
     // follow `view`: ±1 turns a leaf, bigger jumps crossfade; reduced motion crossfades every change
     React.useEffect(() => {
@@ -220,6 +234,8 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
       const fwd = view > shown, a = Math.min(view, shown)
       const lift = turnRef.current
       const th0 = lift && lift.a === a ? lift.th : fwd ? 0 : 180, th1 = fwd ? 180 : 0
+      const r = riffleRef.current
+      if (r) { run(a, th0, th1, (r.ms * Math.abs(th1 - th0)) / 180, OUT, "anim", () => land(view)); return }
       const full = a === 0 || a === n - 2 ? 1000 : turnMs
       run(a, th0, th1, Math.max(200, (full * Math.abs(th1 - th0)) / 180), TURN, "anim", () => land(view))
       // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -14,6 +14,7 @@ import { SiteDemo1 } from "./site-demo-1/site"
 import { SiteDemo2 } from "./site-demo-2/site"
 import { SiteDemo3 } from "./site-demo-3/site"
 import { SiteDemo4 } from "./site-demo-4/site"
+import { SiteDemo5 } from "./site-demo-5/site"
 import type { FeatureDef, Notes } from "./types"
 
 /** Stage height = the #/demo viewport height (+ the 40 px scenario strip), so every slot sits at its #/demo size. */
@@ -253,6 +254,14 @@ export const PAGES: Record<string, FeatureDef> = {
       where: "DEMO branch only. Full window: #/full/site-demo-4.",
       keys: [["← / →", "turn"], ["Esc", "put the book back"]],
       edge: ["Double-click the desk = tidy up; reduced motion = crossfade, no physics", "Narrow = one pile, swipe the top book away"],
+    },
+  },
+  "site-demo-5": {
+    Demo: SiteDemo5, h: SLOT.app.h, notes: {
+      what: "Site demo 5, the spines: a bookcase of spines at true height and thickness; pull one out, the page takes its colour; riffle the pages on the strip under the book.",
+      where: "DEMO branch only. Full window: #/full/site-demo-5.",
+      keys: [["← / →", "walk the shelf / turn"], ["Enter", "open"], ["Esc", "back to the shelf"]],
+      edge: ["Drag the riffle strip = 180 ms per leaf; reduced motion = crossfade, rest pose", "Narrow = the shelf scrolls; tap pulls, tap opens"],
     },
   },
   "site-preview-mode": page([

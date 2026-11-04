@@ -25,5 +25,6 @@
   {"slug": "site-demo-1", "title": "Site demo 1: the lit table", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"},
   {"slug": "site-demo-2", "title": "Site demo 2: the night gallery", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"},
   {"slug": "site-demo-3", "title": "Site demo 3: the index", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"},
-  {"slug": "site-demo-4", "title": "Site demo 4: the desk", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"}
+  {"slug": "site-demo-4", "title": "Site demo 4: the desk", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"},
+  {"slug": "site-demo-5", "title": "Site demo 5: the spines", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"}
 ]
