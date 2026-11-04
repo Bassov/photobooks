@@ -104,8 +104,8 @@ const textContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('template'), template: z.string() }),
 ])
 /*
- * Style shapes are built per parse (like cover) so that their mutants are
- * reachable by per-test mutant switching.
+ * Style shapes are built at parse time, once per task (like cover), so that
+ * their mutants are reachable by per-test mutant switching.
  */
 
 /** sRGB color as lowercase `#rrggbb`. */
@@ -168,8 +168,8 @@ const frameSchema = z.object({
 })
 
 /*
- * Parent spread shapes are built per parse (like cover) so that their mutants
- * are reachable by per-test mutant switching.
+ * Parent spread shapes are built at parse time, once per task (like cover), so
+ * that their mutants are reachable by per-test mutant switching.
  */
 
 /** Parent spreads (kit `Parent`): items and guides shared by every spread using one. */
@@ -240,8 +240,9 @@ export const SPINE_WIDTH_MAX_MM = 40
 export const SPINE_WIDTH_SOURCES = ['profile', 'manual'] as const
 
 /*
- * Cover / endpaper shapes are built per parse (not at module load) so that
- * their mutants are reachable by per-test mutant switching.
+ * Cover / endpaper shapes are built at parse time, once per task (not at
+ * module load), so that their mutants are reachable by per-test mutant
+ * switching: each test runs in its own task and rebuilds them.
  */
 function makeCoverSchema() {
   /** One cover panel (front / spine / back): optional photo plus text. */
@@ -294,13 +295,19 @@ function makeEndpapersSchema() {
 }
 
 /**
- * Defers building `make()` to the first parse and reuses it, forwarding its
- * issues. A rebuild per parse made `parseBook` ~20× slower.
+ * Defers building `make()` to parse time, forwarding its issues. The shape
+ * is reused until the current task ends: a rebuild per parse made
+ * `parseBook` ~20× slower, while each test (its own task) still builds it.
  */
 function atParseTime<S extends z.ZodType>(make: () => S) {
   let built: S | undefined
   return z.unknown().transform((value, ctx): z.output<S> => {
-    built ??= make()
+    if (!built) {
+      built = make()
+      queueMicrotask(() => {
+        built = undefined
+      })
+    }
     const result = built.safeParse(value)
     if (!result.success) {
       for (const issue of result.error.issues) {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
-import { fc, test } from '@fast-check/vitest'
-import { expect } from 'vitest'
+import { fc } from '@fast-check/vitest'
+import { expect, test } from 'vitest'
 import {
   CURRENT_SCHEMA_VERSION,
   SPINE_WIDTH_SOURCES,
@@ -83,34 +83,46 @@ function migrated(input: unknown): unknown {
   return result.value
 }
 
-test.prop([bookArb], { numRuns: NUM_RUNS })(
-  'parse(serialize(book)) round-trips the print fields',
-  (book) => {
-    const result = parseBook(serializeBook(book))
-    assert.equal(result.ok, true)
-    expect(result.book).toEqual(book)
-  },
-)
+/*
+ * Synchronous `fc.assert`, not `test.prop`: the deferred book shapes are
+ * built once per task (`atParseTime` in schema.ts), and `test.prop` awaits
+ * each sample, so every sample would rebuild them.
+ */
 
-test.prop([bookArb.map(asV10)], { numRuns: NUM_RUNS })(
-  'v10 → v11 adds only the default print fields',
-  (doc) => {
-    expect(migrated(doc)).toEqual({
-      ...doc,
-      schemaVersion: CURRENT_SCHEMA_VERSION,
-      printProfile: defaultPrintProfileRef(),
-      cover: { ...(doc.cover as object), print: defaultCoverPrint() },
-    })
-  },
-)
+test('parse(serialize(book)) round-trips the print fields', () => {
+  fc.assert(
+    fc.property(bookArb, (book) => {
+      const result = parseBook(serializeBook(book))
+      assert.equal(result.ok, true)
+      expect(result.book).toEqual(book)
+    }),
+    { numRuns: NUM_RUNS },
+  )
+})
 
-test.prop([fc.oneof(bookArb, bookArb.map(asV10))], { numRuns: NUM_RUNS })(
-  'migrate is idempotent and parses as the current shape',
-  (doc) => {
-    const once = migrated(structuredClone(doc))
-    expect(migrated(structuredClone(once))).toEqual(once)
-    const parsed = parseBook(once)
-    assert.equal(parsed.ok, true)
-    expect(parsed.book).toEqual(once)
-  },
-)
+test('v10 → v11 adds only the default print fields', () => {
+  fc.assert(
+    fc.property(bookArb.map(asV10), (doc) => {
+      expect(migrated(doc)).toEqual({
+        ...doc,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        printProfile: defaultPrintProfileRef(),
+        cover: { ...(doc.cover as object), print: defaultCoverPrint() },
+      })
+    }),
+    { numRuns: NUM_RUNS },
+  )
+})
+
+test('migrate is idempotent and parses as the current shape', () => {
+  fc.assert(
+    fc.property(fc.oneof(bookArb, bookArb.map(asV10)), (doc) => {
+      const once = migrated(structuredClone(doc))
+      assert.deepStrictEqual(migrated(structuredClone(once)), once)
+      const parsed = parseBook(once)
+      assert.equal(parsed.ok, true)
+      assert.deepStrictEqual(parsed.book, once)
+    }),
+    { numRuns: NUM_RUNS },
+  )
+})

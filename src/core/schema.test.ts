@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { bookSchema, CURRENT_SCHEMA_VERSION, defaultCoverStyle } from './index'
 import { makeBook, makeBookWithAsset } from './testing/fixtures'
 
@@ -199,6 +199,28 @@ describe('bookSchema', () => {
         (patch) => parse(patch).success,
       )
       expect(outcomes).toEqual([true, false, true])
+    })
+
+    // Zod compiles each new object shape with `new Function` on first parse.
+    const compilesOnParse = () => {
+      const compile = vi.spyOn(globalThis, 'Function')
+      try {
+        expect(parse(populated()).success).toBe(true)
+        return compile.mock.calls.length > 0
+      } finally {
+        compile.mockRestore()
+      }
+    }
+
+    it('reuses the built shapes for the rest of the task', () => {
+      parse(populated())
+      expect(compilesOnParse()).toBe(false)
+    })
+
+    it('rebuilds the shapes in the next task', async () => {
+      parse(populated())
+      await Promise.resolve()
+      expect(compilesOnParse()).toBe(true)
     })
 
     it('accepts panels and endpapers without photo', () => {
