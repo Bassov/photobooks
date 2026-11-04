@@ -16,6 +16,7 @@ export interface HistorySnapshot {
   settings: Book['settings']
   endpapers: Book['endpapers']
   frameStyles: Book['frameStyles']
+  pageNumbering: Book['pageNumbering']
 }
 
 export interface History {
@@ -49,6 +50,7 @@ export function snapshotOf(book: Book): HistorySnapshot {
     settings: book.settings,
     endpapers: book.endpapers,
     frameStyles: book.frameStyles,
+    pageNumbering: book.pageNumbering,
   }
 }
 
@@ -122,6 +124,8 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
   hideParentItem: 'Hide parent item',
   resetParentItem: 'Reset to parent',
   resetSpreadToParent: 'Reset spread to parent',
+  setParentPageNumbers: 'Page numbers',
+  setPageNumbering: 'Page numbering',
 }
 
 /** Short name of the step an op creates, for the undo / redo tooltip. */

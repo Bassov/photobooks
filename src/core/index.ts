@@ -144,6 +144,23 @@ export type {
   ResolvedSpread,
   ResolvedText,
 } from './geometry/types'
+export type { ResolvedFolio } from './geometry/types'
+export {
+  FOLIO_HEIGHT_MM,
+  FOLIO_WIDTH_MM,
+  PAGE_NUMBER_START_MAX,
+  PAGE_NUMBER_START_MIN,
+  folioText,
+  formatPageNumber,
+  pageNumberItems,
+  pageNumberPosition,
+  pageNumberingOf,
+  setPageNumbering,
+  setParentPageNumbers,
+  spreadFolios,
+  syncPageNumbers,
+  type PageNumberPosition,
+} from './pageNumbers'
 
 export {
   TEMPLATE_IDS,

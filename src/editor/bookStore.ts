@@ -876,6 +876,11 @@ function moveHistory(move: HistoryMove | null): void {
   } else {
     book.defaultParentId = move.snapshot.defaultParentId
   }
+  if (move.snapshot.pageNumbering === undefined) {
+    delete book.pageNumbering
+  } else {
+    book.pageNumbering = move.snapshot.pageNumbering
+  }
   setHistory(move.history)
   publishBook(book)
 }
