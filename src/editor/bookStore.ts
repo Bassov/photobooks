@@ -1,5 +1,6 @@
 import {
   addSpread,
+  ensureDefaultParent,
   applyBookOp,
   CURRENT_SCHEMA_VERSION,
   defaultCover,
@@ -26,6 +27,7 @@ import {
   canRedo,
   canUndo,
   coalesceKey,
+  dropStep,
   EMPTY_HISTORY,
   isUndoableOp,
   opLabel,
@@ -105,9 +107,11 @@ function createSessionBook(): Book {
     gallery: [],
     spreads: [],
   }
-  return ['spread-1', 'spread-2', 'spread-3'].reduce<Book>(
-    (book, id) => addSpread(book, { id }),
-    empty,
+  return ensureDefaultParent(
+    ['spread-1', 'spread-2', 'spread-3'].reduce<Book>(
+      (book, id) => addSpread(book, { id }),
+      empty,
+    ),
   )
 }
 
@@ -876,6 +880,11 @@ function moveHistory(move: HistoryMove | null): void {
   } else {
     book.defaultParentId = move.snapshot.defaultParentId
   }
+  if (move.snapshot.pageNumbering === undefined) {
+    delete book.pageNumbering
+  } else {
+    book.pageNumbering = move.snapshot.pageNumbering
+  }
   setHistory(move.history)
   publishBook(book)
 }
@@ -890,7 +899,21 @@ export function redoBook(): void {
   moveHistory(redoStep(history, snapshotOf(state.book)))
 }
 
-export function dispatchBookOp(op: BookOp): void {
+/**
+ * Take back the newest step if it still carries `key` (an empty new text
+ * frame): the book returns to its snapshot and nothing lands in redo.
+ */
+export function discardStep(key: string): boolean {
+  const move = dropStep(history, key)
+  moveHistory(move)
+  return move !== null
+}
+
+/**
+ * `historyKey` replaces the op's own coalesce key: ops sharing it, with
+ * nothing recorded in between, are one step (an edit session).
+ */
+export function dispatchBookOp(op: BookOp, historyKey?: string): void {
   const book = applyBookOp(state.book, op)
   if (book === state.book) {
     return
@@ -901,7 +924,7 @@ export function dispatchBookOp(op: BookOp): void {
       recordStep(
         history,
         snapshotOf(prev.book),
-        coalesceKey(op),
+        historyKey ?? coalesceKey(op),
         undefined,
         opLabel(op),
       ),

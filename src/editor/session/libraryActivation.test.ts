@@ -793,7 +793,14 @@ describe('createLibraryActivation', () => {
     dirty = true
     const next = makeBook({ id: 'activated', gallery: [] })
     const result = await controller.activateLoadedBook(next)
-    expect(result).toEqual({ ok: true, value: next })
+    // A book without masters opens with an empty default "Master A".
+    const withDefault = {
+      ...next,
+      parents: [{ id: 'parent-1', name: 'Master A', frames: [], guides: [] }],
+      defaultParentId: 'parent-1',
+    }
+    expect(result).toEqual({ ok: true, value: withDefault })
+    expect(book).toEqual(withDefault)
     expect(bookId).toBe('activated')
     expect(dirty).toBe(false)
     expect(persistIds).toHaveBeenCalled()
@@ -811,11 +818,18 @@ describe('createLibraryActivation', () => {
     libraryId = 'lib-ok'
     const onBookActivated = vi.fn().mockResolvedValue(undefined)
     host.onBookActivated = onBookActivated
-    const next = makeBook({ id: 'with-photo-root', gallery: [] })
+    const next = makeBook({
+      id: 'with-photo-root',
+      gallery: [],
+      parents: [{ id: 'm', name: 'Master A', frames: [], guides: [] }],
+      defaultParentId: 'm',
+    })
+    // A book that has its default master opens as stored.
     await expect(controller.activateLoadedBook(next)).resolves.toEqual({
       ok: true,
       value: next,
     })
+    expect(book).toBe(next)
     expect(onBookActivated).toHaveBeenCalledTimes(1)
   })
 

@@ -83,6 +83,9 @@ export const ICON_NAMES = [
   'layers',
   'share',
   'arrowLeft',
+  'alignLeft',
+  'alignCenter',
+  'alignRight',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -650,5 +653,21 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
   arrowLeft: [
     ['path', { d: 'm12 19-7-7 7-7' }],
     ['path', { d: 'M19 12H5' }],
+  ],
+  // Lucide text-align-start / -center / -end (kit AlignLeft / Center / Right).
+  alignLeft: [
+    ['path', { d: 'M21 5H3' }],
+    ['path', { d: 'M15 12H3' }],
+    ['path', { d: 'M17 19H3' }],
+  ],
+  alignCenter: [
+    ['path', { d: 'M21 5H3' }],
+    ['path', { d: 'M17 12H7' }],
+    ['path', { d: 'M19 19H5' }],
+  ],
+  alignRight: [
+    ['path', { d: 'M21 5H3' }],
+    ['path', { d: 'M21 12H9' }],
+    ['path', { d: 'M21 19H7' }],
   ],
 }
