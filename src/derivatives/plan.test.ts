@@ -32,9 +32,9 @@ describe('presets config', () => {
       DERIVATIVE_PRESETS.map((p) => [p.id, p.maxEdge, p.mimeType, p.quality]),
     ).toEqual([
       ['site-thumb', 480, 'image/webp', 0.8],
-      ['site-display', 1600, 'image/webp', 0.82],
-      ['site-large', 3200, 'image/webp', 0.85],
-      ['site-share', 1600, 'image/jpeg', 0.85],
+      ['site-display', 1600, 'image/webp', 0.85],
+      ['site-large', 3200, 'image/webp', 0.9],
+      ['site-share', 1600, 'image/jpeg', 0.9],
     ])
   })
 
@@ -89,9 +89,9 @@ describe('presetCacheId', () => {
   it('folds edge, format and quality into the id', () => {
     expect(DERIVATIVE_PRESETS.map(presetCacheId)).toEqual([
       'drv-site-thumb-480-webp-q80',
-      'drv-site-display-1600-webp-q82',
-      'drv-site-large-3200-webp-q85',
-      'drv-site-share-1600-jpeg-q85',
+      'drv-site-display-1600-webp-q85',
+      'drv-site-large-3200-webp-q90',
+      'drv-site-share-1600-jpeg-q90',
     ])
   })
 
