@@ -2,12 +2,13 @@ import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { pixelsAt } from './fixtures/paintProbe'
 
-// site-stand (DEMO branch): the kit site stand holds demo 6, demo 7 and fresh C.
-// On a phone the kit body's 1280 min-width made fresh C read innerWidth 1280 at
-// first render and keep the desktop grid: the open book covered the lead and
-// the title, the lead wrapped in a ~100 px column, the nav did not fit.
+// site-stand (DEMO branch): the kit site stand holds demo 6 and demo 7 (fresh C
+// left it, site-stand-v2 D9). Two states (D3): home and the open book; a click
+// opens the reading room, `&book=<id>` is pushed, Back / Esc / "All books"
+// close it and focus returns to the book.
 
-const SLUGS = ['site-demo-6', 'site-demo-7', 'site-fresh-c']
+const SLUGS = ['site-demo-6', 'site-demo-7'] as const
+const BOOK = { 'site-demo-6': 'ss6-book', 'site-demo-7': 'ss7-book' } as const
 
 async function box(l: Locator) {
   const b = await l.boundingBox()
@@ -15,73 +16,11 @@ async function box(l: Locator) {
   return b
 }
 
-/** whether the element itself is painted at the centre of its box (not covered) */
-function paintedAt(l: Locator) {
-  return l.evaluate((el) => {
-    const r = el.getBoundingClientRect()
-    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
-    return !!hit && el.contains(hit)
-  })
-}
-
-test('the site-demos entry lists exactly the three stand demos', async ({
-  page,
-}) => {
+test('the site-demos entry lists exactly the stand demos', async ({ page }) => {
   await page.goto('/uikit/#/full/site-demos')
   const links = page.getByTestId('site-demo-link')
-  await expect(links).toHaveText(SLUGS)
+  await expect(links).toHaveText([...SLUGS])
   await expect(links.first()).toHaveAttribute('href', '#/full/site-demo-6')
-})
-
-test.describe('phone 390×844', () => {
-  test.use({
-    viewport: { width: 390, height: 844 },
-    isMobile: true,
-    hasTouch: true,
-  })
-
-  test('fresh C takes the phone layout: full-width lead, book below it, Menu in the header', async ({
-    page,
-  }) => {
-    await page.goto('/uikit/#/full/site-fresh-c')
-    await expect(page.getByTestId('sfc')).toHaveClass(/sfc-phone/)
-    const leadEl = page.locator('.sfc-lead').first()
-    const titleEl = page.locator('.sfc-now .sfc-title')
-    const lead = await box(leadEl)
-    const title = await box(titleEl)
-    // Spec site-stand S5 / S7: one page at a time, the camera box full bleed
-    const reader = await box(
-      page.getByTestId('sfc-stage').getByTestId('ps-pager'),
-    )
-    expect(lead.width).toBeGreaterThanOrEqual(300)
-    expect(reader.x).toBe(0)
-    expect(reader.width).toBe(390)
-    // the open book sits between the lead and the title, overlapping neither
-    expect(reader.y).toBeGreaterThanOrEqual(lead.y + lead.height)
-    expect(title.y).toBeGreaterThanOrEqual(reader.y + reader.height)
-    expect(await paintedAt(leadEl)).toBe(true)
-    expect(await paintedAt(titleEl)).toBe(true)
-    const menu = await box(page.getByTestId('sfc-menu-btn'))
-    expect(menu.x + menu.width).toBeLessThanOrEqual(390)
-
-    // the portrait book's page fills about half the screen height
-    await page.goto('/uikit/#/full/site-fresh-c?b=lake-trip')
-    // the closed cover opens on page 1
-    await page.keyboard.press('ArrowRight')
-    await expect(page.getByTestId('sfc-player')).toHaveAttribute(
-      'data-view',
-      '1',
-    )
-    await expect(page.getByTestId('ps-leaf')).toHaveCount(0)
-    const pg = await box(
-      page.getByTestId('sfc-stage').locator('.sd-pg').first(),
-    )
-    expect(pg.height).toBeGreaterThanOrEqual(0.45 * 844)
-    // stage = tallest page of the programme + 40, so it never jumps between books
-    const stage = await box(page.getByTestId('sfc-stage'))
-    expect(stage.height).toBeGreaterThanOrEqual(pg.height + 39)
-    expect(stage.height).toBeLessThanOrEqual(pg.height + 48)
-  })
 })
 
 // Spec site-stand S2–S4: the open book shows its thickness (side edges from the
@@ -89,22 +28,10 @@ test.describe('phone 390×844', () => {
 // leaves curl (paper leaf), perspective 2 × the reader width.
 
 /** opens the first book's reader on view 1 (endpaper | title page) */
-async function openReader(page: Page, slug: string) {
+async function openReader(page: Page, slug: keyof typeof BOOK) {
   await page.goto(`/uikit/#/full/${slug}`)
-  if (slug === 'site-fresh-c') {
-    await page.getByTestId('sfc-item').first().click()
-    await page.getByTestId('sfc-open').click()
-    // Read the book opens the reading room on view 1
-    const reader = page.getByTestId('ss-reader-page').getByTestId('ps-reader')
-    await expect(reader).toHaveAttribute('data-view', '1')
-    return reader
-  } else {
-    await page
-      .getByTestId(slug === 'site-demo-6' ? 'ss6-book' : 'ss7-book')
-      .first()
-      .click()
-    await page.getByTestId('ss-open').click()
-  }
+  // the click opens the room at the cover, which turns to view 1 at once
+  await page.getByTestId(BOOK[slug]).first().click()
   const reader = page.getByTestId('ps-reader')
   await expect(reader).toHaveAttribute('data-view', '1')
   return reader
@@ -276,39 +203,24 @@ test.describe('desktop 1440×900: the open book', () => {
     })
 })
 
-// Spec site-stand S6 / S7 (fresh C): Read opens the reading room over the
-// site under the header; opening pauses the programme on the shown view;
-// Esc closes once and focus returns to the trigger. The room steps through
-// every view of Lake trip and Coast with each photo page painted (the 21:xx
-// stand capture had a blank right page).
+// Spec site-stand-v2 S: the open flow, Play, the header, the counts. The room
+// steps through every view of Lake trip and Coast with each photo page
+// painted (the 21:xx stand capture had a blank right page).
 
-/** room: the portrait book's width and height range (desktop the spread,
-   1157 × 723; phone the camera box and one page ≥ 0.45 × 844) */
 const VIEWPORTS = [
   {
     name: 'desktop 1440×900',
     viewport: { width: 1440, height: 900 },
     isMobile: false,
     hasTouch: false,
-    room: { w: 1157, hMin: 722, hMax: 724 },
   },
   {
     name: 'phone 390×844',
     viewport: { width: 390, height: 844 },
     isMobile: true,
     hasTouch: true,
-    room: { w: 390, hMin: 0.45 * 844, hMax: 844 },
   },
 ]
-
-async function roomBook(room: Locator, phone: boolean) {
-  const reader = await box(room.locator('.sd-reader'))
-  if (!phone)
-    return { w: Math.round(reader.width), h: Math.round(reader.height) }
-  const cam = await box(room.getByTestId('ps-pager'))
-  const pg = await box(room.locator('.sd-pg').first())
-  return { w: Math.round(cam.width), h: Math.round(pg.height) }
-}
 
 /** Next through the room to the back cover; at each rest the RGB at the
    centre of every visible photo page */
@@ -343,8 +255,62 @@ function consoleErrors(page: Page) {
   return errors
 }
 
+test.describe('desktop 1440×900: Play and the year rows', () => {
+  test.use({ viewport: { width: 1440, height: 900 } })
+
+  test('sd-play turns the page after 4000 + 820 ms; a key press pauses it', async ({
+    page,
+  }) => {
+    const errors = consoleErrors(page)
+    await page.clock.install()
+    await page.goto('/uikit/#/full/site-demo-7?books=6&book=lake-trip')
+    const reader = page.getByTestId('ps-reader')
+    await page.clock.runFor(500)
+    await expect(reader).toHaveAttribute('data-view', '1')
+    const play = page.getByTestId('sd-play')
+    await expect(play).toHaveText('Play')
+    await play.click()
+    await expect(play).toHaveAttribute('aria-pressed', 'true')
+    await expect(play).toHaveText('Pause')
+    // the 1 px progress line under the label
+    const line = await box(page.getByTestId('sd-progress'))
+    expect(line.height).toBe(1)
+    await page.clock.runFor(3900)
+    await expect(reader).toHaveAttribute('data-view', '1')
+    await page.clock.runFor(100 + 820 + 50)
+    await expect(reader).toHaveAttribute('data-view', '2')
+    await expect(reader.getByTestId('ps-leaf')).toHaveCount(0)
+    // still playing: a key press pauses it
+    await expect(play).toHaveAttribute('aria-pressed', 'true')
+    await page.keyboard.press('Shift')
+    await expect(play).toHaveAttribute('aria-pressed', 'false')
+    await expect(page.getByTestId('sd-progress')).toHaveCount(0)
+    await page.clock.runFor(4000 + 820 + 200)
+    await expect(reader).toHaveAttribute('data-view', '2')
+    expect(errors).toEqual([])
+  })
+
+  test('demo 7: year rows past 12 books over more than 2 years, none at 12', async ({
+    page,
+  }) => {
+    await page.goto('/uikit/#/full/site-demo-7?books=30')
+    const years = page.getByTestId('ss7-year')
+    const ys = await years.allTextContents()
+    expect(ys.length).toBeGreaterThan(2)
+    expect(ys).toEqual([...ys].sort().reverse())
+    // a year row is 40 high with a top hairline, numbering continues past it
+    const y = await box(years.nth(1))
+    expect(y.height).toBe(40)
+    await expect(
+      page.getByTestId('ss7-book').last().locator('.t13').first(),
+    ).toHaveText('30')
+    await page.goto('/uikit/#/full/site-demo-7?books=12')
+    await expect(years).toHaveCount(0)
+  })
+})
+
 for (const vp of VIEWPORTS)
-  test.describe(`fresh C ${vp.name}: the reading room`, () => {
+  test.describe(`${vp.name}: two states`, () => {
     test.use({
       viewport: vp.viewport,
       isMobile: vp.isMobile,
@@ -352,78 +318,125 @@ for (const vp of VIEWPORTS)
     })
     const phone = vp.viewport.width < 768
 
-    test('Read opens the room paused on the shown view; Esc closes, focus returns, Play resumes', async ({
+    for (const slug of SLUGS)
+      test(`${slug}: a click opens the room with book= in the URL; Back, Esc and All books close it, focus returns`, async ({
+        page,
+      }) => {
+        const errors = consoleErrors(page)
+        await page.goto(`/uikit/#/full/${slug}`)
+        const room = page.getByTestId('ss-reader-page')
+        const all = page.getByTestId('ss-all')
+        // home: no About / Contact / Books nav, no All books, no Menu
+        await expect(
+          page.getByRole('button', { name: /^(About|Contact|Books|Menu)$/ }),
+        ).toHaveCount(0)
+        await expect(
+          page.getByRole('link', { name: /^(About|Contact)$/ }),
+        ).toHaveCount(0)
+        await expect(all).toHaveCount(0)
+
+        const book = page
+          .getByTestId(BOOK[slug])
+          .locator('visible=true')
+          .first()
+        const id = await book.getAttribute('data-id')
+        const close = [
+          () => page.goBack(),
+          () => page.keyboard.press('Escape'),
+          () => all.click(),
+        ]
+        for (const shut of close) {
+          await book.click()
+          await expect(room).toBeVisible()
+          expect(page.url()).toContain(`book=${id ?? ''}`)
+          // the cover turns at once: the room rests on view 1
+          await expect(room.getByTestId('ss-reader')).toHaveAttribute(
+            'data-view',
+            '1',
+          )
+          await expect(all).toBeVisible()
+          await shut()
+          await expect(room).toHaveCount(0)
+          expect(page.url()).not.toContain('book=')
+          await expect(book).toBeFocused()
+          await expect(all).toHaveCount(0)
+        }
+        expect(errors).toEqual([])
+      })
+
+    test('a deep link opens at view 1; the name closes it and focus lands on the book', async ({
       page,
     }) => {
-      const errors = consoleErrors(page)
-      // one book: Lake trip (portrait) owns every minute
-      await page.goto('/uikit/#/full/site-fresh-c?books=1')
-      const actions = page.getByTestId('sfc-now').locator('.sfc-actions > *')
-      await expect(actions).toHaveText(['Pause', 'Read', 'About this book'])
-      const read = page.getByTestId('sfc-read-room')
-      await read.click()
-      const room = page.getByTestId('ss-reader-page')
-      await expect(room).toBeVisible()
-      await expect(page.getByTestId('sfc-status')).toHaveText('Paused')
-      const layer = await room.evaluate((el) => {
-        const cs = getComputedStyle(el)
-        const r = el.getBoundingClientRect()
-        return { pos: cs.position, z: cs.zIndex, x: r.x, y: r.y, w: r.width }
-      })
-      expect(layer).toEqual({
-        pos: 'fixed',
-        z: '20',
-        x: 0,
-        y: 0,
-        w: vp.viewport.width,
-      })
-      // the header stays on top of the room
-      expect(await paintedAt(page.locator('.sfc-name'))).toBe(true)
-      // the room opens on the view the stage showed (a closed cover opens)
-      const shown = Number(
-        await page.getByTestId('sfc-player').getAttribute('data-view'),
-      )
-      await expect(room.getByTestId('ss-reader')).toHaveAttribute(
-        'data-view',
-        String(Math.max(1, shown)),
-      )
-      const rb = await roomBook(room, phone)
-      expect(rb.w).toBe(vp.room.w)
-      expect(rb.h).toBeGreaterThanOrEqual(vp.room.hMin)
-      expect(rb.h).toBeLessThanOrEqual(vp.room.hMax)
-      await room.getByTestId('ss-next').click()
-      const kept = await room.getByTestId('ss-reader').getAttribute('data-view')
-
-      await page.keyboard.press('Escape')
-      await expect(room).toHaveCount(0)
-      await expect(read).toBeFocused()
-      await expect(page.getByTestId('sfc-player')).toHaveAttribute(
-        'data-view',
-        kept ?? '',
-      )
-      await expect(page.getByTestId('sfc-status')).toHaveText('Paused')
-      await page.getByTestId('sfc-toggle').click()
-      await expect(page.getByTestId('sfc-status')).toHaveText(/^Now/)
-      expect(errors).toEqual([])
-    })
-
-    test('book page: Read the book opens the closed book on view 1; Esc closes the room only', async ({
-      page,
-    }) => {
-      const errors = consoleErrors(page)
-      await page.goto('/uikit/#/full/site-fresh-c?b=coast')
-      const open = page.getByTestId('sfc-open')
-      await expect(open).toHaveText('Read the book')
-      await open.click()
+      await page.goto('/uikit/#/full/site-demo-7?books=6&book=coast')
       const room = page.getByTestId('ss-reader-page')
       await expect(room.getByTestId('ss-reader')).toHaveAttribute(
         'data-view',
         '1',
       )
-      await page.keyboard.press('Escape')
+      await page.locator('.ss-head > button').click()
       await expect(room).toHaveCount(0)
-      await expect(open).toBeFocused()
-      await expect(page.getByTestId('sfc')).toHaveAttribute('data-page', 'book')
+      expect(page.url()).not.toContain('book=')
+      await expect(
+        page
+          .locator('[data-testid="ss7-book"][data-id="coast"]')
+          .locator('visible=true'),
+      ).toBeFocused()
+    })
+
+    for (const slug of SLUGS)
+      for (const n of [1, 6, 30])
+        test(`${slug} books=${String(n)}: ${String(n)} books, no horizontal page scroll`, async ({
+          page,
+        }) => {
+          const errors = consoleErrors(page)
+          await page.goto(`/uikit/#/full/${slug}?books=${String(n)}`)
+          await expect(page.getByTestId('ss-switch').locator('a')).toHaveText([
+            '1',
+            '3',
+            '6',
+            '12',
+            '30',
+            '100',
+          ])
+          const root = page.locator('[data-books]')
+          await expect(root).toHaveAttribute('data-books', String(n))
+          const ids = await page
+            .getByTestId(BOOK[slug])
+            .evaluateAll(
+              (els) => new Set(els.map((e) => e.getAttribute('data-id'))).size,
+            )
+          expect(ids).toBe(n)
+          const sw = await page.evaluate(() => [
+            document.documentElement.scrollWidth,
+            innerWidth,
+          ])
+          expect(sw[0]).toBe(sw[1])
+          expect(errors).toEqual([])
+        })
+
+    test('books=30: a placeholder past 12 opens and paints', async ({
+      page,
+    }) => {
+      const errors = consoleErrors(page)
+      await page.goto('/uikit/#/full/site-demo-7?books=30')
+      await page
+        .locator('[data-testid="ss7-book"][data-id="book-20"]')
+        .locator('visible=true')
+        .click()
+      const room = page.getByTestId('ss-reader-page')
+      await expect(room.getByTestId('ss-reader')).toHaveAttribute(
+        'data-view',
+        '1',
+      )
+      await room.getByTestId('ss-next').click()
+      const reader = room.getByTestId('ps-reader')
+      await expect(reader.getByTestId('ps-leaf')).toHaveCount(0)
+      const centres = await pageCentres(
+        reader,
+        phone ? room.getByTestId('ps-pager') : reader,
+      )
+      expect(centres.length).toBeGreaterThan(0)
+      expect(centres.filter(white)).toEqual([])
       expect(errors).toEqual([])
     })
 
@@ -432,8 +445,7 @@ for (const vp of VIEWPORTS)
         page,
       }) => {
         const errors = consoleErrors(page)
-        await page.goto(`/uikit/#/full/site-fresh-c?b=${id}`)
-        await page.getByTestId('sfc-open').click()
+        await page.goto(`/uikit/#/full/site-demo-7?books=6&book=${id}`)
         const seen = await walkRoom(page.getByTestId('ss-reader-page'), phone)
         expect(seen.at(-1)?.label).toBe('Back cover')
         // no photo page paints as #FFFFFF
