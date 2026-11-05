@@ -12,13 +12,17 @@ function seed(
     zoom: 1,
     center: { x: 0.5, y: 0.5 },
   },
+  backFill?: string,
 ): void {
   const base = makeBookWithAsset('a1', { place: false })
+  const cover = defaultCover('Lake trip')
   resetBookStore({
     book: {
       ...base,
       cover: {
-        ...defaultCover('Lake trip'),
+        ...cover,
+        style:
+          backFill === undefined ? cover.style : { ...cover.style, backFill },
         front: {
           text: 'Lake trip',
           ...(photo === null
@@ -101,16 +105,22 @@ describe('CoverSection kit rows', () => {
     expect(value('cover-material')).toBe('printed')
     expect(value('cover-finish')).toBe('matte')
     expect(screen.getByTestId('cover-spine-width').textContent).toContain('12')
-    // Kit v7.tsx:216: Fill is a read-only "Paper white" pill + "coming later".
-    expect(screen.getByTestId('cover-back-fill').textContent).toBe(
-      'Paper white',
-    )
-    expect(screen.getByTestId('fill-readonly').textContent).toBe('coming later')
+    // Kit v7.tsx:277: Fill is the read-only back fill, swatch + upper-case hex.
+    expect(screen.getByTestId('fill-readonly').textContent).toBe('#3E3C3B')
+    expect(screen.getByTestId('fill-swatch').style.background).toBe('#3e3c3b')
+    expect(text).not.toContain('coming later')
     // Kit v7.tsx:215: Direction is a Val pill, not a segmented control.
     expect(screen.getByTestId('cover-direction').textContent).toBe(
       'Top to bottom',
     )
     expect(section.querySelectorAll('input[type="text"]')).toHaveLength(3)
+  })
+
+  it('shows the book back fill as its swatch and upper-case hex', () => {
+    seed(null, null, '#112233')
+    render(<CoverSection />)
+    expect(screen.getByTestId('fill-readonly').textContent).toBe('#112233')
+    expect(screen.getByTestId('fill-swatch').style.background).toBe('#112233')
   })
 
   it('writes each cover style control to the book', () => {

@@ -86,8 +86,8 @@ test('Cover inspector style controls change the cover (#14)', async ({
   await page.getByTestId('cover-list-item').click()
   const cover = page.getByTestId('insp-cover')
   await expect(cover).toBeVisible()
-  // Kit v7.tsx:216: only the Back fill keeps its "coming later" note.
-  await expect(cover.getByText('coming later')).toHaveCount(1)
+  // cover-back-fill: no cover row is "coming later" (Back fill shows its hex).
+  await expect(cover.getByText('coming later')).toHaveCount(0)
   await cover.getByTestId('cover-title-font').selectOption('sans')
   await expect(page.getByTestId('canvas-cover')).toHaveAttribute(
     'data-title-font',
@@ -103,9 +103,9 @@ test('Cover inspector style controls change the cover (#14)', async ({
     'data-finish',
     'gloss',
   )
-  // Kit v7.tsx:215-216: Direction and Back fill are read-only pills.
+  // Kit v7.tsx:215, :277: Direction pill; Back fill is the read-only hex.
   await expect(cover.getByTestId('cover-direction')).toHaveText('Top to bottom')
-  await expect(cover.getByTestId('cover-back-fill')).toHaveText('Paper white')
+  await expect(cover.getByTestId('fill-readonly')).toHaveText('#3E3C3B')
   // Rendered #/demo step 13 (design-r3-book-cover): Spine width is read-only
   // mono text; design-r3-book-cover.spec.ts checks the canvas spine width.
   const spineWidth = cover.getByTestId('cover-spine-width')
