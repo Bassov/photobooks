@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
+import { expectKitSwitchSm } from './fixtures/switchGeometry'
 
 // live-captions-kit (Designer live-captions Spec 2026-11-05): the kit `#/demo`
 // TextSection Live block. Chips turn Live on and anchor the caption to the
@@ -87,6 +88,20 @@ test.describe('kit live captions', () => {
       .dragTo(frames(page).first())
     await expect(frames(page).first().locator('img')).toHaveCount(1)
     await drawText(page, 'Morning')
+  })
+
+  // switch-size-parity: prod `ToggleSwitch` is pinned to these numbers too.
+  test('the Live switch is the Switch sm 36×20 off and on', async ({
+    page,
+  }) => {
+    const root = inspector(page).getByTestId('live-caption-switch')
+    const track = root.locator('.sw-track')
+    const knob = root.locator('.sw-knob')
+    await expect(liveSwitch(page)).not.toBeChecked()
+    await expectKitSwitchSm(track, knob, false)
+    await root.click()
+    await expect(liveSwitch(page)).toBeChecked()
+    await expectKitSwitchSm(track, knob, true)
   })
 
   test('chips anchor the caption and paint the photo values on one row', async ({
