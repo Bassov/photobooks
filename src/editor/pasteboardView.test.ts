@@ -243,6 +243,14 @@ describe('pasteboardClickSpreadId', () => {
     expect(pasteboardClickSpreadId(btn, 0, [])).toBeNull()
   })
 
+  it('leaves a selection handle outside a button alone (a copy’s peer)', () => {
+    const { inner } = build()
+    const handle = document.createElement('span')
+    handle.setAttribute('data-handle', 'se')
+    inner.append(handle)
+    expect(pasteboardClickSpreadId(handle, 0, [])).toBeNull()
+  })
+
   it('maps the gray beside a spread to the slot row under clientY', () => {
     const { slot } = build()
     slot.getBoundingClientRect = () => ({ top: 100, bottom: 200 }) as DOMRect

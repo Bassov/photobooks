@@ -5,7 +5,7 @@ import { Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { SW, SH, PAGE, clamp, round, uid, spread, type Guide } from "./model"
 import { useStudio, mapSpread, useKeys } from "./store"
-import { SpreadSurface, GuideLine, PHOTO_TYPE, readItems, marqueeStarters, grayPick } from "./canvas"
+import { SpreadSurface, GuideLine, PHOTO_TYPE, FRAME_LOCKED_STATUS, readItems, marqueeStarters, grayPick } from "./canvas"
 import { bestTemplate } from "./templates"
 import { CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, setMaster, guidesOfMaster, useMasters, coverW, pagesOf, SPINE, SUB, setCoverPhoto } from "./v7"
 import type { Node } from "./store"
@@ -90,11 +90,21 @@ export function useEditorKeys() {
     if (mod && (e.key === "=" || e.key === "+")) { e.preventDefault(); st.setView({ zoom: clamp(st.view.zoom * 1.25, 0.25, 8) }); return }
     if (mod && e.key === "-") { e.preventDefault(); st.setView({ zoom: clamp(st.view.zoom / 1.25, 0.25, 8) }); return }
     if (mod && e.key === "0") { e.preventDefault(); st.setView({ zoom: 1 }); return }
+    const selFrames = (st.doc.spreads[st.cur]?.frames ?? []).filter((f) => st.sel.includes(f.id))
+    const unlocked = selFrames.filter((f) => !f.locked).map((f) => f.id)
+    if ((e.key === "Delete" || e.key === "Backspace") && !mod && selFrames.length && st.features.handles && !st.cropId && !(e.target as HTMLElement).closest?.("[data-filmstrip]")) {
+      e.preventDefault()
+      if (!unlocked.length) { st.setStatus(FRAME_LOCKED_STATUS); return }
+      st.update((d) => mapSpread(d, st.cur, (s) => ({ ...s, template: null, frames: s.frames.filter((f) => !unlocked.includes(f.id)) })), unlocked.length > 1 ? `Delete ${unlocked.length} frames` : "Delete frame")
+      st.setSel(st.sel.filter((id) => !unlocked.includes(id)))
+      return
+    }
     const arrows: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
     if (arrows[e.key] && st.sel.length && (st.features.handles || st.cropId)) {
       e.preventDefault()
       const [dx, dy] = arrows[e.key]; const k = e.shiftKey ? 10 : 1
       if (st.cropId) st.update((d) => mapSpread(d, st.cur, (s) => ({ ...s, frames: s.frames.map((f) => f.id === st.cropId ? { ...f, ox: clamp(f.ox - dx * 0.05 * k, -1, 1), oy: clamp(f.oy - dy * 0.05 * k, -1, 1) } : f) })), "Nudge photo", "nudge-crop")
+      else if (selFrames.length && !unlocked.length) st.setStatus(FRAME_LOCKED_STATUS)
       else st.update((d) => mapSpread(d, st.cur, (s) => ({ ...s, frames: s.frames.map((f) => st.sel.includes(f.id) && !f.locked ? { ...f, x: round(f.x + dx * k, 2), y: round(f.y + dy * k, 2) } : f) })), "Nudge", "nudge")
       return
     }

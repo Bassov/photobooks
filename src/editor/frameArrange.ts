@@ -1,7 +1,9 @@
 import {
   applyBookOp,
   editableSpread,
+  findSpreadFrame,
   layerOf,
+  spreadFrames,
   type Book,
   type BookOp,
   type Frame,
@@ -96,14 +98,40 @@ export function arrangeShortcut(key: {
   return null
 }
 
-/** The frame on its book or parent spread (both take the same frame ops). */
+/**
+ * The frame (own or a local copy) on its book or parent spread (both take the
+ * same frame ops). A copy has no z-order moves: it keeps the parent slot.
+ */
 export function findTargetFrame(
   book: Book,
   target: FrameTarget,
 ): Frame | undefined {
-  return editableSpread(book, target.spreadId)?.spread.frames.find(
-    (frame) => frame.id === target.frameId,
-  )
+  const found = editableSpread(book, target.spreadId)
+  return found === undefined
+    ? undefined
+    : findSpreadFrame(found.spread, target.frameId)
+}
+
+/**
+ * Delete for frames on one spread: a lone local copy hides its parent item
+ * ("Hide parent item"); otherwise `removeFrames`, which hides a listed copy's
+ * parent item too.
+ */
+export function deleteFramesOp(
+  book: Book,
+  spreadId: string,
+  frameIds: readonly string[],
+): BookOp {
+  const [only] = frameIds
+  const copy =
+    frameIds.length === 1
+      ? book.spreads
+          .find((spread) => spread.id === spreadId)
+          ?.parentOverrides?.frames?.find((frame) => frame.id === only)
+      : undefined
+  return copy === undefined
+    ? { type: 'removeFrames', spreadId, frameIds }
+    : { type: 'hideParentItem', spreadId, parentItemId: copy.overridesId }
 }
 
 export function frameLocked(book: Book, target: FrameTarget): boolean {
@@ -163,11 +191,12 @@ export interface FrameSetTarget {
 
 /** The set's frames on its book or parent spread, in spread order. */
 export function findSetFrames(book: Book, set: FrameSetTarget): Frame[] {
-  return (
-    editableSpread(book, set.spreadId)?.spread.frames.filter((frame) =>
-      set.frameIds.includes(frame.id),
-    ) ?? []
-  )
+  const found = editableSpread(book, set.spreadId)
+  return found === undefined
+    ? []
+    : spreadFrames(found.spread).filter((frame) =>
+        set.frameIds.includes(frame.id),
+      )
 }
 
 function setZOrderOp(set: FrameSetTarget, move: ZMove): BookOp {
