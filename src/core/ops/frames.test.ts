@@ -139,6 +139,41 @@ describe('removeFrames', () => {
       }),
     ).toBe(before)
   })
+
+  it('hides the parent item of a removed local copy, own frames go as usual', () => {
+    const parented = makeBook({
+      parents: [
+        {
+          id: 'p1',
+          name: 'Master A',
+          frames: [makeFrame({ id: 'logo' }), makeFrame({ id: 'band' })],
+          guides: [],
+        },
+      ],
+      spreads: [
+        makeSpread({
+          parentId: 'p1',
+          frames: [makeFrame({ id: 'frame-1' })],
+        }),
+      ],
+    })
+    const copied = applyBookOp(parented, {
+      type: 'overrideParentFrame',
+      spreadId: 'spread-1',
+      parentFrameId: 'logo',
+      id: 'copy-1',
+    })
+
+    const next = applyBookOp(copied, {
+      type: 'removeFrames',
+      spreadId: 'spread-1',
+      frameIds: ['copy-1', 'frame-1'],
+    })
+
+    expect(next.spreads[0]?.frames).toEqual([])
+    expect(next.spreads[0]?.parentOverrides).toEqual({ hiddenIds: ['logo'] })
+    expect(checkBookInvariants(next)).toEqual({ ok: true })
+  })
 })
 
 describe('setFrameRect', () => {

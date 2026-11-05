@@ -111,6 +111,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [design-r16-kit-book](roadmap/P2/design-r16-kit-book.md) — Bug: /next-roadmap-item design-r16-kit-book
 - [x] [feature] [site-photographer-demo](roadmap/P2/site-photographer-demo.md) — Bug: /next-roadmap-item site-photographer-demo
 - [x] [feature] [parent-overrides-core](roadmap/P2/parent-overrides-core.md) — Bug: /next-roadmap-item parent-overrides-core
+- [x] [feature] [parent-overrides-canvas](roadmap/P2/parent-overrides-canvas.md) — Bug: /next-roadmap-item parent-overrides-canvas
 - [x] [feature] [text-frames-core](roadmap/P2/text-frames-core.md) — Bug: /next-roadmap-item text-frames-core
 - [x] [feature] [text-frames-kit](roadmap/P2/text-frames-kit.md) — Bug: /next-roadmap-item text-frames-kit
 - [x] [feature] [text-frames-editor](roadmap/P2/text-frames-editor.md) — Bug: /next-roadmap-item text-frames-editor
@@ -150,6 +151,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [site-lightbox](roadmap/P3/site-lightbox.md) — fullscreen and swipe
 - [x] [prep] [static-export-core](roadmap/P3/static-export-core.md) — deterministic site tree
 - [x] [feature] [static-export-writer](roadmap/P3/static-export-writer.md) — Bug: /next-roadmap-item static-export-writer
+- [ ] [feature] [static-export-kit](roadmap/P3/static-export-kit.md) — Bug: /next-roadmap-item static-export-kit
 - [ ] [feature] [static-export](roadmap/P3/static-export.md) — write `dist/`
 - [ ] [prep] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
 - [x] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
@@ -182,6 +184,8 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
 - [ ] [lite] [deps-dev-knip-relink](roadmap/P5/deps-dev-knip-relink.md) — Bug: /next-roadmap-item deps-dev-knip-relink
 - [ ] [feature] [spread-thumb-grey-backing](roadmap/P5/spread-thumb-grey-backing.md) — Bug: /next-roadmap-item spread-thumb-grey-backing
+- [ ] [feature] [kit-gaps](roadmap/P5/kit-gaps.md) — Bug: /next-roadmap-item kit-gaps
+- [ ] [feature] [text-blocks-close](roadmap/P5/text-blocks-close.md) — Bug: /next-roadmap-item text-blocks-close
 
 ## Deferred (not scheduled)
 
