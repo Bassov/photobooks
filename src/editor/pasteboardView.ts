@@ -173,14 +173,19 @@ export function bindGalleryDrop(
 /**
  * Spread id for a pointer-down on the pasteboard background: the slot under the
  * target, else the slot whose row contains `clientY` (the gray beside a spread).
- * Controls (frames, gap, labels) keep their own behavior: `null`.
+ * Controls (frames, gap, labels, selection handles: a copy's sit outside its
+ * button) keep their own behavior: `null`.
  */
 export function pasteboardClickSpreadId(
   target: Element,
   clientY: number,
   slots: readonly Element[],
 ): string | null {
-  if (target.closest('button, a, input, textarea, [role="button"]') !== null) {
+  if (
+    target.closest(
+      'button, a, input, textarea, [role="button"], [data-handle]',
+    ) !== null
+  ) {
     return null
   }
   const own = target.closest('[data-pasteboard-slot]')

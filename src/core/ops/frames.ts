@@ -1,3 +1,4 @@
+import { hideParentItem } from '../parentSpreads'
 import {
   findSpreadFrame,
   updateFrame,
@@ -55,19 +56,29 @@ export function addFrame(
   })
 }
 
-/** Remove frames (filled ones drop their placement); the spread leaves its template. */
+/**
+ * Remove frames (filled ones drop their placement); the spread leaves its
+ * template. A listed local copy hides its parent item instead.
+ */
 export function removeFrames(
   book: Book,
   spreadId: string,
   frameIds: readonly string[],
 ): Book {
-  return updateSpread(book, spreadId, (spread) => {
+  const spread = book.spreads.find((candidate) => candidate.id === spreadId)
+  const hidden = (spread?.parentOverrides?.frames ?? [])
+    .filter((copy) => frameIds.includes(copy.id))
+    .reduce(
+      (next, copy) => hideParentItem(next, spreadId, copy.overridesId),
+      book,
+    )
+  return updateSpread(hidden, spreadId, (current) => {
     const gone = new Set(frameIds)
-    const frames = spread.frames.filter((frame) => !gone.has(frame.id))
-    if (frames.length === spread.frames.length) {
-      return spread
+    const frames = current.frames.filter((frame) => !gone.has(frame.id))
+    if (frames.length === current.frames.length) {
+      return current
     }
-    return detached(spread, frames)
+    return detached(current, frames)
   })
 }
 

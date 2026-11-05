@@ -42,7 +42,8 @@ button.spread-frame {
    its ::before outline marks the frame instead. A live marquee hit
    (editor/marquee.ts) wears the same outline before the release selects it. */
 button.spread-frame[aria-pressed='true']:not([data-drop-hover='true'])::after,
-button.spread-frame[data-marquee-hit='true']::after {
+button.spread-frame[data-marquee-hit='true']::after,
+.spread-copy-selection::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -217,6 +218,81 @@ button.spread-frame[data-crop-active='true']:not(
 
 .spread-frame-dpi[data-level='min'] {
   font-weight: 600;
+}
+
+/* Designer PO1: an inherited parent item on the editor canvas wears a 1 px
+   dashed outline at constant screen px (counter-scaled ::after, as the group
+   box); own frames above it cover the outline. */
+.spread-frame[data-parent-item='true']::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(100% * var(--cam-scale, 1));
+  height: calc(100% * var(--cam-scale, 1));
+  transform-origin: 0 0;
+  scale: calc(1 / var(--cam-scale, 1));
+  outline: 1px dashed var(--parent-soft);
+  pointer-events: none;
+}
+
+/* PO3: a selected copy's ring and handles above every own frame (the group
+   box's layer); only the handles take the pointer. */
+.spread-copy-selection {
+  position: absolute;
+  z-index: 999;
+  pointer-events: none;
+}
+
+/* PO3: a local copy is the only pointer target in the inert parent layer. */
+.spread-view-parent-layer > button.spread-frame {
+  pointer-events: auto;
+}
+
+/* Designer PO3 override badge (kit canvas.tsx), top-left of a copy. */
+.spread-frame-override {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: 16.85px;
+  padding: 1px 4px;
+  border-radius: var(--radius-xs);
+  background: var(--parent);
+  color: var(--paper);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  line-height: 14.85px;
+  white-space: nowrap;
+  pointer-events: none;
+  /* Screen px through a live zoom, about the frame's top-left corner. */
+  transform-origin: -4px -4px;
+  scale: calc(1 / var(--cam-scale, 1));
+}
+
+/* The fit at rest, or the live one mid-zoom (writeCameraFrame). */
+.spread-frame-override:is(
+  [data-live-fit='icon'],
+  [data-fit='icon']:not([data-live-fit])
+) {
+  width: 18px;
+}
+
+.spread-frame-override:is(
+    [data-live-fit='icon'],
+    [data-fit='icon']:not([data-live-fit])
+  )
+  .spread-frame-override-text,
+.spread-frame-override:is(
+  [data-live-fit='none'],
+  [data-fit='none']:not([data-live-fit])
+) {
+  display: none;
 }
 
 /* Kit lock badge: 20px round, top-right. */
