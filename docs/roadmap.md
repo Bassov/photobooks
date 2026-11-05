@@ -115,6 +115,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [parent-overrides-canvas](roadmap/P2/parent-overrides-canvas.md) — Bug: /next-roadmap-item parent-overrides-canvas
 - [ ] [feature] [parent-overrides-copy-reselect](roadmap/P2/parent-overrides-copy-reselect.md) — Bug: /next-roadmap-item parent-overrides-copy-reselect
 - [ ] [feature] [parent-overrides-guides](roadmap/P2/parent-overrides-guides.md) — Bug: /next-roadmap-item parent-overrides-guides
+- [ ] [feature] [parent-overrides-kit](roadmap/P2/parent-overrides-kit.md) — Bug: /next-roadmap-item parent-overrides-kit
 - [x] [feature] [text-frames-core](roadmap/P2/text-frames-core.md) — Bug: /next-roadmap-item text-frames-core
 - [x] [feature] [text-frames-kit](roadmap/P2/text-frames-kit.md) — Bug: /next-roadmap-item text-frames-kit
 - [x] [feature] [text-frames-editor](roadmap/P2/text-frames-editor.md) — Bug: /next-roadmap-item text-frames-editor

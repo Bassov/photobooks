@@ -4,6 +4,7 @@ import { createToastQueue, type ToastContent } from "@/components/ui/toast"
 import type { Doc, Frame, Spread } from "./model"
 import { setGeom, reflowDoc } from "./model"
 import { anchorPhoto, fillTokens } from "./meta"
+import { hideCopies } from "./parent-overrides"
 
 export type View = {
   grid: boolean; snap: boolean; guides: boolean; rulers: boolean; overlays: boolean; preview: boolean
@@ -160,10 +161,12 @@ export function mapSpreadFreezing(d: Doc, i: number, fn: (s: Spread) => Spread):
     }
   })
 }
-/** Delete frames from spread `i`; live captions anchored to a removed frame become static with their painted text. */
+/** Delete frames from spread `i`; live captions anchored to a removed frame become static with their painted text.
+ *  A removed override copy hides its parent item on the spread (Designer parent-overrides PO3). */
 export function removeFrames(d: Doc, i: number, ids: string[]): Doc {
-  return mapSpreadFreezing(d, i, (s) => ({ ...s, template: null, frames: s.frames.filter((f) => !ids.includes(f.id)) }))
+  return mapSpreadFreezing(d, i, (s) => hideCopies({ ...s, template: null, frames: s.frames.filter((f) => !ids.includes(f.id)) }, s.frames.filter((f) => ids.includes(f.id))))
 }
+export const deleteLabel = (fs: Frame[]) => fs.length > 1 ? `Delete ${fs.length} frames` : fs[0]?.overrides ? "Hide parent item" : "Delete frame"
 export function placedSet(d: Doc) {
   const s = new Set<string>()
   for (const sp of d.spreads) for (const f of sp.frames) if (f.photo) s.add(f.photo)
