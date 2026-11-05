@@ -33,6 +33,8 @@ function page(items: Sc[], notes: Notes, h = H): FeatureDef {
 const root = (init: RootInit) => () => <DemoRoot init={init} />
 const lib = (init: RootInit["library"] = {}, books = SHELF()): RootInit => ({ session: { stage: "library", path: PATH, books }, library: init })
 const inEditor = (o: Omit<RootInit, "session"> = {}, b = dbook("lake", LAKE_TITLE, { extras: undefined, doc: docAdded() })): RootInit => ({ session: { stage: "editor", path: PATH, books: [b], open: b.id, back: "library" }, ...o })
+/** site-preview-mode: the Lake trip book with the cover done */
+const lakePreview = dbook("lake", LAKE_TITLE, { extras: { ...dbook("x", LAKE_TITLE).extras!, ...COVER_DONE } })
 const onSite = (site: RootInit["site"], entry: "catalog" | "book" = "catalog"): RootInit => {
   const books = SHELF().map((b) => ({ ...b, published: true }))
   return { session: { stage: "site", path: PATH, books, open: books[0].id, back: "editor", siteEntry: entry }, site }
@@ -231,12 +233,14 @@ export const PAGES: Record<string, FeatureDef> = {
     },
   },
   "site-preview-mode": page([
-    ["preview", "Preview", root(inEditor({ editor: { preview: true } }, dbook("lake", LAKE_TITLE, { extras: { ...dbook("x", LAKE_TITLE).extras!, ...COVER_DONE } })))],
+    ["preview", "Preview", root(inEditor({ editor: { preview: true } }, lakePreview))],
+    ["spread", "Spread 2", root(inEditor({ editor: { preview: { slide: 2 } } }, lakePreview))],
+    ["fullscreen", "Fullscreen", root(inEditor({ editor: { preview: { lb: true } } }, lakePreview))],
   ], {
-    what: "Preview from the editor: presentation mode as prod — the current book full screen on black, from the cover, one spread at a time, without publishing. \"Esc\" chip top-right, caption bottom centre (Cover, then 1 / n).",
+    what: "Preview from the editor: the site's book page of the current book under a 48 px bar, without publishing; Fullscreen = the site lightbox",
     where: "#/demo step editor-preview (top bar → Preview).",
-    keys: [["← / → / Space", "previous / next spread"], ["Esc", "close"]],
-    edge: ["Click the left / right half to page; the published site viewer stays behind Publish → Open site"],
+    keys: [["← / →", "previous / next spread"], ["Home / End", "cover / last spread"], ["Esc", "closes Fullscreen, then the preview"]],
+    edge: ["Share and All books hidden; opens on the cover; the editor is unchanged after Esc"],
   }),
   /* ------------------------------------------------------------ print */
   "pdf-export": page([

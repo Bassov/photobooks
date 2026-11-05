@@ -13,7 +13,7 @@ export type RootInit = {
   session?: Partial<SessionState>
   welcome?: { picking?: boolean }
   library?: LibraryInit
-  editor?: { dialog?: null | "publish" | "print"; preview?: boolean }
+  editor?: { dialog?: null | "publish" | "print"; preview?: boolean | Partial<SiteState> }
   settings?: { section?: SettingsSection; print?: PrintInit }
   site?: Partial<SiteState>
 }
