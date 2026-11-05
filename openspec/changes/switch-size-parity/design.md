@@ -1,6 +1,6 @@
 ## Decisions
 
-1. Reference is the kit `Switch size="sm"` (Designer note on #491; it is the `#/demo` Live caption switch): track 36×20 border-box, knob 16×16 at 2 px inset (off left 2, on left 18). Prod keeps its markup (`button[role=switch]` + absolute knob span); only `InspectorControls.css` changes (`.insp-toggle` 2.25rem × 1.25rem, knob 1rem at 2px, checked left 18px). The inset reproduces the kit's transparent border; colours and transition stay.
+1. Reference is the kit `Switch size="sm"` (Designer note on #491; it is the `#/demo` Live caption switch): track 36×20 border-box, knob 16×16 at 2 px inset (off left 2, on left 18). Prod keeps its markup (`button[role=switch]` + absolute knob span); only `InspectorControls.css` changes (`.insp-toggle` 2.25rem × 1.25rem, knob 1rem at 2px, checked left 18px). The inset reproduces the kit's transparent border; colours and transition stay. `margin-block: -1px` lays the 20 px track out as the old 18 px one, so its 18.84 px rows (text line) keep their height and nothing below moves.
 2. All callers render `ToggleSwitch`; no other `role="switch"` in `src/`.
 3. One e2e fixture holds the kit numbers and the measure for both the kit and the prod test, so kit drift fails the kit test.
 4. Tokens: none new; `docs/design.md` untouched (kit parity only, file off limits for this lane). Skill `ui-review` before push.
