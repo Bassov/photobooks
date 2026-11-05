@@ -1144,7 +1144,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
   // P2-3 dashed guides carry data-allow-border
   { const c = fs.readFileSync(new URL("../src/sandbox/canvas.tsx", import.meta.url), "utf8"), v = fs.readFileSync(new URL("../src/sandbox/v7.tsx", import.meta.url), "utf8")
     const inh = /p\.inherited && !st\.view\.preview && <div data-allow-border[^>]*\[outline-style:dashed\]/.test(c)
-    const safe = /<div data-allow-border data-testid=\{big \? "cover-safe"[^>]*1px dashed/.test(v), mg = /<div data-allow-border className="absolute inset-0" style=\{\{ outline: "1px dashed/.test(v)
+    const safe = /<div data-allow-border key=\{s\} data-testid=\{`cover-safe-\$\{s\}`\}[^>]*1px dashed/.test(v), mg = /<div data-allow-border className="absolute inset-0" style=\{\{ outline: "1px dashed/.test(v)
     ok("v7.4 P2-3: dashed guides (master items, master margin, cover safe area) carry data-allow-border", inh && safe && mg, `inherited=${inh} coverSafe=${safe} masterMargin=${mg}`) }
   // P2-4 cover Replace updates the filmstrip 'used' count
   await smokeS("v7.4 P2-4 / v0.9: dragging onto the cover updates the filmstrip used count", "canvas", async () => {
@@ -1353,7 +1353,7 @@ await smokeS("layout-grids-parent-inherit GP5: link on writes only the margins �
     await pickRow.dragTo(page.locator('[data-testid="cover-front"]')); await page.waitForTimeout(450)
     if (!(await page.locator('[data-testid="cover-text-front"]').count())) { await page.click('[data-item="cover"]'); await page.waitForTimeout(250) }
     await page.fill('[data-testid="cover-text-front"]', "Lake trip 2026"); await page.waitForTimeout(200)
-    W.pickSrc = await page.locator('[data-testid="cover-front"]').evaluate((e) => (getComputedStyle(e).backgroundImage.match(/url\("?([^")]+)"?\)/) || [])[1] ?? null)
+    W.pickSrc = await page.locator('[data-testid="cover-front"] .cover-front-photo').evaluate((e) => (getComputedStyle(e).backgroundImage.match(/url\("?([^")]+)"?\)/) || [])[1] ?? null)
     await page.locator('[data-testid="mode-seg"]').getByText("Masters", { exact: true }).click(); await page.waitForTimeout(300)
     const col = page.locator('[data-testid="master-field-grid"] input').first(); await col.fill("5"); await col.press("Enter"); await page.waitForTimeout(250)
     W.col0 = await col.inputValue()
@@ -2162,7 +2162,8 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   // text-node boxes (Spec measures glyph runs, not padded pills)
   const textBox = (sel, t) => page.evaluate(([sel, t]) => { const e = [...document.querySelectorAll(sel)].find((x) => x.textContent.trim().toLowerCase() === t.toLowerCase()); if (!e) return null; const g = document.createRange(); g.selectNodeContents(e); const b = g.getBoundingClientRect(); return { x: b.x, top: b.top } }, [sel, t])
   const near = (a, b) => a != null && Math.abs(a - b) <= 1
-  const TOPS = { "Title font": 285.44, Spine: 343.86, "Spine width": 415.70, Direction: 450.55, Back: 504.39, Fill: 580.23, Material: 634.08, Finish: 718.50 }
+  // cover-editor "Inspector": the print-profile hint under Spine width (6 + 16.8 px) moves Direction and below down 22.8 px (prod item cover-editor follows)
+  const TOPS = { "Title font": 285.44, Spine: 343.86, "Spine width": 415.70, Direction: 473.35, Back: 527.19, Fill: 603.03, Material: 656.88, Finish: 741.30 }
   const tops = {}; for (const t of Object.keys(TOPS)) tops[t] = (await textBox('[data-testid="insp-cover"] :is(h3, span)', t))?.top
   ok("kit-sync KS10: cover inspector row tops = prod (±1)", Object.entries(TOPS).every(([t, v]) => near(tops[t], v)), JSON.stringify(tops))
   // r15 M90 (prod .cover-thumb 2.625 × 3.25 rem, flex none): the front thumb keeps 42 × 52, its copy starts 12 px right of it
@@ -2628,6 +2629,49 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("static-export: done step's open-it block 16 px under the summary", Math.abs(gap - 16) <= 0.5, `gap ${gap}`)
 }
 
+{ // cover-editor (Designer cover-editor "Geometry" / "Layers" / "Spine text" / "Inspector"): the printed cover sheet at 1440 × 900, 19 × 23 cm
+  const S = "[data-scenario]"
+  await page.setViewportSize({ width: 1440, height: 900 }); await go("#/full/cover-editor", 600)
+  const top = await page.locator(S).first().evaluate((e) => e.getBoundingClientRect().top)
+  await page.setViewportSize({ width: 1440, height: 900 + top }); await page.waitForTimeout(300)
+  const pick = async (l) => { await page.locator(`[data-testid="scenarios"] [role="tab"]:text-is("${l}")`).evaluate((t) => t.click()); await page.waitForTimeout(350) }
+  const geo = () => page.evaluate((S) => {
+    const r = (id) => { const e = document.querySelector(`${S} [data-testid="${id}"]`); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height, r: b.right, b: b.bottom } }
+    const t = document.querySelector(`${S} [data-testid="cover-spine-text"]`), labels = [...document.querySelectorAll(`${S} [data-testid="page-labels"] span`)].map((s) => [s.textContent, s.getBoundingClientRect().top])
+    const veil = document.querySelector(`${S} [data-testid="cover-wrap"]`), photo = document.querySelector(`${S} [data-testid="cover-front"] .cover-front-photo`)
+    return { sheet: r("cover-sheet"), cover: r("canvas-cover"), spine: r("cover-spine"), text: r("cover-spine-text"), hb: r("cover-hinge-back"), hf: r("cover-hinge-front"), sb: r("cover-safe-back"), sf: r("cover-safe-front"), chip: r("cover-wrap-chip"), front: r("cover-front"),
+      photo: photo && photo.getBoundingClientRect().toJSON(), labels, veilPe: veil && getComputedStyle(veil).pointerEvents, veilN: veil?.children.length, ell: t && getComputedStyle(t).textOverflow, clip: t && t.scrollWidth > t.clientWidth,
+      sub: document.querySelector(`${S} [data-testid="cover-head-sub"]`)?.textContent, sw: document.querySelector(`${S} [data-testid="cover-spine-width"]`)?.textContent, hint: document.querySelector(`${S} [data-testid="cover-spine-hint"]`)?.textContent }
+  }, S)
+  const n5 = (a, b) => a != null && Math.abs(a - b) <= 0.5, cx = (b) => b.x + b.w / 2, cy = (b) => b.y + b.h / 2
+  const centred = (g) => n5(cx(g.text), cx(g.spine)) && n5(cy(g.text), cy(g.spine))
+  await pick("New cover"); const e = await geo()
+  ok("cover-editor: empty cover — sheet, hinges, safe frames, 4-strip veil (pointer-events none) and chip; no photo layer", !!e.sheet && !!e.hb && !!e.hf && !!e.sb && !!e.sf && e.veilN === 4 && e.veilPe === "none" && !!e.chip && !e.photo, JSON.stringify({ veil: e.veilN, pe: e.veilPe, photo: !!e.photo }))
+  await pick("Photo + title"); const g = await geo(), wrap = g.cover.x - g.sheet.x
+  ok("cover-editor: 20 pages — sheet 848 × 522.47, cover 787.73 × 462.18, spine 24.11, wrap 30.14, hinge 16.08 px (±0.5)",
+    n5(g.sheet.w, 848) && n5(g.sheet.h, 522.47) && n5(g.cover.w, 787.73) && n5(g.cover.h, 462.18) && n5(g.spine.w, 24.11) && n5(wrap, 30.14) && n5(g.cover.y - g.sheet.y, 30.14) && n5(g.hb.w, 16.08) && n5(g.hb.r, g.spine.x) && n5(g.hf.x, g.spine.r),
+    JSON.stringify({ sheet: [g.sheet.w, g.sheet.h], cover: [g.cover.w, g.cover.h], spine: g.spine.w, wrap, hinge: g.hb.w }))
+  ok("cover-editor: safe frames 355.68 × 442.08 at sheet + (40.19, 40.19) and (452.13, 40.19); chip 8 px from the sheet's right, centred in the band",
+    n5(g.sb.x - g.sheet.x, 40.19) && n5(g.sb.y - g.sheet.y, 40.19) && n5(g.sb.w, 355.68) && n5(g.sb.h, 442.08) && n5(g.sf.x - g.sheet.x, 452.13) && n5(g.sf.w, 355.68) && n5(g.sheet.r - g.chip.r, 8) && n5(g.chip.y - g.sheet.y, (wrap - 14) / 2),
+    JSON.stringify({ sb: g.sb, sf: g.sf, chip: g.chip }))
+  ok("cover-editor: front photo = front board + the wrap on top, outer and bottom edges; labels 10 px under the sheet",
+    !!g.photo && n5(g.photo.x, g.front.x) && n5(g.photo.right, g.sheet.r) && n5(g.photo.top, g.sheet.y) && n5(g.photo.bottom, g.sheet.b) && g.labels.map((l) => l[0]).join() === "Back,Spine,Front" && g.labels.every((l) => n5(l[1] - g.sheet.b, 10)),
+    JSON.stringify({ photo: g.photo, labels: g.labels, sheetB: g.sheet.b }))
+  ok("cover-editor: spine text centre = spine centre (±0.5) at 20 pages; inspector sub, Spine width and hint", centred(g) && g.sub === "Hardcover · wrap 15 mm · hinge 8 mm" && g.sw === "12 mm" && g.hint === "Generic print profile · 20 pages", JSON.stringify({ text: [cx(g.text), cy(g.text)], spine: [cx(g.spine), cy(g.spine)], sub: g.sub, sw: g.sw, hint: g.hint }))
+  await page.fill(`${S} [data-testid="cover-text-spine"]`, "Lake trip · Summer 2026 · Karelia, Ladoga, Valaam, the islands of Lake Ladoga and the long road home"); await page.waitForTimeout(200)
+  const l = await geo()
+  ok("cover-editor: a long spine text stays centred and ends in an ellipsis within trim height − 2 × safe", centred(l) && l.ell === "ellipsis" && l.clip && l.text.h <= g.cover.h * (22 / 23) + 0.5, JSON.stringify({ h: l.text.h, ell: l.ell, clip: l.clip }))
+  await pick("120 pages"); const t = await geo()
+  ok("cover-editor: 120 pages — spine 61.39 px, sheet 848 × 498.82, wrap 28.78, text centred, Spine width 32 mm", n5(t.spine.w, 61.39) && n5(t.sheet.h, 498.82) && n5(t.cover.x - t.sheet.x, 28.78) && centred(t) && t.sw === "32 mm" && t.hint === "Generic print profile · 120 pages", JSON.stringify({ spine: t.spine.w, sheet: t.sheet.h, wrap: t.cover.x - t.sheet.x, sw: t.sw, hint: t.hint }))
+  await pick("Photo + title")
+  await page.locator(`${S} [data-testid="book-title"]`).click(); await page.waitForTimeout(250)
+  await page.selectOption(`${S} [data-testid="size-preset"]`, "A3"); await page.waitForTimeout(150)
+  await page.locator(`${S} [data-testid="size-orientation"]`).getByText("Landscape", { exact: true }).click(); await page.waitForTimeout(150)
+  await page.locator(`${S} [data-item="cover"]`).click(); await page.waitForTimeout(400)
+  const a3 = await geo()
+  ok("cover-editor: A3 landscape — sheet 848 × 314.4, band 14.42 px < 18, chip not rendered", n5(a3.sheet.w, 848) && n5(a3.sheet.h, 314.4) && n5(a3.cover.x - a3.sheet.x, 14.42) && !a3.chip, JSON.stringify({ sheet: a3.sheet && [a3.sheet.w, a3.sheet.h], wrap: a3.cover && a3.cover.x - a3.sheet.x, chip: !!a3.chip }))
+  await page.setViewportSize({ width: 1440, height: 900 })
+}
 { // printer-presets-kit (Designer printer-presets §Settings, §Profile editor, §Kit PrintDialog): DOM measured at 1440 × 900
   const e0 = errs.length
   const tabs = { print: "Print presets", "print-empty": "No custom profiles", "print-edit": "Edit profile", "print-invalid": "Invalid values" }

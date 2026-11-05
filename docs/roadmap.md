@@ -178,6 +178,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [contingency] [pdf-streaming](roadmap/P4/pdf-streaming.md) — only if `pdf-export` peak memory is too high
 - [ ] [feature] [booklet-imposition](roadmap/P4/booklet-imposition.md) — home printing
 - [ ] [feature] [cover-editor-core](roadmap/P4/cover-editor-core.md) — Bug: /next-roadmap-item cover-editor-core
+- [ ] [feature] [cover-editor-kit](roadmap/P4/cover-editor-kit.md) — Bug: /next-roadmap-item cover-editor-kit
 - [ ] [feature] [cover-editor](roadmap/P4/cover-editor.md) — cover in the editor
 
 ## P5 — Others make their own personal site
