@@ -11,13 +11,15 @@ import {
   type PrintProfile,
   type PrintProfileInput,
 } from '../index'
+import { spreadsForPages } from '../pages'
 import { makeBook, makeFrame, makeSpread } from '../testing/fixtures'
 
 const generic = genericPrintProfile()
 const CENTER = { x: 0.5, y: 0.5 }
 
-/** 200 × 200 mm trim, 3 mm bleed; spread `s1` (pages 2–3, 400 mm wide) holds `frames`. */
-function bookWith(frames: Frame[], spreadCount = 10): Book {
+/** 200 × 200 mm trim, 3 mm bleed, `pages` printed pages; spread `s1` (pages 2–3, 400 mm wide) holds `frames`. */
+function bookWith(frames: Frame[], pages = 20): Book {
+  const spreadCount = spreadsForPages(pages)
   return makeBook({
     settings: { trim: { widthMm: 200, heightMm: 200 }, bleedMm: 3 },
     assets: {
@@ -130,7 +132,7 @@ describe('preflight', () => {
 
   describe('page count (profile pageCount)', () => {
     it('below the minimum is an error with the count and the minimum', () => {
-      const issues = preflight(bookWith([], 9), generic)
+      const issues = preflight(bookWith([], 18), generic)
 
       expect(issues).toEqual([
         {
@@ -145,12 +147,12 @@ describe('preflight', () => {
     })
 
     it('above the maximum is an error; the maximum itself is clean', () => {
-      expect(rules(bookWith([], 61))).toEqual(['page-count-above-max'])
-      expect(preflight(bookWith([], 61), generic)[0]).toMatchObject({
+      expect(rules(bookWith([], 122))).toEqual(['page-count-above-max'])
+      expect(preflight(bookWith([], 122), generic)[0]).toMatchObject({
         measured: 122,
         threshold: 120,
       })
-      expect(rules(bookWith([], 60))).toEqual([])
+      expect(rules(bookWith([], 120))).toEqual([])
     })
 
     it('off the profile step is an error; a whole step is clean', () => {
@@ -159,11 +161,11 @@ describe('preflight', () => {
         pageCount: { min: 22, step: 8, max: 118 },
       })
 
-      expect(preflight(bookWith([], 12), profile)).toMatchObject([
+      expect(preflight(bookWith([], 24), profile)).toMatchObject([
         { rule: 'page-count-step', measured: 24, threshold: 8 },
       ])
-      expect(rules(bookWith([], 11), profile)).toEqual([])
-      expect(rules(bookWith([], 15), profile)).toEqual([])
+      expect(rules(bookWith([], 22), profile)).toEqual([])
+      expect(rules(bookWith([], 30), profile)).toEqual([])
     })
   })
 
@@ -220,6 +222,19 @@ describe('preflight', () => {
       const zoomed = photo({ crop: { zoom: 12, center: CENTER } })
 
       expect(rules(bookWith([zoomed]))).toEqual(['dpi-below-min'])
+    })
+
+    it('a wide photo is cropped to the frame before it is rated', () => {
+      // 1000 × 500 px covers the square frame with its middle 500 px: 127 dpi.
+      const book = bookWith([photo({ assetId: 'wide' })])
+      const wide: Book = {
+        ...book,
+        assets: { ...book.assets, wide: { widthPx: 1000, heightPx: 500 } },
+      }
+
+      expect(preflight(wide, generic)).toMatchObject([
+        { rule: 'dpi-below-min', measured: 127 },
+      ])
     })
 
     it('uses the given profile, not the built-in gates', () => {
@@ -445,20 +460,22 @@ describe('preflight', () => {
       const empty = photo({ assetId: undefined })
       const book = bookWith([])
       const spreads = book.spreads.map((spread, i) =>
-        i === 0 || i === 9 ? { ...spread, frames: [empty] } : spread,
+        i === 0 || i === book.spreads.length - 1
+          ? { ...spread, frames: [empty] }
+          : spread,
       )
 
       expect(
         preflight({ ...book, spreads }, generic).map(
           (found) => found.location.page,
         ),
-      ).toEqual([1, 18])
+      ).toEqual([1, 20])
     })
   })
 
   it('checks 100 spreads in under 5 ms', () => {
     const run = () => {
-      const book = bookWith([], 100)
+      const book = bookWith([], 198)
       const filled: Book = {
         ...book,
         spreads: book.spreads.map((spread) => ({

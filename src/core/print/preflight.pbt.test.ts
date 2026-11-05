@@ -14,7 +14,7 @@ const gates = JSON.parse(
   readFileSync(resolve(process.cwd(), 'quality/gates.json'), 'utf8'),
 ) as { pbt: { seed: number; numRuns: number } }
 
-/** Books of up to 60 spreads: fewer runs keep a loaded pre-push fast. */
+/** Books of up to 61 spreads: fewer runs keep a loaded pre-push fast. */
 const runs = {
   seed: gates.pbt.seed,
   numRuns: Math.min(50, Number(process.env.FC_NUM_RUNS ?? gates.pbt.numRuns)),
@@ -40,10 +40,10 @@ const cleanBookArb = fc
     widthMm: fc.integer({ min: 100, max: 400 }),
     heightMm: fc.integer({ min: 100, max: 400 }),
     bleedMm: fc.integer({ min: 0, max: 5 }),
-    // pagesOf: 10–60 spreads are 20–120 pages, whole steps of 2.
+    // pagesOf: 11–61 spreads are 20–120 pages, whole steps of 2.
     spreads: fc.array(fc.array(placementArb, { maxLength: 3 }), {
-      minLength: 10,
-      maxLength: 60,
+      minLength: 11,
+      maxLength: 61,
     }),
   })
   .map(({ widthMm, heightMm, bleedMm, spreads }) =>
