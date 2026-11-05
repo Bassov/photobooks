@@ -1,7 +1,6 @@
 /* GL core (Spec site-stand-v2 G, D1): three r170 as a lazy chunk and ONE WebGLRenderer shared by every book on the page.
    Each book renders its scene into the shared renderer, then copies the pixels into its own 2D canvas. */
 export type Three = typeof import("./vendor/three.module.min.js")
-/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
 export type Any = any
 
 import threeUrl from "./vendor/three.module.min.js?url"

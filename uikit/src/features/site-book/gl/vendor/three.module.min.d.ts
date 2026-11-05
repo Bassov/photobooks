@@ -1,5 +1,4 @@
 /* The kit has no @types/three: the vendored r170 build is typed loosely, only the names `gl/` uses. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 type Ctor = new (...args: any[]) => any
 export const REVISION: string
 export const WebGLRenderer: Ctor

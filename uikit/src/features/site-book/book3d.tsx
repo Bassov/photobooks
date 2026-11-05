@@ -109,8 +109,7 @@ const Book3DGl = React.forwardRef<HTMLDivElement, Book3DProps & { onFail: () => 
       view?.dispose()
       retarget.current = () => {}
     }
-    // box follows b and s
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // the canvas box follows b and s
   }, [b, s, floor])
   React.useEffect(() => { retarget.current() }, [pose?.ry, pose?.rx, pose?.rz, pose?.lift, pose?.peek])
 
