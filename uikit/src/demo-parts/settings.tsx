@@ -1,19 +1,21 @@
 /* #/demo Settings: the settings screen (moved from features/screen-demos in Stage 3, unchanged except the optional initialSection) and its back bar. */
 import * as React from "react"
-import { ChevronLeft, HardDrive, FolderSync, Globe, Printer, KeyRound, Info, BookOpen, SlidersHorizontal } from "lucide-react"
+import { ChevronLeft, HardDrive, FolderSync, Globe, Printer, KeyRound, Info, BookOpen, SlidersHorizontal, Plus, MoreHorizontal } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Menu, MenuItem, MenuPopover, MenuTrigger } from "@/components/ui/menu"
 import { FeaturedIcon } from "@/components/uui/FeaturedIcon"
 import { Badge } from "@/components/uui/Badge"
-import { AlertDialog } from "@/components/app/ui"
+import { AlertDialog, IconButton } from "@/components/app/ui"
 import { FolderPicker, LIBRARY } from "@/features/screens"
 import { useSession } from "./session"
+import { CATALOG, GENERIC_ID, PrintProfileDialog, copyOf, newProfile, profileSummary, type Draft, type KitProfile } from "./printProfiles"
 
 export type SettingsSection = "library" | "hosting" | "site" | "print" | "interface"
 /* ---------------------------------------------------------------- settings */
 const SECTIONS = [["library", "Library", HardDrive], ["hosting", "Hosting", KeyRound], ["site", "Site", Globe], ["print", "Print presets", Printer], ["interface", "Interface", SlidersHorizontal]] as const
-export function SettingsScreen(props: { bookCount?: number; libraryPath?: string; initialSection?: SettingsSection } = {}) {
-  const { bookCount, libraryPath, initialSection = "library" } = props
+export function SettingsScreen(props: { bookCount?: number; libraryPath?: string; initialSection?: SettingsSection; print?: PrintInit } = {}) {
+  const { bookCount, libraryPath, initialSection = "library", print } = props
   const [sec, setSec] = React.useState<string>(initialSection)
   const [path, setPath] = React.useState(libraryPath ?? LIBRARY.path)
   const [confirm, setConfirm] = React.useState(false)
@@ -28,7 +30,7 @@ export function SettingsScreen(props: { bookCount?: number; libraryPath?: string
       <nav className="flex flex-col gap-0.5 border-r bg-chrome p-3">
         <div className="mb-3 flex items-center gap-2 px-2 pt-1"><div className="grid size-6 place-items-center rounded-md bg-field text-foreground"><BookOpen className="size-3" /></div><span className="text-base font-semibold">Settings</span></div>
         {SECTIONS.map(([id, l, I]) => (
-          <button key={id} type="button" aria-current={sec === id ? "page" : undefined} onClick={() => setSec(id)} className={cn("flex items-center gap-2 rounded-md px-2 py-2 text-left text-sm outline-hidden hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring", sec === id && "bg-accent font-medium")}><I className="size-4 text-muted-foreground" />{l}</button>
+          <button key={id} type="button" data-testid={`settings-nav-${id}`} aria-current={sec === id ? "page" : undefined} onClick={() => setSec(id)} className={cn("flex items-center gap-2 rounded-md px-2 py-2 text-left text-sm outline-hidden hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring", sec === id && "bg-accent font-medium")}><I className="size-4 text-muted-foreground" />{l}</button>
         ))}
       </nav>
       <main className="min-h-0 overflow-auto px-8 py-6">
@@ -51,12 +53,11 @@ export function SettingsScreen(props: { bookCount?: number; libraryPath?: string
             </div>
             {prev && <div className="mt-4 flex max-w-[640px] items-center gap-2 rounded-lg bg-chrome px-4 py-2 text-sm" role="status" data-testid="library-changed"><Info className="size-4 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1">Now using <b className="font-semibold">{path}</b>. Your books in <span className="font-mono text-xs">{prev}</span> were not moved.</span><Button variant="ghost" size="xs" className="px-3 text-xs" onPress={() => { setPath(prev); setPrev(null) }}>Switch back</Button></div>}
           </>
-        ) : (
+        ) : sec === "print" ? <PrintPresets row={row} rule={rule} init={print} /> : (
           <div className="mt-5 max-w-[640px] overflow-hidden rounded-xl bg-chrome">
             {(sec === "hosting" ? [["Provider", "Cloudflare R2 + Pages"], ["Account", "aleksandr.photos"], ["Token", "Scoped to one bucket · stored on this computer"]]
               : sec === "site" ? [["Site title", "Aleksandr’s photobooks"], ["Author", "Aleksandr Basov"]]
-              : sec === "print" ? [["Default profile", "Saal Digital · 30×30 layflat"], ["Custom profiles", "2"], ["Home printer", "A4 duplex · short edge"]]
-              : [["Units", "Millimetres"], ["Thumbnail size", "96 px"], ["Density", "Comfortable"]]).map(([k, v], i, arr) => (
+              : [["Units", "Millimetres"], ["Thumbnail size", "96 px"], ["Density", "Comfortable"]]).map(([k, v], i) => (
               <React.Fragment key={k}>
                 {i > 0 && rule}
                 <div className={row}><div className="min-w-0 flex-1 text-sm">{k}</div><span className="text-sm text-muted-foreground">{v}</span></div>
@@ -73,14 +74,92 @@ export function SettingsScreen(props: { bookCount?: number; libraryPath?: string
   )
 }
 
+/* ---------------------------------------------------------------- print presets (Designer spec printer-presets §Settings) */
+/** feature-page seed: the editor open on a custom profile id, or on a new profile ("new"), with an optional draft */
+export type PrintInit = { edit?: string; draft?: Partial<Draft> }
+type Editing = { p: KitProfile; mode: "new" | "edit"; draft?: Partial<Draft> }
+const CHEVRON = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23535152' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`
+const SECONDARY = "gap-1.5 px-3 text-sm shadow-xs data-[hovered]:bg-accent [&_svg]:size-4"
+const EYEBROW = "mt-6 flex h-8 max-w-[640px] items-center justify-between px-4"
+const EYEBROW_T = "text-2xs font-semibold uppercase tracking-[.12em] text-muted-foreground"
+function PrintPresets({ row, rule, init }: { row: string; rule: React.ReactNode; init?: PrintInit }) {
+  const { set, useDemo } = useSession()
+  const { printProfiles: customs, defaultPrintProfileId: def } = useDemo()
+  const [editing, setEditing] = React.useState<Editing | null>(() => {
+    if (!init?.edit) return null
+    const p = init.edit === "new" ? newProfile() : customs.find((c) => c.id === init.edit)
+    return p ? { p, mode: init.edit === "new" ? "new" : "edit", draft: init.draft } : null
+  })
+  const [deleting, setDeleting] = React.useState<KitProfile | null>(null)
+  const duplicate = (p: KitProfile) => {
+    const c = copyOf(p, [...CATALOG, ...customs].map((x) => x.name))
+    set({ printProfiles: [...customs, c] }); setEditing({ p: c, mode: "edit" })
+  }
+  const save = (p: KitProfile) => { set({ printProfiles: customs.some((c) => c.id === p.id) ? customs.map((c) => (c.id === p.id ? p : c)) : [...customs, p] }); setEditing(null) }
+  const remove = (p: KitProfile) => { set({ printProfiles: customs.filter((c) => c.id !== p.id), ...(def === p.id ? { defaultPrintProfileId: GENERIC_ID } : {}) }); setDeleting(null) }
+  const item = (p: KitProfile, tid: string, right: React.ReactNode) => {
+    const sum = profileSummary(p)
+    return (
+      <div className={row} data-testid={tid}>
+        <div className="min-w-0 flex-1"><div className="text-sm font-medium">{p.name}</div><div className="truncate text-xs text-muted-foreground" title={sum} data-testid="print-summary-line">{sum}</div></div>
+        {p.id === def && <Badge color="gray">Default</Badge>}
+        {right}
+      </div>
+    )
+  }
+  const list = (ps: KitProfile[], f: (p: KitProfile) => React.ReactNode) => ps.map((p, i) => <React.Fragment key={p.id}>{i > 0 && rule}{f(p)}</React.Fragment>)
+  return (
+    <>
+      <p className="mt-1 max-w-[560px] text-sm leading-relaxed text-muted-foreground">A print profile holds a printer’s rules: page sizes, bleed, safe margin, page count and spine. Each book uses one profile; new books start with the default.</p>
+      <div className="mt-5 max-w-[640px] overflow-hidden rounded-xl bg-chrome">
+        <div className={row}>
+          <div className="min-w-0 flex-1 text-sm">Default for new books</div>
+          <select aria-label="Default for new books" data-testid="print-default" value={def} onChange={(e) => set({ defaultPrintProfileId: e.target.value })}
+            className="h-8 w-[240px] shrink-0 appearance-none truncate rounded-md border-0 bg-field pl-2.5 pr-8 text-sm text-foreground outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#535152]"
+            style={{ backgroundImage: CHEVRON, backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center", backgroundSize: "16px 16px" }}>
+            <optgroup label="Print shops">{CATALOG.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>
+            {customs.length > 0 && <optgroup label="Custom">{customs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>}
+          </select>
+        </div>
+      </div>
+      <div className={EYEBROW}><h2 className={EYEBROW_T}>Print shops</h2></div>
+      <div className="mt-2 max-w-[640px] overflow-hidden rounded-xl bg-chrome" data-testid="print-shops">
+        {list(CATALOG, (p) => item(p, `print-shop-${p.id}`, <Button variant="outline" size="sm" className={SECONDARY} onPress={() => duplicate(p)} data-testid={`print-duplicate-${p.id}`}>Duplicate</Button>))}
+      </div>
+      <div className={EYEBROW}><h2 className={EYEBROW_T}>Custom</h2>
+        <Button variant="outline" size="sm" className={SECONDARY} onPress={() => setEditing({ p: newProfile(), mode: "new" })} data-testid="print-new"><Plus />New profile</Button></div>
+      <div className="mt-2 max-w-[640px] overflow-hidden rounded-xl bg-chrome" data-testid="print-custom">
+        {customs.length === 0
+          ? <div className={cn(row, "text-sm text-muted-foreground")} data-testid="print-custom-empty">No custom profiles yet. Duplicate a print shop’s profile, or start a new one.</div>
+          : list(customs, (p) => item(p, `print-custom-${p.id}`, <>
+            <Button variant="outline" size="sm" className={SECONDARY} onPress={() => setEditing({ p, mode: "edit" })} data-testid={`print-edit-${p.id}`}>Edit…</Button>
+            <MenuTrigger>
+              <IconButton label="More" size="sm" tooltip={false} className="rounded-md data-[hovered]:bg-field" data-testid={`print-more-${p.id}`}><MoreHorizontal /></IconButton>
+              <MenuPopover placement="bottom end" className="w-44">
+                <Menu onAction={(k) => { if (k === "dup") duplicate(p); if (k === "rm") setDeleting(p) }} data-testid="print-menu">
+                  <MenuItem id="dup">Duplicate</MenuItem>
+                  <MenuItem id="rm" style={{ color: "#a8403a" }}>Delete…</MenuItem>
+                </Menu>
+              </MenuPopover>
+            </MenuTrigger>
+          </>))}
+      </div>
+      {editing && <PrintProfileDialog key={editing.p.id} profile={editing.p} mode={editing.mode} initialDraft={editing.draft} onSave={save} onCancel={() => setEditing(null)} />}
+      <AlertDialog isOpen={!!deleting} tone="destructive" title={`Delete “${deleting?.name ?? ""}”?`} confirmLabel="Delete" onCancel={() => setDeleting(null)} onConfirm={() => deleting && remove(deleting)}>
+        Books that use it keep its values.{deleting?.id === def && " New books will start with Generic."}
+      </AlertDialog>
+    </>
+  )
+}
+
 /** #/demo Settings stage with its back bar ("Back to the book" from the editor, "Library" from the library). State: session (back, books, path). */
-export function DemoSettings({ initialSection }: { initialSection?: SettingsSection } = {}) {
+export function DemoSettings({ initialSection, print }: { initialSection?: SettingsSection; print?: PrintInit } = {}) {
   const { set, useDemo } = useSession()
   const d = useDemo()
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-12 shrink-0 items-center gap-2 bg-chrome px-3"><Button variant="ghost" size="sm" className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4" onPress={() => set({ stage: d.back })} data-testid="demo-settings-back"><ChevronLeft />{d.back === "editor" ? "Back to the book" : "Library"}</Button><span className="text-sm font-medium">Settings</span></div>
-      <div className="min-h-0 flex-1"><SettingsScreen bookCount={d.books.length} libraryPath={d.path || undefined} initialSection={initialSection} /></div>
+      <div className="min-h-0 flex-1"><SettingsScreen bookCount={d.books.length} libraryPath={d.path || undefined} initialSection={initialSection} print={print} /></div>
     </div>
   )
 }
