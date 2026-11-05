@@ -340,6 +340,15 @@ describe('preflight', () => {
       ).toEqual(['safe-zone-intrusion'])
     })
 
+    it('a 45° turn that keeps its corners 9 mm in is clean', () => {
+      // Bounds grow 20.7 mm on each side: x / y 9.3, right / bottom 150.7.
+      const square = { x: 30, y: 30, width: 100, height: 100 }
+
+      expect(
+        rules(bookWith([text('Hi', { rect: square, rotationDeg: 45 })])),
+      ).toEqual([])
+    })
+
     it('a rotation swings the corners up past the top margin too', () => {
       const square = { x: 50, y: 10, width: 100, height: 100 }
 
