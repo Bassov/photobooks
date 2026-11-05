@@ -13,3 +13,5 @@
 1. Select the cover: sheet with veiled band, hinge strips, two dashed safe frames, "Wrap 15 mm" chip; spine text centred.
 2. Book settings Pages 20 → 60 → 120: spine widens, text stays centred.
 3. Drag a filmstrip photo to the right band: photo fills the front and the band; drag to the back board: refused.
+
+Manual QA (`pnpm agent manual-qa`, 2026-11-05): harness problem on all three: the `start-session` click is intercepted by the welcome header before the editor opens. Covered instead by `e2e/cover-editor.spec.ts`: (1) band 30.14 px, chip, overlays `pointer-events: none`, spine text centred; (2) Pages 20 / 60 / 120 → spine 24.11 / 39.44 / 61.39 px, centred both directions; (3) front-band drop sets the photo (`elementsFromPoint` + pixel change), back-band drop refused.
