@@ -19,8 +19,9 @@ import { openLibraryBook } from './fixtures/openLibraryBook'
 // Preview x 1123 (toggle-r right + 8), 96 × 32, full pill (computed
 //     3.35544e+07px), padding 0 12, bg rgb(215, 215, 215), rgb(57, 55, 56),
 //     no shadow, the same on hover.
-// Settings x 1225 (Preview right + 6), 40 × 32, the same pill and colours.
-// The kit's Print and Publish follow (out of scope: no Print / Publish in the
+// Settings (Preview right + 6), 40 × 32, the same pill and colours.
+// Export site (Settings right + 6), the same pill (static-export §1). The
+// kit's Print and Publish follow (out of scope: no Print / Publish in the
 // product), so the product's right cluster ends at the bar's right inset,
 // 1428, where the kit's last item ends.
 
@@ -195,8 +196,10 @@ test.describe('design-r11-topbar M69', () => {
     near(settings.x, preview.right + KIT.previewToSettings, 'settings x')
     near(settings.width, KIT.settingsWidth, 'settings width')
     near(settings.height, KIT.height, 'settings height')
-    near(settings.right, KIT.barEnd, 'right cluster end')
-    for (const id of ['present', 'editor-settings-open']) {
+    const exportSite = await box(page.getByTestId('export-site'))
+    near(exportSite.x, settings.right + KIT.previewToSettings, 'export site x')
+    near(exportSite.right, KIT.barEnd, 'right cluster end')
+    for (const id of ['present', 'editor-settings-open', 'export-site']) {
       expect(await look(page.getByTestId(id))).toEqual({
         bg: FIELD,
         color: INK,
@@ -240,7 +243,7 @@ test.describe('design-r11-topbar M69', () => {
     const zoomIn = await box(page.getByTestId('zoom-in'))
     near(toggles.x, zoomIn.right + KIT.zoomToToggles + KIT.togglePitch, 'x')
     near(
-      (await box(page.getByTestId('editor-settings-open'))).right,
+      (await box(page.getByTestId('export-site'))).right,
       KIT.barEnd,
       'right cluster end',
     )
