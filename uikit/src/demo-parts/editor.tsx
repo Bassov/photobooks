@@ -15,6 +15,7 @@ import { useCoverPhoto, useCoverText, useMasters, setEditorExtras } from "@/sand
 import type { View } from "@/sandbox/store"
 import { FolderPicker } from "@/features/screens"
 import { useSession, blankDoc, blankExtras, type Extras } from "./session"
+import { profileById } from "./printProfiles"
 import { ExportSiteDialog, PrintDialog, PublishDialog, RelinkDialog, useExportRun, type ExportPhase, type ExportStep } from "./dialogs"
 import { Presentation } from "./presentation"
 import { SLOT } from "./layout"
@@ -154,7 +155,7 @@ export function DemoEditor({ id, initialDialog = null, initialPreview = false }:
         dock={<PhotosDock />}
         overlay={<><DocSpy id={id} /><MissingSync id={id} />
           {preview && <Presentation onExit={() => setPreview(false)} />}
-          {dlg === "publish" && <PublishDialog title={b.title} onClose={() => setDlg(null)} onOpenSite={openSite} />}{dlg === "print" && <PrintDialog book={b.book} spreads={b.doc?.spreads.length ?? 10} title={b.title} onClose={() => setDlg(null)} />}
+          {dlg === "publish" && <PublishDialog title={b.title} onClose={() => setDlg(null)} onOpenSite={openSite} />}{dlg === "print" && <PrintDialog book={b.book} spreads={b.doc?.spreads.length ?? 10} title={b.title} profile={profileById(b.printProfile, S.printProfiles)} onClose={() => setDlg(null)} />}
           {dlg === "export" && <ExportSiteDialog title={b.title} otherBooks={others} initialStep={exStep} run={ex} onHide={() => setDlg(null)} />}</>} />
     </div>
   )

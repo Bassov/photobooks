@@ -6,16 +6,19 @@ import { makeDoc, SAMPLE_BOOK, type Doc } from "@/sandbox/model"
 import { getEditorExtras, defaultMasters, type CoverText } from "@/sandbox/v7"
 import type { LibBook } from "@/features/library"
 import type { UnsupportedVariant } from "@/features/unsupported"
+import { GENERIC_ID, SAMPLE_CUSTOMS, type KitProfile } from "./printProfiles"
 
 export type Extras = ReturnType<typeof getEditorExtras>
 export type Stage = "welcome" | "library" | "editor" | "settings" | "site" | "unsupported"
 export type DBook = { id: string; title: string; book: Book; doc?: Doc; cover?: string; published?: boolean; extras?: Extras
-  /** ids of photos whose files can't be found (seeded by `__demo.missing()`; resolved through Relink) */ missing?: string[] }
+  /** ids of photos whose files can't be found (seeded by `__demo.missing()`; resolved through Relink) */ missing?: string[]
+  /** printer-presets D6: the book's print profile id; absent = Generic */ printProfile?: string }
 export type SessionState = { stage: Stage; path: string; books: DBook[]; open: string | null; back: Stage; nonce: number; siteEntry: "catalog" | "book"
-  /** the "unsupported" stage: which variant, and the browser named in its copy */ unsupported?: { variant: UnsupportedVariant; browserName?: string } }
+  /** the "unsupported" stage: which variant, and the browser named in its copy */ unsupported?: { variant: UnsupportedVariant; browserName?: string }
+  /** printer-presets D6: the library's custom print profiles and the default for new books */ printProfiles: KitProfile[]; defaultPrintProfileId: string }
 export type Session = { S: SessionState; set: (p: Partial<SessionState>) => void; useDemo: () => SessionState }
 
-export const INITIAL_SESSION: SessionState = { stage: "welcome", path: "", books: [], open: null, back: "library", nonce: 0, siteEntry: "catalog" }
+export const INITIAL_SESSION: SessionState = { stage: "welcome", path: "", books: [], open: null, back: "library", nonce: 0, siteEntry: "catalog", printProfiles: SAMPLE_CUSTOMS, defaultPrintProfileId: GENERIC_ID }
 export function createSession(initial: Partial<SessionState> = {}): Session {
   const S: SessionState = { ...INITIAL_SESSION, ...initial }
   const subs = new Set<() => void>()

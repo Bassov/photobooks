@@ -7,6 +7,8 @@ import {
 } from "@/demo-parts"
 import { LAKE_BOOK, LAKE_TITLE, docBlank, docAdded, docFilled, COVER_DONE, dbook, SHELF } from "@/demo-parts/fixtures"
 import { ExportSiteDialog, type ExportRun } from "@/demo-parts/dialogs"
+import type { PrintInit, SettingsSection } from "@/demo-parts/settings"
+import type { SessionState } from "@/demo-parts/session"
 import type { Doc } from "@/sandbox/model"
 import { WithScenarios } from "./parts"
 import { PhotographerSite } from "./site-photographer"
@@ -35,6 +37,8 @@ const onSite = (site: RootInit["site"], entry: "catalog" | "book" = "catalog"): 
   const books = SHELF().map((b) => ({ ...b, published: true }))
   return { session: { stage: "site", path: PATH, books, open: books[0].id, back: "editor", siteEntry: entry }, site }
 }
+const settingsAt = (section: SettingsSection, s: Partial<SessionState> = {}, print?: PrintInit) =>
+  root({ session: { stage: "settings", path: PATH, books: SHELF(), back: "library", ...s }, settings: { section, print } })
 /* editor seeds (EditorView = the #/demo editor with an explicit studio state) */
 const ed = (p: React.ComponentProps<typeof EditorView>) => () => <EditorView book={LAKE_BOOK} {...p} />
 /** docFilled with the third frame of spread 2 (three frames) locked. */
@@ -186,11 +190,16 @@ export const PAGES: Record<string, FeatureDef> = {
     edge: ["A new book’s cover text is its title"],
   }),
   /* ------------------------------------------------------------ settings */
-  "site-settings": page(([["library", "Library"], ["hosting", "Hosting"], ["site", "Site"], ["print", "Print presets"], ["interface", "Interface"]] as const).map(([id, l]) =>
-    [id, l, root({ session: { stage: "settings", path: PATH, books: SHELF(), back: "library" }, settings: { section: id } })] as Sc), {
-    what: "App settings with a back bar: Library (folder, Change library folder…), Hosting, Site (title, author), Print presets, Interface.",
-    where: "#/demo steps 40 (editor → Settings, back bar “Back to the book”) and 49 (library → Settings, back bar “Library”).",
-    edge: ["Change library folder… confirms first; books are not moved"],
+  "site-settings": page([
+    ...(([["library", "Library"], ["hosting", "Hosting"], ["site", "Site"], ["print", "Print presets"], ["interface", "Interface"]] as const).map(([id, l]) =>
+      [id, l, settingsAt(id, id === "print" ? { defaultPrintProfileId: "lulu-photo-book" } : {})] as Sc)),
+    ["print-empty", "No custom profiles", settingsAt("print", { printProfiles: [] })],
+    ["print-edit", "Edit profile", settingsAt("print", {}, { edit: "custom-lulu-copy" })],
+    ["print-invalid", "Invalid values", settingsAt("print", {}, { edit: "new", draft: { name: "", trimMin: "300", trimMax: "200", pMax: "121" } })],
+  ], {
+    what: "App settings with a back bar: Library (folder, Change library folder…), Hosting, Site, Print presets (default for new books, print shops, custom profiles and their editor), Interface.",
+    where: "#/demo steps 40 (editor → Settings, back bar “Back to the book”) and 49 (library → Settings, back bar “Library”); Print presets only here.",
+    edge: ["Change library folder… confirms first; books are not moved", "Profile editor: errors show as you type and disable Save", "Deleting the default profile makes Generic the default"],
   }),
   /* ------------------------------------------------------------ site */
   "site-viewer": page([
@@ -233,7 +242,7 @@ export const PAGES: Record<string, FeatureDef> = {
     ["run", "Exporting", ed({ doc: docFilled, cur: 1, overlay: <PrintDialog book={LAKE_BOOK} spreads={10} title={LAKE_TITLE} onClose={() => {}} initialStep="run" /> })],
     ["done", "PDF ready", ed({ doc: docFilled, cur: 1, overlay: <PrintDialog book={LAKE_BOOK} spreads={10} title={LAKE_TITLE} onClose={() => {}} initialStep="done" /> })],
   ], {
-    what: "Print dialog over the editor: page size, imposition for duplex (1 per sheet, 2-up, 4-up) and “Add 3 mm bleed and crop marks”; Export PDF shows progress, then PDF ready with Show in folder.",
+    what: "Print dialog over the editor: page size, the book’s printer profile, imposition for duplex (1 per sheet, 2-up, 4-up) and “Add 3 mm bleed and crop marks”; Export PDF shows progress, then PDF ready with Show in folder.",
     where: "#/demo steps 27–31 (top bar → Print).",
     edge: ["Sheet count follows the imposition", "Exporting runs to PDF ready on its own"],
   }),
