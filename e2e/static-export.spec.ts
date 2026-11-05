@@ -23,6 +23,7 @@ interface PillSample {
   y: number
   width: number
   height: number
+  at: number
 }
 
 type ExportWindow = Window & {
@@ -124,6 +125,7 @@ async function recordPill(page: Page): Promise<void> {
         y: rect.y,
         width: rect.width,
         height: rect.height,
+        at: Math.round(performance.now()),
       })
     }
     w.__pillSamples = []
@@ -141,14 +143,19 @@ async function recordPill(page: Page): Promise<void> {
   })
 }
 
-/** Options → (pick when asked) → Export. */
-async function startExport(page: Page, pick: boolean): Promise<void> {
+/** Open Options with a folder (picked when asked). */
+async function openOptions(page: Page, pick: boolean): Promise<void> {
   await pill(page).click()
   await expect(dialog(page)).toHaveAttribute('data-step', 'opts')
   if (pick) {
     await page.getByTestId('export-site-choose').click()
   }
   await expect(page.getByTestId('export-site-folder')).toBeVisible()
+}
+
+/** Options → (pick when asked) → Export. */
+async function startExport(page: Page, pick: boolean): Promise<void> {
+  await openOptions(page, pick)
   await page.getByTestId('export-site-go').click()
 }
 
@@ -162,8 +169,8 @@ async function exportToDone(page: Page, pick: boolean): Promise<void> {
   await expect(dialog(page)).toHaveCount(0)
 }
 
-/** Drag the first canvas frame in `steps` moves (a few px each). */
-async function dragFrame(page: Page, steps: number): Promise<void> {
+/** Press on the first canvas frame and start the drag with one move. */
+async function grabFrame(page: Page): Promise<{ x: number; y: number }> {
   const frame = page
     .getByTestId('pasteboard-scroll')
     .getByTestId('spread-frame')
@@ -176,10 +183,32 @@ async function dragFrame(page: Page, steps: number): Promise<void> {
   const y = box.y + box.height / 2
   await page.mouse.move(x, y)
   await page.mouse.down()
-  for (let step = 1; step <= steps; step += 1) {
+  await page.mouse.move(x + 3, y + 2)
+  return { x, y }
+}
+
+/** Drag the first canvas frame in `steps` moves (a few px each). */
+async function dragFrame(page: Page, steps: number): Promise<void> {
+  const { x, y } = await grabFrame(page)
+  for (let step = 2; step <= steps; step += 1) {
     await page.mouse.move(x + step * 3, y + step * 2)
   }
   await page.mouse.up()
+}
+
+/** Grab a frame and keep moving it (button held) until the export ends. */
+async function dragWhileRunning(page: Page): Promise<void> {
+  const { x, y } = await grabFrame(page)
+  for (let step = 1; step <= 200; step += 1) {
+    await page.mouse.move(x + (step % 40) * 3, y + (step % 40) * 2)
+    await page.waitForTimeout(8)
+    if (
+      step % 10 === 0 &&
+      (await pill(page).getAttribute('data-state')) !== 'running'
+    ) {
+      return
+    }
+  }
 }
 
 async function openFixture(page: Page): Promise<void> {
@@ -344,20 +373,22 @@ test.describe('frame-budget gates', () => {
         }
       }).observe({ type: 'longtask' })
     })
+    // The first gesture warms the frame-drag path (one LoAF with or without
+    // an export running); the window then covers the whole export, from the
+    // Export button on (opening the dialog is not part of the run).
+    await dragFrame(page, 5)
+    await openOptions(page, true)
+    await page.waitForTimeout(300)
     await clearPerfScenario(page)
-
-    await startExport(page, true)
-    await page.getByTestId('export-site-hide').click()
     await page.evaluate(browserStartLoafScripts)
     await page.evaluate(browserBeginLoafScenarioWindow)
     await page.evaluate(() => {
       ;(window as Window & { __longTasks?: number[] }).__longTasks = []
     })
-    await dragFrame(page, 20)
-    await expect(pill(page)).toHaveAttribute('data-state', 'done', {
-      timeout: 60_000,
-    })
 
+    await page.getByTestId('export-site-go').click()
+    await page.getByTestId('export-site-hide').click()
+    await dragWhileRunning(page)
     const rows = await page.evaluate(browserTakeLoafScripts)
     const { longTasks, moves } = await page.evaluate(() => {
       const w = window as Window & {
@@ -370,9 +401,18 @@ test.describe('frame-budget gates', () => {
     console.log(
       `static-export perf: ${String(rows.length)} LoAF, ${String(longTasks.length)} long tasks, longest ${String(longest)} ms, drag moves while running ${String(moves)} ${JSON.stringify(rows)}`,
     )
-    expect(moves).toBeGreaterThan(0)
     await page.evaluate(browserAssertNoLoaf, PERF_BUDGETS.loafEntriesMax)
-    expect(longest).toBeLessThanOrEqual(50)
     await collectFrameStatsArtifact(page, testInfo)
+    await page.mouse.up()
+    await expect(pill(page)).toHaveAttribute('data-state', 'done', {
+      timeout: 60_000,
+    })
+    const samples = await page.evaluate(
+      () => (window as ExportWindow).__pillSamples ?? [],
+    )
+    console.log(`static-export run: ${JSON.stringify(samples)}`)
+
+    expect(moves).toBeGreaterThan(0)
+    expect(longest).toBeLessThanOrEqual(50)
   })
 })
