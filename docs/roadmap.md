@@ -184,6 +184,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [deps-dev-knip-relink](roadmap/P5/deps-dev-knip-relink.md) — Bug: /next-roadmap-item deps-dev-knip-relink
 - [ ] [feature] [spread-thumb-grey-backing](roadmap/P5/spread-thumb-grey-backing.md) — Bug: /next-roadmap-item spread-thumb-grey-backing
 - [ ] [feature] [text-blocks-close](roadmap/P5/text-blocks-close.md) — Bug: /next-roadmap-item text-blocks-close
+- [ ] [feature] [site-lightbox-zoom-core](roadmap/P5/site-lightbox-zoom-core.md) — Bug: /next-roadmap-item site-lightbox-zoom-core
 
 ## Deferred (not scheduled)
 
