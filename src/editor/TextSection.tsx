@@ -9,6 +9,7 @@ import {
   layerOf,
   type Book,
   type Frame,
+  type Spread,
   type TextStyleId,
 } from '../core'
 import { fitTextHeightMm } from '../render/textStyles'
@@ -106,8 +107,10 @@ function readTextFrame(target: CropTarget): Frame | undefined {
   return frame?.kind === 'text' ? frame : undefined
 }
 
-function useTextFrame(target: CropTarget): Frame | undefined {
-  const read = () => readTextFrame(target)
+/** The target's spread (a stable object until one of its frames changes). */
+function useTargetSpread(target: CropTarget): Spread | undefined {
+  const read = () =>
+    editableSpread(getBookStoreSnapshot().book, target.spreadId)?.spread
   return useSyncExternalStore(subscribeBookStore, read, read)
 }
 
@@ -140,10 +143,23 @@ function growToText(target: CropTarget, key: string): void {
   )
 }
 
+function textTarget(
+  spread: Spread | undefined,
+  frameId: string,
+): { spread: Spread; frame: Frame } | undefined {
+  if (spread === undefined) {
+    return undefined
+  }
+  const frame = spread.frames.find(
+    (item) => item.id === frameId && item.kind === 'text',
+  )
+  return frame === undefined ? undefined : { spread, frame }
+}
+
 /** Remembered Text field selection of one frame (a chip inserts there). */
 interface FrameCaret {
   frameId: string
-  caret: Caret
+  caret: Caret | null
 }
 
 /**
@@ -152,18 +168,17 @@ interface FrameCaret {
  */
 function LiveCaptionBlock({
   target,
+  spread,
   frame,
   caretRef,
 }: {
   target: CropTarget
+  spread: Spread
   frame: Frame
   caretRef: RefObject<FrameCaret | null>
 }) {
+  // Chip titles and file names read the assets too.
   const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
-  const spread = editableSpread(book, target.spreadId)?.spread
-  if (spread === undefined) {
-    return null
-  }
   const live = isLive(frame)
   const enabled = imageFrames(spread).length > 0
   const anchor = chipAnchor(spread, frame)
@@ -171,18 +186,14 @@ function LiveCaptionBlock({
     const saved = caretRef.current
     const remembered = saved?.frameId === target.frameId ? saved.caret : null
     const next = insertToken(editableText(frame), token, remembered)
-    caretRef.current =
-      next.caret === null
-        ? null
-        : { frameId: target.frameId, caret: next.caret }
+    caretRef.current = { frameId: target.frameId, caret: next.caret }
     const session = nextEditKey('txt', target.frameId)
-    if (!live) {
-      dispatchBookOp(
-        { type: 'setTextLive', ...target, live: true },
-        session,
-        INSERT_LABEL,
-      )
-    }
+    // Live already on: a no-op that records nothing.
+    dispatchBookOp(
+      { type: 'setTextLive', ...target, live: true },
+      session,
+      INSERT_LABEL,
+    )
     dispatchBookOp(
       { type: 'editText', ...target, text: next.text },
       session,
@@ -264,12 +275,13 @@ function LiveCaptionBlock({
 
 /** Kit TextSection (uikit/src/sandbox/sections.tsx) with its Live block. */
 function TextSection({ target }: { target: CropTarget }) {
-  const frame = useTextFrame(target)
+  const found = textTarget(useTargetSpread(target), target.frameId)
   const key = useRef('')
   const caret = useRef<FrameCaret | null>(null)
-  if (frame === undefined) {
+  if (found === undefined) {
     return null
   }
+  const { spread, frame } = found
   return (
     <Disclosure
       title="Text"
@@ -329,7 +341,12 @@ function TextSection({ target }: { target: CropTarget }) {
             })
           }}
         />
-        <LiveCaptionBlock target={target} frame={frame} caretRef={caret} />
+        <LiveCaptionBlock
+          target={target}
+          spread={spread}
+          frame={frame}
+          caretRef={caret}
+        />
       </div>
     </Disclosure>
   )

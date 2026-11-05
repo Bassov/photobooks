@@ -194,6 +194,9 @@ describe('loadPainterFixture', () => {
       ]),
     )
 
+    loadPainterFixture('?fixture=painter&captions=2')
+    expect(captions()).toHaveLength(2)
+
     loadPainterFixture('?fixture=painter')
     expect(captions()).toEqual([])
     expect(

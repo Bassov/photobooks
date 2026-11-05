@@ -99,6 +99,12 @@ describe('live caption helpers', () => {
       { value: 'empty', label: 'Frame 2 · empty' },
       { value: 'far', label: 'Frame 3 · name-bare' },
     ])
+    const unknown = makeSpread({
+      frames: [makeFrame({ id: 'x', assetId: 'not-in-book' })],
+    })
+    expect(anchorOptions(book, unknown, (id) => `name-${id}`)).toEqual([
+      { value: 'x', label: 'Frame 1 · name-not-in-book' },
+    ])
   })
 
   it('appends with the kit separator when no caret is remembered', () => {

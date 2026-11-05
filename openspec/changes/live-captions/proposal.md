@@ -9,4 +9,4 @@ Roadmap: `docs/roadmap/P2/live-captions.md` (SoT). UI ref: Designer spec `live-c
 
 ### Delta / Risk
 
-- e2e locks empty (Live off: switch + chips, no select; no image frame → disabled switch + hint is unit-locked), happy (chip → canvas date, swap updates, Make static holds) and interact (chip at the caret, Anchored to); no page-level H/V scroll.
+- e2e locks empty (Live off: switch + chips, no select; no image frame → disabled switch + hint), happy (chip → canvas date, swap updates, Make static holds) and interact (chip at the caret, Anchored to); no page-level H/V scroll.

@@ -369,6 +369,10 @@ describe('Live block', () => {
     fireEvent.change(anchor, { target: { value: 'b' } })
     expect(textFrame()?.anchorFrameId).toBe('b')
     expect(getHistorySnapshot().undoLabel).toBe('Anchor caption')
+    expect(screen.getByTestId('live-caption-anchor')).toHaveProperty(
+      'value',
+      'b',
+    )
     expect(screen.getByTestId('live-token-date').title).toBe(
       'No photo in this frame',
     )
@@ -425,6 +429,37 @@ describe('Live block', () => {
     expect(textFrame()?.content).toEqual({ type: 'static', text: 'Hi' })
     expect(textFrame()?.anchorFrameId).toBeUndefined()
     expect(getHistorySnapshot().undoLabel).toBe(steps)
+  })
+
+  it('a chip grows the box to the painted text in the same step', () => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((run) => {
+      run(0)
+      return 0
+    })
+    const proto = HTMLElement.prototype
+    vi.spyOn(proto, 'offsetWidth', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.matches('button.spread-frame') ? 60 * SPREAD_PX_PER_MM : 0
+    })
+    vi.spyOn(proto, 'scrollHeight', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.matches('.spread-frame-text')
+        ? 4 * 4.34 * SPREAD_PX_PER_MM + 0.5
+        : 0
+    })
+    loadLive([lake, under])
+    render(<ConnectedSpreadView spreadId="s1" />)
+    fireEvent.click(screen.getByTestId('live-token-title'))
+    expect(textFrame()?.rect.height).toBeCloseTo(4 * 4.34, 6)
+    act(() => {
+      undoBook()
+    })
+    expect(textFrame()).toMatchObject({
+      content: { type: 'static', text: 'Hi' },
+      rect: under.rect,
+    })
   })
 
   it('a chip replaces the Text selection remembered at its blur, caret after it', () => {

@@ -71,10 +71,9 @@ function withLiveCaptions(book: Book, count: number): Book {
       },
     ]),
   )
-  const spread = book.spreads.find(
-    (item) => item.id === PAINTER_CAPTION_SPREAD_ID,
-  )
-  const frames = spread?.frames.slice(0, count) ?? []
+  const frames = book.spreads
+    .filter((spread) => spread.id === PAINTER_CAPTION_SPREAD_ID)
+    .flatMap((spread) => spread.frames.slice(0, count))
   return frames.reduce(
     (next, frame, index) => {
       const id = `painter-caption-${String(index)}`

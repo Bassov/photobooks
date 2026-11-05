@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
+import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { dropAssetOnFrame } from './fixtures/dropAssetOnFrame'
 import {
   ensurePhotoFixtures,
@@ -32,13 +33,16 @@ test.beforeEach(async ({ page }) => {
   await installPhotoDirectoryPickerStub(page)
 })
 
-const spreadView = (page: Page) => page.getByTestId('spread-view').first()
-const imageFrame = (page: Page) =>
-  spreadView(page)
-    .locator('button.spread-frame:not([data-kind="text"])')
-    .first()
+/** The n-th painted spread (session editor: page 1 alone, then 2–3). */
+const spreadView = (page: Page, n = 0) => page.getByTestId('spread-view').nth(n)
+const imageFrames = (page: Page, n = 0) =>
+  spreadView(page, n).locator('button.spread-frame:not([data-kind="text"])')
+const imageFrame = (page: Page, n = 0) => imageFrames(page, n).first()
+/** Each test makes one text frame in the whole book. */
 const textFrame = (page: Page) =>
-  spreadView(page).locator('button.spread-frame[data-kind="text"]')
+  page
+    .getByTestId('spread-view')
+    .locator('button.spread-frame[data-kind="text"]')
 const canvasText = (page: Page) => textFrame(page).getByTestId('frame-text')
 const liveSwitch = (page: Page) => page.getByTestId('live-caption-switch')
 
@@ -56,11 +60,19 @@ async function assetId(page: Page, name: string): Promise<string> {
   return (await row.getAttribute('data-asset-id')) ?? ''
 }
 
+async function openInspector(page: Page) {
+  if (
+    (await page.getByTestId('panel-r').getAttribute('data-open')) !== 'true'
+  ) {
+    await page.getByTestId('toggle-r').click()
+  }
+}
+
 /**
  * Import both EXIF photos, put the lake on the first image frame and write
  * `text` in a new text frame over its lower part (so it anchors there).
  */
-async function captionUnderLake(page: Page, text: string) {
+async function captionUnderLake(page: Page, text: string, spread = 0) {
   await openSessionEditor(page)
   await page.bringToFront()
   await choosePhotoFolder(page, [
@@ -72,19 +84,15 @@ async function captionUnderLake(page: Page, text: string) {
   })
   const lake = await assetId(page, 'meta-lake.jpg')
   const hill = await assetId(page, 'meta-hill.jpg')
-  await dropAssetOnFrame(page, lake, imageFrame(page))
-  const box = await boxOf(imageFrame(page))
+  await dropAssetOnFrame(page, lake, imageFrame(page, spread))
+  const box = await boxOf(imageFrame(page, spread))
   await page.keyboard.press('t')
   await page.mouse.click(box.x + box.width * 0.2, box.y + box.height * 0.8)
   await expect(page.getByTestId('text-edit')).toBeFocused()
   await page.keyboard.type(text)
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('text-edit')).toHaveCount(0)
-  if (
-    (await page.getByTestId('panel-r').getAttribute('data-open')) !== 'true'
-  ) {
-    await page.getByTestId('toggle-r').click()
-  }
+  await openInspector(page)
   await expect(page.getByTestId('inspector-context')).toHaveText('Text')
   // The head pass stored the lake's EXIF: the chips read it.
   await expect(page.getByTestId('live-token-date')).toHaveAttribute(
@@ -156,18 +164,17 @@ test('deleting the anchor frame makes the caption static; undo restores Live', a
   await expect(page.getByTestId('text-input')).toHaveValue('Shot on · {camera}')
 })
 
-test('Live block layout matches the kit: one chip row, Designer y positions', async ({
-  page,
-}) => {
-  await captionUnderLake(page, 'Morning on the lake, 6:40')
-  await page.getByTestId('live-token-date').click()
-  await expect(page.getByTestId('live-caption-anchor')).toBeVisible()
-  const ys = await page.evaluate(() => {
+/**
+ * Top / bottom (px, rel. the inspector panel) of each Live block part that
+ * is rendered, and how many rows the chips take.
+ */
+async function liveLayout(page: Page) {
+  return page.evaluate(() => {
     const panel = document.querySelector('[data-testid="panel-r"]')
     const box = (selector: string) => {
       const el = document.querySelector(selector)
       if (panel === null || el === null) {
-        throw new Error(`missing ${selector}`)
+        return null
       }
       const top = panel.getBoundingClientRect().top
       const r = el.getBoundingClientRect()
@@ -181,29 +188,103 @@ test('Live block layout matches the kit: one chip row, Designer y positions', as
       row: box('.live-caption-row'),
       select: box('[data-testid="live-caption-anchor"]'),
       chips: box('[data-testid="live-tokens"]'),
-      section: box('[data-testid="inspector-text"]'),
+      hint: box('[data-testid="live-caption-hint"]'),
+      section: box('[data-testid="inspector-text"]')?.[1],
       chipRows: new Set(chips).size,
-      scroll: [
-        document.documentElement.scrollWidth -
-          document.documentElement.clientWidth,
-        document.documentElement.scrollHeight -
-          document.documentElement.clientHeight,
-      ],
     }
   })
-  const near = (got: number[] | undefined, want: number[]) => {
-    expect(got?.length).toBe(want.length)
-    want.forEach((value, index) => {
-      expect(Math.abs((got?.[index] ?? NaN) - value)).toBeLessThanOrEqual(1)
-    })
+}
+
+/** Within 1 px of the Designer spec numbers. */
+function near(got: number[] | null | undefined, want: number[]) {
+  expect(got?.length).toBe(want.length)
+  want.forEach((value, index) => {
+    expect(Math.abs((got?.[index] ?? NaN) - value)).toBeLessThanOrEqual(1)
+  })
+}
+
+test('Live block layout matches the kit: one chip row, Designer y positions off and on', async ({
+  page,
+}) => {
+  await captionUnderLake(page, 'Morning on the lake, 6:40')
+  const off = await liveLayout(page)
+  near(off.textarea, [158, 222])
+  near(off.row, [246, 266])
+  expect(off.select).toBeNull()
+  near(off.chips, [274, 298])
+  near([off.section ?? NaN], [310])
+  expect(off.chipRows).toBe(1)
+
+  await page.getByTestId('live-token-date').click()
+  await expect(page.getByTestId('live-caption-anchor')).toBeVisible()
+  const on = await liveLayout(page)
+  near(on.textarea, [158, 222])
+  near(on.row, [246, 266])
+  near(on.select, [296.8, 328.8])
+  near(on.chips, [336.8, 360.8])
+  near([on.section ?? NaN], [372.8])
+  expect(on.chipRows).toBe(1)
+  await assertDocumentFitsViewport(page)
+})
+
+test('a chip lands at the Text caret; Anchored to switches the photo it reads', async ({
+  page,
+}) => {
+  const { hill } = await captionUnderLake(page, 'At , ok', 1)
+  await dropAssetOnFrame(page, hill, imageFrames(page, 1).nth(1))
+  await selectText(page)
+  const field = page.getByTestId('text-input')
+  await field.focus()
+  await field.evaluate((el) => {
+    if (el instanceof HTMLTextAreaElement) {
+      el.setSelectionRange(3, 3)
+    }
+  })
+  await page.getByTestId('live-token-date').click()
+  await expect(field).toHaveValue('At {date}, ok')
+  await expect(canvasText(page)).toHaveText('At 12 Jul 2025, ok')
+
+  await page
+    .getByTestId('live-caption-anchor')
+    .selectOption({ label: 'Frame 2 · meta-hill.jpg' })
+  await expect(canvasText(page)).toHaveText('At 5 Mar 2024, ok')
+  await expect(page.getByTestId('live-token-camera')).toHaveAttribute(
+    'title',
+    'Apple iPhone 15 Pro',
+  )
+})
+
+test('a spread with no image frame: disabled switch and the hint, no chips', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=painter')
+  await expect(spreadView(page)).toBeVisible()
+  await openInspector(page)
+  // Delete the first spread's photo frames one by one.
+  while ((await imageFrames(page).count()) > 0) {
+    const box = await boxOf(imageFrames(page).first())
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    await page.getByTestId('frame-delete').click()
   }
-  near(ys.textarea, [158, 222])
-  near(ys.row, [246, 266])
-  near(ys.select, [296.8, 328.8])
-  near(ys.chips, [336.8, 360.8])
-  expect(ys.section[1]).toBeCloseTo(372.8, 0)
-  expect(ys.chipRows).toBe(1)
-  expect(ys.scroll).toEqual([0, 0])
+  const box = await boxOf(spreadView(page))
+  await page.keyboard.press('t')
+  await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.4)
+  await page.keyboard.type('Morning on the lake, 6:40')
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('inspector-context')).toHaveText('Text')
+
+  await expect(liveSwitch(page)).toHaveAttribute('aria-disabled', 'true')
+  await expect(page.getByTestId('live-caption-hint')).toHaveText(
+    'Add a photo frame to this spread to use its metadata.',
+  )
+  await expect(page.getByTestId('live-tokens')).toHaveCount(0)
+  // aria-disabled fails Playwright's enabled check: click it as a user would.
+  await liveSwitch(page).dispatchEvent('click')
+  await expect(liveSwitch(page)).toHaveAttribute('aria-checked', 'false')
+  const layout = await liveLayout(page)
+  near(layout.row, [246, 266])
+  near(layout.hint, [274, 302])
+  near([layout.section ?? NaN], [314])
 })
 
 // Perf: `&captions=4` puts a live caption (`{title} · {date}`) on each of

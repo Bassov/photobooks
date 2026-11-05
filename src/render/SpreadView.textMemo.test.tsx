@@ -56,7 +56,10 @@ function bookWith(assets: [string, string, string]): Book {
   })
 }
 
-function view(book: Book) {
+function view(
+  book: Book,
+  options: { pxPerMm?: number; thumb?: boolean; editor?: boolean } = {},
+) {
   const resolved = resolveSpread(book, 'spread-1')
   if (resolved === undefined) {
     throw new Error('unresolved')
@@ -66,15 +69,39 @@ function view(book: Book) {
       spreadId="spread-1"
       resolved={resolved}
       previewUrlFor={() => undefined}
+      pxPerMm={options.pxPerMm ?? 1}
+      thumb={options.thumb ?? false}
+      {...(options.editor === true
+        ? { frameControlFor: () => ({ label: 'Frame', onActivate: vi.fn() }) }
+        : {})}
     />
   )
 }
 
-afterEach(cleanup)
+/** `tb` restyled / realigned / resized (text frames only). */
+function editCaption(book: Book, patch: Partial<Frame>): Book {
+  return {
+    ...book,
+    spreads: book.spreads.map((spread) => ({
+      ...spread,
+      frames: spread.frames.map((frame) =>
+        frame.id === 'tb' ? { ...frame, ...patch } : frame,
+      ),
+    })),
+  }
+}
+
+// A memo skip leaves no DOM trace, so the paint is observed through the
+// style builder every painted text node calls.
+const style = vi.mocked(textNodeStyle)
+
+afterEach(() => {
+  cleanup()
+  style.mockClear()
+})
 
 describe('SpreadView live caption repaint', () => {
   it('a swap repaints only the captions whose resolved string changed', () => {
-    const style = vi.mocked(textNodeStyle)
     const { rerender } = render(view(bookWith(['lake', 'hill', 'sea'])))
     expect(style).toHaveBeenCalledTimes(2)
     rerender(view(bookWith(['sea', 'hill', 'lake'])))
@@ -82,5 +109,48 @@ describe('SpreadView live caption repaint', () => {
     expect(
       screen.getAllByTestId('frame-text').map((node) => node.textContent),
     ).toEqual(['Sea', 'Hill'])
+  })
+
+  it.each([
+    [
+      'style',
+      {
+        book: editCaption(bookWith(['lake', 'hill', 'sea']), {
+          styleId: 'title',
+        }),
+      },
+    ],
+    [
+      'align',
+      {
+        book: editCaption(bookWith(['lake', 'hill', 'sea']), {
+          align: 'right',
+        }),
+      },
+    ],
+    [
+      'height',
+      {
+        book: editCaption(bookWith(['lake', 'hill', 'sea']), {
+          rect: { x: 60, y: 60, width: 50, height: 12 },
+        }),
+      },
+    ],
+    ['zoom', { pxPerMm: 2 }],
+    ['thumb', { thumb: true }],
+    ['editor', { editor: true }],
+  ] as const)('a %s change repaints the caption', (_, change) => {
+    const base = bookWith(['lake', 'hill', 'sea'])
+    const { rerender } = render(view(base))
+    style.mockClear()
+    rerender(view(base))
+    expect(style).not.toHaveBeenCalled()
+    rerender(
+      view(
+        'book' in change ? change.book : base,
+        'book' in change ? {} : change,
+      ),
+    )
+    expect(style).toHaveBeenCalled()
   })
 })

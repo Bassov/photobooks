@@ -75,8 +75,7 @@ export function chipState(
 }
 
 function fileName(asset: Asset | undefined): string | undefined {
-  const name = asset?.relativePath?.split('/').pop()
-  return name === '' ? undefined : name
+  return asset?.relativePath?.split('/').pop()
 }
 
 /** `Anchored to` options: every image frame, `Frame N · <file>` or `· empty`. */
