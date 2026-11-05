@@ -13,7 +13,7 @@ import {
   spreadRatio,
   stageWidth,
 } from './siteModel'
-import { SiteStage } from './SiteStage'
+import { SiteStage, type RenderSlide } from './SiteStage'
 import { pageHref, sitePageUrl } from './siteUrl'
 import type { Viewport } from './useViewport'
 
@@ -34,17 +34,38 @@ function isTyping(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest('input, textarea') !== null
 }
 
+/** A host-controlled slide (editor preview): the page touches no URL or keys. */
+export interface Embedded {
+  slide: number
+  onSlide: (slide: number) => void
+}
+
+/**
+ * Book page. Embedded (`embedded`), the host owns the slide, the URL and the
+ * keyboard; `allBooks` / `share` false drop the catalog link / Share;
+ * `renderSlide` paints the slides on the stage and in the lightbox.
+ */
 export function SiteBookPage({
   input,
   viewport,
+  embedded,
+  allBooks = true,
+  share = true,
+  renderSlide,
 }: {
   input: BookInput
   viewport: Viewport | null
+  embedded?: Embedded | undefined
+  allBooks?: boolean
+  share?: boolean
+  renderSlide?: RenderSlide | undefined
 }) {
   const { book, images, site } = input
   const n = book.spreads.length
   const title = displayBookTitle(book.title)
-  const [slide, setSlide] = useState(0)
+  const [ownSlide, setOwnSlide] = useState(0)
+  const slide = embedded === undefined ? ownSlide : embedded.slide
+  const isEmbedded = embedded !== undefined
   /** The lightbox's opening slide while it is open. */
   const [lightbox, setLightbox] = useState<number | null>(null)
   const open = () => {
@@ -54,7 +75,11 @@ export function SiteBookPage({
   const show = (next: number) => {
     const s = Math.max(0, Math.min(n, next))
     if (s === slide) return
-    setSlide(s)
+    if (embedded !== undefined) {
+      embedded.onSlide(s)
+      return
+    }
+    setOwnSlide(s)
     const hash = hashForSlide(s, n)
     const { pathname, search } = window.location
     window.history.replaceState(
@@ -66,17 +91,19 @@ export function SiteBookPage({
 
   // The server renders the cover; the hash picks the slide once hydrated.
   useLayoutEffect(() => {
+    if (isEmbedded) return
     const read = () => {
-      setSlide(slideForHash(window.location.hash, n))
+      setOwnSlide(slideForHash(window.location.hash, n))
     }
     read()
     window.addEventListener('hashchange', read)
     return () => {
       window.removeEventListener('hashchange', read)
     }
-  }, [n])
+  }, [n, isEmbedded])
 
   useEffect(() => {
+    if (isEmbedded) return
     const onKey = (event: KeyboardEvent) => {
       if (
         event.altKey ||
@@ -109,20 +136,23 @@ export function SiteBookPage({
           vw: viewport.vw,
           vh: viewport.vh,
           ratio: spreadRatio(book.settings.trim),
+          allBooks,
         })
 
   return (
     <main className="site-book" data-testid="site-book-page">
       <div className="site-title-row">
         <div className="site-title-block">
-          <a
-            className="site-all-books"
-            href={pageHref(input.catalogHref)}
-            data-testid="site-all-books"
-          >
-            <Icon name="arrowLeft" />
-            All books
-          </a>
+          {allBooks && (
+            <a
+              className="site-all-books"
+              href={pageHref(input.catalogHref)}
+              data-testid="site-all-books"
+            >
+              <Icon name="arrowLeft" />
+              All books
+            </a>
+          )}
           <h1 className="site-h1" data-testid="site-title">
             {title}
           </h1>
@@ -131,7 +161,7 @@ export function SiteBookPage({
           </div>
         </div>
         <div className="site-actions">
-          <ShareButton title={title} url={() => bookUrl(input)} />
+          {share && <ShareButton title={title} url={() => bookUrl(input)} />}
           <button
             type="button"
             className="site-action"
@@ -152,6 +182,7 @@ export function SiteBookPage({
           show(slide + delta)
         }}
         onOpen={open}
+        renderSlide={renderSlide}
       />
       {lightbox !== null && (
         <SiteLightbox
@@ -159,6 +190,7 @@ export function SiteBookPage({
           images={images}
           title={title}
           start={lightbox}
+          renderSlide={renderSlide}
           onClose={(s) => {
             setLightbox(null)
             show(s)

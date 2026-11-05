@@ -110,7 +110,9 @@ describe('FSA library storage layout', () => {
 
     await writeLibraryMeta(root, {})
     const libraryText = await readMemoryFileText(root, [LIBRARY_JSON])
-    expect(libraryText).toBe('{"schemaVersion":3,"books":{},"templates":[]}')
+    expect(libraryText).toBe(
+      '{"schemaVersion":4,"books":{},"templates":[],"printProfiles":[],"defaultPrintProfileId":"generic"}',
+    )
 
     const listed = await storage.listBooks()
     expect(listed).toMatchObject({

@@ -1,4 +1,9 @@
-import { useCallback, useRef, useSyncExternalStore } from 'react'
+import {
+  useCallback,
+  useDeferredValue,
+  useRef,
+  useSyncExternalStore,
+} from 'react'
 import { Icon } from '../ui/Icon'
 import type { IconName } from '../ui/icons/glyphs'
 import {
@@ -107,10 +112,14 @@ const CONTEXT_HEADER: Partial<
 
 /** Kit InspectorPanel: BAR surface, quiet header, rows follow the selection. */
 export function Inspector() {
-  const frameSource = useSyncExternalStore(
-    subscribeFrameSelection,
-    getFrameSource,
-    getFrameSource,
+  // Selecting a frame mounts its sections in a yielding background render, so
+  // a drop's select does not land as one long task (multi-drop-fill gate).
+  const frameSource = useDeferredValue(
+    useSyncExternalStore(
+      subscribeFrameSelection,
+      getFrameSource,
+      getFrameSource,
+    ),
   )
   const selection = useSyncExternalStore(
     subscribeFrameSelection,

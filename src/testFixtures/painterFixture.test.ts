@@ -7,7 +7,11 @@ import {
   getAssetSource,
   resetAssetSources,
 } from '../photo/assetSources'
-import { loadPainterFixture } from './loadPainterFixture'
+import { resolveTextItems } from '../core'
+import {
+  loadPainterFixture,
+  PAINTER_CAPTION_SPREAD_ID,
+} from './loadPainterFixture'
 import { painterSourceFile } from './painterSourceFile'
 
 afterEach(() => {
@@ -164,5 +168,39 @@ describe('loadPainterFixture', () => {
 
     loadPainterFixture('?fixture=painter&guides=b')
     expect(guidesOf()).toEqual([[], []])
+  })
+
+  it('puts n live captions on spread 2, each anchored to its photo, with captions=n', () => {
+    const captions = () => {
+      const { book } = getBookStoreSnapshot()
+      const spread = book.spreads.find(
+        (item) => item.id === PAINTER_CAPTION_SPREAD_ID,
+      )
+      return spread === undefined
+        ? []
+        : resolveTextItems(book, spread).map((item) => [
+            item.anchorFrameId,
+            item.text,
+          ])
+    }
+    loadPainterFixture('?fixture=painter&captions=4')
+    const imageIds = getBookStoreSnapshot()
+      .book.spreads[1]?.frames.filter((frame) => frame.kind !== 'text')
+      .map((frame) => frame.id)
+    expect(captions()).toEqual(
+      PAINTER_ASSET_IDS.map((assetId, index) => [
+        imageIds?.[index],
+        `Photo ${assetId} · ${String(10 + index)} Jul 2025`,
+      ]),
+    )
+
+    loadPainterFixture('?fixture=painter&captions=2')
+    expect(captions()).toHaveLength(2)
+
+    loadPainterFixture('?fixture=painter')
+    expect(captions()).toEqual([])
+    expect(
+      getBookStoreSnapshot().book.assets['painter-a']?.meta,
+    ).toBeUndefined()
   })
 })

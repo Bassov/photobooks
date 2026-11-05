@@ -1,3 +1,5 @@
+import { builtInPrintProfiles } from '../print/catalog'
+import type { PrintProfile } from '../print/profileSchema'
 import type { Book } from '../schema'
 
 /** Page trim limits in mm (kit size editor: 5–50 cm). */
@@ -59,5 +61,38 @@ export function setTrim(
         },
       })),
     })),
+  }
+}
+
+/**
+ * Spec D4: the book takes profile `id` (built-in, else from `customs`) with no
+ * overrides, a custom one also as a snapshot; the bleed is clamped to the
+ * profile and the safe margin is the profile's. Trim and page count stay (out
+ * of range is a warning); an unknown id leaves the book as it is.
+ */
+export function setPrintProfile(
+  book: Book,
+  id: string,
+  customs?: readonly PrintProfile[],
+): Book {
+  const builtIn = builtInPrintProfiles().find((profile) => profile.id === id)
+  const profile = builtIn ?? customs?.find((custom) => custom.id === id)
+  if (profile === undefined) {
+    return book
+  }
+  return {
+    ...book,
+    printProfile:
+      builtIn === undefined
+        ? { id, overrides: {}, snapshot: profile }
+        : { id, overrides: {} },
+    settings: {
+      ...book.settings,
+      bleedMm: Math.min(
+        profile.bleedMaxMm,
+        Math.max(profile.bleedMinMm, book.settings.bleedMm),
+      ),
+      safeMarginMm: profile.safeMarginMm,
+    },
   }
 }

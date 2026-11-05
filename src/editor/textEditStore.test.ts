@@ -19,6 +19,7 @@ import {
   getSpreadOverflow,
   getSpreadTextEditKey,
   getTextEdit,
+  getTextEditSource,
   isTextOverflowing,
   nextEditKey,
   registerTextDraft,
@@ -143,7 +144,9 @@ describe('textEditStore', () => {
   })
 
   it('a later edit session is one "Edit text" step; untouched text writes none', () => {
+    expect(getTextEditSource()).toBeUndefined()
     startTextEdit(at)
+    expect(getTextEditSource()).toBe(textOf('t'))
     expect(getSpreadTextEditKey('spread-1')).toBe('t')
     expect(getSpreadTextEditKey('other')).toBe('')
     draft = { text: 'Hi', fitHeightMm: 40 }

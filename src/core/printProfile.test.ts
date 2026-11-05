@@ -161,13 +161,20 @@ describe('validatePrintSettings', () => {
     ])
   })
 
-  it('reports an unknown profile instead of guessing limits', () => {
+  it('reports an unknown profile and checks the book against Generic (D6)', () => {
     const book = makeBook({
       settings: { bleedMm: 99 },
-      printProfile: { id: 'lab-x', overrides: {} },
+      printProfile: { id: 'lab-x', overrides: { bleedMaxMm: 100 } },
     })
     expect(validatePrintSettings(book)).toEqual([
       { code: 'unknown-profile', profileId: 'lab-x' },
+      {
+        code: 'out-of-range',
+        field: 'bleed',
+        valueMm: 99,
+        minMm: 0,
+        maxMm: 10,
+      },
     ])
   })
 })

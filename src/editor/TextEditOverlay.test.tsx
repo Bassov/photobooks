@@ -159,6 +159,33 @@ describe('TextEditOverlay', () => {
     stop()
   })
 
+  it('a live caption edits its template; the canvas paints it resolved', () => {
+    load({
+      ...label({ x: 10, y: 10, width: 60, height: 14 }),
+      content: { type: 'template', template: '{date} at sea' },
+      anchorFrameId: 'a',
+    })
+    render(<ConnectedSpreadView spreadId="s1" />)
+    expect(frameButton().textContent).toContain('— at sea')
+    act(() => {
+      setFrameSource(at)
+      startTextEdit(at)
+    })
+    expect(theEditBox().value).toBe('{date} at sea')
+    fireEvent.keyDown(theEditBox(), { key: 'Escape' })
+    expect(getHistorySnapshot().undoLabel).toBeNull()
+    act(() => {
+      startTextEdit(at)
+    })
+    fireEvent.input(theEditBox(), { target: { value: '{camera}!' } })
+    fireEvent.keyDown(theEditBox(), { key: 'Escape' })
+    expect(textFrame()?.content).toEqual({
+      type: 'template',
+      template: '{camera}!',
+    })
+    expect(frameButton().textContent).toContain('—!')
+  })
+
   it('⌘+Enter commits; Shift+Enter types; leaving the window keeps the edit', () => {
     render(<ConnectedSpreadView spreadId="s1" />)
     act(() => {

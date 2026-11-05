@@ -288,21 +288,20 @@ function flushPendingGalleryAndMeta(): void {
   let galleryChanged = false
   if (ids.length > 0) {
     book = applyBookOp(book, { type: 'addToGallery', assetIds: ids })
-    if (pendingAssetRecords.size > 0) {
-      let assets = book.assets
-      let assetsChanged = false
-      for (const id of ids) {
-        const record = pendingAssetRecords.get(id)
-        if (record === undefined) {
-          continue
-        }
-        pendingAssetRecords.delete(id)
-        assets = { ...assets, [id]: { ...assets[id], ...record } }
-        assetsChanged = true
+    let assets = book.assets
+    for (const id of ids) {
+      const record = pendingAssetRecords.get(id)
+      // A patch made after the enqueue (head-pass EXIF) waits here too.
+      const patch = pendingAssetPatches.get(id)
+      if (record === undefined && patch === undefined) {
+        continue
       }
-      if (assetsChanged) {
-        book = { ...book, assets }
-      }
+      pendingAssetRecords.delete(id)
+      pendingAssetPatches.delete(id)
+      assets = { ...assets, [id]: { ...assets[id], ...record, ...patch } }
+    }
+    if (assets !== book.assets) {
+      book = { ...book, assets }
     }
     galleryChanged = book.gallery !== state.book.gallery
   }
@@ -911,9 +910,14 @@ export function discardStep(key: string): boolean {
 
 /**
  * `historyKey` replaces the op's own coalesce key: ops sharing it, with
- * nothing recorded in between, are one step (an edit session).
+ * nothing recorded in between, are one step (an edit session). `label` names
+ * a new step (default: the op's own label).
  */
-export function dispatchBookOp(op: BookOp, historyKey?: string): void {
+export function dispatchBookOp(
+  op: BookOp,
+  historyKey?: string,
+  label?: string,
+): void {
   const book = applyBookOp(state.book, op)
   if (book === state.book) {
     return
@@ -926,7 +930,7 @@ export function dispatchBookOp(op: BookOp, historyKey?: string): void {
         snapshotOf(prev.book),
         historyKey ?? coalesceKey(op),
         undefined,
-        opLabel(op),
+        label ?? opLabel(op),
       ),
     )
   } else if (book.spreads !== prev.book.spreads) {

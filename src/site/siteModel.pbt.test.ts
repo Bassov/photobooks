@@ -59,4 +59,25 @@ describe('siteModel properties', () => {
       expect(w).toBeGreaterThanOrEqual(Math.min(280, content))
     },
   )
+
+  test.prop(
+    [
+      fc.integer({ min: 200, max: 4000 }),
+      fc.integer({ min: 300, max: 3000 }),
+      fc.double({ min: 0.5, max: 4, noNaN: true }),
+    ],
+    RUNS,
+  )(
+    'without All books the stage is never narrower, still fits and grows with vh',
+    (vw, vh, ratio) => {
+      const content = vw - 2 * (vw < 768 ? 20 : 32)
+      const w = stageWidth({ vw, vh, ratio, allBooks: false })
+
+      expect(w).toBeGreaterThanOrEqual(stageWidth({ vw, vh, ratio }))
+      expect(w).toBeLessThanOrEqual(Math.min(760, content))
+      expect(
+        stageWidth({ vw, vh: vh + 1, ratio, allBooks: false }),
+      ).toBeGreaterThanOrEqual(w)
+    },
+  )
 })

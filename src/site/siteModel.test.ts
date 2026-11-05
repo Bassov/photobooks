@@ -113,6 +113,35 @@ describe('layout', () => {
     expect(w).toBeCloseTo((600 - 298.85) * KIT_RATIO, 6)
   })
 
+  it.each([
+    [1440, 600, 262.85],
+    [390, 600, 258.85],
+  ])(
+    'gives the All books row to the stage without it (%i × %i: chrome %f)',
+    (vw, vh, chrome) => {
+      const ratio = 1
+      const w = stageWidth({ vw, vh, ratio, allBooks: false })
+
+      expect(w).toBeCloseTo((vh - chrome) * ratio, 6)
+      expect(stageWidth({ vw, vh, ratio, allBooks: true })).toBeCloseTo(
+        (vh - chrome - 36) * ratio,
+        6,
+      )
+    },
+  )
+
+  it('fills 760 exactly at the height that leaves 760 without All books', () => {
+    const vh = 262.85 + 760 / KIT_RATIO
+
+    expect(
+      stageWidth({ vw: 1440, vh, ratio: KIT_RATIO, allBooks: false }),
+    ).toBeCloseTo(760, 6)
+    expect(
+      stageWidth({ vw: 1440, vh: vh - 1, ratio: KIT_RATIO, allBooks: false }),
+    ).toBeLessThan(760)
+    expect(stageWidth({ vw: 1440, vh, ratio: KIT_RATIO })).toBeLessThan(760)
+  })
+
   it('never makes the stage wider than the content', () => {
     expect(stageWidth({ vw: 300, vh: 900, ratio: KIT_RATIO })).toBe(260)
   })

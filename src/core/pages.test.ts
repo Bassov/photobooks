@@ -6,10 +6,12 @@ import {
   PAGE_MAX,
   PAGE_MIN,
   PAGE_STEP,
+  pageCountRange,
   pageLabel,
   pagesOf,
   spreadsForPages,
 } from './pages'
+import { genericPrintProfile } from './print/genericProfile'
 import { makeBook, makeFrame, makeSpread } from './testing/fixtures'
 
 function bookWith(spreads: number) {
@@ -57,6 +59,50 @@ describe('page count', () => {
     expect(clampPageCount(121)).toBe(120)
     expect(clampPageCount(200)).toBe(120)
     expect(clampPageCount(Number.NaN)).toBeNaN()
+  })
+
+  it('gives Generic the editor range 20–120 in steps of 2 (D5)', () => {
+    expect(pageCountRange(genericPrintProfile())).toEqual({
+      min: PAGE_MIN,
+      step: PAGE_STEP,
+      max: PAGE_MAX,
+    })
+  })
+
+  it.each([
+    [
+      { min: 24, step: 4, max: 80 },
+      { min: 20, step: 4, max: 80 },
+    ],
+    [
+      { min: 24, step: 4, max: 82 },
+      { min: 20, step: 4, max: 80 },
+    ],
+    [
+      { min: 20, step: 2, max: 800 },
+      { min: 20, step: 2, max: 120 },
+    ],
+    [
+      { min: 24, step: 6, max: 300 },
+      { min: 20, step: 6, max: 116 },
+    ],
+    [
+      { min: 21, step: 3, max: 90 },
+      { min: 20, step: 4, max: 88 },
+    ],
+    [
+      { min: 8, step: 2, max: 10 },
+      { min: 20, step: 2, max: 20 },
+    ],
+  ])('runs the field for page count %j as %j', (pageCount, range) => {
+    expect(pageCountRange({ pageCount })).toEqual(range)
+  })
+
+  it('rounds a typed count to the nearest step of the range', () => {
+    const range = { min: 20, step: 4, max: 80 }
+    expect(
+      [19, 21, 22, 23, 27, 79, 81, 200].map((n) => clampPageCount(n, range)),
+    ).toEqual([20, 20, 24, 24, 28, 80, 80, 80])
   })
 })
 

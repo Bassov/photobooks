@@ -1,8 +1,14 @@
 import { z } from 'zod'
-import type { SavedTemplate } from '../core'
+import {
+  builtInPrintProfiles,
+  DEFAULT_PRINT_PROFILE_ID,
+  printProfileSchema,
+  type PrintProfile,
+  type SavedTemplate,
+} from '../core'
 import type { LibraryMeta } from './types'
 
-export const LIBRARY_SCHEMA_VERSION = 3
+export const LIBRARY_SCHEMA_VERSION = 4
 
 export type LibraryParseResult =
   | { ok: true; meta: LibraryMeta }
@@ -69,10 +75,26 @@ export function parseLegacySavedTemplates(input: unknown): SavedTemplate[] {
   return parseEach(input, legacy)
 }
 
-function parseEach(
-  input: unknown,
-  schema: z.ZodType<SavedTemplate>,
-): SavedTemplate[] {
+/**
+ * Custom printer profiles from untrusted `library.json`: each invalid entry,
+ * or one that reuses a built-in id (built-ins win the lookup), is dropped on
+ * its own; a non-list reads as none.
+ */
+export function parsePrintProfiles(input: unknown): PrintProfile[] {
+  const builtInIds = new Set(builtInPrintProfiles().map(({ id }) => id))
+  return parseEach(input, printProfileSchema()).filter(
+    ({ id }) => !builtInIds.has(id),
+  )
+}
+
+/** The default profile id of new books; absent or not an id → Generic. */
+export function parseDefaultPrintProfileId(input: unknown): string {
+  return typeof input === 'string' && input !== ''
+    ? input
+    : DEFAULT_PRINT_PROFILE_ID
+}
+
+function parseEach<T>(input: unknown, schema: z.ZodType<T>): T[] {
   if (!Array.isArray(input)) {
     return []
   }
@@ -107,6 +129,18 @@ function migrateV2ToV3(
   return { ...input, schemaVersion: 3, templates: [] }
 }
 
+/** v4 adds custom printer profiles and the default profile of new books. */
+function migrateV3ToV4(
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    ...input,
+    schemaVersion: 4,
+    printProfiles: [],
+    defaultPrintProfileId: DEFAULT_PRINT_PROFILE_ID,
+  }
+}
+
 /**
  * Pure parse + migration chain for `library.json`. Anything that is not a
  * JSON object is treated as an empty v0 document; versions above
@@ -135,6 +169,9 @@ export function migrateLibrary(
   if (version < 3) {
     doc = migrateV2ToV3(doc)
   }
+  if (version < 4) {
+    doc = migrateV3ToV4(doc)
+  }
   return { ok: true, value: doc }
 }
 
@@ -152,6 +189,10 @@ export function parseLibrary(input: unknown): LibraryParseResult {
     meta: {
       books: parsed.data.books,
       templates: parseSavedTemplates(migrated.value.templates),
+      printProfiles: parsePrintProfiles(migrated.value.printProfiles),
+      defaultPrintProfileId: parseDefaultPrintProfileId(
+        migrated.value.defaultPrintProfileId,
+      ),
     },
   }
 }
@@ -161,5 +202,8 @@ export function serializeLibrary(meta: LibraryMeta): Record<string, unknown> {
     schemaVersion: LIBRARY_SCHEMA_VERSION,
     books: meta.books ?? {},
     templates: meta.templates ?? [],
+    printProfiles: meta.printProfiles ?? [],
+    defaultPrintProfileId:
+      meta.defaultPrintProfileId ?? DEFAULT_PRINT_PROFILE_ID,
   }
 }

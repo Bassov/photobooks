@@ -1,6 +1,7 @@
 import { editableSpread } from '../core'
 import { discardStep, dispatchBookOp, getBookStoreSnapshot } from './bookStore'
 import { getFrameSource, setFrameSource } from './frameSelection'
+import { editableText } from './liveCaption'
 
 type Listener = () => void
 
@@ -77,15 +78,18 @@ export function registerTextDraft(read: () => TextDraft): () => void {
   }
 }
 
+/** What editing changes: a live caption's template, else its static text. */
 function frameText(edit: TextEdit): string | undefined {
   const frame = editableSpread(
     getBookStoreSnapshot().book,
     edit.spreadId,
   )?.spread.frames.find((item) => item.id === edit.frameId)
-  if (frame?.kind !== 'text') {
-    return undefined
-  }
-  return frame.content?.type === 'static' ? frame.content.text : ''
+  return frame?.kind === 'text' ? editableText(frame) : undefined
+}
+
+/** The edited frame's text as the overlay opens it (template while live). */
+export function getTextEditSource(): string | undefined {
+  return current === null ? undefined : frameText(current)
 }
 
 /**

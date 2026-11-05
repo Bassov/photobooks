@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { printProfileSchema } from './print/profileSchema'
 
 export const CURRENT_SCHEMA_VERSION = 11 as const
 
@@ -272,8 +273,9 @@ function makeCoverSchema() {
 }
 
 /**
- * Book → print profile reference: built-in profile id plus the book's
- * overrides of its trim / bleed limits (`printProfile.ts` resolves both).
+ * Book → print profile reference: profile id plus the book's overrides of its
+ * trim / bleed limits, and for a library custom profile a snapshot of it that
+ * keeps the book printable without that library (`printProfile.ts`).
  */
 function makePrintProfileRefSchema() {
   const overrides = z.object({
@@ -282,7 +284,11 @@ function makePrintProfileRefSchema() {
     bleedMinMm: nonNegativeMm.optional(),
     bleedMaxMm: nonNegativeMm.optional(),
   })
-  return z.object({ id: nonEmptyString, overrides })
+  return z.object({
+    id: nonEmptyString,
+    overrides,
+    snapshot: printProfileSchema().optional(),
+  })
 }
 
 function makeEndpapersSchema() {

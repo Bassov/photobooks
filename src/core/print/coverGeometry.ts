@@ -1,9 +1,8 @@
 // Zod-free: the site entry draws covers through `pages.ts`.
 import type { RectMm } from '../geometry/types'
 import { pagesOf } from '../pages'
-import { bookPrintProfileRef, resolvePrintProfile } from '../printProfile'
+import { bookPrintProfile } from '../printProfile'
 import type { Book, SpineWidthSource } from '../schema'
-import { genericPrintProfile } from './genericProfile'
 import type { PrintProfile, SpineWidthRule } from './profileSchema'
 
 export type CoverGeometryBook = Pick<
@@ -133,8 +132,5 @@ export function coverGeometry(
 
 /** Cover sheet of `book` with its effective profile; unknown id → generic. */
 export function bookCoverGeometry(book: CoverGeometryBook): CoverGeometry {
-  return coverGeometry(
-    resolvePrintProfile(bookPrintProfileRef(book)) ?? genericPrintProfile(),
-    book,
-  )
+  return coverGeometry(bookPrintProfile(book), book)
 }

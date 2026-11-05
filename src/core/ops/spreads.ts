@@ -1,5 +1,6 @@
 import { getSpreadPageCount } from '../geometry/spreadSize'
-import { clampPageCount, spreadsForPages } from '../pages'
+import { clampPageCount, pageCountRange, spreadsForPages } from '../pages'
+import { bookPrintProfile } from '../printProfile'
 import type { Book, Spread } from '../schema'
 import { applyTemplate } from '../templates/apply'
 import { isTemplateId, type TemplateId } from '../templates/types'
@@ -86,11 +87,13 @@ export function removeSpread(book: Book, spreadId: string): Book {
 }
 
 /**
- * Book settings "Pages": clamp to 20–120 in steps of 2, then add empty
- * spreads at the end or remove the last ones until `pagesOf` matches.
+ * Book settings "Pages": clamp to the book profile's range (Generic 20–120 in
+ * steps of 2), then add empty spreads at the end or remove the last ones
+ * until `pagesOf` matches.
  */
 export function setPageCount(book: Book, pages: number): Book {
-  const target = spreadsForPages(clampPageCount(pages))
+  const range = pageCountRange(bookPrintProfile(book))
+  const target = spreadsForPages(clampPageCount(pages, range))
   if (!Number.isFinite(target)) {
     return book
   }
