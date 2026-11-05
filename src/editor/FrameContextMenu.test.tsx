@@ -602,6 +602,23 @@ describe('FrameContextMenu on parent items and override copies', () => {
     expect(getFrameSource()).toBeNull()
   })
 
+  it('a right-click through the own frame hits a covered copy first and opens its menu', () => {
+    seed(
+      parentBook({
+        frames: [{ ...LOGO, id: 'copy', overridesId: 'logo' }],
+      }),
+    )
+    renderSpread()
+    expect(openAt(32, 8)).toBe(false)
+    expect(screen.queryByTestId('parent-menu')).toBeNull()
+    expect(getFrameSource()).toEqual({ spreadId: 's', frameId: 'copy' })
+    expect(rows()).toEqual([
+      'frame-menu-reset-parent',
+      'frame-menu-hide-parent',
+      'frame-menu-lock',
+    ])
+  })
+
   it("a right-click on a selected copy's handle peer opens the copy menu", () => {
     seed(
       parentBook({

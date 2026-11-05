@@ -50,7 +50,7 @@ interface FrameMenuAt {
 interface ParentMenuAt {
   kind: 'parent'
   spreadId: string
-  hit: ParentHit
+  hit: Exclude<ParentHit, { kind: 'copy' }>
   x: number
   y: number
 }
@@ -92,9 +92,10 @@ function frameMenuAt(
 /**
  * Designer PO4: a right-click on a book spread that misses its frames hit
  * tests the inherited parent items through the own frames, as the
- * Ctrl+Shift press does (`parentHit.ts`). The Masters canvas has none.
+ * Ctrl+Shift press does (`parentHit.ts`). The Masters canvas has none. An
+ * override copy hits first and opens its own frame menu.
  */
-function parentMenuAt(event: MouseEvent): ParentMenuAt | null {
+function parentMenuAt(event: MouseEvent): MenuAt | null {
   const spreadEl =
     event.target instanceof Element
       ? event.target.closest(SPREAD_SELECTOR)
@@ -124,9 +125,20 @@ function parentMenuAt(event: MouseEvent): ParentMenuAt | null {
     pxPerMm,
     getGuidesVisible(),
   )
-  return hit === null
-    ? null
-    : { kind: 'parent', spreadId, hit, x: event.clientX, y: event.clientY }
+  if (hit === null) {
+    return null
+  }
+  const x = event.clientX
+  const y = event.clientY
+  return hit.kind === 'copy'
+    ? {
+        kind: 'frame',
+        target: { spreadId, frameId: hit.frame.id },
+        x,
+        y,
+        set: null,
+      }
+    : { kind: 'parent', spreadId, hit, x, y }
 }
 
 function FrameMenu({
@@ -376,6 +388,9 @@ export function FrameContextMenu() {
         const parent = parentMenuAt(event)
         if (parent !== null) {
           event.preventDefault()
+          if (parent.kind === 'frame') {
+            setFrameSource(parent.target)
+          }
           setAt(parent)
         }
         return
