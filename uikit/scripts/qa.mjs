@@ -2672,6 +2672,109 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("cover-editor: A3 landscape — sheet 848 × 314.4, band 14.42 px < 18, chip not rendered", n5(a3.sheet.w, 848) && n5(a3.sheet.h, 314.4) && n5(a3.cover.x - a3.sheet.x, 14.42) && !a3.chip, JSON.stringify({ sheet: a3.sheet && [a3.sheet.w, a3.sheet.h], wrap: a3.cover && a3.cover.x - a3.sheet.x, chip: !!a3.chip }))
   await page.setViewportSize({ width: 1440, height: 900 })
 }
+{ // printer-presets-kit (Designer printer-presets §Settings, §Profile editor, §Kit PrintDialog): DOM measured at 1440 × 900
+  const e0 = errs.length
+  const tabs = { print: "Print presets", "print-empty": "No custom profiles", "print-edit": "Edit profile", "print-invalid": "Invalid values" }
+  const pick = async (id) => { await page.locator(`[data-testid="scenarios"] [role="tab"]:text-is("${tabs[id]}")`).evaluate((t) => t.click()); await page.waitForTimeout(350) }
+  const S = (tid) => page.locator(`[data-scenario] [data-testid="${tid}"]`).first()
+  /** box-shadow without Tailwind's transparent ring / shadow layers */
+  const solid = (s) => s.split(/,(?![^(]*\))/).map((x) => x.trim()).filter((x) => !x.startsWith("rgba(0, 0, 0, 0)")).join(", ")
+  const box = (l) => l.evaluate((e) => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e); return { w: +r.width.toFixed(2), h: +r.height.toFixed(2), bg: cs.backgroundColor, r: cs.borderRadius, pad: cs.padding, font: `${cs.fontSize}/${cs.lineHeight} ${cs.fontWeight}`, color: cs.color, shadow: cs.boxShadow } })
+  await page.setViewportSize({ width: 1440, height: 900 }); await page.goto(url + feat("site-settings")); await page.waitForTimeout(500); await pick("print")
+  const sel = await box(S("print-default"))
+  ok("printer-presets: default select 240 × 32, bg #D7D7D7, r8, padding 0 32 0 10, 13/400", sel.w === 240 && sel.h === 32 && sel.bg === "rgb(215, 215, 215)" && sel.r === "8px" && sel.pad === "0px 32px 0px 10px" && sel.font.startsWith("13px") && sel.font.endsWith(" 400"), JSON.stringify(sel))
+  const opts = await S("print-default").evaluate((s) => [...s.querySelectorAll("optgroup")].map((g) => `${g.label}:${g.children.length}`).join() + " = " + s.value)
+  ok("printer-presets: select optgroups Print shops (3) / Custom (1), Lulu selected", opts === "Print shops:3,Custom:1 = lulu-photo-book", opts)
+  const shops = await S("print-shops").evaluate((c) => [...c.querySelectorAll('[data-testid^="print-shop-"]')].map((r) => {
+    const [name, sum] = r.firstElementChild.children, ns = getComputedStyle(name), ss = getComputedStyle(sum), b = r.querySelector("button")
+    return { id: r.dataset.testid.slice(11), name: `${ns.fontSize} ${ns.fontWeight}`, sum: `${ss.fontSize}/${ss.lineHeight} ${ss.color} ${ss.textOverflow} ${ss.whiteSpace}`, title: sum.title === sum.textContent, badge: r.textContent.includes("Default"), btn: `${b.textContent} ${b.getBoundingClientRect().height} ${getComputedStyle(b).backgroundColor} ${getComputedStyle(b).paddingLeft}` }
+  }))
+  ok("printer-presets: shops Generic, Lulu, Saal; name 13/500, summary 12/16.8 #535152 ellipsis + title; Default badge on Lulu only; Duplicate h32 bg #D7D7D7 pad 12",
+    shops.map((s) => s.id).join() === "generic,lulu-photo-book,saal-photo-book" && shops.every((s) => s.name === "13px 500" && s.sum === "12px/16.8px rgb(83, 81, 82) ellipsis nowrap" && s.title && s.btn === "Duplicate 32 rgb(215, 215, 215) 12px") && shops.map((s) => s.badge).join() === "false,true,false", JSON.stringify(shops))
+  const gsum = await S("print-shop-generic").locator('[data-testid="print-summary-line"]').textContent()
+  ok("printer-presets: Generic summary line", gsum === "5–50 cm · bleed 0–10 mm · safe 5 mm · 20–120 pages · photos ≥ 200 ppi", gsum)
+  const eyebrow = await page.locator('[data-scenario] h2:text-is("Print shops")').first().evaluate((e) => { const cs = getComputedStyle(e); return `${cs.fontSize} ${cs.fontWeight} ${cs.letterSpacing} ${cs.textTransform} ${cs.color}` })
+  ok("printer-presets: eyebrow 11/600 .12em uppercase #535152", eyebrow === "11px 600 1.32px uppercase rgb(83, 81, 82)", eyebrow)
+  const more = await box(S("print-more-custom-lulu-copy")), edit = await box(S("print-edit-custom-lulu-copy"))
+  ok("printer-presets: custom row Edit… h32 + ••• 28 × 28 r8 #535152", edit.h === 32 && more.w === 28 && more.h === 28 && more.r === "8px" && more.color === "rgb(83, 81, 82)", JSON.stringify({ edit, more }))
+  const nav = await page.locator('[data-scenario] [data-testid^="settings-nav-"][aria-current="page"]').evaluateAll((ns) => ns.map((n) => n.dataset.testid).join())
+  const stub = await page.locator("[data-scenario]").first().evaluate((s) => /Home printer|Default profile/.test(s.textContent))
+  ok("printer-presets: aria-current only on settings-nav-print; stub rows gone (D7)", nav === "settings-nav-print" && !stub, JSON.stringify({ nav, stub }))
+  await S("print-more-custom-lulu-copy").click(); await page.waitForTimeout(300)
+  const menu = await page.locator('[data-testid="print-menu"]').evaluate((m) => { const r = m.parentElement.getBoundingClientRect(), is =[...m.querySelectorAll('[role="menuitem"]')]
+    return { w: r.width, items: is.map((i) => i.textContent).join(), del: getComputedStyle(is[1]).color, rowH: +is[0].getBoundingClientRect().height.toFixed(2) } })
+  ok("printer-presets: ••• menu 176 wide, Duplicate / Delete… #a8403a", menu.w === 176 && menu.items === "Duplicate,Delete…" && menu.del === "rgb(168, 64, 58)", JSON.stringify(menu))
+  await page.keyboard.press("Escape"); await page.waitForTimeout(250)
+  // deleting the default custom profile asks first, then Generic becomes the default
+  await S("print-default").selectOption("custom-lulu-copy"); await page.waitForTimeout(200)
+  await S("print-more-custom-lulu-copy").click(); await page.waitForTimeout(300)
+  await page.locator('[data-testid="print-menu"] [role="menuitem"]:has-text("Delete")').click(); await page.waitForTimeout(350)
+  const ad = page.locator('[role="alertdialog"]')
+  const adText = await ad.textContent()
+  const still = await S("print-custom-custom-lulu-copy").count()
+  await ad.getByRole("button", { name: "Delete" }).click(); await page.waitForTimeout(350)
+  const after = { v: await S("print-default").inputValue(), empty: await S("print-custom-empty").count(), badge: await S("print-shop-generic").textContent() }
+  ok("printer-presets: Delete… confirms (title + Generic sentence), row kept until Delete; then gone and Generic is the default",
+    adText.includes("Delete “Lulu · Photo book (copy)”?") && adText.includes("Books that use it keep its values. New books will start with Generic.") && still === 1 && after.v === "generic" && after.empty === 1 && after.badge.includes("Default"), JSON.stringify({ adText, still, ...after }))
+  // Duplicate on a table-spine shop opens the editor on the copy; the spine row is read-only text
+  await S("print-duplicate-saal-photo-book").click(); await page.waitForTimeout(350)
+  const tbl = { t: await page.locator('[data-testid="pp-spine-table"]').textContent(), f: await page.locator('[data-testid="pp-spineBase"]').count(), name: await page.locator('[data-testid="pp-name"] input').inputValue() }
+  const added = await page.locator('[data-scenario] [data-testid^="print-custom-custom-"]').count()
+  await page.locator('[data-testid="pp-save"]').click(); await page.waitForTimeout(300)
+  const saved = await page.locator('[data-scenario] [data-testid^="print-custom-custom-"]').count()
+  ok("printer-presets: Duplicate Saal adds the copy row and opens the editor on “… (copy)”, table spine read-only; Save keeps one row", tbl.t === "From the Saal Digital · Photo Book table · 7–13 mm" && tbl.f === 0 && tbl.name === "Saal Digital · Photo Book (copy)" && added === 1 && saved === 1, JSON.stringify({ ...tbl, added, saved }))
+  await pick("print-empty")
+  const empty = await S("print-custom-empty").evaluate((e) => `${e.textContent} ${getComputedStyle(e).fontSize} ${getComputedStyle(e).color}`)
+  ok("printer-presets: print-empty row text 13 #535152", empty === "No custom profiles yet. Duplicate a print shop’s profile, or start a new one. 13px rgb(83, 81, 82)", empty)
+  await pick("print-edit")
+  const dlg = await page.locator('[data-testid="print-profile-dialog"]').evaluate((d) => {
+    let m = d; while (m.style.width !== "560px") m = m.parentElement
+    const mr = m.getBoundingClientRect(), ms = getComputedStyle(m), cs = getComputedStyle(d), form = d.querySelector('[data-testid="pp-form"]'), w = (t) => d.querySelector(`[data-testid="pp-${t}"]`).getBoundingClientRect()
+    const f = getComputedStyle(d.querySelector('[data-testid="pp-trimMin"]')), lab = getComputedStyle(form.firstElementChild)
+    return { w: mr.width, r: ms.borderRadius, bg: ms.backgroundColor, pad: cs.padding, cols: getComputedStyle(form).gridTemplateColumns.split(" ")[0], lab: `${lab.fontSize} ${lab.color}`, f96: [w("trimMin").width, w("trimMin").height, w("pMax").width], f64: w("pStep").width, field: [`${f.backgroundColor} ${f.borderRadius}`, f.boxShadow], title: d.firstElementChild.textContent, sub: d.querySelector('[data-testid="pp-sub"]').textContent }
+  })
+  ok("printer-presets: editor 560 wide, r14, bg #E1E1E1, padding 20 24, label column 132 (13 #535152), fields 96 × 32 / 64, field bg #D7D7D7 r8 shadow .06",
+    dlg.w === 560 && dlg.r === "14px" && dlg.bg === "rgb(225, 225, 225)" && dlg.pad === "20px 24px" && dlg.cols === "132px" && dlg.lab === "13px rgb(83, 81, 82)" && dlg.f96.join() === "96,32,96" && dlg.f64 === 64 && `${dlg.field[0]} ${solid(dlg.field[1])}` === "rgb(215, 215, 215) 8px rgba(20, 20, 19, 0.06) 0px 1px 2px 0px" && dlg.title === "Edit print profile" && dlg.sub === "Based on Lulu · Photo book. Books that use this profile follow your changes.", JSON.stringify(dlg))
+  const hint = () => page.locator('[data-testid="pp-spine-hint"]').textContent()
+  const h0 = await hint(); await page.locator('[data-testid="pp-spinePer"] input').fill("0.3"); const h1 = await hint()
+  ok("printer-presets: spine hint updates live", h0 === "24 pages = 12.8 mm · 240 pages = 56 mm" && h1 === "24 pages = 15.2 mm · 240 pages = 80 mm", JSON.stringify({ h0, h1 }))
+  await page.locator('[data-testid="pp-name"] input').fill("")
+  const inv = { ring: await page.locator('[data-testid="pp-name"]').evaluate((e) => getComputedStyle(e).boxShadow), msg: await page.locator('[data-testid="pp-error"]').allTextContents(), save: await page.locator('[data-testid="pp-save"]').isDisabled() }
+  ok("printer-presets: empty name → #a8403a inset ring + message, Save disabled", solid(inv.ring) === "rgb(168, 64, 58) 0px 0px 0px 1px inset" && inv.msg.join() === "Give the profile a name." && inv.save, JSON.stringify(inv))
+  await pick("print-invalid")
+  const bad = { msg: await page.locator('[data-testid="pp-error"]').allTextContents(), save: await page.locator('[data-testid="pp-save"]').isDisabled(), title: await page.locator('[data-testid="print-profile-dialog"] > div').first().textContent(),
+    color: await page.locator('[data-testid="pp-error"]').first().evaluate((e) => `${getComputedStyle(e).fontSize}/${getComputedStyle(e).lineHeight} ${getComputedStyle(e).color}`) }
+  ok("printer-presets: print-invalid shows name / trim / page-count messages 12/16.8 #a8403a, Save disabled", bad.title === "New print profile" && bad.save && bad.color === "12px/16.8px rgb(168, 64, 58)" &&
+    bad.msg.join("|") === "Give the profile a name.|The largest side can’t be smaller than the smallest.|20 to 121 isn’t whole steps of 2. Try 120 or 122.", JSON.stringify(bad))
+  // Designer review (PR #500): Save stays in view on a short viewport; the form body scrolls instead
+  await page.setViewportSize({ width: 1440, height: 700 }); await page.waitForTimeout(300)
+  const short = await page.locator('[data-testid="print-profile-dialog"]').evaluate((d) => {
+    let m = d; while (m.style.width !== "560px") m = m.parentElement
+    const body = d.querySelector('[data-testid="pp-form"]').parentElement
+    return { gap: +(m.getBoundingClientRect().bottom - d.querySelector('[data-testid="pp-save"]').getBoundingClientRect().bottom).toFixed(2), sh: body.scrollHeight, ch: body.clientHeight }
+  })
+  ok("printer-presets: at 1440 × 700 Save sits ≥ 20 px above the modal bottom and the form scrolls", short.gap >= 20 && short.sh > short.ch, JSON.stringify(short))
+  await page.setViewportSize({ width: 1440, height: 900 }); await page.waitForTimeout(300)
+  // Generic spine = core genericPrintProfile (8 + 0.2 mm per page); fields keep the stored value (Duplicate Lulu + Save keeps bleed 3.175)
+  await pick("print")
+  await S("print-new").click(); await page.waitForTimeout(350)
+  const newHint = await page.locator('[data-testid="pp-spine-hint"]').textContent()
+  await page.getByRole("button", { name: "Cancel" }).click(); await page.waitForTimeout(300)
+  ok("printer-presets: New profile spine hint = Generic 20 pages = 12 mm · 120 pages = 32 mm", newHint === "20 pages = 12 mm · 120 pages = 32 mm", newHint)
+  const field = (k) => page.locator(`[data-testid="pp-${k}"] input`).inputValue()
+  await S("print-duplicate-lulu-photo-book").click(); await page.waitForTimeout(350)
+  const dup = { bleed: await field("bleed"), safe: await field("safe") }
+  await page.locator('[data-testid="pp-save"]').click(); await page.waitForTimeout(300)
+  await page.locator('[data-scenario] [data-testid^="print-edit-custom-"]').last().click(); await page.waitForTimeout(350)
+  const kept = { bleed: await field("bleed"), name: await page.locator('[data-testid="pp-name"] input').inputValue() }
+  await page.getByRole("button", { name: "Cancel" }).click(); await page.waitForTimeout(300)
+  ok("printer-presets: Duplicate Lulu shows bleed 3.175 / safe 12.7 unrounded; after Save the copy still has bleed 3.175", dup.bleed === "3.175" && dup.safe === "12.7" && kept.bleed === "3.175" && kept.name.startsWith("Lulu · Photo book (copy"), JSON.stringify({ dup, kept }))
+  await page.goto(url + feat("pdf-export")); await page.waitForTimeout(500)
+  const P = (q) => page.locator(q).first().textContent()
+  const pd = { row: await P('[data-testid="print-profile"]'), sum: await P('[data-testid="print-summary"]'), cb: await P('label:has-text("bleed and crop marks")') }
+  ok("printer-presets: PrintDialog Printer · Generic row, 3 mm bleed from the profile", pd.row === "PrinterGeneric" && pd.cb === "Add 3 mm bleed and crop marks" && pd.sum.endsWith("· bleed 3 mm"), JSON.stringify(pd))
+  ok("printer-presets: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
+}
 
 
 fs.writeFileSync(new URL("../qa-report.txt", import.meta.url), res.join("\n") + "\n\nCONSOLE:\n" + (errs.join("\n") || "none") + "\n")
