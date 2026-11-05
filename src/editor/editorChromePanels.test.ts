@@ -84,7 +84,8 @@ describe('editorChromePanels', () => {
   })
 
   it('formats kit page and zoom chrome labels', () => {
-    expect(pagesOf(3)).toBe(6)
+    // Pages 1, 2–3, 4: the list the size line counts.
+    expect(pagesOf(3)).toBe(4)
     expect(zoomChromeLabel(0.5, 0.5)).toBe('Fit')
     expect(zoomChromeLabel(0.4985, 0.5)).toBe('Fit')
     expect(zoomChromeLabel(0.5, null)).toBe(formatZoomPercent(0.5))
@@ -103,7 +104,7 @@ describe('editorChromePanels', () => {
         spreads: 3,
         saveLabel: 'saved',
       }),
-    ).toBe('30 × 30 cm · 6 pages · saved')
+    ).toBe('30 × 30 cm · 4 pages · saved')
     expect(
       bookSizeLine({
         widthMm: 210,
@@ -111,6 +112,6 @@ describe('editorChromePanels', () => {
         spreads: 1,
         saveLabel: null,
       }),
-    ).toBe('21 × 29.7 cm · 2 pages')
+    ).toBe('21 × 29.7 cm · 1 page')
   })
 })

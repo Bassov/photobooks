@@ -1,4 +1,4 @@
-import { pageLabel } from '../core/pages'
+import { pageLabel, pagesOf, pagesText } from '../core/pages'
 import {
   bookObjectWidthForHeight,
   type BookObjectFmt,
@@ -24,11 +24,6 @@ export function slideCount(n: number): number {
   return n + 1
 }
 
-/** Pages a site visitor sees: 1 … the last spread's single page, 2(n − 1). */
-export function sitePageCount(n: number): number {
-  return n <= 1 ? Math.max(0, n) : 2 * (n - 1)
-}
-
 /** Pager text: `Cover`, then `Page 1 · 1 / n`, `Pages 2–3 · 2 / n` … */
 export function slideLabel(slide: number, n: number): string {
   if (slide === 0) return 'Cover'
@@ -49,7 +44,7 @@ export function slideForHash(hash: string, n: number): number {
   const match = /^#p([1-9]\d{0,5})$/.exec(hash)
   if (match === null) return 0
   const page = Number(match[1])
-  if (page > sitePageCount(n)) return 0
+  if (page > pagesOf(n)) return 0
   // Page 1 → spread 0, pages 2–3 → spread 1, …
   return Math.floor(page / 2) + 1
 }
@@ -129,7 +124,7 @@ export function catalogMeta(author: string | undefined, books: number): string {
 
 /** Book meta line under the title. */
 export function bookMeta(author: string | undefined, pages: number): string {
-  const count = `${String(pages)} pages`
+  const count = pagesText(pages)
   return author === undefined || author === ''
     ? count
     : `by ${author} · ${count}`

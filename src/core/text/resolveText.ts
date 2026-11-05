@@ -1,4 +1,4 @@
-import type { Book, Frame, Spread, TextStyleId } from '../schema'
+import type { Asset, Book, Frame, Spread, TextStyleId } from '../schema'
 
 export interface ResolvedTextItem {
   frameId: string
@@ -12,23 +12,114 @@ export interface ResolvedTextItem {
 const DEFAULT_TEXT_STYLE: TextStyleId = 'caption'
 const DEFAULT_TEXT_ALIGN = 'left' as const
 
+/** Live caption parts are joined with a middle dot (kit chip separator). */
+const TOKEN_SEPARATOR = ' · '
+
+/** Printed for each photo token when the anchor frame holds no photo. */
+const NO_PHOTO_VALUE = '—'
+
+const PHOTO_TOKENS = ['date', 'title', 'caption', 'camera'] as const
+
+const MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const
+
 export function isTextFrame(frame: Frame): boolean {
   return frame.kind === 'text'
 }
 
-function anchorCaption(book: Book, spread: Spread, frame: Frame): string {
-  const anchor = spread.frames.find((f) => f.id === frame.anchorFrameId)
-  const meta = anchor?.assetId ? book.assets[anchor.assetId]?.meta : undefined
-  return meta?.caption ?? meta?.title ?? ''
+function dayMonthYear(day: number, month: number, year: number): string {
+  const name = MONTHS[month - 1]
+  return name === undefined || day < 1 || day > 31
+    ? ''
+    : `${String(day)} ${name} ${String(year)}`
 }
 
-/** Replaces `{title}`, `{caption}` and `{spread}` (1-based); unknown tokens stay literal. */
+/**
+ * `capturedAt` as `D Mon YYYY` (fixed English months, no `Intl`): an ISO
+ * time with `Z` / offset reads the local date, else the first
+ * `YYYY[-:]MM[-:]DD` digits (EXIF `2025:07:12 08:35:00`); unparseable → ''.
+ */
+export function formatCaptureDate(capturedAt: string): string {
+  if (/T.*(?:Z|[+-]\d{2}:\d{2})$/i.test(capturedAt)) {
+    const date = new Date(capturedAt)
+    return Number.isNaN(date.getTime())
+      ? ''
+      : dayMonthYear(date.getDate(), date.getMonth() + 1, date.getFullYear())
+  }
+  const match = /(\d{4})[-:](\d{2})[-:](\d{2})/.exec(capturedAt)
+  return match === null
+    ? ''
+    : dayMonthYear(Number(match[3]), Number(match[2]), Number(match[1]))
+}
+
+function photoValues(asset: Asset | undefined): Record<string, string> {
+  return {
+    date: formatCaptureDate(asset?.capturedAt ?? ''),
+    title: asset?.meta?.title ?? '',
+    caption: asset?.meta?.caption ?? '',
+    camera: asset?.meta?.camera ?? '',
+  }
+}
+
+/** Replaces known tokens; unknown tokens stay literal. */
 function fillTemplate(
   template: string,
   values: Record<string, string>,
 ): string {
   return template.replace(/\{(\w+)\}/g, (token, name: string) =>
     Object.hasOwn(values, name) ? (values[name] ?? token) : token,
+  )
+}
+
+/** Drops ` · ` parts left blank by empty photo values. */
+function dropEmptyParts(text: string): string {
+  return text
+    .split(TOKEN_SEPARATOR)
+    .filter((part) => part.trim() !== '')
+    .join(TOKEN_SEPARATOR)
+}
+
+function resolveTemplate(
+  book: Book,
+  spread: Spread,
+  frame: Frame,
+  template: string,
+): string {
+  const spreadNumber = String(book.spreads.indexOf(spread) + 1)
+  if (frame.anchorFrameId === undefined) {
+    return fillTemplate(template, {
+      date: '',
+      title: book.title ?? '',
+      caption: '',
+      camera: '',
+      spread: spreadNumber,
+    })
+  }
+  const anchorId = frame.anchorFrameId
+  const assetId = spread.frames.find((f) => f.id === anchorId)?.assetId
+  if (assetId === undefined) {
+    const dashes = Object.fromEntries(
+      PHOTO_TOKENS.map((name) => [name, NO_PHOTO_VALUE]),
+    )
+    return fillTemplate(template, { ...dashes, spread: spreadNumber })
+  }
+  return dropEmptyParts(
+    fillTemplate(template, {
+      ...photoValues(book.assets[assetId]),
+      spread: spreadNumber,
+    }),
   )
 }
 
@@ -44,11 +135,7 @@ export function resolveTextContent(
       ? ''
       : content.type === 'static'
         ? content.text
-        : fillTemplate(content.template, {
-            title: book.title ?? '',
-            caption: anchorCaption(book, spread, frame),
-            spread: String(book.spreads.indexOf(spread) + 1),
-          })
+        : resolveTemplate(book, spread, frame, content.template)
   return {
     frameId: frame.id,
     text,

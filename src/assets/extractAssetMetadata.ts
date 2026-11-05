@@ -148,7 +148,9 @@ function readCamera(raw: ExifRaw): string | undefined {
   const make = asNonEmptyString(raw.Make)
   const model = asNonEmptyString(raw.Model)
   if (make !== undefined && model !== undefined) {
-    return `${make} ${model}`
+    // "Canon" + "Canon EOS R5" → "Canon EOS R5" (no repeated make).
+    const brand = make.replace(/\s.*/s, '').toLowerCase()
+    return model.toLowerCase().startsWith(brand) ? model : `${make} ${model}`
   }
   return make ?? model
 }

@@ -100,7 +100,7 @@ export const TEXT_STYLE_IDS = ['title', 'caption', 'body'] as const
 
 const textContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('static'), text: z.string() }),
-  /** `{title}`, `{caption}`, `{spread}` tokens resolved by `resolveTextItems`. */
+  /** `{date}`, `{title}`, `{caption}`, `{camera}`, `{spread}` tokens resolved by `resolveTextItems`. */
   z.object({ type: z.literal('template'), template: z.string() }),
 ])
 /*
