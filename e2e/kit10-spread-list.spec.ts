@@ -52,7 +52,7 @@ test('a two-page row paints nothing in its thumb box beside the paper', async ({
   await rows(page).nth(2).click()
   await expect(rows(page).nth(2)).toHaveAttribute('aria-selected', 'true')
   const thumb = rows(page).nth(1).locator('.editor-spread-thumb')
-  await page.mouse.move(700, 450)
+  await page.getByTestId('pasteboard-scroll').hover()
   expect(await pixelsAt(thumb, thumb.locator('.spread-view--thumb'))).toBe(0)
 })
 
