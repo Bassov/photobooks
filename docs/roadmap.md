@@ -76,6 +76,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [inspector-empty-after-grey](roadmap/P2/inspector-empty-after-grey.md) — Bug: /next-roadmap-item inspector-empty-after-grey
 - [x] [feature] [settings-books-count-flash](roadmap/P2/settings-books-count-flash.md) — Bug: /next-roadmap-item settings-books-count-flash
 - [ ] [feature] [text-blocks](roadmap/P2/text-blocks.md) — captions
+- [ ] [feature] [live-captions-core](roadmap/P2/live-captions-core.md) — Bug: /next-roadmap-item live-captions-core
 - [ ] [feature] [live-captions](roadmap/P2/live-captions.md) — captions from photo metadata
 - [x] [feature] [frame-styles](roadmap/P2/frame-styles.md) — consistent frames across the book
 - [x] [prep] [parent-spreads-schema](roadmap/P2/parent-spreads-schema.md) — parent spreads in the document
