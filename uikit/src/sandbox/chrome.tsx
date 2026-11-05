@@ -20,7 +20,7 @@ import { ToastRegion } from "@/components/ui/toast"
 import { Slider, SliderTrack, SliderFillTrack, SliderThumb } from "@/components/ui/slider"
 import { IconButton, ThumbGrid, ThumbItem, Kbd, AlertDialog, thumbWidth } from "@/components/app/ui"
 import { photos, P, type Photo } from "@/data"
-import { useStudio, placedSet, mapSpread } from "./store"
+import { useStudio, placedSet, mapSpread, mapSpreadFreezing } from "./store"
 import { PhotoImg, PHOTO_TYPE, FRAME_TYPE } from "./canvas"
 import { SW, SH, spread, parentOf, defaultMasterOf, pageNumbersOf, foliosOf, type Frame, type Spread } from "./model"
 import type { Node } from "./store"
@@ -370,7 +370,9 @@ function SpreadItemMenu({ i }: { i: number }) {
   const st = useStudio()
   const dup = () => {
     const src = st.doc.spreads[i]
-    const copy: Spread = { ...src, id: `s${Date.now()}`, frames: src.frames.map((f) => ({ ...f, id: `${f.id}c${Date.now() % 1000}` })) }
+    const n = Date.now() % 1000, cid = (id: string) => `${id}c${n}`
+    // live captions follow their anchor into the copy (Designer live-captions §6)
+    const copy: Spread = { ...src, id: `s${Date.now()}`, frames: src.frames.map((f) => ({ ...f, id: cid(f.id), ...(f.anchor && { anchor: cid(f.anchor) }) })) }
     st.update((d) => ({ ...d, spreads: [...d.spreads.slice(0, i + 1), copy, ...d.spreads.slice(i + 1)] }), "Duplicate spread")
     st.setCur(i + 1); st.setStatus(`${pagesName(i)} duplicated`)
   }
@@ -550,7 +552,7 @@ export function applyTemplate(st: ReturnType<typeof useStudio>, tid: string) {
   const ph = s.frames.filter((f) => f.kind === "image").map((f) => f.photo).filter(Boolean) as string[]
   const t = TT(tid)
   const kept = ph.slice(0, t.count), dropped = ph.length - kept.length
-  st.update((d) => mapSpread(d, st.cur, (sp) => ({ ...spread(tid, kept), id: sp.id, guides: sp.guides, parent: sp.parent, bg: sp.bg, frames: [...spread(tid, kept).frames, ...sp.frames.filter((f) => f.kind === "text")] })), `Template “${t.name}”`)
+  st.update((d) => mapSpreadFreezing(d, st.cur, (sp) => ({ ...spread(tid, kept), id: sp.id, guides: sp.guides, parent: sp.parent, bg: sp.bg, frames: [...spread(tid, kept).frames, ...sp.frames.filter((f) => f.kind === "text")] })), `Template “${t.name}”`)
   st.setSel([])
   st.setStatus(dropped ? `${dropped} photo${dropped > 1 ? "s" : ""} returned to the gallery — “${t.name}” has ${t.count} frame${t.count > 1 ? "s" : ""}` : `Applied “${t.name}” · photos kept in order`)
 }
