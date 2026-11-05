@@ -63,6 +63,21 @@ async function lockSelected(page: Page) {
   ).toBeVisible()
 }
 
+/** Marquee from the pasteboard left of the hero spread across its whole paper. */
+async function marqueeAll(page: Page) {
+  const box = await hero(page).boundingBox()
+  if (box === null) throw new Error('hero spread has no box')
+  await page.mouse.move(box.x - 16, box.y + 2)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, {
+    steps: 4,
+  })
+  await page.mouse.move(box.x + box.width - 2, box.y + box.height - 2, {
+    steps: 4,
+  })
+  await page.mouse.up()
+}
+
 /** Distinct colours in the element's clipped screenshot: painted text gives many, a blank box one. */
 async function paintedColours(page: Page, el: Locator) {
   const png = (await el.screenshot({ scale: 'css' })).toString('base64')
@@ -153,25 +168,31 @@ test.describe('kit #/demo frame keys', () => {
     await expect(frames(page)).toHaveCount(n)
   })
 
-  test('ArrowRight on an all-locked selection moves nothing and shows the locked status', async ({
-    page,
-  }) => {
-    await openDemoBook(page)
-    await select(page, [0])
-    await lockSelected(page)
-    await select(page, [1])
-    await lockSelected(page)
-    await select(page, [0, 1])
-    await blur(page)
-    const before = await rects(page)
-    await page.keyboard.press('ArrowRight')
-    await page.keyboard.press('Shift+ArrowRight')
-    const status = demo(page).getByTestId('status')
-    await expect(status).toHaveText(LOCKED)
-    const box = await status.boundingBox()
-    expect(box?.width ?? 0).toBeGreaterThan(0)
-    expect(box?.height ?? 0).toBeGreaterThan(0)
-    expect(await paintedColours(page, status)).toBeGreaterThan(8)
-    expect(await rects(page)).toEqual(before)
-  })
+  for (const key of ['ArrowRight', 'Shift+ArrowRight']) {
+    test(`${key} on an all-locked selection moves nothing and shows the locked status`, async ({
+      page,
+    }) => {
+      await openDemoBook(page)
+      // a pointer-down on a locked frame already shows the locked status, so
+      // each frame is clicked while unlocked and the marquee selects them all
+      const n = await frames(page).count()
+      for (let i = 0; i < n; i++) {
+        await select(page, [i])
+        await lockSelected(page)
+      }
+      await marqueeAll(page)
+      await expect(demo(page).getByTestId('sel-outline')).toHaveCount(n)
+      await blur(page)
+      const status = demo(page).getByTestId('status')
+      await expect(status).not.toHaveText(LOCKED)
+      const before = await rects(page)
+      await page.keyboard.press(key)
+      await expect(status).toHaveText(LOCKED)
+      const box = await status.boundingBox()
+      expect(box?.width ?? 0).toBeGreaterThan(0)
+      expect(box?.height ?? 0).toBeGreaterThan(0)
+      expect(await paintedColours(page, status)).toBeGreaterThan(8)
+      expect(await rects(page)).toEqual(before)
+    })
+  }
 })
