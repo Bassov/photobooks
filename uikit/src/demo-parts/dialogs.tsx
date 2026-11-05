@@ -175,7 +175,7 @@ export function ExportSiteDialog({ title, otherBooks, folder, initialStep = "opt
         {step === "done" && <>
           <div className="heading flex items-center gap-2 text-xl leading-tight"><CircleCheck className="size-5" />Site exported</div>
           <p className="mt-1 text-sm text-muted-foreground" data-testid="export-site-summary">{books} book{books === 1 ? "" : "s"} · {22 + 64 * books} files · {(16.07 * books).toFixed(1)} MB in {dir}/dist.</p>
-          <div className="mt-1 flex flex-col gap-1.5">
+          <div className="mt-4 flex flex-col gap-1.5">
             <span className="text-xs text-muted-foreground">To open it, serve the folder with a local web server, for example:</span>
             <div className="rounded-md bg-field px-3 py-2 font-mono text-sm">npx serve dist</div>
           </div>

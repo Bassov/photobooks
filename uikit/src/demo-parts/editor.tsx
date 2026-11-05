@@ -127,7 +127,7 @@ export function EditorTopBar({ title, onLibrary, onPreview, onSettings, exportSi
       <Button variant="ghost" size="sm" className="h-8 gap-1.5 rounded-full px-3 text-sm font-medium [&_svg]:size-4" style={quiet} onPress={onPreview} data-testid="demo-preview"><Eye />Preview</Button>
       <Button variant="ghost" size="sm" className="h-8 gap-1.5 rounded-full px-3 text-sm font-medium [&_svg]:size-4" style={quiet} onPress={onSettings} data-testid="demo-editor-settings" aria-label="Settings"><Settings /></Button>
       <ExportSitePill {...exportSite} onPress={onExportSite} />
-      <Button variant="ghost" size="sm" className="h-8 gap-1.5 rounded-full px-3.5 text-sm font-medium [&_svg]:size-4" style={quiet} onPress={onPrint} data-testid="demo-print"><Printer />Print</Button>
+      <span className="contents" title="Print"><Button variant="ghost" size="sm" className="h-8 gap-1.5 rounded-full px-3 text-sm font-medium [&_svg]:size-4" style={quiet} onPress={onPrint} data-testid="demo-print" aria-label="Print"><Printer /></Button></span>
       <Button variant="ghost" size="sm" className="e7-sec h-8 gap-1.5 rounded-full px-3.5 text-sm font-medium [&_svg]:size-4" style={quiet} onPress={onPublish} data-testid="demo-publish">Publish</Button>
     </div>
   )

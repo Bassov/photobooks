@@ -198,7 +198,7 @@ export const PAGES: Record<string, FeatureDef> = {
     ["book", "Book", root(onSite({ page: "book" }, "book"))],
   ], {
     what: "The published site: a catalog of published books, then one book’s viewer with spreads, Share and Fullscreen. A bar above it returns to the editor.",
-    where: "#/demo steps 35–38 (Publish → Open site).",
+    where: "#/demo steps 56–59 (Publish → Open site).",
     edge: ["Share copies the book link", "Esc leaves fullscreen"],
   }),
   "site-lightbox": page([
@@ -206,7 +206,7 @@ export const PAGES: Record<string, FeatureDef> = {
     ["spread", "Spread 2", root(onSite({ page: "book", slide: 3, lb: true }, "book"))],
   ], {
     what: "Fullscreen viewing of one book on the site; arrows step through spreads.",
-    where: "#/demo step 38.",
+    where: "#/demo step 59.",
     keys: [["← / →", "previous / next spread"], ["Esc", "close"]],
   }),
   "site-photographer": {
@@ -242,8 +242,8 @@ export const PAGES: Record<string, FeatureDef> = {
     ["done", "Published", ed({ doc: docFilled, cur: 1, overlay: <PublishDialog title={LAKE_TITLE} onClose={() => {}} initialStep="done" /> })],
   ], {
     what: "Publish dialog over the editor: web image size (1600 / 2048 / 3200 px) and “Let visitors download a PDF”; Publish shows progress, then Published with Open site.",
-    where: "#/demo steps 32–34 (top bar → Publish).",
-    edge: ["Open site goes to the site catalog (#/demo step 35)"],
+    where: "#/demo steps 49–51 (top bar → Publish).",
+    edge: ["Open site goes to the site catalog (#/demo step 56)"],
   }),
   /* ------------------------------------------------------------ static export */
   "static-export": page([
