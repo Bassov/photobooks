@@ -8,3 +8,4 @@
 ## Manual test scenarios
 
 1. Editor → Book settings: Endpapers (on) and Skip first page (off) toggles are 36×20 with a 16 px knob at the right / left end; clicking each moves the knob 16 px; row heights unchanged.
+   - problem (harness): `pnpm agent manual-qa` ok:false — the welcome `start-session` click is intercepted by the welcome header (known manual-qa welcome block), editor never opened. Covered by e2e instead: `e2e/switch-size-parity.spec.ts` (track 36×20, knob 16×16 at +2/+2 off and +18/+2 on ±0.5, knob paint, rows unchanged) and the kit twin in `e2e/kit-live-captions.spec.ts`, both green locally.
