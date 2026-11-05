@@ -1,8 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeSpread } from '../core/testing/fixtures'
-import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
+import {
+  dispatchBookOp,
+  getBookStoreSnapshot,
+  resetBookStore,
+  undoBook,
+} from './bookStore'
 import { getEditorStatus, setEditorStatus } from './editorStatus'
-import { startGuideDrag } from './guideGesture'
+import { startGuideDrag, startParentGuideOverride } from './guideGesture'
 import { getGuidesVisible, setGuidesVisible } from './guidesView'
 
 // Spread: one 300 mm page; 1 mm = 2 client px and 1.5 layout px.
@@ -448,5 +453,188 @@ describe('startGuideDrag', () => {
     drag(spreadEl, rulerY, 90, { id: 'g', lineEl, offsetMm: 100 })
     expect(guidesOf()).toHaveLength(0)
     expect(getEditorStatus()).toBe('Photo moved')
+  })
+})
+
+describe('startParentGuideOverride (Designer PO5)', () => {
+  // s1 is a two-page 600 mm spread over the 600 px box: 1 mm = 1 client px.
+  const spread = () => getBookStoreSnapshot().book.spreads[1]
+  const copies = () => spread()?.parentOverrides?.guides ?? []
+
+  function load(locked?: true) {
+    resetBookStore({
+      book: makeBook({
+        spreads: ['s0', 's1', 's2'].map((id) => makeSpread({ id })),
+        parents: [
+          {
+            id: 'pa',
+            name: 'Master A',
+            frames: [],
+            guides: [
+              {
+                id: 'pg',
+                orientation: 'horizontal',
+                offsetMm: 100,
+                ...(locked && { locked }),
+              },
+            ],
+          },
+        ],
+        defaultParentId: 'pa',
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+  }
+
+  /** The pasteboard stage: rulers, the spread and the copy's line the overlay renders. */
+  function mountStage() {
+    const parts = mount()
+    const stage = document.createElement('div')
+    stage.dataset.rulers = 'true'
+    const spreadStage = document.createElement('div')
+    spreadStage.className = 'spread-stage'
+    parts.rulerX.dataset.testid = 'ruler-x'
+    const other = document.createElement('div')
+    other.dataset.testid = 'guide-line'
+    other.dataset.guideId = 'guide-1'
+    parts.lineEl.dataset.testid = 'guide-line'
+    parts.lineEl.dataset.guideId = 'copy-1'
+    spreadStage.append(parts.spreadEl, other, parts.lineEl)
+    stage.append(parts.rulerX, spreadStage)
+    document.body.append(stage)
+    return { ...parts, other }
+  }
+
+  beforeEach(() => {
+    frames = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb)
+      return frames.length
+    })
+    vi.stubGlobal('cancelAnimationFrame', () => {
+      frames = []
+    })
+    load()
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    document.body.replaceChildren()
+    resetBookStore()
+  })
+
+  it('overrides the parent guide and drags its copy: two undo steps, the parent untouched', () => {
+    const { spreadEl, lineEl, other } = mountStage()
+    expect(startParentGuideOverride(pointer(300, 150), spreadEl, 'pg')).toBe(
+      true,
+    )
+    const copy = {
+      id: 'copy-1',
+      orientation: 'horizontal',
+      offsetMm: 100,
+      overridesId: 'pg',
+    }
+    expect(copies()).toEqual([copy])
+    expect(lineEl.dataset.dragging).toBe('true')
+    expect(other.dataset.dragging).toBeUndefined()
+    move(300, 190)
+    up(300, 190)
+    expect(copies()).toEqual([{ ...copy, offsetMm: 140 }])
+    expect(getBookStoreSnapshot().book.parents?.[0]?.guides).toEqual([
+      { id: 'pg', orientation: 'horizontal', offsetMm: 100 },
+    ])
+    undoBook()
+    expect(copies()).toEqual([copy])
+    undoBook()
+    expect(copies()).toEqual([])
+  })
+
+  it('hides the parent guide when the copy is dropped on its ruler', () => {
+    const { spreadEl } = mountStage()
+    startParentGuideOverride(pointer(300, 150), spreadEl, 'pg')
+    move(300, 40)
+    up(300, 40)
+    expect(copies()).toEqual([])
+    expect(spread()?.parentOverrides?.hiddenIds).toEqual(['pg'])
+    undoBook()
+    expect(copies()).toHaveLength(1)
+  })
+
+  it('a locked parent guide only overrides', () => {
+    load(true)
+    const { spreadEl, lineEl } = mountStage()
+    expect(startParentGuideOverride(pointer(300, 150), spreadEl, 'pg')).toBe(
+      true,
+    )
+    expect(copies()).toHaveLength(1)
+    expect(lineEl.dataset.dragging).toBeUndefined()
+  })
+
+  it('an unknown or hidden guide, or an unknown spread, is not consumed', () => {
+    const { spreadEl } = mountStage()
+    const press = () =>
+      startParentGuideOverride(pointer(300, 150), spreadEl, 'pg')
+    expect(startParentGuideOverride(pointer(300, 150), spreadEl, 'nope')).toBe(
+      false,
+    )
+    dispatchBookOp({
+      type: 'hideParentItem',
+      spreadId: 's1',
+      parentItemId: 'pg',
+    })
+    const hidden = getBookStoreSnapshot().book
+    expect(press()).toBe(false)
+    spreadEl.dataset.spreadId = 'gone'
+    expect(press()).toBe(false)
+    expect(getBookStoreSnapshot().book).toBe(hidden)
+  })
+
+  it('an own guide dropped on its ruler is removed, never a parent guide', () => {
+    const { spreadEl, rulerY, lineEl } = mountStage()
+    const dropOwn = () => {
+      startGuideDrag({
+        event: pointer(400, 200),
+        spreadEl,
+        orientation: 'vertical',
+        rulerEl: rulerY,
+        existing: { id: 'own', lineEl, offsetMm: 300 },
+      })
+      up(90, 200)
+    }
+    const add = () => {
+      dispatchBookOp({
+        type: 'addGuide',
+        spreadId: 's1',
+        orientation: 'vertical',
+        offsetMm: 300,
+        id: 'own',
+      })
+    }
+    add()
+    // Hidden only: no copies on the spread.
+    dispatchBookOp({
+      type: 'hideParentItem',
+      spreadId: 's1',
+      parentItemId: 'pg',
+    })
+    dropOwn()
+    expect(spread()?.guides).toEqual([])
+    expect(spread()?.parentOverrides).toEqual({ hiddenIds: ['pg'] })
+    // Beside a copy.
+    dispatchBookOp({
+      type: 'resetParentItem',
+      spreadId: 's1',
+      parentItemId: 'pg',
+    })
+    dispatchBookOp({
+      type: 'overrideParentGuide',
+      spreadId: 's1',
+      parentGuideId: 'pg',
+    })
+    add()
+    dropOwn()
+    expect(spread()?.guides).toEqual([])
+    expect(copies()).toHaveLength(1)
   })
 })
