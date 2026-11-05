@@ -7,7 +7,10 @@ import { GuidesOverlay } from './GuidesOverlay'
 import { setGuidesVisible } from './guidesView'
 
 const startGuideDrag = vi.hoisted(() => vi.fn())
-vi.mock('./guideGesture', () => ({ startGuideDrag }))
+vi.mock('./guideGesture', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./guideGesture')>()),
+  startGuideDrag,
+}))
 
 function seed(locked = false) {
   resetBookStore({
@@ -258,6 +261,31 @@ describe('GuidesOverlay', () => {
     const [, first] = screen.getAllByTestId('guide-line-parent')
     expect(first?.dataset.offsetMm).toBe('100')
     expect(first?.style.left).toBe('200px')
+  })
+
+  it('draws an overridden parent guide as an own guide that drags, the parent line gone', () => {
+    seedChildren()
+    renderInSpread('child')
+    act(() => {
+      dispatchBookOp({
+        type: 'overrideParentGuide',
+        spreadId: 'child',
+        parentGuideId: 'pg',
+      })
+    })
+    expect(screen.getAllByTestId('guide-line-parent')).toHaveLength(1)
+    const [copy, own] = screen.getAllByTestId('guide-line')
+    expect(copy?.dataset).toMatchObject({
+      layer: 'override',
+      guideId: 'copy-1',
+      offsetMm: '30',
+    })
+    expect(own?.dataset.layer).toBe('spread')
+    fireEvent.pointerDown(copy as Element, { button: 0 })
+    const start = startGuideDrag.mock.calls[0]?.[0]
+    expect(start?.orientation).toBe('horizontal')
+    expect(start?.rulerEl).toBe(screen.getByTestId('ruler-x'))
+    expect(start?.existing).toMatchObject({ id: 'copy-1', offsetMm: 30 })
   })
 
   it('follows a new spread id', () => {

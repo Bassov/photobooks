@@ -140,4 +140,29 @@ describe('loadPainterFixture', () => {
     )
     expect(copies.slice(10).every((id) => id === undefined)).toBe(true)
   })
+
+  it('gives Master A a horizontal and a vertical guide with guides=a only', () => {
+    const guidesOf = () =>
+      getBookStoreSnapshot().book.parents?.map((parent) => parent.guides)
+    loadPainterFixture('?fixture=painter&parent=a&guides=a')
+    expect(guidesOf()).toEqual([
+      [
+        {
+          id: 'painter-parent-guide-h',
+          orientation: 'horizontal',
+          offsetMm: 150,
+        },
+        {
+          id: 'painter-parent-guide-v',
+          orientation: 'vertical',
+          offsetMm: 420,
+        },
+      ],
+      [],
+    ])
+    expect(getBookStoreSnapshot().book.defaultParentId).toBe('painter-parent-a')
+
+    loadPainterFixture('?fixture=painter&guides=b')
+    expect(guidesOf()).toEqual([[], []])
+  })
 })

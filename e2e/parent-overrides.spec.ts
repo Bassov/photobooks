@@ -342,3 +342,174 @@ test('a handle drag on a selected copy keeps it selected, the ring tracks, Delet
   )
   await assertDocumentFitsViewport(page)
 })
+
+test.describe('parent guides (Designer PO5)', () => {
+  // `&guides=a`: Master A also has a horizontal guide at 150 mm and a
+  // vertical one at 420 mm (the painter spread is 600 × 300 mm).
+  const SPREAD_WIDTH_MM = 600
+  const stageOf = (page: Page, id: string) =>
+    page.getByTestId('spread-stage').filter({ has: canvasSpread(page, id) })
+  const parentLines = (page: Page, id: string) =>
+    stageOf(page, id).getByTestId('guide-line-parent')
+  const copyLines = (page: Page, id: string) =>
+    stageOf(page, id).locator(
+      '[data-testid="guide-line"][data-layer="override"]',
+    )
+
+  async function pxPerMm(page: Page, id: string) {
+    return (await boxOf(canvasSpread(page, id))).width / SPREAD_WIDTH_MM
+  }
+
+  async function ctrlShiftDrag(
+    page: Page,
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+  ) {
+    await page.mouse.move(from.x, from.y)
+    await page.keyboard.down('Control')
+    await page.keyboard.down('Shift')
+    await page.mouse.down()
+    await page.keyboard.up('Shift')
+    await page.keyboard.up('Control')
+    await page.mouse.move(to.x, to.y, { steps: 6 })
+    await page.mouse.up()
+  }
+
+  /** First bare paper point down the column at `x` (no frame or guide under it). */
+  async function barePaperAt(page: Page, id: string, x: number) {
+    const spread = await boxOf(canvasSpread(page, id))
+    const y = await page.evaluate(
+      ([px, top, bottom, spreadId]) => {
+        for (let py = top + 2; py < bottom; py += 2) {
+          const el = document.elementFromPoint(px, py)
+          const view = el?.closest('[data-testid="spread-view"]')
+          if (
+            view?.getAttribute('data-spread-id') === spreadId &&
+            el?.closest('.spread-frame, .guide-line') === null
+          ) {
+            return py
+          }
+        }
+        return null
+      },
+      [x, spread.y, spread.y + spread.height, id] as const,
+    )
+    if (y === null) throw new Error('no bare paper')
+    return { x, y }
+  }
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/?fixture=painter&parent=a&guides=a')
+    await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
+      'data-spread-count',
+      '40',
+    )
+  })
+
+  test('Ctrl+Shift on a parent guide through the frames overrides it on this spread and drags the copy; undo twice restores it', async ({
+    page,
+  }) => {
+    const a = 'painter-spread-3'
+    const other = 'painter-spread-4'
+    await openSpread(page, a)
+    // Empty: two dashed parent lines, no copy.
+    await expect(parentLines(page, a)).toHaveCount(2)
+    await expect(copyLines(page, a)).toHaveCount(0)
+    const scale = await pxPerMm(page, a)
+    const spread = await boxOf(canvasSpread(page, a))
+    const line = parentLines(page, a).and(
+      page.locator('[data-orientation="horizontal"]'),
+    )
+    const lineBox = await boxOf(line)
+    const from = {
+      x: spread.x + spread.width * 0.3,
+      y: lineBox.y + lineBox.height / 2,
+    }
+
+    await ctrlShiftDrag(page, from, { x: from.x, y: from.y + 40 })
+
+    // Happy: a solid own-style copy 40 px lower; the parent line is gone here only.
+    await expect(copyLines(page, a)).toHaveCount(1)
+    await expect(line).toHaveCount(0)
+    const moved = Number(
+      await copyLines(page, a).getAttribute('data-offset-mm'),
+    )
+    expect(moved).toBeCloseTo(150 + 40 / scale, 0)
+    const style = await copyLines(page, a).evaluate((el) => {
+      const s = getComputedStyle(el)
+      return `${s.backgroundImage} ${s.backgroundColor} ${s.pointerEvents}`
+    })
+    expect(style).toBe('none rgb(107, 105, 106) auto')
+    await expect(
+      page.locator('button.spread-frame[aria-pressed="true"]'),
+    ).toHaveCount(0)
+    await expect(parentLines(page, other)).toHaveCount(2)
+
+    await page.keyboard.press('Control+z')
+    await expect(copyLines(page, a)).toHaveAttribute('data-offset-mm', '150')
+    await page.keyboard.press('Control+z')
+    await expect(copyLines(page, a)).toHaveCount(0)
+    await expect(parentLines(page, a)).toHaveCount(2)
+    await assertDocumentFitsViewport(page)
+  })
+
+  test('a copy dropped on its ruler hides the parent guide on this spread; hidden, it neither paints nor snaps', async ({
+    page,
+  }) => {
+    const a = 'painter-spread-3'
+    await openSpread(page, a)
+    await page.keyboard.press('Shift+R')
+    const rulerY = page.getByTestId('ruler-y')
+    await expect(rulerY).toBeVisible()
+    const scale = await pxPerMm(page, a)
+    const spread = await boxOf(canvasSpread(page, a))
+    const lineX = spread.x + 420 * scale
+    const start = await barePaperAt(page, a, lineX - 30)
+    const snapLines = page.getByTestId('snap-line')
+    const drawn = canvasSpread(page, a).locator(
+      'button.spread-frame[aria-pressed="true"]',
+    )
+    const drawToLine = async (expectGuideSnaps: number) => {
+      await page.keyboard.press('f')
+      await page.mouse.move(start.x, start.y)
+      await page.mouse.down()
+      await page.mouse.move(lineX - 3, start.y + 12, { steps: 6 })
+      await expect(snapLines.filter({ hasText: 'snap · guide' })).toHaveCount(
+        expectGuideSnaps,
+      )
+      await page.mouse.up()
+      await expect(drawn).toHaveCount(1)
+      const rect = await boxOf(drawn)
+      await page.keyboard.press('Control+z')
+      await expect(drawn).toHaveCount(0)
+      // Back to Select: the override press needs it.
+      await page.keyboard.press('v')
+      return rect.x + rect.width
+    }
+
+    // Shown: a frame drawn near the parent guide snaps to it.
+    expect(await drawToLine(1)).toBeCloseTo(lineX, 0)
+
+    const vertical = parentLines(page, a).and(
+      page.locator('[data-orientation="vertical"]'),
+    )
+    const rulerBox = await boxOf(rulerY)
+    await ctrlShiftDrag(
+      page,
+      { x: lineX, y: spread.y + spread.height * 0.6 },
+      { x: rulerBox.x + rulerBox.width / 2, y: spread.y + spread.height * 0.6 },
+    )
+
+    // Hidden: no copy, no parent line, other spreads keep it.
+    await expect(copyLines(page, a)).toHaveCount(0)
+    await expect(vertical).toHaveCount(0)
+    await expect(parentLines(page, a)).toHaveCount(1)
+    await expect(parentLines(page, 'painter-spread-4')).toHaveCount(2)
+    expect(await drawToLine(0)).not.toBeCloseTo(lineX, 0)
+
+    // Undo: the copy is back where the press made it.
+    await page.keyboard.press('Control+z')
+    await expect(copyLines(page, a)).toHaveAttribute('data-offset-mm', '420')
+    await assertDocumentFitsViewport(page)
+  })
+})
