@@ -21,23 +21,29 @@ function u16be(bytes: Uint8Array, at: number): number {
   return ((bytes[at] ?? 0) << 8) | (bytes[at + 1] ?? 0)
 }
 
+/** RIFF header + first chunk header + the size fields of any first chunk. */
+const WEBP_HEAD_BYTES = 30
+
 function webpSize(bytes: Uint8Array): EncodedImageSize | undefined {
+  if (bytes.length < WEBP_HEAD_BYTES) {
+    return undefined
+  }
   const chunk = ascii(bytes, 12, 4)
-  if (chunk === 'VP8 ' && bytes.length >= 30) {
+  if (chunk === 'VP8 ') {
     // Key frame: 3-byte tag, start code, then 14-bit width / height.
     return {
       width: u16le(bytes, 26) & 0x3fff,
       height: u16le(bytes, 28) & 0x3fff,
     }
   }
-  if (chunk === 'VP8L' && bytes.length >= 25 && bytes[20] === 0x2f) {
+  if (chunk === 'VP8L' && bytes[20] === 0x2f) {
     const bits = u16le(bytes, 21) | (u16le(bytes, 23) << 16) // 14-bit width-1, height-1
     return {
       width: (bits & 0x3fff) + 1,
       height: ((bits >>> 14) & 0x3fff) + 1,
     }
   }
-  if (chunk === 'VP8X' && bytes.length >= 30) {
+  if (chunk === 'VP8X') {
     return { width: u24le(bytes, 24) + 1, height: u24le(bytes, 27) + 1 }
   }
   return undefined

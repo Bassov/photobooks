@@ -4,6 +4,7 @@ import { makeBook, makeBookWithAsset } from '../../core/testing/fixtures'
 import {
   createMemoryLibraryStorage,
   publishBook,
+  type LibraryStorage,
   type PublishedRevision,
 } from '../../project'
 import type { SiteExportMessage } from '../../site/export/site-export.worker'
@@ -24,6 +25,7 @@ import {
 
 const HASH_A = 'a'.repeat(64)
 const HASH_B = 'b'.repeat(64)
+const HASH_C = 'c'.repeat(64)
 
 function bookWithHash(id: string, hash: string | undefined, title = id): Book {
   const book = makeBookWithAsset(`${id}-photo`)
@@ -66,7 +68,13 @@ function derivativeDeps(
 
 describe('collectSiteDerivatives', () => {
   it('asks the pool once per photo and keeps readable presets', async () => {
-    const first = publishBook({}, bookWithHash('one', HASH_A), 1).revision
+    const one = bookWithHash('one', HASH_A)
+    // A gallery photo placed nowhere is not on the site.
+    const loose = {
+      ...one,
+      assets: { ...one.assets, loose: { contentHash: HASH_C } },
+    }
+    const first = publishBook({}, loose, 1).revision
     const again = publishBook({}, bookWithHash('two', HASH_A), 2).revision
     const other = publishBook({}, bookWithHash('three', HASH_B), 3).revision
     const bare = publishBook({}, bookWithHash('four', undefined), 4).revision
@@ -140,7 +148,14 @@ describe('freezeForExport', () => {
       meta = published.meta
       await storage.savePublished(published.revision)
     }
-    await storage.updateLibrary(meta)
+    // Published in library.json but its published.json is gone: skipped.
+    await storage.updateLibrary({
+      ...meta,
+      books: {
+        ...(meta as { books: object }).books,
+        lost: { status: 'published' },
+      },
+    })
 
     const frozen = await freezeForExport(open, storage, 9)
 
@@ -153,10 +168,9 @@ describe('freezeForExport', () => {
       ok: true,
       value: { publishedAtMs: 9 },
     })
-    expect((await storage.getLibrary()).ok && frozen.meta.books).toEqual({
-      older: { status: 'published' },
-      newer: { status: 'published' },
-      open: { status: 'published' },
+    expect(await storage.getLibrary()).toMatchObject({
+      ok: true,
+      value: { books: { open: { status: 'published' } } },
     })
     expect(await otherPublishedTitles(storage, 'open')).toEqual([
       'Summer',
@@ -178,6 +192,21 @@ describe('freezeForExport', () => {
       'Library unavailable',
     )
     expect(await otherPublishedTitles(storage, 'open')).toEqual([])
+  })
+
+  it('throws when library.json cannot be written', async () => {
+    const storage = createMemoryLibraryStorage()
+    const book = makeBook({ id: 'open' })
+    await storage.createBook(book)
+    const readOnly: LibraryStorage = {
+      ...storage,
+      updateLibrary: () =>
+        Promise.resolve({ ok: false, code: 'locked-elsewhere' }),
+    }
+
+    await expect(freezeForExport(book, readOnly, 1)).rejects.toThrow(
+      'library.json not saved: locked-elsewhere',
+    )
   })
 })
 
@@ -252,6 +281,7 @@ describe('runExportSite', () => {
       7,
     ])
     expect(post.transfer).toHaveLength(4)
+    expect(post.transfer.every((b) => b.byteLength === 30)).toBe(true)
   })
 
   it('passes a worker failure through', async () => {

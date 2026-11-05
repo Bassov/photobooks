@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { cx } from '../../ui/className'
 import '../../ui/Icon.css'
 
 /**
@@ -18,7 +19,7 @@ function Glyph({
 }) {
   return (
     <svg
-      className={['pb-icon', className].filter(Boolean).join(' ')}
+      className={cx('pb-icon', className)}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

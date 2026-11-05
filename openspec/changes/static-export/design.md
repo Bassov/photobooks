@@ -44,5 +44,6 @@
 | `src/testFixtures/loadPainterFixture.ts`      | `&hashes=1`              |
 | `vite.config.ts`                              | worker: no CSS inject    |
 | `e2e/static-export.spec.ts`                   | 4 cases + perf gate      |
+| `e2e/design-r11-topbar.spec.ts`               | cluster ends at Export   |
 
 Reuse: `publishBook`, `requestDerivatives` / `getDerivative`, `runSiteExport`, `Dialog`, `Button`, `ProgressBar`, `Icon`, tokens `--field` / `--control` / `--shadow-xs`.

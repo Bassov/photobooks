@@ -88,22 +88,27 @@ describe('reduceExportSite', () => {
   })
 })
 
+type TimerHandle = ReturnType<typeof setTimeout>
+
 function fakeClock() {
   let now = 0
   const timers: { at: number; run: () => void; id: number }[] = []
   const frames: (() => void)[] = []
   let nextId = 1
   return {
+    timers,
     clock: {
       now: () => now,
       setTimer: (run: () => void, ms: number) => {
         const id = nextId
         nextId += 1
         timers.push({ at: now + ms, run, id })
-        return id
+        return id as unknown as TimerHandle
       },
-      clearTimer: (handle: unknown) => {
-        const index = timers.findIndex((timer) => timer.id === handle)
+      clearTimer: (handle: TimerHandle | undefined) => {
+        const index = timers.findIndex(
+          (timer) => timer.id === (handle as unknown as number),
+        )
         if (index >= 0) {
           timers.splice(index, 1)
         }
@@ -192,6 +197,50 @@ describe('createExportSiteStore', () => {
     fake.frame()
 
     expect(store.getSnapshot()).toMatchObject({ percent: 50 })
+  })
+
+  it('keeps one pending flush for a burst of progress', () => {
+    const fake = fakeClock()
+    const store = createExportSiteStore(fake.clock)
+    store.dispatch({ type: 'start' })
+    const before = fake.timers.length
+
+    expect(
+      store.dispatch({ type: 'progress', phase: 'prepare', percent: 1 }),
+    ).toBe(true)
+    store.dispatch({ type: 'progress', phase: 'prepare', percent: 2 })
+
+    expect(fake.timers.length - before).toBe(1)
+  })
+
+  it('does not notify again when a late flush finds nothing new', () => {
+    const fake = fakeClock()
+    const store = createExportSiteStore(fake.clock)
+    const listener = vi.fn()
+    store.subscribe(listener)
+    store.dispatch({ type: 'start' })
+    store.dispatch({ type: 'progress', phase: 'write', percent: 99 })
+    store.dispatch({ type: 'done', summary, folder: 'S' })
+
+    fake.advance(EXPORT_PROGRESS_MS)
+    fake.frame()
+
+    expect(listener).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives a second "Exported" its full 4 s', () => {
+    const fake = fakeClock()
+    const store = createExportSiteStore(fake.clock)
+    store.dispatch({ type: 'start' })
+    store.dispatch({ type: 'done', summary, folder: 'S' })
+    fake.advance(EXPORT_DONE_MS - 1000)
+    store.dispatch({ type: 'start' })
+    store.dispatch({ type: 'done', summary, folder: 'S' })
+
+    fake.advance(EXPORT_DONE_MS - 1)
+    expect(store.getSnapshot().kind).toBe('done')
+    fake.advance(1)
+    expect(store.getSnapshot()).toBe(EXPORT_SITE_IDLE)
   })
 
   it('stops notifying after unsubscribe', () => {

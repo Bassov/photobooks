@@ -9,31 +9,26 @@ export const SESSION_FOLDER_KEY = 'session'
 /** Picker id so the browser reopens the last site folder. */
 const PICKER_ID = 'photobooks-site'
 
-type DirectoryPicker = (options: {
-  id: string
-  mode: 'readwrite'
-}) => Promise<FileSystemDirectoryHandle>
+interface PickerScope {
+  showDirectoryPicker: (options: {
+    id: string
+    mode: 'readwrite'
+  }) => Promise<FileSystemDirectoryHandle>
+}
 
 function isDirectoryHandle(value: unknown): value is FileSystemDirectoryHandle {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    (value as { kind?: unknown }).kind === 'directory' &&
-    typeof (value as { name?: unknown }).name === 'string'
-  )
+  return (value as { kind?: unknown } | null)?.kind === 'directory'
 }
 
 /** `showDirectoryPicker` (readwrite); a dismissed or missing picker → `null`. */
 export async function pickExportFolder(
   scope: object = globalThis,
 ): Promise<FileSystemDirectoryHandle | null> {
-  const picker = (scope as { showDirectoryPicker?: DirectoryPicker })
-    .showDirectoryPicker
-  if (typeof picker !== 'function') {
-    return null
-  }
   try {
-    return await picker.call(scope, { id: PICKER_ID, mode: 'readwrite' })
+    return await (scope as PickerScope).showDirectoryPicker({
+      id: PICKER_ID,
+      mode: 'readwrite',
+    })
   } catch {
     return null
   }
@@ -44,14 +39,14 @@ export async function loadExportFolder(
   key: string,
   idb: SessionIdb = createSiteExportFolderIdb(),
 ): Promise<FileSystemDirectoryHandle | null> {
+  let stored: unknown = null
   try {
-    const stored = await idb.get(key)
-    return stored.present && isDirectoryHandle(stored.value)
-      ? stored.value
-      : null
+    // `{ present: false }` has no `value`, so it reads as none too.
+    stored = ((await idb.get(key)) as { value?: unknown }).value
   } catch {
-    return null
+    // Blocked storage: no remembered folder.
   }
+  return isDirectoryHandle(stored) ? stored : null
 }
 
 /** Remember the folder for `key`; without IDB it lasts for the dialog only. */

@@ -49,10 +49,11 @@ export async function collectSiteDerivatives(
 ): Promise<SiteDerivativeInput[]> {
   const wanted = new Map<string, () => Promise<Blob>>()
   for (const revision of revisions) {
-    for (const assetId of siteAssetIds(revision)) {
-      const asset = revision.book.assets[assetId]
-      const hash = asset?.contentHash
-      if (asset !== undefined && hash !== undefined && !wanted.has(hash)) {
+    // The site tree does not depend on derivative order.
+    const shown = new Set(siteAssetIds(revision))
+    for (const [assetId, asset] of Object.entries(revision.book.assets)) {
+      const hash = asset.contentHash
+      if (shown.has(assetId) && hash !== undefined && !wanted.has(hash)) {
         wanted.set(hash, () => deps.readSource(assetId, asset))
       }
     }
@@ -64,10 +65,12 @@ export async function collectSiteDerivatives(
     await deps.request([{ assetHash, readSource }])
     for (const preset of DERIVATIVE_PRESETS) {
       const entry = await deps.get(assetHash, preset.id)
-      const bytes =
-        entry === undefined ? undefined : new Uint8Array(entry.bytes)
-      const size = bytes === undefined ? undefined : encodedImageSize(bytes)
-      if (bytes !== undefined && size !== undefined) {
+      if (entry === undefined) {
+        continue
+      }
+      const bytes = new Uint8Array(entry.bytes)
+      const size = encodedImageSize(bytes)
+      if (size !== undefined) {
         out.push({ assetHash, presetId: preset.id, bytes, ...size })
       }
     }

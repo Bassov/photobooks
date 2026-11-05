@@ -58,10 +58,12 @@ export function reduceExportSite(
   }
 }
 
+type TimerHandle = ReturnType<typeof setTimeout>
+
 export interface ExportSiteClock {
   now: () => number
-  setTimer: (run: () => void, ms: number) => unknown
-  clearTimer: (handle: unknown) => void
+  setTimer: (run: () => void, ms: number) => TimerHandle
+  clearTimer: (handle: TimerHandle | undefined) => void
   requestFrame: (run: () => void) => void
 }
 
@@ -81,12 +83,12 @@ export function createExportSiteStore(clock: ExportSiteClock): ExportSiteStore {
   let state = EXPORT_SITE_IDLE
   let published = state
   let publishedAt = Number.NEGATIVE_INFINITY
-  let flushTimer: unknown = null
-  let expireTimer: unknown = null
+  let flushPending = false
+  let expireTimer: TimerHandle | undefined
   const listeners = new Set<() => void>()
 
   const publish = () => {
-    flushTimer = null
+    flushPending = false
     if (published === state) {
       return
     }
@@ -97,12 +99,6 @@ export function createExportSiteStore(clock: ExportSiteClock): ExportSiteStore {
     }
   }
 
-  const cancel = (timer: unknown) => {
-    if (timer !== null) {
-      clock.clearTimer(timer)
-    }
-  }
-
   const dispatch = (event: ExportSiteEvent): boolean => {
     const next = reduceExportSite(state, event)
     if (next === state) {
@@ -110,24 +106,20 @@ export function createExportSiteStore(clock: ExportSiteClock): ExportSiteStore {
     }
     state = next
     if (event.type === 'progress') {
-      if (flushTimer === null) {
+      if (!flushPending) {
+        flushPending = true
         const wait = Math.max(0, publishedAt + EXPORT_PROGRESS_MS - clock.now())
-        flushTimer = clock.setTimer(() => {
+        clock.setTimer(() => {
           clock.requestFrame(publish)
         }, wait)
       }
       return true
     }
-    cancel(flushTimer)
-    flushTimer = null
-    cancel(expireTimer)
-    expireTimer =
-      state.kind === 'done'
-        ? clock.setTimer(() => {
-            expireTimer = null
-            dispatch({ type: 'expire' })
-          }, EXPORT_DONE_MS)
-        : null
+    // Every other change shows at once; only `done` reacts to the expiry.
+    clock.clearTimer(expireTimer)
+    expireTimer = clock.setTimer(() => {
+      dispatch({ type: 'expire' })
+    }, EXPORT_DONE_MS)
     publish()
     return true
   }
@@ -147,9 +139,7 @@ export function createExportSiteStore(clock: ExportSiteClock): ExportSiteStore {
 export const exportSiteStore = createExportSiteStore({
   now: () => performance.now(),
   setTimer: (run, ms) => setTimeout(run, ms),
-  clearTimer: (handle) => {
-    clearTimeout(handle as ReturnType<typeof setTimeout>)
-  },
+  clearTimer: globalThis.clearTimeout.bind(globalThis),
   requestFrame: (run) => {
     requestAnimationFrame(() => {
       run()
