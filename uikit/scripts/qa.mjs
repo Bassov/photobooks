@@ -420,7 +420,7 @@ await smoke("home → book → spread fullscreen", "site-photographer", async ()
     await D('[data-testid="site-pager"] [aria-label="Next spread"]').click(); await page.waitForTimeout(150)
     const click = await page.evaluate(() => { const e = document.activeElement, cs = getComputedStyle(e); return `${e.getAttribute("aria-label")} ${cs.outlineStyle} ${cs.outlineWidth}` })
     await D('[data-testid="site-fullscreen-btn"]').click(); await page.waitForTimeout(200)
-    rings.push(...(await tabRings(["site-fullscreen-close", "Previous spread", "Next spread"], '[data-testid="lightbox"]')).map(([t, v]) => [`lightbox ${t}`, v]))
+    rings.push(...(await tabRings(["Previous spread", "Next spread", "site-fullscreen-zoom", "site-fullscreen-close"], '[data-testid="lightbox"]')).map(([t, v]) => [`lightbox ${t}`, v]))
     return ringsOk(rings, click.startsWith("Next spread none") ? [] : [["mouse click on Next spread", click]])
   })
   await smoke("library bar: focus-visible outline solid on search + sort", "recents-home", async () => ringsOk(await tabRings(["lib-search-input", "lib-sort"])))
@@ -1251,10 +1251,25 @@ await smokeS("layout-grids-parent-inherit GP5: link on writes only the margins �
   await go(feat("site-lightbox"), 600)
   const e0 = errs.length
   if (!(await page.locator('[data-testid="lightbox"]').count())) { await D('[data-testid="site-fullscreen-btn"]').first().click().catch(() => {}); await page.waitForTimeout(300) }
-  const m = await page.locator('[data-testid="site-fullscreen-book"]').evaluate((e) => { const r = e.getBoundingClientRect(), v = e.closest('[data-testid="lightbox"]').getBoundingClientRect(); return { w: r.width / v.width, h: r.height / v.height, pad: Math.min(r.left - v.left, v.right - r.right, r.top - v.top, v.bottom - r.bottom) } }).catch(() => null)
+  const m = await page.locator('[data-testid="site-fullscreen-book"]').evaluate((e) => { const r = e.getBoundingClientRect(), v = e.closest('[data-testid="lightbox"]').getBoundingClientRect(); return { w: r.width / v.width, h: r.height / v.height, pad: Math.min(r.left - v.left, v.right - r.right, r.top - v.top, v.bottom - r.bottom), fit: Math.min(Math.abs(r.width - (v.width - 128)), Math.abs(r.height - (v.height - 112))), cx: Math.abs(r.left - v.left - (v.right - r.right)) } }).catch(() => null)
   const sw = await page.locator('text=/^(Paper|Night|Sage)$/').count()
-  ok("v8 §4 site fullscreen fills ≥90% of one viewport dimension with 24–48px padding; no Paper/Night/Sage switcher", !!m && Math.max(m.w, m.h) >= 0.9 && m.pad >= 23.5 && m.pad <= 48.5 && sw === 0 && errs.length === e0, JSON.stringify(m) + ` themes=${sw}`)
-  await page.keyboard.press("Escape").catch(() => {})
+  // site-lightbox §2: the fit area is the dialog minus 64 top / 48 bottom / 64 sides; the slide touches it on its limiting side, centred
+  ok("v8 §4 + site-lightbox §2 site fullscreen fills ≥90% of one viewport dimension, fits the 64/48/64 inset area (48–64px padding); no Paper/Night/Sage switcher", !!m && Math.max(m.w, m.h) >= 0.9 && m.pad >= 47.5 && m.pad <= 64.5 && m.fit <= 0.5 && m.cx <= 0.5 && sw === 0 && errs.length === e0, JSON.stringify(m) + ` themes=${sw}`)
+  // Designer site-lightbox §2–§3: no control over the active slide; double-click zooms; a step resets; Esc closes at any zoom
+  const LB = '[data-testid="lightbox"]', zoomOf = () => page.locator(LB).getAttribute("data-zoom").catch(() => null)
+  const xo = await page.locator(LB).evaluate((v) => { const s = v.querySelector('[data-testid="site-fullscreen-book"]').getBoundingClientRect(), x = v.querySelector('[data-testid="site-fullscreen-close"]').getBoundingClientRect(); return { over: !(x.right <= s.left || x.left >= s.right || x.bottom <= s.top || x.top >= s.bottom), x: [x.left, x.top, x.width].map(Math.round), s: [s.left, s.top, s.right, s.bottom].map((n) => +n.toFixed(2)) } }).catch(() => null)
+  ok("site-lightbox §2 Close X does not overlap the active slide", !!xo && !xo.over, JSON.stringify(xo))
+  await page.locator('[data-testid="site-fullscreen-book"]').dblclick().catch(() => {}); await page.waitForTimeout(350)
+  const z2 = await zoomOf()
+  ok("site-lightbox §3 double-click → data-zoom 2.00", z2 === "2.00", z2)
+  await page.keyboard.press("ArrowRight"); await page.waitForTimeout(350)
+  const z1 = await zoomOf()
+  ok("site-lightbox §3 ArrowRight while zoomed → data-zoom 1.00", z2 === "2.00" && z1 === "1.00", `${z2} → ${z1}`)
+  await page.locator('[data-testid="site-fullscreen-book"]').dblclick().catch(() => {}); await page.waitForTimeout(350)
+  const z3 = await zoomOf()
+  await page.keyboard.press("Escape").catch(() => {}); await page.waitForTimeout(200)
+  const open = await page.locator(LB).count()
+  ok("site-lightbox §3 Esc while zoomed closes (one press)", z3 === "2.00" && open === 0, `zoom ${z3} · lightbox ${open}`)
 }
 {
   const e0 = errs.length; const steps = []; let walk = false
