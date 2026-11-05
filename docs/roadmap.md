@@ -161,6 +161,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [static-export](roadmap/P3/static-export.md) — write `dist/`
 - [ ] [prep] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
 - [x] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
+- [ ] [feature] [kit-undo-fixes](roadmap/P3/kit-undo-fixes.md) — Bug: /next-roadmap-item kit-undo-fixes
 - [ ] [feature] [publish-credentials](roadmap/P3/publish-credentials.md) — connect the editor to your hosting (Security Review)
 - [ ] [feature] [in-app-publish](roadmap/P3/in-app-publish.md) — publish button (Security Review)
 - [ ] [feature] [site-settings](roadmap/P3/site-settings.md) — personalize the showcase
