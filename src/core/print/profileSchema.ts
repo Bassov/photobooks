@@ -1,9 +1,4 @@
 import { z } from 'zod'
-import { DPI_MIN, DPI_WARN } from '../geometry/dpi'
-import { TRIM_MAX_MM, TRIM_MIN_MM } from '../ops/bookSettings'
-import { PAGE_MAX, PAGE_MIN, PAGE_STEP } from '../pages'
-
-export const DEFAULT_PRINT_PROFILE_ID = 'generic'
 
 export const PRINT_OUTPUTS = ['pages', 'spreads'] as const
 export const PRINT_COLOR_SPACES = ['srgb'] as const
@@ -63,6 +58,10 @@ function makePrintProfileSchema() {
       bleedMinMm: mm,
       bleedMaxMm: mm,
       coverBleedMm: mm,
+      /** Cover paper folded over each board edge, outside the closed cover. */
+      coverWrapMm: mm,
+      /** Groove beside the spine where the board bends. */
+      coverHingeMm: mm,
       safeMarginMm: mm,
       pageCount,
       /** The first page prints alone (right-hand), not as a spread half. */
@@ -108,35 +107,4 @@ export function parsePrintProfile(input: unknown): PrintProfileParseResult {
           message,
         })),
       }
-}
-
-/**
- * Built-in default: the editor trim range and page count, today's DPI gates;
- * the spine formula gives 4 mm at 20 pages and 14 mm at 120.
- */
-export function genericPrintProfile(): PrintProfile {
-  return {
-    id: DEFAULT_PRINT_PROFILE_ID,
-    name: 'Generic',
-    trimMinMm: TRIM_MIN_MM,
-    trimMaxMm: TRIM_MAX_MM,
-    bleedMinMm: 0,
-    bleedMaxMm: 10,
-    coverBleedMm: 3,
-    safeMarginMm: 5,
-    pageCount: { min: PAGE_MIN, step: PAGE_STEP, max: PAGE_MAX },
-    singleFirstPage: true,
-    printedEndpapers: true,
-    spine: {
-      width: { kind: 'formula', baseMm: 2, perPageMm: 0.1 },
-      manualOverride: true,
-    },
-    output: 'pages',
-    cropMarks: false,
-    colorSpace: 'srgb',
-    /** 500 MiB per file. */
-    fileLimits: { maxFileBytes: 524_288_000, maxSidePx: 30_000 },
-    dpi: { warn: DPI_WARN, min: DPI_MIN },
-    minFontPt: 6,
-  }
 }

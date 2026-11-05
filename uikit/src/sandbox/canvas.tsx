@@ -12,7 +12,7 @@ import {
   parentOf, pageNumbersOf, foliosOf, type Guide,
 } from "./model"
 import { useStudio, mapSpread, mapFrames, useKeys, type Studio } from "./store"
-import { fillTokens } from "./meta"
+import { anchorPhoto, fillTokens } from "./meta"
 import { setTextOverflow, takeTextGrow, useTextOverflow } from "./text-overflow"
 
 export const PHOTO_TYPE = "application/x-photobooks-photo"
@@ -104,8 +104,7 @@ function FrameBody({ f, s, sc, missing, inherited, editing, onEditDone }: {
   const wpx = f.w * sc - mat * 2, hpx = f.h * sc - mat * 2
   if (f.kind === "text") {
     const t = TEXT[f.textStyle ?? "caption"]
-    const anchorPhoto = f.anchor ? s.frames.find((x) => x.id === f.anchor)?.photo ?? null : null
-    const text = f.live ? fillTokens(f.text ?? "", anchorPhoto) : f.text ?? ""
+    const text = f.live ? fillTokens(f.text ?? "", anchorPhoto(s.frames, f)) : f.text ?? ""
     const css: React.CSSProperties = { fontFamily: t.font, fontSize: t.size * sc, fontWeight: t.weight, lineHeight: t.lh, textAlign: f.align ?? "left", color: "#232220" }
     const line = t.size * t.lh * sc
     if (editing) return <TextEdit f={f} css={css} line={line} sc={sc} onEditDone={onEditDone} />
@@ -475,7 +474,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   }
   const endEdit = (f: Frame, t: string, h: number) => {
     setEditing(null)
-    const patch = (d: Doc) => mapFrames(d, si, [f.id], (x) => ({ ...x, text: t, h, live: x.live && /\{\w+\}/.test(t) }))
+    const patch = (d: Doc) => mapFrames(d, si, [f.id], (x) => ({ ...x, text: t, h }))
     if (fresh.current === f.id) {
       fresh.current = null
       if (!t) { st.cancelPreview(); st.setSel([]); return }

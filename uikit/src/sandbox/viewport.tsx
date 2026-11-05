@@ -4,7 +4,7 @@ import { useDrop } from "react-aria"
 import { Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { SW, SH, PAGE, clamp, round, uid, spread, type Guide } from "./model"
-import { useStudio, mapSpread, useKeys } from "./store"
+import { useStudio, mapSpread, removeFrames, useKeys } from "./store"
 import { SpreadSurface, GuideLine, PHOTO_TYPE, FRAME_LOCKED_STATUS, readItems, marqueeStarters, grayPick } from "./canvas"
 import { bestTemplate } from "./templates"
 import { CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, setMaster, guidesOfMaster, useMasters, coverW, pagesOf, SPINE, SUB, setCoverPhoto } from "./v7"
@@ -95,7 +95,7 @@ export function useEditorKeys() {
     if ((e.key === "Delete" || e.key === "Backspace") && !mod && selFrames.length && st.features.handles && !st.cropId && !(e.target as HTMLElement).closest?.("[data-filmstrip]")) {
       e.preventDefault()
       if (!unlocked.length) { st.setStatus(FRAME_LOCKED_STATUS); return }
-      st.update((d) => mapSpread(d, st.cur, (s) => ({ ...s, template: null, frames: s.frames.filter((f) => !unlocked.includes(f.id)) })), unlocked.length > 1 ? `Delete ${unlocked.length} frames` : "Delete frame")
+      st.update((d) => removeFrames(d, st.cur, unlocked), unlocked.length > 1 ? `Delete ${unlocked.length} frames` : "Delete frame")
       st.setSel(st.sel.filter((id) => !unlocked.includes(id)))
       return
     }

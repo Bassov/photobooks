@@ -7,7 +7,12 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react'
-import type { ResolvedItem, ResolvedSpread, ResolvedText } from '../core'
+import type {
+  ResolvedFolio,
+  ResolvedItem,
+  ResolvedSpread,
+  ResolvedText,
+} from '../core'
 
 export interface FrameControl {
   label: string
@@ -253,6 +258,8 @@ export function SpreadView({
   lowDpiBadge?: boolean
 }) {
   const parentItems = resolved.items.filter((item) => item.parent === true)
+  // Printed page numbers (Designer page-numbers); list thumbnails show none.
+  const folios = thumb ? [] : (resolved.folios ?? [])
   const spreadItems = resolved.items.filter((item) => item.parent !== true)
   // Own frames and local copies take the editor controls; inherited items stay inert.
   const editable = resolved.items.filter(
@@ -324,7 +331,7 @@ export function SpreadView({
           : { background: resolved.backgroundColor }),
       }}
     >
-      {parentItems.length > 0 ? (
+      {parentItems.length > 0 || folios.length > 0 ? (
         // Own stacking context below every spread frame. Inherited items are
         // inert markup; only a local copy's button takes the pointer.
         <div
@@ -333,6 +340,9 @@ export function SpreadView({
           style={PARENT_LAYER_STYLE}
         >
           {parentItems.map(paintFrame)}
+          {folios.map((folio) => (
+            <SpreadFolio key={folio.id} folio={folio} pxPerMm={pxPerMm} />
+          ))}
         </div>
       ) : null}
       {spreadItems.map(paintFrame)}
@@ -418,6 +428,34 @@ function kindAttrs(
     'data-drop-label': thumb ? undefined : dropChipLabel(filled),
     'data-asset-id': thumb ? undefined : item.assetId,
   }
+}
+
+/**
+ * Printed page number (Designer page-numbers): its 20 × 4.34 mm box in the
+ * caption type, 3.1 mm × px/mm so it scales with the zoom; never hit-tested.
+ */
+function SpreadFolio({
+  folio,
+  pxPerMm,
+}: {
+  folio: ResolvedFolio
+  pxPerMm: number
+}) {
+  const box = frameBox(folio.rectMm, pxPerMm)
+  return (
+    <span
+      className="spread-view-folio"
+      data-testid="page-number"
+      data-align={folio.align}
+      style={{
+        ...box,
+        fontSize: PHOTO_CAPTION_SIZE_MM * pxPerMm,
+        textAlign: folio.align,
+      }}
+    >
+      {folio.text}
+    </span>
+  )
 }
 
 /** Text in its book style, whole lines only; `Empty text` is editor chrome. */

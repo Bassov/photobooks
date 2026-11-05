@@ -1697,6 +1697,34 @@ describe('bookStore spread paint covers the parent layer', () => {
     expect(gridEdit).toEqual({ notified: ['pA'], invalidated: ['pA'] })
   })
 
+  it('page-number edits repaint the spreads whose parent prints folios', () => {
+    loadMasters()
+    const texts = (id: string) =>
+      getSpreadPaintSnapshot(id)?.resolved.folios?.map((folio) => folio.text)
+
+    const show = repaintsFor(() => {
+      dispatchBookOp({
+        type: 'setParentPageNumbers',
+        parentId: 'pA',
+        position: 'outer',
+      })
+    })
+    expect(show).toEqual({
+      notified: ['a1', 'a2', 'a3', 'pA'],
+      invalidated: ['pA', 'a1', 'a2', 'a3'],
+    })
+    expect(texts('b1')).toBeUndefined()
+
+    const numbering = repaintsFor(() => {
+      dispatchBookOp({ type: 'setPageNumbering', patch: { start: 7 } })
+    })
+    expect(numbering).toEqual({
+      notified: ['a1', 'a2', 'a3'],
+      invalidated: ['a1', 'a2', 'a3'],
+    })
+    expect(texts('a1')?.[0]).toMatch(/^\d+$/)
+  })
+
   it('a parent guide edit repaints only the parent, not the spreads using it', () => {
     loadMasters()
 

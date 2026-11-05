@@ -82,6 +82,21 @@
   position: relative;
 }
 
+/* Designer page-numbers `#` chip at each folio box (docs/design.md Folios);
+   top / left / font-size / padding inline at the canvas px/mm. */
+.masters-folio-chip {
+  position: absolute;
+  z-index: 1;
+  border-radius: var(--radius-2xs);
+  font-family: 'Inter Variable', system-ui, sans-serif;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+  background: var(--t-tag);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .masters-caption {
   position: absolute;
   top: 100%;

@@ -6,13 +6,15 @@ import { Button } from "@/components/ui/button"
 import { TextArea } from "@/components/ui/textfield"
 import { TextField } from "@/components/ui/textfield"
 import { Section } from "@/components/app/ui"
-import { Segmented, SelectRow, SwitchRow, SliderRow } from "@/components/app/controls"
+import { Segmented, SelectRow, SliderRow } from "@/components/app/controls"
+import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/uui/Badge"
 import { P } from "@/data"
 import { useStudio, mapSpread } from "./store"
 import { allGuides, uid, DEFAULT_STYLES, type Guide, type FrameStyle } from "./model"
 import { useSelected } from "./inspector"
 import { requestTextGrow } from "./text-overflow"
+import { TOKENS, tokenValue, fillTokens, defaultAnchor, anchorPhoto, type Token } from "./meta"
 
 const BGS = ["#ffffff", "#f4f4f4", "#e9e9e9", "#e3e3e3", "#2a2927", "#111111"]
 export function SpreadBgSection() {
@@ -28,11 +30,28 @@ export function SpreadBgSection() {
   )
 }
 
-const TOKENS = ["{date}", "{title}", "{camera}", "{filename}"]
+/* Designer live-captions: a chip's title tells what the token prints for the anchored photo */
+const chipTitle = (t: Token, photo: string | null) => (!photo ? "No photo in this frame" : tokenValue(t, photo) || "Not in this photo")
 export function TextSection({ live = false }: { live?: boolean }) {
-  const { f, set, s } = useSelected()
+  const { f, set, s, st } = useSelected()
+  // caret of the Text field at its last blur, for this selection only (a chip inserts there)
+  const caret = React.useRef<{ sel: string; start: number; end: number } | null>(null)
+  const selKey = st.sel.join()
+  React.useEffect(() => { caret.current = null }, [selKey])
   if (!f || f.kind !== "text") return null
-  const imgs = s.frames.filter((x) => x.kind === "image" && x.photo)
+  const imgs = s.frames.filter((x) => x.kind === "image")
+  const anchor = (f.live && s.frames.find((x) => x.id === f.anchor)) || defaultAnchor(s.frames, f)
+  const photo = anchor?.photo ?? null
+  const setLive = (on: boolean) => on
+    ? set({ live: true, anchor: defaultAnchor(s.frames, f)?.id }, "Make caption live")
+    : set((x) => ({ text: fillTokens(x.text ?? "", anchorPhoto(s.frames, x)), live: false, anchor: undefined }), "Make caption static")
+  const insert = (t: Token) => {
+    const tok = `{${t}}`, text = f.text ?? "", c = caret.current?.sel === selKey ? caret.current : null
+    const next = c ? text.slice(0, c.start) + tok + text.slice(c.end) : text ? `${text} · ${tok}` : tok
+    if (c) caret.current = { ...c, start: c.start + tok.length, end: c.start + tok.length }
+    requestTextGrow(f.id)
+    set({ text: next, ...(f.live ? {} : { live: true, anchor: anchor?.id }) }, "Insert token")
+  }
   return (
     <Section title="Text">
       <Segmented label="Style" size="sm" value={f.textStyle ?? "caption"} onChange={(v) => set({ textStyle: v as "title" }, "Text style")} items={[{ id: "title", label: "Title" }, { id: "caption", label: "Caption" }, { id: "body", label: "Body" }]} />
@@ -43,15 +62,20 @@ export function TextSection({ live = false }: { live?: boolean }) {
       </div>
       <TextField aria-label="Text" value={f.text ?? ""} onChange={(v) => { requestTextGrow(f.id); set({ text: v }, "Edit text", `txt-${f.id}`) }} className="mt-2">
         {/* Designer text-frames: grows with the content up to 160 px, then scrolls; focus = inset 1 px #535152 (parent-spreads-inspector) */}
-        <TextArea className="field-sizing-content max-h-40 min-h-16 overflow-y-auto text-sm shadow-xs data-[focused]:ring-1 data-[focused]:ring-tag data-[focused]:ring-offset-0 data-[focused]:ring-inset" />
+        <TextArea onBlur={(e) => { caret.current = { sel: selKey, start: e.currentTarget.selectionStart, end: e.currentTarget.selectionEnd } }} className="field-sizing-content max-h-40 min-h-16 overflow-y-auto text-sm shadow-xs data-[focused]:ring-1 data-[focused]:ring-tag data-[focused]:ring-offset-0 data-[focused]:ring-inset" />
       </TextField>
       {live && (
         <div className="mt-3 flex flex-col gap-2 pt-3" data-testid="live-caption">
-          <SwitchRow isSelected={!!f.live} onChange={(v) => set({ live: v }, v ? "Make caption live" : "Detach caption")}>Live from photo metadata</SwitchRow>
-          <SelectRow label="Anchored to" value={f.anchor ?? ""} onChange={(v) => set({ anchor: v }, "Anchor caption")} items={imgs.map((x, i) => [x.id, `Frame ${i + 1} · ${P(x.photo!).name}`] as [string, string])} />
-          <div className="flex flex-wrap gap-1">{TOKENS.map((t) => (
-            <button key={t} type="button" onClick={() => set((x) => ({ text: `${x.text ?? ""}${x.text ? " · " : ""}${t}`, live: true }), "Insert token")} className="inline-flex h-6 items-center gap-1 rounded-md border bg-background px-1.5 font-mono text-2xs shadow-xs hover:bg-accent"><Braces className="size-3 text-muted-foreground" />{t.slice(1, -1)}</button>
-          ))}</div>
+          {/* disabled only when the spread has no image frame: the row at .5 (the track keeps full opacity inside it) */}
+          <Switch size="sm" data-testid="live-caption-switch" isSelected={!!f.live} isDisabled={!imgs.length} onChange={setLive}
+            className="w-full flex-row-reverse justify-between gap-3 text-sm font-normal data-[disabled]:cursor-default data-[disabled]:opacity-50 data-[disabled]:[&_.sw-track]:cursor-default! data-[disabled]:[&_.sw-track]:opacity-100!">Live from photo metadata</Switch>
+          {!imgs.length ? <p data-testid="live-caption-hint" className="text-2xs leading-3.5 text-muted-foreground">Add a photo frame to this spread to use its metadata.</p> : <>
+            {f.live && <SelectRow label="Anchored to" value={f.anchor ?? ""} onChange={(v) => set({ anchor: v }, "Anchor caption")} items={imgs.map((x, i) => [x.id, `Frame ${i + 1} · ${x.photo ? P(x.photo).name : "empty"}`] as [string, string])} />}
+            <div className="flex flex-wrap gap-1" data-testid="live-tokens">{TOKENS.map((t) => (
+              <button key={t} type="button" data-testid={`live-token-${t}`} title={chipTitle(t, photo)} onClick={() => insert(t)}
+                className={cn("inline-flex h-6 items-center gap-0.5 rounded-md border border-transparent bg-background px-1 font-mono text-2xs shadow-xs outline-offset-2 outline-muted-foreground hover:bg-accent focus-visible:outline-2", !(photo && tokenValue(t, photo)) && "text-muted-foreground")}><Braces className="size-3 text-muted-foreground" />{t}</button>
+            ))}</div>
+          </>}
         </div>
       )}
     </Section>

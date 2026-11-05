@@ -242,7 +242,13 @@ describe('BookSettingsSection', () => {
     const eyebrows = screen
       .getAllByRole('heading', { level: 3 })
       .map((el) => el.textContent)
-    expect(eyebrows).toEqual(['Page size', 'Binding', 'Print', 'Defaults'])
+    expect(eyebrows).toEqual([
+      'Page size',
+      'Binding',
+      'Page numbers',
+      'Print',
+      'Defaults',
+    ])
     for (const el of screen.getAllByRole('heading', { level: 3 })) {
       // Kit `Sec` title tracking 0.12em (Owner design change, round 9, M57).
       expect(el.className).toBe('inspector-eyebrow inspector-sec-title')

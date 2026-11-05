@@ -1,5 +1,6 @@
 import { useSyncExternalStore, type PointerEvent } from 'react'
-import type { ParentSpread } from '../core'
+import { FOLIO_WIDTH_MM, type PageNumberItem, type ParentSpread } from '../core'
+import { PHOTO_CAPTION_SIZE_MM } from '../render/textStyles'
 import { setFrameSource } from './frameSelection'
 import { Rulers } from './Rulers'
 import { getRulersVisible, subscribeRulersVisible } from './rulersView'
@@ -65,7 +66,7 @@ export function MastersCanvas() {
     return null
   }
   const parentId = shownParentId(parents, picked)
-  const name = parents?.find((parent) => parent.id === parentId)?.name ?? ''
+  const shown = parents?.find((parent) => parent.id === parentId)
   return parentId === null ? (
     <div className="editor-masters-canvas" data-testid="masters-canvas-empty">
       <div className="editor-masters-empty-title">No masters yet</div>
@@ -74,7 +75,52 @@ export function MastersCanvas() {
       </div>
     </div>
   ) : (
-    <MasterStage parentId={parentId} name={name} />
+    <MasterStage
+      parentId={parentId}
+      name={shown?.name ?? ''}
+      pageNumbers={shown?.pageNumbers}
+    />
+  )
+}
+
+/**
+ * Designer page-numbers: a `#` chip at each folio box in the folio type at
+ * true scale (kit v7 `chip`), anchored per align; master thumbs get none.
+ */
+function FolioChip({
+  item,
+  pxPerMm,
+}: {
+  item: PageNumberItem
+  pxPerMm: number
+}) {
+  const { x, y } = item.rect
+  const anchor =
+    item.align === 'left'
+      ? { left: x * pxPerMm }
+      : item.align === 'right'
+        ? {
+            left: (x + FOLIO_WIDTH_MM) * pxPerMm,
+            transform: 'translateX(-100%)',
+          }
+        : {
+            left: (x + FOLIO_WIDTH_MM / 2) * pxPerMm,
+            transform: 'translateX(-50%)',
+          }
+  return (
+    <span
+      className="masters-folio-chip"
+      data-testid="master-pn"
+      data-align={item.align}
+      style={{
+        top: y * pxPerMm,
+        ...anchor,
+        fontSize: PHOTO_CAPTION_SIZE_MM * pxPerMm,
+        padding: `0 ${String(pxPerMm)}px`,
+      }}
+    >
+      #
+    </span>
   )
 }
 
@@ -89,7 +135,15 @@ function onStagePointerDown(event: PointerEvent<HTMLDivElement>): void {
   }
 }
 
-function MasterStage({ parentId, name }: { parentId: string; name: string }) {
+function MasterStage({
+  parentId,
+  name,
+  pageNumbers = [],
+}: {
+  parentId: string
+  name: string
+  pageNumbers: readonly PageNumberItem[] | undefined
+}) {
   const widthMm = useSyncExternalStore(
     subscribeBookStore,
     readTrimWidth,
@@ -126,6 +180,9 @@ function MasterStage({ parentId, name }: { parentId: string; name: string }) {
               pxPerMm={pxPerMm}
               gridVariant="master"
             />
+            {pageNumbers.map((item) => (
+              <FolioChip key={item.id} item={item} pxPerMm={pxPerMm} />
+            ))}
             {/* Kit viewport master label: under the spread, screen px (M37 rule). */}
             <span className="masters-caption" data-testid="master-label">
               {name}

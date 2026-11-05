@@ -167,6 +167,33 @@
   line-height: 1.4;
 }
 
+/* Designer page-numbers: the master hint's "Book settings" text link (kit
+   v7.tsx:295, 11 / 500, underline 45 % ink). Prod has no button preflight. */
+.master-pn-link {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-2xs);
+  background: transparent;
+  color: var(--t-text);
+  font: inherit;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--t-text) 45%, transparent);
+  text-underline-offset: 2px;
+  cursor: pointer;
+  outline: none;
+}
+
+.master-pn-link:hover {
+  text-decoration-color: var(--t-text);
+}
+
+.master-pn-link:focus-visible {
+  outline: 2px solid var(--muted-foreground);
+  outline-offset: 2px;
+}
+
 /* Designer default-master I2 / I3: an unused master's hint and the kit
    secondary "Make default" button under the master head sub. */
 .master-hint {

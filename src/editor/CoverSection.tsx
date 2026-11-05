@@ -211,14 +211,21 @@ export function CoverSection() {
       </InspectorSec>
       <InspectorSec title="Back">
         <CoverText panel="back" label="Back text" />
-        {/* Kit v7.tsx:216: Fill is a "Paper white" pill with a "coming later" note. */}
+        {/* Kit v7.tsx:277 / inspector.tsx:58: read-only back fill swatch + hex;
+            py-1 keeps the old pill's row height. */}
         <InspectorRow label="Fill">
-          <ReadOnlyPill
-            value="Paper white"
-            note="coming later"
-            testId="cover-back-fill"
-            noteTestId="fill-readonly"
-          />
+          <span
+            className="inline-flex items-center gap-1.5 py-1"
+            data-testid="fill-readonly"
+          >
+            <span
+              className="size-3 rounded-2xs shadow-hairline"
+              style={{ background: style.backFill }}
+              aria-hidden="true"
+              data-testid="fill-swatch"
+            />
+            {style.backFill.toUpperCase()}
+          </span>
         </InspectorRow>
       </InspectorSec>
       <InspectorSec title="Material">

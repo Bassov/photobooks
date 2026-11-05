@@ -75,6 +75,18 @@ describe('cover ops', () => {
     expect(next.cover.front).not.toHaveProperty('crop')
   })
 
+  it('removing the cover photo keeps a manual spine (cover.print)', () => {
+    const photo = setCoverPhoto(makeBookWithAsset('a1', { place: false }), 'a1')
+    const book = {
+      ...photo,
+      cover: { ...photo.cover, print: { spineWidthSource: 'manual' as const } },
+    }
+    const next = removeManyFromGallery(book, ['a1'])
+    expect(next.cover.front).not.toHaveProperty('assetId')
+    expect(next.cover.print).toEqual({ spineWidthSource: 'manual' })
+    expect(next.cover.style).toBe(book.cover.style)
+  })
+
   it('removing an unrelated asset leaves the cover untouched', () => {
     const base = makeBookWithAsset('a1', { place: false })
     const book = setCoverPhoto(base, 'a1')

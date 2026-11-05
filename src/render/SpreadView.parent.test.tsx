@@ -279,6 +279,82 @@ describe('SpreadView override copies', () => {
   })
 })
 
+/** Spreads s0–s2 on parent p1 (one logo) with Outer page numbers; s1 = pages 2–3. */
+function numbered(): Book {
+  const base = book(true)
+  return applyBookOp(
+    {
+      ...base,
+      spreads: [
+        makeSpread({ id: 's0', parentId: 'p1' }),
+        ...base.spreads,
+        makeSpread({ id: 's2', parentId: 'p1' }),
+      ],
+    },
+    { type: 'setParentPageNumbers', parentId: 'p1', position: 'outer' },
+  )
+}
+
+describe('SpreadView page numbers', () => {
+  afterEach(cleanup)
+
+  it('paints the folios in the parent layer after its frames, under the spread frames', () => {
+    const target = numbered()
+    paint(target, false, 2)
+    const folios = resolveSpread(target, 's1')?.folios ?? []
+
+    const layer = screen.getByTestId('parent-layer')
+    const numbers = screen.getAllByTestId('page-number')
+    expect(numbers.map((el) => el.textContent)).toEqual(['2', '3'])
+    expect(numbers.every((el) => el.parentElement === layer)).toBe(true)
+    expect(layer.lastElementChild).toBe(numbers[1])
+    expect(layer.firstElementChild?.classList.contains('spread-frame')).toBe(
+      true,
+    )
+    expect(numbers.map((el) => el.dataset.align)).toEqual(['left', 'right'])
+    for (const [at, el] of numbers.entries()) {
+      const rect = folios[at]?.rectMm
+      assert(rect !== undefined, 'expected a folio rect')
+      expect(el.className).toBe('spread-view-folio')
+      expect(el.style.left).toBe(`${String(rect.x * 2)}px`)
+      expect(el.style.top).toBe(`${String(rect.y * 2)}px`)
+      expect(el.style.width).toBe(`${String(rect.width * 2)}px`)
+      expect(el.style.height).toBe(`${String(rect.height * 2)}px`)
+      expect(el.style.fontSize).toBe('6.2px')
+      expect(el.style.textAlign).toBe(folios[at]?.align)
+    }
+    expect(screen.getAllByTestId('spread-frame')[0]?.parentElement).toBe(root())
+  })
+
+  it('mounts the parent layer for folios alone', () => {
+    const target = numbered()
+    paint({
+      ...target,
+      parents: target.parents?.map((parent) => ({ ...parent, frames: [] })),
+    })
+
+    expect(
+      screen
+        .getAllByTestId('page-number')
+        .every((el) => el.parentElement === screen.getByTestId('parent-layer')),
+    ).toBe(true)
+  })
+
+  it('paints no folios in list thumbs', () => {
+    const target = numbered()
+    const { container } = paint(
+      {
+        ...target,
+        parents: target.parents?.map((parent) => ({ ...parent, frames: [] })),
+      },
+      true,
+    )
+
+    expect(container.querySelector('.spread-view-folio')).toBeNull()
+    expect(container.querySelector('.spread-view-parent-layer')).toBeNull()
+  })
+})
+
 function root(): HTMLElement {
   return screen.getByTestId('spread-view')
 }

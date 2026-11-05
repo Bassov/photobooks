@@ -2174,11 +2174,12 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("kit-sync KS10: Title font / Cover / Finish are selects h 36, r 8, #D7D7D7, chevron 16, right edge 1424", sels.length === 3 && sels.every((s) => SELS[s.l] && near(s.x, SELS[s.l][0]) && near(s.w, SELS[s.l][1]) && s.h === 36 && s.r === "8px" && s.bg === "rgb(215, 215, 215)" && s.chev && near(s.right, 1424)), JSON.stringify(sels))
   await page.locator(`${demo} [data-testid="cover-material"]`).selectOption("Linen")
   ok("kit-sync KS10: Cover is editable (no coming-later note)", (await page.locator(`${demo} [data-testid="cover-material"]`).inputValue()) === "Linen" && (await page.locator(`${demo} [data-testid="material-readonly"]`).count()) === 0)
-  const pw = await textBox('[data-testid="insp-cover"] span', "Paper white")
+  const pw = await textBox('[data-testid="insp-cover"] span', "#3E3C3B")
   await c('[data-testid="book-title"]')
   const hc = await textBox('[data-testid="insp-book"] span', "Hardcover")
   // page-numbers-kit: the Page numbers section makes Book settings taller than the 900 px viewport, so its 10 px scrollbar shifts Hardcover left
-  ok("kit-sync KS10: read-only pills flush right next to their note — Paper white x 1272.72, Hardcover x 1285.45 (Book settings scrolls)", near(pw?.x, 1272.72) && near(hc?.x, 1285.45), `paper ${pw?.x} hardcover ${hc?.x}`)
+  // cover-back-fill: the Back Fill row is a swatch + "#3E3C3B" (no pill, no note), flush right
+  ok("kit-sync KS10: read-only rows flush right — Back fill swatch x 1347.86, Hardcover x 1285.45 (Book settings scrolls)", near(pw?.x, 1347.86) && near(hc?.x, 1285.45), `fill ${pw?.x} hardcover ${hc?.x}`)
   if ((await page.locator(`${demo} [role=switch][aria-label="Endpapers"]`).getAttribute("aria-checked")) !== "true") await c('[role=switch][aria-label="Endpapers"]')
   await c('[data-item="ef"]')
   const ep = page.locator(`${demo} [data-testid="canvas-endpaper"]`)
