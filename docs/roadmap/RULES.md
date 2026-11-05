@@ -53,7 +53,7 @@ Slicing rules when adding or splitting items:
 
 - Tick item-file checkboxes with targeted edits; do not rewrite the whole item file.
 - A failure is **out of scope** only when the same test also fails or flakes on unmodified `origin/main`. A test outside the touch-set that fails only with this change applied is **in scope** and must be fixed in code or tests in this PR. Out-of-scope failures are scheduled with `pnpm roadmap add <slug> --after <current>` (or a bug issue for a flake) and are not patched by enlarging this PR — but filing an item or issue never makes a red PR mergeable; use `pnpm agent ci-brief` for the CI fix loop (finish does not auto-merge main).
-- At most two **failed** local push attempts under pre-push (`check:integrity && check:fast`; no stryker); then stop and report in the PR description instead of looping. Code changed after implementation review must be re-reviewed before archive.
+- At most two **failed** local push attempts under pre-push (`check:integrity && check:fast`; no stryker; unit tests scoped to the diff vs the merge-base with `origin/main`); then stop and report in the PR description instead of looping. A failure in a test file outside the diff is reported in the PR body; the next push is retried once with the scoped run. Code changed after implementation review must be re-reviewed before archive.
 
 ## Known limits
 
