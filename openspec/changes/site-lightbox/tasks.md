@@ -10,3 +10,5 @@
 
 1. `site.html?book=alps` at 1440×900: Fullscreen opens on the current slide, arrows / Home / End step, double-click zooms 2×, drag pans, Esc closes on the lightbox's slide with focus on the opener.
 2. 390×844 touch: tap the stage opens, no arrows, swipe steps.
+
+manual-qa (stage 9): harness problem, not a product verdict: `pnpm agent manual-qa` waits for the editor welcome screen (`start-session` click intercepted by its header) and never reaches `site.html`. Both scenarios are covered by `e2e/site-lightbox.spec.ts` (10 / 10 local: open by button / stage, keys, 120 px swipe, Esc + focus, double-click anchor, pan clamp, 390×844 touch, reduced motion, CPU ×4 perf gate).
