@@ -28,13 +28,14 @@ test('M5: cover captions sit under the cover and the back text is in the back pa
 }) => {
   await page.getByTestId('cover-list-item').click()
   // Poll the whole comparison: the stage refits while the panels settle, so
-  // two separate boxes can straddle a relayout.
+  // two separate boxes can straddle a relayout. Designer cover-editor: the
+  // labels sit under the printed sheet, wrap band included.
   for (const name of ['back', 'spine', 'front']) {
     await expect
       .poll(async () => {
-        const cover = await box(page, 'canvas-cover')
+        const sheet = await box(page, 'cover-sheet')
         const label = await box(page, `cover-label-${name}`)
-        return label.y - (cover.y + cover.height)
+        return label.y - (sheet.y + sheet.height)
       })
       .toBeGreaterThanOrEqual(8)
   }

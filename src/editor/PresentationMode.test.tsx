@@ -126,7 +126,9 @@ describe('PresentationMode', () => {
 
     const front = screen
       .getByTestId('presentation-cover')
-      .querySelector<HTMLElement>('[data-photo-id="cover-photo"]')
+      .querySelector<HTMLElement>(
+        '[data-photo-id="cover-photo"] .cover-front-photo',
+      )
     expect(front?.style.backgroundImage).toContain('blob:cover-1280')
   })
 

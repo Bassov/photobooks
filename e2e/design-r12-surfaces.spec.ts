@@ -48,6 +48,9 @@ const KIT = {
   sizeMenu: { x: 514, y: 470, width: 412 },
 } as const
 
+/** Designer cover-editor at Fit: the closed cover inside the printed sheet. */
+const SHEET_FIT = { y: 166.9, width: 787.73 } as const
+
 const FRONT_TITLE = 'Lake trip 2026'
 
 interface Rect {
@@ -57,11 +60,16 @@ interface Rect {
   height: number
 }
 
-function near(actual: number, expected: number, what: string): void {
+function near(
+  actual: number,
+  expected: number,
+  what: string,
+  tolerance = 0.5,
+): void {
   expect(
     Math.abs(actual - expected),
     `${what}: ${String(actual)}`,
-  ).toBeLessThanOrEqual(0.5)
+  ).toBeLessThanOrEqual(tolerance)
 }
 
 test.afterEach(async ({ page }) => {
@@ -144,28 +152,44 @@ test.describe('M75: cover text boxes take the kit line-height', () => {
     await openCover(page)
   })
 
+  // Designer cover-editor: Fit fits the printed sheet, so the closed cover is
+  // 787.73 wide at y 166.9; the kit M75 px above scale by its width.
   test('at Fit: front and back text sit at the kit y', async ({ page }) => {
-    await expect(page.getByTestId('cover-front-text')).toHaveCSS(
-      'line-height',
-      KIT.front.lineHeight,
-    )
-    await expect(page.getByTestId('cover-back-text')).toHaveCSS(
-      'line-height',
-      KIT.back.lineHeight,
-    )
     const read = await readCoverText(page)
-    near(read.cover.y, KIT.cover.y, 'cover y')
-    near(read.cover.width, KIT.cover.width, 'cover width')
+    near(read.cover.y, SHEET_FIT.y, 'cover y')
+    near(read.cover.width, SHEET_FIT.width, 'cover width')
+    const scale = read.cover.width / KIT.cover.width
+    const top = (kitTextY: number, inset: number) =>
+      read.cover.y + (kitTextY - inset - KIT.cover.y) * scale
 
-    near(read.front.box.height, KIT.front.box, 'front box height')
-    near(read.front.textHeight, KIT.front.text, 'front text height')
-    near(read.front.textY - read.front.box.y, KIT.front.inset, 'front inset')
-    near(read.front.textY, KIT.front.textY, 'front text y')
+    near(read.front.box.height, KIT.front.box * scale, 'front box height')
+    near(
+      Number.parseFloat(read.front.lineHeight),
+      KIT.front.box * scale,
+      'front line-height',
+    )
+    near(read.front.box.y, top(KIT.front.textY, KIT.front.inset), 'front top')
+    near(
+      read.front.textY - read.front.box.y,
+      (read.front.box.height - read.front.textHeight) / 2,
+      'front text centred',
+      1,
+    )
 
-    near(read.back.box.height, KIT.back.box, 'back box height')
-    near(read.back.textHeight, KIT.back.text, 'back text height')
-    near(read.back.textY - read.back.box.y, KIT.back.inset, 'back inset')
-    near(read.back.textY, KIT.back.textY, 'back text y')
+    near(read.back.box.height, KIT.back.box * scale, 'back box height')
+    near(
+      Number.parseFloat(read.back.lineHeight),
+      KIT.back.box * scale,
+      'back line-height',
+    )
+    near(read.back.box.y, top(KIT.back.textY, KIT.back.inset), 'back top')
+    // The glyph box height rounds to whole px: centred within 1 px.
+    near(
+      read.back.textY - read.back.box.y,
+      (read.back.box.height - read.back.textHeight) / 2,
+      'back text centred',
+      1,
+    )
   })
 
   test('at ×2 cover size: boxes keep their ratio, text stays centred', async ({
@@ -178,29 +202,44 @@ test.describe('M75: cover text boxes take the kit line-height', () => {
       .toBeGreaterThan(fit.cover.width * 1.9)
     const big = await readCoverText(page)
     const scale = big.cover.width / KIT.cover.width
-    near(big.front.box.height, KIT.front.box * scale, 'front box ×2')
-    near(big.back.box.height, KIT.back.box * scale, 'back box ×2')
+    // The line-height scales exactly; at the sheet's sub-pixel offsets the
+    // line box can snap one px taller around the italic em.
+    near(
+      Number.parseFloat(big.front.lineHeight),
+      KIT.front.box * scale,
+      'front line-height ×2',
+    )
+    near(
+      Number.parseFloat(big.back.lineHeight),
+      KIT.back.box * scale,
+      'back line-height ×2',
+    )
+    near(big.front.box.height, KIT.front.box * scale, 'front box ×2', 1.5)
+    near(big.back.box.height, KIT.back.box * scale, 'back box ×2', 1.5)
     // Box tops follow the cover; the glyph box rounds per font size, so the
     // text is checked as centred in its line box (the kit 4 / 1 px at Fit).
+    const grow = big.cover.width / fit.cover.width
     near(
       big.front.box.y - big.cover.y,
-      (fit.front.box.y - fit.cover.y) * scale,
+      (fit.front.box.y - fit.cover.y) * grow,
       'front box top ×2',
     )
     near(
       big.back.box.y - big.cover.y,
-      (fit.back.box.y - fit.cover.y) * scale,
+      (fit.back.box.y - fit.cover.y) * grow,
       'back box top ×2',
     )
     near(
       big.front.textY - big.front.box.y,
       (big.front.box.height - big.front.textHeight) / 2,
       'front text centred ×2',
+      1,
     )
     near(
       big.back.textY - big.back.box.y,
       (big.back.box.height - big.back.textHeight) / 2,
       'back text centred ×2',
+      1,
     )
     expect(big.front.box.height / big.cover.width, 'front ratio').toBeCloseTo(
       KIT.front.box / KIT.cover.width,

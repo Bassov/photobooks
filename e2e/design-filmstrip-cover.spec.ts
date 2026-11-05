@@ -52,20 +52,17 @@ async function dropFirstPhotoOnCover(page: Page): Promise<string> {
       }
       const dataTransfer = new DataTransfer()
       dataTransfer.setData(mime, id)
-      front.dispatchEvent(
-        new DragEvent('dragover', {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-        }),
-      )
-      front.dispatchEvent(
-        new DragEvent('drop', {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-        }),
-      )
+      // The sheet accepts drops right of the spine only: aim at the front.
+      const box = front.getBoundingClientRect()
+      const at = {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer,
+        clientX: box.x + box.width / 2,
+        clientY: box.y + box.height / 2,
+      }
+      front.dispatchEvent(new DragEvent('dragover', at))
+      front.dispatchEvent(new DragEvent('drop', at))
     },
     { mime: ASSET_DRAG_MIME, id: assetId },
   )
@@ -94,25 +91,30 @@ test('#9: a cover photo counts as used and shows the placed check', async ({
   await expect(page.getByTestId('filmstrip-placed')).toHaveCount(1)
 })
 
-test('#13: the cover canvas names its panels and shows the wrap guide', async ({
+test('#13: the cover canvas names its panels and shows the safe frames', async ({
   page,
 }) => {
+  // The chip needs an 18 px wrap band: the kit 1440 × 900 frame gives ~20.
+  await page.setViewportSize({ width: 1440, height: 900 })
   await page.getByTestId('cover-list-item').click()
   await expect(page.getByTestId('cover-label-back')).toHaveText('Back')
   await expect(page.getByTestId('cover-label-spine')).toHaveText('Spine')
   await expect(page.getByTestId('cover-label-front')).toHaveText('Front')
   await expect(page.getByTestId('cover-wrap-chip')).toHaveText('Wrap 15 mm')
-  const guide = page.getByTestId('cover-safe')
-  await expect(guide).toHaveCSS('outline-style', 'dashed')
-  const [cover, inner] = await Promise.all([
-    page.getByTestId('canvas-cover').boundingBox(),
-    guide.boundingBox(),
-  ])
-  assert(cover !== null && inner !== null)
-  expect(inner.x).toBeGreaterThan(cover.x)
-  expect(inner.y).toBeGreaterThan(cover.y)
-  expect(inner.x + inner.width).toBeLessThan(cover.x + cover.width)
-  expect(inner.y + inner.height).toBeLessThan(cover.y + cover.height)
+  // Designer cover-editor: one safe frame per board, inside the closed cover.
+  for (const side of ['back', 'front'] as const) {
+    const guide = page.getByTestId(`cover-safe-${side}`)
+    await expect(guide).toHaveCSS('outline-style', 'dashed')
+    const [cover, inner] = await Promise.all([
+      page.getByTestId('canvas-cover').boundingBox(),
+      guide.boundingBox(),
+    ])
+    assert(cover !== null && inner !== null)
+    expect(inner.x).toBeGreaterThan(cover.x)
+    expect(inner.y).toBeGreaterThan(cover.y)
+    expect(inner.x + inner.width).toBeLessThan(cover.x + cover.width)
+    expect(inner.y + inner.height).toBeLessThan(cover.y + cover.height)
+  }
   // The list thumbnail stays plain: no labels or chip.
   await expect(
     page.locator('[data-testid="cover-list"] .cover-wrap-chip'),
@@ -124,9 +126,7 @@ test('#14: the cover inspector lists the kit rows without fake inputs', async ({
 }) => {
   await page.getByTestId('cover-list-item').click()
   const inspector = page.getByTestId('insp-cover')
-  await expect(inspector).toContainText(
-    'Hardcover · back, spine, front · wrap 15 mm',
-  )
+  await expect(inspector).toContainText('Hardcover · wrap 15 mm · hinge 8 mm')
   await expect(inspector).toContainText('Full bleed')
   for (const label of [
     'Title font',

@@ -61,13 +61,13 @@ test('step 09: selecting the cover shows back · spine · front and the Cover in
   expect(s.width).toBeLessThan(b.width / 4)
 
   // Nothing (e.g. the empty-pasteboard guidance) sits on top of the front;
-  // only the cover's own guides (cover-safe) may.
+  // only the sheet's own guides (cover-safe-front, hinge, veil) may.
   await expect
     .poll(async () => {
       const stack = await topAt(front)
       const i = stack.findIndex((ids) => ids.includes('cover-front'))
       return (
-        i >= 0 && stack.slice(0, i).every((ids) => ids.includes('canvas-cover'))
+        i >= 0 && stack.slice(0, i).every((ids) => ids.includes('cover-sheet'))
       )
     })
     .toBe(true)
@@ -121,20 +121,17 @@ test('step 13: drop a photo on the front and edit the title in the inspector', a
       }
       const dataTransfer = new DataTransfer()
       dataTransfer.setData(mime, id)
-      front.dispatchEvent(
-        new DragEvent('dragover', {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-        }),
-      )
-      front.dispatchEvent(
-        new DragEvent('drop', {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-        }),
-      )
+      // The sheet accepts drops right of the spine only: aim at the front.
+      const box = front.getBoundingClientRect()
+      const at = {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer,
+        clientX: box.x + box.width / 2,
+        clientY: box.y + box.height / 2,
+      }
+      front.dispatchEvent(new DragEvent('dragover', at))
+      front.dispatchEvent(new DragEvent('drop', at))
     },
     { mime: ASSET_DRAG_MIME, id: assetId },
   )
