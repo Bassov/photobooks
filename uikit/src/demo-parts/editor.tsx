@@ -19,7 +19,7 @@ import { ExportSiteDialog, PrintDialog, PublishDialog, RelinkDialog, useExportRu
 import { Presentation } from "./presentation"
 import { SLOT } from "./layout"
 
-/** The editor features #/demo enables. `overrides`: Alt+click a parent item on a spread to make a local copy. Guides on a master are edited in the Masters view (see Viewport).
+/** The editor features #/demo enables. `overrides`: Ctrl/⌘+Shift+click a parent item or guide on a spread to make a local copy. Guides on a master are edited in the Masters view (see Viewport).
  *  `stack`: pages stack on the pasteboard as in prod (Q3). */
 export const DEMO_FEATURES: Features = { handles: true, swap: true, drop: true, multiDrop: true, crop: true, multi: true, marquee: true, textEdit: true, overrides: true, stack: true }
 

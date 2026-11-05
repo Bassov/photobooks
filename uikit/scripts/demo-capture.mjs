@@ -85,7 +85,19 @@ export async function capture(out, { log = console.log, probe } = {}) {
     ["editor-spread-inherits-master", async () => { await page.locator('[data-testid="mode-seg"]').getByText("Pages", { exact: true }).click(); await settle(250); await c('[data-item="p1"]') }],
     // page-numbers-kit: Book settings → Page numbers (Start at, Format, Skip first page) between Binding and Print
     ["editor-book-page-numbers", () => c('[data-testid="book-title"]')],
-    ["editor-parent-item-overridden", async () => { await page.locator('[data-current] [data-testid="master-frame"]').first().click({ modifiers: ["Alt"], force: true }) }],
+    // Designer parent-overrides PO2: Ctrl+Shift+click through the full-bleed photo copies Master A's Chapter line (badge, Override · Master A)
+    ["editor-parent-item-overridden", async () => { await page.locator('[data-current] [data-testid="master-frame"]').first().click({ modifiers: ["Control", "Shift"], force: true }) }],
+    // PO5 / PO7: Ctrl+Shift-drag the copy 30 px right, Ctrl+Shift-drag guide mA-gl onto the ruler, grey click → "Changed from Master A"
+    ["editor-parent-changes", async () => {
+      const b = await page.locator('[data-current] [data-override]').first().boundingBox(), x = Math.round(b.x + b.width / 2), y = Math.round(b.y + b.height / 2)
+      const g = await page.locator('[data-current] [data-guide="mA-gl"]').boundingBox(), gx = Math.round(g.x + g.width / 2), r = await page.locator('[data-testid="ruler-x"]').boundingBox()
+      const s = await page.locator('[data-testid="canvas"] [data-testid="spread"][data-current]').boundingBox()
+      await page.keyboard.down("Control"); await page.keyboard.down("Shift")
+      await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 30, y, { steps: 6 }); await page.mouse.up(); await settle(200)
+      await page.mouse.move(gx, Math.round(s.y + s.height / 2)); await page.mouse.down(); await page.mouse.move(gx, Math.round(r.y + r.height / 2), { steps: 6 }); await page.mouse.up(); await settle(200)
+      await page.keyboard.up("Shift"); await page.keyboard.up("Control")
+      await page.mouse.click(Math.round(s.x - 24), Math.round(s.y + s.height / 2)) }],
+    ["editor-parent-reset-all", () => c('[data-testid="parent-reset-all"]')],
     ["editor-missing-photos", async () => { await page.evaluate(() => window.__demo.missing(2)); await settle(400) }],
     ["editor-relink-dialog", () => c('[data-testid="demo-relink"]')],
     ["editor-relink-rescan-picker", () => c('[data-testid="relink-rescan"]')],

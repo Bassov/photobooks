@@ -2,7 +2,7 @@
    nothing → Spread · one image → Photo · one text → Text · several → Multiple.
    Frequent controls first; rare ones start folded (SectionsCollapsed). Cards are reusable kit-style sections. */
 import * as React from "react"
-import { Plus, MoreHorizontal, Pencil, Trash2, Copy, LayoutTemplate, Image as ImageIcon, Type, Layers, BookOpen } from "lucide-react"
+import { Plus, MoreHorizontal, Pencil, Trash2, Copy, LayoutTemplate, Image as ImageIcon, Type, Layers, BookOpen, RotateCcw, Unlink2, EyeOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabList, Tab } from "@/components/ui/tabs"
@@ -15,10 +15,11 @@ import { segList, segTab, applyTemplate } from "./chrome"
 import { PhotoSection, CropSection, PhotoRotateSection, AdjustSection, CaptionSection, GeometrySection, ArrangeSection, AlignSection, DeleteFrameButton } from "./inspector"
 import { SpreadBgSection, TextSection, FrameStyleSection } from "./sections"
 import { slotCount, setTemplatePreview, useCustomTemplates, addCustom, renameCustom, duplicateCustom, deleteCustom, nextCustomName, pickerTemplates, pickerAlias, sortByPhotoCount, pageId, isCustom, getCustom, ofShape, findSameCustom } from "./templates"
-import { PAGE, SW, SH, effectiveGrid, masterKeyOf, defaultMasterOf, masterStatus, type Spread, type Grid } from "./model"
+import { PAGE, SW, SH, effectiveGrid, masterKeyOf, defaultMasterOf, masterStatus, parentOf, type Frame, type Spread, type Grid } from "./model"
 import { TT } from "./templates"
 import { SliderRow } from "@/components/app/controls"
-import { mapSpread } from "./store"
+import { mapSpread, mapSpreadFreezing } from "./store"
+import { parentChanges, resetParentItem, resetSpreadToParent } from "./parent-overrides"
 import { useTextOverflow } from "./text-overflow"
 import { BookInspector, pageLabel, GridFields, SegC, Toggle, useMasters, FIELD, SUB, T } from "./v7"
 
@@ -30,7 +31,7 @@ const META: Record<Ctx, { title: string; icon: React.ReactNode }> = {
 
 /** Reusable inspector shell: context header (icon + title + meta) and a scrolling body of sections.
     kit-sync KS6 (M54): no Hide inspector button here — the top-bar toggle (I) owns it. */
-export function InspectorShell({ ctx, meta, children }: { ctx: Ctx; meta?: React.ReactNode; children: React.ReactNode }) {
+export function InspectorShell({ ctx, meta, action, children }: { ctx: Ctx; meta?: React.ReactNode; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <aside className="flex h-full min-h-0 w-full flex-col" data-testid="ctx-inspector" data-ctx={ctx}>
       <div className="flex h-12 shrink-0 items-center gap-2 pl-4 pr-2" data-testid="inspector-header">
@@ -39,6 +40,7 @@ export function InspectorShell({ ctx, meta, children }: { ctx: Ctx; meta?: React
           <h2 className="truncate text-sm font-semibold">{META[ctx].title}</h2>
           {meta && <span className="truncate text-2xs text-muted-foreground" data-testid="inspector-meta">{meta}</span>}
         </div>
+        {action && <div className="ml-auto flex shrink-0 items-center">{action}</div>}
       </div>
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">{children}</div>
     </aside>
@@ -64,8 +66,12 @@ export function ContextInspector() {
       </InspectorShell>
     )
   }
+  // Designer parent-overrides PO6: an override copy names its parent and resets to it from the header
+  const copy = sel.length === 1 && sel[0].overrides ? sel[0] : null
+  const copyMeta = copy ? <span data-testid="inspector-override-meta" style={{ color: SUB }}>Override · {parentOf(st.doc, s)?.name ?? "parent"}</span> : undefined
+  const copyAction = copy ? <ResetParentButton f={copy} /> : undefined
   if (ctx === "photo") return (
-    <InspectorShell ctx="photo">
+    <InspectorShell ctx="photo" meta={copyMeta} action={copyAction}>
       <PhotoSection />
       <CropSection />
       <PhotoRotateSection />
@@ -74,7 +80,7 @@ export function ContextInspector() {
     </InspectorShell>
   )
   if (ctx === "text") return (
-    <InspectorShell ctx="text" meta={overflow ? <span className="text-ink-warning">Text overflows the frame</span> : undefined}>
+    <InspectorShell ctx="text" meta={overflow ? <span className="text-ink-warning">Text overflows the frame</span> : copyMeta} action={copyAction}>
       <TextSection live />
       <SectionsCollapsed><GeometrySection /><ArrangeSection /></SectionsCollapsed>
       <div className="p-4"><DeleteFrameButton /></div>
@@ -340,7 +346,44 @@ function SpreadPageSection() {
         <SliderRow label="Gap" resetValue={0} value={g} onChange={(v) => set(m, v as number, "Spread gap", `sg-${sp.id}`)} minValue={0} maxValue={20} step={1}
           formatOptions={{ style: "unit", unit: "millimeter", unitDisplay: "short" }} className="mt-2" />
       </div>
+      <ParentChanges sp={sp} />
       {!sp.template && <div className="mt-1.5 text-xs text-muted-foreground">Margin and gap re-flow template layouts</div>}
     </Section>
+  )
+}
+
+/* Designer parent-overrides PO6: ↺ in the copy's header removes the copy (the parent item shows again), selection → none. */
+function ResetParentButton({ f }: { f: Frame }) {
+  const st = useStudio()
+  return (
+    <button type="button" data-testid="inspector-reset-parent" aria-label="Reset to parent" title="Reset to parent"
+      onClick={() => { st.update((d) => mapSpreadFreezing(d, st.cur, (s) => resetParentItem(s, f.overrides!)), "Reset to parent"); st.setSel([]) }}
+      className="grid size-[28px] place-items-center rounded-md border-0 bg-transparent p-0 text-[#535152] outline-none transition-colors hover:bg-[#D7D7D7] hover:text-[#393738] active:bg-[#D7D7D7] active:text-[#393738] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A3839] [&_svg]:size-3.5"><RotateCcw /></button>
+  )
+}
+
+/* Designer parent-overrides PO7: "Changed from {parent}" — only when the spread has overrides or hidden parent items. */
+function ParentChanges({ sp }: { sp: Spread }) {
+  const st = useStudio()
+  const rows = parentChanges(st.doc, sp)
+  if (!rows.length) return null
+  const name = parentOf(st.doc, sp)?.name ?? "parent"
+  return (
+    <div className="mt-3" data-testid="parent-changes">
+      <div className="flex h-[24px] items-center text-xs">
+        <span style={{ color: SUB }}>Changed from {name}</span>
+        <button type="button" data-testid="parent-reset-all" onClick={() => st.update((d) => mapSpreadFreezing(d, st.cur, resetSpreadToParent), "Reset spread to parent")}
+          className="ml-auto h-[24px] rounded-sm border-0 bg-transparent px-2 text-xs font-medium leading-[24px] outline-none hover:bg-[#D7D7D7] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A3839]" style={{ color: T }}>Reset all</button>
+      </div>
+      {rows.map((r) => (
+        <div key={r.id} data-testid="parent-change-row" className="grid h-[28px] grid-cols-[16px_1fr_16px] items-center gap-2">
+          <span className="grid place-items-center [&_svg]:size-3.5" style={{ color: SUB }}>{r.state === "override" ? <Unlink2 /> : <EyeOff />}</span>
+          <span className="flex min-w-0 text-sm"><span className="truncate" style={{ color: T }}>{r.name}</span><span className="flex-none pl-1" style={{ color: SUB }}>· {r.state}</span></span>
+          <button type="button" data-testid="parent-change-reset" aria-label={`Reset ${r.name} to ${name}`} title={`Reset ${r.name} to ${name}`}
+            onClick={() => st.update((d) => mapSpreadFreezing(d, st.cur, (s) => resetParentItem(s, r.id)), "Reset to parent")}
+            className="grid size-4 place-items-center rounded-xs border-0 bg-transparent p-0 text-[#535152] outline-none transition-colors hover:bg-[rgb(57_55_56/.08)] hover:text-[#393738] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#535152] [&_svg]:size-3"><RotateCcw /></button>
+        </div>
+      ))}
+    </div>
   )
 }

@@ -2117,8 +2117,8 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const pgStatus = (await page.locator(`${demo} [data-testid="status"]`).textContent()) ?? ""
   ok("parent-guides PG2: a click on a parent guide selects the frame below, no status", (await page.locator(`${demo} [data-current] [data-testid="sel-handle"]`).count()) > 0 && !/parent spread/.test(pgStatus), pgStatus)
   await page.keyboard.press("Escape"); await page.waitForTimeout(150)
-  await page.locator(`${demo} [data-current] [data-testid="master-frame"]`).first().click({ modifiers: ["Alt"], force: true }); await page.waitForTimeout(250)
-  ok("kit10: Alt+click on a parent item makes an override copy", (await page.locator(`${demo} [data-testid="spread"][data-current]`).getByText("override", { exact: true }).count()) === 1)
+  await page.locator(`${demo} [data-current] [data-testid="master-frame"]`).first().click({ modifiers: ["Control", "Shift"], force: true }); await page.waitForTimeout(250)
+  ok("parent-overrides PO2: Ctrl+Shift+click on a parent item makes an override copy", (await page.locator(`${demo} [data-testid="spread"][data-current] [data-override]`).count()) === 1)
   // missing photo + Relink
   await page.evaluate(() => window.__demo.missing(1)); await page.waitForTimeout(400)
   ok("kit10: a missing photo hatches its frame and the dock offers Relink…", (await page.locator(`${demo} [data-testid="demo-relink"]`).count()) === 1 && (await page.locator(`${demo} [data-testid="canvas"] .hatch-missing`).count()) >= 1)

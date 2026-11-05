@@ -3,8 +3,9 @@ import * as React from "react"
 import { useDrop } from "react-aria"
 import { Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { SW, SH, PAGE, clamp, round, uid, spread, type Guide } from "./model"
-import { useStudio, mapSpread, removeFrames, useKeys } from "./store"
+import { SW, SH, PAGE, clamp, round, uid, spread, allGuides, type Guide } from "./model"
+import { hideParentGuide, isOverridePress } from "./parent-overrides"
+import { useStudio, mapSpread, removeFrames, deleteLabel, useKeys } from "./store"
 import { SpreadSurface, GuideLine, PHOTO_TYPE, FRAME_LOCKED_STATUS, readItems, marqueeStarters, grayPick } from "./canvas"
 import { bestTemplate } from "./templates"
 import { CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, setMaster, guidesOfMaster, useMasters, coverW, pagesOf, SPINE, SUB, setCoverPhoto } from "./v7"
@@ -95,7 +96,7 @@ export function useEditorKeys() {
     if ((e.key === "Delete" || e.key === "Backspace") && !mod && selFrames.length && st.features.handles && !st.cropId && !(e.target as HTMLElement).closest?.("[data-filmstrip]")) {
       e.preventDefault()
       if (!unlocked.length) { st.setStatus(FRAME_LOCKED_STATUS); return }
-      st.update((d) => removeFrames(d, st.cur, unlocked), unlocked.length > 1 ? `Delete ${unlocked.length} frames` : "Delete frame")
+      st.update((d) => removeFrames(d, st.cur, unlocked), deleteLabel(selFrames.filter((f) => !f.locked)))
       st.setSel(st.sel.filter((id) => !unlocked.includes(id)))
       return
     }
@@ -206,22 +207,27 @@ export function Viewport({ className, children, pad = 40 }: { className?: string
   const si = st.cur
   const mid = nd?.k === "master" ? nd.id : null // Masters view: guides are edited on the master and every spread on it inherits them
   const masterGuides = (id: "A" | "B") => guidesOfMaster(id, MASTERS[id])
-  const guideDrag = (e: React.PointerEvent, axis: "v" | "h", existing?: Guide) => {
+  /** `existing` with `overrides` and no copy on the spread yet: the press copies that parent guide (parent-overrides PO5). */
+  const guideDrag = (e: React.PointerEvent, axis: "v" | "h", existing?: Guide, override?: string) => {
     e.preventDefault(); e.stopPropagation()
     const id = existing?.id ?? uid("g")
     const scope = mid || st.features.parentEdit ? "parent" : existing?.scope ?? "spread"
+    let moved = false
     const mv = (ev: PointerEvent) => {
       const m = toMm(local(ev)); const pos = round(axis === "v" ? m.x : m.y, 1)
-      setNewGuide({ id, axis, pos, scope }); setCursor(local(ev))
+      moved = true; setNewGuide({ id, axis, pos, scope }); setCursor(local(ev))
     }
     const up = (ev: PointerEvent) => {
       window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up)
-      const m = toMm(local(ev)); const pos = round(axis === "v" ? m.x : m.y, 1)
+      const m = toMm(local(ev)); const pos = override && !moved ? existing!.pos : round(axis === "v" ? m.x : m.y, 1)
       const p = local(ev)
       const onRuler = view.rulers && (axis === "v" ? p.y < RULER : p.x < RULER)
       const inRange = axis === "v" ? pos > -20 && pos < SW + 20 : pos > -20 && pos < SH + 20
       setNewGuide(null)
-      if (existing && (onRuler || !inRange)) { removeGuide(id); st.setStatus("Guide removed"); return }
+      // parent-overrides PO5: a parent guide's copy dropped on the ruler / off the spread hides the parent guide here
+      if (override && (onRuler || !inRange)) { st.update((d) => mapSpread(d, si, (s) => hideParentGuide(s, override)), "Hide parent guide"); st.setStatus("Parent guide hidden on this spread"); return }
+      if (override) { st.update((d) => mapSpread(d, si, (s) => ({ ...s, guides: [...s.guides, { ...existing!, pos }] })), "Override parent guide"); return }
+      if (existing && (onRuler || !inRange)) { removeGuide(existing); st.setStatus("Guide removed"); return }
       if (!inRange || onRuler) return
       const g: Guide = { id, axis, pos, scope }
       if (mid) setMaster(mid, { guides: [...masterGuides(mid).filter((x) => x.id !== id), g] })
@@ -233,15 +239,19 @@ export function Viewport({ className, children, pad = 40 }: { className?: string
     }
     window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up)
   }
-  const removeGuide = (id: string) => {
+  const removeGuide = ({ id, overrides }: Guide) => {
     if (mid) setMaster(mid, { guides: masterGuides(mid).filter((x) => x.id !== id) })
     else if (st.features.parentEdit) { const pid = st.features.parentEdit; st.update((d) => ({ ...d, parents: d.parents.map((pp) => pp.id === pid ? { ...pp, guides: pp.guides.filter((x) => x.id !== id) } : pp) }), "Delete guide") }
+    else if (overrides) st.update((d) => mapSpread(d, si, (s) => hideParentGuide(s, overrides)), "Hide parent guide")
     else st.update((d) => mapSpread(d, si, (s) => ({ ...s, guides: s.guides.filter((x) => x.id !== id) })), "Delete guide")
   }
   const onGuideDown = (e: React.PointerEvent, id: string) => {
     const s = st.doc.spreads[si]
     const par = st.features.parentEdit ? st.doc.parents.find((p) => p.id === st.features.parentEdit) : undefined
     const g = (mid ? masterGuides(mid) : par?.guides ?? []).find((x) => x.id === id) ?? s.guides.find((x) => x.id === id)
+    // SpreadSurface's Ctrl/⌘+Shift hit on an inherited guide: a spread copy of it, dragged from the press
+    const inh = !g && !mid && isOverridePress(e) ? allGuides(st.doc, s).find((x) => x.id === id && x.inherited) : undefined
+    if (inh) { guideDrag(e, inh.axis, { id: uid("g"), axis: inh.axis, pos: inh.pos, scope: "spread", overrides: inh.id }, inh.id); return }
     if (!g) return
     if (g.locked) { e.stopPropagation(); st.setStatus("Guide is locked"); return }
     guideDrag(e, g.axis, g)

@@ -16,7 +16,7 @@ import { Section, IconButton } from "@/components/app/ui"
 import { SliderRow, Segmented } from "@/components/app/controls"
 import { Tabs, TabList, Tab, TabPanel } from "@/components/ui/tabs"
 import { P } from "@/data"
-import { useStudio, mapSpread, mapFrames, removeFrames } from "./store"
+import { useStudio, mapSpread, mapFrames, removeFrames, deleteLabel } from "./store"
 import { round, clamp, effectiveDpi, type Frame } from "./model"
 import { bbox } from "./canvas"
 import { segList, segTab } from "./chrome"
@@ -175,8 +175,9 @@ export function PhotoRotateSection() {
 
 export function ArrangeSection() {
   const { f, frames, st } = useSelected()
-  if (!f) return null
-  const move = (kind: "front" | "back" | "fwd" | "bwd") => st.update((d) => mapSpread(d, st.cur, (s) => {
+  // Designer parent-overrides PO3: a copy cannot leave the parent paint slot, so a set of copies has no z-order controls
+  if (!f || frames.every((x) => x.overrides)) return null
+  const move =(kind: "front" | "back" | "fwd" | "bwd") => st.update((d) => mapSpread(d, st.cur, (s) => {
     const a = [...s.frames]; const ids = frames.map((x) => x.id)
     const sel = a.filter((x) => ids.includes(x.id)), rest = a.filter((x) => !ids.includes(x.id))
     if (kind === "front") return { ...s, frames: [...rest, ...sel] }
@@ -267,7 +268,7 @@ export function DeleteFrameButton() {
   return (
     <div className="p-3">
       <Button variant="destructive-ghost" size="sm" className="w-full gap-1.5 text-sm [&_svg]:size-4"
-    onPress={() => { const ids = frames.map((f) => f.id); st.update((d) => removeFrames(d, st.cur, ids), ids.length > 1 ? `Delete ${ids.length} frames` : "Delete frame"); st.setSel([]) }}>
+    onPress={() => { const ids = frames.map((f) => f.id); st.update((d) => removeFrames(d, st.cur, ids), deleteLabel(frames)); st.setSel([]) }}>
         <Trash2 />Delete {frames.length > 1 ? `${frames.length} frames` : "frame"}<span className="ml-auto text-xs">Del</span>
       </Button>
     </div>
