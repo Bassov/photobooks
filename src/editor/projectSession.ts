@@ -915,6 +915,16 @@ export function isLibraryBacked(): boolean {
   return storage !== null && bookId !== null
 }
 
+/** The bound library while a library book is open (else `null`). */
+export function getOpenLibrary(): {
+  storage: LibraryStorage
+  libraryId: string
+} | null {
+  return storage !== null && bookId !== null && libraryId !== null
+    ? { storage, libraryId }
+    : null
+}
+
 /** Register an in-session AssetSource root for a library-backed import. */
 export function registerAssetSource(rootId: string, source: AssetSource): void {
   registerInRegistry(rootId, source)

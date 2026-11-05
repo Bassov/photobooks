@@ -6,6 +6,11 @@ import {
   parsePrintProfiles,
   parseSavedTemplates,
 } from './libraryDocument'
+import {
+  parsePublished,
+  serializePublished,
+  type PublishedRevision,
+} from './publish'
 import type {
   BookSummary,
   LibraryMeta,
@@ -46,6 +51,7 @@ export function createMemoryLibraryStorage(): MemoryLibraryStorage {
     defaultPrintProfileId: parseDefaultPrintProfileId(undefined),
   }
   const books = new Map<string, unknown>()
+  const published = new Map<string, unknown>()
   const editedAtMsById = new Map<string, number>()
   let permissionRequired = false
   let lockedElsewhere = false
@@ -176,7 +182,34 @@ export function createMemoryLibraryStorage(): MemoryLibraryStorage {
           }
           books.delete(id)
           editedAtMsById.delete(id)
+          published.delete(id)
           return success(undefined)
+        }),
+      )
+    },
+    loadPublished(bookId: string) {
+      return Promise.resolve(
+        gateRead(() => {
+          if (!published.has(bookId)) {
+            return failure('not-found')
+          }
+          const parsed = parsePublished(published.get(bookId))
+          return parsed.ok ? success(parsed.revision) : failure(parsed.code)
+        }),
+      )
+    },
+    savePublished(revision: PublishedRevision) {
+      return Promise.resolve(
+        gateWrite(() => {
+          if (!books.has(revision.bookId)) {
+            return failure('not-found')
+          }
+          // Same JSON round trip as the FSA adapter's `published.json`.
+          published.set(
+            revision.bookId,
+            JSON.parse(JSON.stringify(serializePublished(revision))),
+          )
+          return success(structuredClone(revision))
         }),
       )
     },
