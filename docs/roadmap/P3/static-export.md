@@ -16,4 +16,5 @@ Title: write `dist/`
 - **Tokens:** Grayscale product tokens (RULES.md): field `#D7D7D7`, bar `#E1E1E1`, list / film selection `#CACACA`, canvas selection `#232223` with white handles, crop `--crop` `#6b696a`; values from `uikit/src/index.css`, mapped to `src/ui/` tokens. No blue, no teal.
 - **Test:** unit / PBT for the pure logic; Playwright e2e for the interaction on the `?fixture=` editor; perf scenario per RULES
 - **Depends:** static-export-core
+- **Audit 2026-11-05:** worker writes, progress, Export site pill / dialog, deterministic `dist/` and the drag-during-export zero-LoAF gate ship in #466, #481, #495 (`e2e/static-export.spec.ts`); left: the viewer bundle in `dist/` (#495 proposal scope-out `static-export-viewer`; `exportSiteRun` passes no `viewer`, so pages ship without viewer CSS / JS and the phone / desktop browser check is unmet) and archiving `openspec/changes/static-export`.
 - **UI kit:** `uikit#/feature/in-app-publish` (`uikit/src/features/pages.tsx` page `in-app-publish`); parts: `uikit/src/demo-parts/dialogs.tsx` (`PublishDialog`); partial: kit shows export only as part of Publish

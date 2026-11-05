@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P3
 Title: fullscreen and swipe
+Status: done
 
 ## Scope
 

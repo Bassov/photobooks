@@ -30,7 +30,7 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 | `/next-roadmap-item`          | one roadmap item end to end (unattended)                                              |
 | `pnpm roadmap`                | `next` / `show` / `add` / `done` / `check`                                            |
 | `pnpm agent`                  | `preflight` / `finish` / `stamp-green` / `ci-wait` / `ci-brief` / `archive` / `stats` |
-| `pnpm check:fast` / `check`   | A: unit gates + patch-coverage (no stryker); apply loops                              |
+| `pnpm check:fast` / `check`   | A: diff-scoped unit + patch-coverage (no stryker); full: `test:coverage`              |
 | `pnpm check:integrity`        | C1: budget / codecov-yml / roadmap (hand-push · CI; see agent-loop)                   |
 | `pnpm verify`                 | `check:fast` + Playwright                                                             |
 | `pnpm test:e2e:changed:quiet` | B (with `stryker:diff`): changed e2e, quiet                                           |

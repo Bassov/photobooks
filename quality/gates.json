@@ -161,15 +161,7 @@
       },
       {
         "name": "unit",
-        "argv": [
-          "pnpm",
-          "exec",
-          "vitest",
-          "run",
-          "--coverage",
-          "--reporter=dot",
-          "--silent"
-        ]
+        "argv": ["node", "scripts/unit-changed.mjs"]
       }
     ],
     "integrity": [

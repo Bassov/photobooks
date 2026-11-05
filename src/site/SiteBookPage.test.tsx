@@ -372,3 +372,124 @@ describe('SiteCatalog', () => {
     expect(document.querySelector('.site-grid')).toBeNull()
   })
 })
+
+describe('fullscreen lightbox', () => {
+  beforeEach(() => {
+    vi.stubGlobal('matchMedia', () => ({
+      matches: true,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }))
+  })
+
+  const lightbox = () => screen.queryByTestId('lightbox')
+  const lightboxSizes = () => [
+    ...new Set(
+      [
+        ...document.querySelectorAll<HTMLImageElement>(
+          '[data-testid="lightbox"] img[sizes]',
+        ),
+      ].map((img) => img.getAttribute('sizes')),
+    ),
+  ]
+
+  it('opens on the current slide from Fullscreen and closes back onto its slide', () => {
+    window.history.replaceState(null, '', '/site.html#p6')
+    openBook()
+    const opener = screen.getByTestId('site-fullscreen-btn')
+    expect(opener.textContent).toBe('Fullscreen')
+    opener.focus()
+    fireEvent.click(opener)
+
+    expect(lightbox()?.getAttribute('aria-label')).toBe('Alps — fullscreen')
+    expect(document.activeElement).toBe(lightbox())
+    expect(document.documentElement.style.overflow).toBe('hidden')
+    expect(screen.getByTestId('site-fullscreen-indicator').textContent).toBe(
+      'Pages 6–7 · 4 / 11',
+    )
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    // The stage behind stays put while the lightbox steps.
+    expect(indicator()).toBe('Pages 6–7 · 4 / 11')
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(lightbox()).toBeNull()
+    expect(indicator()).toBe('Pages 8–9 · 5 / 11')
+    expect(window.location.hash).toBe('#p8')
+    expect(document.activeElement).toBe(opener)
+    expect(document.documentElement.style.overflow).toBe('')
+  })
+
+  it('opens from the keyboard on the stage, also right after a swipe', () => {
+    openBook()
+    const open = screen.getByTestId('site-open')
+    fireEvent.click(open)
+    expect(lightbox()).not.toBeNull()
+    fireEvent.keyDown(window, { key: 'End' })
+    expect(screen.getByTestId('site-fullscreen-indicator').textContent).toBe(
+      'Page 20 · 11 / 11',
+    )
+    expect(
+      document.querySelector<HTMLElement>('.site-lb-slide')?.style.width,
+    ).toBe('760px')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(indicator()).toBe('Page 20 · 11 / 11')
+
+    fireEvent.pointerDown(open, { clientX: 300 })
+    fireEvent.pointerUp(open, { clientX: 400 })
+    fireEvent.click(open)
+    expect(lightbox()).toBeNull()
+    fireEvent.click(open)
+    expect(lightbox()).not.toBeNull()
+  })
+
+  it('opens from a click on the stage, not after a swipe', () => {
+    openBook()
+    const stage = screen.getByTestId('site-stage')
+    const open = screen.getByTestId('site-open')
+    expect(open.getAttribute('aria-label')).toBe('Open fullscreen')
+    fireEvent.pointerDown(open, { clientX: 300 })
+    fireEvent.pointerUp(open, { clientX: 200 })
+    fireEvent.click(open)
+    expect(lightbox()).toBeNull()
+    expect(indicator()).toBe('Page 1 · 1 / 11')
+
+    fireEvent.pointerDown(stage, { clientX: 300 })
+    fireEvent.pointerUp(stage, { clientX: 290 })
+    fireEvent.click(open)
+    expect(lightbox()).not.toBeNull()
+    fireEvent.click(screen.getByTestId('site-fullscreen-close'))
+    expect(lightbox()).toBeNull()
+    expect(indicator()).toBe('Page 1 · 1 / 11')
+  })
+
+  it('loads lightbox photos eagerly at the fitted width, growing with zoom only', () => {
+    vi.useFakeTimers()
+    openBook()
+    fireEvent.click(screen.getByTestId('site-fullscreen-btn'))
+    // 1024 × 768 window: the spread fits 896 wide; the photo is 0.42 of it.
+    expect(lightboxSizes()).toStrictEqual(['377px'])
+    expect(
+      document
+        .querySelector('[data-testid="lightbox"] img[sizes]')
+        ?.getAttribute('loading'),
+    ).toBe('eager')
+    // Measured: 760 × 460 natural in a 1440 × 900 dialog → 1301.91 wide.
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(760)
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(460)
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1440)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(900)
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(lightboxSizes()).toStrictEqual(['547px'])
+    fireEvent.keyDown(window, { key: '+' })
+    act(() => {
+      vi.advanceTimersByTime(400)
+    })
+    expect(lightboxSizes()).toStrictEqual(['821px'])
+    fireEvent.keyDown(window, { key: '0' })
+    act(() => {
+      vi.advanceTimersByTime(400)
+    })
+    expect(lightboxSizes()).toStrictEqual(['821px'])
+    vi.useRealTimers()
+  })
+})

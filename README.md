@@ -40,7 +40,7 @@ pnpm dev
 | `pnpm test:lhci`         | Build + Lighthouse CI (`budget.json`)                                         |
 | `pnpm stryker`           | Full mutation testing                                                         |
 | `pnpm stryker:diff`      | Mutations on changed line ranges vs `origin/main` (B + CI; not in check:fast) |
-| `pnpm check:fast`        | A: typecheck + lint + deps + knip + vitest + patch-coverage (no stryker)      |
+| `pnpm check:fast`        | A: typecheck + lint + deps + knip + diff-scoped vitest + patch-coverage       |
 | `pnpm check`             | alias of `check:fast`                                                         |
 | `pnpm check:integrity`   | C1: openspec-budget / codecov-yml / roadmap                                   |
 | `pnpm verify:fast`       | alias of `check:fast`                                                         |
