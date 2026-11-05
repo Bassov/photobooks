@@ -12,3 +12,5 @@
 1. Select a text frame under a photo: Live off shows the switch and 4 chips; click chip `date` → Live on, Anchored to shows the frame, canvas shows the date.
 2. Drop another photo on the anchor frame → caption updates; switch off → swap again → caption unchanged.
 3. Delete the anchor frame → caption static; Undo → Live again.
+
+manual-qa (2026-11-05): problem (harness) — `start-session` click intercepted by the welcome header, editor never reached; scenarios 1–3 not exercised by manual-qa. Coverage: `e2e/live-captions.spec.ts` (chip date → canvas, drop on anchor updates, Make static holds on swap, delete anchor → static + undo → Live; 7 passed locally).

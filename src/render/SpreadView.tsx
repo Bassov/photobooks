@@ -469,7 +469,8 @@ interface TextNodeProps {
 
 /**
  * Live captions resolve to a fresh object on every book change; a swap only
- * repaints the captions whose string (or look) changed.
+ * repaints the captions whose string (or look) changed. `editor` follows the
+ * frame control, whose toggle swaps the frame element and remounts the node.
  */
 function sameTextNode(a: TextNodeProps, b: TextNodeProps): boolean {
   return (
@@ -478,7 +479,6 @@ function sameTextNode(a: TextNodeProps, b: TextNodeProps): boolean {
     a.text.align === b.text.align &&
     a.heightMm === b.heightMm &&
     a.pxPerMm === b.pxPerMm &&
-    a.editor === b.editor &&
     a.thumb === b.thumb
   )
 }

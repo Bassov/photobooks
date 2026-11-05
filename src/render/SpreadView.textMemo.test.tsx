@@ -138,6 +138,7 @@ describe('SpreadView live caption repaint', () => {
     ],
     ['zoom', { pxPerMm: 2 }],
     ['thumb', { thumb: true }],
+    // The frame control swaps the frame element: the node remounts.
     ['editor', { editor: true }],
   ] as const)('a %s change repaints the caption', (_, change) => {
     const base = bookWith(['lake', 'hill', 'sea'])
