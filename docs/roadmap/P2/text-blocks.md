@@ -3,10 +3,11 @@
 Tag: feature
 Milestone: P2
 Title: captions
+Status: done
 
 ## Scope
 
-- [ ] Text frames with inline editing; built-in styles (title, caption, body)
+- [x] Text frames with inline editing; built-in styles (title, caption, body)
 - **Perf:** fonts preloaded before first measure; typing re-renders only the edited text frame. Gate: type 200 characters fast — INP ≤ 100 ms.
 - **Browser check:** add a caption, edit it inline; it renders the same in the workspace and in spread thumbnails.
 - **Kit components:** text frame factory `uikit/src/sandbox/model.ts:70` (`kind:"text"`); Text tool (T) in `ToolGroup` `uikit/src/sandbox/chrome.tsx:106`; in-place edit `uikit/src/sandbox/canvas.tsx:47` `FrameBody` (`editing`, `features.textEdit`), text render `uikit/src/sandbox/canvas.tsx:356-375`; `TextSection` `uikit/src/sandbox/sections.tsx:69` (style, align) mounted at `uikit/src/sandbox/context-inspector.tsx:77`; built-in master parent text frames Running head and Caption band `uikit/src/sandbox/model.ts:72-87`
@@ -18,3 +19,7 @@ Title: captions
 - **Depends:** text-frame-model
 - **UI kit:** `uikit/src/sandbox/chrome.tsx` `ToolGroup` Text tool, `uikit/src/sandbox/canvas.tsx` `FrameBody`, `uikit/src/sandbox/sections.tsx` `TextSection`; partial: no capture step
 - **Owner-approved scope change:** 2026-10-30 02:01 (UTC+4) the Owner said to finish the roadmap with Designer and Grok Bot, then commit and merge without waiting for his formal approval; this item was updated from the Designer kit-first audit and the Grok Bot #/demo check (kit present in `uikit/src/sandbox`).
+
+## Done note
+
+shipped by text-frames-core #447, text-frames-kit #445, text-frames-editor #467; coverage audit and missing tests in text-blocks-close

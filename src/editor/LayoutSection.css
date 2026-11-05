@@ -116,6 +116,23 @@
   transform: none;
 }
 
+/* Designer spec `user-templates` UT2: Save of a layout already in My
+   templates flashes its tile (data-flash for 1200 ms). */
+.layout-tile[data-flash] .layout-thumb-paper {
+  box-shadow: var(--shadow-tile-hover);
+  transform: translateY(-1px);
+}
+
+.layout-tile[data-flash][aria-pressed='true'] .layout-thumb-paper {
+  box-shadow: var(--shadow-tile-flash-select);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layout-tile[data-flash] .layout-thumb-paper {
+    transform: none;
+  }
+}
+
 .layout-tile:focus-visible .layout-thumb-paper {
   box-shadow:
     0 0 0 2px var(--background),

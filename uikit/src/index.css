@@ -32,6 +32,8 @@
   /* Owner 2026-11-02 (layout-tile-states): layout tile states are rings on the paper, never a tile fill */
   --shadow-tile-hover: 0 0 0 1px rgb(0 0 0 / .22), 0 2px 6px rgb(0 0 0 / .12);
   --shadow-tile-select: 0 0 0 2px var(--select);
+  /* user-templates UT2: a repeated Save flashes the selected tile — select ring + the hover drop shadow */
+  --shadow-tile-flash-select: 0 0 0 2px var(--select), 0 2px 6px rgb(0 0 0 / .12);
   --shadow-tile-focus: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
   /* v4.2: role shadows alias the base scale so depth changes in one place */
   /* proto: layered soft shadow for cards on the app surface (hairline + contact + ambient) */
