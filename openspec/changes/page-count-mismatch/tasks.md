@@ -9,3 +9,5 @@
 
 1. Open the fixture book: top bar reads "· 4 pages", Book settings Pages reads 4, the Spreads list ends at page 4.
 2. Type 20 into Pages + Enter: the list ends at page 20, top bar reads 20 pages.
+
+manual-qa (2026-11-05): problem (harness) — both scenarios blocked at the welcome screen (`start-session` click intercepted by the welcome header), not a page-count result. Covered by `e2e/page-count-agree.spec.ts` (4 pages on top bar / Book settings / list with painted boxes; 20, 34, 120 typed), green in `test:e2e:changed`.
