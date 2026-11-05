@@ -40,8 +40,12 @@ function useLoc() {
 function useWin() {
   const [w, setW] = React.useState(() => ({ w: innerWidth, h: innerHeight }))
   React.useEffect(() => {
-    const on = () => setW({ w: innerWidth, h: innerHeight })
-    window.addEventListener("resize", on); return () => window.removeEventListener("resize", on)
+    const on = () => setW((p) => (p.w === innerWidth && p.h === innerHeight ? p : { w: innerWidth, h: innerHeight }))
+    // a phone's first innerWidth is the kit body's 1280 min-width; dropping it shrinks the layout viewport without a resize event
+    const ro = new ResizeObserver(on)
+    ro.observe(document.documentElement)
+    window.addEventListener("resize", on)
+    return () => { ro.disconnect(); window.removeEventListener("resize", on) }
   }, [])
   return w
 }
