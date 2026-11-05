@@ -1,5 +1,5 @@
 import { sha256HexSync } from '../../assets/sha256Sync'
-import { resolveParentFrames, type Book } from '../../core'
+import { pagesOf, resolveParentFrames, type Book } from '../../core'
 import { DERIVATIVE_PRESETS, resolvePresets } from '../../derivatives/plan'
 import {
   bookPublishStatus,
@@ -15,7 +15,6 @@ import type {
   SiteMeta,
   SitePageAssets,
 } from '../siteInput'
-import { sitePageCount } from '../siteModel'
 import type {
   SiteDerivativeInput,
   SiteExportInput,
@@ -374,7 +373,7 @@ export async function buildSiteTree(input: SiteExportInput): Promise<SiteTree> {
       id: revision.bookId,
       href: dir,
       title,
-      pages: sitePageCount(book.spreads.length),
+      pages: pagesOf(book.spreads.length),
       fmt: bookFormatFromTrim(
         book.settings.trim.widthMm,
         book.settings.trim.heightMm,

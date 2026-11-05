@@ -256,11 +256,12 @@ describe('BookSettingsSection', () => {
     expect(screen.getByTestId('book-pages').textContent).toBe('20–120')
     expect(screen.getByRole('spinbutton', { name: 'Pages' })).toHaveProperty(
       'value',
-      '4',
+      // Two spreads: page 1 and a single last page.
+      '2',
     )
     expect(screen.getByTestId('book-pages-range').textContent).toBe('20–120')
     expect(screen.getByTestId('book-pages-note').textContent).toBe(
-      'Add 8 spreads to reach the 20-page minimum',
+      'Add 9 spreads to reach the 20-page minimum',
     )
     expect(screen.getByTestId('binding-readonly').textContent).toBe('read-only')
   })

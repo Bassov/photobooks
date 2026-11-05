@@ -144,6 +144,16 @@ describe('mapExifToAssetMetadata', () => {
     ).toMatchObject({ widthPx: 30, heightPx: 10 })
   })
 
+  it.each([
+    ['Canon', 'Canon EOS R5', 'Canon EOS R5'],
+    ['NIKON CORPORATION', 'NIKON D850', 'NIKON D850'],
+    ['FUJIFILM', 'fujifilm X-T5', 'fujifilm X-T5'],
+    ['Apple', 'iPhone 15 Pro', 'Apple iPhone 15 Pro'],
+    ['Sony Group', 'ILCE-7M4', 'Sony Group ILCE-7M4'],
+  ])('camera from %j + %j is %j (no repeated make)', (Make, Model, camera) => {
+    expect(mapExifToAssetMetadata({ Make, Model }).meta?.camera).toBe(camera)
+  })
+
   it('maps make-only or model-only camera strings', () => {
     expect(mapExifToAssetMetadata({ Make: 'Acme' }).meta?.camera).toBe('Acme')
     expect(mapExifToAssetMetadata({ Model: 'X1' }).meta?.camera).toBe('X1')

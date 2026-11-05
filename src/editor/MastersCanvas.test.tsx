@@ -1,9 +1,10 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, assert, describe, expect, it, vi } from 'vitest'
-import { makeBook, makeFrame } from '../core/testing/fixtures'
+import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
+  isBulkRepaint,
   resetBookStore,
 } from './bookStore'
 import { getFrameSource, setFrameSource } from './frameSelection'
@@ -148,6 +149,58 @@ describe('MastersCanvas', () => {
       setRulersVisible(false)
     })
     expect(screen.queryByTestId('ruler-x')).toBeNull()
+  })
+
+  it('a moved master frame paints in the urgent pass while its users repaint in bulk', async () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1000)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
+    resetBookStore({
+      book: makeBook({
+        spreads: Array.from({ length: 11 }, (_, i) =>
+          makeSpread({ id: `s${String(i)}`, parentId: 'p1' }),
+        ),
+        parents: [
+          {
+            id: 'p1',
+            name: 'p1',
+            frames: [makeFrame({ id: 'p1-logo' })],
+            guides: [],
+          },
+        ],
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    setLeftPanelTab('masters')
+    render(<MastersCanvas />)
+    const frame = screen
+      .getByTestId('masters-canvas')
+      .querySelector<HTMLElement>('button.spread-frame')
+    assert(frame !== null)
+    const before = frame.style.left
+    // Outside act: the sync lane flushes in a microtask, the deferred
+    // (yielding) pass in a later Scheduler task.
+    const env = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    env.IS_REACT_ACT_ENVIRONMENT = false
+    try {
+      dispatchBookOp({
+        type: 'setFrameRect',
+        spreadId: 'p1',
+        frameId: 'p1-logo',
+        rect: { x: 200, y: 50, width: 40, height: 20 },
+      })
+      await Promise.resolve()
+      await Promise.resolve()
+      const urgent = frame.style.left
+
+      expect(isBulkRepaint()).toBe(true)
+      expect(urgent).not.toBe(before)
+    } finally {
+      env.IS_REACT_ACT_ENVIRONMENT = true
+      // Let the yielding pass land before cleanup.
+      await act(() => Promise.resolve())
+    }
   })
 })
 

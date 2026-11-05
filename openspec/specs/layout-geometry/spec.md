@@ -190,6 +190,20 @@ Applying a built-in or saved layout SHALL lay out image frames only (photos by i
 - **WHEN** a built-in or saved layout is applied to a spread holding a photo frame and a text frame
 - **THEN** the text frame keeps its id, rect and content, and its `z` is above every image frame
 
+### Requirement: Live captions
+
+A text frame SHALL be live when its content is a template anchored (`anchorFrameId`) to an image frame of the same book spread. With a photo in the anchor, `{date}` (`capturedAt` as `D Mon YYYY`, English month table; `Z` / offset → local date; else the first `YYYY[-:]MM[-:]DD`; unparseable → empty), `{title}`, `{caption}` (no fallback to title) and `{camera}` SHALL read the photo's asset, and parts left empty after a `·` split SHALL be dropped; an anchor without a photo SHALL print `—` per photo token. `editText` SHALL keep the content type. `setTextLive` on SHALL turn the text into the template and anchor the nearest image frame (rect-to-rect mm gap, frames with a photo first, ties → lower index; no image frame → no-op); off SHALL store the resolved text and drop the anchor. `setTextAnchor` SHALL re-anchor to an image frame of the spread. After every op, an anchor that is not an image frame of its spread SHALL make the caption static with the text resolved before the op, in the same step, so `bad-text-anchor` never fires.
+
+#### Scenario: Live caption follows the photo, then freezes
+
+- **WHEN** a text `x` under a photo dated `2025:07:12 08:35:00` with title `Lake` becomes live and is edited to `{title} · {date} · {caption}`
+- **THEN** it resolves to `Lake · 12 Jul 2025`; after `removeFrames` of the anchor it is static `Lake · 12 Jul 2025`, and undo restores the template and anchor
+
+#### Scenario: Empty anchor and Make static
+
+- **WHEN** a live `{date} · {camera}` is anchored to an empty image frame, then `setTextLive` off runs
+- **THEN** it paints `— · —` and is stored as static `— · —` with no anchor
+
 ### Requirement: Page number folios
 
 A parent's page numbers SHALL be two derived items `${parentId}-pn-l` / `-pn-r` (20 × 4.34 mm, `y = min(H − bottom/2 − 2.17, H − safe − 4.34)`, x per position Outer / Centre / Inner from the parent's effective margins, kept inside the safe area); the position SHALL read back from the left item's align. `setParentPageNumbers` (position or `null`) and `setPageNumbering` (start clamped 1–999, skipFirst, format) SHALL be undoable ops, and trim or grid edits SHALL re-derive the items. Page `p` (spread `⌊p/2⌋`, even → left) SHALL print `start + p − 1` in decimal or roman, and no folio when the side does not exist, the parent has no item for it, the spread hides that id, or `skipFirst` and `p` = 1. `resolveSpread` SHALL return the spread's `folios {id, text, rectMm, align}` (omitted when none) in spread mm. The painter SHALL draw each folio in the parent layer after the parent frames and under every spread frame (canvas, Preview, site; never in list thumbnails) at its rect, Inter 3.1 mm × px/mm, not hit-testable; the Masters canvas SHALL mark each item with a `#` chip; the master inspector SHALL offer Show and (when on) Outer / Centre / Inner, and Book settings SHALL offer Start at, format and Skip first page.

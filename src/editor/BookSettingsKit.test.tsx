@@ -119,7 +119,8 @@ describe('Book settings read-only rows', () => {
       'Default masterNone',
     )
     expect(screen.getByTestId('book-pages-note').textContent).toBe(
-      'Add 9 spreads to reach the 20-page minimum',
+      // One spread is page 1 alone: 10 more spreads print 20 pages.
+      'Add 10 spreads to reach the 20-page minimum',
     )
     expect(screen.getByTestId('binding-style').textContent).toBe('Hardcover')
   })
@@ -172,7 +173,8 @@ describe('Book settings header and pages', () => {
     resetBookStore({
       book: makeBook({
         title: 'Lake trip',
-        spreads: Array.from({ length: 10 }, (_, i) =>
+        // 1 + 9 × 2 + 1 = 20 pages.
+        spreads: Array.from({ length: 11 }, (_, i) =>
           makeSpread({ id: `s${String(i)}` }),
         ),
       }),
@@ -236,13 +238,13 @@ describe('Book settings Pages field (rendered #/demo step 24)', () => {
     fireEvent.change(field(), { target: { value: '9' } })
     expect(spreads()).toBe(1)
     fireEvent.keyDown(field(), { key: 'Enter' })
-    expect(spreads()).toBe(10)
+    expect(spreads()).toBe(11)
     expect(field().value).toBe('20')
     fireEvent.change(field(), { target: { value: '27' } })
     fireEvent.keyDown(field(), { key: 'a' })
-    expect(spreads()).toBe(10)
+    expect(spreads()).toBe(11)
     fireEvent.blur(field())
-    expect(spreads()).toBe(14)
+    expect(spreads()).toBe(15)
     expect(field().value).toBe('28')
   })
 
@@ -251,13 +253,13 @@ describe('Book settings Pages field (rendered #/demo step 24)', () => {
     render(<BookSettingsSection />)
     fireEvent.change(field(), { target: { value: '40' } })
     fireEvent.keyDown(field(), { key: 'Escape' })
-    expect(field().value).toBe('2')
+    expect(field().value).toBe('1')
     fireEvent.blur(field())
     expect(spreads()).toBe(1)
     fireEvent.change(field(), { target: { value: '' } })
     fireEvent.keyDown(field(), { key: 'Enter' })
     expect(spreads()).toBe(1)
-    expect(field().value).toBe('2')
+    expect(field().value).toBe('1')
   })
 })
 

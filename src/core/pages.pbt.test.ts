@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { fc } from '@fast-check/vitest'
+import { getSpreadPageCount } from './geometry/spreadSize'
 import { setPageCount } from './ops/spreads'
 import { clampPageCount, PAGE_MAX, PAGE_MIN, pagesOf } from './pages'
 import { makeBook, makeSpread } from './testing/fixtures'
@@ -14,6 +15,21 @@ const runs = {
   seed: gates.pbt.seed,
   numRuns: Number(process.env.FC_NUM_RUNS ?? gates.pbt.numRuns),
 }
+
+describe('pagesOf (property)', () => {
+  it('is the sum of every spread page count', () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 200 }), (spreads) => {
+        let sum = 0
+        for (let i = 0; i < spreads; i++) {
+          sum += getSpreadPageCount(i, spreads)
+        }
+        expect(pagesOf(spreads)).toBe(sum)
+      }),
+      runs,
+    )
+  })
+})
 
 describe('setPageCount (property)', () => {
   it('lands on an even count in 20–120, keeps the leading spreads and is idempotent', () => {

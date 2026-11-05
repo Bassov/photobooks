@@ -100,7 +100,7 @@ test('Spine width: read-only mm text computed from the page count, drawn on the 
   await expect(page.getByTestId('insp-cover').getByRole('slider')).toHaveCount(
     0,
   )
-  // 6 pages print padded to the 20-page minimum: 8 + 20 × 0.2 = 12 mm (kit).
+  // 4 pages print padded to the 20-page minimum: 8 + 20 × 0.2 = 12 mm (kit).
   await expectSpine(page, 12, trimMm)
 
   await page.getByTestId('book-title').click()
@@ -118,10 +118,11 @@ test('Pages: kit number box without arrows, 20–120 hint and spreads note', asy
   await page.getByTestId('book-title').click()
   const field = page.getByTestId('book-pages-input')
   const note = page.getByTestId('book-pages-note')
-  await expect(field).toHaveValue('6')
+  // Pages 1, 2–3, 4: the count the Spreads list shows.
+  await expect(field).toHaveValue('4')
   await expect(field).toHaveAttribute('step', '2')
   await expect(page.getByTestId('book-pages-range')).toHaveText('20–120')
-  await expect(note).toHaveText('Add 7 spreads to reach the 20-page minimum')
+  await expect(note).toHaveText('Add 8 spreads to reach the 20-page minimum')
   // Rendered #/demo step 24 `Val` box: FIELD fill, 6 px radius, 4 / 8 px pad.
   await expect(field).toHaveCSS('background-color', 'rgb(215, 215, 215)')
   await expect(field).toHaveCSS('border-radius', '6px')
@@ -134,7 +135,7 @@ test('Pages: kit number box without arrows, 20–120 hint and spreads note', asy
 
   await typePages(page, '20')
   await expect(field).toHaveValue('20')
-  expect(await spreadCount(page)).toBe('10')
+  expect(await spreadCount(page)).toBe('11')
   await expect(note).toHaveText('Pages are added in spreads of 2')
 })
 
@@ -146,21 +147,21 @@ test('Pages: typed values clamp to 20–120, round to step 2 and edit the spread
 
   await typePages(page, '10')
   await expect(field).toHaveValue('20')
-  await expect.poll(() => spreadCount(page)).toBe('10')
+  await expect.poll(() => spreadCount(page)).toBe('11')
 
   await typePages(page, '200')
   await expect(field).toHaveValue('120')
-  await expect.poll(() => spreadCount(page)).toBe('60')
+  await expect.poll(() => spreadCount(page)).toBe('61')
 
   await typePages(page, '33')
   await expect(field).toHaveValue('34')
-  await expect.poll(() => spreadCount(page)).toBe('17')
+  await expect.poll(() => spreadCount(page)).toBe('18')
 
   // Blur commits too; the arrow key steps by 2 natively.
   await field.press('ArrowDown')
   await field.blur()
   await expect(field).toHaveValue('32')
-  await expect.poll(() => spreadCount(page)).toBe('16')
+  await expect.poll(() => spreadCount(page)).toBe('17')
 
   // One undo step per commit.
   await expect(page.getByTestId('undo')).toHaveAttribute(
@@ -169,14 +170,14 @@ test('Pages: typed values clamp to 20–120, round to step 2 and edit the spread
   )
   await page.getByTestId('undo').click()
   await expect(field).toHaveValue('34')
-  await expect.poll(() => spreadCount(page)).toBe('17')
+  await expect.poll(() => spreadCount(page)).toBe('18')
 })
 
 test('Pages: the typed count persists across reload', async ({ page }) => {
   test.setTimeout(60_000)
   await page.getByTestId('book-title').click()
   await typePages(page, '24')
-  await expect.poll(() => spreadCount(page)).toBe('12')
+  await expect.poll(() => spreadCount(page)).toBe('13')
   await expect(page.getByTestId('editor-status')).toHaveText('Book saved', {
     timeout: 15_000,
   })
@@ -185,7 +186,7 @@ test('Pages: the typed count persists across reload', async ({ page }) => {
   await expect(page.getByTestId('editor-status')).toHaveText('Book restored', {
     timeout: 20_000,
   })
-  await expect.poll(() => spreadCount(page)).toBe('12')
+  await expect.poll(() => spreadCount(page)).toBe('13')
   await page.getByTestId('book-title').click()
   await expect(page.getByTestId('book-pages-input')).toHaveValue('24')
   await page.getByTestId('cover-list-item').click()

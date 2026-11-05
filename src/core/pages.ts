@@ -5,9 +5,24 @@ export const PAGE_MIN = 20
 export const PAGE_MAX = 120
 export const PAGE_STEP = 2
 
-/** Kit `pagesOf` (v7.tsx:29): every spread counts two pages. */
+/**
+ * Printed pages of a book with `spreads` spreads, the pages the list shows:
+ * a single page 1, two per inner spread and a single last page (the sum of
+ * `getSpreadPageCount`). The kit's `pagesOf(n) = 2n` (v7.tsx:29) counts its
+ * spreads plus a separate last-page row, so it agrees for n + 1 spreads here.
+ */
 export function pagesOf(spreads: number): number {
-  return spreads * 2
+  return spreads <= 1 ? Math.max(0, spreads) : 2 * (spreads - 1)
+}
+
+/** Count text of the top bar, library caption and site meta: `1 page`, `N pages`. */
+export function pagesText(pages: number): string {
+  return `${String(pages)} ${pages === 1 ? 'page' : 'pages'}`
+}
+
+/** Spreads that print `pages` pages (inverse of `pagesOf` on even counts ≥ 2). */
+export function spreadsForPages(pages: number): number {
+  return pages / PAGE_STEP + 1
 }
 
 /**
