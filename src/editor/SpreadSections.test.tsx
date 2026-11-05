@@ -8,9 +8,14 @@ import {
 } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { effectiveGrid } from '../core/grid/layoutGrid'
-import { makeBook, makeSpread } from '../core/testing/fixtures'
+import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import type { Book, Spread } from '../core'
-import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
+import {
+  getBookStoreSnapshot,
+  getHistorySnapshot,
+  resetBookStore,
+  undoBook,
+} from './bookStore'
 import { getFrameSource, setFrameSource } from './frameSelection'
 import {
   getLeftPanelTab,
@@ -339,5 +344,94 @@ describe('BackgroundSection', () => {
     seed()
     const { container } = render(<BackgroundSection spreadId="nope" />)
     expect(container.innerHTML).toBe('')
+  })
+})
+
+describe('MasterSpacingSection "Changed from {parent}"', () => {
+  const MASTER: Pick<Book, 'parents' | 'defaultParentId'> = {
+    parents: [
+      {
+        id: 'pa',
+        name: 'Master A',
+        frames: [
+          makeFrame({ id: 'logo', z: 2, assetId: 'a1' }),
+          makeFrame({ id: 'box', z: 1 }),
+        ],
+        // On the lone first (right) page s1 shows it at 74.25 mm.
+        guides: [{ id: 'g', orientation: 'vertical', offsetMm: 374.25 }],
+      },
+    ],
+    defaultParentId: 'pa',
+  }
+
+  const rowTexts = () =>
+    screen.queryAllByTestId('parent-change-row').map((row) => row.textContent)
+
+  it('is absent while the spread only inherits', () => {
+    seed({}, undefined, MASTER)
+    render(<MasterSpacingSection spreadId="s1" />)
+    expect(screen.queryByTestId('parent-changes')).toBeNull()
+    // Nothing between the sliders and the note: no reserved space.
+    expect(
+      screen.getByTestId('spread-spacing').nextElementSibling?.className,
+    ).toBe('spread-spacing-note')
+  })
+
+  it('lists each change after the sliders; a row ↺ resets only its item', () => {
+    seed(
+      {
+        parentOverrides: {
+          hiddenIds: ['box', 'g'],
+          frames: [{ ...makeFrame({ id: 'c', z: 2 }), overridesId: 'logo' }],
+        },
+      },
+      undefined,
+      MASTER,
+    )
+    render(<MasterSpacingSection spreadId="s1" />)
+    const block = screen.getByTestId('parent-changes')
+    expect(screen.getByTestId('spread-spacing').nextElementSibling).toBe(block)
+    expect(block.firstElementChild?.textContent).toBe(
+      'Changed from Master AReset all',
+    )
+    expect(rowTexts()).toEqual([
+      'Empty frame· override',
+      'Empty frame· hidden',
+      'Guide · vertical 74.3 mm· hidden',
+    ])
+    const resets = screen.getAllByTestId('parent-change-reset')
+    expect(resets.map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Reset Empty frame to Master A',
+      'Reset Empty frame to Master A',
+      'Reset Guide · vertical 74.3 mm to Master A',
+    ])
+    const [, hiddenRow] = screen.getAllByTestId('parent-change-row')
+    fireEvent.click(
+      within(hiddenRow ?? document.body).getByTestId('parent-change-reset'),
+    )
+    expect(spread(0)?.parentOverrides?.hiddenIds).toEqual(['g'])
+    expect(getHistorySnapshot().undoLabel).toBe('Reset to parent')
+    expect(rowTexts()).toHaveLength(2)
+  })
+
+  it('Reset all drops every change in one step and the block goes', () => {
+    seed(
+      {
+        parentOverrides: {
+          hiddenIds: ['box'],
+          frames: [{ ...makeFrame({ id: 'c', z: 2 }), overridesId: 'logo' }],
+        },
+      },
+      undefined,
+      MASTER,
+    )
+    render(<MasterSpacingSection spreadId="s1" />)
+    fireEvent.click(screen.getByTestId('parent-reset-all'))
+    expect(spread(0)).not.toHaveProperty('parentOverrides')
+    expect(screen.queryByTestId('parent-changes')).toBeNull()
+    act(() => {
+      undoBook()
+    })
+    expect(rowTexts()).toHaveLength(2)
   })
 })

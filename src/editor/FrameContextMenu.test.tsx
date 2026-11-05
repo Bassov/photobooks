@@ -371,3 +371,251 @@ describe('FrameContextMenu on a multi-selection', () => {
     expect(document.querySelector('.pb-menu-popover')).toBeNull()
   })
 })
+
+describe('FrameContextMenu on parent items and override copies', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+    resetFrameSelection()
+    resetBookStore()
+  })
+
+  // Master A: a logo at 20,4 (24 × 8 mm) and a vertical guide at 100 mm on
+  // the middle (two-page, 600 mm) spread; the own frame covers the logo.
+  const LOGO = makeFrame({
+    id: 'logo',
+    rect: { x: 20, y: 4, width: 24, height: 8 },
+    z: 1,
+  })
+  function parentBook(
+    parentOverrides?: Book['spreads'][number]['parentOverrides'],
+  ) {
+    return makeBook({
+      parents: [
+        {
+          id: 'm',
+          name: 'Master A',
+          frames: [LOGO],
+          guides: [{ id: 'g', orientation: 'vertical', offsetMm: 100 }],
+        },
+      ],
+      defaultParentId: 'm',
+      spreads: [
+        makeSpread({ id: 'p1', frames: [] }),
+        makeSpread({
+          id: 's',
+          frames: [makeFrame({ id: 'own', z: 1 })],
+          ...(parentOverrides === undefined ? {} : { parentOverrides }),
+        }),
+        makeSpread({ id: 'p9', frames: [] }),
+      ],
+    })
+  }
+
+  /** The book spread at 2 px/mm with the copy buttons it paints. */
+  function renderSpread(copyIds: string[] = []) {
+    render(
+      <>
+        <div data-testid="spread-view" data-spread-id="s">
+          <span>paper</span>
+          {copyIds.map((id) => (
+            <button
+              key={id}
+              type="button"
+              className="spread-frame"
+              data-frame-id={id}
+            >
+              {id}
+            </button>
+          ))}
+        </div>
+        <FrameContextMenu />
+      </>,
+    )
+    vi.spyOn(
+      screen.getByTestId('spread-view'),
+      'getBoundingClientRect',
+    ).mockReturnValue(
+      DOMRect.fromRect({ x: 10, y: 20, width: 1200, height: 600 }),
+    )
+  }
+
+  /** Right-click the paper at spread mm. */
+  function openAt(xMm: number, yMm: number) {
+    fireEvent.contextMenu(screen.getByText('paper'), {
+      clientX: 10 + xMm * 2,
+      clientY: 20 + yMm * 2,
+    })
+  }
+
+  const rows = () =>
+    screen
+      .getAllByRole('menuitem')
+      .map((item) => item.getAttribute('data-testid'))
+
+  it('opens the parent item menu through the own frame; Override selects the copy', () => {
+    seed(parentBook())
+    renderSpread()
+    openAt(32, 8)
+    const menu = screen.getByTestId('parent-menu')
+    expect(menu.getAttribute('aria-label')).toBe('Parent item')
+    expect(rows()).toEqual(['parent-menu-override', 'parent-menu-hide'])
+    expect(screen.getByTestId('parent-menu-override').textContent).toBe(
+      'Override on this spreadCtrl+Shift+Click',
+    )
+    const dispatch = vi.spyOn(bookStore, 'dispatchBookOp')
+    fireEvent.click(screen.getByTestId('parent-menu-override'))
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'overrideParentFrame',
+      spreadId: 's',
+      parentFrameId: 'logo',
+    })
+    const copy =
+      bookStore.getBookStoreSnapshot().book.spreads[1]?.parentOverrides
+        ?.frames?.[0]
+    expect(copy?.overridesId).toBe('logo')
+    expect(getFrameSource()).toEqual({ spreadId: 's', frameId: copy?.id })
+    expect(screen.queryByTestId('parent-menu')).toBeNull()
+  })
+
+  it('Hide on this spread hides the logo and keeps the selection', () => {
+    seed(parentBook())
+    renderSpread()
+    openAt(32, 8)
+    fireEvent.click(screen.getByTestId('parent-menu-hide'))
+    expect(
+      bookStore.getBookStoreSnapshot().book.spreads[1]?.parentOverrides,
+    ).toEqual({ hiddenIds: ['logo'] })
+    expect(getFrameSource()).toBeNull()
+  })
+
+  it('shows ⌘⇧Click on a Mac', () => {
+    vi.spyOn(globalThis.navigator, 'userAgent', 'get').mockReturnValue(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+    )
+    seed(parentBook())
+    renderSpread()
+    openAt(32, 8)
+    expect(screen.getByTestId('parent-menu-override').textContent).toBe(
+      'Override on this spread⌘⇧Click',
+    )
+  })
+
+  it('opens the parent guide menu within 4.5 px of a shown guide', () => {
+    seed(parentBook())
+    renderSpread()
+    openAt(102, 200)
+    expect(screen.getByTestId('parent-menu').getAttribute('aria-label')).toBe(
+      'Parent guide',
+    )
+    // The guide override has no press shortcut (PO5 is the guides item).
+    expect(screen.getByTestId('parent-menu-override').textContent).toBe(
+      'Override on this spread',
+    )
+    fireEvent.click(screen.getByTestId('parent-menu-override'))
+    expect(
+      bookStore.getBookStoreSnapshot().book.spreads[1]?.parentOverrides
+        ?.guides?.[0],
+    ).toMatchObject({ overridesId: 'g', offsetMm: 100 })
+    expect(getFrameSource()).toBeNull()
+
+    openAt(150, 200)
+    expect(screen.queryByTestId('parent-menu')).toBeNull()
+  })
+
+  it('hides a parent guide from its menu', () => {
+    seed(parentBook())
+    renderSpread()
+    openAt(98, 200)
+    fireEvent.click(screen.getByTestId('parent-menu-hide'))
+    expect(
+      bookStore.getBookStoreSnapshot().book.spreads[1]?.parentOverrides,
+    ).toEqual({ hiddenIds: ['g'] })
+  })
+
+  it('opens nothing off parent items, on a hidden logo or on the Masters canvas', () => {
+    seed(parentBook({ hiddenIds: ['logo'] }))
+    renderSpread()
+    const event = fireEvent.contextMenu(screen.getByText('paper'), {
+      clientX: 10 + 32 * 2,
+      clientY: 20 + 8 * 2,
+    })
+    expect(event).toBe(true)
+    openAt(300, 200)
+    expect(screen.queryByTestId('parent-menu')).toBeNull()
+    cleanup()
+
+    seed(parentBook())
+    render(
+      <>
+        <div data-testid="spread-view" data-spread-id="m">
+          <span>paper</span>
+        </div>
+        <FrameContextMenu />
+      </>,
+    )
+    openAt(32, 8)
+    expect(screen.queryByTestId('parent-menu')).toBeNull()
+  })
+
+  it('a copy reads Reset to parent, Hide on this spread, then Lock, without z rows', () => {
+    seed(
+      parentBook({
+        frames: [{ ...LOGO, id: 'copy', overridesId: 'logo' }],
+      }),
+    )
+    renderSpread(['copy'])
+    openMenu('copy')
+    expect(getFrameSource()).toEqual({ spreadId: 's', frameId: 'copy' })
+    expect(rows()).toEqual([
+      'frame-menu-reset-parent',
+      'frame-menu-hide-parent',
+      'frame-menu-lock',
+    ])
+    expect(document.querySelectorAll('[role="separator"]')).toHaveLength(1)
+    fireEvent.click(screen.getByTestId('frame-menu-reset-parent'))
+    expect(
+      bookStore.getBookStoreSnapshot().book.spreads[1]?.parentOverrides,
+    ).toBeUndefined()
+    expect(getFrameSource()).toBeNull()
+  })
+
+  it("a right-click on a selected copy's handle peer opens the copy menu", () => {
+    seed(
+      parentBook({
+        frames: [{ ...LOGO, id: 'copy', overridesId: 'logo' }],
+      }),
+    )
+    renderSpread(['copy'])
+    const peer = document.createElement('div')
+    peer.setAttribute('data-selection-for', 'copy')
+    const handle = document.createElement('span')
+    handle.setAttribute('data-handle', 'n')
+    peer.append(handle)
+    screen.getByTestId('spread-view').append(peer)
+    fireEvent.contextMenu(handle, { clientX: 40, clientY: 50 })
+    expect(screen.getByTestId('frame-menu-reset-parent')).toBeTruthy()
+    expect(getFrameSource()).toEqual({ spreadId: 's', frameId: 'copy' })
+  })
+
+  it('Hide on a copy removes it and hides its parent item; Lock still locks it', () => {
+    seed(
+      parentBook({
+        frames: [{ ...LOGO, id: 'copy', overridesId: 'logo' }],
+      }),
+    )
+    renderSpread(['copy'])
+    openMenu('copy')
+    fireEvent.click(screen.getByTestId('frame-menu-lock'))
+    expect(
+      bookStore.getBookStoreSnapshot().book.spreads[1]?.parentOverrides
+        ?.frames?.[0]?.locked,
+    ).toBe(true)
+    openMenu('copy')
+    fireEvent.click(screen.getByTestId('frame-menu-hide-parent'))
+    expect(
+      bookStore.getBookStoreSnapshot().book.spreads[1]?.parentOverrides,
+    ).toEqual({ hiddenIds: ['logo'] })
+    expect(getFrameSource()).toBeNull()
+  })
+})

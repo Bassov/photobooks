@@ -1,7 +1,11 @@
 import { useCallback, useRef, useSyncExternalStore } from 'react'
 import { Icon } from '../ui/Icon'
 import type { IconName } from '../ui/icons/glyphs'
-import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
+import {
+  dispatchBookOp,
+  getBookStoreSnapshot,
+  subscribeBookStore,
+} from './bookStore'
 import { CoverSection } from './CoverSection'
 import { isCoverSelected, subscribeCoverSelection } from './coverSelection'
 import {
@@ -23,9 +27,11 @@ import { PhotoRotateSection } from './PhotoRotateSection'
 import {
   getFrameSelection,
   getFrameSource,
+  setFrameSource,
   subscribeFrameSelection,
   type FrameSelection,
 } from './frameSelection'
+import { overrideCopyOf, overrideParentName } from './parentChanges'
 import { findSetFrames } from './frameArrange'
 import { MultiSections } from './MultiSections'
 import { PhotoSection } from './PhotoSection'
@@ -227,10 +233,16 @@ export function Inspector() {
               <SpreadSummary spreadId={view.spreadId} />
             ) : null}
             {view.kind === 'multi' ? <MultiSummary set={view.set} /> : null}
+            {view.kind === 'photo' || view.kind === 'text' ? (
+              <OverrideMeta target={view.target} />
+            ) : null}
             {view.kind === 'text' ? (
               <TextOverflowMeta target={view.target} />
             ) : null}
           </div>
+          {view.kind === 'photo' || view.kind === 'text' ? (
+            <OverrideReset target={view.target} />
+          ) : null}
         </div>
       )}
       <div
@@ -298,6 +310,51 @@ function SpreadSummary({ spreadId }: { spreadId: string }) {
     >
       {line}
     </p>
+  )
+}
+
+type FrameTarget = NonNullable<ReturnType<typeof getFrameSource>>
+
+/** Designer PO6: "Override · Master A" under the Photo / Text title. */
+function OverrideMeta({ target }: { target: FrameTarget }) {
+  const read = () => overrideParentName(readBook(), target)
+  const parentName = useSyncExternalStore(subscribeBookStore, read, read)
+  return parentName === null ? null : (
+    <p
+      className="m-0 truncate text-2xs"
+      style={{ color: SUB }}
+      data-testid="inspector-override-meta"
+    >
+      Override · {parentName}
+    </p>
+  )
+}
+
+/** Designer PO6: ↺ at the header's right end; the inspector falls back to the spread. */
+function OverrideReset({ target }: { target: FrameTarget }) {
+  const read = () => overrideCopyOf(readBook(), target)?.overridesId ?? null
+  const parentItemId = useSyncExternalStore(subscribeBookStore, read, read)
+  if (parentItemId === null) {
+    return null
+  }
+  return (
+    <button
+      type="button"
+      className="inspector-reset-parent"
+      aria-label="Reset to parent"
+      title="Reset to parent"
+      data-testid="inspector-reset-parent"
+      onClick={() => {
+        dispatchBookOp({
+          type: 'resetParentItem',
+          spreadId: target.spreadId,
+          parentItemId,
+        })
+        setFrameSource(null)
+      }}
+    >
+      <Icon name="rotateCcw" size={14} />
+    </button>
   )
 }
 
