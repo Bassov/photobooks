@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-- [ ] Text frames with inline editing; built-in styles (title, caption, body)
+- [x] Text frames with inline editing; built-in styles (title, caption, body)
 - **Perf:** fonts preloaded before first measure; typing re-renders only the edited text frame. Gate: type 200 characters fast — INP ≤ 100 ms.
 - **Browser check:** add a caption, edit it inline; it renders the same in the workspace and in spread thumbnails.
 - **Kit components:** text frame factory `uikit/src/sandbox/model.ts:70` (`kind:"text"`); Text tool (T) in `ToolGroup` `uikit/src/sandbox/chrome.tsx:106`; in-place edit `uikit/src/sandbox/canvas.tsx:47` `FrameBody` (`editing`, `features.textEdit`), text render `uikit/src/sandbox/canvas.tsx:356-375`; `TextSection` `uikit/src/sandbox/sections.tsx:69` (style, align) mounted at `uikit/src/sandbox/context-inspector.tsx:77`; built-in master parent text frames Running head and Caption band `uikit/src/sandbox/model.ts:72-87`
