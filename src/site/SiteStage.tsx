@@ -1,4 +1,4 @@
-import { memo, useRef, type PointerEvent } from 'react'
+import { memo, useRef, type PointerEvent, type ReactNode } from 'react'
 import type { Book } from '../core'
 // Not the barrel: it would pull the zod schemas into the viewer entry.
 import { resolveSpread } from '../core/geometry/resolveSpread'
@@ -11,6 +11,9 @@ import { frameSizes, slideSide, spreadRatio, STAGE_MAX } from './siteModel'
 type Images = Readonly<Record<string, ImageRef>>
 
 const noPreview = (): undefined => undefined
+
+/** A host's own slide paint (editor preview) at `widthPx`, for `SlideContent`. */
+export type RenderSlide = (slide: number, widthPx: number) => ReactNode
 
 /**
  * One slide's paint; memoised, so a step re-renders only the new neighbour.
@@ -89,6 +92,7 @@ export function SiteStage({
   width,
   onStep,
   onOpen,
+  renderSlide,
 }: {
   book: Book
   images: Images
@@ -96,6 +100,7 @@ export function SiteStage({
   width: number | undefined
   onStep: (delta: 1 | -1) => void
   onOpen: () => void
+  renderSlide?: RenderSlide | undefined
 }) {
   const n = book.spreads.length
   const { trim } = book.settings
@@ -143,7 +148,11 @@ export function SiteStage({
             aria-hidden={current ? undefined : true}
             inert={!current}
           >
-            <SlideContent book={book} images={images} slide={s} width={w} />
+            {renderSlide === undefined ? (
+              <SlideContent book={book} images={images} slide={s} width={w} />
+            ) : (
+              renderSlide(s, w)
+            )}
           </div>
         )
       })}

@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict'
 import { fc, test } from '@fast-check/vitest'
 import { describe, expect, it } from 'vitest'
-import type { SavedTemplate } from '../core'
+import { genericPrintProfile, type SavedTemplate } from '../core'
+import { makeCustomPrintProfile } from '../core/testing/fixtures'
 import {
   LIBRARY_SCHEMA_VERSION,
   migrateLibrary,
+  parseDefaultPrintProfileId,
   parseLegacySavedTemplates,
   parseLibrary,
+  parsePrintProfiles,
   parseSavedTemplates,
   serializeLibrary,
 } from './libraryDocument'
@@ -14,7 +17,13 @@ import type { BookPublishEntry } from './types'
 
 const PBT_RUNS = { numRuns: 1000 }
 
-const EMPTY = { books: {}, templates: [] }
+/** v4 fields of a library without custom printer profiles. */
+const NO_CUSTOM_PROFILES = {
+  printProfiles: [],
+  defaultPrintProfileId: 'generic',
+}
+const EMPTY = { books: {}, templates: [], ...NO_CUSTOM_PROFILES }
+const CUSTOM = makeCustomPrintProfile()
 
 const v0Fixtures: unknown[] = [
   undefined,
@@ -63,7 +72,7 @@ const OPENER: SavedTemplate = {
 }
 
 describe('library document', () => {
-  it.each(v0Fixtures)('upgrades v0 fixture %j to v3', (fixture) => {
+  it.each(v0Fixtures)('upgrades v0 fixture %j to v4', (fixture) => {
     const migrated = migrateLibrary(fixture)
     expect(migrated).toMatchObject({
       ok: true,
@@ -71,6 +80,7 @@ describe('library document', () => {
         schemaVersion: LIBRARY_SCHEMA_VERSION,
         books: {},
         templates: [],
+        ...NO_CUSTOM_PROFILES,
       },
     })
     expect(parseLibrary(fixture)).toEqual({ ok: true, meta: EMPTY })
@@ -79,31 +89,90 @@ describe('library document', () => {
   it('upgrades a v1 document to an empty status map and no templates', () => {
     expect(migrateLibrary({ schemaVersion: 1 })).toEqual({
       ok: true,
-      value: { schemaVersion: 3, books: {}, templates: [] },
+      value: {
+        schemaVersion: 4,
+        books: {},
+        templates: [],
+        ...NO_CUSTOM_PROFILES,
+      },
     })
   })
 
-  it('upgrades a v2 document to v3 keeping its status map', () => {
+  it('upgrades a v2 document to v4 keeping its status map', () => {
     const doc = { schemaVersion: 2, books: { a: { status: 'published' } } }
     expect(migrateLibrary(doc)).toEqual({
       ok: true,
-      value: { ...doc, schemaVersion: 3, templates: [] },
+      value: { ...doc, schemaVersion: 4, templates: [], ...NO_CUSTOM_PROFILES },
     })
     expect(parseLibrary(doc)).toEqual({
       ok: true,
-      meta: { books: { a: { status: 'published' } }, templates: [] },
+      meta: { ...EMPTY, books: { a: { status: 'published' } } },
     })
   })
 
-  it('keeps a v3 document as is', () => {
+  it('upgrades a v3 document to no custom profiles and the Generic default, keeping its templates', () => {
     const doc = { schemaVersion: 3, books: {}, templates: [OPENER] }
+    expect(migrateLibrary(doc)).toEqual({
+      ok: true,
+      value: { ...doc, schemaVersion: 4, ...NO_CUSTOM_PROFILES },
+    })
+    expect(parseLibrary(doc)).toEqual({
+      ok: true,
+      meta: { ...EMPTY, templates: [OPENER] },
+    })
+  })
+
+  it('keeps a v4 document as is', () => {
+    const doc = {
+      schemaVersion: 4,
+      books: {},
+      templates: [OPENER],
+      printProfiles: [CUSTOM],
+      defaultPrintProfileId: CUSTOM.id,
+    }
     const migrated = migrateLibrary(doc)
     assert.equal(migrated.ok, true)
     expect(migrated.value).toBe(doc)
     expect(parseLibrary(doc)).toEqual({
       ok: true,
-      meta: { books: {}, templates: [OPENER] },
+      meta: {
+        books: {},
+        templates: [OPENER],
+        printProfiles: [CUSTOM],
+        defaultPrintProfileId: CUSTOM.id,
+      },
     })
+  })
+
+  it('drops an invalid custom profile or one with a built-in id, one at a time', () => {
+    const second = { ...CUSTOM, id: 'custom-two', name: 'Two' }
+    expect(
+      parsePrintProfiles([
+        CUSTOM,
+        { ...CUSTOM, id: 'custom-bad', trimMinMm: 0 },
+        { ...CUSTOM, pageCount: { min: 24, step: 4, max: 81 } },
+        { ...genericPrintProfile(), name: 'Generic copy' },
+        'text',
+        null,
+        second,
+      ]),
+    ).toEqual([CUSTOM, second])
+  })
+
+  it.each([undefined, null, 'x', {}, 42])(
+    'reads custom profiles %j that are not a list as none',
+    (printProfiles) => {
+      expect(parsePrintProfiles(printProfiles)).toEqual([])
+    },
+  )
+
+  it.each([
+    [undefined, 'generic'],
+    ['', 'generic'],
+    [42, 'generic'],
+    ['custom-lab', 'custom-lab'],
+  ])('reads the default profile id %j as %j', (input, id) => {
+    expect(parseDefaultPrintProfileId(input)).toBe(id)
   })
 
   it.each([
@@ -138,7 +207,7 @@ describe('library document', () => {
     }
     expect(parseLibrary(doc)).toEqual({
       ok: true,
-      meta: { books: {}, templates: [OPENER, second] },
+      meta: { ...EMPTY, templates: [OPENER, second] },
     })
   })
 
@@ -194,19 +263,20 @@ describe('library document', () => {
   })
 
   it('rejects a newer schemaVersion', () => {
-    expect(parseLibrary({ schemaVersion: 4 })).toEqual({
+    expect(parseLibrary({ schemaVersion: 5 })).toEqual({
       ok: false,
       code: 'newer-schema',
-      schemaVersion: 4,
-      supportedVersion: 3,
+      schemaVersion: 5,
+      supportedVersion: 4,
     })
   })
 
-  it('serializes with the current schemaVersion, an empty map and no templates', () => {
+  it('serializes with the current schemaVersion, an empty map, no templates and no custom profiles', () => {
     expect(serializeLibrary({})).toEqual({
-      schemaVersion: 3,
+      schemaVersion: 4,
       books: {},
       templates: [],
+      ...NO_CUSTOM_PROFILES,
     })
   })
 
@@ -232,27 +302,45 @@ describe('library document', () => {
     ],
     PBT_RUNS,
   )(
-    'any v0 / v1 document upgrades to an empty v3 library',
+    'any v0 / v1 document upgrades to an empty v4 library',
     (version, extra) => {
       const doc = { ...extra, schemaVersion: version }
       expect(parseLibrary(doc)).toEqual({ ok: true, meta: EMPTY })
     },
   )
 
-  test.prop([bookEntries, fc.array(savedTemplate, { maxLength: 5 })], PBT_RUNS)(
-    'serialize then parse round-trips the status map and the templates',
-    (books, templates) => {
-      const text = JSON.stringify(serializeLibrary({ books, templates }))
+  test.prop(
+    [
+      bookEntries,
+      fc.array(savedTemplate, { maxLength: 5 }),
+      fc.uniqueArray(fc.stringMatching(/^custom-[a-z]{1,8}$/), {
+        maxLength: 3,
+      }),
+    ],
+    PBT_RUNS,
+  )(
+    'serialize then parse round-trips the status map, the templates and the custom profiles',
+    (books, templates, ids) => {
+      const printProfiles = ids.map((id) => makeCustomPrintProfile({ id }))
+      const defaultPrintProfileId = ids.at(-1) ?? 'generic'
+      const text = JSON.stringify(
+        serializeLibrary({
+          books,
+          templates,
+          printProfiles,
+          defaultPrintProfileId,
+        }),
+      )
       expect(parseLibrary(JSON.parse(text))).toEqual({
         ok: true,
-        meta: { books, templates },
+        meta: { books, templates, printProfiles, defaultPrintProfileId },
       })
     },
     // ~0.4 s alone; headroom for a loaded CI runner.
     20_000,
   )
 
-  test.prop([fc.integer({ min: 4, max: 1_000_000 })])(
+  test.prop([fc.integer({ min: 5, max: 1_000_000 })])(
     'any newer version is rejected',
     (schemaVersion) => {
       expect(parseLibrary({ schemaVersion })).toMatchObject({

@@ -373,6 +373,8 @@ describe('saved templates in library.json', () => {
           { ...a, name: 'A2' },
           expect.objectContaining({ name: 'B', pages: 1 }),
         ],
+        printProfiles: [],
+        defaultPrintProfileId: 'generic',
       },
     })
   })

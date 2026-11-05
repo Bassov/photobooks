@@ -60,6 +60,8 @@ e2e/fixtures/sample-orient1-landscape.jpg
 e2e/fixtures/sample-lossy-3x2.webp
 e2e/fixtures/sample-lossless-3x2.webp
 e2e/fixtures/sample-corrupt.webp
+e2e/fixtures/meta-lake.jpg
+e2e/fixtures/meta-hill.jpg
 
 # Local check / agent cache
 .cache/

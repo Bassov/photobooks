@@ -6,10 +6,12 @@ import type {
 import {
   addSpread,
   CURRENT_SCHEMA_VERSION,
+  DEFAULT_PRINT_PROFILE_ID,
   defaultCover,
   defaultEndpapers,
   defaultPrintProfileRef,
   ensureDefaultParent,
+  setPrintProfile,
   type Book,
   type BookOp,
   type GridPatch,
@@ -1053,7 +1055,15 @@ export async function createBookInLibrary(
   const id = nowId()
   const normalized =
     title === undefined ? undefined : normalizeBookTitleInput(title)
-  const book = createEmptyLibraryBook(id, normalized, options?.trim)
+  // Spec D6: the library's default profile (unknown → Generic) and its
+  // bleed / safe margin.
+  const library = await storage.getLibrary()
+  const meta = library.ok ? library.value : {}
+  const book = setPrintProfile(
+    createEmptyLibraryBook(id, normalized, options?.trim),
+    meta.defaultPrintProfileId ?? DEFAULT_PRINT_PROFILE_ID,
+    meta.printProfiles,
+  )
   const created = await storage.createBook(book)
   if (!created.ok) {
     setStatus({ kind: 'error', code: created.code, action: 'create book' })

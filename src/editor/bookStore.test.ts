@@ -341,6 +341,28 @@ describe('bookStore', () => {
     expect(getAssetContentHash('early-hash')).toBe(hash)
   })
 
+  it('a head-pass patch between a record-less enqueue and the flush lands on the asset', () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    enqueueGalleryAssets([{ assetId: 'session-jpeg' }])
+    patchAssetRecord('session-jpeg', {
+      capturedAt: '2025-07-12T08:35:00.000Z',
+      meta: { title: 'Lake' },
+    })
+
+    callbacks[0]?.(0)
+    expect(getBookStoreSnapshot().book.assets['session-jpeg']).toMatchObject({
+      capturedAt: '2025-07-12T08:35:00.000Z',
+      meta: { title: 'Lake' },
+    })
+  })
+
   it('getAssetCacheKey follows the asset from pending to live and re-keys a new revision', () => {
     const callbacks: FrameRequestCallback[] = []
     vi.stubGlobal(

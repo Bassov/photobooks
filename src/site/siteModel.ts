@@ -21,6 +21,8 @@ const BOOK_OBJECT_MAX_H = 200
  */
 const WIDE_CHROME_H = 64 + 16 + 94.85 + 32 + 24 + 36 + 32
 const NARROW_CHROME_H = 56 + 8 + 138.85 + 20 + 16 + 36 + 20
+/** The title block's "All books" link + gap (32 + 4), absent in a preview. */
+const ALL_BOOKS_H = 32 + 4
 
 /** Slides of a book with `n` spreads: the cover, then every spread. */
 export function slideCount(n: number): number {
@@ -96,19 +98,25 @@ export function bookObjectHeight(colW: number, fmt: BookObjectFmt): number {
 
 /**
  * Stage width: at most 760, the content width and the height left for the
- * spread; at least 280 unless the content is narrower.
+ * spread; at least 280 unless the content is narrower. Without the "All
+ * books" link (`allBooks: false`) the spread gets its 36 px.
  */
 export function stageWidth({
   vw,
   vh,
   ratio,
+  allBooks = true,
 }: {
   vw: number
   vh: number
   ratio: number
+  allBooks?: boolean
 }): number {
   const content = Math.max(0, vw - 2 * sidePad(vw))
-  const availH = vh - (isNarrow(vw) ? NARROW_CHROME_H : WIDE_CHROME_H)
+  const chrome =
+    (isNarrow(vw) ? NARROW_CHROME_H : WIDE_CHROME_H) -
+    (allBooks ? 0 : ALL_BOOKS_H)
+  const availH = vh - chrome
   const fit = Math.min(STAGE_MAX, availH * ratio)
   return Math.min(content, Math.max(STAGE_MIN, fit))
 }
