@@ -1,12 +1,12 @@
 ## Decisions
 
-1. `exportSiteStore.ts`: module store (`subscribe` / `getSnapshot`) over a pure `reduceExportSite`: `idle` → `running {phase: prepare|render|write, done, total}` → `done {books, files, bytes}` / `failed {code}`; `start` is ignored while running (one run). `done` → `idle` after 4 s; opening `failed` → `idle`. Progress reaches React at most every 250 ms (rAF-batched).
-2. `exportSiteRun.ts` (injected deps): at Export it re-requests readwrite permission, freezes the open book with `publishBook(meta, book, now)`, saves `library.json` + `published.json` through `LibraryStorage`, loads the other published revisions, prepares derivatives, then posts `{folder, input}` to `site-export.worker.ts` with the derivative buffers transferred. No library (session book): meta `{}` in memory, only the open book.
-3. Derivatives: `requestDerivatives` (existing pool, slot cap 1, gated by interaction) one asset at a time (prepare progress) for every revision asset with a `contentHash`; bytes via `getDerivative`; width / height from the encoded header (`encodedImageSize.ts`: WebP VP8 / VP8L / VP8X and JPEG SOF; cache entries have no dims). The source comes from the retained session file or the registered source root. Progress maps to one percent: prepare 0–30, render 30–80, write 80–100 (kit phase bands). `?fixture=painter&hashes=1` gives the fixture assets content hashes so e2e exports real images.
-4. Folder handle: new session IDB store `site-export-folders` (DB v5), keyed by library id (`session` without one).
-5. Pill: `ChromeButton` moves to `ChromeButton.tsx`. A hidden rest-content sizer and the live content share one grid cell, so the width stays the same in every state. The fill is a `::before` `scaleX` over `--control`. Below 1280 px it is icon-only. `circle-check` / `loader` are inline lucide paths in the export module (`glyphs.ts` is owned by another lane).
-6. Texts (books sentence, phase, status, fail, summary) are pure functions in `exportSiteText.ts`.
-7. Security: handle only from the picker, permission re-requested on Export, writes confined to `dist/` by `writeSiteTree` (foreign `dist/` refused).
+1. One module store (`exportSiteStore.ts`, pure reducer): idle / running / done / failed; one run at a time; progress reaches React at most every 250 ms.
+2. Export freezes the open book with `publishBook` and saves `library.json` + `published.json` through `LibraryStorage` (session book: in memory only). Prerender and writes stay in `site-export.worker.ts`; the main thread only fetches cached derivatives (pool, slot cap 1, interaction-gated) and posts them transferred.
+3. Cache entries have no dimensions: read them from the encoded WebP / JPEG header (`encodedImageSize.ts`).
+4. Folder handle: session IDB v5 store `site-export-folders`, keyed by library id; the site-export requirement is the behaviour SoT (no session-state delta).
+5. Pill reuses `ChromeButton` (moved to its own file); a hidden rest-content sizer keeps its width in every state. `circle-check` / `loader`: inline lucide paths (`glyphs.ts` belongs to another lane).
+6. Security: handle only from the picker, readwrite re-requested on Export, writes confined to `dist/` by `writeSiteTree`.
+7. UI: skill `ui-review` before push; e2e covers empty, happy, Hide + drag and foreign `dist/`.
 
 ## Touch-set & Test Plan
 
@@ -27,14 +27,10 @@
 | `src/editor/export/exportSiteRun.test.ts`       | run unit                 |
 | `src/editor/export/exportSiteText.ts`           | labels                   |
 | `src/editor/export/exportSiteText.test.ts`      | books sentence 0/1/2/4+  |
-| `src/derivatives/encodedImageSize.ts`           | WebP / JPEG dims         |
-| `src/derivatives/encodedImageSize.test.ts`      | VP8 / VP8L / VP8X / SOF  |
-| `src/editor/projectSession.ts`                  | `getLibraryStorage`      |
-| `src/editor/session/libraryActivation.test.ts`  | fake storage API         |
-| `src/project/session/idb.test.ts`               | DB v5                    |
-| `src/testFixtures/loadPainterFixture.ts`        | `&hashes=1`              |
 | `src/editor/export/exportSiteFolder.ts`         | folder handle in IDB     |
 | `src/editor/export/exportSiteFolder.test.ts`    | remember / permission    |
+| `src/derivatives/encodedImageSize.ts`           | WebP / JPEG dims         |
+| `src/derivatives/encodedImageSize.test.ts`      | VP8 / VP8L / VP8X / SOF  |
 | `src/site/export/createSiteExportWorker.ts`     | worker factory           |
 | `src/project/types.ts`                          | storage API              |
 | `src/project/memory.ts`                         | published map            |
@@ -42,7 +38,11 @@
 | `src/project/fsa/layout.ts`                     | `published.json`         |
 | `src/project/publishedStorage.test.ts`          | round trip both adapters |
 | `src/project/session/idb.ts`                    | folder store             |
+| `src/project/session/idb.test.ts`               | DB v5                    |
+| `src/editor/projectSession.ts`                  | `getLibraryStorage`      |
 | `src/editor/session/bookLockController.test.ts` | fake storage API         |
+| `src/editor/session/libraryActivation.test.ts`  | fake storage API         |
+| `src/testFixtures/loadPainterFixture.ts`        | `&hashes=1`              |
 | `e2e/static-export.spec.ts`                     | 4 cases + perf gate      |
 
-Reuse: `publishBook`, `requestDerivatives` / `getDerivative`, `runSiteExport`, `Dialog`, `Button`, `ProgressBar`, `Icon`, tokens `--field` / `--control` / `--color-meter` / `--shadow-xs`.
+Reuse: `publishBook`, `requestDerivatives` / `getDerivative`, `runSiteExport`, `Dialog`, `Button`, `ProgressBar`, `Icon`, tokens `--field` / `--control` / `--shadow-xs`.

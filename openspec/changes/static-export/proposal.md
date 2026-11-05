@@ -1,15 +1,13 @@
 ## Proposal
 
-Roadmap: `docs/roadmap/P3/static-export.md`; UI SoT: Designer spec `static-export` (2026-11-04) and kit `#/demo` steps `export-site-*` (`ExportSiteDialog`, `uikit/src/demo-parts/dialogs.tsx`).
+Roadmap: `docs/roadmap/P3/static-export.md`. UI SoT: Designer spec `static-export` (2026-11-04) and kit `ExportSiteDialog` / `#/demo` `export-site-*`; they supersede the item's older `PublishDialog` / `publish-*` kit lines.
 
 ### Scope out
 
-- Viewer bundle in `dist/` (pages stay prerendered HTML): `static-export-viewer`.
-- Cancel, unpublish UI, web image size / PDF options (not in kit, D2).
+- Viewer bundle in `dist/`: `static-export-viewer`.
+- Cancel, unpublish, image size / PDF options (not in kit, D2).
 
 ### Delta / Risk
 
-- `LibraryStorage` gains `loadPublished` / `savePublished` (`books/<id>/published.json`); Export calls `publishBook` and saves library + revision.
-- e2e locks: empty (no folder → Export disabled), happy (options → Export → Hide → drag → `dist/index.html`, no drafts, pill rect stable, byte-identical rerun), foreign `dist/` failed text. No page-level H/V scroll.
-- **Size estimate:** storage 120 + store/text/size 300 + run/folder 280 + UI 380 + tests 900 = 1980 (over 1500: one UI slice, the split would leave a pill without a run).
-- Security: folder handle via `showDirectoryPicker` (readwrite, re-requested on Export), stored in session IDB; writes only under `<folder>/dist/`; no network.
+- e2e: empty (no folder → Export disabled); happy (`dist/index.html`, no drafts, stable pill rect, byte-identical rerun); Hide + drag (zero LoAF); foreign `dist/` refused. No page-level H/V scroll.
+- Security: folder handle via picker, writes only under `<folder>/dist/`, no network.
