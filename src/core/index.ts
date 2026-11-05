@@ -48,6 +48,21 @@ export {
   type SpineWidthRule,
 } from './print/profileSchema'
 export {
+  PREFLIGHT_FIX_IDS,
+  PREFLIGHT_RULE_IDS,
+  PREFLIGHT_SEVERITIES,
+  preflight,
+  preflightRules,
+  type PreflightAssetStatus,
+  type PreflightFixId,
+  type PreflightIssue,
+  type PreflightLocation,
+  type PreflightOptions,
+  type PreflightRuleId,
+  type PreflightRuleSpec,
+  type PreflightSeverity,
+} from './print/preflight'
+export {
   SPINE_WIDTH_SOURCES,
   type CoverPrint,
   type PrintProfileOverrides,

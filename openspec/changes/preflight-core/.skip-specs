@@ -1,0 +1,1 @@
+No user-facing capability behavior change: a new pure module with no caller; its contract is pinned by unit, snapshot and PBT tests.
