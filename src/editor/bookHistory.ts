@@ -87,6 +87,7 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
   editText: 'Edit text',
   setTextStyle: 'Text style',
   setTextAlign: 'Align text',
+  setTextAnchor: 'Anchor caption',
   removeFrames: 'Delete frame',
   setFrameRect: 'Edit frame',
   moveFrame: 'Move frame',
@@ -135,6 +136,9 @@ export function opLabel(op: BookOp): string {
   }
   if (op.type === 'moveFrames' && op.frameIds.length > 1) {
     return `Move ${String(op.frameIds.length)} frames`
+  }
+  if (op.type === 'setTextLive') {
+    return op.live ? 'Make caption live' : 'Make caption static'
   }
   if (op.type === 'setFramesLocked') {
     return `${op.locked ? 'Lock' : 'Unlock'} ${String(op.frameIds.length)} frames`

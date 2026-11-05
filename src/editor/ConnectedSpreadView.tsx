@@ -102,8 +102,13 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
   )
   // A bulk repaint (a master grid edit re-aligns all its users) renders in a
   // yielding pass after the urgent update; a single-spread edit paints now.
+  // The Masters canvas shows the edited master itself: it always paints now,
+  // or a released move snaps back until the yielding pass lands.
   const deferredSnapshot = useDeferredValue(liveSnapshot)
-  const snapshot = isBulkRepaint() ? deferredSnapshot : liveSnapshot
+  const snapshot =
+    isBulkRepaint() && gridVariant !== 'master'
+      ? deferredSnapshot
+      : liveSnapshot
   const zoom = useSyncExternalStore(
     subscribeCommitted,
     getCommittedZoom,

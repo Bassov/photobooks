@@ -53,6 +53,16 @@ function book(
 const hit = (target: Book, x: number, y: number, guidesShown = true) =>
   parentHitAt(target, 's2', { x, y }, PX_PER_MM, guidesShown)
 
+const override = (target: Book, parentFrameId: string) =>
+  applyBookOp(target, {
+    type: 'overrideParentFrame',
+    spreadId: 's2',
+    parentFrameId,
+  })
+
+const copiesOf = (target: Book) =>
+  target.spreads[1]?.parentOverrides?.frames ?? []
+
 describe('parentHitAt', () => {
   it('finds the topmost parent frame under the press, through own frames', () => {
     expect(hit(book(), 30, 8)).toEqual({
@@ -111,18 +121,54 @@ describe('parentHitAt', () => {
     expect(hit(book(), 30, 4)).toMatchObject({ frameId: 'logo' })
   })
 
-  it('never hits a copy, a hidden item, a spread without a parent or an unknown spread', () => {
-    const copied = applyBookOp(book(), {
-      type: 'overrideParentFrame',
-      spreadId: 's2',
-      parentFrameId: 'logo',
+  it('takes a copy under an own frame first, then the parent frames around it', () => {
+    const copied = override(book(), 'logo')
+    const copy = copiesOf(copied)[0]
+    assert.ok(copy !== undefined)
+    // The own frame and the band both cover the copy; the copy wins.
+    expect(hit(copied, 30, 8)).toEqual({ kind: 'copy', frame: copy })
+    expect(hit(copied, 80, 10)).toMatchObject({
+      kind: 'frame',
+      frameId: 'band',
     })
-    expect(hit(copied, 30, 8)).toMatchObject({ frameId: 'band' })
-    const hidden = applyBookOp(copied, {
-      type: 'hideParentItem',
-      spreadId: 's2',
-      parentItemId: 'band',
+    // The hit is pure: no op, so no new copy and no history.
+    expect(copiesOf(copied)).toHaveLength(1)
+  })
+
+  it('takes a copy before a parent guide, and the topmost of overlapping copies', () => {
+    const target = book([
+      makeFrame({ id: 'low', rect: { x: 140, y: 0, width: 20, height: 20 } }),
+      makeFrame({
+        id: 'high',
+        rect: { x: 150, y: 0, width: 20, height: 20 },
+        z: 1,
+      }),
+    ])
+    const copied = override(override(target, 'high'), 'low')
+    const copyOf = (parentId: string) =>
+      copiesOf(copied).find((copy) => copy.overridesId === parentId)
+    // On the guide (x 150) and in both copies: the higher `z` wins.
+    expect(hit(copied, 150, 10)).toEqual({
+      kind: 'copy',
+      frame: copyOf('high'),
     })
+    expect(hit(copied, 145, 10)).toEqual({ kind: 'copy', frame: copyOf('low') })
+    expect(hit(copied, 165, 10)).toEqual({
+      kind: 'copy',
+      frame: copyOf('high'),
+    })
+  })
+
+  it('never hits a hidden item, a spread without a parent or an unknown spread', () => {
+    const copied = override(book(), 'logo')
+    const hidden = applyBookOp(
+      applyBookOp(copied, {
+        type: 'hideParentItem',
+        spreadId: 's2',
+        parentItemId: 'band',
+      }),
+      { type: 'hideParentItem', spreadId: 's2', parentItemId: 'logo' },
+    )
     expect(hit(hidden, 30, 8)).toBeNull()
     const none = applyBookOp(book(), {
       type: 'setSpreadParent',
@@ -133,16 +179,18 @@ describe('parentHitAt', () => {
     expect(parentHitAt(book(), 'gone', { x: 30, y: 8 }, PX_PER_MM)).toBeNull()
   })
 
-  it('tests the rotated rect (PBT): inside hits, outside misses', () => {
+  it('tests the rotated rect of a parent frame or a copy (PBT): inside hits, outside misses', () => {
     fc.assert(
       fc.property(
         fc.integer({ min: -180, max: 180 }),
         fc.double({ min: -0.95, max: 0.95, noNaN: true }),
         fc.double({ min: -0.95, max: 0.95, noNaN: true }),
         fc.boolean(),
-        (rotationDeg, u, v, outside) => {
+        fc.boolean(),
+        (rotationDeg, u, v, outside, copied) => {
           const rect = { x: 100, y: 100, width: 40, height: 20 }
-          const target = book([makeFrame({ id: 'tilt', rect, rotationDeg })])
+          const plain = book([makeFrame({ id: 'tilt', rect, rotationDeg })])
+          const target = copied ? override(plain, 'tilt') : plain
           // A local point (u, v of the half sizes), pushed out on x if `outside`.
           const localX = (outside ? Math.sign(u || 1) * 1.1 : u) * 20
           const localY = v * 10
@@ -150,7 +198,9 @@ describe('parentHitAt', () => {
           const x = 120 + localX * Math.cos(rad) - localY * Math.sin(rad)
           const y = 110 + localX * Math.sin(rad) + localY * Math.cos(rad)
           const found = parentHitAt(target, 's2', { x, y }, PX_PER_MM, false)
-          expect(found?.kind === 'frame').toBe(!outside)
+          expect(found?.kind ?? null).toBe(
+            outside ? null : copied ? 'copy' : 'frame',
+          )
         },
       ),
       runs,

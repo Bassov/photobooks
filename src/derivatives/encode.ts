@@ -43,7 +43,8 @@ async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
   return hex
 }
 
-async function encodePreset(
+/** Resize `bitmap` into the preset edge and encode it as sRGB. */
+export async function encodePreset(
   bitmap: ImageBitmap,
   preset: DerivativePreset,
 ): Promise<EncodedDerivative> {

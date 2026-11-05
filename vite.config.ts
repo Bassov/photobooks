@@ -16,6 +16,7 @@ const isolationHeaders = {
 
 const codecovToken = process.env.CODECOV_TOKEN
 const withE2eCoverage = process.env.VITE_COVERAGE === '1'
+const withTestFixtures = process.env.VITE_TEST_FIXTURES === '1'
 
 /** Shared Vitest + Istanbul exclude globs (tests, benches, decls, helpers, bootstrap, thin CLIs). */
 export const coverageExcludeGlobs = [
@@ -77,7 +78,14 @@ export default defineConfig({
   },
   build: {
     // Second entry: the static site viewer (prerendered pages hydrate it).
-    rolldownOptions: { input: { main: 'index.html', site: 'site.html' } },
+    // The derivative lab is dev-only: test builds (e2e) add it, deploy never.
+    rolldownOptions: {
+      input: {
+        main: 'index.html',
+        site: 'site.html',
+        ...(withTestFixtures ? { lab: 'dev/derivative-lab.html' } : {}),
+      },
+    },
     ...(withE2eCoverage ? { sourcemap: true as const } : {}),
   },
   server: {

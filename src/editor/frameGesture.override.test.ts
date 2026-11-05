@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import {
+  dispatchBookOp,
   getBookStoreSnapshot,
   getHistorySnapshot,
   resetBookStore,
@@ -40,7 +41,7 @@ function load(locked = false) {
               ...(locked ? { locked } : {}),
             }),
           ],
-          guides: [{ id: 'pg', orientation: 'vertical', offsetMm: 200 }],
+          guides: [{ id: 'pg', orientation: 'horizontal', offsetMm: 50 }],
         },
       ],
       spreads: [
@@ -189,6 +190,40 @@ describe('frameGesture · parent item override (PO2)', () => {
     expect(spreadNow().parentOverrides).toBeUndefined()
   })
 
+  it('Ctrl+Shift on a copy under an own frame reselects and moves it with no new override (review 3)', () => {
+    pointer('pointerdown', own, 30, 8, CTRL_SHIFT)
+    pointer('pointerup', window, 30, 8, CTRL_SHIFT)
+    pointer('click', own, 30, 8, CTRL_SHIFT)
+    // Click away.
+    resetFrameSelection()
+    const book = getBookStoreSnapshot().book
+
+    const down = pointer('pointerdown', own, 30, 8, CTRL_SHIFT)
+    pointer('pointerup', window, 30, 8, CTRL_SHIFT)
+    const click = pointer('click', own, 30, 8, CTRL_SHIFT)
+
+    expect(down.defaultPrevented).toBe(true)
+    expect(click.defaultPrevented).toBe(true)
+    expect(getBookStoreSnapshot().book).toBe(book)
+    expect(getFrameSource()).toEqual({
+      spreadId: spreadNow().id,
+      frameId: 'copy-1',
+    })
+    expect(getHistorySnapshot().undoLabel).toBe('Override parent item')
+
+    pointer('pointerdown', own, 30, 8, CTRL_SHIFT)
+    pointer('pointermove', window, 40, 8, { altKey: true })
+    pointer('pointerup', window, 40, 8, { altKey: true })
+    expect(copies()).toEqual([
+      expect.objectContaining({ id: 'copy-1', rect: { ...LOGO, x: 30 } }),
+    ])
+
+    undoBook()
+    expect(copies()[0]?.rect).toEqual(LOGO)
+    undoBook()
+    expect(spreadNow().parentOverrides).toBeUndefined()
+  })
+
   it('leaves a press on a copy handle above the frames to the handle gesture', async () => {
     own.remove()
     const peer = document.createElement('div')
@@ -219,13 +254,46 @@ describe('frameGesture · parent item override (PO2)', () => {
       pointer('pointerdown', own, 30, 8, init)
       pointer('pointerup', window, 30, 8, init)
     }
-    // Outside the logo, and on a parent guide (PO5 keeps today's press).
+    // Outside the logo and 3 px (1.5 mm) clear of the parent guide's band.
     pointer('pointerdown', own, 100, 30, CTRL_SHIFT)
     pointer('pointerup', window, 100, 30, CTRL_SHIFT)
-    pointer('pointerdown', own, 201, 8, CTRL_SHIFT)
-    pointer('pointerup', window, 201, 8, CTRL_SHIFT)
+    pointer('pointerdown', own, 100, 52.5, CTRL_SHIFT)
+    pointer('pointerup', window, 100, 52.5, CTRL_SHIFT)
 
     expect(spreadNow().parentOverrides).toBeUndefined()
+  })
+
+  it('Ctrl+Shift on a parent guide through an own frame overrides the guide (PO5); its click is swallowed', () => {
+    const down = pointer('pointerdown', own, 100, 51, CTRL_SHIFT)
+    pointer('pointerup', window, 100, 51, CTRL_SHIFT)
+    const click = pointer('click', own, 100, 51, CTRL_SHIFT)
+
+    expect(down.defaultPrevented).toBe(true)
+    expect(click.defaultPrevented).toBe(true)
+    expect(spreadNow().parentOverrides).toEqual({
+      guides: [
+        {
+          id: 'copy-1',
+          orientation: 'horizontal',
+          offsetMm: 50,
+          overridesId: 'pg',
+        },
+      ],
+    })
+    expect(getFrameSource()).toBeNull()
+    expect(getHistorySnapshot().undoLabel).toBe('Override parent guide')
+  })
+
+  it('a parent guide hidden on the spread is not overridden again', () => {
+    dispatchBookOp({
+      type: 'hideParentItem',
+      spreadId: spreadNow().id,
+      parentItemId: 'pg',
+    })
+    pointer('pointerdown', own, 100, 50, CTRL_SHIFT)
+    pointer('pointerup', window, 100, 50, CTRL_SHIFT)
+
+    expect(spreadNow().parentOverrides).toEqual({ hiddenIds: ['pg'] })
   })
 
   it('ignores Ctrl+Shift on a spread that is not laid out yet', () => {

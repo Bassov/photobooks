@@ -18,7 +18,7 @@ export interface JpegHeadPassEntry {
 /**
  * Bounded parallel JPEG head reads: publish temporary EXIF thumbs,
  * header dims/orientation into session + folder manifest, and `capturedAt`
- * onto the asset record (sort-by-capture).
+ * (sort-by-capture) plus `meta` (live captions) onto the asset record.
  *
  * `jpegHead` / exifr load only via nested dynamic import so the editor
  * main chunk (folderManifestWrite / bookStore / thumbCache) never embeds exifr.
@@ -41,20 +41,21 @@ export async function runJpegHeadPass(
         existing.correctedWidth > 1 &&
         existing.correctedHeight > 1
       const hasThumb = hasThumbData(entry.assetId)
-      const hasCapturedAt =
-        getBookStoreSnapshot().book.assets[entry.assetId]?.capturedAt !==
-        undefined
-      if (hasRealDims && hasThumb && hasCapturedAt) {
+      // `meta` is written with `capturedAt`, so it marks the head as read.
+      const hasMetadata =
+        getBookStoreSnapshot().book.assets[entry.assetId]?.meta !== undefined
+      if (hasRealDims && hasThumb && hasMetadata) {
         return
       }
       const head = await entry.file.slice(0, JPEG_HEAD_BYTES).arrayBuffer()
-      if (!hasCapturedAt) {
+      if (!hasMetadata) {
         const { extractAssetMetadata } =
           await import('../assets/extractAssetMetadata')
-        const { capturedAt } = await extractAssetMetadata(head)
-        if (capturedAt !== undefined) {
-          patchAssetRecord(entry.assetId, { capturedAt })
-        }
+        const { capturedAt, meta = {} } = await extractAssetMetadata(head)
+        patchAssetRecord(
+          entry.assetId,
+          capturedAt === undefined ? { meta } : { capturedAt, meta },
+        )
       }
       const parsed = await parseJpegHead(head)
       if (

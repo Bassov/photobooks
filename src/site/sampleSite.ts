@@ -1,9 +1,9 @@
 import type { Book, Frame, Spread } from '../core'
 import { defaultCover } from '../core/cover'
+import { pagesOf } from '../core/pages'
 import { makeBook } from '../core/testing/fixtures'
 import { bookFormatFromTrim } from '../render/bookObjectLayout'
 import type { ImageRef, SiteMeta, SitePageInput } from './siteInput'
-import { sitePageCount } from './siteModel'
 
 /**
  * Sample library `site.html` shows without `#site-data` (hosted preview,
@@ -115,7 +115,7 @@ export function sampleSiteInput(search: string): SitePageInput {
       id: entry.id,
       href: `site.html?book=${entry.id}`,
       title: entry.title ?? '',
-      pages: sitePageCount(entry.spreads.length),
+      pages: pagesOf(entry.spreads.length),
       fmt: bookFormatFromTrim(
         entry.settings.trim.widthMm,
         entry.settings.trim.heightMm,

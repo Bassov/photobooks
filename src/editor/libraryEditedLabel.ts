@@ -1,3 +1,5 @@
+import { pagesText } from '../core/pages'
+
 /** Relative “edited …” label for library caption meta (kit-style). */
 export function formatLibraryEditedLabel(
   editedAtMs: number,
@@ -31,7 +33,7 @@ export function formatLibraryBookMeta(
   editedAtMs: number | undefined,
   nowMs: number = Date.now(),
 ): string {
-  const pages = `${String(pageCount)} pages`
+  const pages = pagesText(pageCount)
   if (editedAtMs === undefined) {
     return pages
   }

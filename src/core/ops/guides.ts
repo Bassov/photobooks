@@ -51,7 +51,29 @@ export function addGuide(
   })
 }
 
-/** Move one guide along its axis; locked or unknown guides stay. */
+/** `guides` with `guideId` at `offsetMm`; the same array when it is absent, locked or already there. */
+function movedIn<G extends Guide>(
+  guides: readonly G[],
+  guideId: string,
+  offsetMm: number,
+): readonly G[] {
+  const current = guides.find((guide) => guide.id === guideId)
+  if (
+    current === undefined ||
+    current.locked === true ||
+    current.offsetMm === offsetMm
+  ) {
+    return guides
+  }
+  return guides.map((guide) =>
+    guide.id === guideId ? { ...guide, offsetMm } : guide,
+  )
+}
+
+/**
+ * Move one guide along its axis: an own guide, else a parent guide's local
+ * copy (`parentOverrides.guides`). Locked or unknown guides stay.
+ */
 export function moveGuide(
   book: Book,
   spreadId: string,
@@ -63,20 +85,19 @@ export function moveGuide(
   }
   const next = roundMm(offsetMm)
   return updateSpread(book, spreadId, (spread) => {
-    const current = guidesOf(spread).find((guide) => guide.id === guideId)
-    if (
-      current === undefined ||
-      current.locked === true ||
-      current.offsetMm === next
-    ) {
+    const own = guidesOf(spread)
+    if (own.some((guide) => guide.id === guideId)) {
+      const guides = movedIn(own, guideId, next)
+      return guides === own ? spread : { ...spread, guides: [...guides] }
+    }
+    const overrides = spread.parentOverrides
+    if (overrides?.guides === undefined) {
       return spread
     }
-    return {
-      ...spread,
-      guides: guidesOf(spread).map((guide) =>
-        guide.id === guideId ? { ...guide, offsetMm: next } : guide,
-      ),
-    }
+    const guides = movedIn(overrides.guides, guideId, next)
+    return guides === overrides.guides
+      ? spread
+      : { ...spread, parentOverrides: { ...overrides, guides: [...guides] } }
   })
 }
 

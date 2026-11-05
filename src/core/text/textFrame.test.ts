@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import { fc, test } from '@fast-check/vitest'
 import { describe, expect, it } from 'vitest'
+import { formatCaptureDate } from './resolveText'
 import {
+  type Asset,
   type Book,
   type Frame,
   CURRENT_SCHEMA_VERSION,
@@ -190,7 +192,7 @@ describe('resolveTextItems', () => {
     expect(itemsOf(b, 1)[0]?.text).toBe('')
   })
 
-  it('fills template tokens from book, anchor and spread number', () => {
+  it('fills anchored tokens from the photo, not the book title', () => {
     const b = book([
       makeFrame({ assetId: 'a' }),
       textFrame({
@@ -206,7 +208,7 @@ describe('resolveTextItems', () => {
     expect(itemsOf(b, 1)).toEqual([
       {
         frameId: 't1',
-        text: 'Trip|Beach|2|{x}',
+        text: 'IMG|Beach|2|{x}',
         styleId: 'body',
         align: 'right',
         anchorFrameId: 'frame-1',
@@ -214,7 +216,19 @@ describe('resolveTextItems', () => {
     ])
   })
 
-  it('falls back to asset title, then empty caption; blank book title', () => {
+  it('unanchored templates keep the book title and leave photo tokens empty', () => {
+    const b = book([
+      textFrame({
+        content: {
+          type: 'template',
+          template: '{title}|{caption}|{date}|{camera}|{spread}',
+        },
+      }),
+    ])
+    expect(itemsOf(b, 1)[0]?.text).toBe('Trip||||2')
+  })
+
+  it('has no caption fallback to the title', () => {
     const asset = (assetId: string) =>
       book(
         [
@@ -263,6 +277,186 @@ describe('resolveTextItems', () => {
     ])
     expect(itemsOf(b, 1).map((i) => i.frameId)).toEqual(['lo', 'hi'])
   })
+})
+
+describe('live caption tokens', () => {
+  const MONTH_NAMES = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(
+    ' ',
+  )
+  const word = fc.stringMatching(/^[A-Za-z]{1,8}$/)
+
+  const live = (asset: Asset | undefined, template: string): string => {
+    const b = makeBook({
+      title: 'Trip',
+      assets: asset === undefined ? {} : { a: asset },
+      gallery: asset === undefined ? [] : ['a'],
+      spreads: [
+        makeSpread({
+          frames: [
+            makeFrame(asset === undefined ? {} : { assetId: 'a' }),
+            textFrame({
+              anchorFrameId: 'frame-1',
+              content: { type: 'template', template },
+            }),
+          ],
+        }),
+      ],
+    })
+    return itemsOf(b, 0)[0]?.text ?? 'missing'
+  }
+
+  it('fills date, title, caption and camera from the photo', () => {
+    const asset: Asset = {
+      capturedAt: '2025:07:12 08:35:00',
+      meta: { title: 'Lake', caption: 'Dawn', camera: 'Canon EOS R5' },
+    }
+    expect(live(asset, '{date}|{title}|{caption}|{camera}|{spread}')).toBe(
+      '12 Jul 2025|Lake|Dawn|Canon EOS R5|1',
+    )
+  })
+
+  it('drops empty parts with their separator', () => {
+    const asset: Asset = { capturedAt: '2025-07-12', meta: { title: 'Lake' } }
+    expect(live(asset, '{title} · {date} · {caption}')).toBe(
+      'Lake · 12 Jul 2025',
+    )
+    expect(live(asset, '{caption} · {camera} · ')).toBe('')
+    expect(live(asset, '{caption} {camera} · {title}')).toBe('Lake')
+    expect(live({}, '{title}')).toBe('')
+  })
+
+  it('reads the anchored frame, not the first one; a missing anchor prints dashes', () => {
+    const b = (anchorFrameId: string) =>
+      makeBook({
+        assets: {
+          a: { meta: { title: 'Lake' } },
+          o: { meta: { title: 'Other' } },
+        },
+        gallery: ['a', 'o'],
+        spreads: [
+          makeSpread({
+            frames: [
+              makeFrame({ id: 'frame-1', assetId: 'o' }),
+              makeFrame({ id: 'frame-2', assetId: 'a' }),
+              textFrame({
+                anchorFrameId,
+                content: { type: 'template', template: '{title}' },
+              }),
+            ],
+          }),
+        ],
+      })
+    expect(itemsOf(b('frame-2'), 0)[0]?.text).toBe('Lake')
+    expect(itemsOf(b('gone'), 0)[0]?.text).toBe('—')
+  })
+
+  it('prints a dash per photo token when the anchor has no photo', () => {
+    expect(live(undefined, '{date} · {title} · {caption} · {camera}')).toBe(
+      '— · — · — · —',
+    )
+    expect(live(undefined, '{spread} · {x}')).toBe('1 · {x}')
+  })
+
+  it('reads a photo whose asset record is missing as empty values', () => {
+    const b = makeBook({
+      spreads: [
+        makeSpread({
+          frames: [
+            makeFrame({ assetId: 'gone' }),
+            textFrame({
+              anchorFrameId: 'frame-1',
+              content: { type: 'template', template: 'At · {date}' },
+            }),
+          ],
+        }),
+      ],
+    })
+    expect(itemsOf(b, 0)[0]?.text).toBe('At')
+  })
+
+  it.each([
+    ['2025:07:12 08:35:00', '12 Jul 2025'],
+    ['2025-01-05T10:00:00', '5 Jan 2025'],
+    ['2024-12-31', '31 Dec 2024'],
+    ['2025-01-01', '1 Jan 2025'],
+    ['2025-07-12T23:30:00Z (UTC)', '12 Jul 2025'],
+    ['2025-07-12T23:30:00+0400', '12 Jul 2025'],
+    ['taken 2023:02:09', '9 Feb 2023'],
+    ['2025-13-01', ''],
+    ['2025-00-10', ''],
+    ['2025-07-00', ''],
+    ['2025-07-32', ''],
+    ['2025/07/12', ''],
+    ['soon', ''],
+    ['2025-07-12Tnope+04:00', ''],
+  ])('formats %s as %j', (capturedAt, expected) => {
+    expect(formatCaptureDate(capturedAt)).toBe(expected)
+  })
+
+  it('reads the local date of a zoned ISO time', () => {
+    for (const iso of [
+      '2025-07-12T23:30:00.000Z',
+      '2025-07-12T01:30:00+04:00',
+    ]) {
+      const date = new Date(iso)
+      const month = MONTH_NAMES[date.getMonth()] ?? ''
+      expect(formatCaptureDate(iso)).toBe(
+        `${String(date.getDate())} ${month} ${String(date.getFullYear())}`,
+      )
+    }
+    expect(formatCaptureDate('')).toBe('')
+  })
+
+  test.prop(
+    [
+      fc.integer({ min: 1000, max: 9999 }),
+      fc.integer({ min: 1, max: 12 }),
+      fc.integer({ min: 1, max: 31 }),
+      fc.constantFrom(':', '-'),
+    ],
+    { numRuns: Number(process.env.FC_NUM_RUNS ?? 100) },
+  )('EXIF and plain dates print D Mon YYYY', (year, month, day, sep) => {
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const raw = `${String(year)}${sep}${pad(month)}${sep}${pad(day)} 08:00:00`
+    expect(formatCaptureDate(raw)).toBe(
+      `${String(day)} ${MONTH_NAMES[month - 1] ?? ''} ${String(year)}`,
+    )
+  })
+
+  test.prop(
+    [
+      fc.array(fc.constantFrom('date', 'title', 'caption', 'camera'), {
+        minLength: 1,
+        maxLength: 6,
+      }),
+      fc.record(
+        {
+          title: word,
+          caption: word,
+          camera: word,
+        },
+        { requiredKeys: [] },
+      ),
+      fc.boolean(),
+    ],
+    { numRuns: Number(process.env.FC_NUM_RUNS ?? 100) },
+  )(
+    'keeps exactly the non-empty values, joined by the separator',
+    (tokens, meta, dated) => {
+      const asset: Asset = {
+        meta,
+        ...(dated ? { capturedAt: '2025:07:12 08:35:00' } : {}),
+      }
+      const values: Record<string, string | undefined> = {
+        ...meta,
+        date: dated ? '12 Jul 2025' : undefined,
+      }
+      const template = tokens.map((name) => `{${name}}`).join(' · ')
+      const expected = tokens.flatMap((name) => values[name] ?? [])
+      expect(live(asset, template)).toBe(expected.join(' · '))
+      expect(live(undefined, template)).toBe(tokens.map(() => '—').join(' · '))
+    },
+  )
 })
 
 const contentArb = fc.oneof(
