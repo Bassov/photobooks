@@ -420,7 +420,7 @@ await smoke("home → book → spread fullscreen", "site-photographer", async ()
     await D('[data-testid="site-pager"] [aria-label="Next spread"]').click(); await page.waitForTimeout(150)
     const click = await page.evaluate(() => { const e = document.activeElement, cs = getComputedStyle(e); return `${e.getAttribute("aria-label")} ${cs.outlineStyle} ${cs.outlineWidth}` })
     await D('[data-testid="site-fullscreen-btn"]').click(); await page.waitForTimeout(200)
-    rings.push(...(await tabRings(["site-fullscreen-close", "Previous spread", "Next spread"], '[data-testid="lightbox"]')).map(([t, v]) => [`lightbox ${t}`, v]))
+    rings.push(...(await tabRings(["Previous spread", "Next spread", "site-fullscreen-zoom", "site-fullscreen-close"], '[data-testid="lightbox"]')).map(([t, v]) => [`lightbox ${t}`, v]))
     return ringsOk(rings, click.startsWith("Next spread none") ? [] : [["mouse click on Next spread", click]])
   })
   await smoke("library bar: focus-visible outline solid on search + sort", "recents-home", async () => ringsOk(await tabRings(["lib-search-input", "lib-sort"])))
@@ -1251,10 +1251,25 @@ await smokeS("layout-grids-parent-inherit GP5: link on writes only the margins �
   await go(feat("site-lightbox"), 600)
   const e0 = errs.length
   if (!(await page.locator('[data-testid="lightbox"]').count())) { await D('[data-testid="site-fullscreen-btn"]').first().click().catch(() => {}); await page.waitForTimeout(300) }
-  const m = await page.locator('[data-testid="site-fullscreen-book"]').evaluate((e) => { const r = e.getBoundingClientRect(), v = e.closest('[data-testid="lightbox"]').getBoundingClientRect(); return { w: r.width / v.width, h: r.height / v.height, pad: Math.min(r.left - v.left, v.right - r.right, r.top - v.top, v.bottom - r.bottom) } }).catch(() => null)
+  const m = await page.locator('[data-testid="site-fullscreen-book"]').evaluate((e) => { const r = e.getBoundingClientRect(), v = e.closest('[data-testid="lightbox"]').getBoundingClientRect(); return { w: r.width / v.width, h: r.height / v.height, pad: Math.min(r.left - v.left, v.right - r.right, r.top - v.top, v.bottom - r.bottom), fit: Math.min(Math.abs(r.width - (v.width - 128)), Math.abs(r.height - (v.height - 112))), cx: Math.abs(r.left - v.left - (v.right - r.right)) } }).catch(() => null)
   const sw = await page.locator('text=/^(Paper|Night|Sage)$/').count()
-  ok("v8 §4 site fullscreen fills ≥90% of one viewport dimension with 24–48px padding; no Paper/Night/Sage switcher", !!m && Math.max(m.w, m.h) >= 0.9 && m.pad >= 23.5 && m.pad <= 48.5 && sw === 0 && errs.length === e0, JSON.stringify(m) + ` themes=${sw}`)
-  await page.keyboard.press("Escape").catch(() => {})
+  // site-lightbox §2: the fit area is the dialog minus 64 top / 48 bottom / 64 sides; the slide touches it on its limiting side, centred
+  ok("v8 §4 + site-lightbox §2 site fullscreen fills ≥90% of one viewport dimension, fits the 64/48/64 inset area (48–64px padding); no Paper/Night/Sage switcher", !!m && Math.max(m.w, m.h) >= 0.9 && m.pad >= 47.5 && m.pad <= 64.5 && m.fit <= 0.5 && m.cx <= 0.5 && sw === 0 && errs.length === e0, JSON.stringify(m) + ` themes=${sw}`)
+  // Designer site-lightbox §2–§3: no control over the active slide; double-click zooms; a step resets; Esc closes at any zoom
+  const LB = '[data-testid="lightbox"]', zoomOf = () => page.locator(LB).getAttribute("data-zoom").catch(() => null)
+  const xo = await page.locator(LB).evaluate((v) => { const s = v.querySelector('[data-testid="site-fullscreen-book"]').getBoundingClientRect(), x = v.querySelector('[data-testid="site-fullscreen-close"]').getBoundingClientRect(); return { over: !(x.right <= s.left || x.left >= s.right || x.bottom <= s.top || x.top >= s.bottom), x: [x.left, x.top, x.width].map(Math.round), s: [s.left, s.top, s.right, s.bottom].map((n) => +n.toFixed(2)) } }).catch(() => null)
+  ok("site-lightbox §2 Close X does not overlap the active slide", !!xo && !xo.over, JSON.stringify(xo))
+  await page.locator('[data-testid="site-fullscreen-book"]').dblclick().catch(() => {}); await page.waitForTimeout(350)
+  const z2 = await zoomOf()
+  ok("site-lightbox §3 double-click → data-zoom 2.00", z2 === "2.00", z2)
+  await page.keyboard.press("ArrowRight"); await page.waitForTimeout(350)
+  const z1 = await zoomOf()
+  ok("site-lightbox §3 ArrowRight while zoomed → data-zoom 1.00", z2 === "2.00" && z1 === "1.00", `${z2} → ${z1}`)
+  await page.locator('[data-testid="site-fullscreen-book"]').dblclick().catch(() => {}); await page.waitForTimeout(350)
+  const z3 = await zoomOf()
+  await page.keyboard.press("Escape").catch(() => {}); await page.waitForTimeout(200)
+  const open = await page.locator(LB).count()
+  ok("site-lightbox §3 Esc while zoomed closes (one press)", z3 === "2.00" && open === 0, `zoom ${z3} · lightbox ${open}`)
 }
 {
   const e0 = errs.length; const steps = []; let walk = false
@@ -1379,6 +1394,7 @@ await smokeS("layout-grids-parent-inherit GP5: link on writes only the margins �
     await page.waitForTimeout(2000); W.share2 = await shareBox()
     // fullscreen: Esc returns focus to the Fullscreen button
     await page.click('[data-testid="site-fullscreen-btn"]'); await page.waitForTimeout(300); W.fsCover = await page.locator('[data-testid="lightbox"] [data-testid="site-cover"]').count()
+    W.fsBox = await page.locator('[data-testid="lightbox"]').evaluate((v) => { const R = (e) => e.getBoundingClientRect(), d = R(v), b = R(v.querySelector('[data-testid="site-fullscreen-book"]')), c = R(v.querySelector('[data-testid="site-cover"]')), r = (n) => +n.toFixed(2); return { box: [b.left - d.left, b.top - d.top, b.width, b.height].map(r), cover: [c.left - d.left, c.top - d.top, c.width, c.height].map(r), area: [d.width - 128, d.height - 112].map(r) } }).catch(() => null)
     await page.keyboard.press("Escape"); await page.waitForTimeout(300)
     W.focus = await page.evaluate(() => document.activeElement?.dataset.testid)
     // library "…" menu: Rename, Duplicate, Remove
@@ -1406,6 +1422,10 @@ await smokeS("layout-grids-parent-inherit GP5: link on writes only the margins �
   ok("v8.1 P1-3 demo filmstrip: one plain label 'Photos · N · M used', no Photos/Templates capsule", /^Photos · \d+ · \d+ used$/.test(W.film ?? "") && /^Photos · \d+ · \d+ used$/.test(W.film2 ?? "") && W.tabs === 0, J([W.film, W.film2, W.tabs]))
   ok("v8.1 P1-4 library path is not doubled", W.path === "~/Pictures/Photobooks" || (/^~\/Pictures\/[^~/]+$/.test(W.path ?? "")), W.path)
   ok("v8.1 P2-1 demo library '…' menu: Rename, Duplicate, Remove work", J(W.items).includes("Rename") && J(W.items).includes("Duplicate") && J(W.items).includes("Remove") && W.afterDup?.length === 2 && W.afterDup.includes("Lake trip ’26") && W.afterDup.includes("Lake trip ’26 (copy)") && W.afterRm?.length === 1, J([W.items, W.afterDup, W.afterRm]))
+  // site-lightbox §2: the cover slide fits the area at its own ratio (not the spread box); the cover fills that box
+  const fb = W.fsBox, near = (p, q) => !!p && !!q && p.every((x, k) => Math.abs(x - q[k]) <= 0.5)
+  ok("site-lightbox §2 lightbox cover fits the 64/48/64 area at the cover ratio (1440×900: 1312 × 769.80 at 64, 73.10)",
+    !!fb && near(fb.box, fb.cover) && (Math.abs(fb.box[2] - fb.area[0]) <= 0.5 || Math.abs(fb.box[3] - fb.area[1]) <= 0.5) && fb.box[2] <= fb.area[0] + 0.5 && fb.box[3] <= fb.area[1] + 0.5 && Math.abs(fb.box[0] - 64 - (fb.area[0] - fb.box[2]) / 2) <= 0.5 && Math.abs(fb.box[1] - 64 - (fb.area[1] - fb.box[3]) / 2) <= 0.5, J(fb))
   ok("v8.1 P2-2 Esc closes fullscreen and returns focus to site-fullscreen-btn", W.focus === "site-fullscreen-btn", W.focus)
   ok("v8.1 P2-5 print dialog uses the real page count and the book's size", (W.print ?? "").includes(`${pages} pages`) && /Custom · 19 × 23 cm/.test(W.print ?? ""), W.print)
   ok("v8.1 P2-6 Create book offers a Custom size (w × h) that the book gets", W.custom === 1 && W.size === "19x23", `${W.custom} ${W.size}`)
@@ -2154,11 +2174,12 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("kit-sync KS10: Title font / Cover / Finish are selects h 36, r 8, #D7D7D7, chevron 16, right edge 1424", sels.length === 3 && sels.every((s) => SELS[s.l] && near(s.x, SELS[s.l][0]) && near(s.w, SELS[s.l][1]) && s.h === 36 && s.r === "8px" && s.bg === "rgb(215, 215, 215)" && s.chev && near(s.right, 1424)), JSON.stringify(sels))
   await page.locator(`${demo} [data-testid="cover-material"]`).selectOption("Linen")
   ok("kit-sync KS10: Cover is editable (no coming-later note)", (await page.locator(`${demo} [data-testid="cover-material"]`).inputValue()) === "Linen" && (await page.locator(`${demo} [data-testid="material-readonly"]`).count()) === 0)
-  const pw = await textBox('[data-testid="insp-cover"] span', "Paper white")
+  const pw = await textBox('[data-testid="insp-cover"] span', "#3E3C3B")
   await c('[data-testid="book-title"]')
   const hc = await textBox('[data-testid="insp-book"] span', "Hardcover")
   // page-numbers-kit: the Page numbers section makes Book settings taller than the 900 px viewport, so its 10 px scrollbar shifts Hardcover left
-  ok("kit-sync KS10: read-only pills flush right next to their note — Paper white x 1272.72, Hardcover x 1285.45 (Book settings scrolls)", near(pw?.x, 1272.72) && near(hc?.x, 1285.45), `paper ${pw?.x} hardcover ${hc?.x}`)
+  // cover-back-fill: the Back Fill row is a swatch + "#3E3C3B" (no pill, no note), flush right
+  ok("kit-sync KS10: read-only rows flush right — Back fill swatch x 1347.86, Hardcover x 1285.45 (Book settings scrolls)", near(pw?.x, 1347.86) && near(hc?.x, 1285.45), `fill ${pw?.x} hardcover ${hc?.x}`)
   if ((await page.locator(`${demo} [role=switch][aria-label="Endpapers"]`).getAttribute("aria-checked")) !== "true") await c('[role=switch][aria-label="Endpapers"]')
   await c('[data-item="ef"]')
   const ep = page.locator(`${demo} [data-testid="canvas-endpaper"]`)

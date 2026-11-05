@@ -2,8 +2,8 @@ import { DPI_MIN, DPI_WARN, type DpiThresholds } from './geometry/dpi'
 import {
   DEFAULT_PRINT_PROFILE_ID,
   genericPrintProfile,
-  type PrintProfile,
-} from './print/profileSchema'
+} from './print/genericProfile'
+import type { PrintProfile } from './print/profileSchema'
 import type { Book, PrintProfileOverrides, PrintProfileRef } from './schema'
 
 /** Built per call (not at module load) so that its mutants are reachable. */

@@ -46,15 +46,20 @@ test('M5: cover captions sit under the cover and the back text is in the back pa
   expect(text.y).toBeGreaterThan(back.y + back.height / 2)
 })
 
-// M6: uikit/src/sandbox/v7.tsx:215-216 (Direction + Fill are Val pills).
-test('M6: cover Direction and Back fill are read-only pills', async ({
-  page,
-}) => {
+// M6: uikit/src/sandbox/v7.tsx:215 (Direction is a Val pill) and :277 (Back
+// fill is the book's read-only swatch + hex, cover-back-fill).
+test('M6: cover Direction and Back fill are read-only', async ({ page }) => {
   await page.getByTestId('cover-list-item').click()
   const insp = page.getByTestId('insp-cover')
   await expect(insp.getByTestId('cover-direction')).toHaveText('Top to bottom')
-  await expect(insp.getByTestId('cover-back-fill')).toHaveText('Paper white')
-  await expect(insp.getByTestId('fill-readonly')).toHaveText('coming later')
+  const fill = insp.getByTestId('fill-readonly')
+  await expect(fill).toHaveText('#3E3C3B')
+  await expect(fill).toBeVisible()
+  await expect(insp.getByTestId('fill-swatch')).toHaveCSS(
+    'background-color',
+    'rgb(62, 60, 59)',
+  )
+  await expect(insp.getByText('coming later')).toHaveCount(0)
   await expect(insp.getByRole('radio')).toHaveCount(0)
   await expect(insp.getByRole('button', { name: 'Navy' })).toHaveCount(0)
 })
