@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { expect, test } from './fixtures/coverage'
 import { dispatchCtrlWheel } from './fixtures/dispatchCtrlWheel'
+import { pixelsAt, topAt } from './fixtures/paintProbe'
 
 // layout-grids-parent-inherit (Designer Spec GP1–GP6): `&parent=a` makes
 // Master A the book default, so all 40 painter spreads use it. The fixture
@@ -236,4 +237,47 @@ test('GP1: spread Custom fields match the kit GridFields rects (±0.5 px); ↺ s
   await expect(resetButton).toHaveCSS('outline', `${GREY} solid 2px`)
   await assertDocumentFitsViewport(page)
   await section.screenshot({ path: testInfo.outputPath('spread-grid.png') })
+})
+
+test('a two-page spread paints the Master A grid on both pages, over every frame', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=painter&parent=a')
+  // painter-spread-1 is pages 2–3: 4-grid frames (z 0–3) cover both pages.
+  const view = page
+    .getByTestId('pasteboard-scroll')
+    .locator('[data-testid="spread-view"][data-spread-id="painter-spread-1"]')
+  await expect(view).toBeVisible()
+  const toggle = page.getByTestId('grid-topbar-toggle')
+  await toggle.click()
+  const pages = view.getByTestId('grid-overlay-page')
+  await expect(pages).toHaveCount(2)
+  await view.scrollIntoViewIfNeeded()
+  const v = await box(view)
+  // First column of each page, a quarter down (the 4-grid gap is mid-height).
+  const points = await Promise.all(
+    [0, 1].map(async (i) => {
+      const c = await box(
+        pages.nth(i).getByTestId('grid-overlay-column').first(),
+      )
+      return { x: c.x - v.x + c.width / 2, y: c.y - v.y + c.height / 4 }
+    }),
+  )
+  const on = await pixelsAt(view, points)
+  await toggle.click()
+  await expect(view.getByTestId('grid-overlay')).toHaveCount(0)
+  const off = await pixelsAt(view, points)
+  await toggle.click()
+  await expect(pages).toHaveCount(2)
+  // Stable paint: the grid alone changes the pixels.
+  expect(await pixelsAt(view, points)).toEqual(on)
+  for (const [i, point] of points.entries()) {
+    const label = `page ${String(i + 2)}`
+    expect(off[i], label).not.toEqual(on[i])
+    // The probe point lies on a frame, and the grid column hits above it.
+    const stack = await topAt(view, point)
+    const at = (id: string) => stack.findIndex((ids) => ids.includes(id))
+    expect(at('grid-overlay-column'), label).toBeGreaterThanOrEqual(0)
+    expect(at('spread-frame'), label).toBeGreaterThan(at('grid-overlay-column'))
+  }
 })

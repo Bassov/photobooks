@@ -11,12 +11,18 @@ export interface DerivativePreset {
   quality: number
 }
 
-/** Site presets, smallest first: grid thumb, viewer, 4K lightbox, share card. */
+/**
+ * Site presets, smallest first: grid thumb, viewer, 4K lightbox, share card.
+ * Display / share qualities are the lowest passing the derivative lab bar
+ * (`dev/derivative-lab.html`, `LAB_THRESHOLDS`) at that edge and format. No
+ * WebP passes at 3200 (shadows SSIM); large keeps WebP for the site srcset at
+ * the only quality clearing both sky and foliage. The thumb is not lab-tuned.
+ */
 export const DERIVATIVE_PRESETS: readonly DerivativePreset[] = [
   { id: 'site-thumb', maxEdge: 480, mimeType: 'image/webp', quality: 0.8 },
-  { id: 'site-display', maxEdge: 1600, mimeType: 'image/webp', quality: 0.82 },
-  { id: 'site-large', maxEdge: 3200, mimeType: 'image/webp', quality: 0.85 },
-  { id: 'site-share', maxEdge: 1600, mimeType: 'image/jpeg', quality: 0.85 },
+  { id: 'site-display', maxEdge: 1600, mimeType: 'image/webp', quality: 0.85 },
+  { id: 'site-large', maxEdge: 3200, mimeType: 'image/webp', quality: 0.9 },
+  { id: 'site-share', maxEdge: 1600, mimeType: 'image/jpeg', quality: 0.9 },
 ]
 
 /** Derivative jobs in flight at once (one worker). */

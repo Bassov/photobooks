@@ -98,6 +98,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 - Implement tasks; loop **A** until green (patch base = `origin/main`).
 - **No commit.** No B / reviewers / manual-qa yet.
 - **How:** `operations.apply` + skill `write-tests`.
+- Visual Done-when / bug → assert paint with `e2e/fixtures/paintProbe.ts` (`topAt` stack, `pixelsAt`), not only DOM presence.
 
 ### 4 · First B
 

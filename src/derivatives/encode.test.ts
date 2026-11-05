@@ -119,7 +119,7 @@ describe('encodeDerivatives', () => {
       ]),
     ).toEqual([
       ['site-thumb', 'drv-site-thumb-480-webp-q80', 'image/webp', 480, 320],
-      ['site-share', 'drv-site-share-1600-jpeg-q85', 'image/jpeg', 1600, 1067],
+      ['site-share', 'drv-site-share-1600-jpeg-q90', 'image/jpeg', 1600, 1067],
     ])
     // JPEG has no alpha: transparent pixels land on white, WebP keeps them.
     expect(ctx.fillRect).toHaveBeenCalledTimes(1)
@@ -150,7 +150,7 @@ describe('encodeDerivatives', () => {
     expect(first[0]?.outputHash).toMatch(/^[0-9a-f]{64}$/)
     expect(first[0]?.outputHash).not.toBe(first[1]?.outputHash)
     const text = await new Blob([first[0]?.bytes ?? new ArrayBuffer(0)]).text()
-    expect(text).toBe('1600x1067 image/webp 0.82')
+    expect(text).toBe('1600x1067 image/webp 0.85')
   })
 
   it('draws a source below the preset edge without resizing it', async () => {
