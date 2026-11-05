@@ -1,7 +1,7 @@
 ## Implementation
 
 - [x] 1. `ExportSiteDialog` + `useExportRun` in `uikit/src/demo-parts/dialogs.tsx` (opts / run / done / failed, Books sentence, failure texts) — `#/feature/static-export` six states; kit typecheck + build
-- [x] 2. Export site pill in `EditorTopBar` (sizer, fill, states, icon-only < 1280, status region); `DemoEditor` wiring; `EditorView` `exportSite` passthrough — scratch DOM measure (below); `uikit:qa:quick` 379/0
+- [x] 2. Export site pill in `EditorTopBar` (sizer, fill, states, icon-only < 1280, status region); `DemoEditor` wiring; `EditorView` `exportSite` passthrough — scratch DOM measure (below); `uikit/scripts/qa.mjs` static-export probes (pill rect in 4 states at 1440 / 1200; dialog box); `uikit:qa:quick` 381/0
 - [x] 3. Kit page `static-export` (`pages.tsx` + `pages.json`) with six states; TopBar "where" lines mention Export site — `uikit:qa:quick` page checks pass
 - [x] 4. `#/demo` capture steps `export-site-options`, `export-site-running-50pct`, `export-site-running-hidden`, `export-site-done` — walk 75 steps, new steps 52–55, no page errors
 
