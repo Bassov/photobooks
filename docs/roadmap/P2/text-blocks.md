@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: captions
+Status: done
 
 ## Scope
 
@@ -18,3 +19,7 @@ Title: captions
 - **Depends:** text-frame-model
 - **UI kit:** `uikit/src/sandbox/chrome.tsx` `ToolGroup` Text tool, `uikit/src/sandbox/canvas.tsx` `FrameBody`, `uikit/src/sandbox/sections.tsx` `TextSection`; partial: no capture step
 - **Owner-approved scope change:** 2026-10-30 02:01 (UTC+4) the Owner said to finish the roadmap with Designer and Grok Bot, then commit and merge without waiting for his formal approval; this item was updated from the Designer kit-first audit and the Grok Bot #/demo check (kit present in `uikit/src/sandbox`).
+
+## Done note
+
+shipped by text-frames-core #447, text-frames-kit #445, text-frames-editor #467; coverage audit and missing tests in text-blocks-close
