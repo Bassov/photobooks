@@ -95,11 +95,15 @@ const KIT = {
     binding: 378.48,
     rows: [405.33, 444.17, 475.02],
     pagesNote: 507.86,
-    print: 554.7,
-    printFields: 581.55,
-    paperRow: 625.55,
-    defaults: 684.39,
-    defaultRows: [711.23, 750.08],
+    // Designer page-numbers: the 179.37 px section between Binding and Print
+    // (one-line note), + 14.85 px here: no master prints, so the "No master
+    // prints page numbers yet…" note wraps to a second 11 / 1.35 line.
+    pageNumbers: 554.7,
+    print: 748.92,
+    printFields: 775.77,
+    paperRow: 819.77,
+    defaults: 878.61,
+    defaultRows: [905.45, 944.3],
   },
   photo: {
     titleX: 1172,
@@ -318,6 +322,7 @@ test.describe('M59–M61: Cover, Book and Photo inspectors match the kit', () =>
     await expect(titles).toHaveText([
       'Page size',
       'Binding',
+      'Page numbers',
       'Print',
       'Defaults',
     ])
@@ -333,12 +338,14 @@ test.describe('M59–M61: Cover, Book and Photo inspectors match the kit', () =>
       await near(rows.nth(at), kit)
     }
     await near(page.getByTestId('book-pages-note'), b.pagesNote)
-    await near(titles.nth(2), b.print)
+    await near(titles.nth(2), b.pageNumbers)
+    await near(titles.nth(3), b.print)
     await near(page.getByTestId('book-bleed'), b.printFields)
-    await near(rows.nth(3), b.paperRow)
-    await near(titles.nth(3), b.defaults)
-    await near(rows.nth(4), b.defaultRows[0])
-    await near(rows.nth(5), b.defaultRows[1])
+    // Rows 3 / 4 are Start at and Skip first page.
+    await near(rows.nth(5), b.paperRow)
+    await near(titles.nth(4), b.defaults)
+    await near(rows.nth(6), b.defaultRows[0])
+    await near(rows.nth(7), b.defaultRows[1])
   })
 
   test('M60: the Photo inspector opens on collapsible kit sections', async ({

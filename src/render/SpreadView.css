@@ -536,6 +536,23 @@ button.spread-frame[data-editing='true'] .spread-frame-text {
   opacity: 0.4;
 }
 
+/* Designer page-numbers folio: printed content in the caption type, in the
+   parent layer under every spread frame (docs/design.md Folios). Box and
+   font-size inline (rect and 3.1 mm × px/mm). */
+.spread-view-folio {
+  position: absolute;
+  overflow: visible;
+  font-family: 'Inter Variable', system-ui, sans-serif;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: normal;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* Kit Caption: printed 1.5 mm under the frame, Caption style. */
 .spread-frame-caption {
   position: absolute;

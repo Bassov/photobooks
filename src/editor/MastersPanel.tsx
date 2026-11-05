@@ -16,6 +16,7 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import { FIELD, SUB, T } from './editorChromeTokens'
+import { setBookSettingsSelected } from './bookSettingsSelection'
 import { setFrameSource } from './frameSelection'
 import {
   getPickedParentId,
@@ -46,6 +47,7 @@ function readAspect(): number {
 function pick(id: string): void {
   // A frame picked on another master (or a page) is not on this canvas.
   setFrameSource(null)
+  setBookSettingsSelected(false)
   setPickedParentId(id)
 }
 

@@ -1,5 +1,14 @@
 import { useState, useSyncExternalStore } from 'react'
-import { PAGE_STEP, TRIM_MAX_MM, TRIM_MIN_MM } from '../core'
+import {
+  PAGE_NUMBER_START_MAX,
+  PAGE_NUMBER_START_MIN,
+  PAGE_STEP,
+  pageNumberingOf,
+  TRIM_MAX_MM,
+  TRIM_MIN_MM,
+  type Book,
+} from '../core'
+import { bookPageNumbersNote, PAGE_NUMBER_FORMATS } from './inspectorModel'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import {
   dispatchBookOp,
@@ -183,10 +192,101 @@ function PagesField({ pages }: { pages: number }) {
   )
 }
 
+/**
+ * Designer page-numbers Start at: the Pages box look; Enter / blur commit
+ * (the op rounds, clamps to 1–999 and keeps the book on NaN), Esc reverts.
+ */
+function StartAtField({ start }: { start: number }) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const shown = draft ?? String(start)
+  const commit = () => {
+    dispatchBookOp({
+      type: 'setPageNumbering',
+      patch: { start: Number.parseFloat(String(draft)) },
+    })
+    setDraft(null)
+  }
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      className="insp-pages-field rounded-sm px-2 py-1 text-center text-sm"
+      aria-label="Start page numbers at"
+      data-testid="book-pn-start"
+      min={PAGE_NUMBER_START_MIN}
+      max={PAGE_NUMBER_START_MAX}
+      step={1}
+      value={shown}
+      style={{
+        width: `calc(${String(Math.max(2, shown.length))}ch + 1rem)`,
+        background: FIELD,
+        color: T,
+      }}
+      onChange={(event) => {
+        setDraft(event.currentTarget.value)
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          commit()
+        } else if (event.key === 'Escape') {
+          setDraft(null)
+        }
+      }}
+      onBlur={commit}
+    />
+  )
+}
+
+/** Designer page-numbers: how the book counts (masters say whether / where). */
+function BookPageNumbers({ book }: { book: Book }) {
+  const { start, skipFirst, format } = pageNumberingOf(book)
+  return (
+    <InspectorSec title="Page numbers" testId="book-page-numbers">
+      <InspectorRow label="Start at">
+        <StartAtField start={start} />
+      </InspectorRow>
+      <div className="mt-3" data-testid="book-pn-format">
+        <SegmentedControl
+          label="Page number format"
+          size="inspector"
+          items={PAGE_NUMBER_FORMATS}
+          value={format}
+          onChange={(next) => {
+            dispatchBookOp({
+              type: 'setPageNumbering',
+              patch: { format: next },
+            })
+          }}
+        />
+      </div>
+      <InspectorRow label="Skip first page">
+        <ToggleSwitch
+          label="Skip first page"
+          testId="book-pn-skip-first"
+          on={skipFirst}
+          onChange={(next) => {
+            dispatchBookOp({
+              type: 'setPageNumbering',
+              patch: { skipFirst: next },
+            })
+          }}
+        />
+      </InspectorRow>
+      <div
+        className="mt-1.5 text-2xs leading-[1.35]"
+        style={{ color: SUB }}
+        data-testid="book-pn-note"
+      >
+        {bookPageNumbersNote(book)}
+      </div>
+    </InspectorSec>
+  )
+}
+
 /** Kit "Book settings" (uikit/src/sandbox/v7.tsx:200-210) on the document. */
 export function BookSettingsSection() {
-  const { settings, spreads, cover, parents, defaultParentId } =
-    useSyncExternalStore(subscribeBookStore, readBook, readBook)
+  const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
+  const { settings, spreads, cover, parents, defaultParentId } = book
   const defaultParent = parents?.find((parent) => parent.id === defaultParentId)
   const pages = pagesOf(spreads.length)
   const [unit, setUnit] = useState<Unit>('cm')
@@ -315,6 +415,7 @@ export function BookSettingsSection() {
           {pagesNote(pages)}
         </div>
       </InspectorSec>
+      <BookPageNumbers book={book} />
       <InspectorSec title="Print">
         {/* Kit v7.tsx:209: bleed / safe margin Fields, paper pill. */}
         <div className="grid grid-cols-2 gap-2">

@@ -1105,6 +1105,7 @@ function sharedPaintInputsSame(
     prev.book.settings === next.book.settings &&
     prev.book.frameStyles === next.book.frameStyles &&
     prev.book.assets === next.book.assets &&
+    prev.book.pageNumbering === next.book.pageNumbering &&
     prev.book.spreads.length === next.book.spreads.length
   )
 }
@@ -1119,6 +1120,10 @@ function paintInputKey(
   const { trim, bleedMm, safeMarginMm } = book.settings
   let key = `${String(book.spreads.length)}:${String(trim.widthMm)}:${String(trim.heightMm)}:${String(bleedMm)}:${String(safeMarginMm)}`
   key += `:${book.settings.pageColor ?? ''}`
+  // The book numbering reads only on spreads whose parent prints folios.
+  if (parent?.pageNumbers !== undefined) {
+    key += `:${JSON.stringify(book.pageNumbering ?? null)}`
+  }
   // Parent-layer frames paint on the spread too (their photos need previews).
   const layers = [
     parent?.frames ?? [],
@@ -1153,13 +1158,19 @@ function paintedParentFrames(book: Book, spread: Spread): Frame[] {
   )
 }
 
-/** Same parent frames painted; a parent edit on an item the spread hides or copies keeps it quiet. */
+/**
+ * Same parent frames and page-number items painted; a parent edit on an item
+ * the spread hides or copies keeps it quiet.
+ */
 function sameParentPaint(
   prevBook: Book,
   nextBook: Book,
   before: PaintSource,
   after: PaintSource,
 ): boolean {
+  if (before.parent?.pageNumbers !== after.parent?.pageNumbers) {
+    return false
+  }
   if (before.parent?.frames === after.parent?.frames) {
     return true
   }
@@ -1181,8 +1192,9 @@ function notifySpread(spreadId: string): void {
 /**
  * Parents are immutable, so the parent object is its revision: a parent edit
  * repaints only the parent and the spreads using it. Spreads paint the parent
- * frames only, so a parent grid or guide edit leaves them quiet (the grid
- * overlay subscribes on its own).
+ * frames and folios only, so a parent guide edit (or a grid edit on a parent
+ * without page numbers) leaves them quiet (the grid overlay subscribes on its
+ * own).
  */
 function paintChanged(
   prev: BookStoreState,

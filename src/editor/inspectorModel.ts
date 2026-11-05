@@ -1,9 +1,13 @@
 import {
   editableSpread,
+  formatPageNumber,
   getSpreadPageCount,
   pageLabel,
+  pageNumberingOf,
+  pageNumberPosition,
   spreadParent,
   type Book,
+  type PageNumberFormat,
   type Frame,
   type GridField,
   type GridPatch,
@@ -263,6 +267,43 @@ export function masterUsageLabel(book: Book, parentId: string): string {
   return used === total
     ? `Default · all ${String(total)} ${pages}`
     : `Default · ${String(used)} of ${String(total)} ${pages}`
+}
+
+/** Designer page-numbers format labels (Book settings segments, master hint). */
+const FORMAT_LABELS: Record<PageNumberFormat, string> = {
+  decimal: '1, 2, 3',
+  'lower-roman': 'i, ii, iii',
+  'upper-roman': 'I, II, III',
+}
+
+export const PAGE_NUMBER_FORMATS = (
+  ['decimal', 'lower-roman', 'upper-roman'] as const
+).map((id) => ({ id, label: FORMAT_LABELS[id] }))
+
+/** Start is 1–999, so every format has a numeral for it. */
+function numberText(n: number, format: PageNumberFormat): string {
+  return formatPageNumber(n, format) ?? String(n)
+}
+
+/** Master Page numbers hint, before its "Book settings" link. */
+export function masterPageNumbersHint(book: Book): string {
+  const { start, skipFirst, format } = pageNumberingOf(book)
+  const blank = skipFirst ? ' · page 1 blank' : ''
+  return `Starts at ${numberText(start, format)} · ${FORMAT_LABELS[format]}${blank}`
+}
+
+/** Book settings Page numbers note: the master switch, then page 1. */
+export function bookPageNumbersNote(book: Book): string {
+  const printed = book.parents?.some(
+    (parent) => pageNumberPosition(parent) !== null,
+  )
+  if (printed !== true) {
+    return 'No master prints page numbers yet. Turn them on in Masters.'
+  }
+  const { start, skipFirst, format } = pageNumberingOf(book)
+  return skipFirst
+    ? `Page 1 has no number · page 2 is ${numberText(start + 1, format)}`
+    : `Page 1 is ${numberText(start, format)}`
 }
 
 /**
