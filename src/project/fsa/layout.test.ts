@@ -13,6 +13,13 @@ import {
 } from './layout'
 import { createMemoryDirectory, readMemoryFileText } from './memoryDirectory'
 
+const EMPTY_META = {
+  books: {},
+  templates: [],
+  printProfiles: [],
+  defaultPrintProfileId: 'generic',
+}
+
 describe('fsa layout helpers', () => {
   it('creates books/ on demand and rotates bak on overwrite', async () => {
     const root = createMemoryDirectory()
@@ -46,7 +53,7 @@ describe('fsa layout helpers', () => {
 
   it('treats missing, empty, and non-object library.json as empty meta', async () => {
     const root = createMemoryDirectory()
-    const empty_ = { ok: true, meta: { books: {}, templates: [] } }
+    const empty_ = { ok: true, meta: EMPTY_META }
     expect(await readLibraryMeta(root)).toEqual(empty_)
 
     const empty = await root.getFile(LIBRARY_JSON, { create: true })
@@ -65,17 +72,17 @@ describe('fsa layout helpers', () => {
     await writeLibraryMeta(root, {})
     expect(await readLibraryMeta(root)).toEqual(empty_)
     expect(await readMemoryFileText(root, [LIBRARY_JSON])).toBe(
-      '{"schemaVersion":3,"books":{},"templates":[]}',
+      '{"schemaVersion":4,"books":{},"templates":[],"printProfiles":[],"defaultPrintProfileId":"generic"}',
     )
   })
 
-  it('upgrades a v1 library.json to v3 on read', async () => {
+  it('upgrades a v1 library.json to v4 on read', async () => {
     const root = createMemoryDirectory()
     const file = await root.getFile(LIBRARY_JSON, { create: true })
     await file.writeText('{"schemaVersion":1}')
     expect(await readLibraryMeta(root)).toEqual({
       ok: true,
-      meta: { books: {}, templates: [] },
+      meta: EMPTY_META,
     })
   })
 

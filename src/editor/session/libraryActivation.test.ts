@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { makeBook, makeFrame, makeSpread } from '../../core/testing/fixtures'
+import {
+  makeBook,
+  makeCustomPrintProfile,
+  makeFrame,
+  makeSpread,
+} from '../../core/testing/fixtures'
 import assert from 'node:assert/strict'
 import {
   createMemoryLibraryStorage,
@@ -695,7 +700,7 @@ describe('createLibraryActivation', () => {
     })
   })
 
-  it('createLibrary keeps the publish statuses and templates of an existing library.json', async () => {
+  it('createLibrary keeps the publish statuses, templates and print profiles of an existing library.json', async () => {
     const lib = createMemoryLibraryStorage()
     const books = { 'book-1': { status: 'published' as const } }
     const templates = [
@@ -706,7 +711,14 @@ describe('createLibraryActivation', () => {
         slots: [{ x: 0, y: 0, w: 50, h: 100 }],
       },
     ]
-    await lib.updateLibrary({ books, templates })
+    const printProfiles = [makeCustomPrintProfile()]
+    const defaultPrintProfileId = 'custom-lab'
+    await lib.updateLibrary({
+      books,
+      templates,
+      printProfiles,
+      defaultPrintProfileId,
+    })
     const handle = createFakeBrowserDirectory({ name: 'CreateKeep' })
     storagesByHandle.set('CreateKeep', lib)
     pickDirectory = () => Promise.resolve(handle)
@@ -715,7 +727,7 @@ describe('createLibraryActivation', () => {
     expect(created.ok).toBe(true)
     expect(await lib.getLibrary()).toEqual({
       ok: true,
-      value: { books, templates },
+      value: { books, templates, printProfiles, defaultPrintProfileId },
     })
   })
 

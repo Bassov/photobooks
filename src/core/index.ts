@@ -29,8 +29,11 @@ export {
 } from './cover'
 export {
   bookDpiThresholds,
+  bookPrintProfile,
   bookPrintProfileRef,
   defaultPrintProfileRef,
+  findPrintProfile,
+  printIssues,
   resolvePrintProfile,
   validatePrintSettings,
   type PrintProfileIssue,
@@ -40,6 +43,19 @@ export {
   DEFAULT_PRINT_PROFILE_ID,
   genericPrintProfile,
 } from './print/genericProfile'
+export {
+  builtInPrintProfiles,
+  printShopProfiles,
+  type PrintShopProfile,
+} from './print/catalog'
+export {
+  editableProfileIssues,
+  printIssueText,
+  profileHint,
+  profileSummary,
+  type EditableProfileField,
+  type EditableProfileIssue,
+} from './print/profileText'
 export {
   bookCoverGeometry,
   coverGeometry,
@@ -52,6 +68,7 @@ export {
   PRINT_COLOR_SPACES,
   PRINT_OUTPUTS,
   parsePrintProfile,
+  printProfileSchema,
   type PrintOutput,
   type PrintProfile,
   type PrintProfileInput,
@@ -124,7 +141,7 @@ export {
   resetSpreadToParent,
 } from './parentSpreads'
 export { findBookFrame, findSpreadFrame, spreadFrames } from './update'
-export { TRIM_MAX_MM, TRIM_MIN_MM } from './ops/bookSettings'
+export { setPrintProfile, TRIM_MAX_MM, TRIM_MIN_MM } from './ops/bookSettings'
 export {
   frameStylePresets,
   noAdjust,
@@ -252,6 +269,8 @@ export {
 export {
   bookSpineWidthMm,
   clampPageCount,
+  pageCountRange,
+  type PageCountRange,
   PAGE_MAX,
   PAGE_MIN,
   PAGE_STEP,

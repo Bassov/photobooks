@@ -1,8 +1,20 @@
 import { describe, expect, it } from 'vitest'
 
 import { CURRENT_SCHEMA_VERSION, type Book } from '../core'
-import { makeBook, makeSpread } from '../core/testing/fixtures'
+import {
+  makeBook,
+  makeCustomPrintProfile,
+  makeSpread,
+} from '../core/testing/fixtures'
 import type { LibraryStorage, StorageResult, BookSummary } from './types'
+
+/** Library meta of a new library: no statuses, templates or custom profiles. */
+const EMPTY_LIBRARY = {
+  books: {},
+  templates: [],
+  printProfiles: [],
+  defaultPrintProfileId: 'generic',
+}
 
 export interface LibraryStorageContractHarness {
   storage: LibraryStorage
@@ -41,7 +53,7 @@ export function runLibraryStorageContract(
       const library = await storage.getLibrary()
 
       expect(listed).toEqual({ ok: true, value: [] })
-      expect(library).toEqual({ ok: true, value: { books: {}, templates: [] } })
+      expect(library).toEqual({ ok: true, value: EMPTY_LIBRARY })
     })
 
     it('creates a book then includes it in the list', async () => {
@@ -153,11 +165,29 @@ export function runLibraryStorageContract(
       const got = await storage.getLibrary()
       const emptied = await storage.updateLibrary({})
 
-      expect(updated).toEqual({ ok: true, value: { books, templates } })
-      expect(got).toEqual({ ok: true, value: { books, templates } })
-      expect(emptied).toEqual({
+      const value = { ...EMPTY_LIBRARY, books, templates }
+      expect(updated).toEqual({ ok: true, value })
+      expect(got).toEqual({ ok: true, value })
+      expect(emptied).toEqual({ ok: true, value: EMPTY_LIBRARY })
+    })
+
+    it('keeps custom print profiles and the default, dropping an invalid profile on write', async () => {
+      const { storage } = createHarness()
+      const custom = makeCustomPrintProfile()
+      const bad = { ...custom, id: 'custom-bad', trimMinMm: -1 }
+
+      await storage.updateLibrary({
+        printProfiles: [custom, bad],
+        defaultPrintProfileId: custom.id,
+      })
+
+      expect(await storage.getLibrary()).toEqual({
         ok: true,
-        value: { books: {}, templates: [] },
+        value: {
+          ...EMPTY_LIBRARY,
+          printProfiles: [custom],
+          defaultPrintProfileId: custom.id,
+        },
       })
     })
 
@@ -176,7 +206,7 @@ export function runLibraryStorageContract(
 
       expect(await storage.getLibrary()).toEqual({
         ok: true,
-        value: { books: {}, templates: [keep, last] },
+        value: { ...EMPTY_LIBRARY, templates: [keep, last] },
       })
     })
 
@@ -287,7 +317,7 @@ export function runLibraryStorageContract(
       })
       expect(await harness.storage.getLibrary()).toEqual({
         ok: true,
-        value: { books: {}, templates: [] },
+        value: EMPTY_LIBRARY,
       })
       expect(
         await harness.storage.createBook(makeBook({ id: 'other' })),

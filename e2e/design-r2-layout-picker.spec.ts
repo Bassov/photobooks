@@ -694,7 +694,7 @@ test('a new user has My templates 0; a saved spread appears in My templates and 
   await expect
     .poll(() => readTestLibraryJson(page))
     .toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 4,
       templates: [{ name: 'Trip opener', pages: 2 }],
     })
 

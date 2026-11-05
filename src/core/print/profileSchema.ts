@@ -7,7 +7,7 @@ export const PRINT_COLOR_SPACES = ['srgb'] as const
  * Printer data for one print product (mm, pixels, points). Built per call (not
  * at module load) so that its mutants are reachable per test.
  */
-function makePrintProfileSchema() {
+export function printProfileSchema() {
   const mm = z.number().nonnegative()
   const positiveMm = z.number().positive()
   const count = z.number().int().positive()
@@ -85,10 +85,8 @@ function makePrintProfileSchema() {
     })
 }
 
-export type PrintProfile = z.output<ReturnType<typeof makePrintProfileSchema>>
-export type PrintProfileInput = z.input<
-  ReturnType<typeof makePrintProfileSchema>
->
+export type PrintProfile = z.output<ReturnType<typeof printProfileSchema>>
+export type PrintProfileInput = z.input<ReturnType<typeof printProfileSchema>>
 export type PrintOutput = PrintProfile['output']
 export type SpineWidthRule = PrintProfile['spine']['width']
 
@@ -97,7 +95,7 @@ export type PrintProfileParseResult =
   | { ok: false; issues: { path: PropertyKey[]; message: string }[] }
 
 export function parsePrintProfile(input: unknown): PrintProfileParseResult {
-  const result = makePrintProfileSchema().safeParse(input)
+  const result = printProfileSchema().safeParse(input)
   return result.success
     ? { ok: true, profile: result.data }
     : {
