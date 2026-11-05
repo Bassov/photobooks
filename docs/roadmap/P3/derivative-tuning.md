@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P3
 Title: decide final sizes
+Status: done
 
 ## Scope
 
