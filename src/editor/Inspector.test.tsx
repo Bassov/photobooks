@@ -1028,3 +1028,100 @@ describe('Inspector, multi context', () => {
     expect(getHistorySnapshot().undoLabel).toBe('Delete 2 frames')
   })
 })
+
+describe('Inspector head of an override copy', () => {
+  afterEach(() => {
+    cleanup()
+    resetFrameSelection()
+    setActiveSpreadId(null)
+    resetBookStore()
+  })
+
+  const LOGO = makeFrame({ id: 'logo', z: 1 })
+  const TEXT = makeFrame({
+    id: 'note',
+    z: 2,
+    kind: 'text',
+    content: { type: 'static', text: 'Hello' },
+  })
+
+  function seedCopies() {
+    seedBook(
+      makeBook({
+        parents: [
+          { id: 'm', name: 'Master A', frames: [LOGO, TEXT], guides: [] },
+        ],
+        defaultParentId: 'm',
+        spreads: [
+          makeSpread({
+            id: 's',
+            frames: [makeFrame({ id: 'own', z: 1 })],
+            parentOverrides: {
+              frames: [
+                { ...LOGO, id: 'copy', overridesId: 'logo' },
+                { ...TEXT, id: 'text-copy', overridesId: 'note' },
+              ],
+            },
+          }),
+        ],
+      }),
+    )
+    setActiveSpreadId('s')
+    render(<Inspector />)
+  }
+
+  it('reads "Override · Master A" with Reset to parent, which returns to the spread', () => {
+    seedCopies()
+    act(() => {
+      setFrameSource({ spreadId: 's', frameId: 'copy' })
+    })
+    const header = screen.getByTestId('inspector-header')
+    expect(screen.getByTestId('inspector-context').textContent).toBe('Photo')
+    expect(screen.getByTestId('inspector-override-meta').textContent).toBe(
+      'Override · Master A',
+    )
+    const reset = screen.getByTestId('inspector-reset-parent')
+    expect(reset.parentElement).toBe(header)
+    expect(header.lastElementChild).toBe(reset)
+    expect([reset.getAttribute('aria-label'), reset.title]).toEqual([
+      'Reset to parent',
+      'Reset to parent',
+    ])
+    fireEvent.click(reset)
+    expect(
+      getBookStoreSnapshot().book.spreads[0]?.parentOverrides?.frames?.map(
+        (f) => f.id,
+      ),
+    ).toEqual(['text-copy'])
+    expect(getHistorySnapshot().undoLabel).toBe('Reset to parent')
+    expect(screen.getByTestId('inspector-context').textContent).toBe('Spread')
+    expect(screen.queryByTestId('inspector-reset-parent')).toBeNull()
+  })
+
+  it('shows the same head on a text copy', () => {
+    seedCopies()
+    act(() => {
+      setFrameSource({ spreadId: 's', frameId: 'text-copy' })
+    })
+    expect(screen.getByTestId('inspector-context').textContent).toBe('Text')
+    expect(screen.getByTestId('inspector-override-meta').textContent).toBe(
+      'Override · Master A',
+    )
+    fireEvent.click(screen.getByTestId('inspector-reset-parent'))
+    expect(
+      getBookStoreSnapshot().book.spreads[0]?.parentOverrides?.frames?.map(
+        (f) => f.id,
+      ),
+    ).toEqual(['copy'])
+  })
+
+  it('an own frame keeps the plain head', () => {
+    seedCopies()
+    act(() => {
+      setFrameSource({ spreadId: 's', frameId: 'own' })
+    })
+    expect(screen.getByTestId('inspector-context').textContent).toBe('Photo')
+    expect(screen.queryByTestId('inspector-override-meta')).toBeNull()
+    expect(screen.queryByTestId('inspector-reset-parent')).toBeNull()
+  })
+})

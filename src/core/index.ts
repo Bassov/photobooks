@@ -16,6 +16,7 @@ export {
 } from './schema'
 export {
   isTextFrame,
+  resolveTextContent,
   resolveTextItems,
   type ResolvedTextItem,
 } from './text/resolveText'
@@ -118,6 +119,7 @@ export {
   keepOverridesAsOwn,
   overrideParentFrame,
   overrideParentGuide,
+  onSpreadPage,
   resetParentItem,
   resetSpreadToParent,
 } from './parentSpreads'

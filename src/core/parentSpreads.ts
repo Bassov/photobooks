@@ -525,8 +525,11 @@ function onPage(
   return shiftMm === 0 ? guide : { ...guide, offsetMm }
 }
 
-/** `onPage` with the page shift and width `viewGuides` uses for `spreadIndex`. */
-function onSpreadPage(
+/**
+ * `onPage` with the page shift and width `viewGuides` uses for `spreadIndex`:
+ * the guide in the spread's own mm, or undefined off its page.
+ */
+export function onSpreadPage(
   book: Book,
   spreadIndex: number,
   guide: Guide,

@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { effectiveGrid, isTemplateId, spreadParent } from '../core'
 import { Disclosure } from '../ui/Disclosure'
+import { Icon } from '../ui/Icon'
 import { Select } from '../ui/Select'
 import {
   dispatchBookOp,
@@ -10,6 +11,7 @@ import {
 import { setFrameSource } from './frameSelection'
 import { InspectorSlider } from './InspectorControls'
 import { spreadMasterStatus } from './inspectorModel'
+import { parentChanges, type ParentChange } from './parentChanges'
 import { setLeftPanelTab, setPickedParentId } from './leftPanelTabStore'
 import './SpreadSections.css'
 
@@ -141,6 +143,13 @@ export function MasterSpacingSection({ spreadId }: { spreadId: string }) {
             }}
           />
         </div>
+        {shown === undefined ? null : (
+          <ParentChanges
+            spreadId={spreadId}
+            parentName={shown.name}
+            changes={parentChanges(book, spread)}
+          />
+        )}
         {/* No template (`'undefined'`) and saved layouts do not re-flow. */}
         {!isTemplateId(String(spread.templateId)) ? (
           <p className="spread-spacing-note">
@@ -149,6 +158,77 @@ export function MasterSpacingSection({ spreadId }: { spreadId: string }) {
         ) : null}
       </div>
     </Disclosure>
+  )
+}
+
+/**
+ * Designer parent-overrides PO7: what the spread changed from its parent,
+ * each row with its own ↺, and Reset all. Absent without changes, so the
+ * inspector of a spread that only inherits is unchanged.
+ */
+function ParentChanges({
+  spreadId,
+  parentName,
+  changes,
+}: {
+  spreadId: string
+  parentName: string
+  changes: readonly ParentChange[]
+}) {
+  if (changes.length === 0) {
+    return null
+  }
+  return (
+    <div className="parent-changes" data-testid="parent-changes">
+      <div className="parent-changes-head">
+        <span>Changed from {parentName}</span>
+        <button
+          type="button"
+          className="parent-reset-all"
+          data-testid="parent-reset-all"
+          onClick={() => {
+            dispatchBookOp({ type: 'resetSpreadToParent', spreadId })
+          }}
+        >
+          Reset all
+        </button>
+      </div>
+      {changes.map((change) => {
+        const label = `Reset ${change.name} to ${parentName}`
+        return (
+          <div
+            key={change.parentItemId}
+            className="parent-change-row"
+            data-testid="parent-change-row"
+          >
+            <Icon
+              name={change.state === 'override' ? 'unlink2' : 'eyeOff'}
+              size={14}
+            />
+            <span className="parent-change-label">
+              <span className="parent-change-name">{change.name}</span>
+              <span className="parent-change-state">· {change.state}</span>
+            </span>
+            <button
+              type="button"
+              className="e7-ghost insp-grid-reset"
+              aria-label={label}
+              title={label}
+              data-testid="parent-change-reset"
+              onClick={() => {
+                dispatchBookOp({
+                  type: 'resetParentItem',
+                  spreadId,
+                  parentItemId: change.parentItemId,
+                })
+              }}
+            >
+              <Icon name="rotateCcw" size={14} />
+            </button>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 

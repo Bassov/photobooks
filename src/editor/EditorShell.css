@@ -407,6 +407,34 @@
   display: flex;
 }
 
+/* Designer parent-overrides PO6: "Reset to parent" at the header's right end
+   of a local copy, 28 px, 14 px icon. */
+.inspector-reset-parent {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  place-items: center;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.inspector-reset-parent:hover,
+.inspector-reset-parent:active {
+  background: var(--field);
+  color: var(--t-text);
+}
+
+.inspector-reset-parent:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
 /* "Drop here for a new spread" pill (kit GapDrop: h-8, text-xs, 8 px radius,
    gap-1.5): one line at a constant screen size, centred between the
    page-number line bottom and the next spread (--pill-shift screen px under

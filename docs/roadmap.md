@@ -193,6 +193,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [kit-gaps](roadmap/P5/kit-gaps.md) — Bug: /next-roadmap-item kit-gaps
 - [ ] [feature] [live-captions-kit](roadmap/P5/live-captions-kit.md) — Bug: /next-roadmap-item live-captions-kit
 - [ ] [feature] [text-blocks-close](roadmap/P5/text-blocks-close.md) — Bug: /next-roadmap-item text-blocks-close
+- [ ] [feature] [parent-overrides-inspector](roadmap/P5/parent-overrides-inspector.md) — Bug: /next-roadmap-item parent-overrides-inspector
 - [ ] [feature] [site-lightbox-zoom-core](roadmap/P5/site-lightbox-zoom-core.md) — Bug: /next-roadmap-item site-lightbox-zoom-core
 - [ ] [feature] [cover-back-fill](roadmap/P5/cover-back-fill.md) — Bug: /next-roadmap-item cover-back-fill
 

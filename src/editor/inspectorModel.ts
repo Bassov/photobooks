@@ -1,5 +1,6 @@
 import {
   editableSpread,
+  findSpreadFrame,
   formatPageNumber,
   getSpreadPageCount,
   pageLabel,
@@ -95,9 +96,10 @@ export function isTextFrameTarget(
   if (target === null) {
     return false
   }
-  const frame = editableSpread(book, target.spreadId)?.spread.frames.find(
-    (item) => item.id === target.frameId,
-  )
+  // A local text copy opens the Text inspector too.
+  const spread = editableSpread(book, target.spreadId)?.spread
+  const frame =
+    spread === undefined ? undefined : findSpreadFrame(spread, target.frameId)
   return frame?.kind === 'text'
 }
 
