@@ -49,8 +49,13 @@ test.describe('phone 390×844', () => {
     const titleEl = page.locator('.sfc-now .sfc-title')
     const lead = await box(leadEl)
     const title = await box(titleEl)
-    const reader = await box(page.locator('.sd-reader'))
+    // Spec site-stand S5 / S7: one page at a time, the camera box full bleed
+    const reader = await box(
+      page.getByTestId('sfc-stage').getByTestId('ps-pager'),
+    )
     expect(lead.width).toBeGreaterThanOrEqual(300)
+    expect(reader.x).toBe(0)
+    expect(reader.width).toBe(390)
     // the open book sits between the lead and the title, overlapping neither
     expect(reader.y).toBeGreaterThanOrEqual(lead.y + lead.height)
     expect(title.y).toBeGreaterThanOrEqual(reader.y + reader.height)
@@ -58,6 +63,24 @@ test.describe('phone 390×844', () => {
     expect(await paintedAt(titleEl)).toBe(true)
     const menu = await box(page.getByTestId('sfc-menu-btn'))
     expect(menu.x + menu.width).toBeLessThanOrEqual(390)
+
+    // the portrait book's page fills about half the screen height
+    await page.goto('/uikit/#/full/site-fresh-c?b=lake-trip')
+    // the closed cover opens on page 1
+    await page.keyboard.press('ArrowRight')
+    await expect(page.getByTestId('sfc-player')).toHaveAttribute(
+      'data-view',
+      '1',
+    )
+    await expect(page.getByTestId('ps-leaf')).toHaveCount(0)
+    const pg = await box(
+      page.getByTestId('sfc-stage').locator('.sd-pg').first(),
+    )
+    expect(pg.height).toBeGreaterThanOrEqual(0.45 * 844)
+    // stage = tallest page of the programme + 40, so it never jumps between books
+    const stage = await box(page.getByTestId('sfc-stage'))
+    expect(stage.height).toBeGreaterThanOrEqual(pg.height + 39)
+    expect(stage.height).toBeLessThanOrEqual(pg.height + 48)
   })
 })
 
@@ -71,6 +94,10 @@ async function openReader(page: Page, slug: string) {
   if (slug === 'site-fresh-c') {
     await page.getByTestId('sfc-item').first().click()
     await page.getByTestId('sfc-open').click()
+    // Read the book opens the reading room on view 1
+    const reader = page.getByTestId('ss-reader-page').getByTestId('ps-reader')
+    await expect(reader).toHaveAttribute('data-view', '1')
+    return reader
   } else {
     await page
       .getByTestId(slug === 'site-demo-6' ? 'ss6-book' : 'ss7-book')
@@ -130,44 +157,51 @@ function thickness(reader: Locator) {
 /** RGBA at the centre of each page that holds a photo: the page centre when a
    photo covers it, else the centre of the page's largest photo (art.tsx paints
    photos as background images; the paper grain is a data: URL) */
-async function pageCentres(reader: Locator) {
-  const pts = await reader.evaluate((el) => {
-    const o = el.getBoundingClientRect()
-    return [...el.querySelectorAll('.sd-pg')].flatMap((pg) => {
-      const p = pg.getBoundingClientRect()
-      const cut = [...pg.querySelectorAll<HTMLElement>('*')]
-        .filter((n) => /url\("?(?!data:)/.test(n.style.backgroundImage))
-        .map((n) => {
-          const r = n.getBoundingClientRect()
-          const [x0, y0] = [Math.max(r.left, p.left), Math.max(r.top, p.top)]
-          const [x1, y1] = [
-            Math.min(r.right, p.right),
-            Math.min(r.bottom, p.bottom),
-          ]
-          return {
-            x0,
-            y0,
-            x1,
-            y1,
-            a: Math.max(0, x1 - x0) * Math.max(0, y1 - y0),
-          }
-        })
-        .filter((c) => c.a > 0)
-        .sort((a, b) => b.a - a.a)
-      const [big] = cut
-      if (!big) return []
-      const [cx, cy] = [p.left + p.width / 2, p.top + p.height / 2]
-      const on = cut.find(
-        (c) => cx >= c.x0 && cx <= c.x1 && cy >= c.y0 && cy <= c.y1,
-      )
-      const c = on
-        ? { x: cx, y: cy }
-        : { x: (big.x0 + big.x1) / 2, y: (big.y0 + big.y1) / 2 }
-      return [{ x: c.x - o.left, y: c.y - o.top }]
-    })
-  })
-  return pts.length ? pixelsAt(reader, pts) : []
+async function pageCentres(reader: Locator, clip: Locator = reader) {
+  const pts = await reader.evaluate(
+    (el, cl) => {
+      // the single-page camera (`clip`) shows only the pages inside it
+      const o = cl.getBoundingClientRect()
+      return [...el.querySelectorAll('.sd-pg')].flatMap((pg) => {
+        const p = pg.getBoundingClientRect()
+        const cut = [...pg.querySelectorAll<HTMLElement>('*')]
+          .filter((n) => /url\("?(?!data:)/.test(n.style.backgroundImage))
+          .map((n) => {
+            const r = n.getBoundingClientRect()
+            const [x0, y0] = [Math.max(r.left, p.left), Math.max(r.top, p.top)]
+            const [x1, y1] = [
+              Math.min(r.right, p.right),
+              Math.min(r.bottom, p.bottom),
+            ]
+            return {
+              x0,
+              y0,
+              x1,
+              y1,
+              a: Math.max(0, x1 - x0) * Math.max(0, y1 - y0),
+            }
+          })
+          .filter((c) => c.a > 0)
+          .sort((a, b) => b.a - a.a)
+        const [big] = cut
+        if (!big) return []
+        const [cx, cy] = [p.left + p.width / 2, p.top + p.height / 2]
+        const on = cut.find(
+          (c) => cx >= c.x0 && cx <= c.x1 && cy >= c.y0 && cy <= c.y1,
+        )
+        const c = on
+          ? { x: cx, y: cy }
+          : { x: (big.x0 + big.x1) / 2, y: (big.y0 + big.y1) / 2 }
+        if (c.x < o.left || c.x > o.right) return []
+        return [{ x: c.x - o.left, y: c.y - o.top }]
+      })
+    },
+    await clip.elementHandle(),
+  )
+  return pts.length ? pixelsAt(clip, pts) : []
 }
+
+const white = ([r, g, b]: number[]) => r === 255 && g === 255 && b === 255
 
 test.describe('desktop 1440×900: the open book', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
@@ -241,3 +275,176 @@ test.describe('desktop 1440×900: the open book', () => {
       expect(errors).toEqual([])
     })
 })
+
+// Spec site-stand S6 / S7 (fresh C): Read opens the reading room over the
+// site under the header; opening pauses the programme on the shown view;
+// Esc closes once and focus returns to the trigger. The room steps through
+// every view of Lake trip and Coast with each photo page painted (the 21:xx
+// stand capture had a blank right page).
+
+/** room: the portrait book's width and height range (desktop the spread,
+   1157 × 723; phone the camera box and one page ≥ 0.45 × 844) */
+const VIEWPORTS = [
+  {
+    name: 'desktop 1440×900',
+    viewport: { width: 1440, height: 900 },
+    isMobile: false,
+    hasTouch: false,
+    room: { w: 1157, hMin: 722, hMax: 724 },
+  },
+  {
+    name: 'phone 390×844',
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+    room: { w: 390, hMin: 0.45 * 844, hMax: 844 },
+  },
+]
+
+async function roomBook(room: Locator, phone: boolean) {
+  const reader = await box(room.locator('.sd-reader'))
+  if (!phone)
+    return { w: Math.round(reader.width), h: Math.round(reader.height) }
+  const cam = await box(room.getByTestId('ps-pager'))
+  const pg = await box(room.locator('.sd-pg').first())
+  return { w: Math.round(cam.width), h: Math.round(pg.height) }
+}
+
+/** Next through the room to the back cover; at each rest the RGB at the
+   centre of every visible photo page */
+async function walkRoom(room: Locator, phone: boolean) {
+  const reader = room.getByTestId('ps-reader')
+  const pager = room.getByTestId('ps-pager')
+  const next = room.getByTestId('ss-next')
+  const seen: { label: string; centres: number[][] }[] = []
+  // the room opens on view 1 (the pager's step 1)
+  for (let k = 1; ; k++) {
+    // at rest: the pager landed on step k / the reader on view k
+    await expect(phone ? pager : reader).toHaveAttribute(
+      phone ? 'data-step' : 'data-view',
+      String(k),
+    )
+    await expect(reader.getByTestId('ps-leaf')).toHaveCount(0)
+    seen.push({
+      label: (await room.getByTestId('ss-label').textContent()) ?? '',
+      centres: await pageCentres(reader, phone ? pager : reader),
+    })
+    if (await next.isDisabled()) return seen
+    await next.click()
+  }
+}
+
+function consoleErrors(page: Page) {
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text())
+  })
+  return errors
+}
+
+for (const vp of VIEWPORTS)
+  test.describe(`fresh C ${vp.name}: the reading room`, () => {
+    test.use({
+      viewport: vp.viewport,
+      isMobile: vp.isMobile,
+      hasTouch: vp.hasTouch,
+    })
+    const phone = vp.viewport.width < 768
+
+    test('Read opens the room paused on the shown view; Esc closes, focus returns, Play resumes', async ({
+      page,
+    }) => {
+      const errors = consoleErrors(page)
+      // one book: Lake trip (portrait) owns every minute
+      await page.goto('/uikit/#/full/site-fresh-c?books=1')
+      const actions = page.getByTestId('sfc-now').locator('.sfc-actions > *')
+      await expect(actions).toHaveText(['Pause', 'Read', 'About this book'])
+      const read = page.getByTestId('sfc-read-room')
+      await read.click()
+      const room = page.getByTestId('ss-reader-page')
+      await expect(room).toBeVisible()
+      await expect(page.getByTestId('sfc-status')).toHaveText('Paused')
+      const layer = await room.evaluate((el) => {
+        const cs = getComputedStyle(el)
+        const r = el.getBoundingClientRect()
+        return { pos: cs.position, z: cs.zIndex, x: r.x, y: r.y, w: r.width }
+      })
+      expect(layer).toEqual({
+        pos: 'fixed',
+        z: '20',
+        x: 0,
+        y: 0,
+        w: vp.viewport.width,
+      })
+      // the header stays on top of the room
+      expect(await paintedAt(page.locator('.sfc-name'))).toBe(true)
+      // the room opens on the view the stage showed (a closed cover opens)
+      const shown = Number(
+        await page.getByTestId('sfc-player').getAttribute('data-view'),
+      )
+      await expect(room.getByTestId('ss-reader')).toHaveAttribute(
+        'data-view',
+        String(Math.max(1, shown)),
+      )
+      const rb = await roomBook(room, phone)
+      expect(rb.w).toBe(vp.room.w)
+      expect(rb.h).toBeGreaterThanOrEqual(vp.room.hMin)
+      expect(rb.h).toBeLessThanOrEqual(vp.room.hMax)
+      await room.getByTestId('ss-next').click()
+      const kept = await room.getByTestId('ss-reader').getAttribute('data-view')
+
+      await page.keyboard.press('Escape')
+      await expect(room).toHaveCount(0)
+      await expect(read).toBeFocused()
+      await expect(page.getByTestId('sfc-player')).toHaveAttribute(
+        'data-view',
+        kept ?? '',
+      )
+      await expect(page.getByTestId('sfc-status')).toHaveText('Paused')
+      await page.getByTestId('sfc-toggle').click()
+      await expect(page.getByTestId('sfc-status')).toHaveText(/^Now/)
+      expect(errors).toEqual([])
+    })
+
+    test('book page: Read the book opens the closed book on view 1; Esc closes the room only', async ({
+      page,
+    }) => {
+      const errors = consoleErrors(page)
+      await page.goto('/uikit/#/full/site-fresh-c?b=coast')
+      const open = page.getByTestId('sfc-open')
+      await expect(open).toHaveText('Read the book')
+      await open.click()
+      const room = page.getByTestId('ss-reader-page')
+      await expect(room.getByTestId('ss-reader')).toHaveAttribute(
+        'data-view',
+        '1',
+      )
+      await page.keyboard.press('Escape')
+      await expect(room).toHaveCount(0)
+      await expect(open).toBeFocused()
+      await expect(page.getByTestId('sfc')).toHaveAttribute('data-page', 'book')
+      expect(errors).toEqual([])
+    })
+
+    for (const id of ['lake-trip', 'coast'])
+      test(`paint: every view of ${id} shows its photo pages`, async ({
+        page,
+      }) => {
+        const errors = consoleErrors(page)
+        await page.goto(`/uikit/#/full/site-fresh-c?b=${id}`)
+        await page.getByTestId('sfc-open').click()
+        const seen = await walkRoom(page.getByTestId('ss-reader-page'), phone)
+        expect(seen.at(-1)?.label).toBe('Back cover')
+        // no photo page paints as #FFFFFF
+        expect(seen.flatMap((s) => s.centres).filter(white)).toEqual([])
+        // every view between the covers was sampled; most hold a photo
+        const photos = seen.reduce((s, x) => s + x.centres.length, 0)
+        expect(photos).toBeGreaterThanOrEqual(seen.length / 2)
+        test.info().annotations.push({
+          type: 'paint',
+          description: JSON.stringify({ id, views: seen.length, photos }),
+        })
+        expect(errors).toEqual([])
+      })
+  })

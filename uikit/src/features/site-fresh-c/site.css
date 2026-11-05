@@ -6,7 +6,7 @@
 .sfc {
   --bg: #F4F3F0; --ink: #141414; --mute: #6F6F6B; --rule: rgb(20 20 20 / .12);
   --site-paper: #FBFAF7; --site-ink: var(--ink); --site-muted: var(--mute);
-  --site-shadow-book: 0 1px 2px rgb(0 0 0 / .14), 0 28px 48px -24px rgb(0 0 0 / .42);
+  --site-shadow-book: 0 1px 2px rgb(0 0 0 / .18), 0 2px 6px rgb(0 0 0 / .08), 0 40px 70px -30px rgb(0 0 0 / .45);
   --appear: cubic-bezier(0.16, 1, 0.3, 1); --change: cubic-bezier(0.4, 0, 0.2, 1);
   --text: 16px; --lead: 24px; --title: 44px; --m: 24px;
   height: 100%; overflow-y: auto; overflow-x: hidden; background: var(--bg); color: var(--ink);
@@ -58,6 +58,21 @@
 .sfc-actions { display: flex; gap: 24px; margin-top: 16px; }
 .sfc-stage { position: relative; display: flex; align-items: center; justify-content: center; }
 .sfc-in { animation: sfc-fade .5s var(--appear); }
+/* phone (S5): the single-page camera runs full bleed */
+.sfc-phone .sfc-stage { margin: 0 calc(-1 * var(--m)); }
+
+/* the reading room (Spec site-stand S6, site-book/room.tsx) over the whole site, under the 56 px header */
+.sfc .sb-room { position: fixed; inset: 0; z-index: 20; background: var(--bg); }
+.sfc[data-reading] .sfc-head { position: sticky; top: 0; z-index: 21; background: var(--bg); }
+/* the room's sys type classes (site-sys/system.css may not be loaded here) */
+.sfc .sb-room .ss-abs { position: absolute; }
+.sfc .sb-room .t13 { font-size: 13px; line-height: 1.45; letter-spacing: 0; }
+.sfc .sb-room .t16 { font-size: 16px; line-height: 1.45; letter-spacing: -0.01em; }
+.sfc .sb-room .m15 { font-size: 15px; line-height: 1.45; letter-spacing: -0.01em; }
+.sfc .sb-room .g { color: var(--mute); }
+.sfc .sb-room .ss-tx { transition: color .2s var(--change); }
+.sfc .sb-room .ss-tx:hover { color: var(--ink); }
+.sfc .sb-room button:disabled { opacity: .4; cursor: default; }
 .sfc-line { position: relative; height: 1px; background: var(--rule); margin-top: 16px; overflow: hidden; }
 .sfc-line i { position: absolute; inset: 0; background: var(--ink); transform-origin: left center; transition: transform .5s var(--change); }
 .sfc-line i.sfc-grow { animation: sfc-grow linear both; transition: none; }

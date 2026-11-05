@@ -1,10 +1,14 @@
 /* Site fresh C, the programme (concept.md): the site runs on the clock. Each book owns one minute in turn and turns its
    own pages through it; the visitor takes over by touching the book (or Pause) and Play goes back to the programme.
-   Reduced motion starts paused. Book page, About and Contact share the header and the programme row. */
+   Reduced motion starts paused. Book page, About and Contact share the header and the programme row. Read opens the
+   shared reading room (Spec site-stand S6, S7); on a phone the stage shows one page at a time (S5). */
 import * as React from "react"
+import { createPortal } from "react-dom"
 import "./site.css"
 import { Book3D } from "../site-demo-1/book3d"
 import { BookReader } from "../site-demo-1/reader"
+import { pageOf, Pager, stepOf, stepsOf, type PagerApi, type Step } from "../site-book/pager"
+import { ReadingRoom } from "../site-book/room"
 import { AUTHOR, BOOKS, EMAIL, SPREAD_R, italics, pagesOf, sizeOf, viewLabel, viewsOf, type SiteBook } from "../site-demo-1/data"
 import { EXTRA } from "../site-demo-1/data-extra"
 import { SLOT_MS, at, hhmm, pick, startOf, type At } from "./programme"
@@ -77,14 +81,15 @@ const metaOf = (b: SiteBook) => `${b.year} · ${pagesOf(b)} pages · ${sizeOf(b)
 /** reader geometry in cm: the open spread is H × H·R */
 const spreadW = (b: SiteBook) => b.h * SPREAD_R[b.fmt]
 
-type Geo = { phone: boolean; s: number; stageH: number; sr: number; span: number; standH: number; listS: number }
+type Geo = { w: number; h: number; phone: boolean; s: number; stageH: number; sr: number; span: number; standH: number; listS: number }
 function geoOf(books: SiteBook[], w: number, h: number): Geo {
   const phone = w < 768
   const maxW = Math.max(...books.map(spreadW)), maxH = Math.max(...books.map((b) => b.h))
   const listS = 80 / maxH
   if (phone) {
-    const s = (w - 32 - 32) / maxW
-    return { phone, s, stageH: Math.round(maxH * s + 40), sr: listS, span: 0, standH: 0, listS }
+    // one page at a time (S5), P from the full-bleed stage width; the stage is the tallest page + 40
+    const pageH = Math.max(...books.map((b) => (pageOf(b, w, Infinity) * b.h) / b.w))
+    return { w, h, phone, s: 0, stageH: Math.round(pageH + 40), sr: listS, span: 0, standH: 0, listS }
   }
   const cw = w - 48, col = (cw - 11 * 16) / 12, playerW = 8 * col + 7 * 16
   // the programme row sits on the grid: each book gets 12 / N columns
@@ -96,14 +101,14 @@ function geoOf(books: SiteBook[], w: number, h: number): Geo {
   // header 56, hero: top 24, line and page label 52
   const stageH = Math.max(280, Math.min(N > 1 ? 600 : 760, h - 56 - 24 - 52 - rowH - 24))
   const s = Math.min((playerW - 32) / maxW, (stageH - 24) / maxH)
-  return { phone, s, stageH, sr, span, standH, listS }
+  return { w, h, phone, s, stageH, sr, span, standH, listS }
 }
 
 export function SiteFreshC() {
   const loc = useLoc()
   const { w, h } = useWin()
   const books = React.useMemo(() => pick(ALL, loc.n), [loc.n])
-  const g = geoOf(books, w, h)
+  const g = React.useMemo(() => geoOf(books, w, h), [books, w, h])
   const now = useNow(books)
   const scroller = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => { scroller.current?.scrollTo(0, 0) }, [loc.page, loc.book])
@@ -167,13 +172,60 @@ function Grow({ elapsed }: { elapsed: number }) {
   return <i className="sfc-grow" style={{ animationDuration: `${SLOT_MS}ms`, animationDelay: `-${d}ms` }} />
 }
 
-function Stage({ b, view, onView, g }: { b: SiteBook; view: number; onView: (v: number) => void; g: Geo }) {
+type StageProps = { b: SiteBook; view: number; onView: (v: number) => void; g: Geo; keys: boolean; live: boolean }
+function Stage({ b, view, onView, g, keys, live }: StageProps) {
   const W = Math.round(spreadW(b) * g.s)
   return (
     <div className="sfc-stage" style={{ height: g.stageH }} data-testid="sfc-stage">
-      <div key={b.id} className="sfc-in"><BookReader b={b} view={view} onView={onView} width={W} leaf="paper" /></div>
+      <div key={b.id} className="sfc-in">
+        {g.phone ? <PageStage b={b} view={view} onView={onView} g={g} keys={keys} live={live} /> : <BookReader b={b} view={view} onView={onView} width={W} keys={keys} />}
+      </div>
     </div>
   )
+}
+
+/** phone (S5): the pager follows the outside view (programme, Read the book, the room) — while live it pans to the right
+   page halfway through a view — and reports only the visitor's own steps */
+function PageStage({ b, view, onView, g, keys, live }: Omit<StageProps, "b"> & { b: SiteBook }) {
+  const steps = React.useMemo(() => stepsOf(b), [b])
+  const api = React.useRef<PagerApi>(null)
+  const cur = React.useRef(stepOf(steps, view))
+  /** the steps this stage asked for, in order (not the visitor's) */
+  const asked = React.useRef<number[]>([])
+  const [gen, setGen] = React.useState(0)
+  const drive = (j: number) => {
+    const i = cur.current, d = Math.sign(j - i)
+    if (Math.abs(j - i) > 2) { cur.current = j; asked.current = []; setGen((x) => x + 1); return }
+    for (let k = i + d; k !== j + d; k += d) { asked.current.push(k); api.current?.go(d) }
+  }
+  const onStep = (i: number, s: Step) => {
+    cur.current = i
+    if (asked.current[0] === i) { asked.current.shift(); return }
+    asked.current = []
+    onView(s.v)
+  }
+  React.useEffect(() => {
+    if (steps[cur.current].v !== view) drive(stepOf(steps, view))
+    if (!live) return
+    const j = stepOf(steps, view)
+    if (steps[j + 1]?.v !== view) return
+    const t = setTimeout(() => { if (cur.current === j) drive(j + 1) }, SLOT_MS / viewsOf(b) / 2)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, live, steps])
+  return <Pager key={gen} ref={api} b={b} view={view} onStep={onStep} width={g.w} height={g.stageH} keys={keys} />
+}
+
+/** the reading room (S6) over the whole site under the header; the page behind is inert while it is open */
+function Room({ b, view, setView, onClose, g }: { b: SiteBook; view: number; setView: (v: number) => void; onClose: () => void; g: Geo }) {
+  const [host] = React.useState(() => document.querySelector<HTMLElement>('[data-testid="sfc"]'))
+  React.useEffect(() => {
+    const main = host?.querySelector(".sfc-main")
+    main?.setAttribute("inert", ""); host?.setAttribute("data-reading", "")
+    return () => { main?.removeAttribute("inert"); host?.removeAttribute("data-reading") }
+  }, [host])
+  if (!host) return null
+  return createPortal(<ReadingRoom b={b} view={view} setView={setView} onClose={onClose} box={{ w: g.w, h: g.h, narrow: g.w <= 640 }} />, host)
 }
 
 function Home({ books, now, g, n }: { books: SiteBook[]; now: number; g: Geo; n: number }) {
@@ -189,13 +241,16 @@ function Home({ books, now, g, n }: { books: SiteBook[]; now: number; g: Geo; n:
   const status = live
     ? books.length === 1 ? `Now, again at ${hhmm(nextAt)}` : `Now, until ${hhmm(nextAt)}`
     : own.i === cur.i ? "Paused" : `Paused. On the programme now: ${books[cur.i].title}`
+  const [reading, setReading] = React.useState(false)
   const toggle = <button type="button" className="sfc-btn" onClick={() => setOwn(live ? { i: cur.i, view: cur.view } : null)} data-testid="sfc-toggle">{live ? "Pause" : "Play"}</button>
+  // reading pauses the programme on the shown view; closing keeps the reader's view (Paused, Play resumes)
+  const read = <button type="button" className="sfc-btn" onClick={() => { setOwn({ i, view: view === 0 || view === nv - 1 ? 1 : view }); setReading(true) }} data-testid="sfc-read-room">Read</button>
   const text = (
     <div className="sfc-now" data-testid="sfc-now">
       <p className="sfc-meta" data-testid="sfc-status">{status}</p>
       <h2 className="sfc-title"><a href={hrefOf(n, { b: b.id })} className="sfc-tlink" data-testid="sfc-now-title">{b.title}</a></h2>
       <p className="sfc-meta">{metaOf(b)}</p>
-      <div className="sfc-actions">{toggle}<a className="sfc-link" href={hrefOf(n, { b: b.id })}>About this book</a></div>
+      <div className="sfc-actions">{toggle}{read}<a className="sfc-link" href={hrefOf(n, { b: b.id })}>About this book</a></div>
     </div>
   )
   return (
@@ -205,7 +260,7 @@ function Home({ books, now, g, n }: { books: SiteBook[]; now: number; g: Geo; n:
         {!g.phone && text}
       </div>
       <div className="sfc-play" data-testid="sfc-player" data-book={b.id} data-view={view}>
-        <Stage b={b} view={view} onView={(v) => setOwn({ i, view: v })} g={g} />
+        <Stage b={b} view={view} onView={(v) => setOwn({ i, view: v })} g={g} keys={!reading} live={live} />
         <Line live={live && !reduced} at={cur} view={view} n={nv} />
         <div className="sfc-under sfc-meta">
           <span data-testid="sfc-page">{viewLabel(b, view)}</span>
@@ -213,6 +268,7 @@ function Home({ books, now, g, n }: { books: SiteBook[]; now: number; g: Geo; n:
         </div>
       </div>
       {g.phone && text}
+      {reading && <Room b={b} view={view} setView={(v) => setOwn({ i, view: v })} onClose={() => setReading(false)} g={g} />}
     </section>
   )
 }
@@ -220,6 +276,9 @@ function Home({ books, now, g, n }: { books: SiteBook[]; now: number; g: Geo; n:
 function BookPage({ b, g }: { b: SiteBook; g: Geo }) {
   const [view, setView] = React.useState(0)
   const [play, setPlay] = React.useState(false)
+  const [reading, setReading] = React.useState(false)
+  const readingRef = React.useRef(reading)
+  readingRef.current = reading
   const n = viewsOf(b)
   React.useEffect(() => {
     if (!play) return
@@ -228,11 +287,13 @@ function BookPage({ b, g }: { b: SiteBook; g: Geo }) {
     return () => clearTimeout(id)
   }, [play, view, n])
   React.useEffect(() => {
-    const k = (e: KeyboardEvent) => { if (e.key === "Escape") location.hash = hrefOf(readLoc().n).slice(1) }
+    // Esc in the room closes the room only
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape" && !readingRef.current) location.hash = hrefOf(readLoc().n).slice(1) }
     window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k)
   }, [])
   const onView = (v: number) => { setPlay(false); setView(v) }
-  const open = view > 0 && view < n - 1
+  // the room opens the book on its first page if it is closed
+  const read = () => { setPlay(false); if (view === 0 || view === n - 1) setView(1); setReading(true) }
   return (
     <section className="sfc-grid sfc-hero" data-testid="sfc-book" data-book={b.id}>
       <div className="sfc-side sfc-side-book">
@@ -240,15 +301,16 @@ function BookPage({ b, g }: { b: SiteBook; g: Geo }) {
         <p className="sfc-lead">{italics(b.statement).map((p, k) => p.it ? <span key={k} className="sfc-mute">{p.t}</span> : p.t)}</p>
         <p className="sfc-meta">{metaOf(b)}</p>
         <div className="sfc-actions">
-          <button type="button" className="sfc-btn" onClick={() => onView(open ? 0 : 1)} data-testid="sfc-open">{open ? "Close the book" : "Open the book"}</button>
+          <button type="button" className="sfc-btn" onClick={read} data-testid="sfc-open">Read the book</button>
           <button type="button" className="sfc-btn" onClick={() => { if (play) setPlay(false); else { if (view >= n - 1) setView(0); setPlay(true) } }} data-testid="sfc-read">{play ? "Pause" : "Let it read itself"}</button>
         </div>
       </div>
       <div className="sfc-play" data-testid="sfc-player" data-book={b.id} data-view={view}>
-        <Stage b={b} view={view} onView={onView} g={g} />
+        <Stage b={b} view={view} onView={onView} g={g} keys={!reading} live={play} />
         <Line live={false} view={view} n={n} />
         <div className="sfc-under sfc-meta"><span data-testid="sfc-page">{viewLabel(b, view)}</span><span>{g.phone ? "Tap a page to turn it" : "Click a page or use ← / →"}</span></div>
       </div>
+      {reading && <Room b={b} view={view} setView={onView} onClose={() => setReading(false)} g={g} />}
     </section>
   )
 }
