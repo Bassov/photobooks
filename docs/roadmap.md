@@ -148,6 +148,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [user-templates-picker](roadmap/P3/user-templates-picker.md) — Bug: /next-roadmap-item user-templates-picker
 - [ ] [feature] [user-templates-best-fit](roadmap/P3/user-templates-best-fit.md) — Bug: /next-roadmap-item user-templates-best-fit
 - [ ] [feature] [site-viewer](roadmap/P3/site-viewer.md) — viewer entry
+- [ ] [feature] [site-lightbox-kit](roadmap/P3/site-lightbox-kit.md) — Bug: /next-roadmap-item site-lightbox-kit
 - [x] [feature] [site-viewer-render](roadmap/P3/site-viewer-render.md) — Bug: /next-roadmap-item site-viewer-render
 - [x] [feature] [site-viewer-kit](roadmap/P3/site-viewer-kit.md) — Bug: /next-roadmap-item site-viewer-kit
 - [ ] [feature] [site-preview-mode](roadmap/P3/site-preview-mode.md) — preview the site from the editor
@@ -186,6 +187,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
 - [ ] [feature] [connect-own-hosting](roadmap/P5/connect-own-hosting.md) — bring your own hosting (Security Review)
 - [ ] [feature] [prepush-scoped-units](roadmap/P5/prepush-scoped-units.md) — Bug: /next-roadmap-item prepush-scoped-units
+- [ ] [feature] [printer-presets-kit](roadmap/P5/printer-presets-kit.md) — Bug: /next-roadmap-item printer-presets-kit
 - [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
 - [ ] [lite] [deps-dev-knip-relink](roadmap/P5/deps-dev-knip-relink.md) — Bug: /next-roadmap-item deps-dev-knip-relink
 - [ ] [feature] [spread-thumb-grey-backing](roadmap/P5/spread-thumb-grey-backing.md) — Bug: /next-roadmap-item spread-thumb-grey-backing
