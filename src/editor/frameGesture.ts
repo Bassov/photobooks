@@ -419,7 +419,7 @@ function overrideModifiers(event: PointerEvent): boolean {
   return event.shiftKey && (event.ctrlKey || event.metaKey)
 }
 
-/** The parent item under a press, through own frames (`parentHit.ts`). */
+/** The parent-layer item under a press, through own frames (`parentHit.ts`). */
 function parentHitOf(
   event: PointerEvent,
   ctx: SpreadContext | null,
@@ -438,42 +438,46 @@ function parentHitOf(
       )
 }
 
+/** A laid-out spread's context and the parent-layer hit of a press on it. */
+function overridePress(
+  event: PointerEvent,
+  spreadEl: HTMLElement,
+): { ctx: SpreadContext; hit: ParentHit | null } | null {
+  const ctx = spreadContext(spreadEl, [])
+  return ctx === null ? null : { ctx, hit: parentHitOf(event, ctx) }
+}
+
 /**
  * Designer PO2: a modifier press on a parent frame overrides it, selects the
- * copy and continues as the copy's move. On a parent guide (PO5) the copy's
- * guide drag takes the press → 'guide'. No hit → null.
+ * copy and continues as the copy's move. A press on an existing copy (even
+ * under own frames) only reselects and moves it (review 3). On a parent guide
+ * (PO5) the copy's guide drag takes the press → 'guide'. No hit → null.
  */
 function overrideSession(
   event: PointerEvent,
   spreadEl: HTMLElement,
 ): MoveSession | 'guide' | null {
-  const ctx = spreadContext(spreadEl, [])
-  const hit = parentHitOf(event, ctx)
+  let press = overridePress(event, spreadEl)
   if (
-    hit?.kind === 'guide' &&
-    startParentGuideOverride(event, spreadEl, hit.guideId)
+    press?.hit?.kind === 'guide' &&
+    startParentGuideOverride(event, spreadEl, press.hit.guideId)
   ) {
     return 'guide'
   }
-  if (ctx === null || hit?.kind !== 'frame') {
-    return null
+  if (press?.hit?.kind === 'frame') {
+    dispatchBookOp({
+      type: 'overrideParentFrame',
+      spreadId: press.ctx.spreadId,
+      parentFrameId: press.hit.frameId,
+    })
+    // The copy now tops the parent layer under the press (copies hit first);
+    // the fresh context's `spread` carries it. Copies sit outside
+    // `spread.frames`, so the snap anchors stay as built.
+    press = overridePress(event, spreadEl)
   }
-  dispatchBookOp({
-    type: 'overrideParentFrame',
-    spreadId: ctx.spreadId,
-    parentFrameId: hit.frameId,
-  })
-  const spread = getBookStoreSnapshot().book.spreads.find(
-    (item) => item.id === ctx.spreadId,
-  )
-  const copy = spread?.parentOverrides?.frames?.find(
-    (frame) => frame.overridesId === hit.frameId,
-  )
-  // Copies sit outside `spread.frames`, so the snap anchors stay as built;
-  // only `ctx.spread` must carry the copy.
-  return spread === undefined || copy === undefined
-    ? null
-    : copyMoveSession(event, { ...ctx, spread }, copy)
+  return press?.hit?.kind === 'copy'
+    ? copyMoveSession(event, press.ctx, press.hit.frame)
+    : null
 }
 
 /** The move a fresh copy continues as. */
@@ -528,7 +532,8 @@ function frameButton(
  * - Select tool on bare paper or the pasteboard gray: past the slop, a
  *   marquee selects the target spread's frames it touches (marquee.ts).
  * - Ctrl/⌘+Shift on a parent item, through own frames: overrides it and
- *   continues as the copy's move (Designer PO2).
+ *   continues as the copy's move (Designer PO2); on an existing copy it
+ *   reselects and moves that copy, no override.
  * Draw and move snap to other frames / guides / equal gaps through the anchor index
  * built at gesture start; Alt suppresses it. The preview is direct DOM writes;
  * one op is committed at gesture end (one undo step).

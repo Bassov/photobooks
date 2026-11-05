@@ -54,7 +54,7 @@ const KIT = {
     'Arrange',
   ],
   cover: ['Front', 'Spine', 'Back', 'Material'],
-  book: ['Page size', 'Binding', 'Print', 'Defaults'],
+  book: ['Page size', 'Binding', 'Page numbers', 'Print', 'Defaults'],
   endpaper: ['Fill', 'Apply'],
   m48: {
     fillTitle: 121.64,

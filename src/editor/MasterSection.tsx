@@ -1,5 +1,11 @@
 import { useState, useSyncExternalStore } from 'react'
-import { effectiveGrid, parentAsSpread, type GridPatch } from '../core'
+import {
+  effectiveGrid,
+  pageNumberPosition,
+  parentAsSpread,
+  type GridPatch,
+  type PageNumberPosition,
+} from '../core'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
@@ -7,11 +13,21 @@ import {
 } from './bookStore'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
+import { SegmentedControl } from '../ui/SegmentedControl'
+import { setBookSettingsSelected } from './bookSettingsSelection'
+import { setCoverSelected } from './coverSelection'
+import { SUB } from './editorChromeTokens'
 import { GridFields } from './GridFields'
-import { InspectorHead, InspectorSec } from './InspectorControls'
+import {
+  InspectorHead,
+  InspectorRow,
+  InspectorSec,
+  ToggleSwitch,
+} from './InspectorControls'
 import {
   marginsEqual,
   masterGridPatch,
+  masterPageNumbersHint,
   masterUsageLabel,
   parentUsage,
 } from './inspectorModel'
@@ -98,6 +114,83 @@ export function MasterSection({ parentId }: { parentId: string }) {
           }}
         />
       </InspectorSec>
+      <MasterPageNumbers
+        parentId={parent.id}
+        position={pageNumberPosition(parent)}
+        hint={masterPageNumbersHint(book)}
+      />
     </section>
+  )
+}
+
+const POSITIONS: { id: PageNumberPosition; label: string }[] = [
+  { id: 'outer', label: 'Outer' },
+  { id: 'centre', label: 'Centre' },
+  { id: 'inner', label: 'Inner' },
+]
+
+/** As the top-bar title: Book settings replaces the other inspector contexts. */
+function openBookSettings(): void {
+  setCoverSelected(false)
+  setBookSettingsSelected(true)
+}
+
+/**
+ * Designer page-numbers (kit v7.tsx:292-295): Show switch, then (on only)
+ * the Outer / Centre / Inner segments and the hint linking to Book settings.
+ */
+function MasterPageNumbers({
+  parentId,
+  position,
+  hint,
+}: {
+  parentId: string
+  position: PageNumberPosition | null
+  hint: string
+}) {
+  const write = (next: PageNumberPosition | null) => {
+    dispatchBookOp({ type: 'setParentPageNumbers', parentId, position: next })
+  }
+  return (
+    <InspectorSec title="Page numbers" testId="master-page-numbers">
+      <InspectorRow label="Show">
+        <ToggleSwitch
+          label="Page numbers"
+          testId="master-pn-toggle"
+          on={position !== null}
+          onChange={(on) => {
+            write(on ? 'outer' : null)
+          }}
+        />
+      </InspectorRow>
+      {position === null ? null : (
+        <>
+          <div className="mt-3" data-testid="master-pn-position">
+            <SegmentedControl
+              label="Page number position"
+              size="inspector"
+              items={POSITIONS}
+              value={position}
+              onChange={write}
+            />
+          </div>
+          <div
+            className="mt-1.5 text-2xs leading-[1.35]"
+            style={{ color: SUB }}
+            data-testid="master-pn-note"
+          >
+            {hint} ·{' '}
+            <button
+              type="button"
+              className="master-pn-link"
+              data-testid="master-pn-book-settings"
+              onClick={openBookSettings}
+            >
+              Book settings
+            </button>
+          </div>
+        </>
+      )}
+    </InspectorSec>
   )
 }
