@@ -201,7 +201,11 @@ describe('EditorTopBar', () => {
     render(<EditorShell />)
     const preview = screen.getByTestId('present')
     const settings = screen.getByTestId('editor-settings-open')
-    for (const pill of [preview, settings]) {
+    const exportSite = screen.getByTestId('export-site')
+    expect(exportSite.getAttribute('aria-label')).toBe('Export site')
+    expect(exportSite.parentElement).toBe(settings.parentElement)
+    expect(settings.nextElementSibling).toBe(exportSite)
+    for (const pill of [preview, settings, exportSite]) {
       expect(pill.className).toContain('editor-top-pill')
       expect(pill.className).not.toContain('e7-sec')
       expect(pill.style.background).toBe('#D7D7D7')

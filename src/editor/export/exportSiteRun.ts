@@ -78,7 +78,7 @@ export async function collectSiteDerivatives(
 }
 
 /** Published revisions of the library's other books, newest first. */
-export async function otherPublishedRevisions(
+async function otherPublishedRevisions(
   storage: LibraryStorage,
   meta: LibraryMeta,
   openBookId: string,

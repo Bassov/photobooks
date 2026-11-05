@@ -1,3 +1,4 @@
+import { sha256HexSync } from '../assets/sha256Sync'
 import { overrideParentFrame, type Book } from '../core'
 import {
   makePainterFixture,
@@ -18,8 +19,18 @@ function withLogoOverrides(book: Book, count: number): Book {
     )
 }
 
+/** Give every asset a content hash, so derivatives (site export) can encode. */
+function withContentHashes(book: Book): Book {
+  const assets: Book['assets'] = {}
+  for (const [assetId, asset] of Object.entries(book.assets)) {
+    assets[assetId] = { ...asset, contentHash: sha256HexSync(assetId) }
+  }
+  return { ...book, assets }
+}
+
 /**
  * Replace the in-memory book with the painter fixture and its preview URLs.
+ * `&hashes=1` gives the photos content hashes (site export encodes them).
  * `&parent=a` makes Master A the book default, so all 40 spreads use it;
  * `&overrides=<n>` then has the first n spreads override its logo.
  */
@@ -34,7 +45,7 @@ export function loadPainterFixture(search = window.location.search): void {
         )
       : fixture.book
   resetBookStore({
-    book,
+    book: params.get('hashes') === '1' ? withContentHashes(book) : book,
     sessionMeta: new Map(),
     previewUrls: fixture.previewUrls,
     importRunning: false,
