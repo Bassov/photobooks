@@ -14,7 +14,7 @@ describe('editorChromeTokens', () => {
   })
 
   it('re-exports kit page helpers', () => {
-    expect(pagesOf(3)).toBe(6)
+    expect(pagesOf(3)).toBe(4)
     expect(fmtN(21.05)).toBe('21.1')
     expect(mmToCm(210)).toBe(21)
   })
