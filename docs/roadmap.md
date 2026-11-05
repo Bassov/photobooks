@@ -162,6 +162,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [static-export](roadmap/P3/static-export.md) — write `dist/`
 - [ ] [prep] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
 - [x] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
+- [ ] [feature] [stand-v2-gl-reader](roadmap/P3/stand-v2-gl-reader.md) — Bug: /next-roadmap-item stand-v2-gl-reader
 - [ ] [feature] [site-preview-mode-kit](roadmap/P3/site-preview-mode-kit.md) — kit Preview opens the site book page (Designer site-preview-mode item 1)
 - [ ] [feature] [kit-undo-fixes](roadmap/P3/kit-undo-fixes.md) — Bug: /next-roadmap-item kit-undo-fixes
 - [ ] [feature] [publish-credentials](roadmap/P3/publish-credentials.md) — connect the editor to your hosting (Security Review)
