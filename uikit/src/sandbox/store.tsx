@@ -27,11 +27,15 @@ export type Features = {
   parentEdit?: string | null
   overrides?: boolean
 }
-type Hist = { doc: Doc; past: { doc: Doc; label: string }[]; future: { doc: Doc; label: string }[]; lastKey?: string; lastAt?: number }
+/** A spread op's step also holds the current spread before (`cur`) and after (`next`) it: undo selects `cur`, redo `next`. */
+type Step = { doc: Doc; label: string; cur?: number; next?: number }
+/** `cur`: the current spread lives here so undo / redo move it in the same state step as the doc. */
+type Hist = { doc: Doc; cur: number; past: Step[]; future: Step[]; lastKey?: string; lastAt?: number }
 
 export type Studio = {
   doc: Doc
-  update: (fn: (d: Doc) => Doc, label: string, key?: string) => void
+  /** `cur`: the spread an op on the spread list makes current (undo returns to the one before, redo to this one) */
+  update: (fn: (d: Doc) => Doc, label: string, key?: string, cur?: number) => void
   preview: (fn: (d: Doc) => Doc) => void
   commit: (label: string) => void
   cancelPreview: () => void
@@ -76,14 +80,13 @@ export function StudioProvider({ init, view, features = {}, cur: cur0 = 0, sel: 
   const [book, setBookRaw] = React.useState<Book>({ ...BOOK0, ...book0 })
   setGeom(book.w, book.h)
   const [panels, setPanels] = React.useState({ l: true, b: true })
-  const [h, setH] = React.useState<Hist>(() => { setGeom(BOOK0.w, BOOK0.h); const d0 = typeof init === "function" ? init() : init; setGeom(book.w, book.h); return { doc: reflowDoc(d0, BOOK0, { ...BOOK0, ...book0 }), past: [], future: [] } })
+  const [h, setH] = React.useState<Hist>(() => { setGeom(BOOK0.w, BOOK0.h); const d0 = typeof init === "function" ? init() : init; setGeom(book.w, book.h); return { doc: reflowDoc(d0, BOOK0, { ...BOOK0, ...book0 }), cur: cur0, past: [], future: [] } })
   const setBook = (b: Book) => {
     if (b.w !== book.w || b.h !== book.h) { const from = book; setGeom(b.w, b.h); setH((s) => ({ ...s, doc: reflowDoc(s.doc, from, b) })) }
     setBookRaw(b)
   }
   const [draft, setDraft] = React.useState<Doc | null>(null)
   const draftRef = React.useRef<Doc | null>(null)
-  const [cur, setCur] = React.useState(cur0)
   const [sel, setSel] = React.useState<string[]>(sel0)
   const [filmSel, setFilmSel] = React.useState<string[]>([])
   const [cropId, setCropId] = React.useState<string | null>(null)
@@ -97,7 +100,7 @@ export function StudioProvider({ init, view, features = {}, cur: cur0 = 0, sel: 
   const hRef = React.useRef(h)
   hRef.current = h
 
-  const update = React.useCallback((fn: (d: Doc) => Doc, label: string, key?: string) => {
+  const update = React.useCallback((fn: (d: Doc) => Doc, label: string, key?: string, cur?: number) => {
     setH((s) => {
       const now = Date.now()
       const next = fn(s.doc)
@@ -105,10 +108,13 @@ export function StudioProvider({ init, view, features = {}, cur: cur0 = 0, sel: 
       // op-key coalescing: the same key within 1 s replaces the last step (typing in a field)
       if (key && s.lastKey === key && now - (s.lastAt ?? 0) < 1000 && s.past.length)
         return { ...s, doc: next, future: [], lastAt: now }
-      return { doc: next, past: [...s.past, { doc: s.doc, label }].slice(-100), future: [], lastKey: key, lastAt: now }
+      const step: Step = cur === undefined ? { doc: s.doc, label } : { doc: s.doc, label, cur: s.cur, next: cur }
+      return { doc: next, cur: cur ?? s.cur, past: [...s.past, step].slice(-100), future: [], lastKey: key, lastAt: now }
     })
+    if (cur !== undefined) setNodeRaw(null)
     setSaveState("dirty")
   }, [])
+  const setCur = React.useCallback((i: number) => setH((s) => (s.cur === i ? s : { ...s, cur: i })), [])
   const preview = React.useCallback((fn: (d: Doc) => Doc) => {
     draftRef.current = fn(draftRef.current ?? hRef.current.doc)
     setDraft(draftRef.current)
@@ -118,23 +124,23 @@ export function StudioProvider({ init, view, features = {}, cur: cur0 = 0, sel: 
     draftRef.current = null
     setDraft(null)
     if (!d) return
-    setH((s) => ({ doc: d, past: [...s.past, { doc: s.doc, label }].slice(-100), future: [] }))
+    setH((s) => ({ doc: d, cur: s.cur, past: [...s.past, { doc: s.doc, label }].slice(-100), future: [] }))
     setSaveState("dirty")
   }, [])
   const cancelPreview = React.useCallback(() => { draftRef.current = null; setDraft(null) }, [])
   const undo = React.useCallback(() => setH((s) => {
     if (!s.past.length) return s
     const last = s.past[s.past.length - 1]
-    return { doc: last.doc, past: s.past.slice(0, -1), future: [{ doc: s.doc, label: last.label }, ...s.future] }
+    return { doc: last.doc, cur: last.cur ?? s.cur, past: s.past.slice(0, -1), future: [{ ...last, doc: s.doc }, ...s.future] }
   }), [])
   const redo = React.useCallback(() => setH((s) => {
     if (!s.future.length) return s
     const [n, ...rest] = s.future
-    return { doc: n.doc, past: [...s.past, { doc: s.doc, label: n.label }], future: rest }
+    return { doc: n.doc, cur: n.next ?? s.cur, past: [...s.past, { ...n, doc: s.doc }], future: rest }
   }), [])
   const value: Studio = {
     doc, update, preview, commit, cancelPreview, undo, redo, past: h.past, future: h.future,
-    cur: Math.min(cur, doc.spreads.length - 1), setCur: (i: number) => { setCur(i); setNodeRaw(null) }, sel, setSel: (ids: string[]) => { setSel(ids); if (ids.length) setNodeRaw(null) }, filmSel, setFilmSel, cropId, setCropId,
+    cur: Math.min(h.cur, doc.spreads.length - 1), setCur: (i: number) => { setCur(i); setNodeRaw(null) }, sel, setSel: (ids: string[]) => { setSel(ids); if (ids.length) setNodeRaw(null) }, filmSel, setFilmSel, cropId, setCropId,
     view: v, setView: (p) => setV((o) => ({ ...o, ...p })), features,
     toast: (c, timeout = 5000) => { queue.add(c, { timeout }) }, queue, status, setStatus, dragging, setDragging,
     saveState, setSaveState, missing, setMissing,
@@ -172,11 +178,15 @@ export function placedSet(d: Doc) {
   for (const sp of d.spreads) for (const f of sp.frames) if (f.photo) s.add(f.photo)
   return s
 }
+/** Inputs whose keys never edit text (Switch / checkbox, radio, slider…). */
+const NON_TEXT_INPUT = new Set(["checkbox", "radio", "range", "button", "submit", "reset", "color", "file", "image"])
 export function useKeys(handler: (e: KeyboardEvent) => void, deps: React.DependencyList) {
   React.useEffect(() => {
     const on = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return
+      if (t && (t.tagName === "TEXTAREA" || t.isContentEditable)) return
+      // a focused non-text input keeps its plain keys (arrows, Space, Esc) but passes Ctrl/⌘ combos (undo / redo, view)
+      if (t instanceof HTMLInputElement && !(NON_TEXT_INPUT.has(t.type) && (e.ctrlKey || e.metaKey))) return
       handler(e)
     }
     window.addEventListener("keydown", on)
