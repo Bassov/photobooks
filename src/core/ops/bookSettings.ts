@@ -73,10 +73,10 @@ export function setTrim(
 export function setPrintProfile(
   book: Book,
   id: string,
-  customs: readonly PrintProfile[] = [],
+  customs?: readonly PrintProfile[],
 ): Book {
   const builtIn = builtInPrintProfiles().find((profile) => profile.id === id)
-  const profile = builtIn ?? customs.find((custom) => custom.id === id)
+  const profile = builtIn ?? customs?.find((custom) => custom.id === id)
   if (profile === undefined) {
     return book
   }

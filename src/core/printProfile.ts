@@ -22,11 +22,11 @@ export function bookPrintProfileRef(
 /** Built-in profile `id`, else the library's custom one; neither → undefined. */
 export function findPrintProfile(
   id: string,
-  customs: readonly PrintProfile[],
+  customs?: readonly PrintProfile[],
 ): PrintProfile | undefined {
   return (
     builtInPrintProfiles().find((profile) => profile.id === id) ??
-    customs.find((profile) => profile.id === id)
+    customs?.find((profile) => profile.id === id)
   )
 }
 
@@ -36,7 +36,7 @@ export function findPrintProfile(
  */
 export function resolvePrintProfile(
   ref: PrintProfileRef,
-  customs: readonly PrintProfile[] = [],
+  customs?: readonly PrintProfile[],
 ): PrintProfile | undefined {
   const base = findPrintProfile(ref.id, customs) ?? ref.snapshot
   if (base === undefined) {
@@ -55,7 +55,7 @@ export function resolvePrintProfile(
 /** The book's effective profile; unresolved → Generic. */
 export function bookPrintProfile(
   book: Pick<Book, 'printProfile'>,
-  customs: readonly PrintProfile[] = [],
+  customs?: readonly PrintProfile[],
 ): PrintProfile {
   return (
     resolvePrintProfile(bookPrintProfileRef(book), customs) ??
@@ -66,7 +66,7 @@ export function bookPrintProfile(
 /** DPI gates of the book's effective profile; unknown id → Generic's. */
 export function bookDpiThresholds(
   book: Pick<Book, 'printProfile'>,
-  customs: readonly PrintProfile[] = [],
+  customs?: readonly PrintProfile[],
 ): DpiThresholds {
   return bookPrintProfile(book, customs).dpi
 }
@@ -103,7 +103,7 @@ function rangeIssue(
  */
 export function validatePrintSettings(
   book: Pick<Book, 'settings' | 'printProfile'>,
-  customs: readonly PrintProfile[] = [],
+  customs?: readonly PrintProfile[],
 ): PrintProfileIssue[] {
   const ref = bookPrintProfileRef(book)
   const resolved = resolvePrintProfile(ref, customs)
@@ -135,7 +135,7 @@ export function validatePrintSettings(
  */
 export function printIssues(
   book: Pick<Book, 'settings' | 'printProfile' | 'spreads'>,
-  customs: readonly PrintProfile[] = [],
+  customs?: readonly PrintProfile[],
 ): PrintProfileIssue[] {
   const { min, max } = bookPrintProfile(book, customs).pageCount
   const pages = pagesOf(book.spreads.length)

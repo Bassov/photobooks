@@ -154,6 +154,9 @@ describe('editableProfileIssues', () => {
       },
     ])
     expect(editableProfileIssues({ ...CUSTOM, trimMaxMm: 150 })).toEqual([])
+    expect(editableProfileIssues({ ...CUSTOM, trimMaxMm: 0 })).toEqual([
+      { field: 'trimMaxMm', message: 'Enter a number above 0.' },
+    ])
   })
 
   it('asks for an even step and whole steps with the nearest maxima', () => {
@@ -201,5 +204,11 @@ describe('editableProfileIssues', () => {
     expect(
       editableProfileIssues({ ...CUSTOM, dpi: { warn: 300, min: 300 } }),
     ).toEqual([])
+    expect(
+      editableProfileIssues({ ...CUSTOM, dpi: { warn: -1, min: 0 } }),
+    ).toEqual([
+      { field: 'dpi.warn', message: 'Enter a number above 0.' },
+      { field: 'dpi.min', message: 'Enter a number above 0.' },
+    ])
   })
 })

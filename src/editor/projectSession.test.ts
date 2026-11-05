@@ -494,6 +494,14 @@ describe('projectSession', () => {
     const gone = await createBookInLibrary('Gone')
     assert(gone.ok, 'expected a Generic book for an unknown default')
     expect(gone.value.printProfile).toEqual({ id: 'generic', overrides: {} })
+
+    vi.spyOn(storage, 'getLibrary').mockResolvedValueOnce({
+      ok: false,
+      code: 'corrupted',
+    })
+    const unread = await createBookInLibrary('Unread')
+    assert(unread.ok, 'expected a Generic book when library.json is unreadable')
+    expect(unread.value.printProfile).toEqual({ id: 'generic', overrides: {} })
   })
 
   it('createBookInLibrary stores title, trim, and rename updates it', async () => {
