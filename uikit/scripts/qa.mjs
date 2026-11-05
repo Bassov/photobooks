@@ -2681,6 +2681,29 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     color: await page.locator('[data-testid="pp-error"]').first().evaluate((e) => `${getComputedStyle(e).fontSize}/${getComputedStyle(e).lineHeight} ${getComputedStyle(e).color}`) }
   ok("printer-presets: print-invalid shows name / trim / page-count messages 12/16.8 #a8403a, Save disabled", bad.title === "New print profile" && bad.save && bad.color === "12px/16.8px rgb(168, 64, 58)" &&
     bad.msg.join("|") === "Give the profile a name.|The largest side can’t be smaller than the smallest.|20 to 121 isn’t whole steps of 2. Try 120 or 122.", JSON.stringify(bad))
+  // Designer review (PR #500): Save stays in view on a short viewport; the form body scrolls instead
+  await page.setViewportSize({ width: 1440, height: 700 }); await page.waitForTimeout(300)
+  const short = await page.locator('[data-testid="print-profile-dialog"]').evaluate((d) => {
+    let m = d; while (m.style.width !== "560px") m = m.parentElement
+    const body = d.querySelector('[data-testid="pp-form"]').parentElement
+    return { gap: +(m.getBoundingClientRect().bottom - d.querySelector('[data-testid="pp-save"]').getBoundingClientRect().bottom).toFixed(2), sh: body.scrollHeight, ch: body.clientHeight }
+  })
+  ok("printer-presets: at 1440 × 700 Save sits ≥ 20 px above the modal bottom and the form scrolls", short.gap >= 20 && short.sh > short.ch, JSON.stringify(short))
+  await page.setViewportSize({ width: 1440, height: 900 }); await page.waitForTimeout(300)
+  // Generic spine = core genericPrintProfile (8 + 0.2 mm per page); fields keep the stored value (Duplicate Lulu + Save keeps bleed 3.175)
+  await pick("print")
+  await S("print-new").click(); await page.waitForTimeout(350)
+  const newHint = await page.locator('[data-testid="pp-spine-hint"]').textContent()
+  await page.getByRole("button", { name: "Cancel" }).click(); await page.waitForTimeout(300)
+  ok("printer-presets: New profile spine hint = Generic 20 pages = 12 mm · 120 pages = 32 mm", newHint === "20 pages = 12 mm · 120 pages = 32 mm", newHint)
+  const field = (k) => page.locator(`[data-testid="pp-${k}"] input`).inputValue()
+  await S("print-duplicate-lulu-photo-book").click(); await page.waitForTimeout(350)
+  const dup = { bleed: await field("bleed"), safe: await field("safe") }
+  await page.locator('[data-testid="pp-save"]').click(); await page.waitForTimeout(300)
+  await page.locator('[data-scenario] [data-testid^="print-edit-custom-"]').last().click(); await page.waitForTimeout(350)
+  const kept = { bleed: await field("bleed"), name: await page.locator('[data-testid="pp-name"] input').inputValue() }
+  await page.getByRole("button", { name: "Cancel" }).click(); await page.waitForTimeout(300)
+  ok("printer-presets: Duplicate Lulu shows bleed 3.175 / safe 12.7 unrounded; after Save the copy still has bleed 3.175", dup.bleed === "3.175" && dup.safe === "12.7" && kept.bleed === "3.175" && kept.name.startsWith("Lulu · Photo book (copy"), JSON.stringify({ dup, kept }))
   await page.goto(url + feat("pdf-export")); await page.waitForTimeout(500)
   const P = (q) => page.locator(q).first().textContent()
   const pd = { row: await P('[data-testid="print-profile"]'), sum: await P('[data-testid="print-summary"]'), cb: await P('label:has-text("bleed and crop marks")') }

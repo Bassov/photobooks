@@ -21,7 +21,7 @@ export const GENERIC_ID = "generic"
    Lulu bleed / safe margin / ppi the spec verified; printer-presets-core ships the sourced values (`source` / `checked`). */
 export const CATALOG: KitProfile[] = [
   { id: GENERIC_ID, name: "Generic", base: "Generic", trimMinMm: 50, trimMaxMm: 500, bleedMinMm: 0, bleedMaxMm: 10, safeMarginMm: 5,
-    pageCount: { min: 20, step: 2, max: 120 }, spine: { kind: "formula", baseMm: 2, perPageMm: 0.1 }, coverWrapMm: 15, coverHingeMm: 8, dpi: { warn: 200, min: 150 } },
+    pageCount: { min: 20, step: 2, max: 120 }, spine: { kind: "formula", baseMm: 8, perPageMm: 0.2 }, coverWrapMm: 15, coverHingeMm: 8, dpi: { warn: 200, min: 150 } },
   { id: "lulu-photo-book", name: "Lulu · Photo book", base: "Lulu · Photo book", trimMinMm: 152, trimMaxMm: 305, bleedMinMm: 3.175, bleedMaxMm: 3.175, safeMarginMm: 12.7,
     pageCount: { min: 24, step: 2, max: 240 }, spine: { kind: "formula", baseMm: 8, perPageMm: 0.2 }, coverWrapMm: 15, coverHingeMm: 8, dpi: { warn: 300, min: 150 } },
   { id: "saal-photo-book", name: "Saal Digital · Photo Book", base: "Saal Digital · Photo Book", trimMinMm: 100, trimMaxMm: 450, bleedMinMm: 3, bleedMaxMm: 3, safeMarginMm: 10,
@@ -61,8 +61,10 @@ export function toDraft(p: KitProfile): Draft {
   const s = p.spine.kind === "formula" ? p.spine : { baseMm: 0, perPageMm: 0 }
   const v = { trimMin: p.trimMinMm, trimMax: p.trimMaxMm, bleed: profileBleed(p), safe: p.safeMarginMm, pMin: p.pageCount.min, pMax: p.pageCount.max, pStep: p.pageCount.step,
     spineBase: s.baseMm, spinePer: s.perPageMm, wrap: p.coverWrapMm, hinge: p.coverHingeMm, dpiWarn: p.dpi.warn, dpiMin: p.dpi.min }
-  return { name: p.name, ...Object.fromEntries(NUM.map((k) => [k, fmtN(v[k])])) } as Draft
+  return { name: p.name, ...Object.fromEntries(NUM.map((k) => [k, exact(v[k])])) } as Draft
 }
+/** Fields show the stored value as is (up to 3 decimals, trailing zeros trimmed: 3.175, 12.7); summaries and hints round with `fmtN`. */
+const exact = (n: number) => String(Number(n.toFixed(3)))
 const num = (s: string) => (s.trim() === "" ? NaN : Number(s))
 /** Editor rules (spec §Profile editor): one message per field, in the spec's words. A table spine has no fields to check. */
 export function profileIssues(d: Draft, table = false): Partial<Record<Key, string>> {
@@ -120,8 +122,9 @@ export function PrintProfileDialog({ profile, mode, initialDraft, onSave, onCanc
   const pagesOk = !issues.pMin && !issues.pMax && !issues.pStep && !issues.spineBase && !issues.spinePer
   const w = (n: number) => fmtN(spineWidth(spine, n))
   return (
-    <AppModal isOpen width={560} onOpenChange={(o) => { if (!o) onCancel() }} className="flex max-h-[calc(100vh-96px)] flex-col overflow-hidden bg-chrome">
-      <div className="flex min-h-0 flex-col px-6 py-5" data-testid="print-profile-dialog" onKeyDown={(e) => { if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") { e.preventDefault(); save() } }}>
+    <AppModal isOpen width={560} onOpenChange={(o) => { if (!o) onCancel() }} className="overflow-hidden bg-chrome">
+      {/* the max height sits on this root (the dialog section is a grid sized to content), so the form body scrolls and Save stays in view */}
+      <div className="flex max-h-[calc(100vh-96px)] min-h-0 flex-col px-6 py-5" data-testid="print-profile-dialog" onKeyDown={(e) => { if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") { e.preventDefault(); save() } }}>
         <div className="heading text-xl leading-tight">{mode === "new" ? "New print profile" : "Edit print profile"}</div>
         <p className="mt-1 text-sm text-muted-foreground" data-testid="pp-sub">Based on {profile.base}.{mode === "edit" && " Books that use this profile follow your changes."}</p>
         <div className="-mx-1 mt-4 min-h-0 flex-1 overflow-auto px-1">
