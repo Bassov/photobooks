@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { pagesOf } from '../core/pages'
 import {
   bookMeta,
   bookObjectHeight,
@@ -8,7 +9,6 @@ import {
   frameSizes,
   hashForSlide,
   isNarrow,
-  sitePageCount,
   siteTitle,
   slideCount,
   slideForHash,
@@ -37,7 +37,7 @@ describe('slides', () => {
   })
 
   it('counts the pages a visitor sees', () => {
-    expect([0, 1, 2, 11].map(sitePageCount)).toStrictEqual([0, 1, 2, 20])
+    expect([0, 1, 2, 11].map(pagesOf)).toStrictEqual([0, 1, 2, 20])
   })
 })
 

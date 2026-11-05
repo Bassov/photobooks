@@ -1,4 +1,4 @@
-import { PAGE_MAX, PAGE_MIN, pagesOf } from '../core'
+import { PAGE_MAX, PAGE_MIN, pagesOf, pagesText } from '../core'
 import { formatZoomPercent } from './camera'
 
 export { PAGE_MAX, PAGE_MIN, pagesOf }
@@ -107,7 +107,6 @@ export function bookSizeLine(input: {
 }): string {
   const wCm = fmtN(mmToCm(input.widthMm))
   const hCm = fmtN(mmToCm(input.heightMm))
-  const pages = String(pagesOf(input.spreads))
-  const base = `${wCm} × ${hCm} cm · ${pages} pages`
+  const base = `${wCm} × ${hCm} cm · ${pagesText(pagesOf(input.spreads))}`
   return input.saveLabel ? `${base} · ${input.saveLabel}` : base
 }

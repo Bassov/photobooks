@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { pagesOf } from '../core/pages'
 import {
   bookCoverStageHeight,
   bookFloorBackground,
@@ -33,7 +34,7 @@ export function BookTile({
   // Shelf draws every book vertical (kit look), whatever the trim.
   const objectH = bookObjectDisplayHeight(H, SHELF_FMT)
   const captionW = bookObjectWidthForHeight(objectH, SHELF_FMT)
-  const pageCount = book.spreads * 2
+  const pageCount = pagesOf(book.spreads)
   const meta = formatLibraryBookMeta(pageCount, book.editedAtMs, nowMs)
   return (
     <div className="group pt-8" data-testid="book-card">

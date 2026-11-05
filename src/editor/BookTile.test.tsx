@@ -20,7 +20,11 @@ describe('BookTile', () => {
   it('opens on cover press and shows page meta from spreads', () => {
     const onOpen = vi.fn()
     render(<BookTile book={book} H={236} onOpen={onOpen} />)
-    expect(screen.getByTestId('book-meta').textContent).toBe('6 pages')
+    // Three spreads list pages 1, 2–3, 4.
+    expect(screen.getByTestId('book-meta').textContent).toBe('4 pages')
+    expect(
+      screen.getByTestId('library-book-b1').getAttribute('aria-label'),
+    ).toBe('Open Fog, 4 pages')
     expect(screen.getByTestId('book-object-spine')).toBeTruthy()
     expect(screen.getByTestId('book-object-pages')).toBeTruthy()
     expect(
@@ -44,7 +48,7 @@ describe('BookTile', () => {
       <BookTile book={{ ...book, editedAtMs: now - 3_600_000 }} nowMs={now} />,
     )
     expect(screen.getByTestId('book-meta').textContent).toBe(
-      '6 pages · edited 1 hour ago',
+      '4 pages · edited 1 hour ago',
     )
   })
 
@@ -69,6 +73,6 @@ describe('BookTile', () => {
     )
     expect(screen.getByTestId('custom-title')).toBeTruthy()
     expect(screen.getByTestId('book-menu-slot')).toBeTruthy()
-    expect(screen.getByTestId('book-meta').textContent).toBe('2 pages')
+    expect(screen.getByTestId('book-meta').textContent).toBe('1 page')
   })
 })
