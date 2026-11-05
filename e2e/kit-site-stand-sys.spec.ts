@@ -42,11 +42,11 @@ async function openRoom(page: Page) {
   await expect(page.getByTestId('ss-reader-page')).toBeVisible()
 }
 
-/** RGBA at the centre of the first visible closed book's cover */
+/** RGBA at the centre of the first visible closed book (the host box centre is the cover centre, GL or CSS) */
 async function homePaint(page: Page) {
   const books = page.getByTestId('book3d').locator('visible=true')
   await expect(books.first()).toBeVisible()
-  const cover = books.first().locator('.sd-b3-cover')
+  const cover = books.first()
   const b = await cover.boundingBox()
   if (!b) throw new Error('no cover box')
   const [c] = await pixelsAt(cover, [{ x: b.width / 2, y: b.height / 2 }])
@@ -60,11 +60,12 @@ for (const [label, viewport, scope] of [
   test.describe(label, () => {
     test.use({ viewport })
 
-    test('demo 6: every contact shadow is centred on the floor line ±1 px', async ({
+    test('demo 6 (CSS book): every contact shadow is centred on the floor line ±1 px', async ({
       page,
     }) => {
       const errors = collectErrors(page)
-      await page.goto('/uikit/#/full/site-demo-6')
+      // the CSS book's contact layer; the GL book bakes its shadow into the canvas
+      await page.goto('/uikit/#/full/site-demo-6?gl=0')
       await expect(page.getByTestId('ss6-book').first()).toBeVisible()
       const d = await seats(page, scope)
       test.info().annotations.push({
