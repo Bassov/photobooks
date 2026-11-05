@@ -291,6 +291,19 @@ describe('step label bookkeeping', () => {
     expect(coalesceKey(edit)).toBeUndefined()
   })
 
+  it('names the live caption steps; none coalesce', () => {
+    const at = { spreadId: 's', frameId: 'f' }
+    const on: BookOp = { type: 'setTextLive', ...at, live: true }
+    const anchor: BookOp = { type: 'setTextAnchor', ...at, anchorFrameId: 'p' }
+    expect(opLabel(on)).toBe('Make caption live')
+    expect(opLabel({ type: 'setTextLive', ...at, live: false })).toBe(
+      'Make caption static',
+    )
+    expect(opLabel(anchor)).toBe('Anchor caption')
+    expect(coalesceKey(on)).toBeUndefined()
+    expect(coalesceKey(anchor)).toBeUndefined()
+  })
+
   it('keeps the newest labels when over the limit', () => {
     const h = labelled(['a', 'b', 'c', 'd', 'e'], 3)
     expect(h.past).toHaveLength(3)

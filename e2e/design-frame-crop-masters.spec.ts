@@ -8,6 +8,7 @@ import {
 } from './fixtures/ensurePhotoFixtures'
 import { applyLayout } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
+import { topAt } from './fixtures/paintProbe'
 import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
@@ -46,22 +47,11 @@ test('Masters mode hides the book pages on the canvas and Pages brings them back
   const stage = page.getByTestId('masters-canvas')
   await expect(stage).toBeVisible()
   await expect(page.getByTestId('master-label')).toHaveText('Master A')
-  const covered = await page
+  const book = page
     .getByTestId('pasteboard-scroll')
     .locator('[data-testid="spread-view"]')
     .first()
-    .evaluate((el) => {
-      const box = el.getBoundingClientRect()
-      const top = document.elementFromPoint(
-        box.left + box.width / 2,
-        box.top + box.height / 2,
-      )
-      return (
-        box.width === 0 ||
-        top?.closest('[data-testid="masters-canvas"]') !== null
-      )
-    })
-  expect(covered).toBe(true)
+  expect((await topAt(book))[0]).toContain('masters-canvas')
   await assertDocumentFitsViewport(page)
 
   await page.getByTestId('left-tab-pages').click()

@@ -1,8 +1,9 @@
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
+import { pagesOf } from '../core/pages'
 import { displayBookTitle } from '../project/bookTitle'
 import { SiteApp } from './SiteApp'
 import type { SitePageAssets, SitePageInput } from './siteInput'
-import { bookMeta, catalogMeta, sitePageCount, siteTitle } from './siteModel'
+import { bookMeta, catalogMeta, siteTitle } from './siteModel'
 import { sitePageUrl } from './siteUrl'
 
 /** Same value with object keys in code-unit order at every depth. */
@@ -43,7 +44,7 @@ function pageHead(input: SitePageInput): {
     ogTitle: book,
     description: bookMeta(
       input.site.author,
-      sitePageCount(input.book.spreads.length),
+      pagesOf(input.book.spreads.length),
     ),
   }
 }

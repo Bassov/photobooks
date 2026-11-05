@@ -1,3 +1,4 @@
+import { pagesText } from '../core/pages'
 import { BookObject } from '../render/BookObject'
 import type { SitePageInput } from './siteInput'
 import { bookObjectHeight, catalogColumnWidth, catalogMeta } from './siteModel'
@@ -46,7 +47,7 @@ export function SiteCatalog({
               </div>
               <div className="site-card-text">
                 <div className="site-card-name">{book.title}</div>
-                <div className="site-card-meta">{book.pages} pages</div>
+                <div className="site-card-meta">{pagesText(book.pages)}</div>
               </div>
             </a>
           ))}

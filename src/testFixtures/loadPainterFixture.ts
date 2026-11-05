@@ -18,21 +18,50 @@ function withLogoOverrides(book: Book, count: number): Book {
     )
 }
 
+/** Master A with a horizontal guide at mid height and a vertical one on the right page. */
+function withMasterGuides(book: Book): Book {
+  return {
+    ...book,
+    parents: book.parents?.map((parent) =>
+      parent.id === 'painter-parent-a'
+        ? {
+            ...parent,
+            guides: [
+              {
+                id: 'painter-parent-guide-h',
+                orientation: 'horizontal',
+                offsetMm: 150,
+              },
+              {
+                id: 'painter-parent-guide-v',
+                orientation: 'vertical',
+                offsetMm: 420,
+              },
+            ],
+          }
+        : parent,
+    ),
+  }
+}
+
 /**
  * Replace the in-memory book with the painter fixture and its preview URLs.
  * `&parent=a` makes Master A the book default, so all 40 spreads use it;
- * `&overrides=<n>` then has the first n spreads override its logo.
+ * `&overrides=<n>` then has the first n spreads override its logo, and
+ * `&guides=a` gives Master A two guides.
  */
 export function loadPainterFixture(search = window.location.search): void {
   const fixture = makePainterFixture()
   const params = new URLSearchParams(search)
+  const base =
+    params.get('guides') === 'a' ? withMasterGuides(fixture.book) : fixture.book
   const book =
     params.get('parent') === 'a'
       ? withLogoOverrides(
-          { ...fixture.book, defaultParentId: 'painter-parent-a' },
+          { ...base, defaultParentId: 'painter-parent-a' },
           Number(params.get('overrides') ?? 0),
         )
-      : fixture.book
+      : base
   resetBookStore({
     book,
     sessionMeta: new Map(),
