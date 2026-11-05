@@ -1,6 +1,7 @@
 import type { LayoutSlotPct, SavedTemplate } from '../core'
 import { parseLegacySavedTemplates } from '../project/libraryDocument'
 import type { LibraryStorage } from '../project/types'
+import { setEditorStatus } from './editorStatus'
 
 /** Kit "My templates" entry: `{ id, name, pages, slots }` (see core). */
 export type { SavedTemplate } from '../core'
@@ -27,8 +28,11 @@ function notify(): void {
   }
 }
 
-/** Read-modify-write so the publish statuses in `library.json` survive. */
-async function writeTemplates(
+/** Designer spec `user-templates` UT3: the list stays in memory for the session. */
+const STATUS_TEMPLATES_WRITE_FAILED =
+  "Couldn't save My templates to the library folder"
+
+async function tryWriteTemplates(
   target: LibraryStorage,
   next: readonly SavedTemplate[],
 ): Promise<boolean> {
@@ -38,6 +42,23 @@ async function writeTemplates(
   }
   const written = await target.updateLibrary({ ...meta.value, templates: next })
   return written.ok
+}
+
+/** Read-modify-write so the publish statuses in `library.json` survive. */
+async function writeTemplates(
+  target: LibraryStorage,
+  next: readonly SavedTemplate[],
+): Promise<boolean> {
+  let written = false
+  try {
+    written = await tryWriteTemplates(target, next)
+  } catch {
+    // A thrown write failed too.
+  }
+  if (!written) {
+    setEditorStatus(STATUS_TEMPLATES_WRITE_FAILED)
+  }
+  return written
 }
 
 function sessionOnly(): void {
@@ -149,6 +170,33 @@ export function findSavedTemplate(
   )
 }
 
+/** Slots this close (percent points, each of x / y / w / h) are the same slot. */
+const SAME_SLOT_PP = 0.5
+
+/**
+ * Designer spec `user-templates` UT2: the saved layout of this page count with
+ * the same slots in the same order, if any (Save then adds nothing).
+ */
+export function findSameSavedTemplate(
+  pages: 1 | 2,
+  slots: readonly LayoutSlotPct[],
+): SavedTemplate | undefined {
+  // x, y, w, h of every slot in order: equal lengths = equal slot counts.
+  const flat = (list: readonly LayoutSlotPct[]) =>
+    list.flatMap((slot) => [slot.x, slot.y, slot.w, slot.h])
+  const wanted = flat(slots)
+  return getSavedTemplates().find((t) => {
+    const have = flat(t.slots)
+    return (
+      t.pages === pages &&
+      have.length === wanted.length &&
+      have.every(
+        (v, i) => Math.abs(v - (wanted[i] ?? Infinity)) <= SAME_SLOT_PP,
+      )
+    )
+  })
+}
+
 function newId(): string {
   return `user-${crypto.randomUUID()}`
 }
@@ -171,18 +219,22 @@ export function addSavedTemplate(
 ): SavedTemplate {
   const saved = { id: newId(), name, pages, slots }
   commit([...getSavedTemplates(), saved])
+  // Designer spec `user-templates` UT3: every change is announced (live region).
+  setEditorStatus(`Saved “${name}” to My templates`)
   return saved
 }
 
-/** Blank names keep the old one (kit `renameCustom`). */
+/** Blank or unchanged names keep the old one (kit `renameCustom`). */
 export function renameSavedTemplate(id: string, name: string): void {
   const next = name.trim()
-  if (next === '') {
+  const source = findSavedTemplate(id)
+  if (next === '' || source === undefined || source.name === next) {
     return
   }
   commit(
     getSavedTemplates().map((t) => (t.id === id ? { ...t, name: next } : t)),
   )
+  setEditorStatus(`Renamed to “${next}”`)
 }
 
 /** Kit `duplicateCustom`: "<name> copy", then "<name> copy 2"…, right after it. */
@@ -200,11 +252,17 @@ export function duplicateSavedTemplate(id: string): SavedTemplate | undefined {
   }
   const copy = { ...source, id: newId(), name }
   commit([...list.slice(0, index + 1), copy, ...list.slice(index + 1)])
+  setEditorStatus(`Duplicated as “${name}”`)
   return copy
 }
 
 export function deleteSavedTemplate(id: string): void {
-  commit(getSavedTemplates().filter((t) => t.id !== id))
+  const source = findSavedTemplate(id)
+  if (source === undefined) {
+    return
+  }
+  commit(getSavedTemplates().filter((t) => t !== source))
+  setEditorStatus(`Deleted “${source.name}”`)
 }
 
 /** The kit #/demo "My templates" (uikit sandbox `templates.ts` seed). */

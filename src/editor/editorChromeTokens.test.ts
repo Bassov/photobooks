@@ -34,10 +34,11 @@ describe('editorChromeTokens', () => {
     )
   })
 
-  it('draws spread-list thumbs as the kit card (M79)', () => {
+  it('draws the kit card on a two-page thumb paper, never on the row-wide box (M79)', () => {
     expect(EDITOR_CHROME_CSS).toContain(
-      '.editor-spread-thumb { overflow: hidden; border-radius: var(--spread-card-radius); box-shadow: var(--spread-card-shadow) }',
+      '.editor-spread-thumb > .spread-view--thumb { overflow: hidden; border-radius: var(--spread-card-radius); box-shadow: var(--spread-card-shadow) }',
     )
+    expect(EDITOR_CHROME_CSS).not.toMatch(/\.editor-spread-thumb \{/)
   })
 
   it('fills an open panel toggle with the kit field, hover keeps it', () => {
