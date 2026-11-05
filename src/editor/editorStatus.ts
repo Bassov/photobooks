@@ -55,6 +55,12 @@ export function guideStatus(
   return `Vertical guide at ${String(roundTenth(local))} mm (${side} page)`
 }
 
+/** Plain press over a parent item (Designer PO2): a live-region hint, no pill. */
+export function parentItemStatus(parentName: string, mac: boolean): string {
+  const keys = mac ? '⌘⇧-click' : 'Ctrl+Shift+click'
+  return `Parent item from “${parentName}”. ${keys} to override it on this spread.`
+}
+
 export const STATUS_SWAPPED = 'Photos swapped'
 
 export const STATUS_MOVED = 'Photo moved'

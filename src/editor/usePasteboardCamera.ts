@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react'
 import { getSpreadSlotPageCount } from '../core'
 import { measureHandlerSync } from '../perf/measureHandler'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
+import { overrideBadgeFit } from '../render/overrideBadge'
 import {
   centerSpreadScroll,
   clampZoom,
@@ -203,12 +204,13 @@ const CAMERA_FRAME_VARS = ['--cam-tx', '--cam-ty', '--cam-scale'] as const
  */
 function writeCameraFrame(port: HTMLElement, frame: ZoomFrame | null): void {
   for (const el of port.querySelectorAll<HTMLElement>('[data-camera-frame]')) {
-    const gapPx = el.dataset.gapPx
+    const { gapPx, badgeW, badgeH } = el.dataset
     if (frame === null) {
       for (const name of CAMERA_FRAME_VARS) {
         el.style.removeProperty(name)
       }
       el.removeAttribute('data-gap-short')
+      el.removeAttribute('data-live-fit')
     } else {
       el.style.setProperty('--cam-tx', `${String(frame.translateX)}px`)
       el.style.setProperty('--cam-ty', `${String(frame.translateY)}px`)
@@ -218,6 +220,16 @@ function writeCameraFrame(port: HTMLElement, frame: ZoomFrame | null): void {
         el.toggleAttribute(
           'data-gap-short',
           !pageLabelsFit(Number(gapPx) * frame.scale),
+        )
+      }
+      // Override badges: refit to the copy's live size (Designer PO3).
+      if (badgeW !== undefined) {
+        el.setAttribute(
+          'data-live-fit',
+          overrideBadgeFit(
+            Number(badgeW) * frame.scale,
+            Number(badgeH) * frame.scale,
+          ),
         )
       }
     }

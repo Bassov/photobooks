@@ -1,11 +1,13 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { createMemoryLibraryStorage } from '../project/memory'
+import { getEditorStatus, setEditorStatus } from './editorStatus'
 import {
   KIT_TEMPLATES,
   addSavedTemplate,
   bindSavedTemplatesLibrary,
   deleteSavedTemplate,
   duplicateSavedTemplate,
+  findSameSavedTemplate,
   findSavedTemplate,
   flushSavedTemplatesForTests,
   getSavedTemplates,
@@ -94,6 +96,34 @@ describe('saved templates store (kit My templates)', () => {
     expect(findSavedTemplate(t.id)?.name).toBe('Trip opener')
     renameSavedTemplate(t.id, '   ')
     expect((await reopen(library))[0]?.name).toBe('Trip opener')
+  })
+
+  it('announces save, rename, duplicate and delete (Designer spec user-templates UT3)', () => {
+    const t = addSavedTemplate('My layout 1', SLOTS)
+    expect(getEditorStatus()).toBe('Saved “My layout 1” to My templates')
+    renameSavedTemplate(t.id, ' Opener  ')
+    expect(getEditorStatus()).toBe('Renamed to “Opener”')
+    const copy = duplicateSavedTemplate(t.id)
+    expect(getEditorStatus()).toBe('Duplicated as “Opener copy”')
+    deleteSavedTemplate(copy?.id ?? '')
+    expect(getEditorStatus()).toBe('Deleted “Opener copy”')
+    expect(getSavedTemplates()).toEqual([{ ...t, name: 'Opener' }])
+  })
+
+  it('an unchanged, blank or unknown rename, and an unknown duplicate or delete, change and announce nothing', () => {
+    const t = addSavedTemplate('Opener', SLOTS)
+    const listener = vi.fn()
+    const off = subscribeSavedTemplates(listener)
+    onTestFinished(off)
+    setEditorStatus('')
+    renameSavedTemplate(t.id, ' Opener ')
+    renameSavedTemplate(t.id, '  ')
+    renameSavedTemplate('user-gone', 'Other')
+    expect(duplicateSavedTemplate('user-gone')).toBeUndefined()
+    deleteSavedTemplate('user-gone')
+    expect(listener).not.toHaveBeenCalled()
+    expect(getEditorStatus()).toBe('')
+    expect(getSavedTemplates()).toEqual([t])
   })
 
   it('duplicates right after the source as "<name> copy", then "copy 2"', async () => {
@@ -261,6 +291,65 @@ describe('saved templates in library.json', () => {
     })
     await bindSavedTemplatesLibrary(library)
     expect(getSavedTemplates()).toEqual([])
+  })
+
+  it.each([
+    [
+      'refused',
+      (lib: ReturnType<typeof createMemoryLibraryStorage>) => {
+        lib.setLockedElsewhere(true)
+      },
+    ],
+    [
+      'thrown',
+      (lib: ReturnType<typeof createMemoryLibraryStorage>) => {
+        vi.spyOn(lib, 'updateLibrary').mockRejectedValue(new Error('gone'))
+      },
+    ],
+  ])(
+    'a %s library write is announced; the list stays for the session',
+    async (_, fail) => {
+      const library = createMemoryLibraryStorage()
+      await bindSavedTemplatesLibrary(library)
+      setEditorStatus('')
+      fail(library)
+      addSavedTemplate('A', SLOTS)
+      await flushSavedTemplatesForTests()
+      expect(getEditorStatus()).toBe(
+        "Couldn't save My templates to the library folder",
+      )
+      expect(getSavedTemplates().map((t) => t.name)).toEqual(['A'])
+    },
+  )
+
+  it('a successful write keeps the save announcement', async () => {
+    const library = createMemoryLibraryStorage()
+    await bindSavedTemplatesLibrary(library)
+    addSavedTemplate('A', SLOTS)
+    await flushSavedTemplatesForTests()
+    expect(getEditorStatus()).toBe('Saved “A” to My templates')
+  })
+
+  it('finds the same layout of a page count: slot count, order and 0.5 points on x / y / w / h', () => {
+    const two = [
+      { x: 0, y: 0, w: 50, h: 100 },
+      { x: 60, y: 10, w: 30, h: 40 },
+    ]
+    const saved = addSavedTemplate('Pair', two, 1)
+    addSavedTemplate('Other', [{ x: 10, y: 10, w: 80, h: 80 }], 1)
+    const shift = (key: 'x' | 'y' | 'w' | 'h', by: number) =>
+      two.map((slot, i) =>
+        i === 1 ? { ...slot, [key]: slot[key] + by } : slot,
+      )
+    for (const key of ['x', 'y', 'w', 'h'] as const) {
+      expect(findSameSavedTemplate(1, shift(key, 0.5))).toBe(saved)
+      expect(findSameSavedTemplate(1, shift(key, -0.5))).toBe(saved)
+      expect(findSameSavedTemplate(1, shift(key, 0.51))).toBeUndefined()
+    }
+    expect(findSameSavedTemplate(2, two)).toBeUndefined()
+    expect(findSameSavedTemplate(1, [...two].reverse())).toBeUndefined()
+    expect(findSameSavedTemplate(1, two.slice(0, 1))).toBeUndefined()
+    expect(findSameSavedTemplate(1, [...two, ...SLOTS])).toBeUndefined()
   })
 
   it('writes every change through updateLibrary and keeps the publish statuses', async () => {

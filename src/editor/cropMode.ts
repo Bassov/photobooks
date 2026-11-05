@@ -1,3 +1,4 @@
+import { findBookFrame } from '../core'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 
 export interface CropTarget {
@@ -17,10 +18,7 @@ function emit(): void {
 }
 
 function findAssetId(spreadId: string, frameId: string): string | undefined {
-  const spread = getBookStoreSnapshot().book.spreads.find(
-    (item) => item.id === spreadId,
-  )
-  return spread?.frames.find((frame) => frame.id === frameId)?.assetId
+  return findBookFrame(getBookStoreSnapshot().book, spreadId, frameId)?.assetId
 }
 
 export function getCropTarget(): CropTarget | null {
