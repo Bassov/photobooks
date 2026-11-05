@@ -302,8 +302,7 @@ function GapDrop({ index, h }: { index: number; h: number }) {
       if (!photos.length) return
       const t = bestTemplate(photos)
       const ns = spread(t.id, photos)
-      st.update((d) => ({ ...d, spreads: [...d.spreads.slice(0, index), ns, ...d.spreads.slice(index)] }), "New spread from drop")
-      st.setCur(index)
+      st.update((d) => ({ ...d, spreads: [...d.spreads.slice(0, index), ns, ...d.spreads.slice(index)] }), "New spread from drop", undefined, index)
       st.setStatus(`New spread ${index + 1} with “${t.name}” — best fit for ${photos.length} photo${photos.length > 1 ? "s" : ""}`)
     },
   })
