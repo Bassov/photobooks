@@ -35,7 +35,8 @@ export const P = (id: string) => (photos.find((p) => p.id === id) ?? extraPhotos
 
 /** frames in spread coordinates: % of spread width / height (spread = 2 square pages) */
 export type Box = { x: number; y: number; w: number; h: number }
-export type Template = { id: string; name: string; count: number; frames: Box[]; group: string }
+/** `pages`: a saved template's page shape (1 = page 1, 2 = a two-page spread; Designer spec user-templates UT1) */
+export type Template = { id: string; name: string; count: number; frames: Box[]; group: string; pages?: 1 | 2 }
 
 export const templates: Template[] = [
   { id: "t-full", name: "Full bleed", count: 0, group: "1", frames: [{ x: 0, y: 0, w: 100, h: 100 }] },
