@@ -8,12 +8,12 @@ Title: Bug: /next-roadmap-item printer-presets-core
 
 Item 1 of the Designer `printer-presets` Spec (2026-11-05): print profile core, no UI. Items `printer-presets-kit` and `printer-presets` (prod) build on it.
 
-- [ ] `src/core/print/catalog.ts` (zod-free): built-in profiles = Generic, then sourced shop profiles A→Z; each shop profile carries `source` (vendor URL) and `checked` (ISO date) and every number comes from the vendor's own spec page or template (Spec D8). A vendor whose trim range, bleed, safe margin and page count cannot all be confirmed is left out (the PR body says which)
-- [ ] `printProfile.snapshot` (optional, parsed with the profile schema; absent = none) and the lookup order built-in id → library custom id → snapshot → Generic with an `unknown-profile` issue (Spec D6)
-- [ ] `src/core/pages.ts` page-count range `[20, min(120, profile.max)]` in the profile step from 20 (Spec D5); Book settings Pages (`setPageCount`) clamps to the book profile's range
-- [ ] Print warnings (trim, bleed, fewer / more pages than the profile, unknown profile) and their Book settings strings, profile summary / hint strings, profile editor messages (Spec D5, Book settings, Profile editor)
-- [ ] Op `setPrintProfile {id}` (one undo step): `{id, overrides: {}}` (+ snapshot for a custom profile), bleed clamped to the profile range, safe margin = the profile's; trim and page count unchanged (Spec D4)
-- [ ] `library.json` v4: `printProfiles` (custom profiles) and `defaultPrintProfileId` with migration; new books use the library default (unknown → Generic) and its bleed / safe margin (Spec D6, `projectSession.ts`)
+- [x] `src/core/print/catalog.ts` (zod-free): built-in profiles = Generic, then sourced shop profiles A→Z; each shop profile carries `source` (vendor URL) and `checked` (ISO date) and every number comes from the vendor's own spec page or template (Spec D8). A vendor whose trim range, bleed, safe margin and page count cannot all be confirmed is left out (the PR body says which)
+- [x] `printProfile.snapshot` (optional, parsed with the profile schema; absent = none) and the lookup order built-in id → library custom id → snapshot → Generic with an `unknown-profile` issue (Spec D6)
+- [x] `src/core/pages.ts` page-count range `[20, min(120, profile.max)]` in the profile step from 20 (Spec D5); Book settings Pages (`setPageCount`) clamps to the book profile's range
+- [x] Print warnings (trim, bleed, fewer / more pages than the profile, unknown profile) and their Book settings strings, profile summary / hint strings, profile editor messages (Spec D5, Book settings, Profile editor)
+- [x] Op `setPrintProfile {id}` (one undo step): `{id, overrides: {}}` (+ snapshot for a custom profile), bleed clamped to the profile range, safe margin = the profile's; trim and page count unchanged (Spec D4)
+- [x] `library.json` v4: `printProfiles` (custom profiles) and `defaultPrintProfileId` with migration; new books use the library default (unknown → Generic) and its bleed / safe margin (Spec D6, `projectSession.ts`)
 - **Kit components:** none (core only, no UI)
 - **Demo:** n/a (core only)
 - **Browser check:** none: no UI change; a new book still shows Pages 20–120 and B/S 3 / 5 mm (Generic)
