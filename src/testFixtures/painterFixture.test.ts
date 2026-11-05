@@ -1,5 +1,6 @@
 import { inflateSync } from 'node:zlib'
 import { afterEach, describe, expect, it } from 'vitest'
+import { sha256HexSync } from '../assets/sha256Sync'
 import { PAINTER_ASSET_IDS } from '../core/testing/painterFixture'
 import { getBookStoreSnapshot, resetBookStore } from '../editor/bookStore'
 import {
@@ -139,5 +140,22 @@ describe('loadPainterFixture', () => {
       Array.from({ length: 10 }, () => 'painter-parent-logo'),
     )
     expect(copies.slice(10).every((id) => id === undefined)).toBe(true)
+  })
+
+  it('gives every photo a content hash with hashes=1 only', () => {
+    loadPainterFixture('?fixture=painter')
+    const plain = getBookStoreSnapshot().book.assets
+
+    loadPainterFixture('?fixture=painter&hashes=1')
+    const hashed = getBookStoreSnapshot().book.assets
+
+    expect(Object.keys(hashed)).toEqual(Object.keys(plain))
+    for (const [assetId, asset] of Object.entries(hashed)) {
+      expect(plain[assetId]?.contentHash).toBeUndefined()
+      expect(asset).toEqual({
+        ...plain[assetId],
+        contentHash: sha256HexSync(assetId),
+      })
+    }
   })
 })
