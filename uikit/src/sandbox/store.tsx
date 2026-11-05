@@ -149,12 +149,20 @@ export function mapSpread(d: Doc, i: number, fn: (s: Spread) => Spread): Doc {
 export function mapFrames(d: Doc, i: number, ids: string[], fn: (f: Frame) => Frame): Doc {
   return mapSpread(d, i, (s) => ({ ...s, frames: s.frames.map((f) => (ids.includes(f.id) ? fn(f) : f)) }))
 }
-/** Delete frames from spread `i`; live captions anchored to a removed frame become static with their painted text (Designer live-captions). */
+/** Map spread `i`; live captions whose anchor is no longer an image frame become static with the text they painted before `fn` (Designer live-captions §6). */
+export function mapSpreadFreezing(d: Doc, i: number, fn: (s: Spread) => Spread): Doc {
+  return mapSpread(d, i, (before) => {
+    const after = fn(before)
+    const isImage = (id: string) => after.frames.some((x) => x.id === id && x.kind === "image")
+    return {
+      ...after,
+      frames: after.frames.map((f) => (f.live && f.anchor && !isImage(f.anchor) ? { ...f, text: fillTokens(f.text ?? "", anchorPhoto(before.frames, f)), live: false, anchor: undefined } : f)),
+    }
+  })
+}
+/** Delete frames from spread `i`; live captions anchored to a removed frame become static with their painted text. */
 export function removeFrames(d: Doc, i: number, ids: string[]): Doc {
-  return mapSpread(d, i, (s) => ({
-    ...s, template: null,
-    frames: s.frames.filter((f) => !ids.includes(f.id)).map((f) => (f.live && f.anchor && ids.includes(f.anchor) ? { ...f, text: fillTokens(f.text ?? "", anchorPhoto(s.frames, f)), live: false, anchor: undefined } : f)),
-  }))
+  return mapSpreadFreezing(d, i, (s) => ({ ...s, template: null, frames: s.frames.filter((f) => !ids.includes(f.id)) }))
 }
 export function placedSet(d: Doc) {
   const s = new Set<string>()

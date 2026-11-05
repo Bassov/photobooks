@@ -4,8 +4,8 @@ import { expect, test } from './fixtures/coverage'
 // live-captions-kit (Designer live-captions Spec 2026-11-05): the kit `#/demo`
 // TextSection Live block. Chips turn Live on and anchor the caption to the
 // nearest photo frame; the canvas paints the photo's values; switching Live
-// off freezes the painted text; deleting the anchor frame does the same in
-// the delete step.
+// off freezes the painted text; deleting the anchor frame or changing the
+// layout does the same in that step; a duplicated spread stays live.
 
 const demo = (page: Page) => page.getByTestId('demo')
 const current = (page: Page) =>
@@ -164,6 +164,54 @@ test.describe('kit live captions', () => {
     await expect(liveSwitch(page)).not.toBeChecked()
     await expect(textArea(page)).toHaveValue(painted)
     await expect(caption(page)).toHaveText(painted)
+  })
+
+  test('a layout change freezes the caption with its text, undo restores Live', async ({
+    page,
+  }) => {
+    await chip(page, 'date').click()
+    await chip(page, 'camera').click()
+    const painted = await caption(page).innerText()
+    expect(painted).not.toContain('—')
+
+    await blur(page)
+    await page.keyboard.press('Escape')
+    await inspector(page)
+      .getByRole('button', { name: 'Apply layout Framed single' })
+      .click()
+    await expect(caption(page)).toHaveText(painted)
+
+    await caption(page).click({ force: true })
+    await expect(liveSwitch(page)).not.toBeChecked()
+    await expect(textArea(page)).toHaveValue(painted)
+
+    await blur(page)
+    await page.keyboard.press('Control+z')
+    await caption(page).click({ force: true })
+    await expect(liveSwitch(page)).toBeChecked()
+    await expect(textArea(page)).toHaveValue('Morning · {date} · {camera}')
+    await expect(caption(page)).toHaveText(painted)
+  })
+
+  test('a duplicated spread keeps its copy of the caption live', async ({
+    page,
+  }) => {
+    await chip(page, 'date').click()
+    await chip(page, 'camera').click()
+    const painted = await caption(page).innerText()
+
+    await demo(page)
+      .getByTestId('list')
+      .locator('[aria-selected="true"]')
+      .getByTestId('spread-menu')
+      .click()
+    await page.getByRole('menuitem', { name: /Duplicate/ }).click()
+
+    await caption(page).click({ force: true })
+    await expect(liveSwitch(page)).toBeChecked()
+    await expect(anchorSelect(page)).toContainText(/^Frame 1 · \S+/)
+    await expect(caption(page)).toHaveText(painted)
+    await expect(caption(page)).not.toContainText('—')
   })
 
   test('a chip inserts at the caret the Text field had, then after the token', async ({
