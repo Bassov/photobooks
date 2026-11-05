@@ -208,7 +208,7 @@ export const PAGES: Record<string, FeatureDef> = {
   ], {
     what: "Fullscreen viewing of one book on the site; arrows step through spreads.",
     where: "#/demo step 59.",
-    keys: [["← / →", "previous / next spread"], ["Esc", "close"]],
+    keys: [["← / →, Space", "previous / next spread"], ["Esc", "close"]],
     edge: ["Double-click or pinch zooms; drag pans", "Arrows hide on touch screens"],
   }),
   "site-photographer": {
