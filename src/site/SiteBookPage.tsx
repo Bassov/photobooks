@@ -4,6 +4,7 @@ import { displayBookTitle } from '../project/bookTitle'
 import { Icon } from '../ui/Icon'
 import { ShareButton } from './ShareButton'
 import type { SitePageInput } from './siteInput'
+import { SiteLightbox } from './SiteLightbox'
 import {
   bookMeta,
   hashForSlide,
@@ -44,6 +45,11 @@ export function SiteBookPage({
   const n = book.spreads.length
   const title = displayBookTitle(book.title)
   const [slide, setSlide] = useState(0)
+  /** The lightbox's opening slide while it is open. */
+  const [lightbox, setLightbox] = useState<number | null>(null)
+  const open = () => {
+    setLightbox(slide)
+  }
 
   const show = (next: number) => {
     const s = Math.max(0, Math.min(n, next))
@@ -124,7 +130,18 @@ export function SiteBookPage({
             {bookMeta(site.author, pagesOf(n))}
           </div>
         </div>
-        <ShareButton title={title} url={() => bookUrl(input)} />
+        <div className="site-actions">
+          <ShareButton title={title} url={() => bookUrl(input)} />
+          <button
+            type="button"
+            className="site-action"
+            data-testid="site-fullscreen-btn"
+            onClick={open}
+          >
+            <Icon name="maximize2" />
+            Fullscreen
+          </button>
+        </div>
       </div>
       <SiteStage
         book={book}
@@ -134,7 +151,20 @@ export function SiteBookPage({
         onStep={(delta) => {
           show(slide + delta)
         }}
+        onOpen={open}
       />
+      {lightbox !== null && (
+        <SiteLightbox
+          book={book}
+          images={images}
+          title={title}
+          start={lightbox}
+          onClose={(s) => {
+            setLightbox(null)
+            show(s)
+          }}
+        />
+      )}
       <div className="site-pager" data-testid="site-pager">
         <button
           type="button"
