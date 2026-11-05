@@ -41,7 +41,7 @@ export function chipAnchor(spread: Spread, text: Frame): Frame | undefined {
 }
 
 /** What `{token}` prints for `anchor`'s photo ('' when the photo lacks it). */
-export function tokenValue(
+function tokenValue(
   book: Book,
   spread: Spread,
   anchor: Frame,
