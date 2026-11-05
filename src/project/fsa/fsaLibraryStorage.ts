@@ -1,6 +1,7 @@
 import type { Book } from '../../core'
 import { bookSummaryFromBook } from '../bookSummary'
 import type { LibraryParseResult } from '../libraryDocument'
+import { parsePublished, type PublishedRevision } from '../publish'
 import type {
   BookSummary,
   LibraryMeta,
@@ -18,9 +19,11 @@ import {
   readBookJsonListing,
   readBookJsonText,
   readLibraryMeta,
+  readPublishedText,
   removeBookDirectory,
   writeBookJson,
   writeLibraryMeta,
+  writePublishedJson,
   writeRawBookJson,
 } from './layout'
 
@@ -191,6 +194,31 @@ export function createFsaLibraryStorage(
           return failure('not-found')
         }
         return success(undefined)
+      })
+    },
+    loadPublished(bookId: string) {
+      return gateRead(async () => {
+        const text = await readPublishedText(root, bookId)
+        if (text === undefined) {
+          return failure('not-found')
+        }
+        let raw: unknown
+        try {
+          raw = JSON.parse(text)
+        } catch {
+          return failure('corrupted')
+        }
+        const parsed = parsePublished(raw)
+        return parsed.ok ? success(parsed.revision) : failure(parsed.code)
+      })
+    },
+    savePublished(revision: PublishedRevision) {
+      return gateWrite(async () => {
+        if (!(await bookDirectoryExists(root, revision.bookId))) {
+          return failure('not-found')
+        }
+        await writePublishedJson(root, revision)
+        return success(structuredClone(revision))
       })
     },
   }

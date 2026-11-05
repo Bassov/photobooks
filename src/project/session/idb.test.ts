@@ -9,11 +9,13 @@ import {
   createBookPhotoRootIdb,
   createSessionIdb,
   createSourceRootEntryIndexIdb,
+  createSiteExportFolderIdb,
   createSourceRootIdb,
   LABEL_KEY,
   LIBRARY_HANDLES_STORE,
   migrateLegacyRecents,
   RECENTS_KEY,
+  SITE_EXPORT_FOLDERS_STORE,
   SOURCE_ROOT_ENTRY_INDEX_STORE,
   SOURCE_ROOT_HANDLES_STORE,
   type SessionIdb,
@@ -27,7 +29,7 @@ import { runSessionStateContract } from './sessionState.contract.test-helpers'
 
 const DB_NAME = 'photobooks-session'
 const STORE_NAME = LIBRARY_HANDLES_STORE
-const DB_VERSION = 4
+const DB_VERSION = 5
 const LEGACY_LIBRARY_ID = 'library'
 
 function resetIndexedDb(): void {
@@ -208,6 +210,13 @@ describe('createSessionIdb (fake-indexeddb)', () => {
       value: { entries: { 'a.jpg': { byteSize: 1, mtimeMs: 2 } } },
     })
 
+    const siteFolders = createSiteExportFolderIdb()
+    await siteFolders.set('lib', { kind: 'directory', name: 'Site' })
+    await expect(siteFolders.get('lib')).resolves.toEqual({
+      present: true,
+      value: { kind: 'directory', name: 'Site' },
+    })
+
     const db = await openRaw(DB_VERSION)
     expect([...db.objectStoreNames]).toEqual(
       expect.arrayContaining([
@@ -215,9 +224,10 @@ describe('createSessionIdb (fake-indexeddb)', () => {
         SOURCE_ROOT_HANDLES_STORE,
         BOOK_PHOTO_ROOTS_STORE,
         SOURCE_ROOT_ENTRY_INDEX_STORE,
+        SITE_EXPORT_FOLDERS_STORE,
       ]),
     )
-    expect(db.objectStoreNames.length).toBe(4)
+    expect(db.objectStoreNames.length).toBe(5)
     db.close()
 
     await expect(library.get('lib')).resolves.toEqual({
@@ -237,6 +247,7 @@ describe('createSessionIdb (fake-indexeddb)', () => {
         LIBRARY_HANDLES_STORE,
         SOURCE_ROOT_ENTRY_INDEX_STORE,
         SOURCE_ROOT_HANDLES_STORE,
+        SITE_EXPORT_FOLDERS_STORE,
       ].sort(),
     )
     db.close()

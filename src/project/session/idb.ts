@@ -14,8 +14,9 @@ export const LIBRARY_HANDLES_STORE = 'library-handles'
 export const SOURCE_ROOT_HANDLES_STORE = 'source-root-handles'
 export const BOOK_PHOTO_ROOTS_STORE = 'book-photo-roots'
 export const SOURCE_ROOT_ENTRY_INDEX_STORE = 'source-root-entry-index'
-/** v4: folder-manifest store (path→size/mtime + optional dims). */
-const DB_VERSION = 4
+export const SITE_EXPORT_FOLDERS_STORE = 'site-export-folders'
+/** v4: folder-manifest store (path→size/mtime + optional dims); v5: site export folders. */
+const DB_VERSION = 5
 
 export { ACTIVE_KEY, LABEL_KEY, RECENTS_KEY }
 
@@ -24,6 +25,7 @@ const ALL_STORES = [
   SOURCE_ROOT_HANDLES_STORE,
   BOOK_PHOTO_ROOTS_STORE,
   SOURCE_ROOT_ENTRY_INDEX_STORE,
+  SITE_EXPORT_FOLDERS_STORE,
 ] as const
 
 export type SessionIdbGetResult =
@@ -237,4 +239,9 @@ export function createBookPhotoRootIdb(): SessionIdb {
 /** Photo source-root entry index (`source-root-entry-index`). */
 export function createSourceRootEntryIndexIdb(): SessionIdb {
   return createStoreIdb(SOURCE_ROOT_ENTRY_INDEX_STORE)
+}
+
+/** Export site folder handle per library id (`site-export-folders`). */
+export function createSiteExportFolderIdb(): SessionIdb {
+  return createStoreIdb(SITE_EXPORT_FOLDERS_STORE)
 }

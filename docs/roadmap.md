@@ -148,6 +148,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [user-templates-picker](roadmap/P3/user-templates-picker.md) — Bug: /next-roadmap-item user-templates-picker
 - [ ] [feature] [user-templates-best-fit](roadmap/P3/user-templates-best-fit.md) — Bug: /next-roadmap-item user-templates-best-fit
 - [ ] [feature] [site-viewer](roadmap/P3/site-viewer.md) — viewer entry
+- [ ] [feature] [site-lightbox-kit](roadmap/P3/site-lightbox-kit.md) — Bug: /next-roadmap-item site-lightbox-kit
 - [x] [feature] [site-viewer-render](roadmap/P3/site-viewer-render.md) — Bug: /next-roadmap-item site-viewer-render
 - [x] [feature] [site-viewer-kit](roadmap/P3/site-viewer-kit.md) — Bug: /next-roadmap-item site-viewer-kit
 - [ ] [feature] [site-preview-mode](roadmap/P3/site-preview-mode.md) — preview the site from the editor
@@ -176,6 +177,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [pdf-captions](roadmap/P4/pdf-captions.md) — text in the PDF
 - [ ] [contingency] [pdf-streaming](roadmap/P4/pdf-streaming.md) — only if `pdf-export` peak memory is too high
 - [ ] [feature] [booklet-imposition](roadmap/P4/booklet-imposition.md) — home printing
+- [ ] [feature] [cover-editor-core](roadmap/P4/cover-editor-core.md) — Bug: /next-roadmap-item cover-editor-core
 - [ ] [feature] [cover-editor](roadmap/P4/cover-editor.md) — cover in the editor
 
 ## P5 — Others make their own personal site
@@ -191,8 +193,11 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [page-count-mismatch](roadmap/P5/page-count-mismatch.md) — Bug: /next-roadmap-item page-count-mismatch
 - [ ] [feature] [e2e-paint-probe](roadmap/P5/e2e-paint-probe.md) — Bug: /next-roadmap-item e2e-paint-probe
 - [ ] [feature] [kit-gaps](roadmap/P5/kit-gaps.md) — Bug: /next-roadmap-item kit-gaps
+- [ ] [feature] [live-captions-kit](roadmap/P5/live-captions-kit.md) — Bug: /next-roadmap-item live-captions-kit
 - [ ] [feature] [text-blocks-close](roadmap/P5/text-blocks-close.md) — Bug: /next-roadmap-item text-blocks-close
+- [ ] [feature] [parent-overrides-inspector](roadmap/P5/parent-overrides-inspector.md) — Bug: /next-roadmap-item parent-overrides-inspector
 - [ ] [feature] [site-lightbox-zoom-core](roadmap/P5/site-lightbox-zoom-core.md) — Bug: /next-roadmap-item site-lightbox-zoom-core
+- [ ] [feature] [cover-back-fill](roadmap/P5/cover-back-fill.md) — Bug: /next-roadmap-item cover-back-fill
 
 ## Deferred (not scheduled)
 

@@ -16,6 +16,7 @@ export {
 } from './schema'
 export {
   isTextFrame,
+  resolveTextContent,
   resolveTextItems,
   type ResolvedTextItem,
 } from './text/resolveText'
@@ -37,9 +38,19 @@ export {
 } from './printProfile'
 export {
   DEFAULT_PRINT_PROFILE_ID,
+  genericPrintProfile,
+} from './print/genericProfile'
+export {
+  bookCoverGeometry,
+  coverGeometry,
+  spineWidthMm,
+  type CoverGeometry,
+  type CoverGeometryBook,
+  type CoverGeometryRects,
+} from './print/coverGeometry'
+export {
   PRINT_COLOR_SPACES,
   PRINT_OUTPUTS,
-  genericPrintProfile,
   parsePrintProfile,
   type PrintOutput,
   type PrintProfile,
@@ -47,6 +58,21 @@ export {
   type PrintProfileParseResult,
   type SpineWidthRule,
 } from './print/profileSchema'
+export {
+  PREFLIGHT_FIX_IDS,
+  PREFLIGHT_RULE_IDS,
+  PREFLIGHT_SEVERITIES,
+  preflight,
+  preflightRules,
+  type PreflightAssetStatus,
+  type PreflightFixId,
+  type PreflightIssue,
+  type PreflightLocation,
+  type PreflightOptions,
+  type PreflightRuleId,
+  type PreflightRuleSpec,
+  type PreflightSeverity,
+} from './print/preflight'
 export {
   SPINE_WIDTH_SOURCES,
   type CoverPrint,
@@ -93,6 +119,7 @@ export {
   keepOverridesAsOwn,
   overrideParentFrame,
   overrideParentGuide,
+  onSpreadPage,
   resetParentItem,
   resetSpreadToParent,
 } from './parentSpreads'
@@ -231,7 +258,6 @@ export {
   pageLabel,
   pagesOf,
   pagesText,
-  spineWidthForPages,
 } from './pages'
 export {
   MIN_FRAME_EDGE_MM,

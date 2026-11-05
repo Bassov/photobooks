@@ -1,0 +1,95 @@
+/* Designer spec static-export §1: the pill keeps its rest width in every
+   state (a hidden rest-content sizer shares the grid cell); running shows
+   NN% over a --control fill that scales from the left. */
+.export-site-pill.pb-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.export-site-pill[data-state='running']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--control);
+  transform-origin: left;
+  transform: scaleX(var(--export-site-progress, 0));
+  transition: transform 160ms linear;
+}
+
+.export-site-pill__cell {
+  position: relative;
+  display: inline-grid;
+  align-items: center;
+  justify-items: center;
+}
+
+.export-site-pill__content {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--spacing) * 1.5);
+}
+
+.export-site-pill__sizer {
+  visibility: hidden;
+}
+
+.export-site-pill__percent {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Icon-only below 1280 px: 12 + 16 + 12 = 40 wide, like Settings. */
+@media (max-width: 1279.98px) {
+  .export-site-pill__label {
+    display: none;
+  }
+}
+
+.export-site-spin {
+  animation: export-site-spin 1s linear infinite;
+}
+
+@keyframes export-site-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .export-site-pill[data-state='running']::before {
+    transition: none;
+  }
+
+  .export-site-spin {
+    animation: none;
+  }
+}
+
+/* §2: kit PublishDialog frame — 480 wide, 20 / 24 padding, no border. */
+.pb-dialog.export-site-dialog {
+  width: min(480px, calc(100vw - 2rem));
+  max-width: 480px;
+  padding: calc(var(--spacing) * 5) calc(var(--spacing) * 6);
+  border: 0;
+}
+
+.export-site-dialog .pb-dialog-title {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--spacing) * 2);
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: 1.25;
+}
+
+.export-site-dialog .pb-button--ghost {
+  color: var(--foreground);
+}
+
+.export-site-progress .pb-progress-track {
+  background: var(--field);
+}
+
+.export-site-progress .pb-progress-fill {
+  background: var(--color-meter);
+}

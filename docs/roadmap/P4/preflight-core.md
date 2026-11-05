@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P4
 Title: pure preflight
+Status: done
 
 ## Scope
 
