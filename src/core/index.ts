@@ -37,9 +37,19 @@ export {
 } from './printProfile'
 export {
   DEFAULT_PRINT_PROFILE_ID,
+  genericPrintProfile,
+} from './print/genericProfile'
+export {
+  bookCoverGeometry,
+  coverGeometry,
+  spineWidthMm,
+  type CoverGeometry,
+  type CoverGeometryBook,
+  type CoverGeometryRects,
+} from './print/coverGeometry'
+export {
   PRINT_COLOR_SPACES,
   PRINT_OUTPUTS,
-  genericPrintProfile,
   parsePrintProfile,
   type PrintOutput,
   type PrintProfile,
@@ -231,7 +241,6 @@ export {
   pageLabel,
   pagesOf,
   pagesText,
-  spineWidthForPages,
 } from './pages'
 export {
   MIN_FRAME_EDGE_MM,
