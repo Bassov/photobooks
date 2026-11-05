@@ -2584,6 +2584,29 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("default-master: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
 
+{ // static-export (Designer static-export §1–2): the Export site pill keeps one rect in every state; the dialog is the kit Publish frame
+  const tabs = { "opts-empty": "Options, no folder", "run-hidden": "Hidden, 42 %", done: "Exported", failed: "Failed", opts: "Options" }
+  const pick = async (id) => { await page.locator(`[data-testid="scenarios"] [role="tab"]:text-is("${tabs[id]}")`).evaluate((t) => t.click()); await page.waitForTimeout(300) }
+  const pill = () => page.locator('[data-scenario] [data-testid="demo-export-site"]').first().evaluate((e) => { const r = e.getBoundingClientRect(); return [e.dataset.state, +r.x.toFixed(2), +r.width.toFixed(2), r.height] })
+  const out = {}
+  for (const w of [1440, 1200]) {
+    await page.setViewportSize({ width: w, height: 900 }); await page.goto(url + feat("static-export")); await page.waitForTimeout(500)
+    for (const id of ["opts-empty", "run-hidden", "done", "failed"]) { await pick(id); out[`${w} ${id}`] = await pill() }
+  }
+  const same = (w, ww) => Object.entries(out).filter(([k]) => k.startsWith(`${w} `)).every(([, [, x, pw, h]]) => Math.abs(x - out[`${w} opts-empty`][1]) <= 0.5 && Math.abs(pw - ww) <= 0.5 && h === 32)
+  ok("static-export: Export site pill rect identical in idle / running 42 % / done / failed, 112.33 × 32 at 1440, 40 × 32 at 1200", Object.values(out).map((v) => v[0]).join() === "idle,running,done,failed,idle,running,done,failed" && same(1440, 112.33) && same(1200, 40), JSON.stringify(out))
+  await page.setViewportSize({ width: 1440, height: 900 }); await pick("opts")
+  const dlg = await page.locator('[data-testid="export-site-dialog"]').evaluate((d) => {
+    const cs = getComputedStyle(d), hs = getComputedStyle(d.firstElementChild)
+    return { w: d.closest("[role=dialog]").getBoundingClientRect().width, pad: `${cs.paddingTop} ${cs.paddingRight}`, h: `${hs.fontFamily.split(",")[0].replace(/"/g, "")} ${hs.fontSize}/${hs.lineHeight} ${hs.fontWeight}`, btns: [...d.querySelectorAll("button")].slice(-2).map((b) => `${b.getBoundingClientRect().height} ${getComputedStyle(b).borderRadius}`) }
+  })
+  ok("static-export: dialog 480 wide, padding 20 / 24, heading Lora 21/26.25 500, buttons 36 h r8", dlg.w === 480 && dlg.pad === "20px 24px" && dlg.h === "Lora Variable 21px/26.25px 500" && dlg.btns.join() === "36 8px,36 8px", JSON.stringify(dlg))
+  // Designer review 2: the done step's "To open it…" block sits 16 px under the summary (kit Publish done mt-4)
+  await pick("done")
+  const gap = await page.locator('[data-testid="export-site-summary"]').evaluate((s) => +(s.nextElementSibling.getBoundingClientRect().top - s.getBoundingClientRect().bottom).toFixed(2))
+  ok("static-export: done step's open-it block 16 px under the summary", Math.abs(gap - 16) <= 0.5, `gap ${gap}`)
+}
+
 
 fs.writeFileSync(new URL("../qa-report.txt", import.meta.url), res.join("\n") + "\n\nCONSOLE:\n" + (errs.join("\n") || "none") + "\n")
 console.log(res.join("\n")); console.log(`\n${res.length - fails} passed, ${fails} failed; console errors/warnings: ${errs.length}`); if (errs.length) console.log(errs.slice(0, 20).join("\n"))

@@ -1,7 +1,8 @@
 /* #/demo editor and its parts. Each part can mount alone through <PartStudio> with an explicit book / doc / spread / selection / node / mode. */
 import * as React from "react"
 import type { ComponentProps } from "react"
-import { Settings, FolderPlus, Printer, Eye, ImageOff } from "lucide-react"
+import { Settings, FolderPlus, Printer, Eye, ImageOff, Download, CircleCheck, TriangleAlert } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { photos as ALL_PHOTOS } from "@/data"
 import { Std } from "@/features/parts"
@@ -14,7 +15,7 @@ import { useCoverPhoto, useCoverText, useMasters, setEditorExtras } from "@/sand
 import type { View } from "@/sandbox/store"
 import { FolderPicker } from "@/features/screens"
 import { useSession, blankDoc, blankExtras, type Extras } from "./session"
-import { PrintDialog, PublishDialog, RelinkDialog } from "./dialogs"
+import { ExportSiteDialog, PrintDialog, PublishDialog, RelinkDialog, useExportRun, type ExportPhase, type ExportStep } from "./dialogs"
 import { Presentation } from "./presentation"
 import { SLOT } from "./layout"
 
@@ -89,16 +90,44 @@ export function PhotosDock() { return <Dock right={<><RelinkControl /><FilmChips
 const DEMO_VIEWS: ComponentProps<typeof TopBar>["views"] = ["snap", "grid"]
 /** KS1: the #/demo canvas opens with no guides, rulers or bleed / trim / safe lines. KS13: the filmstrip starts on Added order (prod default). */
 const DEMO_VIEW: Partial<View> = { guides: false, rulers: false, overlays: false, sort: "added" }
-/** #/demo editor top bar: tools, history, view toggles (snap, grid), zoom, save, title (→ Book settings) and Preview · Settings · Print · Publish. */
-export function EditorTopBar({ title, onLibrary, onPreview, onSettings, onPrint, onPublish }: {
-  title: string; onLibrary?: () => void; onPreview?: () => void; onSettings?: () => void; onPrint?: () => void; onPublish?: () => void
+const quiet = { background: "#D7D7D7" } as const
+export type ExportPill = { phase: ExportPhase; p: number }
+const PILL = {
+  idle: { Icon: Download, label: "Export site", title: "Export site", say: "" },
+  done: { Icon: CircleCheck, label: "Exported", title: "Site exported", say: "Site exported" },
+  failed: { Icon: TriangleAlert, label: "Failed", title: "Site export failed", say: "Site export failed" },
+}
+/** Export site pill (Designer static-export §1): the rest content is a hidden sizer in the same grid cell as the live content,
+ *  so every state keeps the rest width; running fills a ::before layer (scaleX) under "NN%". Icon-only below 1280 px. */
+function ExportSitePill({ phase, p, onPress }: ExportPill & { onPress?: () => void }) {
+  const st = useStudio()
+  const s = phase === "run"
+    ? { Icon: Download, label: `${p}%`, title: `Exporting site · ${p}%`, say: `Exporting site, ${Math.floor(p / 10) * 10}%` }
+    : PILL[phase]
+  const cell = "col-start-1 row-start-1 flex items-center gap-1.5"
+  const fill = "before:absolute before:inset-0 before:origin-left before:bg-control before:[transform:scaleX(var(--p))] before:[transition:transform_160ms_linear] motion-reduce:before:[transition:none]"
+  // the jolly Button has no title prop: a display:contents wrapper carries it without adding a box to the bar
+  return <>
+    <span className="contents" title={s.title}>
+      <Button variant="ghost" size="sm" isDisabled={st.doc.spreads.length === 0} className={cn("relative inline-grid h-8 justify-items-center overflow-hidden rounded-full px-3 text-sm font-medium [&_svg]:size-4", phase === "run" && fill)}
+        style={{ ...quiet, "--p": p / 100 } as React.CSSProperties} onPress={onPress} aria-label="Export site" data-state={phase === "run" ? "running" : phase} data-testid="demo-export-site">
+        <span aria-hidden className={cn(cell, "invisible")}><Download /><span className="max-[1280px]:hidden">Export site</span></span>
+        <span className={cn(cell, "relative tabular-nums")}><s.Icon /><span className="max-[1280px]:hidden">{s.label}</span></span>
+      </Button>
+    </span>
+    <span role="status" className="sr-only" data-testid="demo-export-site-status">{s.say}</span>
+  </>
+}
+/** #/demo editor top bar: tools, history, view toggles (snap, grid), zoom, save, title (→ Book settings) and Preview · Settings · Export site · Print · Publish. */
+export function EditorTopBar({ title, onLibrary, onPreview, onSettings, exportSite = { phase: "idle", p: 0 }, onExportSite, onPrint, onPublish }: {
+  title: string; onLibrary?: () => void; onPreview?: () => void; onSettings?: () => void; exportSite?: ExportPill; onExportSite?: () => void; onPrint?: () => void; onPublish?: () => void
 }) {
-  const quiet = { background: "#D7D7D7" } as const
   const right = (
     <div className="flex items-center gap-1.5">
       <Button variant="ghost" size="sm" className="h-8 gap-1.5 rounded-full px-3 text-sm font-medium [&_svg]:size-4" style={quiet} onPress={onPreview} data-testid="demo-preview"><Eye />Preview</Button>
       <Button variant="ghost" size="sm" className="h-8 gap-1.5 rounded-full px-3 text-sm font-medium [&_svg]:size-4" style={quiet} onPress={onSettings} data-testid="demo-editor-settings" aria-label="Settings"><Settings /></Button>
-      <Button variant="ghost" size="sm" className="h-8 gap-1.5 rounded-full px-3.5 text-sm font-medium [&_svg]:size-4" style={quiet} onPress={onPrint} data-testid="demo-print"><Printer />Print</Button>
+      <ExportSitePill {...exportSite} onPress={onExportSite} />
+      <span className="contents" title="Print"><Button variant="ghost" size="sm" className="h-8 gap-1.5 rounded-full px-3 text-sm font-medium [&_svg]:size-4" style={quiet} onPress={onPrint} data-testid="demo-print" aria-label="Print"><Printer /></Button></span>
       <Button variant="ghost" size="sm" className="e7-sec h-8 gap-1.5 rounded-full px-3.5 text-sm font-medium [&_svg]:size-4" style={quiet} onPress={onPublish} data-testid="demo-publish">Publish</Button>
     </div>
   )
@@ -110,17 +139,23 @@ export function DemoEditor({ id, initialDialog = null, initialPreview = false }:
   const { S, set } = useSession()
   const b = S.books.find((x) => x.id === id)!
   React.useState(() => { setEditorExtras(b.extras ?? blankExtras(b.title)); return 0 }) // restore before Std mounts (Std keep)
-  const [dlg, setDlg] = React.useState<null | "publish" | "print">(initialDialog)
+  const [dlg, setDlg] = React.useState<null | "publish" | "print" | "export">(initialDialog)
   const [preview, setPreview] = React.useState(initialPreview)
   const openSite = () => { const oid = S.open; set({ books: S.books.map((x) => (x.id === oid ? { ...x, published: true } : x)), stage: "site", back: "editor", siteEntry: "catalog" }) }
+  // the export run lives here, not in the dialog: Hide closes the dialog and the pill keeps running
+  const ex = useExportRun()
+  const [exStep, setExStep] = React.useState<ExportStep>("opts")
+  const openExport = () => { setExStep(ex.phase === "idle" ? "opts" : ex.phase); ex.seen(); setDlg("export") }
+  const others = S.books.filter((x) => x.published && x.id !== id).map((x) => x.title)
   return (
     <div className="h-full" data-testid="demo-editor">
       <Std keep init={() => b.doc ?? blankDoc()} book={b.book} cur={0} features={DEMO_FEATURES} view={DEMO_VIEW} missing={b.missing} left={<SpreadsPanel reorder actions />}
-        top={<EditorTopBar title={b.title} onLibrary={() => set({ stage: "library", open: null })} onPreview={() => setPreview(true)} onSettings={() => set({ stage: "settings", back: "editor" })} onPrint={() => setDlg("print")} onPublish={() => setDlg("publish")} />}
+        top={<EditorTopBar title={b.title} onLibrary={() => set({ stage: "library", open: null })} onPreview={() => setPreview(true)} onSettings={() => set({ stage: "settings", back: "editor" })} exportSite={{ phase: ex.phase, p: ex.p }} onExportSite={openExport} onPrint={() => setDlg("print")} onPublish={() => setDlg("publish")} />}
         dock={<PhotosDock />}
         overlay={<><DocSpy id={id} /><MissingSync id={id} />
           {preview && <Presentation onExit={() => setPreview(false)} />}
-          {dlg === "publish" && <PublishDialog title={b.title} onClose={() => setDlg(null)} onOpenSite={openSite} />}{dlg === "print" && <PrintDialog book={b.book} spreads={b.doc?.spreads.length ?? 10} title={b.title} onClose={() => setDlg(null)} />}</>} />
+          {dlg === "publish" && <PublishDialog title={b.title} onClose={() => setDlg(null)} onOpenSite={openSite} />}{dlg === "print" && <PrintDialog book={b.book} spreads={b.doc?.spreads.length ?? 10} title={b.title} onClose={() => setDlg(null)} />}
+          {dlg === "export" && <ExportSiteDialog title={b.title} otherBooks={others} initialStep={exStep} run={ex} onHide={() => setDlg(null)} />}</>} />
     </div>
   )
 }
@@ -162,14 +197,14 @@ export function CanvasPart(p: PartState) { return <PartStudio {...p}><div classN
 export type EditorSlots = { left?: boolean; right?: boolean; dock?: boolean }
 /** The #/demo editor (top bar, spread list, canvas, inspector, photos dock, DEMO_FEATURES) at its real EditorFrame slot sizes,
  *  seeded with an explicit studio state. `slots` hides panels the page is not about (the canvas always stays). */
-export function EditorView({ title = "Lake trip", slots = {}, pick, crop, view, extras, overlay, ...p }: PartState & {
-  title?: string; slots?: EditorSlots; pick?: number | number[]; crop?: boolean; view?: Partial<View>; extras?: Partial<Extras>; overlay?: React.ReactNode
+export function EditorView({ title = "Lake trip", slots = {}, pick, crop, view, extras, overlay, exportSite, ...p }: PartState & {
+  title?: string; slots?: EditorSlots; pick?: number | number[]; crop?: boolean; view?: Partial<View>; extras?: Partial<Extras>; overlay?: React.ReactNode; exportSite?: ExportPill
 }) {
   React.useState(() => { setEditorExtras({ ...blankExtras(title), ...extras }); return 0 })
   return (
     <div className="h-full" data-testid="editor-view">
       <Std keep init={p.doc ?? (() => blankDoc())} book={p.book} cur={p.cur ?? 0} sel={p.sel} node={p.node} mode={p.mode} features={p.features ?? DEMO_FEATURES} view={view} pick={pick}
-        top={<EditorTopBar title={title} />}
+        top={<EditorTopBar title={title} exportSite={exportSite} />}
         left={slots.left === false ? false : <SpreadsPanel reorder actions />}
         right={slots.right === false ? false : undefined}
         dock={slots.dock === false ? false : <PhotosDock />}
