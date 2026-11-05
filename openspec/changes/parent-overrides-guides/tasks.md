@@ -10,3 +10,8 @@
 
 1. `/?fixture=painter&parent=a&guides=a`, rulers on, spread 3: Ctrl+Shift-drag the dashed Master A horizontal guide down → a solid guide follows; spread 4 still shows the dashed one.
 2. Drag that solid guide onto the top ruler → no guide on spread 3; Undo brings the copy back.
+
+manual-qa (2026-11-05):
+
+- 1: problem (harness) — `start-session` click intercepted by the welcome header, scenario not reached; covered by e2e `parent-overrides.spec.ts` "Ctrl+Shift on a parent guide through the frames overrides it on this spread…" (passes locally).
+- 2: problem (harness) — same blocker; covered by e2e "a copy dropped on its ruler hides the parent guide on this spread; hidden, it neither paints nor snaps" (passes locally, incl. Undo).
