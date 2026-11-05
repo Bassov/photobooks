@@ -6,6 +6,7 @@ import {
   DemoRoot, EditorView, PrintDialog, PublishDialog, SLOT, type RootInit,
 } from "@/demo-parts"
 import { LAKE_BOOK, LAKE_TITLE, docBlank, docAdded, docFilled, COVER_DONE, dbook, SHELF } from "@/demo-parts/fixtures"
+import { ExportSiteDialog, type ExportRun } from "@/demo-parts/dialogs"
 import type { Doc } from "@/sandbox/model"
 import { WithScenarios } from "./parts"
 import { PhotographerSite } from "./site-photographer"
@@ -14,6 +15,9 @@ import type { FeatureDef, Notes } from "./types"
 /** Stage height = the #/demo viewport height (+ the 40 px scenario strip), so every slot sits at its #/demo size. */
 const H = SLOT.app.h + 40
 const PATH = "~/Pictures/Photobooks"
+/* static-export: books from earlier exports (newest first) and a run frozen at 42 % */
+const EXPORTED = ["Fog", "Summer ’25"]
+const RUN_42: ExportRun = { phase: "run", p: 42, fail: "unknown", folder: "Sites", start: () => {}, seen: () => {} }
 
 type Sc = [id: string, label: string, render: () => React.ReactNode]
 function page(items: Sc[], notes: Notes, h = H): FeatureDef {
@@ -76,8 +80,8 @@ export const PAGES: Record<string, FeatureDef> = {
     ["photos", "With photos", root(inEditor())],
     ["preview", "Preview", root(inEditor({ editor: { preview: true } }))],
   ], {
-    what: "The editor chrome: top bar with Library, tools, undo / redo, snap and grid toggles, zoom, save status and the book title (opens Book settings), then Preview · Settings · Print · Publish. Spread list left, inspector right, photos dock below.",
-    where: "#/demo steps 8–26 and 39–40 (the whole editor).",
+    what: "The editor chrome: top bar with Library, tools, undo / redo, snap and grid toggles, zoom, save status and the book title (opens Book settings), then Preview · Settings · Export site · Print · Publish. Spread list left, inspector right, photos dock below.",
+    where: "#/demo steps 8–26 and 39–40 (the whole editor); Export site in steps 52–55.",
     edge: ["Preview opens the book as the site shows it, full screen; Esc or Close returns", "Settings opens app settings with “Back to the book”"],
   }),
   /* ------------------------------------------------------------ filmstrip */
@@ -194,7 +198,7 @@ export const PAGES: Record<string, FeatureDef> = {
     ["book", "Book", root(onSite({ page: "book" }, "book"))],
   ], {
     what: "The published site: a catalog of published books, then one book’s viewer with spreads, Share and Fullscreen. A bar above it returns to the editor.",
-    where: "#/demo steps 35–38 (Publish → Open site).",
+    where: "#/demo steps 56–59 (Publish → Open site).",
     edge: ["Share copies the book link", "Esc leaves fullscreen"],
   }),
   "site-lightbox": page([
@@ -202,7 +206,7 @@ export const PAGES: Record<string, FeatureDef> = {
     ["spread", "Spread 2", root(onSite({ page: "book", slide: 3, lb: true }, "book"))],
   ], {
     what: "Fullscreen viewing of one book on the site; arrows step through spreads.",
-    where: "#/demo step 38.",
+    where: "#/demo step 59.",
     keys: [["← / →", "previous / next spread"], ["Esc", "close"]],
   }),
   "site-photographer": {
@@ -238,7 +242,21 @@ export const PAGES: Record<string, FeatureDef> = {
     ["done", "Published", ed({ doc: docFilled, cur: 1, overlay: <PublishDialog title={LAKE_TITLE} onClose={() => {}} initialStep="done" /> })],
   ], {
     what: "Publish dialog over the editor: web image size (1600 / 2048 / 3200 px) and “Let visitors download a PDF”; Publish shows progress, then Published with Open site.",
-    where: "#/demo steps 32–34 (top bar → Publish).",
-    edge: ["Open site goes to the site catalog (#/demo step 35)"],
+    where: "#/demo steps 49–51 (top bar → Publish).",
+    edge: ["Open site goes to the site catalog (#/demo step 56)"],
+  }),
+  /* ------------------------------------------------------------ static export */
+  "static-export": page([
+    ["opts-empty", "Options, no folder", ed({ doc: docFilled, cur: 1, overlay: <ExportSiteDialog title={LAKE_TITLE} otherBooks={EXPORTED} onHide={() => {}} /> })],
+    ["opts", "Options", ed({ doc: docFilled, cur: 1, overlay: <ExportSiteDialog title={LAKE_TITLE} otherBooks={EXPORTED} folder="Sites" onHide={() => {}} /> })],
+    ["run", "Exporting", ed({ doc: docFilled, cur: 1, exportSite: { phase: "run", p: 42 }, overlay: <ExportSiteDialog title={LAKE_TITLE} otherBooks={EXPORTED} folder="Sites" initialStep="run" run={RUN_42} onHide={() => {}} /> })],
+    ["run-hidden", "Hidden, 42 %", ed({ doc: docFilled, cur: 1, exportSite: { phase: "run", p: 42 } })],
+    ["done", "Exported", ed({ doc: docFilled, cur: 1, exportSite: { phase: "done", p: 0 }, overlay: <ExportSiteDialog title={LAKE_TITLE} otherBooks={EXPORTED} folder="Sites" initialStep="done" onHide={() => {}} /> })],
+    ["failed", "Failed", ed({ doc: docFilled, cur: 1, exportSite: { phase: "failed", p: 0 }, overlay: <ExportSiteDialog title={LAKE_TITLE} otherBooks={EXPORTED} folder="Sites" initialStep="failed" fail="access" onHide={() => {}} /> })],
+  ], {
+    what: "Export site: the top-bar pill after Settings opens a dialog that writes the site of your books to a folder on this computer (Folder, Books, Export), shows progress, then Site exported with how to serve it. Nothing is uploaded.",
+    where: "#/demo steps 52–55 (top bar → Export site → Choose folder… → Export → Hide → Exported).",
+    keys: [["Esc", "closes the dialog (Hide while running); the export keeps running in the pill"]],
+    edge: ["The pill keeps its width in every state: NN% over a fill while running, “Exported” for 4 s, “Failed” until opened", "Below a 1280 px window the pill is icon-only, 40 × 32", "Picker folder “Family” holds a foreign dist: “isn’t a Photobooks export”, Choose folder… goes back to Options"],
   }),
 }

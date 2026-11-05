@@ -17,6 +17,8 @@ import { setTextOverflow, takeTextGrow, useTextOverflow } from "./text-overflow"
 
 export const PHOTO_TYPE = "application/x-photobooks-photo"
 export const FRAME_TYPE = "application/x-photobooks-frame"
+/** Status when a drag, nudge or Del finds only locked frames to act on. */
+export const FRAME_LOCKED_STATUS = "Frame is locked — unlock it in the inspector (Ctrl+Shift+L)"
 
 /* ---------------------------------------------------------------- photo inside a frame (cover × zoom, pan, quarter turn, straighten) */
 export function PhotoImg({ f, wpx, hpx, ghost = false }: { f: Frame; wpx: number; hpx: number; ghost?: boolean }) {
@@ -386,7 +388,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
     const collapse = !e.shiftKey && sel.length > 1 && sel.includes(f.id)
     if (!ft.handles || view.tool !== "select") { if (collapse) st.setSel([f.id]); return }
     const moving = s.frames.filter((x) => sel.includes(x.id) && !x.locked)
-    if (!moving.length) { if (collapse) st.setSel([f.id]); if (f.locked) st.setStatus("Frame is locked — unlock it in the inspector (Ctrl+Shift+L)"); return }
+    if (!moving.length) { if (collapse) st.setSel([f.id]); if (f.locked) st.setStatus(FRAME_LOCKED_STATUS); return }
     const orig = moving.map((x) => ({ id: x.id, x: x.x, y: x.y }))
     const bb = bbox(moving)
     const A = anc(moving.map((x) => x.id))
