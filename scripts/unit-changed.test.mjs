@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   LOCAL_FC_NUM_RUNS,
+  configureLocalFcNumRuns,
   localFcNumRuns,
   main,
   mergeBase,
@@ -72,6 +73,26 @@ describe('localFcNumRuns', () => {
       expect(localFcNumRuns({ FC_NUM_RUNS: value })).toBeUndefined()
     },
   )
+})
+
+describe('configureLocalFcNumRuns', () => {
+  it('sets the fast-check default from the local FC_NUM_RUNS', () => {
+    const calls = []
+    expect(
+      configureLocalFcNumRuns({ FC_NUM_RUNS: '25' }, (p) => calls.push(p)),
+    ).toBe(25)
+    expect(calls).toEqual([{ numRuns: 25 }])
+  })
+
+  it('leaves the default alone under CI', () => {
+    const calls = []
+    expect(
+      configureLocalFcNumRuns({ CI: 'true', FC_NUM_RUNS: '200' }, (p) =>
+        calls.push(p),
+      ),
+    ).toBeUndefined()
+    expect(calls).toEqual([])
+  })
 })
 
 describe('mergeBase', () => {

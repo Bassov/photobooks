@@ -6,6 +6,7 @@
  */
 import { spawnSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
+import fc from 'fast-check'
 
 export const BASE_REF = 'origin/main'
 export const LOCAL_FC_NUM_RUNS = '25'
@@ -47,6 +48,19 @@ export function localFcNumRuns(env) {
   if (env.CI) return undefined
   const n = Number(env.FC_NUM_RUNS)
   return Number.isInteger(n) && n > 0 ? n : undefined
+}
+
+/**
+ * Vitest setup hook: applies `localFcNumRuns` as the fast-check default.
+ * Explicit per-test `numRuns` still win.
+ * @param {NodeJS.ProcessEnv} env
+ * @param {(p: { numRuns: number }) => void} [configure]
+ * @returns {number | undefined}
+ */
+export function configureLocalFcNumRuns(env, configure = fc.configureGlobal) {
+  const numRuns = localFcNumRuns(env)
+  if (numRuns !== undefined) configure({ numRuns })
+  return numRuns
 }
 
 /**
