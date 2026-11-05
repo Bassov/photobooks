@@ -7,8 +7,8 @@ Status: done
 
 ## Scope
 
-- [ ] Dev-only comparison page (no product UI) for size/quality presets on hard fixtures (sky gradients, shadows, foliage)
-- [ ] Record the chosen presets in config and spec
+- [x] Dev-only comparison page (no product UI) for size/quality presets on hard fixtures (sky gradients, shadows, foliage)
+- [x] Record the chosen presets in config and spec
 - **Browser check:** compare 2K vs 4K and quality levels side by side; pick defaults.
 - **Done when:** presets recorded in config + spec
 - **Kit components:** none (dev-only comparison page, no product UI); size select ships in `in-app-publish`
