@@ -59,6 +59,23 @@ export default defineConfig({
         ]
       : []),
   ],
+  worker: {
+    // The site export worker prerenders with components that import CSS;
+    // a worker has no `document` to inject it into, and the pages link
+    // their own stylesheet, so CSS imports become empty modules there.
+    plugins: () => [
+      {
+        name: 'photobooks-worker-no-css',
+        enforce: 'pre' as const,
+        resolveId(id: string) {
+          return /\.css(\?|$)/.test(id) ? '\0worker-no-css' : null
+        },
+        load(id: string) {
+          return id === '\0worker-no-css' ? 'export default ""' : null
+        },
+      },
+    ],
+  },
   build: {
     // Second entry: the static site viewer (prerendered pages hydrate it).
     // The derivative lab is dev-only: test builds (e2e) add it, deploy never.

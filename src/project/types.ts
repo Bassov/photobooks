@@ -1,4 +1,5 @@
 import type { Book, SavedTemplate } from '../core'
+import type { PublishedRevision } from './publish'
 
 export type PublishStatus = 'draft' | 'published'
 
@@ -60,4 +61,9 @@ export interface LibraryStorage {
   loadBook: (id: string) => Promise<StorageResult<Book>>
   saveBook: (book: Book) => Promise<StorageResult<Book>>
   deleteBook: (id: string) => Promise<StorageResult<void>>
+  /** `books/<id>/published.json`; deleting the book deletes it too. */
+  loadPublished: (bookId: string) => Promise<StorageResult<PublishedRevision>>
+  savePublished: (
+    revision: PublishedRevision,
+  ) => Promise<StorageResult<PublishedRevision>>
 }

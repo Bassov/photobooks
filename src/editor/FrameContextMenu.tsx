@@ -5,7 +5,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import type { ZMove } from '../core'
+import { getSpreadSizeMm, type ZMove } from '../core'
 import { Icon } from '../ui/Icon'
 import {
   Menu,
@@ -33,14 +33,31 @@ import {
   type FrameTarget,
 } from './frameArrange'
 import { setFrameSource } from './frameSelection'
+import { getGuidesVisible } from './guidesView'
+import { overrideCopyOf } from './parentChanges'
+import { isMacPlatform, parentHitAt, type ParentHit } from './parentHit'
+import { handleOwner } from './selectionPeer'
 
-interface MenuAt {
+interface FrameMenuAt {
+  kind: 'frame'
   target: FrameTarget
   x: number
   y: number
   /** The multi-selection the menu acts on; null for one frame. */
   set: FrameSetTarget | null
 }
+
+interface ParentMenuAt {
+  kind: 'parent'
+  spreadId: string
+  hit: Exclude<ParentHit, { kind: 'copy' }>
+  x: number
+  y: number
+}
+
+type MenuAt = FrameMenuAt | ParentMenuAt
+
+const SPREAD_SELECTOR = '[data-testid="spread-view"]'
 
 function readBook() {
   return getBookStoreSnapshot().book
@@ -52,11 +69,12 @@ function readBook() {
  * spread are inert and never open the menu. The keyboard path
  * (Shift+F10, ContextMenu key) reports 0,0 and opens at the frame corner.
  */
-function frameMenuAt(event: MouseEvent): Omit<MenuAt, 'set'> | null {
+function frameMenuAt(
+  event: MouseEvent,
+): Omit<FrameMenuAt, 'kind' | 'set'> | null {
+  // A selected copy's handles sit on its peer above the own frames.
   const button =
-    event.target instanceof Element
-      ? event.target.closest('button.spread-frame')
-      : null
+    event.target instanceof Element ? handleOwner(event.target) : null
   const frameId = button?.getAttribute('data-frame-id') ?? ''
   const spreadId =
     button?.closest('[data-spread-id]')?.getAttribute('data-spread-id') ?? ''
@@ -69,6 +87,58 @@ function frameMenuAt(event: MouseEvent): Omit<MenuAt, 'set'> | null {
     return { target, x: rect.left, y: rect.bottom }
   }
   return { target, x: event.clientX, y: event.clientY }
+}
+
+/**
+ * Designer PO4: a right-click on a book spread that misses its frames hit
+ * tests the inherited parent items through the own frames, as the
+ * Ctrl+Shift press does (`parentHit.ts`). The Masters canvas has none. An
+ * override copy hits first and opens its own frame menu.
+ */
+function parentMenuAt(event: MouseEvent): MenuAt | null {
+  const spreadEl =
+    event.target instanceof Element
+      ? event.target.closest(SPREAD_SELECTOR)
+      : null
+  if (spreadEl === null) {
+    return null
+  }
+  const book = readBook()
+  const spread = book.spreads.find(
+    (s) => s.id === spreadEl.getAttribute('data-spread-id'),
+  )
+  if (spread === undefined) {
+    return null
+  }
+  const spreadId = spread.id
+  const spreadIndex = book.spreads.indexOf(spread)
+  // A zero-size box gives non-finite mm, which hit nothing.
+  const box = spreadEl.getBoundingClientRect()
+  const pxPerMm = box.width / getSpreadSizeMm(book, spreadIndex).widthMm
+  const hit = parentHitAt(
+    book,
+    spreadId,
+    {
+      x: (event.clientX - box.left) / pxPerMm,
+      y: (event.clientY - box.top) / pxPerMm,
+    },
+    pxPerMm,
+    getGuidesVisible(),
+  )
+  if (hit === null) {
+    return null
+  }
+  const x = event.clientX
+  const y = event.clientY
+  return hit.kind === 'copy'
+    ? {
+        kind: 'frame',
+        target: { spreadId, frameId: hit.frame.id },
+        x,
+        y,
+        set: null,
+      }
+    : { kind: 'parent', spreadId, hit, x, y }
 }
 
 function FrameMenu({
@@ -90,6 +160,7 @@ function FrameMenu({
   }
   const moves = zMovesFor(book, target)
   const locked = frame.locked === true
+  const copy = overrideCopyOf(book, target)
   return (
     <Menu
       aria-label="Frame"
@@ -97,13 +168,25 @@ function FrameMenu({
       data-testid="frame-menu"
       className={MENU_CLASS}
       onAction={(key) => {
-        runArrangeAction(
-          target,
-          key === 'lock' ? { kind: 'lock' } : { kind: 'z', move: key as ZMove },
-        )
+        if (copy !== undefined && (key === 'reset' || key === 'hide')) {
+          // The copy goes either way; the store drops its selection.
+          dispatchBookOp({
+            type: key === 'reset' ? 'resetParentItem' : 'hideParentItem',
+            spreadId: target.spreadId,
+            parentItemId: copy.overridesId,
+          })
+        } else {
+          runArrangeAction(
+            target,
+            key === 'lock'
+              ? { kind: 'lock' }
+              : { kind: 'z', move: key as ZMove },
+          )
+        }
         close()
       }}
     >
+      {copy === undefined ? null : copyItems()}
       {zItems(moves)}
       {moves.length > 0 ? <MenuSeparator /> : null}
       {lockItem(locked)}
@@ -126,6 +209,38 @@ function zItems(moves: readonly ZMove[]) {
       <MenuKeyboard>{entry.keys}</MenuKeyboard>
     </MenuItem>
   ))
+}
+
+/** "Hide on this spread": the parent item leaves the spread ("Hide parent item"). */
+function hideItem(testId: string) {
+  return (
+    <MenuItem
+      key="hide"
+      id="hide"
+      textValue="Hide on this spread"
+      data-testid={testId}
+    >
+      <Icon name="eyeOff" size={16} />
+      Hide on this spread
+    </MenuItem>
+  )
+}
+
+/** Designer PO4: a local copy goes back to its parent item or hides it. */
+function copyItems() {
+  return [
+    <MenuItem
+      key="reset"
+      id="reset"
+      textValue="Reset to parent"
+      data-testid="frame-menu-reset-parent"
+    >
+      <Icon name="rotateCcw" size={16} />
+      Reset to parent
+    </MenuItem>,
+    hideItem('frame-menu-hide-parent'),
+    <MenuSeparator key="copy-separator" />,
+  ]
 }
 
 /** Lock / Unlock; `locked` = the action unlocks. */
@@ -200,8 +315,68 @@ function SetMenu({ set, close }: { set: FrameSetTarget; close: () => void }) {
 }
 
 /**
- * Right-click on a canvas frame selects it and opens Arrange + Lock. The menu
- * reads the book only while open, so closed it never re-renders on edits.
+ * Designer PO4: the menu on an inherited parent frame or guide. Override
+ * makes the spread's local copy (a frame copy is selected); Hide drops the
+ * item from the spread.
+ */
+function ParentMenu({ at, close }: { at: ParentMenuAt; close: () => void }) {
+  const { spreadId, hit } = at
+  const guide = hit.kind === 'guide'
+  const parentItemId = guide ? hit.guideId : hit.frameId
+  return (
+    <Menu
+      aria-label={guide ? 'Parent guide' : 'Parent item'}
+      autoFocus="first"
+      data-testid="parent-menu"
+      className={`${MENU_CLASS} whitespace-nowrap`}
+      onAction={(key) => {
+        if (key === 'hide') {
+          dispatchBookOp({ type: 'hideParentItem', spreadId, parentItemId })
+        } else if (guide) {
+          dispatchBookOp({
+            type: 'overrideParentGuide',
+            spreadId,
+            parentGuideId: parentItemId,
+          })
+        } else {
+          dispatchBookOp({
+            type: 'overrideParentFrame',
+            spreadId,
+            parentFrameId: parentItemId,
+          })
+          const copy = readBook()
+            .spreads.find((spread) => spread.id === spreadId)
+            ?.parentOverrides?.frames?.find(
+              (frame) => frame.overridesId === parentItemId,
+            )
+          if (copy !== undefined) {
+            setFrameSource({ spreadId, frameId: copy.id })
+          }
+        }
+        close()
+      }}
+    >
+      <MenuItem
+        id="override"
+        textValue="Override on this spread"
+        data-testid="parent-menu-override"
+      >
+        <Icon name="unlink2" size={16} />
+        Override on this spread
+        {/* The Ctrl+Shift press overrides parent frames (PO2) and guides (PO5). */}
+        <MenuKeyboard>
+          {isMacPlatform() ? '⌘⇧Click' : 'Ctrl+Shift+Click'}
+        </MenuKeyboard>
+      </MenuItem>
+      {hideItem('parent-menu-hide')}
+    </Menu>
+  )
+}
+
+/**
+ * Right-click on a canvas frame selects it and opens Arrange + Lock; on a
+ * parent item it opens the parent menu. The menu reads the book only while
+ * open, so closed it never re-renders on edits.
  */
 export function FrameContextMenu() {
   const [at, setAt] = useState<MenuAt | null>(null)
@@ -210,6 +385,14 @@ export function FrameContextMenu() {
     const onContextMenu = (event: MouseEvent) => {
       const next = frameMenuAt(event)
       if (next === null) {
+        const parent = parentMenuAt(event)
+        if (parent !== null) {
+          event.preventDefault()
+          if (parent.kind === 'frame') {
+            setFrameSource(parent.target)
+          }
+          setAt(parent)
+        }
         return
       }
       event.preventDefault()
@@ -222,7 +405,7 @@ export function FrameContextMenu() {
       if (!inSet) {
         setFrameSource(next.target)
       }
-      setAt({ ...next, set: inSet ? set : null })
+      setAt({ ...next, kind: 'frame', set: inSet ? set : null })
     }
     document.addEventListener('contextmenu', onContextMenu)
     return () => {
@@ -251,9 +434,13 @@ export function FrameContextMenu() {
             }
           }}
           placement="bottom start"
-          className="w-56"
+          // PO4: a parent row and its press hint stay on one line (rows 30.84);
+          // the frame and set menus keep the kit's 224 px.
+          className={at.kind === 'parent' ? 'w-max min-w-56' : 'w-56'}
         >
-          {at.set === null ? (
+          {at.kind === 'parent' ? (
+            <ParentMenu at={at} close={close} />
+          ) : at.set === null ? (
             <FrameMenu target={at.target} close={close} />
           ) : (
             <SetMenu set={at.set} close={close} />

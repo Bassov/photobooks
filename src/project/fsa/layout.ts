@@ -4,6 +4,7 @@ import {
   serializeLibrary,
   type LibraryParseResult,
 } from '../libraryDocument'
+import { serializePublished, type PublishedRevision } from '../publish'
 import type { LibraryMeta } from '../types'
 import type { LibraryDirectoryHandle } from './handles'
 
@@ -11,6 +12,7 @@ export const LIBRARY_JSON = 'library.json'
 export const BOOKS_DIR = 'books'
 export const BOOK_JSON = 'book.json'
 export const BOOK_JSON_BAK = 'book.json.bak'
+export const PUBLISHED_JSON = 'published.json'
 
 export async function readLibraryMeta(
   root: LibraryDirectoryHandle,
@@ -133,6 +135,32 @@ export async function writeRawBookJson(
   const bookDir = await getBookDirectory(root, bookId, true)
   const file = await bookDir.getFile(BOOK_JSON, { create: true })
   await file.writeText(JSON.stringify(raw))
+}
+
+/** `published.json` text, if the book has one. */
+export async function readPublishedText(
+  root: LibraryDirectoryHandle,
+  bookId: string,
+): Promise<string | undefined> {
+  try {
+    const bookDir = await getBookDirectory(root, bookId, false)
+    const file = await bookDir.getFile(PUBLISHED_JSON)
+    return await file.getText()
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return undefined
+    }
+    throw error
+  }
+}
+
+export async function writePublishedJson(
+  root: LibraryDirectoryHandle,
+  revision: PublishedRevision,
+): Promise<void> {
+  const bookDir = await getBookDirectory(root, revision.bookId, false)
+  const file = await bookDir.getFile(PUBLISHED_JSON, { create: true })
+  await file.writeText(JSON.stringify(serializePublished(revision)))
 }
 
 export async function removeBookDirectory(

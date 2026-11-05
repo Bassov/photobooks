@@ -63,6 +63,98 @@
   outline-offset: 1px;
 }
 
+/* Designer parent-overrides PO7: "Changed from {parent}" after the sliders. */
+.parent-changes {
+  margin-top: 12px;
+}
+
+.parent-changes-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 24px;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  font-weight: 400;
+}
+
+.parent-reset-all {
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--t-text);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 24px;
+  cursor: pointer;
+}
+
+.parent-reset-all:hover {
+  background: var(--field);
+}
+
+.parent-reset-all:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.parent-change-row {
+  display: grid;
+  grid-template-columns: 16px 1fr 16px;
+  gap: 8px;
+  align-items: center;
+  height: 28px;
+  color: var(--muted-foreground);
+}
+
+.parent-change-label {
+  display: flex;
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+
+.parent-change-name {
+  overflow: hidden;
+  color: var(--t-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The state never truncates. */
+.parent-change-state {
+  flex: none;
+  padding-left: 4px;
+}
+
+/* The GP3 grid reset look (GridSection.css); two classes beat `.e7-ghost`. */
+.parent-change-row .insp-grid-reset {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  padding: 0;
+  border-radius: var(--radius-xs);
+  color: var(--muted-foreground);
+}
+
+.parent-change-row .insp-grid-reset:hover {
+  color: var(--t-text);
+}
+
+.parent-change-row .insp-grid-reset:focus-visible {
+  outline: 2px solid var(--muted-foreground);
+  outline-offset: 1px;
+}
+
+.parent-change-row .insp-grid-reset .pb-icon {
+  width: 12px;
+  height: 12px;
+}
+
 .spread-spacing-note {
   margin: 6px 0 0;
   color: var(--muted-foreground);

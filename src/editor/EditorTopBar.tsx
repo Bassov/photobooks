@@ -5,13 +5,7 @@ import {
 } from './bookSettingsSelection'
 import { setCoverSelected } from './coverSelection'
 import type { Key } from 'react-aria-components'
-import {
-  useEffect,
-  useState,
-  useSyncExternalStore,
-  type ButtonHTMLAttributes,
-  type CSSProperties,
-} from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { Button } from '../ui/Button'
 import '../ui/Button.css'
 import { Icon } from '../ui/Icon'
@@ -44,6 +38,8 @@ import {
   type EditorPanels,
 } from './editorChromePanels'
 import { BAR, FIELD, SUB, T } from './editorChromeTokens'
+import { ChromeButton } from './ChromeButton'
+import { ExportSiteButton } from './export/ExportSiteButton'
 import { PanelToggles } from './EditorFrame'
 import { EditorSettings } from './EditorSettings'
 import { EditorToolGroup } from './EditorToolGroup'
@@ -74,39 +70,6 @@ import {
 } from './photoRootSession'
 import { saveIndicatorLabel } from './saveIndicatorLabel'
 import type { ChromeImportApi } from './useChromeImport'
-
-function ChromeButton({
-  size = 'sm',
-  className,
-  style,
-  ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & {
-  size?: 'sm' | 'md'
-  style?: CSSProperties
-}) {
-  return (
-    <button
-      type="button"
-      className={[
-        'pb-button',
-        'pb-button--secondary',
-        'e7-ghost',
-        `pb-button--${size}`,
-        className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      style={{
-        color: SUB,
-        background: 'transparent',
-        border: 0,
-        boxShadow: 'none',
-        ...style,
-      }}
-      {...props}
-    />
-  )
-}
 
 function readActiveBook() {
   return getBookStoreSnapshot().book
@@ -450,6 +413,7 @@ export function EditorTopBar({
           >
             <Icon name="settings" size={16} />
           </ChromeButton>
+          <ExportSiteButton disabled={spreadCount === 0 || writeBlocked} />
         </div>
       </div>
       {settingsOpen ? (

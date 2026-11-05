@@ -13,7 +13,7 @@ import { omitKey } from './omitKey'
 export function defaultCoverStyle(): CoverStyle {
   return {
     titleFont: 'serif-italic',
-    // Legacy, ignored: the drawn spine is `bookSpineWidthMm` (pages.ts).
+    // Drawn only for a manual spine (`cover.print`); see `bookCoverGeometry`.
     spineWidthMm: 12,
     spineDirection: 'top-to-bottom',
     // The kit canvas paints the back charcoal (`--cover-back`).
@@ -178,10 +178,10 @@ export function clearRemovedCoverAssets(
   const stripPaper = (paper: Endpapers['front']): Endpapers['front'] =>
     gone(paper.assetId) ? {} : paper
   const cover = {
+    ...book.cover,
     front: stripPanel(book.cover.front),
     spine: stripPanel(book.cover.spine),
     back: stripPanel(book.cover.back),
-    style: book.cover.style,
   }
   const endpapers = {
     front: stripPaper(book.endpapers.front),

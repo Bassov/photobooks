@@ -8,7 +8,6 @@ import {
   PAGE_STEP,
   pageLabel,
   pagesOf,
-  spineWidthForPages,
   spreadsForPages,
 } from './pages'
 import { makeBook, makeFrame, makeSpread } from './testing/fixtures'
@@ -88,13 +87,11 @@ describe('pageLabel', () => {
 })
 
 describe('spine width', () => {
-  it('is 8 mm of boards plus 0.2 mm per page, padded to the 20-page block', () => {
-    expect(spineWidthForPages(0)).toBe(12)
-    expect(spineWidthForPages(20)).toBe(12)
-    expect(spineWidthForPages(22)).toBe(12.4)
-    expect(spineWidthForPages(42)).toBe(16.4)
-    expect(spineWidthForPages(120)).toBe(32)
-    expect(spineWidthForPages(140)).toBe(32)
+  it('is the generic profile: 8 mm of boards plus 0.2 mm per page, padded to the 20-page block', () => {
+    // Spreads → pages: 1 → 1, 11 → 20, 12 → 22, 22 → 42, 61 → 120, 71 → 140.
+    expect(
+      [1, 11, 12, 22, 61, 71].map((n) => bookSpineWidthMm(bookWith(n))),
+    ).toEqual([12, 12, 12.4, 16.4, 32, 32])
   })
 
   it('follows the page count and ignores the stored cover width', () => {

@@ -343,6 +343,171 @@ test('a handle drag on a selected copy keeps it selected, the ring tracks, Delet
   await assertDocumentFitsViewport(page)
 })
 
+// parent-overrides-inspector (Designer PO4, PO6, PO7).
+async function rightClickCentre(page: Page, target: Locator) {
+  const box = await boxOf(target)
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, {
+    button: 'right',
+  })
+}
+
+const parentChanges = (page: Page) => page.getByTestId('parent-changes')
+const changeRows = (page: Page) => page.getByTestId('parent-change-row')
+const menuPopover = (page: Page) => page.locator('.pb-menu-popover')
+
+/** PO4: every parent-menu row is one 30.84 px line; the menu is ≥ 224 px. */
+async function expectOneLineRows(page: Page) {
+  const rows = page.getByTestId('parent-menu').getByRole('menuitem')
+  await expect(rows).toHaveCount(2)
+  for (const row of await rows.all()) {
+    expect(Math.abs((await boxOf(row)).height - 30.84)).toBeLessThanOrEqual(0.5)
+  }
+  expect((await boxOf(menuPopover(page))).width).toBeGreaterThanOrEqual(224)
+}
+
+test('the parent menu overrides and hides the logo; the head ↺ and a row ↺ restore it', async ({
+  page,
+}) => {
+  const a = 'painter-spread-2'
+  await openSpread(page, a)
+  // Empty: a spread that only inherits shows no changes list.
+  await expect(page.getByTestId('inspector-context')).toHaveText('Spread')
+  await expect(page.getByTestId('spread-spacing')).toBeVisible()
+  await expect(parentChanges(page)).toHaveCount(0)
+  const logo = inheritedLogo(page, a)
+  const logoBox = await boxOf(logo)
+
+  // Happy: right-click → Override on this spread → the copy is selected.
+  await rightClickCentre(page, logo)
+  const menu = page.getByTestId('parent-menu')
+  await expect(menu).toHaveAttribute('aria-label', 'Parent item')
+  await expect(menu.getByRole('menuitem')).toHaveText([
+    /^Override on this spread(Ctrl\+Shift\+Click|⌘⇧Click)$/,
+    'Hide on this spread',
+  ])
+  await expectOneLineRows(page)
+  await page.getByTestId('parent-menu-override').click()
+  const copy = copyOf(page, a)
+  await expect(copy).toHaveCount(1)
+  await expect(copy).toHaveAttribute('aria-pressed', 'true')
+  await expect(inheritedLogo(page, a)).toHaveCount(0)
+  expect(await boxOf(copy)).toEqual(logoBox)
+  await expect(page.getByTestId('inspector-override-meta')).toHaveText(
+    'Override · Master A',
+  )
+  const reset = page.getByTestId('inspector-reset-parent')
+  const resetBox = await boxOf(reset)
+  expect([resetBox.width, resetBox.height]).toEqual([28, 28])
+
+  // The head ↺ removes the copy; the inspector is back on the spread.
+  await reset.click()
+  await expect(copyOf(page, a)).toHaveCount(0)
+  await expect(inheritedLogo(page, a)).toHaveCount(1)
+  await expect(page.getByTestId('inspector-context')).toHaveText('Spread')
+  await expect(parentChanges(page)).toHaveCount(0)
+
+  // Interact: Hide on this spread → listed as hidden; its ↺ brings it back.
+  await rightClickCentre(page, inheritedLogo(page, a))
+  await page.getByTestId('parent-menu-hide').click()
+  await expect(inheritedLogo(page, a)).toHaveCount(0)
+  await expect(parentChanges(page)).toContainText('Changed from Master A')
+  await expect(changeRows(page)).toHaveText(['Photo frame· hidden'])
+  const row = await boxOf(changeRows(page))
+  expect(row.height).toBe(28)
+  await page
+    .getByRole('button', { name: 'Reset Photo frame to Master A' })
+    .click()
+  await expect(inheritedLogo(page, a)).toHaveCount(1)
+  expect(await boxOf(inheritedLogo(page, a))).toEqual(logoBox)
+  await expect(parentChanges(page)).toHaveCount(0)
+  // Other spreads never changed.
+  await openSpread(page, 'painter-spread-3')
+  await expect(parentChanges(page)).toHaveCount(0)
+  await assertDocumentFitsViewport(page)
+})
+
+test('a copy menu reads Reset / Hide / Lock; Reset all restores the moved logo', async ({
+  page,
+}) => {
+  const a = 'painter-spread-2'
+  await openSpread(page, a)
+  const logoBox = await boxOf(inheritedLogo(page, a))
+  await overrideDrag(page, inheritedLogo(page, a), 30)
+  const copy = copyOf(page, a)
+  await expect
+    .poll(async () => (await boxOf(copy)).x - logoBox.x)
+    .toBeCloseTo(30, 0)
+
+  await rightClickCentre(page, copy)
+  await expect(page.getByTestId('frame-menu').getByRole('menuitem')).toHaveText(
+    ['Reset to parent', 'Hide on this spread', /^Lock/],
+  )
+  // The frame menu keeps the kit's fixed 224 px.
+  expect((await boxOf(menuPopover(page))).width).toBeCloseTo(224, 0)
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('frame-menu')).toHaveCount(0)
+
+  // The spread inspector lists the override; Reset all puts the logo back.
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('inspector-context')).toHaveText('Spread')
+  await expect(changeRows(page)).toHaveText(['Photo frame· override'])
+  await page.getByTestId('parent-reset-all').click()
+  await expect(copyOf(page, a)).toHaveCount(0)
+  expect(await boxOf(inheritedLogo(page, a))).toEqual(logoBox)
+  await expect(parentChanges(page)).toHaveCount(0)
+
+  // Hide from the copy menu: neither copy nor logo; Reset all again.
+  await overrideDrag(page, inheritedLogo(page, a), 0)
+  await rightClickCentre(page, copyOf(page, a))
+  await page.getByTestId('frame-menu-hide-parent').click()
+  await expect(copyOf(page, a)).toHaveCount(0)
+  await expect(inheritedLogo(page, a)).toHaveCount(0)
+  await expect(changeRows(page)).toHaveText(['Photo frame· hidden'])
+  await page.getByTestId('parent-reset-all').click()
+  await expect(inheritedLogo(page, a)).toHaveCount(1)
+  await expect(parentChanges(page)).toHaveCount(0)
+})
+
+test('the parent guide menu has the item rows and press hint on one line each', async ({
+  page,
+}) => {
+  // A horizontal guide pulled onto Master A near the bottom trim, off frames.
+  await page.getByTestId('left-tab-masters').click()
+  const master = page.getByTestId('masters-canvas')
+  const masterSpread = master.getByTestId('spread-view')
+  await expect(masterSpread).toBeVisible()
+  await page.keyboard.press('Shift+R')
+  const ruler = await boxOf(master.getByTestId('ruler-x'))
+  const masterBox = await boxOf(masterSpread)
+  const x = masterBox.x + masterBox.width * 0.25
+  await page.mouse.move(x, ruler.y + ruler.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(x, masterBox.y + masterBox.height * 0.98, { steps: 6 })
+  await page.mouse.up()
+  await expect(master.getByTestId('guide-line')).toHaveCount(1)
+  await page.getByTestId('left-tab-pages').click()
+
+  const a = 'painter-spread-2'
+  await openSpread(page, a)
+  const line = page
+    .getByTestId('pasteboard-scroll')
+    .locator(`[data-pasteboard-slot][data-spread-id="${a}"]`)
+    .getByTestId('guide-line-parent')
+  await expect(line).toHaveCount(1)
+  const spread = await boxOf(canvasSpread(page, a))
+  const lineBox = await boxOf(line)
+  await page.mouse.click(spread.x + 4, lineBox.y + lineBox.height / 2, {
+    button: 'right',
+  })
+  const menu = page.getByTestId('parent-menu')
+  await expect(menu).toHaveAttribute('aria-label', 'Parent guide')
+  await expect(menu.getByRole('menuitem')).toHaveText([
+    /^Override on this spread(Ctrl\+Shift\+Click|⌘⇧Click)$/,
+    'Hide on this spread',
+  ])
+  await expectOneLineRows(page)
+})
+
 test.describe('parent guides (Designer PO5)', () => {
   // `&guides=a`: Master A also has a horizontal guide at 150 mm and a
   // vertical one at 420 mm (the painter spread is 600 × 300 mm).
