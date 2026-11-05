@@ -82,7 +82,7 @@
   line-height: 1.25;
 }
 
-.export-site-dialog .export-site-footer .pb-button--ghost {
+.export-site-dialog .pb-button--ghost {
   color: var(--foreground);
 }
 

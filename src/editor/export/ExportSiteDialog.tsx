@@ -12,7 +12,7 @@ import {
   saveExportFolder,
   SESSION_FOLDER_KEY,
 } from './exportSiteFolder'
-import { CircleCheckGlyph, LoaderGlyph } from './exportSiteGlyphs'
+import { CircleCheckGlyph, FolderGlyph, LoaderGlyph } from './exportSiteGlyphs'
 import { otherPublishedTitles } from './exportSiteRun'
 import { exportSiteStore, type ExportSiteState } from './exportSiteStore'
 import {
@@ -28,7 +28,9 @@ export type ExportSiteStep = 'opts' | 'run' | 'done' | 'failed'
 
 type Outcome = Extract<ExportSiteState, { kind: 'done' | 'failed' }>
 
-const TEXT = 'mt-1 mb-0 text-sm text-muted-foreground'
+// Kit 13 px body lines: 18.85 px (1.45), not the text-sm default.
+const BODY = 'text-sm leading-[1.45]'
+const TEXT = `mt-1 mb-0 ${BODY} text-muted-foreground`
 const LABEL = 'text-xs leading-[1.4] text-muted-foreground'
 const FOOTER = 'export-site-footer mt-5 flex justify-end gap-2'
 
@@ -151,17 +153,17 @@ export function ExportSiteDialog({
                     onPress={() => void choose()}
                     data-testid="export-site-choose"
                   >
-                    <Icon name="folder" size={16} />
+                    <FolderGlyph />
                     Choose folder…
                   </Button>
                 ) : (
                   <>
                     <div className="flex items-center gap-2">
                       <div
-                        className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md bg-field px-3 text-sm shadow-xs"
+                        className={`flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md bg-field px-3 shadow-xs ${BODY}`}
                         data-testid="export-site-folder"
                       >
-                        <Icon name="folder" size={16} />
+                        <FolderGlyph />
                         <span className="truncate">{folder.name}</span>
                       </div>
                       <Button
@@ -183,7 +185,7 @@ export function ExportSiteDialog({
               </div>
               <div className="flex flex-col gap-1.5">
                 <span className={LABEL}>Books</span>
-                <p className="m-0 text-sm" data-testid="export-site-books">
+                <p className={`m-0 ${BODY}`} data-testid="export-site-books">
                   {exportBooksLine(title, others)}
                 </p>
               </div>
@@ -253,7 +255,9 @@ export function ExportSiteDialog({
                 To open it, serve the folder with a local web server, for
                 example:
               </span>
-              <div className="rounded-md bg-field px-3 py-2 font-mono text-sm">
+              <div
+                className={`rounded-md bg-field px-3 py-2 font-mono ${BODY}`}
+              >
                 npx serve dist
               </div>
             </div>

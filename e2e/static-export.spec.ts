@@ -356,6 +356,50 @@ test('exports every placed photo while a frame is dragged, with a steady pill', 
   expect(scroll).toEqual({ h: false, v: false })
 })
 
+test('Options text, Change… and folder icon match the kit', async ({
+  page,
+}) => {
+  await openFixture(page)
+  await useOpfsFolder(page, 'kit-type')
+
+  await openOptions(page, true)
+
+  const measured = await page.evaluate(() => {
+    const byTestId = (id: string) =>
+      document.querySelector<HTMLElement>(`[data-testid="${id}"]`)
+    const lineHeight = (el: Element | null) =>
+      el === null ? '' : getComputedStyle(el).lineHeight
+    const color = (el: Element | null) =>
+      el === null ? '' : getComputedStyle(el).color
+    const box = byTestId('export-site-dialog')?.getBoundingClientRect()
+    const go = byTestId('export-site-go')?.getBoundingClientRect()
+    return {
+      description: lineHeight(
+        byTestId('export-site-dialog')?.querySelector('p') ?? null,
+      ),
+      books: lineHeight(byTestId('export-site-books')),
+      folder: lineHeight(byTestId('export-site-folder')),
+      change: color(byTestId('export-site-change')),
+      folderIcon:
+        byTestId('export-site-folder')
+          ?.querySelector('svg path')
+          ?.getAttribute('d')
+          ?.slice(0, 6) ?? '',
+      footerTop: (go?.top ?? 0) - (box?.top ?? 0),
+    }
+  })
+  console.log(`static-export options: ${JSON.stringify(measured)}`)
+
+  // Kit ExportSiteDialog: 13/18.85 body lines, ghost #393738, lucide Folder.
+  expect(measured).toMatchObject({
+    description: '18.85px',
+    books: '18.85px',
+    folder: '18.85px',
+    change: 'rgb(57, 55, 56)',
+    folderIcon: 'M20 20',
+  })
+})
+
 test('a second export of the same book is byte-identical', async ({ page }) => {
   test.setTimeout(90_000)
   await openFixture(page)
