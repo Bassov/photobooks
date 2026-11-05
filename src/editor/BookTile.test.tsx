@@ -74,5 +74,8 @@ describe('BookTile', () => {
     expect(screen.getByTestId('custom-title')).toBeTruthy()
     expect(screen.getByTestId('book-menu-slot')).toBeTruthy()
     expect(screen.getByTestId('book-meta').textContent).toBe('1 page')
+    expect(
+      screen.getByTestId('library-book-b1').getAttribute('aria-label'),
+    ).toBe('Open Fog, 1 page')
   })
 })

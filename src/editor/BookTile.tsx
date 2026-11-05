@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { pagesOf } from '../core/pages'
+import { pagesOf, pagesText } from '../core/pages'
 import {
   bookCoverStageHeight,
   bookFloorBackground,
@@ -42,7 +42,7 @@ export function BookTile({
         type="button"
         onClick={onOpen}
         className="pb-lib-book block w-full cursor-pointer"
-        aria-label={`Open ${book.displayTitle}, ${String(pageCount)} pages`}
+        aria-label={`Open ${book.displayTitle}, ${pagesText(pageCount)}`}
         data-testid={`library-book-${book.id}`}
       >
         <div
