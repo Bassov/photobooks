@@ -473,11 +473,32 @@ describe('preflight', () => {
     })
   })
 
-  it('checks 100 spreads in under 5 ms', () => {
-    const run = () => {
-      const book = bookWith([], 198)
+  // Cheap enough to run on every edit: each added spread costs the same, so
+  // going 50 → 100 spreads adds twice the work of 25 → 50 (counted lookups,
+  // not wall clock, which flakes on a shared CI runner).
+  it('does constant work per added spread (25, 50, 100 spreads)', () => {
+    const run = (pages: number) => {
+      const book = bookWith([], pages)
+      let assetReads = 0
+      let statusReads = 0
+      const assets = new Proxy(book.assets, {
+        get: (target, key, receiver) => {
+          assetReads += 1
+          return Reflect.get(target, key, receiver) as unknown
+        },
+      })
+      const countingStatus = new (class extends Map<
+        string,
+        PreflightAssetStatus
+      > {
+        override get(id: string) {
+          statusReads += 1
+          return super.get(id)
+        }
+      })()
       const filled: Book = {
         ...book,
+        assets,
         spreads: book.spreads.map((spread) => ({
           ...spread,
           frames: [
@@ -496,18 +517,39 @@ describe('preflight', () => {
           ],
         })),
       }
-      const start = performance.now()
-      const issues = preflight(filled, generic)
-      const elapsed = performance.now() - start
-      expect(issues.length).toBeGreaterThan(100)
-      return elapsed
+      const issues = preflight(filled, generic, { assetStatus: countingStatus })
+      return {
+        spreads: book.spreads.length,
+        // Page-count issues are book-level: 198 pages is above the max.
+        issues: issues.filter((found) => !found.rule.startsWith('page-count'))
+          .length,
+        assetReads,
+        statusReads,
+      }
     }
+    const added = (from: Work, to: Work): Work => ({
+      spreads: to.spreads - from.spreads,
+      issues: to.issues - from.issues,
+      assetReads: to.assetReads - from.assetReads,
+      statusReads: to.statusReads - from.statusReads,
+    })
+    type Work = ReturnType<typeof run>
 
-    // Warm the JIT, then keep the best of fresh books (no memo hits) so a
-    // loaded machine does not fail the budget on one slow run.
-    run()
-    const best = Math.min(run(), run(), run(), run(), run())
+    const quarter = run(48)
+    const half = run(98)
+    const full = run(198)
+    const first = added(quarter, half)
+    const second = added(half, full)
 
-    expect(best).toBeLessThan(5)
+    expect([quarter.spreads, half.spreads, full.spreads]).toEqual([25, 50, 100])
+    // Two photos per added spread: one status lookup each, never a rescan.
+    expect(first.statusReads).toBe(2 * first.spreads)
+    // Twice the added spreads cost exactly twice the added work (affine).
+    expect(second).toEqual({
+      spreads: 2 * first.spreads,
+      issues: 2 * first.issues,
+      assetReads: 2 * first.assetReads,
+      statusReads: 2 * first.statusReads,
+    })
   })
 })
