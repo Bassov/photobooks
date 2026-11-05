@@ -1,4 +1,4 @@
-import type { Book, SavedTemplate } from '../core'
+import type { Book, PrintProfile, SavedTemplate } from '../core'
 
 export type PublishStatus = 'draft' | 'published'
 
@@ -9,11 +9,15 @@ export interface BookPublishEntry {
 
 /**
  * `library.json` content; `books` absent reads as an empty map, `templates`
- * (the user's saved layouts, in save order) as an empty list.
+ * (the user's saved layouts, in save order) and `printProfiles` (custom
+ * printer profiles) as empty lists, `defaultPrintProfileId` as `generic`.
  */
 export interface LibraryMeta {
   books?: Readonly<Record<string, BookPublishEntry>>
   templates?: readonly SavedTemplate[]
+  printProfiles?: readonly PrintProfile[]
+  /** Profile of new books; an id that no longer resolves means Generic. */
+  defaultPrintProfileId?: string
 }
 
 export interface BookSummary {

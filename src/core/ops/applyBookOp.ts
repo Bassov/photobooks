@@ -81,7 +81,8 @@ import {
   syncPageNumbers,
   type PageNumberPosition,
 } from '../pageNumbers'
-import { setTrim } from './bookSettings'
+import type { PrintProfile } from '../print/profileSchema'
+import { setPrintProfile, setTrim } from './bookSettings'
 import {
   applyFrameStyle,
   editFrameStyle,
@@ -273,6 +274,12 @@ export type BookOp =
   | { type: 'setCoverPhoto'; assetId: string }
   | { type: 'setCoverStyle'; patch: Partial<CoverStyle> }
   | { type: 'setTrim'; widthMm: number; heightMm: number }
+  | {
+      type: 'setPrintProfile'
+      id: string
+      /** The library's custom profiles (a custom `id` resolves here). */
+      customs?: readonly PrintProfile[]
+    }
   | { type: 'setEndpapersEnabled'; enabled: boolean }
   | { type: 'setEndpapersSame'; same: boolean }
   | {
@@ -477,6 +484,8 @@ function applyRaw(book: Book, op: BookOp): Book {
       return syncPageNumbers(
         setTrim(book, { widthMm: op.widthMm, heightMm: op.heightMm }),
       )
+    case 'setPrintProfile':
+      return setPrintProfile(book, op.id, op.customs)
     case 'setEndpapersEnabled':
       return setEndpapersEnabled(book, op.enabled)
     case 'setEndpapersSame':

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryDerivedCache, setDerivedCacheForTests } from '../assets'
-import { makeBook } from '../core/testing/fixtures'
+import { makeBook, makeCustomPrintProfile } from '../core/testing/fixtures'
 import assert from 'node:assert/strict'
 import {
   createMemoryLibraryStorage,
@@ -457,6 +457,43 @@ describe('projectSession', () => {
     expect(getEditorStatus()).toMatch(/folder access|grant access/i)
     expect(getEditorStatus()).not.toContain('permission-required')
     expect(getProjectSessionSnapshot().accessPhase).toBe('permission-required')
+  })
+
+  it('createBookInLibrary starts on the library default profile, else Generic 3 / 5 mm', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({ session, createStorage: () => storage })
+    expect((await attachLibraryForTests({ storage, session })).ok).toBe(true)
+
+    const generic = await createBookInLibrary('Generic')
+    assert(generic.ok, 'expected a Generic book')
+    expect(generic.value.printProfile).toEqual({ id: 'generic', overrides: {} })
+    expect(generic.value.settings).toMatchObject({
+      bleedMm: 3,
+      safeMarginMm: 5,
+    })
+
+    const custom = makeCustomPrintProfile()
+    await storage.updateLibrary({
+      printProfiles: [custom],
+      defaultPrintProfileId: custom.id,
+    })
+    const lab = await createBookInLibrary('Lab')
+    assert(lab.ok, 'expected a custom-profile book')
+    expect(lab.value.printProfile).toEqual({
+      id: custom.id,
+      overrides: {},
+      snapshot: custom,
+    })
+    expect(lab.value.settings).toMatchObject({
+      bleedMm: 3.175,
+      safeMarginMm: 12.7,
+    })
+
+    await storage.updateLibrary({ defaultPrintProfileId: 'gone' })
+    const gone = await createBookInLibrary('Gone')
+    assert(gone.ok, 'expected a Generic book for an unknown default')
+    expect(gone.value.printProfile).toEqual({ id: 'generic', overrides: {} })
   })
 
   it('createBookInLibrary stores title, trim, and rename updates it', async () => {

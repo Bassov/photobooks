@@ -41,10 +41,41 @@ export function pageLabel(
   return `${String(i * 2)}–${String(i * 2 + 1)}`
 }
 
-/** A typed page count: nearest even number inside 20–120; NaN stays NaN. */
-export function clampPageCount(pages: number): number {
-  const even = Math.round(pages / PAGE_STEP) * PAGE_STEP
-  return Math.min(PAGE_MAX, Math.max(PAGE_MIN, even))
+/** Page counts the Pages field accepts: `min`, `min + step`, … `max`. */
+export interface PageCountRange {
+  min: number
+  step: number
+  max: number
+}
+
+const EDITOR_PAGE_RANGE: PageCountRange = {
+  min: PAGE_MIN,
+  step: PAGE_STEP,
+  max: PAGE_MAX,
+}
+
+/**
+ * Spec D5: the Pages field of a book on `profile` runs from 20 in the
+ * profile's step (rounded up to whole spreads) up to the last step within
+ * `min(120, profile max)`; a fewer-pages profile minimum is a warning only.
+ */
+export function pageCountRange(profile: {
+  pageCount: { step: number; max: number }
+}): PageCountRange {
+  const step = Math.ceil(profile.pageCount.step / PAGE_STEP) * PAGE_STEP
+  const top = Math.min(PAGE_MAX, profile.pageCount.max)
+  const steps = Math.max(0, Math.floor((top - PAGE_MIN) / step))
+  return { min: PAGE_MIN, step, max: PAGE_MIN + steps * step }
+}
+
+/** A typed page count: the nearest step inside `range`; NaN stays NaN. */
+export function clampPageCount(
+  pages: number,
+  range: PageCountRange = EDITOR_PAGE_RANGE,
+): number {
+  const onStep =
+    range.min + Math.round((pages - range.min) / range.step) * range.step
+  return Math.min(range.max, Math.max(range.min, onStep))
 }
 
 /**
