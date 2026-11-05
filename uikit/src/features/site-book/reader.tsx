@@ -27,8 +27,8 @@ const bezier = (x1: number, y1: number, x2: number, y2: number) => {
     return ((ay * u + by) * u + cy) * u
   }
 }
-const TURN = bezier(0.45, 0.05, 0.25, 1)
-const EASE = bezier(0.2, 0.7, 0.2, 1)
+export const TURN = bezier(0.45, 0.05, 0.25, 1)
+export const EASE = bezier(0.2, 0.7, 0.2, 1)
 const OUT = bezier(0, 0, 0.58, 1)
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches
 const fine = () => matchMedia("(hover: hover) and (pointer: fine)").matches
@@ -58,7 +58,7 @@ function Paper({ x, w }: { x?: number; w?: number }) {
 type Geo = { b: SiteBook; W: number; H: number; pw: number; n: number; board: string; paper: boolean; BD: number; eMax: number; tE: number }
 /** the closed Book3D's thickness at s px/cm (book3d.tsx `thick()`) */
 const thick = (b: SiteBook, s: number) => Math.max(12, (0.6 + (pagesOf(b) / 2) * 0.1) * s)
-function geoOf(b: SiteBook, W: number, H: number, n: number, board: string, paper: boolean): Geo {
+export function geoOf(b: SiteBook, W: number, H: number, n: number, board: string, paper: boolean): Geo {
   const sr = W / (2 * b.w), BD = clamp(0.3 * sr, 3, 8)
   const eMax = clamp(0.45 * (thick(b, sr) - 2 * 0.25 * sr), 3, 14)
   return { b, W, H, pw: W / 2, n, board, paper, BD, eMax, tE: clamp(0.35 * eMax, 2, 5) }

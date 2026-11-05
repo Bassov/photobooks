@@ -243,7 +243,7 @@
   overflow-y: auto;
 }
 .ss-fade {
-  transition: opacity 400ms var(--ease);
+  transition: opacity 240ms var(--ease-out);
 }
 .ss-fade[data-off] {
   opacity: 0;

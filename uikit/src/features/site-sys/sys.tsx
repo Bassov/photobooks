@@ -4,8 +4,8 @@
    site-demo-1; `?books=1|3|6|12` from the v2 work. 1 book = BookPage as the home page. */
 import * as React from 'react'
 import { Book3D } from '../site-demo-1/book3d'
-import { AUTHOR, EMAIL, pagesOf, SPREAD_R, viewLabel, viewsOf, type SiteBook } from '../site-demo-1/data'
-import { BookReader, type ReaderApi } from '../site-demo-1/reader'
+import { AUTHOR, EMAIL, pagesOf, type SiteBook } from '../site-demo-1/data'
+import { ReadingRoom } from '../site-book/room'
 import { COUNTS, metaOf, reduced, useBooks, useBox, type Box } from '../site-demo-1/v2'
 import '../site-demo-1/site.css'
 import './system.css'
@@ -176,23 +176,14 @@ type BookPageProps = {
 /** The book page (same for 6–9): cover on the left 6 columns; title t44, meta t13, statement t16, "Open the book" at
     column 7; "Open" opens the reader in place (the cover and text fade, the spread comes in and the cover opens). */
 export function BookPage({ b, books, box, g, dark, reading, setReading, view, setView, onBack, next, onNext }: BookPageProps) {
-  const api = React.useRef<ReaderApi>(null), openBtn = React.useRef<HTMLButtonElement>(null), hostRef = React.useRef<HTMLDivElement>(null)
-  const nar = g.narrow, top = nar ? 64 : 72, foot = nar ? 104 : 96
+  const openBtn = React.useRef<HTMLButtonElement>(null)
+  const nar = g.narrow, top = nar ? 64 : 72
   // cover: honest scale across the set
   const s = nar ? fitScale(books, g.span(4) * 0.66, (box.h - 360) * 0.75) : fitScale(books, g.span(6) * 0.72, box.h - 280)
   const W = b.w * s, H = b.h * s
   const cy = nar ? 0 : top + (box.h - top - 64) / 2
-  // reader box
-  const R = SPREAD_R[b.fmt]
-  const rw = Math.max(200, Math.min(nar ? g.span(4) : g.span(10), (box.h - top - foot) * R)), rh = rw / R
-  const rTop = top + (box.h - top - foot - rh) / 2
-  const label = viewLabel(b, view), last = viewsOf(b) - 1
-  React.useEffect(() => {
-    if (!reading) { openBtn.current?.focus({ preventScroll: true }); return }
-    hostRef.current?.querySelector<HTMLElement>('[role="region"]')?.focus({ preventScroll: true })
-    const t = setTimeout(() => api.current?.go(1), reduced() ? 0 : 250)
-    return () => clearTimeout(t)
-  }, [reading])
+  // the room focuses the book on open and returns focus to its trigger on close
+  React.useEffect(() => { openBtn.current?.focus({ preventScroll: true }) }, [])
   const text = (
     <>
       <h1 className={nar ? 'm28' : 't44'} data-testid="ss-title">{b.title}</h1>
@@ -207,7 +198,7 @@ export function BookPage({ b, books, box, g, dark, reading, setReading, view, se
     </button>
   )
   return (
-    <div ref={hostRef} className="ss-layer" data-testid="ss-book" data-book={b.id} data-reading={reading ? '' : undefined}>
+    <div className="ss-layer" data-testid="ss-book" data-book={b.id} data-reading={reading ? '' : undefined}>
       <div className={`ss-fade ss-layer${nar ? ' ss-scroll' : ''}`} data-off={reading ? '' : undefined} inert={reading}>
         {nar ? (
           <div style={{ padding: `${top + 24}px ${g.M}px 64px` }}>
@@ -226,19 +217,7 @@ export function BookPage({ b, books, box, g, dark, reading, setReading, view, se
           </>
         )}
       </div>
-      {reading && (
-        <div className="ss-page" style={{ zIndex: 1 }} data-testid="ss-reader-page">
-          <div className="ss-abs" style={{ left: (box.w - rw) / 2, top: rTop, width: rw }} data-testid="ss-reader" data-view={view}>
-            <BookReader ref={api} b={b} view={view} onView={setView} width={rw} dark={dark} />
-          </div>
-          <div className="ss-abs" style={{ left: g.M, right: g.M, top: rTop + rh + (nar ? 24 : 32), display: 'flex', justifyContent: 'center', alignItems: 'baseline', gap: nar ? 24 : 40 }}>
-            <button type="button" className={`${nar ? 'm15' : 't16'} g ss-tx`} style={{ minHeight: 44 }} disabled={view <= 0} onClick={() => api.current?.go(-1)}>Previous</button>
-            <span className="t13 g" data-testid="ss-label">{label}{label.startsWith('Page') && ` of ${pagesOf(b)}`}</span>
-            <button type="button" className={`${nar ? 'm15' : 't16'} g ss-tx`} style={{ minHeight: 44 }} disabled={view >= last} onClick={() => api.current?.go(1)}>Next</button>
-          </div>
-          <button type="button" className={`ss-abs ${nar ? 'm15' : 't16'} g ss-tx`} style={{ left: g.M, bottom: nar ? 40 : 20, minHeight: nar ? 44 : undefined }} onClick={() => setReading(false)} data-testid="ss-close">Close the book</button>
-        </div>
-      )}
+      {reading && <ReadingRoom b={b} view={view} setView={setView} onClose={() => setReading(false)} dark={dark} box={box} />}
     </div>
   )
 }
