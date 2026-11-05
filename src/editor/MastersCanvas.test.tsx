@@ -1,7 +1,11 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, assert, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeFrame } from '../core/testing/fixtures'
-import { resetBookStore } from './bookStore'
+import {
+  dispatchBookOp,
+  getBookStoreSnapshot,
+  resetBookStore,
+} from './bookStore'
 import { getFrameSource, setFrameSource } from './frameSelection'
 import { MastersCanvas } from './MastersCanvas'
 import { setRulersVisible } from './rulersView'
@@ -175,5 +179,57 @@ describe('MastersCanvas fit', () => {
     const view = screen.queryByTestId('spread-view')
     expect(view?.style.width ?? null).toBe(cssWidth)
     expect(view?.style.height ?? null).toBe(cssHeight)
+  })
+
+  // Designer page-numbers: a `#` chip per folio box at the canvas px/mm.
+  it('marks each folio box with a true-scale # chip, anchored per align', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(380)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
+    loadParents(['p1'])
+    setLeftPanelTab('masters')
+    render(<MastersCanvas />)
+    expect(screen.queryByTestId('master-pn')).toBeNull()
+
+    // (380 − 80) / 600 mm → 0.5 px/mm.
+    const chips = () => screen.getAllByTestId('master-pn')
+    const items = () => getBookStoreSnapshot().book.parents?.[0]?.pageNumbers
+    act(() => {
+      dispatchBookOp({
+        type: 'setParentPageNumbers',
+        parentId: 'p1',
+        position: 'outer',
+      })
+    })
+    const [left, right] = items() ?? []
+    assert(left !== undefined && right !== undefined)
+    expect(chips().map((chip) => chip.textContent)).toEqual(['#', '#'])
+    expect(chips().map((chip) => chip.dataset.align)).toEqual(['left', 'right'])
+    const [l, r] = chips()
+    assert(l !== undefined && r !== undefined)
+    expect(l.className).toBe('masters-folio-chip')
+    expect([l.style.left, l.style.top, l.style.transform]).toEqual([
+      `${String(left.rect.x * 0.5)}px`,
+      `${String(left.rect.y * 0.5)}px`,
+      '',
+    ])
+    expect([l.style.fontSize, l.style.padding]).toEqual(['1.55px', '0px 0.5px'])
+    expect([r.style.left, r.style.transform]).toEqual([
+      `${String((right.rect.x + 20) * 0.5)}px`,
+      'translateX(-100%)',
+    ])
+
+    act(() => {
+      dispatchBookOp({
+        type: 'setParentPageNumbers',
+        parentId: 'p1',
+        position: 'centre',
+      })
+    })
+    const [centre] = items() ?? []
+    assert(centre !== undefined)
+    expect([chips()[0]?.style.left, chips()[0]?.style.transform]).toEqual([
+      `${String((centre.rect.x + 10) * 0.5)}px`,
+      'translateX(-50%)',
+    ])
   })
 })

@@ -203,10 +203,9 @@ describe('Book settings header and pages', () => {
         title.className,
       ]),
     ).toEqual(
-      ['Page size', 'Binding', 'Print', 'Defaults'].map((name) => [
-        name,
-        'inspector-eyebrow inspector-sec-title',
-      ]),
+      ['Page size', 'Binding', 'Page numbers', 'Print', 'Defaults'].map(
+        (name) => [name, 'inspector-eyebrow inspector-sec-title'],
+      ),
     )
   })
 })

@@ -9,6 +9,10 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
+import {
+  isBookSettingsSelected,
+  setBookSettingsSelected,
+} from './bookSettingsSelection'
 import { FIELD, SUB, T } from './editorChromeTokens'
 import { getFrameSource, setFrameSource } from './frameSelection'
 import { LeftPanel } from './LeftPanel'
@@ -92,6 +96,18 @@ describe('LeftPanel', () => {
     expect(kept).toEqual({ spreadId: 'spread-1', frameId: 'frame-1' })
     expect(getFrameSource()).toBeNull()
   })
+
+  it('switching modes closes Book settings; the same tab keeps it', () => {
+    render(<LeftPanel />)
+    setBookSettingsSelected(true)
+
+    fireEvent.click(screen.getByTestId('left-tab-pages'))
+    const kept = isBookSettingsSelected()
+    fireEvent.click(screen.getByTestId('left-tab-masters'))
+
+    expect(kept).toBe(true)
+    expect(isBookSettingsSelected()).toBe(false)
+  })
 })
 
 describe('MastersPanel', () => {
@@ -142,11 +158,13 @@ describe('MastersPanel', () => {
     setLeftPanelTab('masters')
     render(<LeftPanel />)
     setFrameSource({ spreadId: 'p1', frameId: 'logo' })
+    setBookSettingsSelected(true)
 
     fireEvent.click(screen.getByTestId('master-list-item-p2'))
 
     expect(getPickedParentId()).toBe('p2')
     expect(getFrameSource()).toBeNull()
+    expect(isBookSettingsSelected()).toBe(false)
   })
 
   it.each([

@@ -172,8 +172,9 @@ export function Inspector() {
     coverSelected || bookSelected || endpaperSide !== null
       ? null
       : (target ?? frameSource)
+  // Masters mode opens Book settings from the master's page-number hint.
   const framed: InspectorContext =
-    leftTab === 'masters'
+    leftTab === 'masters' && !bookSelected
       ? mastersContext(
           shownParentId(parents, pickedParentId),
           target ?? frameSource,

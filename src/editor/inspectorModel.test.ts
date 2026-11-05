@@ -3,6 +3,9 @@ import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import {
   ALIGN_REASON,
   alignState,
+  bookPageNumbersNote,
+  masterPageNumbersHint,
+  PAGE_NUMBER_FORMATS,
   DISTRIBUTE_REASON,
   inspectorView,
   multiSummary,
@@ -397,5 +400,52 @@ describe('parentUsage', () => {
     expect(parentUsageLabel(0)).toBe('Not used yet')
     expect(parentUsageLabel(1)).toBe('Used by 1 page')
     expect(parentUsageLabel(10)).toBe('Used by 10 pages')
+  })
+})
+
+// Designer page-numbers copy (master hint, Book settings note).
+describe('page number copy', () => {
+  const master = { id: 'pa', name: 'Master A', frames: [], guides: [] }
+
+  it('lists the formats in kit order', () => {
+    expect(PAGE_NUMBER_FORMATS).toEqual([
+      { id: 'decimal', label: '1, 2, 3' },
+      { id: 'lower-roman', label: 'i, ii, iii' },
+      { id: 'upper-roman', label: 'I, II, III' },
+    ])
+  })
+
+  it('hints the start, format and a blank page 1', () => {
+    expect(masterPageNumbersHint(makeBook())).toBe('Starts at 1 · 1, 2, 3')
+    expect(
+      masterPageNumbersHint(
+        makeBook({
+          pageNumbering: { start: 9, skipFirst: true, format: 'lower-roman' },
+        }),
+      ),
+    ).toBe('Starts at ix · i, ii, iii · page 1 blank')
+  })
+
+  it('notes no master until one prints, then page 1 or page 2', () => {
+    const none = 'No master prints page numbers yet. Turn them on in Masters.'
+    expect(bookPageNumbersNote(makeBook())).toBe(none)
+    expect(bookPageNumbersNote(makeBook({ parents: [master] }))).toBe(none)
+    const item = (side: 'l' | 'r') => ({
+      id: `pa-pn-${side}`,
+      rect: { x: 0, y: 0, width: 20, height: 4.34 },
+      align: 'left' as const,
+    })
+    const printed = { ...master, pageNumbers: [item('l'), item('r')] }
+    expect(bookPageNumbersNote(makeBook({ parents: [master, printed] }))).toBe(
+      'Page 1 is 1',
+    )
+    expect(
+      bookPageNumbersNote(
+        makeBook({
+          parents: [printed],
+          pageNumbering: { start: 3, skipFirst: true, format: 'upper-roman' },
+        }),
+      ),
+    ).toBe('Page 1 has no number · page 2 is IV')
   })
 })
