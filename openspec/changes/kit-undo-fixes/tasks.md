@@ -10,3 +10,10 @@
 1. Kit `#/demo` editor: duplicate spread 3, Ctrl+Z → spread 3 highlighted, Shift+Ctrl+Z → copy highlighted.
 2. Focus the Live caption Switch (Tab), Ctrl+Z → last op undone.
 3. Ctrl+Z in the inspector Text field → doc history unchanged.
+
+Agent manual-qa drives prod editor-shell only (no kit route), so the kit scenarios are covered by Playwright in the browser:
+
+- OK 1: `e2e/kit-undo-fixes.spec.ts` "undo of Duplicate spread…" — p3 selected after Ctrl+Z, p4 after Shift+Ctrl+Z; row pixel `#CACACA` on p3, not on p4.
+- OK 2: "Ctrl+Z with a focused Switch…" — Align back to Left, redo to Center.
+- OK 3: "Ctrl+Z inside the Text field…" — Align stays Center, Redo disabled.
+- OK kit `pnpm uikit:qa:quick`: 421 passed, 0 failed, no console errors.
