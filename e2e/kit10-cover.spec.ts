@@ -10,6 +10,7 @@ import {
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
 import { openSessionEditor } from './fixtures/openSessionEditor'
+import { topAt } from './fixtures/paintProbe'
 
 // uikit/src/index.css + sandbox/v7.tsx: list selection #CACACA, field #D7D7D7;
 // CoverSpread fills back #3E3C3B, spine #353332, empty front #8E8E8E.
@@ -59,20 +60,16 @@ test('step 09: selecting the cover shows back · spine · front and the Cover in
   expect(Math.abs(b.width - f.width)).toBeLessThan(1)
   expect(s.width).toBeLessThan(b.width / 4)
 
-  // Nothing (e.g. the empty-pasteboard guidance) sits on top of the front.
+  // Nothing (e.g. the empty-pasteboard guidance) sits on top of the front;
+  // only the cover's own guides (cover-safe) may.
   await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const el = document.querySelector('[data-testid="cover-front"]')
-        const r = el?.getBoundingClientRect()
-        if (!r) return false
-        const hit = document.elementFromPoint(
-          r.left + r.width / 2,
-          r.top + r.height / 2,
-        )
-        return el?.contains(hit) ?? false
-      }),
-    )
+    .poll(async () => {
+      const stack = await topAt(front)
+      const i = stack.findIndex((ids) => ids.includes('cover-front'))
+      return (
+        i >= 0 && stack.slice(0, i).every((ids) => ids.includes('canvas-cover'))
+      )
+    })
     .toBe(true)
 
   const inspector = page.getByTestId('insp-cover')
