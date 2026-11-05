@@ -15,4 +15,7 @@ pre-push:
     verify:
       # Stamp-aware: skip A+C1 only when AGENT_THIN_FINISH=1 (agent finish) + stage-11 stamp.
       # Hand-push always runs integrity && check:fast. Canary fails if tests mutate this repo.
-      run: pnpm exec ts-rig-ci hook-pre-push
+      # pr-policy ratchet diffs HEAD against the fork point, not the origin/main tip, so
+      # tests main added after the fork are not reported as deleted. An explicit
+      # GATE_RATCHET_BASE wins; no origin/main → empty → the rig falls back to the tip.
+      run: GATE_RATCHET_BASE="${GATE_RATCHET_BASE:-$(git merge-base HEAD origin/main 2>/dev/null)}" pnpm exec ts-rig-ci hook-pre-push
