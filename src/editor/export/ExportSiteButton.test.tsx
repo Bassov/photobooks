@@ -29,12 +29,17 @@ function pill(): HTMLElement {
   return screen.getByTestId('export-site')
 }
 
-async function progress(percent: number): Promise<void> {
+/** Report `percent`; wait for the pill and the status region (`announced` %). */
+async function progress(percent: number, announced = percent): Promise<void> {
   act(() => {
     exportSiteStore.dispatch({ type: 'progress', phase: 'render', percent })
   })
+  // The rAF-batched update renders outside act; the status follows an effect later.
   await waitFor(() => {
     expect(pill().textContent).toContain(`${String(percent)}%`)
+    expect(screen.getByRole('status').textContent).toBe(
+      `Exporting site, ${String(announced)}%`,
+    )
   })
 }
 
@@ -96,11 +101,8 @@ describe('ExportSiteButton', () => {
     })
     await progress(40)
 
-    await progress(49)
-    expect(screen.getByRole('status').textContent).toBe('Exporting site, 40%')
-
+    await progress(49, 40)
     await progress(50)
-    expect(screen.getByRole('status').textContent).toBe('Exporting site, 50%')
   })
 
   it('shows Exported and opens Done with the summary', () => {
