@@ -11,6 +11,7 @@ import { FolderPicker } from "@/features/screens"
 import type { Book } from "@/sandbox/store"
 import { PRESETS, pagesOf, fmtN } from "@/sandbox/v7"
 import { slug, useRun } from "./session"
+import { CATALOG, profileBleed, type KitProfile } from "./printProfiles"
 
 export type RunStep = "opts" | "run" | "done"
 /** #/demo Publish dialog: options → progress → link. */
@@ -51,9 +52,11 @@ export function PublishDialog({ title, onClose, onOpenSite = () => {}, initialSt
   )
 }
 /** #/demo Print dialog: options → progress → PDF ready. */
-export function PrintDialog({ book, spreads, title, onClose, initialStep = "opts", initialImposition = "2up", initialBleed = true }: {
-  book: Book; spreads: number; title: string; onClose: () => void; initialStep?: RunStep; initialImposition?: "single" | "2up" | "4up"; initialBleed?: boolean
+export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0], initialStep = "opts", initialImposition = "2up", initialBleed = true }: {
+  book: Book; spreads: number; title: string; onClose: () => void; /** the book's print profile (printer-presets; default Generic) */ profile?: KitProfile
+  initialStep?: RunStep; initialImposition?: "single" | "2up" | "4up"; initialBleed?: boolean
 }) {
+  const bleedMm = fmtN(profileBleed(profile))
   const [step, setStep] = React.useState<RunStep>(initialStep)
   // v0.8.1 (P2-5): print uses the book's real size and page count
   const size = `${fmtN(book.w)} × ${fmtN(book.h)} cm`
@@ -75,9 +78,10 @@ export function PrintDialog({ book, spreads, title, onClose, initialStep = "opts
           <p className="mt-1 text-sm text-muted-foreground">A PDF for a print shop or a home duplex printer.</p>
           <div className="mt-4 flex flex-col gap-3">
             <div className="flex items-center justify-between text-sm" data-testid="print-size"><span className="text-muted-foreground">Page size</span><span className="tabular-nums">{known ? known.name : "Custom"} · {size}</span></div>
+            <div className="flex items-center justify-between text-sm" data-testid="print-profile"><span className="text-muted-foreground">Printer</span><span>{profile.name}</span></div>
             <div className="flex flex-col gap-1.5"><span className="text-xs text-muted-foreground">Imposition (duplex)</span><Segmented label="Imposition" value={imp} onChange={setImp} items={[{ id: "single", label: "1 per sheet" }, { id: "2up", label: "2-up" }, { id: "4up", label: "4-up" }]} /></div>
-            <Checkbox isSelected={bleed} onChange={setBleed}>Add 3 mm bleed and crop marks</Checkbox>
-            <div className="text-xs text-muted-foreground" data-testid="print-summary">PDF · {pages} pages on {sheets} sheet{sheets > 1 ? "s" : ""}{imp !== "single" ? " printed both sides" : ""}{bleed ? " · bleed 3 mm" : ""}</div>
+            <Checkbox isSelected={bleed} onChange={setBleed}>Add {bleedMm} mm bleed and crop marks</Checkbox>
+            <div className="text-xs text-muted-foreground" data-testid="print-summary">PDF · {pages} pages on {sheets} sheet{sheets > 1 ? "s" : ""}{imp !== "single" ? " printed both sides" : ""}{bleed ? ` · bleed ${bleedMm} mm` : ""}</div>
           </div>
           <div className="mt-5 flex justify-end gap-2"><Button variant="ghost" size="md" className="px-4" onPress={onClose}>Cancel</Button><Button size="md" className="gap-1.5 px-4 [&_svg]:size-4" onPress={() => setStep("run")} data-testid="print-go">Export PDF</Button></div>
         </>}
