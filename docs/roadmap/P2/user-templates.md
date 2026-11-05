@@ -3,10 +3,11 @@
 Tag: feature
 Milestone: P2
 Title: your own layouts
+Status: done
 
 ## Scope
 
-- [ ] Save a spread as a template (frames normalized to trim, slot aspects); templates stored in `library.json` (versioned by `library-json-schema`); apply from the inspector Layout section (My templates tab); `multi-drop-fill` best fit can pick them
+- [x] Save a spread as a template (frames normalized to trim, slot aspects); templates stored in `library.json` (versioned by `library-json-schema`); apply from the inspector Layout section (My templates tab); `multi-drop-fill` best fit can pick them
 - **Browser check:** save a custom spread as a template, apply it to another spread; it survives a reload.
 - **Perf:** save / apply re-renders only the target spread; zero LoAF.
 - **Kit components:** `uikit#/feature/inspector` (`uikit/src/features/pages.tsx` page `inspector`); `LayoutSection` Save as template / My templates (`uikit/src/sandbox/context-inspector.tsx`)
@@ -17,4 +18,5 @@ Title: your own layouts
 - **Test:** unit / PBT for the pure logic; Playwright e2e for the interaction on the `?fixture=` editor; perf scenario per RULES
 - **Depends:** kit10-inspector-frame-spread, library-json-schema
 - **Audit 2026-11-02:** Save as template + My templates (rename / duplicate / delete) ship in #344 (`src/editor/savedTemplates.ts`, `LayoutSection.tsx:255`) but persist in `localStorage`; left: `library.json` storage, trim-normalized slot aspects check, `multi-drop-fill` best fit.
+- **Audit 2026-11-05:** the three left parts ship in #461 `user-templates-store` (`library.json` v3, trim-normalized slot-aspect PBT), #472 `user-templates-best-fit`, #477 `user-templates-picker`; save → apply → reload in `e2e/design-r2-layout-picker.spec.ts`; apply shares untouched spreads (`src/core/templates/custom.test.ts`).
 - **UI kit:** `uikit#/feature/inspector` (`uikit/src/features/pages.tsx` page `inspector`); `LayoutSection` Save as template / My templates (`uikit/src/sandbox/context-inspector.tsx`)
