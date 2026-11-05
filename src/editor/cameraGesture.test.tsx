@@ -530,6 +530,50 @@ describe('pasteboard camera gestures', () => {
     }
   })
 
+  it('refits override badges to the live zoom and clears the live fit on settle', async () => {
+    commitZoom(1, 0, 0)
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    // SpreadView's badge contract: the copy's layout px on a camera-frame node.
+    const badge = document.createElement('span')
+    badge.setAttribute('data-camera-frame', '')
+    badge.dataset.badgeW = '80'
+    badge.dataset.badgeH = '30'
+    scroll.append(badge)
+    const liveScale = () => Number(badge.style.getPropertyValue('--cam-scale'))
+
+    wheel(scroll, { deltaY: -240, ctrlKey: true })
+    await act(async () => {
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          resolve()
+        })
+      })
+    })
+    expect(liveScale()).toBeGreaterThan(1)
+    expect(badge.dataset.liveFit).toBe('full')
+
+    for (let index = 0; index < 4; index += 1) {
+      wheel(scroll, { deltaY: 240, ctrlKey: true })
+    }
+    await act(async () => {
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          resolve()
+        })
+      })
+    })
+    const scale = liveScale()
+    const fit =
+      30 * scale < 24.84 ? 'none' : 80 * scale < 74.42 ? 'icon' : 'full'
+    expect(scale).toBeLessThan(74.42 / 80)
+    expect(fit).not.toBe('full')
+    expect(badge.dataset.liveFit).toBe(fit)
+
+    await flushGesture()
+    expect(badge.hasAttribute('data-live-fit')).toBe(false)
+  })
+
   it('ignores zoom keys on text fields and commits nothing when unmounted mid-gesture', async () => {
     const view = render(<Pasteboard />)
     const scroll = screen.getByTestId('pasteboard-scroll')

@@ -12,6 +12,7 @@ import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import {
   arrangeOp,
   arrangeShortcut,
+  deleteFramesOp,
   frameLocked,
   installArrangeKeys,
   lockOp,
@@ -406,5 +407,81 @@ describe('set actions (2 or more selected)', () => {
       runSetArrangeAction(set('f1', 'f2'), { kind: 'z', move: 'backward' }),
     ).toBe(true)
     expect([layer('f0'), layer('f1'), layer('f2')]).toEqual([3, 1, 2])
+  })
+})
+
+describe('arrange on a local copy of a parent item', () => {
+  /** Spread s1 on Master A, own frames f0 / f1 and copy `copy-1` of the logo. */
+  function copyBook(): Book {
+    return applyBookOp(
+      makeBook({
+        parents: [
+          {
+            id: 'p1',
+            name: 'Master A',
+            frames: [makeFrame({ id: 'logo', z: 5 })],
+            guides: [],
+          },
+        ],
+        spreads: [
+          makeSpread({
+            id: 's1',
+            parentId: 'p1',
+            frames: [
+              makeFrame({ id: 'f0', z: 1 }),
+              makeFrame({ id: 'f1', z: 2 }),
+            ],
+          }),
+        ],
+      }),
+      {
+        type: 'overrideParentFrame',
+        spreadId: 's1',
+        parentFrameId: 'logo',
+        id: 'copy-1',
+      },
+    )
+  }
+  const copy = { spreadId: 's1', frameId: 'copy-1' }
+
+  it('locks a copy but offers it no z-order move', () => {
+    const book = copyBook()
+    expect(zMovesFor(book, copy)).toEqual([])
+    expect(arrangeOp(book, copy, { kind: 'z', move: 'front' })).toBeNull()
+    expect(arrangeOp(book, copy, { kind: 'lock' })).toEqual(lockOp(copy, true))
+    const locked = applyBookOp(book, lockOp(copy, true))
+    expect(frameLocked(locked, copy)).toBe(true)
+  })
+
+  it('locks a set with a copy; its z rows move the own frames only', () => {
+    const book = copyBook()
+    const mixed = { spreadId: 's1', frameIds: ['copy-1', 'f0'] }
+    expect(setArrangeOp(book, mixed, { kind: 'lock' })).toMatchObject({
+      frameIds: ['f0', 'copy-1'],
+      locked: true,
+    })
+    expect(
+      setZMovesFor(book, { spreadId: 's1', frameIds: ['copy-1'] }),
+    ).toEqual([])
+    expect(setZMovesFor(book, mixed)).toEqual(['front', 'forward'])
+  })
+
+  it('deletes a lone copy as hiding its parent item, anything else as removeFrames', () => {
+    const book = copyBook()
+    expect(deleteFramesOp(book, 's1', ['copy-1'])).toEqual({
+      type: 'hideParentItem',
+      spreadId: 's1',
+      parentItemId: 'logo',
+    })
+    expect(deleteFramesOp(book, 's1', ['f0'])).toEqual({
+      type: 'removeFrames',
+      spreadId: 's1',
+      frameIds: ['f0'],
+    })
+    expect(deleteFramesOp(book, 's1', ['copy-1', 'f0'])).toEqual({
+      type: 'removeFrames',
+      spreadId: 's1',
+      frameIds: ['copy-1', 'f0'],
+    })
   })
 })
