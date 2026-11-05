@@ -21,6 +21,7 @@ import {
   commitTextEdit,
   getSpreadOverflow,
   getSpreadTextEditKey,
+  getTextEditSource,
   registerTextDraft,
   setSpreadOverflow,
   subscribeTextEdit,
@@ -158,7 +159,8 @@ function TextEditBox({
   useLayoutEffect(() => {
     const el = ref.current
     if (el !== null) {
-      el.value = live.current.item.text.text
+      // A live caption edits its template; the canvas paints it resolved.
+      el.value = getTextEditSource() ?? live.current.item.text.text
       growBox(el, live.current)
       // Setting the value already put the caret at the end.
       el.focus({ preventScroll: true })

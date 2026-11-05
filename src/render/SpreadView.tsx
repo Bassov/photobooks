@@ -1,5 +1,6 @@
 import {
   createElement,
+  memo,
   useLayoutEffect,
   useRef,
   type CSSProperties,
@@ -458,20 +459,38 @@ function SpreadFolio({
   )
 }
 
-/** Text in its book style, whole lines only; `Empty text` is editor chrome. */
-function TextNode({
-  text,
-  heightMm,
-  pxPerMm,
-  editor,
-  thumb,
-}: {
+interface TextNodeProps {
   text: ResolvedText
   heightMm: number
   pxPerMm: number
   editor: boolean
   thumb: boolean
-}) {
+}
+
+/**
+ * Live captions resolve to a fresh object on every book change; a swap only
+ * repaints the captions whose string (or look) changed.
+ */
+function sameTextNode(a: TextNodeProps, b: TextNodeProps): boolean {
+  return (
+    a.text.text === b.text.text &&
+    a.text.styleId === b.text.styleId &&
+    a.text.align === b.text.align &&
+    a.heightMm === b.heightMm &&
+    a.pxPerMm === b.pxPerMm &&
+    a.editor === b.editor &&
+    a.thumb === b.thumb
+  )
+}
+
+/** Text in its book style, whole lines only; `Empty text` is editor chrome. */
+const TextNode = memo(function TextNode({
+  text,
+  heightMm,
+  pxPerMm,
+  editor,
+  thumb,
+}: TextNodeProps) {
   const placeholder = editor && text.text === ''
   return (
     <div
@@ -483,7 +502,7 @@ function TextNode({
       {placeholder ? 'Empty text' : text.text}
     </div>
   )
-}
+}, sameTextNode)
 
 function SpreadFrame({
   item,

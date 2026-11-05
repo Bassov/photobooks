@@ -141,11 +141,14 @@ export function ToggleSwitch({
   on,
   onChange,
   testId,
+  disabled = false,
 }: {
   label: string
   on: boolean
   onChange: (next: boolean) => void
   testId?: string
+  /** Stays focusable and announced; a click does nothing. */
+  disabled?: boolean
 }) {
   return (
     <button
@@ -153,10 +156,13 @@ export function ToggleSwitch({
       role="switch"
       aria-checked={on}
       aria-label={label}
+      aria-disabled={disabled || undefined}
       className="insp-toggle"
       data-testid={testId}
       onClick={() => {
-        onChange(!on)
+        if (!disabled) {
+          onChange(!on)
+        }
       }}
     >
       <span className="insp-toggle-knob" />

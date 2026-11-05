@@ -63,7 +63,7 @@ describe('Text inspector', () => {
     resetBookStore()
   })
 
-  it('a selected text frame opens Text: style, align, text, geometry, arrange, delete; no photo sections', () => {
+  it('a selected text frame opens Text: style, align, text, live, geometry, arrange, delete; no photo sections', () => {
     act(() => {
       setFrameSource(at)
     })
@@ -85,6 +85,23 @@ describe('Text inspector', () => {
       'value',
       'Hi',
     )
+    const live = within(section).getByTestId('live-caption')
+    expect(
+      within(live)
+        .getByRole('switch', { name: 'Live from photo metadata' })
+        .getAttribute('aria-checked'),
+    ).toBe('false')
+    expect(within(live).queryByTestId('live-caption-anchor')).toBeNull()
+    expect(
+      within(live)
+        .getAllByRole('button')
+        .map((chip) => [chip.textContent, chip.title]),
+    ).toEqual([
+      ['date', 'No photo in this frame'],
+      ['title', 'No photo in this frame'],
+      ['caption', 'No photo in this frame'],
+      ['camera', 'No photo in this frame'],
+    ])
     expect(screen.getByTestId('inspector-geometry-disclosure')).toBeDefined()
     expect(
       screen.getByTestId('inspector-arrange-disclosure').textContent,
@@ -274,5 +291,169 @@ describe('Text inspector', () => {
       false,
     )
     expect(isTextFrameTarget(book, null)).toBe(false)
+  })
+})
+
+describe('Live block', () => {
+  const lake = makeFrame({
+    id: 'a',
+    rect: { x: 10, y: 10, width: 60, height: 40 },
+    assetId: 'lake',
+  })
+  const other = makeFrame({
+    id: 'b',
+    rect: { x: 200, y: 10, width: 60, height: 40 },
+  })
+  const under: Frame = {
+    ...label,
+    rect: { x: 10, y: 52, width: 60, height: 14 },
+  }
+
+  function loadLive(frames: Frame[]) {
+    resetBookStore({
+      book: makeBook({
+        spreads: [makeSpread({ id: 's1', frames })],
+        assets: {
+          lake: {
+            relativePath: 'trip/IMG_0001.jpg',
+            capturedAt: '2025-07-12T08:35:00',
+            meta: { title: 'Morning on the lake' },
+          },
+        },
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    act(() => {
+      setFrameSource(at)
+    })
+    render(<Inspector />)
+  }
+
+  const liveSwitch = () =>
+    screen.getByRole('switch', { name: 'Live from photo metadata' })
+
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+    resetFrameSelection()
+    resetBookStore()
+  })
+
+  it('switch on anchors the nearest photo, off freezes the painted text; each one step', () => {
+    loadLive([lake, other, under])
+    expect(screen.getByTestId('live-token-date').title).toBe('12 Jul 2025')
+    expect(screen.getByTestId('live-token-caption').title).toBe(
+      'Not in this photo',
+    )
+    expect(screen.getByTestId('live-token-caption').dataset.missing).toBe(
+      'true',
+    )
+    expect(
+      screen.getByTestId('live-token-date').dataset.missing,
+    ).toBeUndefined()
+    fireEvent.click(liveSwitch())
+    expect(textFrame()).toMatchObject({
+      content: { type: 'template', template: 'Hi' },
+      anchorFrameId: 'a',
+    })
+    expect(getHistorySnapshot().undoLabel).toBe('Make caption live')
+    const anchor = screen.getByTestId('live-caption-anchor')
+    expect(anchor).toHaveProperty('value', 'a')
+    expect(
+      [...anchor.querySelectorAll('option')].map((o) => o.textContent),
+    ).toEqual(['Frame 1 · IMG_0001.jpg', 'Frame 2 · empty'])
+    expect(screen.getByText('Anchored to')).toBeDefined()
+
+    fireEvent.change(anchor, { target: { value: 'b' } })
+    expect(textFrame()?.anchorFrameId).toBe('b')
+    expect(getHistorySnapshot().undoLabel).toBe('Anchor caption')
+    expect(screen.getByTestId('live-token-date').title).toBe(
+      'No photo in this frame',
+    )
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Text' }), {
+      target: { value: '{date} at {camera}' },
+    })
+    expect(textFrame()?.content).toEqual({
+      type: 'template',
+      template: '{date} at {camera}',
+    })
+    fireEvent.click(liveSwitch())
+    expect(textFrame()?.content).toEqual({ type: 'static', text: '— at —' })
+    expect(textFrame()?.anchorFrameId).toBeUndefined()
+    expect(getHistorySnapshot().undoLabel).toBe('Make caption static')
+    expect(screen.queryByTestId('live-caption-anchor')).toBeNull()
+    act(() => {
+      undoBook()
+    })
+    expect(textFrame()).toMatchObject({
+      content: { type: 'template', template: '{date} at {camera}' },
+      anchorFrameId: 'b',
+    })
+  })
+
+  it('a chip turns Live on and appends with the separator in one Insert token step', () => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((run) => {
+      run(0)
+      return 0
+    })
+    loadLive([lake, under])
+    const steps = getHistorySnapshot().undoLabel
+    fireEvent.click(screen.getByTestId('live-token-date'))
+    expect(textFrame()).toMatchObject({
+      content: { type: 'template', template: 'Hi · {date}' },
+      anchorFrameId: 'a',
+    })
+    expect(getHistorySnapshot().undoLabel).toBe('Insert token')
+    expect(screen.getByRole('textbox', { name: 'Text' })).toHaveProperty(
+      'value',
+      'Hi · {date}',
+    )
+    fireEvent.click(screen.getByTestId('live-token-title'))
+    expect(textFrame()?.content).toEqual({
+      type: 'template',
+      template: 'Hi · {date} · {title}',
+    })
+    act(() => {
+      undoBook()
+    })
+    act(() => {
+      undoBook()
+    })
+    expect(textFrame()?.content).toEqual({ type: 'static', text: 'Hi' })
+    expect(textFrame()?.anchorFrameId).toBeUndefined()
+    expect(getHistorySnapshot().undoLabel).toBe(steps)
+  })
+
+  it('a chip replaces the Text selection remembered at its blur, caret after it', () => {
+    loadLive([lake, { ...under, content: { type: 'static', text: 'At , ok' } }])
+    const field = screen.getByRole<HTMLTextAreaElement>('textbox', {
+      name: 'Text',
+    })
+    field.setSelectionRange(3, 3)
+    fireEvent.blur(field)
+    fireEvent.click(screen.getByTestId('live-token-date'))
+    expect(textFrame()?.content).toEqual({
+      type: 'template',
+      template: 'At {date}, ok',
+    })
+    fireEvent.click(screen.getByTestId('live-token-camera'))
+    expect(textFrame()?.content).toEqual({
+      type: 'template',
+      template: 'At {date}{camera}, ok',
+    })
+  })
+
+  it('no image frame on the spread: disabled switch and the hint, no chips', () => {
+    loadLive([under])
+    expect(liveSwitch().getAttribute('aria-disabled')).toBe('true')
+    expect(screen.getByTestId('live-caption-hint').textContent).toBe(
+      'Add a photo frame to this spread to use its metadata.',
+    )
+    expect(screen.queryByTestId('live-tokens')).toBeNull()
+    fireEvent.click(liveSwitch())
+    expect(textFrame()?.content).toEqual({ type: 'static', text: 'Hi' })
   })
 })

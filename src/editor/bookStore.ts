@@ -913,7 +913,12 @@ export function discardStep(key: string): boolean {
  * `historyKey` replaces the op's own coalesce key: ops sharing it, with
  * nothing recorded in between, are one step (an edit session).
  */
-export function dispatchBookOp(op: BookOp, historyKey?: string): void {
+/** `label` names a new step (default: the op's own label). */
+export function dispatchBookOp(
+  op: BookOp,
+  historyKey?: string,
+  label?: string,
+): void {
   const book = applyBookOp(state.book, op)
   if (book === state.book) {
     return
@@ -926,7 +931,7 @@ export function dispatchBookOp(op: BookOp, historyKey?: string): void {
         snapshotOf(prev.book),
         historyKey ?? coalesceKey(op),
         undefined,
-        opLabel(op),
+        label ?? opLabel(op),
       ),
     )
   } else if (book.spreads !== prev.book.spreads) {
