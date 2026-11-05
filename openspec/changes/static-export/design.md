@@ -41,7 +41,8 @@
 | `src/project/session/idb.test.ts`             | DB v5                    |
 | `src/editor/projectSession.ts`                | `getOpenLibrary`         |
 | `src/editor/export/startExportSite.ts`        | browser deps             |
-| `src/testFixtures/loadPainterFixture.ts`      | `&hashes=1`              |
+| `src/lib/sha256Hex.ts`                        | hash unhashed photos     |
+| `src/lib/sha256Hex.test.ts`                   | digest hex               |
 | `vite.config.ts`                              | worker: no CSS inject    |
 | `e2e/static-export.spec.ts`                   | 4 cases + perf gate      |
 | `e2e/design-r11-topbar.spec.ts`               | cluster ends at Export   |
