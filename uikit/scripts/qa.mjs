@@ -1394,6 +1394,7 @@ await smokeS("layout-grids-parent-inherit GP5: link on writes only the margins �
     await page.waitForTimeout(2000); W.share2 = await shareBox()
     // fullscreen: Esc returns focus to the Fullscreen button
     await page.click('[data-testid="site-fullscreen-btn"]'); await page.waitForTimeout(300); W.fsCover = await page.locator('[data-testid="lightbox"] [data-testid="site-cover"]').count()
+    W.fsBox = await page.locator('[data-testid="lightbox"]').evaluate((v) => { const R = (e) => e.getBoundingClientRect(), d = R(v), b = R(v.querySelector('[data-testid="site-fullscreen-book"]')), c = R(v.querySelector('[data-testid="site-cover"]')), r = (n) => +n.toFixed(2); return { box: [b.left - d.left, b.top - d.top, b.width, b.height].map(r), cover: [c.left - d.left, c.top - d.top, c.width, c.height].map(r), area: [d.width - 128, d.height - 112].map(r) } }).catch(() => null)
     await page.keyboard.press("Escape"); await page.waitForTimeout(300)
     W.focus = await page.evaluate(() => document.activeElement?.dataset.testid)
     // library "…" menu: Rename, Duplicate, Remove
@@ -1421,6 +1422,10 @@ await smokeS("layout-grids-parent-inherit GP5: link on writes only the margins �
   ok("v8.1 P1-3 demo filmstrip: one plain label 'Photos · N · M used', no Photos/Templates capsule", /^Photos · \d+ · \d+ used$/.test(W.film ?? "") && /^Photos · \d+ · \d+ used$/.test(W.film2 ?? "") && W.tabs === 0, J([W.film, W.film2, W.tabs]))
   ok("v8.1 P1-4 library path is not doubled", W.path === "~/Pictures/Photobooks" || (/^~\/Pictures\/[^~/]+$/.test(W.path ?? "")), W.path)
   ok("v8.1 P2-1 demo library '…' menu: Rename, Duplicate, Remove work", J(W.items).includes("Rename") && J(W.items).includes("Duplicate") && J(W.items).includes("Remove") && W.afterDup?.length === 2 && W.afterDup.includes("Lake trip ’26") && W.afterDup.includes("Lake trip ’26 (copy)") && W.afterRm?.length === 1, J([W.items, W.afterDup, W.afterRm]))
+  // site-lightbox §2: the cover slide fits the area at its own ratio (not the spread box); the cover fills that box
+  const fb = W.fsBox, near = (p, q) => !!p && !!q && p.every((x, k) => Math.abs(x - q[k]) <= 0.5)
+  ok("site-lightbox §2 lightbox cover fits the 64/48/64 area at the cover ratio (1440×900: 1312 × 769.80 at 64, 73.10)",
+    !!fb && near(fb.box, fb.cover) && (Math.abs(fb.box[2] - fb.area[0]) <= 0.5 || Math.abs(fb.box[3] - fb.area[1]) <= 0.5) && fb.box[2] <= fb.area[0] + 0.5 && fb.box[3] <= fb.area[1] + 0.5 && Math.abs(fb.box[0] - 64 - (fb.area[0] - fb.box[2]) / 2) <= 0.5 && Math.abs(fb.box[1] - 64 - (fb.area[1] - fb.box[3]) / 2) <= 0.5, J(fb))
   ok("v8.1 P2-2 Esc closes fullscreen and returns focus to site-fullscreen-btn", W.focus === "site-fullscreen-btn", W.focus)
   ok("v8.1 P2-5 print dialog uses the real page count and the book's size", (W.print ?? "").includes(`${pages} pages`) && /Custom · 19 × 23 cm/.test(W.print ?? ""), W.print)
   ok("v8.1 P2-6 Create book offers a Custom size (w × h) that the book gets", W.custom === 1 && W.size === "19x23", `${W.custom} ${W.size}`)

@@ -73,16 +73,18 @@ export function SiteViewer({ title = "Aleksandr’s photobooks", author = AUTHOR
   const book = books.find((b) => b.id === s.book) ?? BOOKS.find((b) => b.id === s.book) ?? books[0] ?? BOOKS[0]
   const fsBtn = React.useRef<HTMLButtonElement>(null)
   // the cover is wider than a spread for most trims: fit it inside the w × w / R stage (never taller)
-  const coverFit = (w: number) => Math.min(w, (w / R) * (coverW(st.book) / st.book.h))
-  const page = (i: number, w: number) => {
+  const coverR = coverW(st.book) / st.book.h
+  const coverFit = (w: number) => Math.min(w, (w / R) * coverR)
+  // own: `w` is already the slide's own width (the lightbox fits the cover at coverR)
+  const page = (i: number, w: number, own = false) => {
     // the last spread shows its left page only (mirror of MiniSpread's si === 0 clip)
     if (i > 0) return i === n && n > 1 ? <div style={{ clipPath: "inset(0 50% 0 0)" }}><MiniSpread s={sp[i - 1]} width={w} si={i - 1} /></div> : <MiniSpread s={sp[i - 1]} width={w} si={i - 1} />
-    const cw = coverFit(w)
+    const cw = own ? w : coverFit(w)
     return <div className="mx-auto" style={{ width: cw }}>{cover ? cover(cw) : <div style={{ width: cw, height: (cw * st.book.h) / coverW(st.book) }} data-testid="site-cover"><CoverSpread /></div>}</div>
   }
   // page shadow over the visible page(s) only: spread 0 shows its right page, the last spread its left page (lightbox: stage-dark)
   const shaded = (i: number, w: number, dark: boolean) => <>
-    {page(i, w)}
+    {page(i, w, dark)}
     <span aria-hidden className={cn("pointer-events-none absolute inset-y-0 rounded-2xs", dark && "shadow-stage-dark")} style={{ left: i === 1 ? "50%" : 0, right: i === n && n > 1 ? "50%" : 0, boxShadow: dark ? undefined : "var(--site-page-shadow)" }} />
   </>
   const link = `https://aleksandr.photos/${slugOf(book.title)}`
@@ -143,13 +145,14 @@ export function SiteViewer({ title = "Aleksandr’s photobooks", author = AUTHOR
           </div>
         </main>
       )}
-      {s.lb && <Fullscreen i={s.slide} n={n + 1} title={book.title} onGo={go} render={(i, w) => <div className="relative">{shaded(i, w, true)}</div>} label={(i) => slideLabel(i, n)} initialZoom={s.lbZoom} onClose={() => { setS((x) => ({ ...x, lb: false })); requestAnimationFrame(() => fsBtn.current?.focus()) /* v0.8.1 (P2-2) */ }} />}
+      {s.lb && <Fullscreen i={s.slide} n={n + 1} title={book.title} onGo={go} ratioOf={(i) => (i === 0 ? coverR : R)} render={(i, w) => <div className="relative">{shaded(i, w, true)}</div>} label={(i) => slideLabel(i, n)} initialZoom={s.lbZoom} onClose={() => { setS((x) => ({ ...x, lb: false })); requestAnimationFrame(() => fsBtn.current?.focus()) /* v0.8.1 (P2-2) */ }} />}
     </div>
   )
 }
 /* Fullscreen = the site lightbox (Designer site-lightbox §2–§3): the presentation pager look; each slide fits the viewport minus
    64 top / 48 bottom / 64 sides (8 on touch); neighbours i ± 1 stay mounted for a 200 ms slide; zoom 1–3× by transform only.
-   `ratio` = spread width / height (default: the editor spread); `label` = indicator text (default: page / page count). */
+   `ratio` = spread width / height (default: the editor spread); `ratioOf(i)` = slide i's own ratio when slides differ (the cover);
+   `label` = indicator text (default: page / page count). */
 const HOVER_Q = "(hover: hover) and (pointer: fine)"
 const hoverNow = () => window.matchMedia?.(HOVER_Q).matches ?? true
 function useHover() {
@@ -163,18 +166,20 @@ const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y)
 const mid = (a: Pt, b: Pt) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 })
 const chip = "absolute grid cursor-pointer place-items-center rounded-full border-0 bg-white/10 text-white outline-hidden transition-[background-color] duration-[120ms] hover:bg-white/20 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
 const stopDown = (e: React.PointerEvent) => e.stopPropagation()
-export function Fullscreen({ i, n, title, onGo, onClose, render, ratio = SW / SH, label = (i, n) => `${spreadLabel(i, n)} · ${i === 0 ? 1 : i * 2} / ${pagesOf(n)}`, initialZoom = 1 }: { i: number; n: number; title: string; onGo: (d: number) => void; onClose: () => void; render: (i: number, w: number) => React.ReactNode; ratio?: number; label?: (i: number, n: number) => string; initialZoom?: number }) {
+export function Fullscreen({ i, n, title, onGo, onClose, render, ratio = SW / SH, ratioOf = () => ratio, label = (i, n) => `${spreadLabel(i, n)} · ${i === 0 ? 1 : i * 2} / ${pagesOf(n)}`, initialZoom = 1 }: { i: number; n: number; title: string; onGo: (d: number) => void; onClose: () => void; render: (i: number, w: number) => React.ReactNode; ratio?: number; ratioOf?: (i: number) => number; label?: (i: number, n: number) => string; initialZoom?: number }) {
   const boxRef = React.useRef<HTMLDivElement>(null)
   const [vp, setVp] = React.useState({ w: window.innerWidth, h: window.innerHeight })
   const hover = useHover()
   const insets = fitInsets(hover)
   const area = fitArea(vp, insets)
-  const box = fitBox({ w: ratio, h: 1 }, vp, insets)
+  // each slide fits the area at its own ratio (spec §2); zoom / pan limits follow that slide's box
+  const boxOf = (k: number) => fitBox({ w: ratioOf(k), h: 1 }, vp, insets)
+  const box = boxOf(i)
   // zoom per slide index: a step keeps only the old slide's entry, so it slides away at its zoom and the new one opens at 1
   const [zooms, setZooms] = React.useState<Record<number, Zoom>>({})
   const [at, setAt] = React.useState(i)
   if (at !== i) { setAt(i); setZooms((zs) => (zs[at] ? { [at]: zs[at] } : {})) }
-  const zoomOf = (k: number) => clampPan(zooms[k] ?? Z1, box, area)
+  const zoomOf = (k: number) => clampPan(zooms[k] ?? Z1, boxOf(k), area)
   const zoom = zoomOf(i)
   const [anim, setAnim] = React.useState(false) // discrete change: 200 ms transform transition
   const [live, setLive] = React.useState(false) // will-change while input runs, dropped 150 ms after it
@@ -201,7 +206,7 @@ export function Fullscreen({ i, n, title, onGo, onClose, render, ratio = SW / SH
     const el = boxRef.current; if (!el) return
     el.focus({ preventScroll: true })
     const v = { w: el.clientWidth, h: el.clientHeight }; setVp(v)
-    if (initialZoom > 1) { const ins = fitInsets(hoverNow()), a = fitArea(v, ins); setZooms({ [i]: zoomAt(Z1, initialZoom, a.x + a.w / 2, a.y + a.h / 2, fitBox({ w: ratio, h: 1 }, v, ins), a) }) }
+    if (initialZoom > 1) { const ins = fitInsets(hoverNow()), a = fitArea(v, ins); setZooms({ [i]: zoomAt(Z1, initialZoom, a.x + a.w / 2, a.y + a.h / 2, fitBox({ w: ratioOf(i), h: 1 }, v, ins), a) }) }
     const ro = new ResizeObserver(() => setVp({ w: el.clientWidth, h: el.clientHeight })); ro.observe(el); return () => ro.disconnect()
   }, []) // mount only
   React.useEffect(() => {
@@ -284,11 +289,11 @@ export function Fullscreen({ i, n, title, onGo, onClose, render, ratio = SW / SH
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
       onDoubleClick={(e) => { if (mouse.current && !(e.target as HTMLElement).closest("[data-lb-control]")) toggleAt(local(e.clientX, e.clientY)) }}>
       {ks.map((k) => {
-        const z = k === i ? zoom : zoomOf(k)
+        const z = k === i ? zoom : zoomOf(k), b = boxOf(k)
         return (
-          <div key={k} inert={k !== i} className="absolute transition-[transform,opacity] duration-[var(--duration-base)] ease-out motion-reduce:transition-none" style={{ left: box.x, top: box.y, width: box.w, height: box.h, transform: `translateX(${(k - i) * 100}%)`, opacity: k === i ? 1 : 0 }} data-slide={k}>
+          <div key={k} inert={k !== i} className="absolute transition-[transform,opacity] duration-[var(--duration-base)] ease-out motion-reduce:transition-none" style={{ left: b.x, top: b.y, width: b.w, height: b.h, transform: `translateX(${(k - i) * 100}%)`, opacity: k === i ? 1 : 0 }} data-slide={k}>
             <div className={cn("size-full origin-top-left", k === i && anim && "transition-transform duration-[var(--duration-base)] ease-out motion-reduce:transition-none")} style={{ transform: `translate(${z.x}px, ${z.y}px) scale(${z.z})`, willChange: k === i && (live || drag) ? "transform" : undefined }} data-testid={k === i ? "site-fullscreen-layer" : undefined}>
-              <div className="grid size-full place-items-center" data-testid={k === i ? "site-fullscreen-book" : undefined}>{render(k, box.w)}</div>
+              <div className="grid size-full place-items-center" data-testid={k === i ? "site-fullscreen-book" : undefined}>{render(k, b.w)}</div>
             </div>
           </div>
         )
