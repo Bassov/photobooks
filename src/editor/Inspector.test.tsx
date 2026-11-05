@@ -203,6 +203,35 @@ describe('Inspector', () => {
     expect(screen.getByTestId('master-usage').textContent).toBe('Not used yet')
   })
 
+  it('shows Book settings in Masters mode from the page-number hint; a master frame leaves it', () => {
+    seedBook(
+      makeBook({
+        parents: [
+          {
+            id: 'p-a',
+            name: 'Master A',
+            frames: [makeFrame({ id: 'logo' })],
+            guides: [],
+          },
+        ],
+      }),
+    )
+    setLeftPanelTab('masters')
+    render(<Inspector />)
+    const view = () =>
+      screen.getByTestId('inspector-panel').getAttribute('data-inspector-view')
+
+    fireEvent.click(screen.getByTestId('master-pn-toggle'))
+    fireEvent.click(screen.getByTestId('master-pn-book-settings'))
+    expect(view()).toBe('book')
+    expect(screen.getByTestId('book-pn-note').textContent).toBe('Page 1 is 1')
+
+    act(() => {
+      setFrameSource({ spreadId: 'p-a', frameId: 'logo' })
+    })
+    expect(view()).toBe('frame')
+  })
+
   it('opens the Photo view for a frame on the shown master; clearing it returns to the master', () => {
     seedBook(
       makeBook({
