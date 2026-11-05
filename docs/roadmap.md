@@ -76,6 +76,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [inspector-empty-after-grey](roadmap/P2/inspector-empty-after-grey.md) — Bug: /next-roadmap-item inspector-empty-after-grey
 - [x] [feature] [settings-books-count-flash](roadmap/P2/settings-books-count-flash.md) — Bug: /next-roadmap-item settings-books-count-flash
 - [ ] [feature] [text-blocks](roadmap/P2/text-blocks.md) — captions
+- [ ] [feature] [live-captions-core](roadmap/P2/live-captions-core.md) — Bug: /next-roadmap-item live-captions-core
 - [ ] [feature] [live-captions](roadmap/P2/live-captions.md) — captions from photo metadata
 - [x] [feature] [frame-styles](roadmap/P2/frame-styles.md) — consistent frames across the book
 - [x] [prep] [parent-spreads-schema](roadmap/P2/parent-spreads-schema.md) — parent spreads in the document
@@ -112,6 +113,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [site-photographer-demo](roadmap/P2/site-photographer-demo.md) — Bug: /next-roadmap-item site-photographer-demo
 - [x] [feature] [parent-overrides-core](roadmap/P2/parent-overrides-core.md) — Bug: /next-roadmap-item parent-overrides-core
 - [x] [feature] [parent-overrides-canvas](roadmap/P2/parent-overrides-canvas.md) — Bug: /next-roadmap-item parent-overrides-canvas
+- [ ] [feature] [parent-overrides-guides](roadmap/P2/parent-overrides-guides.md) — Bug: /next-roadmap-item parent-overrides-guides
 - [x] [feature] [text-frames-core](roadmap/P2/text-frames-core.md) — Bug: /next-roadmap-item text-frames-core
 - [x] [feature] [text-frames-kit](roadmap/P2/text-frames-kit.md) — Bug: /next-roadmap-item text-frames-kit
 - [x] [feature] [text-frames-editor](roadmap/P2/text-frames-editor.md) — Bug: /next-roadmap-item text-frames-editor
@@ -184,6 +186,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
 - [ ] [lite] [deps-dev-knip-relink](roadmap/P5/deps-dev-knip-relink.md) — Bug: /next-roadmap-item deps-dev-knip-relink
 - [ ] [feature] [spread-thumb-grey-backing](roadmap/P5/spread-thumb-grey-backing.md) — Bug: /next-roadmap-item spread-thumb-grey-backing
+- [ ] [feature] [page-count-mismatch](roadmap/P5/page-count-mismatch.md) — Bug: /next-roadmap-item page-count-mismatch
 - [ ] [feature] [e2e-paint-probe](roadmap/P5/e2e-paint-probe.md) — Bug: /next-roadmap-item e2e-paint-probe
 - [ ] [feature] [kit-gaps](roadmap/P5/kit-gaps.md) — Bug: /next-roadmap-item kit-gaps
 - [ ] [feature] [text-blocks-close](roadmap/P5/text-blocks-close.md) — Bug: /next-roadmap-item text-blocks-close

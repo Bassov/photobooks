@@ -304,6 +304,15 @@ On the editor canvas (not thumbs, Preview or export) every inherited parent item
 - **WHEN** an own frame covers the Master A logo and the user Ctrl+Shift-presses the logo and drags 30 px right
 - **THEN** a copy with the override badge moves 30 px right in the parent layer, the own frame is unchanged, and Undo twice first returns the copy to the parent position, then removes it
 
+### Requirement: Parent guide override and hide
+
+With the Select tool and guides shown, a primary press with Shift and Ctrl or ⌘ within 4.5 screen px of a parent guide on a spread SHALL override it (`overrideParentGuide`, "Override parent guide") and continue as the copy's drag. The copy SHALL paint and behave as an own guide (solid, draggable, snapping) on that spread only; a move is its own history step. Dropping the copy on its ruler or off the spread SHALL hide the parent guide on that spread (`hideParentItem`, "Hide parent item"). A hidden parent guide SHALL neither paint nor snap.
+
+#### Scenario: Override, then hide on the ruler
+
+- **WHEN** the user Ctrl+Shift-drags a Master A guide on one spread 40 px, then drags the copy onto its ruler
+- **THEN** after the first drag a solid guide sits 40 px away and no parent line remains on that spread while other spreads keep it; after the second no guide is shown there and a frame drawn at the old position does not snap to it
+
 ### Requirement: Text tool creates text frames
 
 With the Text tool, a press on paper or over an image frame SHALL draw a text frame. A drag of 3 px or more uses the snapped frame draft (min 10 × 4.5 mm). A click adds 60 × 14 mm at the snapped point, clamped to the page's 6 mm safe area. The new frame is empty Caption / left text; editing starts at once and the tool returns to Select.

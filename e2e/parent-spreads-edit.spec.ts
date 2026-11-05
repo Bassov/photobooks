@@ -7,9 +7,10 @@ import { expect, test } from './fixtures/coverage'
 import { pickMaster, shownMaster } from './fixtures/spreadMaster'
 
 // parent-spreads-edit: the painter fixture has parents "Master A" (a logo)
-// and "Master B" (empty); Pages is cut to 20 so the book has 10 spreads.
+// and "Master B" (empty); Pages is cut to 20 so the book has 11 spreads
+// (page 1, nine two-page spreads, page 20).
 const SPREADS = Array.from(
-  { length: 10 },
+  { length: 11 },
   (_, i) => `painter-spread-${String(i)}`,
 )
 const masterCanvas = (page: Page) =>
@@ -42,7 +43,7 @@ async function offsetMm(spread: Locator, item: Locator, trimHeightMm: number) {
   }
 }
 
-async function openPainterWithTenSpreads(page: Page): Promise<number> {
+async function openPainterAtTwentyPages(page: Page): Promise<number> {
   await page.goto('/?fixture=painter')
   await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
     'data-spread-count',
@@ -54,7 +55,7 @@ async function openPainterWithTenSpreads(page: Page): Promise<number> {
   await field.press('Enter')
   await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
     'data-spread-count',
-    '10',
+    '11',
   )
   return Number(await page.getByTestId('size-h').inputValue()) * 10
 }
@@ -93,9 +94,9 @@ async function logoOffsets(page: Page, trimHeightMm: number) {
 test('Browser check: a logo added to a master and moved once moves on every spread', async ({
   page,
 }) => {
-  // Ten spreads are visited three times (apply, before, after).
+  // Eleven spreads are visited three times (apply, before, after).
   test.setTimeout(120_000)
-  const trimHeightMm = await openPainterWithTenSpreads(page)
+  const trimHeightMm = await openPainterAtTwentyPages(page)
 
   // Masters mode: the fixture masters, first one shown; New master adds C.
   await page.getByTestId('left-tab-masters').click()
@@ -176,7 +177,7 @@ test('Browser check: a logo added to a master and moved once moves on every spre
 test('Masters list: rename and delete a master; its spreads fall back to None', async ({
   page,
 }) => {
-  await openPainterWithTenSpreads(page)
+  await openPainterAtTwentyPages(page)
   await applyMaster(page, 'painter-spread-1', 'Master A')
   await expect(canvasLogo(page, 'painter-spread-1')).toHaveCount(1)
 
@@ -216,7 +217,7 @@ test('Masters list: rename and delete a master; its spreads fall back to None', 
 test('Masters list: many masters scroll inside the list, the page does not', async ({
   page,
 }) => {
-  await openPainterWithTenSpreads(page)
+  await openPainterAtTwentyPages(page)
   await page.getByTestId('left-tab-masters').click()
   // 2 fixture masters + 16 new rows of ~100 px thumbs overflow any viewport.
   for (let added = 0; added < 16; added += 1) {

@@ -109,13 +109,14 @@ describe('editText', () => {
     expect(frameOf(edit(book([textFrame()]), 'Yo', 5), 't1')?.rect).toBe(RECT)
   })
 
-  it('replaces template content with the typed text', () => {
+  it('edits a template as a template', () => {
     const b = book([
       textFrame({ content: { type: 'template', template: '{title}' } }),
     ])
-    expect(frameOf(edit(b, '{title}'), 't1')?.content).toEqual({
-      type: 'static',
-      text: '{title}',
+    expect(edit(b, '{title}')).toBe(b)
+    expect(frameOf(edit(b, '{date}'), 't1')?.content).toEqual({
+      type: 'template',
+      template: '{date}',
     })
   })
 

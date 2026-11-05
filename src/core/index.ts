@@ -232,6 +232,7 @@ export {
   PAGE_STEP,
   pageLabel,
   pagesOf,
+  pagesText,
   spineWidthForPages,
 } from './pages'
 export {

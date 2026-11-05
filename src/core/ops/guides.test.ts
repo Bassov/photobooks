@@ -82,6 +82,8 @@ describe('moveGuide', () => {
       { id: 'g', orientation: 'vertical', offsetMm: 40.1 },
       { id: 'h', orientation: 'vertical', offsetMm: 2 },
     ])
+    // Onto the other guide's offset: only the named guide counts.
+    expect(guidesOf(move(next, 40.1, 'h'))[1]?.offsetMm).toBe(40.1)
   })
 
   it('keeps the book when nothing changes, the guide is locked or unknown', () => {
@@ -91,6 +93,39 @@ describe('moveGuide', () => {
     expect(move(plain, Number.POSITIVE_INFINITY)).toBe(plain)
     const locked = book([{ id: 'g', offsetMm: 1, locked: true }])
     expect(move(locked, 5)).toBe(locked)
+  })
+
+  it("moves a parent guide's local copy, never the parent", () => {
+    const copy = {
+      id: 'copy-1',
+      orientation: 'vertical' as const,
+      offsetMm: 10,
+      overridesId: 'pg',
+    }
+    const withCopy = (locked?: true) =>
+      makeBook({
+        spreads: [
+          makeSpread({
+            id: 'spread-1',
+            guides: [{ id: 'g', orientation: 'vertical', offsetMm: 1 }],
+            parentOverrides: {
+              hiddenIds: ['x'],
+              guides: [{ ...copy, ...(locked && { locked }) }],
+            },
+          }),
+        ],
+      })
+    const next = move(withCopy(), 40.06, 'copy-1')
+    expect(next.spreads[0]?.parentOverrides).toEqual({
+      hiddenIds: ['x'],
+      guides: [{ ...copy, offsetMm: 40.1 }],
+    })
+    expect(guidesOf(next)).toEqual(guidesOf(withCopy()))
+    const plain = withCopy()
+    expect(move(plain, 10, 'copy-1')).toBe(plain)
+    expect(move(plain, 40, 'missing')).toBe(plain)
+    const locked = withCopy(true)
+    expect(move(locked, 40, 'copy-1')).toBe(locked)
   })
 })
 
