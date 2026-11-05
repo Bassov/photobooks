@@ -2252,7 +2252,34 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("kit-sync KS7: My templates + 4+ → empty state", empty?.trim() === "No layouts match.", String(empty))
   const m87 = await r15(sec)
   ok("design-r16 M87/M88: My templates selected + 4+ chip on — label x stays 1308.56, chip text stays 4.5 below the pill top (±0.5)", Math.abs(m87.mineX - 1308.56) <= 0.5 && m87.chipDy.every((d) => Math.abs(d - 4.5) <= 0.5), JSON.stringify(m87))
-  await c(`${sec} [data-chip="all"]`); await c('[data-item="p0"]')
+  await c(`${sec} [data-chip="all"]`)
+  // Designer review UT4: ••• follows the hovered tile (group/cell), not the pointer anywhere in the section
+  const tiles = page.locator(`${sec} [data-testid="tpl-tile"]`)
+  const menuOps = async (target) => { await target.hover(); await page.waitForTimeout(400); return tiles.evaluateAll((ts) => ts.map((t) => +getComputedStyle(t.querySelector('[data-testid="tpl-menu"]')).opacity)) }
+  const onSave = await menuOps(page.locator(`${sec} [data-testid="tpl-save-button"]`)), onT1 = await menuOps(tiles.nth(0).locator("button").first()), onT2 = await menuOps(tiles.nth(1).locator("button").first())
+  const only = (i) => JSON.stringify(onSave.map((_, j) => (j === i ? 1 : 0)))
+  ok("user-templates UT4: ••• shows on the hovered tile only — pointer on Save → all 0, tile 1 → [1,0,…], tile 2 → [0,1,…]", onSave.length >= 2 && onSave.every((o) => o === 0) && JSON.stringify(onT1) === only(0) && JSON.stringify(onT2) === only(1), JSON.stringify({ onSave, onT1, onT2 }))
+  await c('[data-item="p0"]')
+  // Designer spec user-templates UT1/UT2/UT4: page 1 lists no two-page template; Save on page 1 adds one, a second Save flashes it
+  const tabMine = () => page.locator(`${sec} [data-testid="tab-mine"]`).textContent()
+  const p0Empty = await page.locator(`${sec} [data-testid="tpl-empty"]`).textContent().catch(() => null)
+  ok("user-templates UT1: page 1 → My templates 0, “No templates yet. Save a page you like.”", (await tabMine()) === "My templates 0" && p0Empty?.trim() === "No templates yet. Save a page you like.", `${await tabMine()} / ${p0Empty}`)
+  // the header + sits in the Section head, outside layout-section
+  const saveOff = await page.evaluate(([demo, sec]) => [...document.querySelectorAll(`${demo} [data-testid="tpl-save"], ${sec} [data-testid="tpl-save-button"]`)].map((b) => b.hasAttribute("disabled") || b.hasAttribute("data-disabled")), [demo, sec])
+  const p0Photos = await page.locator(`${demo} [data-testid="spread"][data-current] [data-testid="frame"]`).count()
+  ok("user-templates UT4: both Save controls are enabled exactly when the spread has image frames", saveOff.length === 2 && saveOff.every((d) => d === (p0Photos === 0)), JSON.stringify({ saveOff, p0Photos }))
+  if (p0Photos > 0) {
+    await c(`${sec} [data-testid="tpl-save-button"]`); await page.keyboard.press("Enter"); await page.waitForTimeout(200)
+    await page.mouse.move(5, 895); await page.waitForTimeout(300)
+    const p0Tile = await page.evaluate((sec) => { const t = document.querySelector(`${sec} [data-testid="tpl-tile"]`), p = t?.querySelector('[data-testid="tpl-paper"]').getBoundingClientRect(), m = t?.querySelector('[data-testid="tpl-menu"]'); return t && { aspect: +(p.width / p.height).toFixed(3), slots: t.querySelectorAll('[data-testid="tpl-paper"] > div').length, menu: getComputedStyle(m).opacity } }, sec)
+    ok("user-templates UT1/UT4: page 1 save → My templates 1 on page 1, page-shaped thumb, ••• hidden at rest (opacity 0)", (await tabMine()) === "My templates 1" && p0Tile?.slots === p0Photos && p0Tile.menu === "0", JSON.stringify(p0Tile))
+    await c(`${demo} [data-testid="tpl-save"]`)
+    const flashed = await page.locator(`${sec} [data-testid="tpl-tile"][data-flash]`).count(), status = await page.locator(`${demo} [data-testid="status"]`).allTextContents()
+    ok("user-templates UT2: a second Save adds nothing and flashes the tile; status “Already in My templates as …”", (await tabMine()) === "My templates 1" && flashed === 1 && status.some((s) => /Already in My templates as “My layout \d+”/.test(s)), JSON.stringify({ flashed, status }))
+    await page.waitForTimeout(1300)
+    ok("user-templates UT2: the flash ends after 1200 ms", (await page.locator(`${sec} [data-testid="tpl-tile"][data-flash]`).count()) === 0)
+  }
+  await c(`${sec} [role=tab]:not([data-testid="tab-mine"])`)
   const cols1 = await page.locator(`${sec} [data-testid="tpl-grid"]`).first().evaluate((g) => getComputedStyle(g).gridTemplateColumns.split(" ").length).catch(() => null)
   ok("kit-sync KS7: single page (page 1) → 3 columns", cols1 === 3, String(cols1))
   // prod counts only the frames on that page (LayoutSection.tsx:207): sort and the Photos chips follow the tile

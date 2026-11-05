@@ -1,7 +1,7 @@
 import type { Book, Frame } from '../schema'
 import type { GridField, GridPatch } from '../grid/layoutGrid'
 import { applyCustomLayout, applyTemplate } from '../templates/apply'
-import type { LayoutSlotPct } from '../templates/custom'
+import type { LayoutSlotPct, SavedTemplate } from '../templates/custom'
 import type { TemplateId } from '../templates/types'
 import {
   addParent,
@@ -122,6 +122,8 @@ export type BookOp =
       type: 'insertSpreadWithAssets'
       index: number
       assetIds: readonly string[]
+      /** The user's saved layouts best fit may pick, in save order. */
+      templates: readonly SavedTemplate[]
     }
   | {
       type: 'setCrop'
@@ -359,7 +361,7 @@ export function applyBookOp(book: Book, op: BookOp): Book {
     case 'fillSpread':
       return fillSpread(book, op.spreadId, op.frameId, op.assetIds)
     case 'insertSpreadWithAssets':
-      return insertSpreadWithAssets(book, op.index, op.assetIds)
+      return insertSpreadWithAssets(book, op.index, op.assetIds, op.templates)
     case 'setCrop':
       return setCrop(book, op.spreadId, op.frameId, op.crop)
     case 'setFit':

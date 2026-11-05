@@ -62,6 +62,8 @@ export async function capture(out, { log = console.log, probe } = {}) {
     ["editor-frame-drag-cancelled", async () => { await page.keyboard.press("Escape"); await page.mouse.up(); await settle(200); await c(FRAME) }],
     ["editor-crop-mode", () => c('[data-testid="crop-toggle"]')],
     ["editor-spread-selected", async () => { await page.keyboard.press("Escape"); await settle(200); await page.keyboard.press("Escape"); await settle(200); await page.locator('[data-testid="canvas"]').click({ position: { x: 20, y: 20 } }) }],
+    // Designer spec user-templates UT1: page 1 lists no two-page template → "No templates yet. Save a page you like."
+    ["editor-page1-my-templates", async () => { await c('[data-item="p0"]'); await settle(200); await c('[data-testid="tab-mine"]') }],
     ["editor-masters-mode", () => page.locator('[data-testid="mode-seg"]').getByText("Masters", { exact: true }).click()],
     ["editor-master-grid-5-cols", async () => { const col = page.locator('[data-testid="master-field-grid"] input').first(); await col.fill("5"); await col.press("Enter"); await col.blur() }],
     ["editor-pages-mode", () => page.locator('[data-testid="mode-seg"]').getByText("Pages", { exact: true }).click()],

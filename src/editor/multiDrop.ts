@@ -1,6 +1,7 @@
 import type { Book } from '../core'
 import { dispatchBookOp, getBookStoreSnapshot } from './bookStore'
 import { leftInFilmstripStatus, setEditorStatus } from './editorStatus'
+import { getSavedTemplates } from './savedTemplates'
 
 export type MultiDropTarget =
   | { type: 'frame'; spreadId: string; frameId: string }
@@ -58,6 +59,7 @@ export function dropAssets(
           type: 'insertSpreadWithAssets',
           index: target.insertIndex,
           assetIds: ids,
+          templates: getSavedTemplates(),
         },
   )
   const placed = placedInChangedSpreads(
