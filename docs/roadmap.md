@@ -137,6 +137,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [page-numbers-kit](roadmap/P2/page-numbers-kit.md) — Bug: /next-roadmap-item page-numbers-kit
 - [x] [feature] [page-numbers-core](roadmap/P2/page-numbers-core.md) — Bug: /next-roadmap-item page-numbers-core
 - [ ] [feature] [user-templates](roadmap/P2/user-templates.md) — your own layouts
+- [ ] [feature] [site-awards-demos](roadmap/P2/site-awards-demos.md) — Bug: /next-roadmap-item site-awards-demos
 
 ## P3 — Personal site
 
@@ -156,6 +157,8 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [site-lightbox](roadmap/P3/site-lightbox.md) — fullscreen and swipe
 - [x] [prep] [static-export-core](roadmap/P3/static-export-core.md) — deterministic site tree
 - [x] [feature] [static-export-writer](roadmap/P3/static-export-writer.md) — Bug: /next-roadmap-item static-export-writer
+- [ ] [feature] [site-stand-book3d](roadmap/P3/site-stand-book3d.md) — Bug: /next-roadmap-item site-stand-book3d
+- [ ] [feature] [site-stand-reader](roadmap/P3/site-stand-reader.md) — Bug: /next-roadmap-item site-stand-reader
 - [ ] [feature] [static-export-kit](roadmap/P3/static-export-kit.md) — Bug: /next-roadmap-item static-export-kit
 - [ ] [feature] [static-export](roadmap/P3/static-export.md) — write `dist/`
 - [ ] [feature] [site-stand-pager-room](roadmap/P3/site-stand-pager-room.md) — Bug: /next-roadmap-item site-stand-pager-room
@@ -195,6 +198,8 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [roadmap-status-sync](roadmap/P5/roadmap-status-sync.md) — Bug: /next-roadmap-item roadmap-status-sync
 - [ ] [lite] [deps-dev-knip-relink](roadmap/P5/deps-dev-knip-relink.md) — Bug: /next-roadmap-item deps-dev-knip-relink
 - [ ] [feature] [spread-thumb-grey-backing](roadmap/P5/spread-thumb-grey-backing.md) — Bug: /next-roadmap-item spread-thumb-grey-backing
+- [ ] [feature] [site-fresh-c](roadmap/P5/site-fresh-c.md) — Bug: /next-roadmap-item site-fresh-c
+- [ ] [feature] [site-stand](roadmap/P5/site-stand.md) — Bug: /next-roadmap-item site-stand
 - [ ] [feature] [page-count-mismatch](roadmap/P5/page-count-mismatch.md) — Bug: /next-roadmap-item page-count-mismatch
 - [ ] [feature] [e2e-paint-probe](roadmap/P5/e2e-paint-probe.md) — Bug: /next-roadmap-item e2e-paint-probe
 - [ ] [feature] [kit-gaps](roadmap/P5/kit-gaps.md) — Bug: /next-roadmap-item kit-gaps

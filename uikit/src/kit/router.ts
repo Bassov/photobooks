@@ -9,7 +9,8 @@ export function parse(hash = location.hash): Route {
   const s = /^screen\/(.+)$/.exec(h)
   if (s) return { name: "screen", id: decodeURIComponent(s[1]) }
   const f = /^full\/(.+)$/.exec(h)
-  if (f) return { name: "full", id: decodeURIComponent(f[1]) }
+  // `#/full/<id>?books=12`: the query belongs to the page (site demos), not to the id
+  if (f) return { name: "full", id: decodeURIComponent(f[1].split("?")[0]) }
   if (h === "components") return { name: "components" }
   if (h === "credits") return { name: "credits" }
   if (h === "demo") return { name: "demo" }
