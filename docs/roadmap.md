@@ -133,6 +133,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [parent-guides-snap](roadmap/P2/parent-guides-snap.md) — Bug: /next-roadmap-item parent-guides-snap
 - [x] [feature] [parent-guides-prod-overhang](roadmap/P2/parent-guides-prod-overhang.md) — Bug: /next-roadmap-item parent-guides-prod-overhang
 - [ ] [feature] [parent-overrides](roadmap/P2/parent-overrides.md) — change one spread without touching the parent
+- [ ] [feature] [switch-size-parity](roadmap/P2/switch-size-parity.md) — Bug: /next-roadmap-item switch-size-parity
 - [ ] [feature] [page-numbers](roadmap/P2/page-numbers.md) — page numbers
 - [x] [feature] [page-numbers-kit](roadmap/P2/page-numbers-kit.md) — Bug: /next-roadmap-item page-numbers-kit
 - [x] [feature] [page-numbers-core](roadmap/P2/page-numbers-core.md) — Bug: /next-roadmap-item page-numbers-core
