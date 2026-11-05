@@ -9,8 +9,18 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBook } from '../../core/testing/fixtures'
 import { resetBookStore } from '../bookStore'
-import { ExportSiteDialog } from './ExportSiteDialog'
-import { EXPORT_SITE_IDLE, exportSiteStore } from './exportSiteStore'
+import { ExportSiteDialog, type ExportSiteStep } from './ExportSiteDialog'
+import {
+  loadExportFolder,
+  saveExportFolder,
+  SESSION_FOLDER_KEY,
+} from './exportSiteFolder'
+import { otherPublishedTitles } from './exportSiteRun'
+import {
+  EXPORT_SITE_IDLE,
+  exportSiteStore,
+  type ExportSiteState,
+} from './exportSiteStore'
 import { startExportSite } from './startExportSite'
 
 vi.mock('./startExportSite', () => ({
@@ -19,7 +29,32 @@ vi.mock('./startExportSite', () => ({
   }),
 }))
 
+vi.mock('./exportSiteFolder', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./exportSiteFolder')>()),
+  loadExportFolder: vi.fn(() => Promise.resolve(null)),
+  saveExportFolder: vi.fn(() => Promise.resolve()),
+}))
+
+vi.mock('./exportSiteRun', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./exportSiteRun')>()),
+  otherPublishedTitles: vi.fn(() => Promise.resolve([])),
+}))
+
 const site = { kind: 'directory', name: 'Site' }
+const old = { kind: 'directory', name: 'Old' } as FileSystemDirectoryHandle
+
+/** Each heading as its text, prefixed with its icon (`[loader] Exporting…`). */
+function titles(): string[] {
+  return screen.getAllByRole('heading').map((node) => {
+    const icon = node.querySelector('[data-icon]')?.getAttribute('data-icon')
+    const text = node.textContent
+    return icon === undefined || icon === null ? text : `[${icon}] ${text}`
+  })
+}
+
+function folderName(): string | null {
+  return screen.queryByTestId('export-site-folder')?.textContent ?? null
+}
 
 function settle(): void {
   exportSiteStore.dispatch({ type: 'failed', code: 'unknown', folder: '' })
@@ -37,6 +72,8 @@ function press(testId: string): void {
 beforeEach(() => {
   settle()
   vi.mocked(startExportSite).mockClear()
+  vi.mocked(loadExportFolder).mockClear()
+  vi.mocked(saveExportFolder).mockClear()
   resetBookStore({
     book: makeBook({ title: 'Lake' }),
     sessionMeta: new Map(),
@@ -87,6 +124,7 @@ describe('ExportSiteDialog', () => {
       expect(screen.getByTestId('export-site-folder').textContent).toBe('Site')
     })
     expect(screen.getByText(/The site goes into Site\/dist/)).toBeTruthy()
+    expect(saveExportFolder).toHaveBeenCalledWith(SESSION_FOLDER_KEY, site)
     press('export-site-go')
 
     expect(startExportSite).toHaveBeenCalledWith(site)
@@ -126,6 +164,12 @@ describe('ExportSiteDialog', () => {
   })
 
   it('sends a foreign dist back to choosing a folder', () => {
+    exportSiteStore.dispatch({ type: 'start' })
+    exportSiteStore.dispatch({
+      type: 'failed',
+      code: 'not-our-export',
+      folder: 'Home',
+    })
     render(
       <ExportSiteDialog
         initialStep="failed"
@@ -142,6 +186,7 @@ describe('ExportSiteDialog', () => {
 
     expect(step()).toBe('opts')
     expect(screen.getByTestId('export-site-choose')).toBeTruthy()
+    expect(exportSiteStore.getSnapshot().kind).toBe('idle')
   })
 
   it('offers Try again for other failures, which needs the folder again', () => {
@@ -176,5 +221,160 @@ describe('ExportSiteDialog', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(exportSiteStore.getSnapshot().kind).toBe('idle')
+  })
+
+  it('closes on Escape', () => {
+    const onClose = vi.fn()
+    render(
+      <ExportSiteDialog
+        initialStep="opts"
+        opened={EXPORT_SITE_IDLE}
+        onClose={onClose}
+      />,
+    )
+
+    fireEvent.keyDown(screen.getByTestId('export-site-dialog'), {
+      key: 'Escape',
+    })
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  const done: ExportSiteState = {
+    kind: 'done',
+    summary: { books: 1, files: 4, bytes: 0 },
+    folder: 'Site',
+  }
+  const failed: ExportSiteState = {
+    kind: 'failed',
+    code: 'quota',
+    folder: 'Site',
+  }
+  it.each<[ExportSiteStep, ExportSiteState, string]>([
+    ['opts', EXPORT_SITE_IDLE, 'Export site'],
+    ['opts', done, 'Export site'],
+    ['opts', failed, 'Export site'],
+    ['done', done, '[circle-check] Site exported'],
+    ['failed', failed, '[warning] Export failed'],
+  ])('shows only the %s step (opened on %o)', (initialStep, opened, title) => {
+    render(
+      <ExportSiteDialog
+        initialStep={initialStep}
+        opened={opened}
+        onClose={vi.fn()}
+      />,
+    )
+
+    expect(titles()).toEqual([title])
+  })
+
+  it('shows only the run step, at 100 % once the run is no longer reported', () => {
+    render(
+      <ExportSiteDialog
+        initialStep="run"
+        opened={EXPORT_SITE_IDLE}
+        onClose={vi.fn()}
+      />,
+    )
+
+    expect(titles()).toEqual([expect.stringMatching(/^\[loader\] /)])
+    expect(screen.getByTestId('export-site-phase').textContent).toBe(
+      'Writing files · 100%',
+    )
+  })
+
+  it('restores the remembered folder, and Change… picks another', async () => {
+    vi.mocked(loadExportFolder).mockResolvedValueOnce(old)
+    vi.stubGlobal('showDirectoryPicker', () => Promise.resolve(site))
+    render(
+      <ExportSiteDialog
+        initialStep="opts"
+        opened={EXPORT_SITE_IDLE}
+        onClose={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(folderName()).toBe('Old')
+    })
+    expect(loadExportFolder).toHaveBeenCalledWith(SESSION_FOLDER_KEY)
+    press('export-site-change')
+
+    await waitFor(() => {
+      expect(folderName()).toBe('Site')
+    })
+    expect(saveExportFolder).toHaveBeenCalledWith(SESSION_FOLDER_KEY, site)
+  })
+
+  it('keeps the remembered folder when the picker is cancelled', async () => {
+    vi.mocked(loadExportFolder).mockResolvedValueOnce(old)
+    const picker = vi.fn(() =>
+      Promise.reject(new DOMException('', 'AbortError')),
+    )
+    vi.stubGlobal('showDirectoryPicker', picker)
+    render(
+      <ExportSiteDialog
+        initialStep="opts"
+        opened={EXPORT_SITE_IDLE}
+        onClose={vi.fn()}
+      />,
+    )
+    await waitFor(() => {
+      expect(folderName()).toBe('Old')
+    })
+
+    press('export-site-change')
+    await waitFor(() => {
+      expect(picker).toHaveBeenCalledTimes(1)
+    })
+    await act(() => Promise.resolve())
+
+    expect(folderName()).toBe('Old')
+    expect(saveExportFolder).not.toHaveBeenCalled()
+  })
+
+  it('keeps a folder picked before the remembered one loads', async () => {
+    let remember: (handle: FileSystemDirectoryHandle) => void = () => undefined
+    vi.mocked(loadExportFolder).mockReturnValueOnce(
+      new Promise((resolve) => {
+        remember = resolve
+      }),
+    )
+    vi.stubGlobal('showDirectoryPicker', () => Promise.resolve(site))
+    render(
+      <ExportSiteDialog
+        initialStep="opts"
+        opened={EXPORT_SITE_IDLE}
+        onClose={vi.fn()}
+      />,
+    )
+
+    press('export-site-choose')
+    await waitFor(() => {
+      expect(folderName()).toBe('Site')
+    })
+    await act(async () => {
+      remember(old)
+      await Promise.resolve()
+    })
+
+    expect(folderName()).toBe('Site')
+  })
+
+  it('names the books of earlier exports', async () => {
+    vi.mocked(otherPublishedTitles).mockResolvedValueOnce(['Sea'])
+    render(
+      <ExportSiteDialog
+        initialStep="opts"
+        opened={EXPORT_SITE_IDLE}
+        onClose={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('export-site-books').textContent).toBe(
+        '“Lake” as it is now, plus 1 book from earlier exports: Sea.',
+      )
+    })
   })
 })

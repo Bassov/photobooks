@@ -91,4 +91,35 @@ describe('published.json on disk', () => {
       code: 'newer-schema',
     })
   })
+
+  it('reads a missing book without creating its folder', async () => {
+    const root = createMemoryDirectory()
+    const storage = createFsaLibraryStorage({
+      root,
+      loadBookText: loadBookTextSync,
+    })
+    await storage.createBook(makeBook({ id: 'b1' }))
+
+    expect(await storage.loadPublished('gone')).toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    const books = await root.getDirectory(BOOKS_DIR)
+    await expect(books.getDirectory('gone')).rejects.toThrow()
+  })
+
+  it('passes on read errors other than not-found', async () => {
+    const root = createMemoryDirectory()
+    const storage = createFsaLibraryStorage({
+      root,
+      loadBookText: loadBookTextSync,
+    })
+    await storage.createBook(makeBook({ id: 'b1' }))
+    const books = await root.getDirectory(BOOKS_DIR)
+    await (
+      await books.getDirectory('b1')
+    ).getDirectory(PUBLISHED_JSON, { create: true })
+
+    await expect(storage.loadPublished('b1')).rejects.toThrow('is a directory')
+  })
 })
