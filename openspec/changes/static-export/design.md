@@ -2,7 +2,7 @@
 
 1. `exportSiteStore.ts`: module store (`subscribe` / `getSnapshot`) over a pure `reduceExportSite`: `idle` → `running {phase: prepare|render|write, done, total}` → `done {books, files, bytes}` / `failed {code}`; `start` is ignored while running (one run). `done` → `idle` after 4 s; opening `failed` → `idle`. Progress reaches React at most every 250 ms (rAF-batched).
 2. `exportSiteRun.ts` (injected deps): at Export it re-requests readwrite permission, freezes the open book with `publishBook(meta, book, now)`, saves `library.json` + `published.json` through `LibraryStorage`, loads the other published revisions, prepares derivatives, then posts `{folder, input}` to `site-export.worker.ts` with the derivative buffers transferred. No library (session book): meta `{}` in memory, only the open book.
-3. Derivatives: `requestDerivatives` (existing pool, slot cap 1, gated by interaction) for every revision asset with a `contentHash`; bytes via `getDerivative`; width / height from the WebP header (`webpSize.ts`, cache entries have no dims). The source comes from the retained session file or the registered source root.
+3. Derivatives: `requestDerivatives` (existing pool, slot cap 1, gated by interaction) one asset at a time (prepare progress) for every revision asset with a `contentHash`; bytes via `getDerivative`; width / height from the encoded header (`encodedImageSize.ts`: WebP VP8 / VP8L / VP8X and JPEG SOF; cache entries have no dims). The source comes from the retained session file or the registered source root. Progress maps to one percent: prepare 0–30, render 30–80, write 80–100 (kit phase bands). `?fixture=painter&hashes=1` gives the fixture assets content hashes so e2e exports real images.
 4. Folder handle: new session IDB store `site-export-folders` (DB v5), keyed by library id (`session` without one).
 5. Pill: `ChromeButton` moves to `ChromeButton.tsx`. A hidden rest-content sizer and the live content share one grid cell, so the width stays the same in every state. The fill is a `::before` `scaleX` over `--control`. Below 1280 px it is icon-only. `circle-check` / `loader` are inline lucide paths in the export module (`glyphs.ts` is owned by another lane).
 6. Texts (books sentence, phase, status, fail, summary) are pure functions in `exportSiteText.ts`.
@@ -27,8 +27,14 @@
 | `src/editor/export/exportSiteRun.test.ts`       | run unit                 |
 | `src/editor/export/exportSiteText.ts`           | labels                   |
 | `src/editor/export/exportSiteText.test.ts`      | books sentence 0/1/2/4+  |
-| `src/derivatives/webpSize.ts`                   | WebP dims                |
-| `src/derivatives/webpSize.test.ts`              | VP8 / VP8L / VP8X        |
+| `src/derivatives/encodedImageSize.ts`           | WebP / JPEG dims         |
+| `src/derivatives/encodedImageSize.test.ts`      | VP8 / VP8L / VP8X / SOF  |
+| `src/editor/projectSession.ts`                  | `getLibraryStorage`      |
+| `src/editor/session/libraryActivation.test.ts`  | fake storage API         |
+| `src/project/session/idb.test.ts`               | DB v5                    |
+| `src/testFixtures/loadPainterFixture.ts`        | `&hashes=1`              |
+| `src/editor/export/exportSiteFolder.ts`         | folder handle in IDB     |
+| `src/editor/export/exportSiteFolder.test.ts`    | remember / permission    |
 | `src/site/export/createSiteExportWorker.ts`     | worker factory           |
 | `src/project/types.ts`                          | storage API              |
 | `src/project/memory.ts`                         | published map            |
