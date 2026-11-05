@@ -29,8 +29,10 @@
   --site-sans: var(--sys-font);
   --site-ease: var(--ease-out);
   --site-turn: cubic-bezier(0.45, 0.05, 0.25, 1);
+  /* the open book (Spec site-stand S2): contact, near and a long soft fall */
   --site-shadow-book:
-    0 2px 4px rgb(0 0 0 / 0.16), 0 34px 60px -22px rgb(0 0 0 / 0.42);
+    0 1px 2px rgb(0 0 0 / 0.18), 0 2px 6px rgb(0 0 0 / 0.08),
+    0 40px 70px -30px rgb(0 0 0 / 0.45);
   position: relative;
   height: 100%;
   overflow: hidden;

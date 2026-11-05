@@ -282,8 +282,9 @@ export function ReaderPage({
           view={view}
           onView={onView}
           width={rb.w}
-          leaf={leaf}
-          turnMs={turnMs}
+          // demo 1 keeps its rigid leaves and 800 ms turn (the stand's paper default is Spec site-stand S4)
+          leaf={leaf ?? 'board'}
+          turnMs={turnMs ?? 800}
           dark={dark}
         />
       </div>

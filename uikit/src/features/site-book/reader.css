@@ -1,0 +1,18 @@
+/* BookReader (Spec site-stand S2): the open book's boards, page-block side edges, tail strip and gutter. Selectors carry
+   .sd-reader so they beat the older per-demo reader rules (site-demo-1/site.css, site-fresh-c/site.css). */
+.sd-reader .sd-rbook > .sd-board {
+  box-shadow:
+    var(--site-shadow-book, 0 1px 2px rgb(0 0 0/.18), 0 2px 6px rgb(0 0 0/.08), 0 40px 70px -30px rgb(0 0 0/.45)),
+    inset 0 1px 0 rgb(255 255 255/.12);
+}
+/* dark keeps its deeper shadow */
+.sd-reader.sd-dark .sd-rbook > .sd-board {
+  box-shadow: 0 2px 4px rgb(0 0 0/.3), 0 34px 60px -22px rgb(0 0 0/.65), inset 0 1px 0 rgb(255 255 255/.12);
+}
+.sd-reader .sd-rbook > .sd-edge { background: repeating-linear-gradient(90deg, #FBFAF7 0 1px, #DDD7CC 1px 2px) }
+.sd-reader .sd-rbook > .sd-tail { background: repeating-linear-gradient(0deg, #F6F3EC 0 1px, #DCD6CB 1px 2px) }
+.sd-reader .sd-rbook > .sd-gutter {
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 0, rgb(255 255 255/.05) 12%, rgb(0 0 0/.04) 25%, rgb(0 0 0/.14) 48%,
+    rgb(0 0 0/.18) 50%, rgb(0 0 0/.14) 52%, rgb(0 0 0/.04) 75%, rgb(255 255 255/.05) 88%, transparent);
+}
