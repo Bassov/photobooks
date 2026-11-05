@@ -2654,9 +2654,10 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   // Duplicate on a table-spine shop opens the editor on the copy; the spine row is read-only text
   await S("print-duplicate-saal-photo-book").click(); await page.waitForTimeout(350)
   const tbl = { t: await page.locator('[data-testid="pp-spine-table"]').textContent(), f: await page.locator('[data-testid="pp-spineBase"]').count(), name: await page.locator('[data-testid="pp-name"] input').inputValue() }
-  await page.locator('[data-testid="pp-save"]').click(); await page.waitForTimeout(300)
   const added = await page.locator('[data-scenario] [data-testid^="print-custom-custom-"]').count()
-  ok("printer-presets: Duplicate Saal → editor on “… (copy)”, table spine read-only, Save adds the row", tbl.t === "From the Saal Digital · Photo Book table · 7–13 mm" && tbl.f === 0 && tbl.name === "Saal Digital · Photo Book (copy)" && added === 1, JSON.stringify({ ...tbl, added }))
+  await page.locator('[data-testid="pp-save"]').click(); await page.waitForTimeout(300)
+  const saved = await page.locator('[data-scenario] [data-testid^="print-custom-custom-"]').count()
+  ok("printer-presets: Duplicate Saal adds the copy row and opens the editor on “… (copy)”, table spine read-only; Save keeps one row", tbl.t === "From the Saal Digital · Photo Book table · 7–13 mm" && tbl.f === 0 && tbl.name === "Saal Digital · Photo Book (copy)" && added === 1 && saved === 1, JSON.stringify({ ...tbl, added, saved }))
   await pick("print-empty")
   const empty = await S("print-custom-empty").evaluate((e) => `${e.textContent} ${getComputedStyle(e).fontSize} ${getComputedStyle(e).color}`)
   ok("printer-presets: print-empty row text 13 #535152", empty === "No custom profiles yet. Duplicate a print shop’s profile, or start a new one. 13px rgb(83, 81, 82)", empty)
