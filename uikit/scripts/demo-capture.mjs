@@ -85,10 +85,18 @@ export async function capture(out, { log = console.log, probe } = {}) {
     ["editor-spread-inherits-master", async () => { await page.locator('[data-testid="mode-seg"]').getByText("Pages", { exact: true }).click(); await settle(250); await c('[data-item="p1"]') }],
     // page-numbers-kit: Book settings → Page numbers (Start at, Format, Skip first page) between Binding and Print
     ["editor-book-page-numbers", () => c('[data-testid="book-title"]')],
-    // Designer parent-overrides PO2: Ctrl+Shift+click through the full-bleed photo copies Master A's Chapter line (badge, Override · Master A)
+    // Designer parent-overrides PO2: Ctrl+Shift+click through the full-bleed photo copies Master A's Chapter line (Override · Master A; no badge: the copy is too short for it at Fit)
     ["editor-parent-item-overridden", async () => { await page.locator('[data-current] [data-testid="master-frame"]').first().click({ modifiers: ["Control", "Shift"], force: true }) }],
+    // PO2 badge fit rule: Ctrl+= ×3 makes the copy tall enough for the full "override" badge (zoom keeps the centre: middle-drag the copy in)
+    ["editor-parent-badge", async () => {
+      for (let i = 0; i < 3; i++) await page.keyboard.press("Control+="); await settle(300)
+      const b = await page.locator('[data-current] [data-override]').first().boundingBox(), v = await page.locator('[data-testid="canvas"]').boundingBox()
+      const x = Math.round(v.x + v.width / 2), y = Math.round(v.y + v.height / 2)
+      await page.mouse.move(x, y); await page.mouse.down({ button: "middle" })
+      await page.mouse.move(Math.round(2 * x - b.x - b.width / 2), Math.round(2 * y - b.y - b.height / 2), { steps: 6 }); await page.mouse.up({ button: "middle" }); await settle(200) }],
     // PO5 / PO7: Ctrl+Shift-drag the copy 30 px right, Ctrl+Shift-drag guide mA-gl onto the ruler, grey click → "Changed from Master A"
     ["editor-parent-changes", async () => {
+      await page.keyboard.press("Control+0"); await settle(300)
       const b = await page.locator('[data-current] [data-override]').first().boundingBox(), x = Math.round(b.x + b.width / 2), y = Math.round(b.y + b.height / 2)
       const g = await page.locator('[data-current] [data-guide="mA-gl"]').boundingBox(), gx = Math.round(g.x + g.width / 2), r = await page.locator('[data-testid="ruler-x"]').boundingBox()
       const s = await page.locator('[data-testid="canvas"] [data-testid="spread"][data-current]').boundingBox()
@@ -96,7 +104,8 @@ export async function capture(out, { log = console.log, probe } = {}) {
       await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 30, y, { steps: 6 }); await page.mouse.up(); await settle(200)
       await page.mouse.move(gx, Math.round(s.y + s.height / 2)); await page.mouse.down(); await page.mouse.move(gx, Math.round(r.y + r.height / 2), { steps: 6 }); await page.mouse.up(); await settle(200)
       await page.keyboard.up("Shift"); await page.keyboard.up("Control")
-      await page.mouse.click(Math.round(s.x - 24), Math.round(s.y + s.height / 2)) }],
+      await page.mouse.click(Math.round(s.x - 24), Math.round(s.y + s.height / 2)); await settle(200)
+      await page.locator('[data-testid="parent-changes"]').scrollIntoViewIfNeeded() }],
     ["editor-parent-reset-all", () => c('[data-testid="parent-reset-all"]')],
     ["editor-missing-photos", async () => { await page.evaluate(() => window.__demo.missing(2)); await settle(400) }],
     ["editor-relink-dialog", () => c('[data-testid="demo-relink"]')],

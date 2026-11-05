@@ -160,7 +160,7 @@ function OverrideBadge({ fit }: { fit: ReturnType<typeof badgeFit> }) {
   const icon = fit === "icon"
   return (
     <span data-testid="override-badge" data-fit={fit} role={icon ? "img" : undefined} aria-label={icon ? "Override" : undefined} title={icon ? "Override" : undefined}
-      className="pointer-events-none absolute left-1 top-1 inline-flex items-center gap-1 whitespace-nowrap rounded-xs bg-parent px-1 py-px text-2xs font-semibold leading-[14.85px] text-white">
+      className="pointer-events-none absolute left-1 top-1 inline-flex h-[16.84px] items-center justify-center gap-1 whitespace-nowrap rounded-xs bg-parent px-1 py-px text-2xs font-semibold leading-[14.85px] text-white">
       <Unlink2 className="size-2.5" />{!icon && "override"}
     </span>
   )

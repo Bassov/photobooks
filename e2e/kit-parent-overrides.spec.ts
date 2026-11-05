@@ -37,7 +37,7 @@ async function openSpread(page: Page) {
 }
 
 /** The copy's badge against the PO3 fit rule on the measured frame: `want` from the rule, `shown` from the DOM,
- *  `inside` = not clipped by the frame, `sized` = 66.42 (full) / 18 (icon) px wide ±1.5; `sc` = px per mm (7 mm line). */
+ *  `inside` = not clipped by the frame, `sized` = 66.42 (full) / 18 (icon) px wide ±1.5 and 16.84 px tall; `sc` = px per mm (7 mm line). */
 async function badgeState(page: Page) {
   return copy(page).evaluate((el) => {
     const f = el.getBoundingClientRect()
@@ -56,7 +56,10 @@ async function badgeState(page: Page) {
       want,
       shown,
       inside: !b || (b.right <= f.right && b.bottom <= f.bottom),
-      sized: !b || Math.abs(b.width - (shown === 'full' ? 66.42 : 18)) < 1.5,
+      sized:
+        !b ||
+        (Math.abs(b.width - (shown === 'full' ? 66.42 : 18)) < 1.5 &&
+          Math.abs(b.height - 16.84) < 0.5),
       sc: f.height / 7,
     }
   })
