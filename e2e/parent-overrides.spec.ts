@@ -293,3 +293,52 @@ test('the override badge shows in full, icon-only, or not at all by the copy siz
   })
   await assertDocumentFitsViewport(page)
 })
+
+test('a handle drag on a selected copy keeps it selected, the ring tracks, Delete then takes its photo', async ({
+  page,
+}) => {
+  const c = 'painter-spread-3'
+  await openSpread(page, c)
+  await overrideDrag(page, inheritedLogo(page, c), 0)
+  const copy = copyOf(page, c)
+  await expect(copy).toHaveAttribute('aria-pressed', 'true')
+  const chrome = selectionOf(page, c)
+  const box0 = await boxOf(copy)
+
+  // Interact: the copy's `se` handle (above the frames) +30, +20 (Alt would
+  // resize from the centre; snaps may shift an edge); every sampled step keeps
+  // the selection and the ring on the live copy.
+  const se = await boxOf(chrome.locator('[data-handle="se"]'))
+  const x = se.x + se.width / 2
+  const y = se.y + se.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await expect(copy).toHaveAttribute('aria-pressed', 'true')
+  await expect(chrome).toBeVisible()
+  let width = box0.width
+  for (let step = 1; step <= 4; step += 1) {
+    await page.mouse.move(x + (30 * step) / 4, y + (20 * step) / 4)
+    await expect(copy).toHaveAttribute('aria-pressed', 'true')
+    const live = await boxOf(copy)
+    expect(live.width).toBeGreaterThan(width)
+    width = live.width
+    expect(await boxOf(chrome)).toEqual(live)
+  }
+  await page.mouse.up()
+  await expect(copy).toHaveAttribute('aria-pressed', 'true')
+  const after = await boxOf(copy)
+  expect(after.width - box0.width).toBeGreaterThan(20)
+  expect(after.height - box0.height).toBeGreaterThan(10)
+  expect(await boxOf(chrome)).toEqual(after)
+
+  // Delete takes the photo like on an own frame, never the spread.
+  await page.keyboard.press('Delete')
+  await expect(copy).toHaveAttribute('data-filled', 'false')
+  await expect(copy).toBeFocused()
+  await expect(inheritedLogo(page, c)).toHaveCount(0)
+  await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
+    'data-spread-count',
+    '40',
+  )
+  await assertDocumentFitsViewport(page)
+})

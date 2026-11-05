@@ -416,8 +416,11 @@ describe('frameHandleGesture', () => {
 
       fire('pointerdown', se, 150, 150)
       fire('pointermove', window, 160, 170)
+      expect(document.activeElement).not.toBe(dom.button)
       fire('pointerup', window, 160, 170)
       expect(frame().rect).toMatchObject({ width: 60, height: 70 })
+      // Delete / arrows after the drag reach the copy, not the pasteboard.
+      expect(document.activeElement).toBe(dom.button)
 
       fire('pointerdown', rot, 225, 125)
       fire('pointermove', window, 125, 225)

@@ -52,6 +52,8 @@ interface Session {
   pointerId: number
   ctx: SpreadContext
   frameId: string
+  /** The frame button (a copy's, for a handle on its selection peer). */
+  button: HTMLElement
   /** The frame button, plus a copy's selection peer (live writes on both). */
   painted: HTMLElement[]
   handle: ResizeHandle | typeof ROTATE_HANDLE
@@ -161,6 +163,7 @@ export function installFrameHandleGesture(): () => void {
       pointerId: event.pointerId,
       ctx,
       frameId,
+      button,
       painted: paintedOf(button),
       handle,
       startX: event.clientX,
@@ -312,6 +315,9 @@ export function installFrameHandleGesture(): () => void {
     finish()
     // The press never reaches the frame's click toggle.
     armSwallow()
+    // A copy's handle sits outside its button: the press focused the
+    // pasteboard, so Delete / arrows would miss the frame. Own: a no-op.
+    current.button.focus({ preventScroll: true })
     if (!current.started) {
       return
     }
