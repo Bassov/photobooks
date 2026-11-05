@@ -1,0 +1,66 @@
+/* Site demo 9, Shelf on the system: the plank, spines (thickness × 2.4), hover = only that spine up 14 px + shadow, 0.3 s. */
+.ss9-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+}
+.ss9-plank {
+  position: absolute;
+  height: 12px;
+  background: #d8d1c4;
+  box-shadow: 0 14px 24px -12px rgb(30 25 20 / 0.3);
+  pointer-events: none;
+}
+.ss9-face {
+  display: block;
+  flex: none;
+}
+.ss.ss .ss9-face .sd-pose {
+  --ry: -8;
+  --rx: -1;
+}
+.ss9-face:focus-visible {
+  outline-offset: 6px;
+}
+.ss9-spine {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 1px 1px 0 0;
+  background-image: linear-gradient(90deg, rgb(0 0 0 / 0.1), rgb(255 255 255 / 0.08) 30%, rgb(0 0 0 / 0) 60%, rgb(0 0 0 / 0.14));
+  box-shadow:
+    inset 1px 0 0 rgb(255 255 255 / 0.16),
+    inset -1px 0 0 rgb(0 0 0 / 0.18);
+  transition:
+    transform 300ms var(--ease-out),
+    box-shadow 300ms var(--ease-out);
+}
+.ss9-spine span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.ss9-spine:focus-visible {
+  outline-offset: 2px;
+}
+.ss9-spine[data-up],
+.ss-layer[data-testid='ss9-shelf'] .ss9-spine:is(:hover, :focus-visible) {
+  transform: translateY(-14px);
+  box-shadow:
+    0 16px 30px -10px rgb(30 25 20 / 0.4),
+    inset 1px 0 0 rgb(255 255 255 / 0.16),
+    inset -1px 0 0 rgb(0 0 0 / 0.18);
+}
+.ss9-cap {
+  animation: ss-in 200ms var(--ease) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ss9-spine {
+    transition: none;
+  }
+}
