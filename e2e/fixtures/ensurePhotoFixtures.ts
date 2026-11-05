@@ -18,6 +18,8 @@ export const photoFixturePaths = {
   sampleLosslessWebp: join(fixturesDir, 'sample-lossless-3x2.webp'),
   sampleCorruptWebp: join(fixturesDir, 'sample-corrupt.webp'),
   largeJpeg: join(fixturesDir, 'large-24mp.jpg'),
+  metaLake: join(fixturesDir, 'meta-lake.jpg'),
+  metaHill: join(fixturesDir, 'meta-hill.jpg'),
 } as const
 
 export function ensurePhotoFixtures(options?: {
@@ -37,6 +39,11 @@ export function ensurePhotoFixtures(options?: {
   execFileSync(process.execPath, [join(fixturesDir, 'write-sample-webp.mjs')], {
     stdio: 'pipe',
   })
+  execFileSync(
+    process.execPath,
+    [join(fixturesDir, 'write-exif-meta-jpegs.mjs')],
+    { stdio: 'pipe' },
+  )
 
   if (options?.includeLargeJpeg !== false) {
     if (!existsSync(photoFixturePaths.largeJpeg)) {

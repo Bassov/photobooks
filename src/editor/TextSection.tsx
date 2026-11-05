@@ -1,12 +1,26 @@
-import { useRef, useSyncExternalStore, type ReactNode } from 'react'
-import { editableSpread, layerOf, type Frame, type TextStyleId } from '../core'
+import {
+  useRef,
+  useSyncExternalStore,
+  type ReactNode,
+  type RefObject,
+} from 'react'
+import {
+  editableSpread,
+  layerOf,
+  type Book,
+  type Frame,
+  type Spread,
+  type TextStyleId,
+} from '../core'
 import { fitTextHeightMm } from '../render/textStyles'
 import { Disclosure } from '../ui/Disclosure'
 import { SegmentedControl } from '../ui/SegmentedControl'
+import { Select } from '../ui/Select'
 import { ICON_GLYPHS } from '../ui/icons/glyphs'
 import { FrameGlyph } from '../render/SpreadView'
 import {
   dispatchBookOp,
+  getAssetDisplayName,
   getBookStoreSnapshot,
   subscribeBookStore,
 } from './bookStore'
@@ -17,6 +31,19 @@ import {
   FrameLockButton,
   GeometrySection,
 } from './FrameSections'
+import { ToggleSwitch } from './InspectorControls'
+import {
+  anchorOptions,
+  chipAnchor,
+  chipState,
+  editableText,
+  imageFrames,
+  insertToken,
+  isLive,
+  LIVE_TOKENS,
+  type Caret,
+  type LiveToken,
+} from './liveCaption'
 import {
   isTextOverflowing,
   nextEditKey,
@@ -28,6 +55,11 @@ type TextAlign = NonNullable<Frame['align']>
 
 /** `scrollHeight` is whole px: a box this close to its content fits. */
 const ROUNDING_PX = 1
+
+const LIVE_LABEL = 'Live from photo metadata'
+const INSERT_LABEL = 'Insert token'
+
+const readBook = (): Book => getBookStoreSnapshot().book
 
 const STYLE_ITEMS: { id: TextStyleId; label: string }[] = [
   { id: 'title', label: 'Title' },
@@ -75,13 +107,11 @@ function readTextFrame(target: CropTarget): Frame | undefined {
   return frame?.kind === 'text' ? frame : undefined
 }
 
-function useTextFrame(target: CropTarget): Frame | undefined {
-  const read = () => readTextFrame(target)
+/** The target's spread (a stable object until one of its frames changes). */
+function useTargetSpread(target: CropTarget): Spread | undefined {
+  const read = () =>
+    editableSpread(getBookStoreSnapshot().book, target.spreadId)?.spread
   return useSyncExternalStore(subscribeBookStore, read, read)
-}
-
-function staticText(frame: Frame): string {
-  return frame.content?.type === 'static' ? frame.content.text : ''
 }
 
 /**
@@ -106,20 +136,152 @@ function growToText(target: CropTarget, key: string): void {
     {
       type: 'editText',
       ...target,
-      text: staticText(frame),
+      text: editableText(frame),
       fitHeightMm: fitTextHeightMm(contentMm, frame.styleId ?? 'caption'),
     },
     key,
   )
 }
 
-/** Kit TextSection without the Live block (live-captions is kit-only). */
+function textTarget(
+  spread: Spread | undefined,
+  frameId: string,
+): { spread: Spread; frame: Frame } | undefined {
+  if (spread === undefined) {
+    return undefined
+  }
+  const frame = spread.frames.find(
+    (item) => item.id === frameId && item.kind === 'text',
+  )
+  return frame === undefined ? undefined : { spread, frame }
+}
+
+/** Remembered Text field selection of one frame (a chip inserts there). */
+interface FrameCaret {
+  frameId: string
+  caret: Caret | null
+}
+
+/**
+ * Designer live-captions: Live from photo metadata, Anchored to (while Live)
+ * and the token chips; no image frame on the spread → disabled + hint.
+ */
+function LiveCaptionBlock({
+  target,
+  spread,
+  frame,
+  caretRef,
+}: {
+  target: CropTarget
+  spread: Spread
+  frame: Frame
+  caretRef: RefObject<FrameCaret | null>
+}) {
+  // Chip titles and file names read the assets too.
+  const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
+  const live = isLive(frame)
+  const enabled = imageFrames(spread).length > 0
+  const anchor = chipAnchor(spread, frame)
+  const insert = (token: LiveToken) => {
+    const saved = caretRef.current
+    const remembered = saved?.frameId === target.frameId ? saved.caret : null
+    const next = insertToken(editableText(frame), token, remembered)
+    caretRef.current = { frameId: target.frameId, caret: next.caret }
+    const session = nextEditKey('txt', target.frameId)
+    // Live already on: a no-op that records nothing.
+    dispatchBookOp(
+      { type: 'setTextLive', ...target, live: true },
+      session,
+      INSERT_LABEL,
+    )
+    dispatchBookOp(
+      { type: 'editText', ...target, text: next.text },
+      session,
+      INSERT_LABEL,
+    )
+    requestAnimationFrame(() => {
+      growToText(target, session)
+    })
+  }
+  return (
+    <div className="live-caption" data-testid="live-caption">
+      <div
+        className="live-caption-row"
+        data-disabled={enabled ? undefined : 'true'}
+      >
+        <span>{LIVE_LABEL}</span>
+        <ToggleSwitch
+          label={LIVE_LABEL}
+          testId="live-caption-switch"
+          on={live}
+          disabled={!enabled}
+          onChange={(next) => {
+            dispatchBookOp({ type: 'setTextLive', ...target, live: next })
+          }}
+        />
+      </div>
+      {enabled ? (
+        <>
+          {live ? (
+            <Select
+              label="Anchored to"
+              data-testid="live-caption-anchor"
+              className="live-caption-select"
+              value={frame.anchorFrameId ?? ''}
+              options={anchorOptions(book, spread, getAssetDisplayName)}
+              onChange={(anchorFrameId) => {
+                dispatchBookOp({
+                  type: 'setTextAnchor',
+                  ...target,
+                  anchorFrameId,
+                })
+              }}
+            />
+          ) : null}
+          <div className="live-caption-chips" data-testid="live-tokens">
+            {LIVE_TOKENS.map((token) => {
+              const chip = chipState(book, spread, anchor, token)
+              return (
+                <button
+                  key={token}
+                  type="button"
+                  className="live-caption-chip"
+                  data-testid={`live-token-${token}`}
+                  data-missing={chip.missing ? 'true' : undefined}
+                  title={chip.title}
+                  onClick={() => {
+                    insert(token)
+                  }}
+                >
+                  <FrameGlyph
+                    nodes={ICON_GLYPHS.braces}
+                    size={12}
+                    name="braces"
+                  />
+                  {token}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      ) : (
+        <p className="live-caption-hint" data-testid="live-caption-hint">
+          Add a photo frame to this spread to use its metadata.
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** Kit TextSection (uikit/src/sandbox/sections.tsx) with its Live block. */
 function TextSection({ target }: { target: CropTarget }) {
-  const frame = useTextFrame(target)
+  const found = textTarget(useTargetSpread(target), target.frameId)
   const key = useRef('')
-  if (frame === undefined) {
+  const caret = useRef<FrameCaret | null>(null)
+  if (found === undefined) {
     return null
   }
+  const { spread, frame } = found
   return (
     <Disclosure
       title="Text"
@@ -154,9 +316,16 @@ function TextSection({ target }: { target: CropTarget }) {
           aria-label="Text"
           data-testid="text-input"
           className="text-section-input"
-          value={staticText(frame)}
+          value={editableText(frame)}
           onFocus={() => {
             key.current = nextEditKey('txt', target.frameId)
+          }}
+          onBlur={(event) => {
+            const el = event.currentTarget
+            caret.current = {
+              frameId: target.frameId,
+              caret: { start: el.selectionStart, end: el.selectionEnd },
+            }
           }}
           onKeyDown={(event) => {
             event.stopPropagation()
@@ -171,6 +340,12 @@ function TextSection({ target }: { target: CropTarget }) {
               growToText(target, session)
             })
           }}
+        />
+        <LiveCaptionBlock
+          target={target}
+          spread={spread}
+          frame={frame}
+          caretRef={caret}
         />
       </div>
     </Disclosure>

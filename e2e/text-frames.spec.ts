@@ -201,13 +201,14 @@ test.describe('text frames', () => {
     ).toBeLessThan(1)
     expect(Math.abs(chipBox.y - (frame.y + frame.height + 4))).toBeLessThan(1)
     expect(chipBox.height).toBeCloseTo(14, 0)
-    // Kit TextSection: 12 px section + 16 px disclosure + 1 px divider below
-    // the field, meta line 14 px tall.
+    // Kit TextSection: the Live block off (12 + 12 px, switch 20, gap 8,
+    // chips 24 — Designer live-captions "Live-off: bottom 310"), then 12 px
+    // section + 16 px disclosure + 1 px divider; meta line 14 px tall.
     const input = await boxOf(page.getByTestId('text-input'))
     const geometry = await boxOf(
       page.getByTestId('inspector-geometry-disclosure'),
     )
-    expect(geometry.y - (input.y + input.height)).toBeCloseTo(29, 1)
+    expect(geometry.y - (input.y + input.height)).toBeCloseTo(29 + 76, 1)
     expect((await boxOf(page.getByTestId('inspector-meta'))).height).toBe(14)
 
     // Editing hides the chip; Preview never paints it.

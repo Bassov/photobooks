@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: captions from photo metadata
+Status: done
 
 ## Scope
 
