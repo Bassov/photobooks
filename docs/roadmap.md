@@ -141,6 +141,8 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [avif-encoder](roadmap/P3/avif-encoder.md) — AVIF derivatives (Security Review: dependency)
 - [x] [prep] [publish-revisions](roadmap/P3/publish-revisions.md) — draft vs published
 - [x] [feature] [user-templates-store](roadmap/P3/user-templates-store.md) — Bug: /next-roadmap-item user-templates-store
+- [ ] [feature] [user-templates-picker](roadmap/P3/user-templates-picker.md) — Bug: /next-roadmap-item user-templates-picker
+- [ ] [feature] [user-templates-best-fit](roadmap/P3/user-templates-best-fit.md) — Bug: /next-roadmap-item user-templates-best-fit
 - [ ] [feature] [site-viewer](roadmap/P3/site-viewer.md) — viewer entry
 - [x] [feature] [site-viewer-render](roadmap/P3/site-viewer-render.md) — Bug: /next-roadmap-item site-viewer-render
 - [x] [feature] [site-viewer-kit](roadmap/P3/site-viewer-kit.md) — Bug: /next-roadmap-item site-viewer-kit
@@ -178,6 +180,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
 - [ ] [feature] [connect-own-hosting](roadmap/P5/connect-own-hosting.md) — bring your own hosting (Security Review)
 - [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
+- [ ] [lite] [deps-dev-knip-relink](roadmap/P5/deps-dev-knip-relink.md) — Bug: /next-roadmap-item deps-dev-knip-relink
 - [ ] [feature] [spread-thumb-grey-backing](roadmap/P5/spread-thumb-grey-backing.md) — Bug: /next-roadmap-item spread-thumb-grey-backing
 - [ ] [feature] [page-count-mismatch](roadmap/P5/page-count-mismatch.md) — Bug: /next-roadmap-item page-count-mismatch
 

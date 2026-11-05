@@ -147,7 +147,7 @@ describe('parsing and orientation edges', () => {
 
   it('uses four rows when the per-page count needs them', () => {
     const book = gridBook(3)
-    expect(bestTemplateId(book, 1, Array(32).fill('landscape'))).toBe(
+    expect(bestTemplateId(book, 1, Array(32).fill('landscape'), [])).toBe(
       'contact-4x4',
     )
   })

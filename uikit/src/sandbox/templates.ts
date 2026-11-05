@@ -12,7 +12,15 @@ export const EXTRA: Template[] = [
   { id: "t-land2port", name: "Landscape + 2 portraits", count: 3, group: "3", frames: [{ x: 4, y: 14, w: 42, h: 56 }, { x: 54, y: 8, w: 20, h: 84 }, { x: 76, y: 8, w: 20, h: 84 }] },
 ]
 export const ALL_TEMPLATES: Template[] = [...BASE, ...EXTRA]
-export const TT = (id: string): Template => (isPageId(id) ? pageTemplate(TT(basePageId(id))) : ALL_TEMPLATES.find((t) => t.id === id) ?? custom.find((t) => t.id === id) ?? contactSheet(id))
+export const TT = (id: string): Template => (isPageId(id) ? pageTemplate(TT(basePageId(id))) : ALL_TEMPLATES.find((t) => t.id === id) ?? customOnSpread(id) ?? contactSheet(id))
+
+/* Designer spec user-templates UT1 (prod customLayoutRects): a saved template's frames are percent of the trim it was saved on.
+   A single-page one never goes through pageFrames; apply / preview place it on page 1 (the right half of spread 0):
+   x = PAGE + b.x/100·PAGE, w = b.w/100·PAGE, i.e. spread percent 50 + b.x/2, b.w/2 (SW = 2·PAGE) */
+function customOnSpread(id: string): Template | undefined {
+  const t = custom.find((c) => c.id === id)
+  return t && t.pages === 1 ? { ...t, frames: t.frames.map((b) => ({ x: 50 + b.x / 2, y: b.y, w: b.w / 2, h: b.h })) } : t
+}
 
 /* kit-sync KS7 (prod catalog.ts generateTemplateFrames, boxes = [page]): a single page lays the template out inside that page.
    One per page and contact sheets keep their right-page frames; every other template squashes the spread into the right page.
@@ -55,7 +63,7 @@ export function bestTemplate(photoIds: string[], pool: Template[] = ALL_TEMPLATE
    Custom templates live in their own reactive store; TT() resolves both. */
 export const BUILTIN = () => ALL_TEMPLATES
 /* kit-sync KS7 (prod LayoutSection counts the page's rects): a single page counts its page frames, the ones the tile draws */
-export const slotCount = (t: Template, single = false) => (single ? pageFrames(t).length : t.frames.length)
+export const slotCount = (t: Template, single = false) => (single && !isCustom(t.id) ? pageFrames(t).length : t.frames.length)
 
 /* kit-sync KS7 (Owner 2026-11-02; prod twin: src/editor/layoutCatalog.ts PICKER_MERGES / sortByPhotoCount):
    on a two-page spread Two portraits is only a margin variant of One per page, so the picker shows one tile;
@@ -66,10 +74,18 @@ export const pickerAlias = (id: string | null | undefined, single: boolean) => {
 /** one list from one photo up; the sort is stable, so catalogue order holds inside a count */
 export const sortByPhotoCount = (ts: Template[], single = false) => [...ts].sort((a, b) => slotCount(a, single) - slotCount(b, single))
 let custom: Template[] = [
-  { id: "c-opener", name: "Travel opener", count: 2, group: "2", frames: [{ x: 0, y: 0, w: 62, h: 100 }, { x: 68, y: 30, w: 28, h: 40 }] },
-  { id: "c-polaroid", name: "Polaroid pair", count: 2, group: "2", frames: [{ x: 10, y: 14, w: 30, h: 60 }, { x: 60, y: 24, w: 30, h: 60 }] },
-  { id: "c-quote", name: "Quote + photo", count: 1, group: "1", frames: [{ x: 52, y: 8, w: 44, h: 84 }] },
+  { id: "c-opener", name: "Travel opener", count: 2, group: "2", pages: 2, frames: [{ x: 0, y: 0, w: 62, h: 100 }, { x: 68, y: 30, w: 28, h: 40 }] },
+  { id: "c-polaroid", name: "Polaroid pair", count: 2, group: "2", pages: 2, frames: [{ x: 10, y: 14, w: 30, h: 60 }, { x: 60, y: 24, w: 30, h: 60 }] },
+  { id: "c-quote", name: "Quote + photo", count: 1, group: "1", pages: 2, frames: [{ x: 52, y: 8, w: 44, h: 84 }] },
 ]
+/** Designer spec user-templates UT1: page 1 offers single-page templates, a spread the others */
+export const ofShape = (ts: Template[], single: boolean) => ts.filter((t) => (single ? t.pages === 1 : t.pages !== 1))
+/** Designer spec user-templates UT2 (prod findSameSavedTemplate): same pages, slot count and every slot within 0.5 pp in order */
+export function findSameCustom(pages: 1 | 2, frames: Template["frames"]) {
+  const near = (a: number, b: number) => Math.abs(a - b) <= 0.5
+  return custom.find((t) => (t.pages ?? 2) === pages && t.frames.length === frames.length
+    && t.frames.every((b, i) => near(b.x, frames[i].x) && near(b.y, frames[i].y) && near(b.w, frames[i].w) && near(b.h, frames[i].h)))
+}
 const csubs = new Set<() => void>()
 const emit = () => csubs.forEach((f) => f())
 export const getCustom = () => custom
@@ -77,8 +93,8 @@ export function useCustomTemplates() { return useSyncExternalStore((f) => { csub
 export const isCustom = (id: string) => custom.some((t) => t.id === id)
 let seq = 0
 const newId = () => `c-${Date.now().toString(36)}-${++seq}`
-export function addCustom(name: string, frames: Template["frames"]) {
-  const t: Template = { id: newId(), name, count: frames.length, group: String(Math.min(4, frames.length)), frames }
+export function addCustom(name: string, frames: Template["frames"], pages: 1 | 2 = 2) {
+  const t: Template = { id: newId(), name, count: frames.length, group: String(Math.min(4, frames.length)), pages, frames }
   custom = [...custom, t]; emit(); return t
 }
 export function renameCustom(id: string, name: string) { const n = name.trim(); if (!n) return; custom = custom.map((t) => (t.id === id ? { ...t, name: n } : t)); emit() }

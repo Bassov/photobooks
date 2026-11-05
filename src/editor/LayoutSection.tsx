@@ -1,4 +1,11 @@
-import { memo, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import {
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { Button as AriaButton, Input, NumberField } from 'react-aria-components'
 import {
   CONTACT_MAX_COLS,
@@ -49,11 +56,13 @@ import {
   addSavedTemplate,
   deleteSavedTemplate,
   duplicateSavedTemplate,
+  findSameSavedTemplate,
   getSavedTemplates,
   nextTemplateName,
   renameSavedTemplate,
   subscribeSavedTemplates,
 } from './savedTemplates'
+import { setEditorStatus } from './editorStatus'
 import { setTemplatePreview } from './templatePreview'
 import './LayoutSection.css'
 
@@ -162,6 +171,36 @@ export function LayoutSection({ spreadId }: { spreadId: string }) {
   )
 }
 
+/** Designer spec `user-templates` UT2: how long an already saved tile flashes. */
+const FLASH_MS = 1200
+
+/**
+ * The tile a repeated Save points at: flagged for FLASH_MS and scrolled into
+ * the inspector's view. Every Save is a new `flash` object, so the timer
+ * starts over and the cell scrolls again.
+ */
+function useTileFlash() {
+  const [flash, setFlash] = useState<{ id: string } | null>(null)
+  // Only the flashed tile's cell carries it.
+  const cellRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    cellRef.current?.scrollIntoView({ block: 'nearest' })
+    const timer = window.setTimeout(() => {
+      setFlash(null)
+    }, FLASH_MS)
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [flash])
+  return {
+    flashId: flash?.id,
+    cellRef,
+    start: (id: string) => {
+      setFlash({ id })
+    },
+  }
+}
+
 function LayoutPicker({
   spreadId,
   book,
@@ -185,6 +224,10 @@ function LayoutPicker({
   const [tab, setTab] = useState<'all' | 'mine'>('all')
   const [chip, setChip] = useState<LayoutChipId>('all')
   const [renaming, setRenaming] = useState<string | null>(null)
+  const { cellRef, flashId, start: startFlash } = useTileFlash()
+  // A template belongs to the page shape it was saved on (Designer spec
+  // `user-templates` UT1): page 1 and the last page offer single-page ones.
+  const pages = getSpreadPageCount(spreadIndex, book.spreads.length)
   // A contact-sheet spread shows its own grid in the fields.
   const contactKey = contact === null ? '' : `${spreadId}/${current ?? ''}`
   const [syncedKey, setSyncedKey] = useState('')
@@ -214,7 +257,7 @@ function LayoutPicker({
     return {
       widthMm: size.widthMm,
       heightMm: size.heightMm,
-      spine: getSpreadPageCount(spreadIndex, book.spreads.length) === 2,
+      spine: pages === 2,
       builtins,
       aliases,
     }
@@ -228,14 +271,16 @@ function LayoutPicker({
   ])
   const saved = useMemo(
     () =>
-      mine.map((t): LayoutItem => ({
-        id: t.id,
-        name: t.name,
-        rects: customLayoutRects(book, spreadIndex, t.slots),
-        saved: true,
-      })),
+      mine
+        .filter((t) => t.pages === pages)
+        .map((t): LayoutItem => ({
+          id: t.id,
+          name: t.name,
+          rects: customLayoutRects(book, spreadIndex, t.slots),
+          saved: true,
+        })),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- trim + spread count only
-    [mine, book.settings, book.spreads.length, spreadIndex],
+    [mine, pages, book.settings, book.spreads.length, spreadIndex],
   )
   const all = [...geometry.builtins, ...saved]
   // A merged-away builtin (Two portraits on a two-page spread) presses and
@@ -244,7 +289,8 @@ function LayoutPicker({
     current === undefined
       ? undefined
       : (geometry.aliases.get(current) ?? current)
-  const note = templateName(selected) ?? undefined
+  // A saved layout of the other page shape names and presses nothing.
+  const note = templateName(selected, pages) ?? undefined
   const list = sortByPhotoCount(
     (tab === 'mine' ? saved : all).filter((item) =>
       matchesChip(item.rects.length, chip),
@@ -254,20 +300,36 @@ function LayoutPicker({
   const save = () => {
     // Only reachable while `canSave`: the spread has at least one image frame.
     const slots = spreadLayoutSlots(readBook(), spreadId)
-    const added = addSavedTemplate(nextTemplateName(), slots)
     setTab('mine')
     setChip('all')
+    const same = findSameSavedTemplate(pages, slots)
+    if (same !== undefined) {
+      setRenaming(null)
+      startFlash(same.id)
+      setEditorStatus(`Already in My templates as “${same.name}”`)
+      return
+    }
+    const added = addSavedTemplate(nextTemplateName(), slots, pages)
     setRenaming(added.id)
+  }
+  const rename = (id: string, value: string) => {
+    renameSavedTemplate(id, value)
+    setRenaming(null)
   }
   const canSave = spread.frames.some((frame) => frame.kind !== 'text')
   const tile = (item: LayoutItem) => (
-    <div key={item.id} className="layout-tile-cell">
+    <div
+      key={item.id}
+      ref={flashId === item.id ? cellRef : undefined}
+      className="layout-tile-cell"
+    >
       <button
         type="button"
         className="layout-tile"
         data-testid="layout-tile"
         data-template={item.id}
         aria-pressed={selected === item.id}
+        data-flash={flashId === item.id ? '' : undefined}
         aria-label={`Apply layout ${item.name}`}
         // Owner 2026-11-02: builtins carry no caption, the name is the tooltip.
         title={item.name}
@@ -306,6 +368,7 @@ function LayoutPicker({
           autoFocus
           className="layout-rename"
           defaultValue={item.name}
+          maxLength={60}
           aria-label="Template name"
           data-testid="tpl-rename-input"
           onFocus={(event) => {
@@ -313,16 +376,14 @@ function LayoutPicker({
           }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
-              renameSavedTemplate(item.id, event.currentTarget.value)
-              setRenaming(null)
+              rename(item.id, event.currentTarget.value)
             } else if (event.key === 'Escape') {
               event.stopPropagation()
               setRenaming(null)
             }
           }}
           onBlur={(event) => {
-            renameSavedTemplate(item.id, event.currentTarget.value)
-            setRenaming(null)
+            rename(item.id, event.currentTarget.value)
           }}
         />
       ) : null}
@@ -469,9 +530,11 @@ function LayoutPicker({
               className="layout-empty-icon"
             />
             {/* Unfiltered, only My templates can be empty. */}
-            {chip === 'all'
-              ? 'No templates yet. Save a spread you like.'
-              : 'No layouts match.'}
+            {chip !== 'all'
+              ? 'No layouts match.'
+              : pages === 2
+                ? 'No templates yet. Save a spread you like.'
+                : 'No templates yet. Save a page you like.'}
           </p>
         )}
         <p className="layout-muted layout-caption m-0" data-testid="tpl-hint">
