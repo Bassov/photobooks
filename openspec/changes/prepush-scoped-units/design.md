@@ -17,5 +17,6 @@
 | `package.json`                  | gate config: `lint` cache                    |
 | `docs/roadmap/RULES.md`         | push-stop rule                               |
 | `AGENTS.md`                     | `check:fast` row                             |
+| `README.md`                     | `check:fast` row                             |
 
 - Tests: argv (base / none), `FC_NUM_RUNS` default and keep, exit passthrough, `localFcNumRuns`. No PBT / e2e.
