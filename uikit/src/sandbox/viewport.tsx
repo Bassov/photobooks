@@ -7,7 +7,7 @@ import { SW, SH, PAGE, clamp, round, uid, spread, type Guide } from "./model"
 import { useStudio, mapSpread, removeFrames, useKeys } from "./store"
 import { SpreadSurface, GuideLine, PHOTO_TYPE, FRAME_LOCKED_STATUS, readItems, marqueeStarters, grayPick } from "./canvas"
 import { bestTemplate } from "./templates"
-import { CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, setMaster, guidesOfMaster, useMasters, coverW, pagesOf, SPINE, SUB, setCoverPhoto } from "./v7"
+import { CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, setMaster, guidesOfMaster, useMasters, coverW, pagesOf, spineCm, WRAP, SUB, setCoverPhoto } from "./v7"
 import type { Node } from "./store"
 
 /* Stack gap = 104 / 588 of the spread height (prod M49), so it scales with zoom. Page labels keep 11 px on screen,
@@ -32,13 +32,13 @@ function grayMarquee(e: React.PointerEvent, root: HTMLElement | null) {
 }
 
 function PageLabels({ nd, si }: { nd: Node; si: number }) {
-  const st = useStudio(), b = st.book, cw = coverW(b), n = st.doc.spreads.length
-  const labels: [string, number][] = nd?.k === "cover" ? [["Back", b.w / cw], ["Spine", SPINE / cw], ["Front", b.w / cw]]
+  const st = useStudio(), b = st.book, n = st.doc.spreads.length, sp = spineCm(pagesOf(n)), cw = 2 * b.w + sp
+  const labels: [string, number][] = nd?.k === "cover" ? [["Back", b.w / cw], ["Spine", sp / cw], ["Front", b.w / cw]]
     : nd?.k === "endpaper" ? [["Endpaper", 1]] : nd?.k === "master" ? [[`Master ${nd.id}`, 1]] : nd?.k === "last" ? [[`${pagesOf(n)}`, .5], ["", .5]]
     : si === 0 ? [["", .5], ["1", .5]] : [[`${si * 2}`, .5], [`${si * 2 + 1}`, .5]]
   // page numbers are 11 px, 8 px under the page (M37); cover / master labels keep 12 px, 10 px under it; the endpaper caption 12 px, 8 px under it (M89, prod .endpaper-caption)
   const pageNo = !nd || nd.k === "last"
-  return <div className={cn("pointer-events-none absolute inset-x-0 top-full flex tabular-nums", pageNo ? "mt-2 text-2xs leading-none" : nd?.k === "endpaper" ? "pt-2 text-xs" : "pt-2.5 text-xs")} style={{ color: SUB }} aria-hidden data-testid="page-labels">
+  return <div className={cn("pointer-events-none absolute inset-x-0 top-full flex tabular-nums", pageNo ? "mt-2 text-2xs leading-none" : nd?.k === "endpaper" ? "pt-2 text-xs" : "pt-2.5 text-xs")} style={{ color: SUB, paddingInline: nd?.k === "cover" ? `${(WRAP / (cw + 2 * WRAP)) * 100}%` : undefined }} aria-hidden data-testid="page-labels">
     {labels.map(([t, w], i) => <span key={i} className="whitespace-nowrap text-center" style={{ width: `${w * 100}%` }}>{t}</span>)}</div>
 }
 
@@ -142,8 +142,8 @@ function Ruler({ axis, origin, sc, len, cursor, onDown }: { axis: "x" | "y"; ori
 
 export const FIT_TOP = 56, FIT_BOTTOM = 48
 /** Fit scale for a spread `VW` mm wide in a `w`×`h` px box (`r` = ruler band); the stack uses the same Fit, so a stacked spread is as big as the lone one. */
-const fitScale = (w: number, h: number, pad: number, VW = SW, r = 0) =>
-  Math.max(0.2, Math.min((w - r - pad * 2) / VW, (h - r - Math.max(FIT_TOP, pad) - Math.max(FIT_BOTTOM, pad)) / SH))
+const fitScale = (w: number, h: number, pad: number, VW = SW, r = 0, VH = SH) =>
+  Math.max(0.2, Math.min((w - r - pad * 2) / VW, (h - r - Math.max(FIT_TOP, pad) - Math.max(FIT_BOTTOM, pad)) / VH))
 export function Viewport({ className, children, pad = 40 }: { className?: string; children?: React.ReactNode; pad?: number }) {
   const st = useStudio(), masters = useMasters()
   const { view } = st
@@ -160,9 +160,11 @@ export function Viewport({ className, children, pad = 40 }: { className?: string
   // v5.1: Fit leaves more air ABOVE the spread than below — top band FIT_TOP (≥ 48 px), bottom band FIT_BOTTOM
   // (page labels + floating pager); the spread is centred inside that band, so top air ≥ bottom air at any size.
   const fitTop = Math.max(FIT_TOP, pad), fitBottom = Math.max(FIT_BOTTOM, pad)
-  const k = nd?.k === "cover" ? coverW(st.book) / (2 * st.book.w) : 1, VW = SW * k
-  const sc = fitScale(size.w, size.h, pad, VW, r) * view.zoom
-  const ox = r + (size.w - r) / 2 - VW * sc / 2 + pan.x, oy = r + fitTop + (size.h - r - fitTop - fitBottom) / 2 - SH * sc / 2 + pan.y
+  // cover-editor: the cover camera fits the printed sheet (closed cover + the wrap band on all four sides)
+  const cover = nd?.k === "cover", VW = cover ? SW * (coverW(st.book, pagesOf(st.doc.spreads.length)) + 2 * WRAP) / (2 * st.book.w) : SW
+  const VH = cover ? SH * (st.book.h + 2 * WRAP) / st.book.h : SH
+  const sc = fitScale(size.w, size.h, pad, VW, r, VH) * view.zoom
+  const ox = r + (size.w - r) / 2 - VW * sc / 2 + pan.x, oy = r + fitTop + (size.h - r - fitTop - fitBottom) / 2 - VH * sc / 2 + pan.y
   React.useEffect(() => { if (view.zoom === 1) setPan({ x: 0, y: 0 }) }, [view.zoom])
   React.useEffect(() => {
     // v0.9.2: always preventDefault on Space outside fields (not only when target===body) so page/canvas chrome never scrolls or flashes a focus ring
@@ -256,7 +258,7 @@ export function Viewport({ className, children, pad = 40 }: { className?: string
         !space && view.tool === "text" && "cursor-tool-text",
         className)} data-testid="viewport">
       {size.w > 0 && (
-        <div className="absolute" style={{ left: ox, top: oy, width: VW * sc, height: SH * sc }} data-testid="spread-layer">
+        <div className="absolute" style={{ left: ox, top: oy, width: VW * sc, height: VH * sc }} data-testid="spread-layer">
           {nd ? <div className="size-full" data-testid="node-view">{nd.k === "cover" ? <CoverDrop /> : nd.k === "endpaper" ? <EndpaperSpread big which={nd.w} /> : nd.k === "master" ? <><MasterSpread big id={nd.id} m={masters[nd.id]} />{view.guides && !view.preview && masterGuides(nd.id).map((g) => <GuideLine key={g.id} g={g} sc={sc} onDown={(e) => onGuideDown(e, g.id)} />)}</> : <LastPage big sc={sc} />}</div>
             : <SpreadSurface si={si} sc={sc} onGuideDown={onGuideDown} />}
           {(!nd || mid) && newGuide && <div className={cn("pointer-events-none absolute z-50 bg-guide", newGuide.axis === "v" ? "w-px" : "h-px")} style={newGuide.axis === "v" ? { left: newGuide.pos * sc, top: -40, height: SH * sc + 80 } : { top: newGuide.pos * sc, left: -40, width: SW * sc + 80 }}>

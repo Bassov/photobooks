@@ -280,7 +280,7 @@ export function SpreadsPanel({ reorder = false, actions = false, onCollapse }: {
   // v0.7.1: the ONE editor's list (was Editor7's list): Pages | Masters · Cover · Endpaper · 1 · 2–3 … · last page · Endpaper
   void onCollapse
   const st = useStudio(), bk = st.book, masters = useMasters(), def = defaultMasterOf(st.doc)
-  const SR = (2 * bk.w) / bk.h, CR = coverW(bk) / bk.h, n = st.doc.spreads.length
+  const SR = (2 * bk.w) / bk.h, n = st.doc.spreads.length, CR = coverW(bk, pagesOf(n)) / bk.h
   const list: ListItem[] = st.mode === "masters"
     ? (["A", "B"] as const).map((id) => ({ key: `m${id}`, label: `Master ${id}`, ratio: SR, node: { k: "master", id }, thumb: <MasterSpread id={id} m={masters[id]} /> }))
     : [{ key: "cover", label: "Cover", ratio: CR, node: { k: "cover" }, thumb: <CoverSpread /> },

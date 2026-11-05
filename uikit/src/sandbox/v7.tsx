@@ -54,30 +54,59 @@ export const V7CSS = `
 `
 export const shadowBig = "0 1px 2px rgb(35 34 35/.2), 0 30px 60px -30px rgb(35 34 35/.55)", shadowSm = "0 1px 2px rgb(35 34 35/.18)"
 export const Gutter = () => <div className="pointer-events-none absolute inset-y-0 left-1/2 w-[8%] -translate-x-1/2" style={{ background: "linear-gradient(90deg, transparent, rgb(0 0 0/.07) 46%, rgb(0 0 0/.14) 50%, rgb(0 0 0/.07) 54%, transparent)" }} />
-export const SPINE = 1.2
+/** cover-editor: the generic print profile (cm) — wrap band, hinge and safe margin; the spine is 8 + 0.2 mm/page, pages clamped to PAGE_MIN–PAGE_MAX, rounded to 0.1 mm */
+export const WRAP = 1.5, HINGE = 0.8, SAFE = 0.5
+export const spineCm = (pages: number) => Math.round((8 + 0.2 * Math.min(Math.max(pages, PAGE_MIN), PAGE_MAX)) * 10) / 100
 /** v0.8 §3.2: page-size presets — size of ONE page, portrait base (cm). Orientation applies to the preset. */
 export const PRESETS: { id: string; name: string; w: number; h: number }[] = [
   { id: "A6", name: "A6", w: 10.5, h: 14.8 }, { id: "A5", name: "A5", w: 14.8, h: 21 }, { id: "A4", name: "A4", w: 21, h: 29.7 }, { id: "A3", name: "A3", w: 29.7, h: 42 },
   { id: "Letter", name: "Letter", w: 21.6, h: 27.9 }, { id: "sq20", name: "Square 20×20", w: 20, h: 20 }, { id: "sq30", name: "Square 30×30", w: 30, h: 30 }]
 export const presetLabel = (p: { name: string; w: number; h: number }, land = false) => `${p.name} · ${fmtN(land && p.w !== p.h ? p.h : p.w)} × ${fmtN(land && p.w !== p.h ? p.w : p.h)} cm`
-export const coverW = (b: Book) => 2 * b.w + SPINE
+/** closed cover width (cm): back · spine · front at trim size */
+export const coverW = (b: Book, pages: number) => 2 * b.w + spineCm(pages)
 export const fmtN = (n: number) => (Math.round(n * 10) / 10).toString()
 export const useBook = () => useStudio().book
-/** `slide`: the canvas text sizes × slide without the canvas chrome (no safe line, no wrap note, no test ids) — the presentation cover */
+const pct = (v: number, of: number) => `${(v / of) * 100}%`
+/** `slide`: the canvas text sizes without the canvas chrome (no sheet, overlays or test ids) — the presentation cover.
+    `big` (cover-editor Spec "Layers"): the printed cover sheet — sheet paint, the closed cover inside the wrap band, hinge strips,
+    safe frames, the wrap veil and the wrap chip. Text sizes are cqw of the closed cover (N px at the 848 px reference). */
 export function CoverSpread({ big, slide }: { big?: boolean; slide?: number }) {
-  const cov = useCoverPhoto(), ct = useCoverText()
-  const bk = useBook(), CW = coverW(bk), k = big ? 1 : slide
+  const cov = useCoverPhoto(), ct = useCoverText(), st = useStudio(), bk = st.book
+  const SP = spineCm(pagesOf(st.doc.spreads.length)), CW = 2 * bk.w + SP, SHW = CW + 2 * WRAP, SHH = bk.h + 2 * WRAP
+  const fs = (n: number, mini: number) => (big || slide ? `calc(100cqw * ${n} / 848)` : mini)
+  const ref = React.useRef<HTMLDivElement>(null), [band, setBand] = React.useState(0)
+  // D6: the chip shows only while the band is ≥ 18 screen px; measured before paint, so the first frame is right
+  React.useLayoutEffect(() => {
+    const el = ref.current; if (!el) return
+    const m = () => setBand((el.getBoundingClientRect().height * WRAP) / SHH)
+    m(); const ro = new ResizeObserver(m); ro.observe(el); return () => ro.disconnect()
+  }, [SHH])
+  const cover = (
+    <div className={`${big ? "absolute" : "relative h-full w-full"} flex`} style={{ boxShadow: big ? shadowBig : slide ? undefined : shadowSm, containerType: "inline-size", "--spine-frac": SP / CW, "--spine-len-frac": (bk.h - 2 * SAFE) / CW, ...(big && { left: pct(WRAP, SHW), top: pct(WRAP, SHH), width: pct(CW, SHW), height: pct(bk.h, SHH) }) } as React.CSSProperties} data-testid={big ? "canvas-cover" : undefined}>
+      <div className="relative h-full" style={{ width: pct(bk.w, CW), background: "#3E3C3B" }}>
+        <div className="absolute right-[12%] bottom-[10%] left-[12%]" style={{ color: "#E8E6E3", fontSize: fs(11, 3) }} data-testid={big ? "cover-back-text" : undefined}>{ct.back}</div></div>
+      <div className="relative h-full" style={{ width: pct(SP, CW), background: "#353332" }} data-testid={big ? "cover-spine" : undefined}>
+        {/* D5: centred on the spine whatever its length; at most 12 px at 848 and half the spine; trim height − 2 × safe long, then an ellipsis */}
+        <span className="absolute top-1/2 left-1/2 overflow-hidden text-ellipsis whitespace-nowrap" style={{ ...serif, color: "#E8E6E3", lineHeight: 1.5, fontSize: big || slide ? "min(calc(100cqw * 12 / 848), calc(100cqw * var(--spine-frac) * .5))" : 3, maxWidth: "calc(100cqw * var(--spine-len-frac))", transform: "translate(-50%, -50%) rotate(90deg)" }} data-testid={big ? "cover-spine-text" : undefined}><em>{ct.spine}</em></span></div>
+      <div className={`relative h-full ${big ? "" : "overflow-hidden"}`} style={{ width: pct(bk.w, CW), backgroundColor: cov ? undefined : "#8E8E8E" }} data-testid={big ? "cover-front" : undefined} data-photo-id={cov || undefined}>
+        {/* D4: the photo box is the front board + the wrap on its top, outer and bottom edges; mini covers clip it to the board */}
+        {cov && <div className="cover-front-photo absolute left-0 bg-cover" style={{ top: `-${pct(WRAP, bk.h)}`, bottom: `-${pct(WRAP, bk.h)}`, right: `-${pct(WRAP, bk.w)}`, backgroundImage: ph(cov), backgroundPosition: "45% 50%" }} />}
+        <div className="absolute top-[9%] right-[10%] left-[10%] text-white" style={{ ...serif, fontSize: fs(34, 7), textShadow: "0 1px 8px rgb(0 0 0/.35)" }} data-testid={big ? "cover-front-text" : undefined}><em>{ct.front}</em></div></div>
+    </div>)
+  if (!big) return cover
+  const a = pct(WRAP + bk.w, SHW), b = pct(WRAP + bk.w + SP, SHW), boardY = { top: pct(WRAP + SAFE, SHH), height: pct(bk.h - 2 * SAFE, SHH) }
+  const strip = (s: React.CSSProperties) => <div className="absolute" style={{ ...s, background: "rgb(200 202 203/.72)" }} />
   return (
-    <div className="relative flex h-full w-full" style={{ boxShadow: big ? shadowBig : slide ? undefined : shadowSm }} data-testid={big ? "canvas-cover" : undefined}>
-      <div className="relative h-full" style={{ width: `${(bk.w / CW) * 100}%`, background: "#3E3C3B" }}>
-        <div className="absolute right-[12%] bottom-[10%] left-[12%]" style={{ color: "#E8E6E3", fontSize: k ? 11 * k : 3 }} data-testid={big ? "cover-back-text" : undefined}>{ct.back}</div></div>
-      <div className="relative grid h-full place-items-center" style={{ width: `${(SPINE / CW) * 100}%`, background: "#353332" }} data-testid={big ? "cover-spine" : undefined}>
-        <span className="whitespace-nowrap" style={{ ...serif, color: "#E8E6E3", fontSize: k ? 12 * k : 3, transform: "rotate(90deg)" }}><em>{ct.spine}</em></span></div>
-      <div className="relative h-full bg-cover" style={{ width: `${(bk.w / CW) * 100}%`, backgroundImage: cov ? ph(cov) : undefined, backgroundColor: cov ? undefined : "#8E8E8E", backgroundPosition: "45% 50%" }} data-testid={big ? "cover-front" : undefined} data-photo-id={cov || undefined}>
-        <div className="absolute top-[9%] right-[10%] left-[10%] text-white" style={{ ...serif, fontSize: k ? 34 * k : 7, textShadow: "0 1px 8px rgb(0 0 0/.35)" }} data-testid={big ? "cover-front-text" : undefined}><em>{ct.front}</em></div></div>
-      {big && <>
-        <div data-allow-border data-testid={big ? "cover-safe" : undefined} className="pointer-events-none absolute" style={{ inset: `${(1.5 / bk.h) * 100}% ${(1.5 / CW) * 100}%`, outline: "1px dashed rgb(255 255 255/.45)" }} />
-        <span className="pointer-events-none absolute top-1.5 right-2 text-2xs" style={{ color: "rgb(255 255 255/.92)" }}>Wrap 15 mm</span></>}
+    <div ref={ref} className="relative size-full" style={{ background: `linear-gradient(90deg, #3E3C3B ${a}, #353332 ${a} ${b}, #8E8E8E ${b})` }} data-testid="cover-sheet">
+      {cover}
+      {([["back", WRAP + bk.w - HINGE], ["front", WRAP + bk.w + SP]] as const).map(([s, x]) =>
+        <div key={s} className="pointer-events-none absolute" style={{ left: pct(x, SHW), top: pct(WRAP, SHH), width: pct(HINGE, SHW), height: pct(bk.h, SHH), background: "repeating-linear-gradient(-45deg, rgb(255 255 255/.24) 0 1px, transparent 1px 6px)" }} data-testid={`cover-hinge-${s}`} />)}
+      {([["back", WRAP + SAFE], ["front", WRAP + bk.w + SP + HINGE]] as const).map(([s, x]) =>
+        <div data-allow-border key={s} data-testid={`cover-safe-${s}`} className="pointer-events-none absolute" style={{ ...boardY, left: pct(x, SHW), width: pct(bk.w - SAFE - HINGE, SHW), outline: "1px dashed rgb(255 255 255/.45)" }} />)}
+      <div className="pointer-events-none absolute inset-0" aria-hidden data-testid="cover-wrap">
+        {strip({ left: 0, top: 0, width: "100%", height: pct(WRAP, SHH) })}{strip({ left: 0, bottom: 0, width: "100%", height: pct(WRAP, SHH) })}
+        {strip({ left: 0, top: pct(WRAP, SHH), width: pct(WRAP, SHW), height: pct(bk.h, SHH) })}{strip({ right: 0, top: pct(WRAP, SHH), width: pct(WRAP, SHW), height: pct(bk.h, SHH) })}</div>
+      {band >= 18 && <span className="pointer-events-none absolute right-2 text-2xs leading-[14px] font-normal whitespace-nowrap" style={{ top: (band - 14) / 2, color: T }} data-testid="cover-wrap-chip">Wrap {fmtN(WRAP * 10)} mm</span>}
     </div>)
 }
 export function EndpaperSpread({ big, which }: { big?: boolean; which: "front" | "back" }) {
@@ -270,10 +299,11 @@ export function BookInspector() {
     <Sec title="Print"><div className="grid grid-cols-2 gap-2"><Field l="B" v="3" u="mm" /><Field l="S" v={`${book.safe}`} u="mm" /></div><Row l="Paper"><Val v="Matte 200 g" /></Row></Sec>
     <Sec title="Defaults"><Row l="Default master"><Val v={`Master ${def}`} /></Row><Row l="Page colour">{pc}</Row></Sec></div>
   if (sel.k === "cover") return <div data-testid="insp-cover">
-    <Head t="Cover" s="Hardcover · back, spine, front · wrap 15 mm" />
+    <Head t="Cover" s={`Hardcover · wrap ${fmtN(WRAP * 10)} mm · hinge ${fmtN(HINGE * 10)} mm`} sTid="cover-head-sub" />
     <Sec title="Front"><div className="flex items-center gap-3"><div className="h-13 w-10.5 shrink-0 rounded-xs bg-cover" style={{ backgroundImage: cov ? ph(cov) : undefined, backgroundColor: cov ? undefined : "#8E8E8E" }} data-testid="cover-front-thumb" data-photo-id={cov} /><div className="text-sm"><div>{!cov ? "No photo yet" : cov === "p01" ? "IMG_P01.jpg" : P(cov).name}</div><div className="mt-0.5" style={{ color: SUB }}>Full bleed · 288 ppi</div><div className="mt-0.5 text-2xs" style={{ color: SUB }}>Drag a photo from the filmstrip onto the cover</div></div></div>
       <div className="mt-3"><CoverTxt k="front" label="Front title" /></div><CoverSel l="Title font" opts={["Serif italic", "Serif", "Sans"]} tid="cover-title-font" /></Sec>
-    <Sec title="Spine"><CoverTxt k="spine" label="Spine text" /><Row l="Spine width"><span className="font-mono text-sm tabular-nums">12 mm</span></Row><Row l="Direction"><Val v="Top to bottom" /></Row></Sec>
+    <Sec title="Spine"><CoverTxt k="spine" label="Spine text" /><Row l="Spine width"><span className="font-mono text-sm tabular-nums" data-testid="cover-spine-width">{fmtN(spineCm(pages) * 10)} mm</span></Row>
+      <div className="mt-1.5 text-xs leading-[16.8px]" style={{ color: SUB }} data-testid="cover-spine-hint">Generic print profile · {pages} pages{pages < PAGE_MIN ? `, printed as ${PAGE_MIN}` : ""}</div><Row l="Direction"><Val v="Top to bottom" /></Row></Sec>
     <Sec title="Back"><CoverTxt k="back" label="Back text" /><Row l="Fill"><span className="inline-flex items-center gap-1.5 py-1" data-testid="fill-readonly"><span className="size-3 rounded-2xs shadow-hairline" style={{ background: "#3E3C3B" }} aria-hidden="true" data-testid="fill-swatch" />#3E3C3B</span></Row></Sec>
     <Sec title="Material"><CoverSel l="Cover" opts={["Printed", "Linen", "Leatherette"]} tid="cover-material" /><CoverSel l="Finish" opts={["Matte laminate", "Gloss laminate", "Soft touch"]} tid="cover-finish" /></Sec></div>
   if (sel.k === "endpaper") return <div data-testid="insp-endpaper">

@@ -73,14 +73,14 @@ export function SiteViewer({ title = "Aleksandr’s photobooks", author = AUTHOR
   const book = books.find((b) => b.id === s.book) ?? BOOKS.find((b) => b.id === s.book) ?? books[0] ?? BOOKS[0]
   const fsBtn = React.useRef<HTMLButtonElement>(null)
   // the cover is wider than a spread for most trims: fit it inside the w × w / R stage (never taller)
-  const coverR = coverW(st.book) / st.book.h
+  const cvW = coverW(st.book, pagesOf(st.doc.spreads.length)), coverR = cvW / st.book.h
   const coverFit = (w: number) => Math.min(w, (w / R) * coverR)
   // own: `w` is already the slide's own width (the lightbox fits the cover at coverR)
   const page = (i: number, w: number, own = false) => {
     // the last spread shows its left page only (mirror of MiniSpread's si === 0 clip)
     if (i > 0) return i === n && n > 1 ? <div style={{ clipPath: "inset(0 50% 0 0)" }}><MiniSpread s={sp[i - 1]} width={w} si={i - 1} /></div> : <MiniSpread s={sp[i - 1]} width={w} si={i - 1} />
     const cw = own ? w : coverFit(w)
-    return <div className="mx-auto" style={{ width: cw }}>{cover ? cover(cw) : <div style={{ width: cw, height: (cw * st.book.h) / coverW(st.book) }} data-testid="site-cover"><CoverSpread /></div>}</div>
+    return <div className="mx-auto" style={{ width: cw }}>{cover ? cover(cw) : <div style={{ width: cw, height: (cw * st.book.h) / cvW }} data-testid="site-cover"><CoverSpread /></div>}</div>
   }
   // page shadow over the visible page(s) only: spread 0 shows its right page, the last spread its left page (lightbox: stage-dark)
   const shaded = (i: number, w: number, dark: boolean) => <>
