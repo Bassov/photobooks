@@ -3,6 +3,7 @@ import * as React from "react"
 import { createToastQueue, type ToastContent } from "@/components/ui/toast"
 import type { Doc, Frame, Spread } from "./model"
 import { setGeom, reflowDoc } from "./model"
+import { anchorPhoto, fillTokens } from "./meta"
 
 export type View = {
   grid: boolean; snap: boolean; guides: boolean; rulers: boolean; overlays: boolean; preview: boolean
@@ -147,6 +148,13 @@ export function mapSpread(d: Doc, i: number, fn: (s: Spread) => Spread): Doc {
 }
 export function mapFrames(d: Doc, i: number, ids: string[], fn: (f: Frame) => Frame): Doc {
   return mapSpread(d, i, (s) => ({ ...s, frames: s.frames.map((f) => (ids.includes(f.id) ? fn(f) : f)) }))
+}
+/** Delete frames from spread `i`; live captions anchored to a removed frame become static with their painted text (Designer live-captions). */
+export function removeFrames(d: Doc, i: number, ids: string[]): Doc {
+  return mapSpread(d, i, (s) => ({
+    ...s, template: null,
+    frames: s.frames.filter((f) => !ids.includes(f.id)).map((f) => (f.live && f.anchor && ids.includes(f.anchor) ? { ...f, text: fillTokens(f.text ?? "", anchorPhoto(s.frames, f)), live: false, anchor: undefined } : f)),
+  }))
 }
 export function placedSet(d: Doc) {
   const s = new Set<string>()

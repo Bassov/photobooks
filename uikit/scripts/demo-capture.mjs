@@ -122,6 +122,10 @@ export async function capture(out, { log = console.log, probe } = {}) {
       await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 200, y + 40, { steps: 6 }); await page.mouse.up(); await settle(200)
       await page.keyboard.type("Morning on the lake, 6:40") }],
     ["editor-text-overflow", async () => { await page.keyboard.press("Escape"); await settle(200); await page.locator('[data-testid="ctx-inspector"]').getByText("Title", { exact: true }).click() }],
+    // Designer live-captions: Caption style, chips date + camera → Live on, anchored to the nearest photo frame
+    ["editor-text-live", async () => {
+      await page.locator('[data-testid="ctx-inspector"]').getByText("Caption", { exact: true }).click(); await settle(200)
+      await c('[data-testid="live-token-date"]'); await c('[data-testid="live-token-camera"]') }],
     ["settings-from-editor", () => c('[data-testid="demo-editor-settings"]')],
     ["library-one-book", async () => { await c('[data-testid="demo-settings-back"]'); await settle(); await c('[data-testid="editor-library"]') }],
     ["library-book-menu", async () => { await page.locator('[data-testid="demo"] [data-testid="book-cover"]').first().hover(); await c('[data-testid="demo"] [data-testid="book-menu"]') }],
