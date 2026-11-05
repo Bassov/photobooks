@@ -177,7 +177,7 @@ export function ArrangeSection() {
   const { f, frames, st } = useSelected()
   // Designer parent-overrides PO3: a copy cannot leave the parent paint slot, so a set of copies has no z-order controls
   if (!f || frames.every((x) => x.overrides)) return null
-  const move =(kind: "front" | "back" | "fwd" | "bwd") => st.update((d) => mapSpread(d, st.cur, (s) => {
+  const move = (kind: "front" | "back" | "fwd" | "bwd") => st.update((d) => mapSpread(d, st.cur, (s) => {
     const a = [...s.frames]; const ids = frames.map((x) => x.id)
     const sel = a.filter((x) => ids.includes(x.id)), rest = a.filter((x) => !ids.includes(x.id))
     if (kind === "front") return { ...s, frames: [...rest, ...sel] }

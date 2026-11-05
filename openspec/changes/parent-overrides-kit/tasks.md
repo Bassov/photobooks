@@ -12,3 +12,5 @@
 ## Manual test scenarios
 
 1. `uikit#/demo`, spread 2–3: Ctrl+Shift+click the Chapter line over the photo → copy selected, inspector head `Override · Master A`; drag it right; spread inspector lists it; Reset all → back to the master.
+
+- problem (harness): `pnpm agent manual-qa` drives the prod editor shell only, not `uikit#/demo`. Covered instead by `e2e/kit-parent-overrides.spec.ts` (5 passed), the demo walk (79 steps incl. `editor-parent-changes` / `editor-parent-reset-all`) and kit `qa:quick` (388 passed, 0 failed).
