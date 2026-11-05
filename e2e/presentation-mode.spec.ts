@@ -2,6 +2,7 @@ import { expect, test } from './fixtures/coverage'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { addSpreads } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
+import { topAt } from './fixtures/paintProbe'
 import {
   browserAssertNoLoaf,
   browserBeginLoafScenarioWindow,
@@ -23,12 +24,9 @@ test('present opens fullscreen without editor chrome; keys, click and Esc work',
   await expect(page.getByTestId('pager-position')).toHaveText('Cover')
   await page.keyboard.press('ArrowRight')
   await expect(page.getByTestId('pager-position')).toHaveText('1 / 3')
-  const barCovered = await page.getByTestId('editor-bar').evaluate((bar) => {
-    const r = bar.getBoundingClientRect()
-    const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
-    return top?.closest('[data-testid="presentation"]') !== null
-  })
-  expect(barCovered).toBe(true)
+  expect((await topAt(page.getByTestId('editor-bar')))[0]).toContain(
+    'presentation',
+  )
   // Pager mounts only the current spread and its neighbours (first of 3 → 2).
   await expect(page.getByTestId('spread-view')).toHaveCount(2)
   await assertDocumentFitsViewport(page)
