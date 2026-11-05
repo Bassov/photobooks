@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item ratchet-merge-base
+Status: done
 
 Process item P-20261105-1543-1 (self-improve retro): pr-policy is the top failing check, mostly for reasons outside the PR's diff. Stale-base `[test-file-deleted]` for specs main added after the fork (the ratchet diffs head against the base tip), and runs cancelled by `cancel-in-progress` after a PR body edit.
 
