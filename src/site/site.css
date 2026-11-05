@@ -62,7 +62,7 @@ body {
 
 .site-title:focus-visible,
 .site-all-books:focus-visible,
-.site-share:focus-visible,
+.site-action:focus-visible,
 .site-pager-btn:focus-visible {
   outline: 2px solid var(--site-focus);
   outline-offset: 2px;
@@ -213,7 +213,13 @@ body {
   line-height: 18.85px;
 }
 
-.site-share,
+.site-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.site-action,
 .site-pager-btn {
   border: 0;
   border-radius: var(--radius-full);
@@ -223,16 +229,23 @@ body {
   transition: background-color 120ms;
 }
 
-.site-share {
-  display: inline-grid;
+.site-action {
+  display: inline-flex;
   flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   height: 36px;
-  margin-left: auto;
   padding: 0 14px;
   font: 400 var(--text-sm) / 18.85px var(--site-font);
 }
 
-.site-share:hover,
+/* Both labels share one grid cell, so "Link copied" keeps the width. */
+.site-share {
+  display: inline-grid;
+}
+
+.site-action:hover,
 .site-pager-btn:enabled:hover {
   background: var(--site-control-hover);
 }
@@ -251,11 +264,50 @@ body {
 
 .site-stage {
   display: grid;
+  position: relative;
   flex-shrink: 0;
   place-items: center;
   width: min(760px, 100%);
   margin-top: 32px;
   touch-action: pan-y;
+}
+
+/* Click-to-open over the whole stage (a swipe steps instead). */
+.site-open {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-2xs);
+  background: none;
+  cursor: zoom-in;
+}
+
+.site-open:focus-visible {
+  outline: 2px solid var(--site-focus);
+  outline-offset: 4px;
+}
+
+/* Lightbox slide: the stage's spread box, pages on the dark stage shadow. */
+.site-lb-slide {
+  display: flex;
+  justify-content: center;
+}
+
+.site-lb-slide[data-side='right'] {
+  justify-content: flex-end;
+}
+
+.site-lb-slide[data-side='left'] {
+  justify-content: flex-start;
+}
+
+.site-lb-slide .spread-view {
+  box-shadow: var(--shadow-stage-dark);
+}
+
+.site .site-lb-slide .cover-spread {
+  box-shadow: var(--cover-shadow-mini), var(--shadow-stage-dark);
 }
 
 .site-slide {
@@ -347,9 +399,8 @@ body {
     gap: 0;
   }
 
-  .site-share {
-    margin-top: 12px;
-    margin-left: 0;
+  .site-actions {
+    margin: 12px 0 0;
   }
 
   .site-stage {

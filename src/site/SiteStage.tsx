@@ -2,28 +2,33 @@ import { memo, useRef, type PointerEvent } from 'react'
 import type { Book } from '../core'
 // Not the barrel: it would pull the zod schemas into the viewer entry.
 import { resolveSpread } from '../core/geometry/resolveSpread'
-import { getSpreadSizeMm } from '../core/geometry/spreadSize'
 import { CoverView } from '../render/CoverView'
 import { swipeDelta } from '../render/pagerIndex'
 import { SpreadView } from '../render/SpreadView'
 import type { ImageRef } from './siteInput'
-import { frameSizes, spreadRatio, STAGE_MAX } from './siteModel'
+import { frameSizes, slideSide, spreadRatio, STAGE_MAX } from './siteModel'
 
 type Images = Readonly<Record<string, ImageRef>>
 
 const noPreview = (): undefined => undefined
 
-/** One slide's paint; memoised, so a step re-renders only the new neighbour. */
-const SlideContent = memo(function SlideContent({
+/**
+ * One slide's paint; memoised, so a step re-renders only the new neighbour.
+ * `sizesPx` (lightbox): the spread's painted width × zoom; photos then ask
+ * for their share of it and load eagerly.
+ */
+export const SlideContent = memo(function SlideContent({
   book,
   images,
   slide,
   width,
+  sizesPx,
 }: {
   book: Book
   images: Images
   slide: number
   width: number
+  sizesPx?: number
 }) {
   const { trim } = book.settings
   if (slide === 0) {
@@ -51,31 +56,31 @@ const SlideContent = memo(function SlideContent({
       previewUrlFor={noPreview}
       imageFor={(assetId, widthMm) => {
         const ref = images[assetId]
-        return ref === undefined
-          ? undefined
+        if (ref === undefined) return undefined
+        const share = widthMm / (2 * trim.widthMm)
+        return sizesPx === undefined
+          ? {
+              src: ref.src,
+              srcset: ref.srcset,
+              sizes: frameSizes(share),
+              loading: slide <= 1 ? 'eager' : 'lazy',
+            }
           : {
               src: ref.src,
               srcset: ref.srcset,
-              sizes: frameSizes(widthMm / (2 * trim.widthMm)),
-              loading: slide <= 1 ? 'eager' : 'lazy',
+              sizes: `${String(Math.ceil(sizesPx * share))}px`,
+              loading: 'eager',
             }
       }}
     />
   )
 })
 
-/** A single first / last page sits on its own side of the spread box. */
-function slideSide(book: Book, slide: number): 'left' | 'right' | undefined {
-  if (slide === 0 || getSpreadSizeMm(book, slide - 1).pageCount === 2) {
-    return undefined
-  }
-  return slide === 1 ? 'right' : 'left'
-}
-
 /**
  * Constant-size stage: the current slide, with its neighbours mounted inert at
  * opacity 0 so their photos load first. `width` is undefined until measured
- * (server render): CSS sizes the stage, the content paints at 760.
+ * (server render): CSS sizes the stage, the content paints at 760. A click
+ * on the stage opens the lightbox; a swipe steps and does not.
  */
 export function SiteStage({
   book,
@@ -83,17 +88,20 @@ export function SiteStage({
   slide,
   width,
   onStep,
+  onOpen,
 }: {
   book: Book
   images: Images
   slide: number
   width: number | undefined
   onStep: (delta: 1 | -1) => void
+  onOpen: () => void
 }) {
   const n = book.spreads.length
   const { trim } = book.settings
   const w = width ?? STAGE_MAX
   const swipeStart = useRef<number | null>(null)
+  const swiped = useRef(false)
   const slides = [slide - 1, slide, slide + 1].filter((s) => s >= 0 && s <= n)
   return (
     <div
@@ -114,6 +122,7 @@ export function SiteStage({
         swipeStart.current = null
         if (start === null) return
         const delta = swipeDelta(start, event.clientX)
+        swiped.current = delta !== 0
         if (delta !== 0) onStep(delta)
       }}
       onPointerCancel={() => {
@@ -138,6 +147,19 @@ export function SiteStage({
           </div>
         )
       })}
+      <button
+        type="button"
+        className="site-open"
+        aria-label="Open fullscreen"
+        data-testid="site-open"
+        onClick={() => {
+          if (swiped.current) {
+            swiped.current = false
+            return
+          }
+          onOpen()
+        }}
+      />
     </div>
   )
 }

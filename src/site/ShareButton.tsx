@@ -58,7 +58,7 @@ export function ShareButton({
     <>
       <button
         type="button"
-        className="site-share"
+        className="site-action site-share"
         data-testid="site-share"
         data-copied={copied ? '' : undefined}
         onClick={press}
