@@ -168,7 +168,7 @@ describe('requestDerivatives', () => {
         outputHash: 'hash-site-share',
       }),
     ])
-    expect(await cache.has('a', 'drv-site-share-1600-jpeg-q85')).toBe(true)
+    expect(await cache.has('a', 'drv-site-share-1600-jpeg-q90')).toBe(true)
 
     const again = request('a', ['site-thumb', 'site-share'])
     const before = performance.now()
@@ -214,7 +214,7 @@ describe('requestDerivatives', () => {
   })
 
   it('encodes only the missing presets and keeps config order in results', async () => {
-    await cache.put('a', 'drv-site-display-1600-webp-q82', {
+    await cache.put('a', 'drv-site-display-1600-webp-q85', {
       bytes: new ArrayBuffer(1),
       mimeType: 'image/webp',
     })
