@@ -7,6 +7,7 @@ import {
   type LibraryStorage,
   type PublishedRevision,
 } from '../../project'
+import { sha256Hex } from '../../lib/sha256Hex'
 import type { SiteExportMessage } from '../../site/export/site-export.worker'
 import {
   collectSiteDerivatives,
@@ -93,7 +94,7 @@ describe('collectSiteDerivatives', () => {
       progress,
     )
 
-    expect(out).toEqual([
+    expect(out.derivatives).toEqual([
       {
         assetHash: HASH_A,
         presetId: 'site-thumb',
@@ -102,19 +103,94 @@ describe('collectSiteDerivatives', () => {
         height: 320,
       },
     ])
-    expect(deps.request).toHaveBeenCalledTimes(2)
+    expect(deps.request).toHaveBeenCalledTimes(3)
     expect(progress.mock.calls).toEqual([
-      [0, 2],
-      [1, 2],
-      [2, 2],
+      [0, 3],
+      [1, 3],
+      [2, 3],
+      [3, 3],
     ])
-    const [[requests]] = deps.request.mock.calls as [
-      [{ assetHash: string; readSource: () => Promise<Blob> }[]],
-    ]
+    const requests = (
+      deps.request.mock.calls as [
+        { assetHash: string; readSource: () => Promise<Blob> }[],
+      ][]
+    ).map(([[request]]) => request)
     expect(requests[0]?.assetHash).toBe(HASH_A)
     expect(await requests[0]?.readSource().then((blob) => blob.text())).toBe(
       'one-photo',
     )
+    expect(out.revisions.slice(0, 3)).toEqual([first, again, other])
+  })
+
+  it('hashes a photo without contentHash and writes the hash into its revision', async () => {
+    const bare = publishBook({}, bookWithHash('four', undefined), 4).revision
+    const twin = publishBook({}, bookWithHash('four', undefined), 5).revision
+    const deps = derivativeDeps(() => undefined)
+    const hash = await sha256Hex(
+      new TextEncoder().encode('four-photo').buffer,
+    )
+
+    const out = await collectSiteDerivatives([bare, twin], deps, vi.fn())
+
+    const [[[request]]] = deps.request.mock.calls as [
+      [{ assetHash: string; readSource: () => Promise<Blob> }[]],
+    ]
+    expect(deps.request).toHaveBeenCalledTimes(1)
+    expect(request?.assetHash).toBe(hash)
+    expect(await request?.readSource().then((blob) => blob.text())).toBe(
+      'four-photo',
+    )
+    expect(
+      out.revisions.map((r) => r.book.assets['four-photo']?.contentHash),
+    ).toEqual([hash, hash])
+    expect(bare.book.assets['four-photo']?.contentHash).toBeUndefined()
+  })
+
+  it('leaves out a photo whose source cannot be read for hashing', async () => {
+    const bare = publishBook({}, bookWithHash('four', undefined), 4).revision
+    const deps = {
+      ...derivativeDeps(() => undefined),
+      readSource: () => Promise.reject(new Error('gone')),
+    }
+    const progress = vi.fn()
+
+    const out = await collectSiteDerivatives([bare], deps, progress)
+
+    expect(deps.request).not.toHaveBeenCalled()
+    expect(out).toEqual({ revisions: [bare], derivatives: [] })
+    expect(progress.mock.calls).toEqual([
+      [0, 1],
+      [1, 1],
+    ])
+  })
+
+  it('asks the pool once for two unhashed photos with the same bytes', async () => {
+    const book = bookWithHash('one', undefined)
+    const both = {
+      ...book,
+      assets: { 'one-photo': {}, copy: {} },
+      spreads: book.spreads.map((spread) => ({
+        ...spread,
+        frames: [
+          ...spread.frames,
+          ...spread.frames.map((f) => ({ ...f, id: 'f2', assetId: 'copy' })),
+        ],
+      })),
+    }
+    const deps = {
+      ...derivativeDeps(() => undefined),
+      readSource: () => Promise.resolve(new Blob(['same'])),
+    }
+
+    const out = await collectSiteDerivatives(
+      [publishBook({}, both, 1).revision],
+      deps,
+      vi.fn(),
+    )
+
+    expect(deps.request).toHaveBeenCalledTimes(1)
+    const assets = out.revisions[0]?.book.assets
+    expect(assets?.copy?.contentHash).toBe(assets?.['one-photo']?.contentHash)
   })
 })
 

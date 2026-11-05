@@ -14,8 +14,16 @@ import {
 
 // Designer spec static-export Tests: the `?fixture=painter` editor exports
 // into an OPFS folder that stands in for the `showDirectoryPicker` folder.
-const FIXTURE = '/?fixture=painter&hashes=1'
+// Its photos have no `contentHash`, like a folder import: Export hashes them.
+const FIXTURE = '/?fixture=painter'
 const BOOK_ID = 'painter-fixture'
+// Solid colours of the four placed photos (`src/testFixtures/painterSourceFile.ts`).
+const PHOTO_RGB = [
+  [0x6b, 0x8f, 0x71],
+  [0xc4, 0xa5, 0x74],
+  [0x8a, 0x9a, 0x84],
+  [0xd0, 0x7a, 0x5a],
+] as const
 
 interface PillSample {
   state: string
@@ -96,6 +104,62 @@ async function readDist(
     await walk(await folder.getDirectoryHandle('dist'), '')
     return out
   }, name)
+}
+
+/** Centre pixel of every image in `dist/assets/` of an OPFS folder. */
+async function readAssetColors(page: Page, name: string): Promise<number[][]> {
+  return page.evaluate(async (name) => {
+    const root = await navigator.storage.getDirectory()
+    const folder = await root.getDirectoryHandle(name)
+    const dist = await folder.getDirectoryHandle('dist')
+    const assets = await dist.getDirectoryHandle('assets')
+    const out: number[][] = []
+    for await (const entry of (
+      assets as unknown as { values: () => AsyncIterable<FileSystemFileHandle> }
+    ).values()) {
+      const bitmap = await createImageBitmap(await entry.getFile())
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
+      const context = canvas.getContext('2d')
+      context?.drawImage(bitmap, 0, 0)
+      const pixel = context?.getImageData(
+        Math.floor(bitmap.width / 2),
+        Math.floor(bitmap.height / 2),
+        1,
+        1,
+      ).data
+      out.push([pixel?.[0] ?? -1, pixel?.[1] ?? -1, pixel?.[2] ?? -1])
+    }
+    return out
+  }, name)
+}
+
+/** Every placed photo has an encoded file in `dist/assets/`; returns the file count. */
+async function expectEveryPhotoExported(
+  page: Page,
+  name: string,
+): Promise<number> {
+  const colors = await readAssetColors(page, name)
+  for (const rgb of PHOTO_RGB) {
+    const near = colors.some((color) =>
+      color.every((channel, i) => Math.abs(channel - (rgb[i] ?? 0)) <= 12),
+    )
+    expect(near, `dist/assets has rgb(${rgb.join(', ')})`).toBe(true)
+  }
+  return colors.length
+}
+
+/** Resolve after two animation frames (the next paint has happened). */
+async function nextPaint(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            resolve()
+          })
+        })
+      }),
+  )
 }
 
 async function readSiteBookIds(page: Page, name: string): Promise<string[]> {
@@ -201,7 +265,15 @@ async function dragWhileRunning(page: Page): Promise<void> {
   const { x, y } = await grabFrame(page)
   for (let step = 1; step <= 200; step += 1) {
     await page.mouse.move(x + (step % 40) * 3, y + (step % 40) * 2)
-    await page.waitForTimeout(8)
+    // One move per animation frame, like a pointer.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            resolve()
+          })
+        }),
+    )
     if (
       step % 10 === 0 &&
       (await pill(page).getAttribute('data-state')) !== 'running'
@@ -229,7 +301,7 @@ test('without a folder Export stays disabled', async ({ page }) => {
   )
 })
 
-test('exports while a frame is dragged, with a pill that keeps its rect', async ({
+test('exports every placed photo while a frame is dragged, with a steady pill', async ({
   page,
 }) => {
   test.setTimeout(90_000)
@@ -253,16 +325,14 @@ test('exports while a frame is dragged, with a pill that keeps its rect', async 
 
   const dist = await readDist(page, 'site')
   expect(Object.keys(dist)).toContain('index.html')
-  expect(Object.keys(dist).some((path) => path.startsWith('assets/'))).toBe(
-    true,
-  )
+  const assetFiles = await expectEveryPhotoExported(page, 'site')
   expect(await readSiteBookIds(page, 'site')).toEqual([BOOK_ID])
   const { samples, moves } = await page.evaluate(() => {
     const w = window as ExportWindow
     return { samples: w.__pillSamples ?? [], moves: w.__movesWhileRunning }
   })
   console.log(
-    `static-export pill: ${JSON.stringify(samples)}, drag moves while running: ${String(moves)}`,
+    `static-export pill: ${JSON.stringify(samples)}, drag moves while running: ${String(moves)}, dist/assets files: ${String(assetFiles)}`,
   )
   expect(moves).toBeGreaterThan(0)
   expect(new Set(samples.map((s) => s.state))).toEqual(
@@ -378,7 +448,8 @@ test.describe('frame-budget gates', () => {
     // Export button on (opening the dialog is not part of the run).
     await dragFrame(page, 5)
     await openOptions(page, true)
-    await page.waitForTimeout(300)
+    await expect(dialog(page)).toBeVisible()
+    await nextPaint(page)
     await clearPerfScenario(page)
     await page.evaluate(browserStartLoafScripts)
     await page.evaluate(browserBeginLoafScenarioWindow)
@@ -410,7 +481,10 @@ test.describe('frame-budget gates', () => {
     const samples = await page.evaluate(
       () => (window as ExportWindow).__pillSamples ?? [],
     )
-    console.log(`static-export run: ${JSON.stringify(samples)}`)
+    const assetFiles = await expectEveryPhotoExported(page, 'perf-site')
+    console.log(
+      `static-export run: ${JSON.stringify(samples)}, dist/assets files: ${String(assetFiles)}`,
+    )
 
     expect(moves).toBeGreaterThan(0)
     expect(longest).toBeLessThanOrEqual(50)

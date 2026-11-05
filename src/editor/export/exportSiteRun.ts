@@ -1,6 +1,7 @@
 import type { Book } from '../../core'
 import type { DerivedCacheEntry } from '../../assets/derivedCache/types'
 import { encodedImageSize } from '../../derivatives/encodedImageSize'
+import { sha256Hex } from '../../lib/sha256Hex'
 import { DERIVATIVE_PRESETS } from '../../derivatives/plan'
 import type {
   DerivativeResult,
@@ -37,45 +38,122 @@ export interface SiteDerivativeDeps {
   readSource: (assetId: string, asset: AssetRecord) => Promise<Blob>
 }
 
+interface SiteSource {
+  assetId: string
+  asset: AssetRecord
+}
+
+interface HashedSource {
+  assetHash: string
+  readSource: () => Promise<Blob>
+}
+
+/**
+ * The photo's content hash and source. A photo the library has no
+ * `contentHash` for (a folder import never sets one) is read and hashed
+ * here; undefined when that read fails.
+ */
+async function hashedSource(
+  { assetId, asset }: SiteSource,
+  deps: SiteDerivativeDeps,
+): Promise<HashedSource | undefined> {
+  if (asset.contentHash !== undefined) {
+    return {
+      assetHash: asset.contentHash,
+      readSource: () => deps.readSource(assetId, asset),
+    }
+  }
+  try {
+    const source = await deps.readSource(assetId, asset)
+    return {
+      assetHash: await sha256Hex(await source.arrayBuffer()),
+      readSource: () => Promise.resolve(source),
+    }
+  } catch {
+    return undefined
+  }
+}
+
+/** Revisions with the hashes found while exporting written into their assets. */
+function withHashes(
+  revisions: readonly PublishedRevision[],
+  hashes: ReadonlyMap<string, string>,
+): PublishedRevision[] {
+  return revisions.map((revision) => {
+    const assets = { ...revision.book.assets }
+    for (const [assetId, asset] of Object.entries(assets)) {
+      const contentHash = hashes.get(assetId)
+      if (asset.contentHash === undefined && contentHash !== undefined) {
+        assets[assetId] = { ...asset, contentHash }
+      }
+    }
+    return { ...revision, book: { ...revision.book, assets } }
+  })
+}
+
 /**
  * Encoded derivatives for every photo the revisions show, one asset at a
  * time through the derivative pool (cached presets come straight back).
- * A preset that cannot be encoded or read is left out.
+ * Photos without a `contentHash` are hashed from their source bytes first;
+ * the returned revisions carry those hashes. A photo or preset that cannot
+ * be read or encoded is left out.
  */
 export async function collectSiteDerivatives(
   revisions: readonly PublishedRevision[],
   deps: SiteDerivativeDeps,
   progress: (done: number, total: number) => void,
-): Promise<SiteDerivativeInput[]> {
-  const wanted = new Map<string, () => Promise<Blob>>()
+): Promise<{
+  revisions: PublishedRevision[]
+  derivatives: SiteDerivativeInput[]
+}> {
+  const wanted = new Map<string, SiteSource>()
   for (const revision of revisions) {
     // The site tree does not depend on derivative order.
     const shown = new Set(siteAssetIds(revision))
     for (const [assetId, asset] of Object.entries(revision.book.assets)) {
-      const hash = asset.contentHash
-      if (shown.has(assetId) && hash !== undefined && !wanted.has(hash)) {
-        wanted.set(hash, () => deps.readSource(assetId, asset))
+      const key = asset.contentHash ?? `asset:${assetId}`
+      if (shown.has(assetId) && !wanted.has(key)) {
+        wanted.set(key, { assetId, asset })
       }
     }
   }
-  const out: SiteDerivativeInput[] = []
+  const hashes = new Map<string, string>()
+  const requested = new Set<string>()
+  const derivatives: SiteDerivativeInput[] = []
   let done = 0
   progress(done, wanted.size)
-  for (const [assetHash, readSource] of wanted) {
-    await deps.request([{ assetHash, readSource }])
-    for (const preset of DERIVATIVE_PRESETS) {
-      const entry = await deps.get(assetHash, preset.id)
-      if (entry === undefined) {
-        continue
-      }
-      const bytes = new Uint8Array(entry.bytes)
-      const size = encodedImageSize(bytes)
-      if (size !== undefined) {
-        out.push({ assetHash, presetId: preset.id, bytes, ...size })
-      }
+  for (const source of wanted.values()) {
+    const hashed = await hashedSource(source, deps)
+    if (hashed !== undefined && !requested.has(hashed.assetHash)) {
+      requested.add(hashed.assetHash)
+      derivatives.push(...(await encodeSource(hashed, deps)))
+    }
+    if (hashed !== undefined) {
+      hashes.set(source.assetId, hashed.assetHash)
     }
     done += 1
     progress(done, wanted.size)
+  }
+  return { revisions: withHashes(revisions, hashes), derivatives }
+}
+
+/** The pool's presets of one photo whose encoded size can be read. */
+async function encodeSource(
+  { assetHash, readSource }: HashedSource,
+  deps: SiteDerivativeDeps,
+): Promise<SiteDerivativeInput[]> {
+  await deps.request([{ assetHash, readSource }])
+  const out: SiteDerivativeInput[] = []
+  for (const preset of DERIVATIVE_PRESETS) {
+    const entry = await deps.get(assetHash, preset.id)
+    if (entry === undefined) {
+      continue
+    }
+    const bytes = new Uint8Array(entry.bytes)
+    const size = encodedImageSize(bytes)
+    if (size !== undefined) {
+      out.push({ assetHash, presetId: preset.id, bytes, ...size })
+    }
   }
   return out
 }
@@ -183,13 +261,9 @@ export async function runExportSite(deps: ExportSiteRunDeps): Promise<void> {
       fail('permission')
       return
     }
-    const { meta, revisions } = await freezeForExport(
-      deps.book,
-      deps.storage,
-      deps.now(),
-    )
-    const derivatives = await collectSiteDerivatives(
-      revisions,
+    const frozen = await freezeForExport(deps.book, deps.storage, deps.now())
+    const { revisions, derivatives } = await collectSiteDerivatives(
+      frozen.revisions,
       deps.derivatives,
       (done, total) => {
         deps.dispatch({
@@ -201,7 +275,7 @@ export async function runExportSite(deps: ExportSiteRunDeps): Promise<void> {
     )
     const request: SiteExportRequest = {
       folder: deps.folder as unknown as SiteDirectoryHandle,
-      input: { meta, revisions, derivatives },
+      input: { meta: frozen.meta, revisions, derivatives },
     }
     const transfer = derivatives.map((d) => d.bytes.buffer as ArrayBuffer)
     await new Promise<void>((resolve) => {
