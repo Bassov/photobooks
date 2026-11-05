@@ -156,7 +156,6 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [static-export-writer](roadmap/P3/static-export-writer.md) — Bug: /next-roadmap-item static-export-writer
 - [ ] [feature] [static-export-kit](roadmap/P3/static-export-kit.md) — Bug: /next-roadmap-item static-export-kit
 - [ ] [feature] [static-export](roadmap/P3/static-export.md) — write `dist/`
-- [ ] [feature] [static-export-viewer](roadmap/P3/static-export-viewer.md) — Export site ships the viewer bundle
 - [ ] [prep] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
 - [x] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
 - [ ] [feature] [publish-credentials](roadmap/P3/publish-credentials.md) — connect the editor to your hosting (Security Review)
