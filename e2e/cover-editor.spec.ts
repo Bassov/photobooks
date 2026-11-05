@@ -325,8 +325,17 @@ async function pagesGate(page: Page, testInfo: TestInfo): Promise<void> {
     'data-spread-count',
     String(before + (next - pages) / 2),
   )
-  // Late LoAF entries land after the edit's frames: give them a moment.
-  await page.waitForTimeout(500)
+  // Two settled frames after the edit's own work.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            resolve()
+          })
+        })
+      }),
+  )
   const rows = await page.evaluate(browserTakeLoafScripts)
   console.log(
     `cover-editor-perf pages: ${String(rows.length)} LoAF ${JSON.stringify(rows)}`,
