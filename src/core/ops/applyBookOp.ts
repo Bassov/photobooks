@@ -1,4 +1,5 @@
-import type { Book, Frame } from '../schema'
+import type { Book, Frame, Spread } from '../schema'
+import { resolveTextContent } from '../text/resolveText'
 import type { GridField, GridPatch } from '../grid/layoutGrid'
 import { applyCustomLayout, applyTemplate } from '../templates/apply'
 import type { LayoutSlotPct, SavedTemplate } from '../templates/custom'
@@ -28,6 +29,8 @@ import {
   removeFrames,
   setFrameRect,
   setTextAlign,
+  setTextAnchor,
+  setTextLive,
   setTextStyle,
 } from './frames'
 import {
@@ -187,6 +190,13 @@ export type BookOp =
       frameId: string
       align: NonNullable<Frame['align']>
     }
+  | { type: 'setTextLive'; spreadId: string; frameId: string; live: boolean }
+  | {
+      type: 'setTextAnchor'
+      spreadId: string
+      frameId: string
+      anchorFrameId: string
+    }
   | { type: 'removeFrames'; spreadId: string; frameIds: readonly string[] }
   | {
       type: 'setFrameRect'
@@ -344,7 +354,61 @@ export type BookOp =
     }
   | { type: 'setPageNumbering'; patch: Partial<PageNumbering> }
 
+/** A text frame's anchor must name an image frame of its own spread. */
+function anchorHolds(spread: Spread, frame: Frame): boolean {
+  const anchorId = frame.anchorFrameId
+  if (anchorId === undefined) {
+    return true
+  }
+  const anchor = spread.frames.find((candidate) => candidate.id === anchorId)
+  return anchor !== undefined && anchor.kind !== 'text'
+}
+
+/**
+ * `frame` as static text, resolved against its spread in `before` (where the
+ * anchor still exists), with the anchor removed.
+ */
+function frozen(before: Book, spread: Spread, frame: Frame): Frame {
+  const was = before.spreads.find((candidate) => candidate.id === spread.id)
+  const { text } = resolveTextContent(before, was ?? spread, frame)
+  const next: Frame = { ...frame, content: { type: 'static', text } }
+  delete next.anchorFrameId
+  return next
+}
+
+/**
+ * Live captions whose anchor the op removed become static with the text
+ * they painted before it, so `bad-text-anchor` never fires. Only spreads
+ * the op replaced are visited.
+ */
+function normaliseAnchors(before: Book, after: Book): Book {
+  if (after.spreads === before.spreads) {
+    return after
+  }
+  let spreads: Spread[] | undefined
+  after.spreads.forEach((spread, index) => {
+    if (
+      before.spreads[index] === spread ||
+      spread.frames.every((f) => anchorHolds(spread, f))
+    ) {
+      return
+    }
+    spreads ??= [...after.spreads]
+    spreads[index] = {
+      ...spread,
+      frames: spread.frames.map((frame) =>
+        anchorHolds(spread, frame) ? frame : frozen(before, spread, frame),
+      ),
+    }
+  })
+  return spreads === undefined ? after : { ...after, spreads }
+}
+
 export function applyBookOp(book: Book, op: BookOp): Book {
+  return normaliseAnchors(book, applyRaw(book, op))
+}
+
+function applyRaw(book: Book, op: BookOp): Book {
   switch (op.type) {
     case 'addToGallery':
       return addToGallery(book, op.assetIds)
@@ -492,6 +556,10 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return addTextFrame(book, op.spreadId, op.rect, op.id)
     case 'editText':
       return editText(book, op.spreadId, op.frameId, op.text, op.fitHeightMm)
+    case 'setTextLive':
+      return setTextLive(book, op.spreadId, op.frameId, op.live)
+    case 'setTextAnchor':
+      return setTextAnchor(book, op.spreadId, op.frameId, op.anchorFrameId)
     case 'setTextStyle':
       return setTextStyle(book, op.spreadId, op.frameId, op.styleId)
     case 'setTextAlign':

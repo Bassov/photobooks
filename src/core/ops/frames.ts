@@ -5,6 +5,7 @@ import {
   withChangedCopies,
 } from '../update'
 import type { Book, Frame, Spread, TextStyleId } from '../schema'
+import { resolveTextContent } from '../text/resolveText'
 
 type Rect = Frame['rect']
 type TextAlign = NonNullable<Frame['align']>
@@ -142,7 +143,7 @@ export function addTextFrame(
 }
 
 /**
- * Set a text frame's static text. `fitHeightMm` (whole lines the text needs,
+ * Set a text frame's text (the template while live). `fitHeightMm` (whole lines the text needs,
  * measured by the editor) grows the box down, never past the paper bottom;
  * the box never shrinks.
  */
@@ -163,16 +164,131 @@ export function editText(
       fitHeightMm === undefined
         ? rect.height
         : Math.max(rect.height, Math.min(fitHeightMm, paperBottom - rect.y))
-    const same = frame.content?.type === 'static' && frame.content.text === text
+    const content = frame.content
+    const same =
+      content?.type === 'template'
+        ? content.template === text
+        : content?.text === text
     if (same && height === rect.height) {
       return frame
     }
     return {
       ...frame,
-      content: same ? frame.content : { type: 'static', text },
+      content: same
+        ? content
+        : content?.type === 'template'
+          ? { type: 'template', template: text }
+          : { type: 'static', text },
       rect: height === rect.height ? rect : { ...rect, height },
     }
   })
+}
+
+/** Gap between two rects in mm; 0 when they touch or overlap. */
+function rectGapMm(a: Rect, b: Rect): number {
+  const dx = Math.max(0, a.x - (b.x + b.width), b.x - (a.x + a.width))
+  const dy = Math.max(0, a.y - (b.y + b.height), b.y - (a.y + a.height))
+  return Math.hypot(dx, dy)
+}
+
+/**
+ * Image frame a new live caption follows: the nearest one holding a photo,
+ * else the nearest empty one; ties keep the lower index. None → undefined.
+ */
+export function defaultAnchorFrame(
+  spread: Spread,
+  text: Frame,
+): Frame | undefined {
+  const images = spread.frames.filter((frame) => frame.kind !== 'text')
+  const filled = images.filter((frame) => frame.assetId !== undefined)
+  let best: Frame | undefined
+  let bestGap = Infinity
+  for (const frame of filled.length > 0 ? filled : images) {
+    const gap = rectGapMm(text.rect, frame.rect)
+    if (gap < bestGap) {
+      best = frame
+      bestGap = gap
+    }
+  }
+  return best
+}
+
+/** Own text frame `frameId` of book spread `spreadId` (anchors never live on parents or copies). */
+function ownTextFrame(
+  book: Book,
+  spreadId: string,
+  frameId: string,
+): { spread: Spread; frame: Frame } | undefined {
+  for (const spread of book.spreads) {
+    if (spread.id === spreadId) {
+      const frame = spread.frames.find((candidate) => candidate.id === frameId)
+      return frame?.kind === 'text' ? { spread, frame } : undefined
+    }
+  }
+  return undefined
+}
+
+/**
+ * Live on: the text becomes the template, anchored to `defaultAnchorFrame`
+ * (no image frame → no-op). Off (Make static): the painted text is stored
+ * and the anchor removed.
+ */
+export function setTextLive(
+  book: Book,
+  spreadId: string,
+  frameId: string,
+  live: boolean,
+): Book {
+  const found = ownTextFrame(book, spreadId, frameId)
+  if (found === undefined) {
+    return book
+  }
+  const { spread, frame } = found
+  const isLive = frame.content?.type === 'template'
+  if (isLive === live) {
+    return book
+  }
+  if (!live) {
+    const { text } = resolveTextContent(book, spread, frame)
+    return updateFrame(book, spreadId, frameId, (current) => {
+      const next: Frame = { ...current, content: { type: 'static', text } }
+      delete next.anchorFrameId
+      return next
+    })
+  }
+  const anchor = defaultAnchorFrame(spread, frame)
+  if (anchor === undefined) {
+    return book
+  }
+  const template = frame.content?.type === 'static' ? frame.content.text : ''
+  return updateFrame(book, spreadId, frameId, (current) => ({
+    ...current,
+    content: { type: 'template', template },
+    anchorFrameId: anchor.id,
+  }))
+}
+
+/** Re-anchor a live caption to another image frame of its spread. */
+export function setTextAnchor(
+  book: Book,
+  spreadId: string,
+  frameId: string,
+  anchorFrameId: string,
+): Book {
+  const found = ownTextFrame(book, spreadId, frameId)
+  const anchor = found?.spread.frames.find((f) => f.id === anchorFrameId)
+  if (
+    found?.frame.content?.type !== 'template' ||
+    found.frame.anchorFrameId === anchorFrameId ||
+    anchor === undefined ||
+    anchor.kind === 'text'
+  ) {
+    return book
+  }
+  return updateFrame(book, spreadId, frameId, (current) => ({
+    ...current,
+    anchorFrameId,
+  }))
 }
 
 /** Restyle a text frame; its box stays put. */
