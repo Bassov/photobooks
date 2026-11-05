@@ -2,6 +2,11 @@ import { parseBook, type Book } from '../core'
 import { bookSummaryFromBook } from './bookSummary'
 import { bookTitleFromUnknown } from './bookTitle'
 import { parseSavedTemplates } from './libraryDocument'
+import {
+  parsePublished,
+  serializePublished,
+  type PublishedRevision,
+} from './publish'
 import type {
   BookSummary,
   LibraryMeta,
@@ -37,6 +42,7 @@ function mapParseFailure(
 export function createMemoryLibraryStorage(): MemoryLibraryStorage {
   let libraryMeta: LibraryMeta = { books: {}, templates: [] }
   const books = new Map<string, unknown>()
+  const published = new Map<string, unknown>()
   const editedAtMsById = new Map<string, number>()
   let permissionRequired = false
   let lockedElsewhere = false
@@ -163,7 +169,34 @@ export function createMemoryLibraryStorage(): MemoryLibraryStorage {
           }
           books.delete(id)
           editedAtMsById.delete(id)
+          published.delete(id)
           return success(undefined)
+        }),
+      )
+    },
+    loadPublished(bookId: string) {
+      return Promise.resolve(
+        gateRead(() => {
+          if (!published.has(bookId)) {
+            return failure('not-found')
+          }
+          const parsed = parsePublished(published.get(bookId))
+          return parsed.ok ? success(parsed.revision) : failure(parsed.code)
+        }),
+      )
+    },
+    savePublished(revision: PublishedRevision) {
+      return Promise.resolve(
+        gateWrite(() => {
+          if (!books.has(revision.bookId)) {
+            return failure('not-found')
+          }
+          // Same JSON round trip as the FSA adapter's `published.json`.
+          published.set(
+            revision.bookId,
+            JSON.parse(JSON.stringify(serializePublished(revision))),
+          )
+          return success(structuredClone(revision))
         }),
       )
     },
