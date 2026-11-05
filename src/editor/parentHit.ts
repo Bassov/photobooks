@@ -10,6 +10,7 @@ import {
 const PARENT_GUIDE_HIT_PX = 4.5
 
 export type ParentHit =
+  | { kind: 'copy'; frame: Frame }
   | { kind: 'guide'; guideId: string }
   | { kind: 'frame'; frameId: string; parentName: string }
 
@@ -32,10 +33,11 @@ function frameContains(frame: Frame, point: PointMm): boolean {
 }
 
 /**
- * The inherited parent item a press at `point` (spread mm) means, looking
- * through the spread's own frames: a parent guide within 4.5 screen px
+ * The parent-layer item a press at `point` (spread mm) means, looking
+ * through the spread's own frames (Designer review 3): the topmost override
+ * copy containing the point, else a parent guide within 4.5 screen px
  * (nearest; only while `guidesShown`), else the topmost parent frame
- * containing the point. Copies, hidden items and own items never hit.
+ * containing the point. Hidden items and own items never hit.
  */
 export function parentHitAt(
   book: Book,
@@ -46,8 +48,23 @@ export function parentHitAt(
 ): ParentHit | null {
   const spreadIndex = book.spreads.findIndex((s) => s.id === spreadId)
   const spread = book.spreads[spreadIndex]
-  const parent = spread === undefined ? undefined : spreadParent(book, spread)
-  if (spread === undefined || parent === undefined) {
+  if (spread === undefined) {
+    return null
+  }
+  // Painted bottom to top, so the last hit of a layer is its topmost.
+  const resolved = resolveParentFrames(book, spread)
+  const topmost = (layer: 'override' | 'parent'): Frame | undefined =>
+    resolved
+      .filter(
+        (item) => item.layer === layer && frameContains(item.frame, point),
+      )
+      .at(-1)?.frame
+  const copy = topmost('override')
+  if (copy !== undefined) {
+    return { kind: 'copy', frame: copy }
+  }
+  const parent = spreadParent(book, spread)
+  if (parent === undefined) {
     return null
   }
   const guide = guidesShown
@@ -66,12 +83,7 @@ export function parentHitAt(
   if (guide !== undefined) {
     return { kind: 'guide', guideId: guide.id }
   }
-  // Painted bottom to top, so the last hit is the topmost.
-  const frame = resolveParentFrames(book, spread)
-    .filter(
-      ({ layer, frame: f }) => layer === 'parent' && frameContains(f, point),
-    )
-    .at(-1)?.frame
+  const frame = topmost('parent')
   return frame === undefined
     ? null
     : { kind: 'frame', frameId: frame.id, parentName: parent.name }

@@ -190,6 +190,40 @@ describe('frameGesture · parent item override (PO2)', () => {
     expect(spreadNow().parentOverrides).toBeUndefined()
   })
 
+  it('Ctrl+Shift on a copy under an own frame reselects and moves it with no new override (review 3)', () => {
+    pointer('pointerdown', own, 30, 8, CTRL_SHIFT)
+    pointer('pointerup', window, 30, 8, CTRL_SHIFT)
+    pointer('click', own, 30, 8, CTRL_SHIFT)
+    // Click away.
+    resetFrameSelection()
+    const book = getBookStoreSnapshot().book
+
+    const down = pointer('pointerdown', own, 30, 8, CTRL_SHIFT)
+    pointer('pointerup', window, 30, 8, CTRL_SHIFT)
+    const click = pointer('click', own, 30, 8, CTRL_SHIFT)
+
+    expect(down.defaultPrevented).toBe(true)
+    expect(click.defaultPrevented).toBe(true)
+    expect(getBookStoreSnapshot().book).toBe(book)
+    expect(getFrameSource()).toEqual({
+      spreadId: spreadNow().id,
+      frameId: 'copy-1',
+    })
+    expect(getHistorySnapshot().undoLabel).toBe('Override parent item')
+
+    pointer('pointerdown', own, 30, 8, CTRL_SHIFT)
+    pointer('pointermove', window, 40, 8, { altKey: true })
+    pointer('pointerup', window, 40, 8, { altKey: true })
+    expect(copies()).toEqual([
+      expect.objectContaining({ id: 'copy-1', rect: { ...LOGO, x: 30 } }),
+    ])
+
+    undoBook()
+    expect(copies()[0]?.rect).toEqual(LOGO)
+    undoBook()
+    expect(spreadNow().parentOverrides).toBeUndefined()
+  })
+
   it('leaves a press on a copy handle above the frames to the handle gesture', async () => {
     own.remove()
     const peer = document.createElement('div')
