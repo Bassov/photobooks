@@ -5,7 +5,7 @@ import { fitBox, fitInsets } from '../render/pagerZoom'
 import { SpreadPager } from '../render/SpreadPager'
 import type { ImageRef } from './siteInput'
 import { slideLabel, slideSide, spreadRatio, STAGE_MAX } from './siteModel'
-import { SlideContent } from './SiteStage'
+import { SlideContent, type RenderSlide } from './SiteStage'
 
 /** The spread's fitted width before the pager has measured it. */
 function fittedSpreadWidth(book: Book): number {
@@ -25,12 +25,14 @@ export function SiteLightbox({
   title,
   start,
   onClose,
+  renderSlide,
 }: {
   book: Book
   images: Readonly<Record<string, ImageRef>>
   title: string
   start: number
   onClose: (slide: number) => void
+  renderSlide?: RenderSlide | undefined
 }) {
   const n = book.spreads.length
   const [slide, setSlide] = useState(start)
@@ -56,16 +58,20 @@ export function SiteLightbox({
         style={{ width: STAGE_MAX }}
         data-side={slideSide(book, s)}
       >
-        <SlideContent
-          book={book}
-          images={images}
-          slide={s}
-          width={STAGE_MAX}
-          sizesPx={sizesPx}
-        />
+        {renderSlide === undefined ? (
+          <SlideContent
+            book={book}
+            images={images}
+            slide={s}
+            width={STAGE_MAX}
+            sizesPx={sizesPx}
+          />
+        ) : (
+          renderSlide(s, STAGE_MAX)
+        )}
       </div>
     ),
-    [book, images, sizesPx],
+    [book, images, sizesPx, renderSlide],
   )
 
   return (
