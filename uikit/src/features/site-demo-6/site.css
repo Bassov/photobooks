@@ -1,0 +1,79 @@
+/* Site demo 6, Gallery on the system: the wall, the spotlights, the hover pose (ry −4 → −14, lift 4, 0.5 s ease-out). */
+.ss6-wall {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.ss6-track {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+.ss6-floor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--line);
+  pointer-events: none;
+}
+.ss6-ex {
+  position: absolute;
+}
+.ss6-spot {
+  position: absolute;
+  pointer-events: none;
+  background: radial-gradient(40% 46% at 50% 52%, rgb(255 240 220 / 0.1), rgb(255 240 220 / 0));
+  opacity: 0.55;
+  transition: opacity 500ms var(--ease-out);
+}
+.ss6-ex:has(.ss6-book:is(:hover, :focus-visible)) .ss6-spot {
+  opacity: 1;
+}
+.ss6-book {
+  position: relative;
+  display: block;
+}
+.ss6-book:focus-visible {
+  outline-offset: 8px;
+}
+.ss6-label {
+  position: absolute;
+  left: 0;
+  width: max-content;
+  text-align: left;
+}
+.ss6-book .sd-floor {
+  opacity: 0.55;
+}
+.ss6-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 24px;
+}
+.ss6-titles {
+  display: flex;
+  gap: 24px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  margin-right: auto;
+}
+.ss6-phone {
+  position: absolute;
+  inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+}
+.ss6-screen {
+  position: relative;
+  scroll-snap-align: start;
+  overflow: hidden;
+}
+.ss6-spot-m {
+  opacity: 0.8;
+}
