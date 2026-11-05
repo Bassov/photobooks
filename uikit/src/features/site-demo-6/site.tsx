@@ -3,12 +3,14 @@
    the book is the link. Wheel, drag (with a throw) and ← / → walk the wall; the bottom row lists all titles and "1 / 6".
    Phone: one book per screen with scroll snap. */
 import * as React from 'react'
-import { Book3D } from '../site-demo-1/book3d'
-import { pad2 } from '../site-demo-1/data'
+import { Book3D, thick } from '../site-book/book3d'
+import { pad2, type SiteBook } from '../site-demo-1/data'
 import { LEAD, metaOf, reduced, SysSite, type HomeApi } from '../site-sys/sys'
 import './site.css'
 
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x))
+/** Book3D's top for its contact shadow (bottom −4, height max(6, T/2); S1) to sit centred on the 1 px floor line at `floor` */
+const seat = (b: SiteBook, s: number, floor: number) => floor + 0.5 - (b.h * s + 4 - Math.max(6, thick(b, s) / 2) / 2)
 
 export function SiteDemo6() {
   return <SysSite n={6} dark home={(h) => (h.box.narrow ? <Phone {...h} /> : <Wall {...h} />)} />
@@ -103,7 +105,7 @@ function Wall({ books, box, g, active, open, showAll }: HomeApi) {
         {books.map((b, i) => {
           const W = b.w * s, H = b.h * s, cx = X0 + i * P
           return (
-            <div key={b.id} className="ss6-ex" style={{ left: cx - W / 2, top: floor - H, width: W }}>
+            <div key={b.id} className="ss6-ex" style={{ left: cx - W / 2, top: seat(b, s, floor), width: W }}>
               <div className="ss6-spot" style={{ left: -260, top: H - 600, width: W + 520, height: 720 }} />
               <button type="button" className="ss6-book" aria-label={`${b.title}, ${metaOf(b)}`} data-testid="ss6-book" data-id={b.id}
                 onFocus={() => { if (on.current) goTo(i) }}
@@ -138,7 +140,7 @@ function Phone({ books, box, g, open, showAll }: HomeApi) {
   return (
     <div className="ss6-phone" data-testid="ss6-phone">
       {books.map((b, i) => {
-        const W = b.w * s, H = b.h * s
+        const W = b.w * s, H = b.h * s, top = seat(b, s, base)
         return (
           <section key={b.id} className="ss6-screen" style={{ height: box.h }}>
             {i === 0 && (
@@ -148,7 +150,7 @@ function Phone({ books, box, g, open, showAll }: HomeApi) {
               </div>
             )}
             <div className="ss6-spot ss6-spot-m" style={{ left: box.w / 2 - W / 2 - 120, top: base - H - 200, width: W + 240, height: H + 320 }} />
-            <button type="button" className="ss6-book ss-abs" style={{ left: box.w / 2 - W / 2, top: base - H }} aria-label={b.title} onClick={() => open(b)} data-testid="ss6-book" data-id={b.id}>
+            <button type="button" className="ss6-book ss-abs" style={{ left: box.w / 2 - W / 2, top }} aria-label={b.title} onClick={() => open(b)} data-testid="ss6-book" data-id={b.id}>
               <Book3D b={b} s={s} />
             </button>
             <div className="ss6-floor" style={{ top: base, left: g.M, right: g.M }} />

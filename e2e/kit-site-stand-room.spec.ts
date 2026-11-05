@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
-import { pixelsAt } from './fixtures/paintProbe'
+import { visibleCentres, white } from './fixtures/sitePagePaint'
 
 // site-stand S5 + S6 (DEMO branch): demo 7's book page opens the shared
 // reading room; on a phone portrait the room shows one page at a time.
@@ -21,36 +21,6 @@ async function openRoom(page: Page) {
   await page.getByTestId('ss-open').click()
   await expect(page.getByTestId('ss-reader-page')).toBeVisible()
 }
-
-/** RGBA at the centre of the photo on each page whose centre is inside `cam`
-   (the page centre when a photo covers it, else its largest photo's centre) */
-async function visibleCentres(cam: Locator) {
-  const pts = await cam.evaluate((el) => {
-    const o = el.getBoundingClientRect()
-    return [...el.querySelectorAll('.sd-pg')].flatMap((pg) => {
-      const p = pg.getBoundingClientRect()
-      const [cx, cy] = [p.left + p.width / 2, p.top + p.height / 2]
-      if (cx < o.left || cx > o.right) return []
-      const cut = [...pg.querySelectorAll<HTMLElement>('*')]
-        .filter((n) => /url\("?(?!data:)/.test(n.style.backgroundImage))
-        .map((n) => n.getBoundingClientRect())
-        .filter((r) => r.width * r.height > 0)
-        .sort((a, b) => b.width * b.height - a.width * a.height)
-      const [big] = cut
-      if (!big) return []
-      const on = cut.some(
-        (r) => cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom,
-      )
-      const c = on
-        ? { x: cx, y: cy }
-        : { x: big.left + big.width / 2, y: big.top + big.height / 2 }
-      return [{ x: c.x - o.left, y: c.y - o.top }]
-    })
-  })
-  return pts.length ? pixelsAt(cam, pts) : []
-}
-
-const white = ([r, g, b]: number[]) => r === 255 && g === 255 && b === 255
 
 test.describe('phone 390×844: single page', () => {
   test.use({

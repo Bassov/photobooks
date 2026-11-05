@@ -1,4 +1,4 @@
-/* Site demo 6, Gallery on the system: the wall, the spotlights, the hover pose (ry −4 → −14, lift 4, 0.5 s ease-out). */
+/* Site demo 6, Gallery on the system: the wall and the spotlights; the book and its pose are Book3D's (site-stand S1). */
 .ss6-wall {
   position: absolute;
   inset: 0;
@@ -45,9 +45,6 @@
   left: 0;
   width: max-content;
   text-align: left;
-}
-.ss6-book .sd-floor {
-  opacity: 0.55;
 }
 .ss6-bar {
   display: flex;
