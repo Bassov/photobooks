@@ -206,7 +206,7 @@ test('Delete on a copy and a guide copy on the ruler hide; the spread lists them
   const p = await centre(chapter(page))
   await page.mouse.click(p.x, p.y)
   await expect(demo(page).getByTestId('status')).toHaveText(
-    'Parent item from “Master A” — Ctrl+Shift+click to override on this spread',
+    'Parent item from “Master A”. Ctrl+Shift+click to override it on this spread.',
   )
 
   await ctrlShift(page, p.x, p.y)
@@ -235,6 +235,15 @@ test('Delete on a copy and a guide copy on the ruler hide; the spread lists them
     ]
   })
   expect(sizes).toEqual([24, 28, 16])
+  // Designer kit review: the row icon sits at x 0 of the row, like prod
+  const iconInset = await rows(page)
+    .first()
+    .evaluate(
+      (row) =>
+        (row.querySelector('svg')?.getBoundingClientRect().left ?? NaN) -
+        row.getBoundingClientRect().left,
+    )
+  expect(iconInset).toBe(0)
   await rows(page).first().getByTestId('parent-change-reset').click()
   await expect(chapter(page)).toHaveCount(1)
   await expect(rows(page)).toHaveCount(1)

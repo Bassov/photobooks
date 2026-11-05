@@ -377,7 +377,7 @@ function ParentChanges({ sp }: { sp: Spread }) {
       </div>
       {rows.map((r) => (
         <div key={r.id} data-testid="parent-change-row" className="grid h-[28px] grid-cols-[16px_1fr_16px] items-center gap-2">
-          <span className="grid place-items-center [&_svg]:size-3.5" style={{ color: SUB }}>{r.state === "override" ? <Unlink2 /> : <EyeOff />}</span>
+          <span className="flex items-center [&_svg]:size-3.5" style={{ color: SUB }}>{r.state === "override" ? <Unlink2 /> : <EyeOff />}</span>
           <span className="flex min-w-0 text-sm"><span className="truncate" style={{ color: T }}>{r.name}</span><span className="flex-none pl-1" style={{ color: SUB }}>· {r.state}</span></span>
           <button type="button" data-testid="parent-change-reset" aria-label={`Reset ${r.name} to ${name}`} title={`Reset ${r.name} to ${name}`}
             onClick={() => st.update((d) => mapSpreadFreezing(d, st.cur, (s) => resetParentItem(s, r.id)), "Reset to parent")}

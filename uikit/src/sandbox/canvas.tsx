@@ -489,7 +489,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
     st.setCur(si)
     if (st.cropId) { st.setCropId(null); return }
     if (view.tool === "frame" || view.tool === "text") { drawFrame(e, view.tool); return }
-    if (ft.overrides && view.tool === "select" && parentAt(e)) st.setStatus(`Parent item from “${par?.name}” — Ctrl+Shift+click to override on this spread`)
+    if (ft.overrides && view.tool === "select" && parentAt(e)) st.setStatus(`Parent item from “${par?.name}”. Ctrl+Shift+click to override it on this spread.`)
     startMarquee(e)
   }
   /* Frame / Text draw. Text (Designer text-frames): a drag keeps min 10 × 4.5 mm (one caption line); a click makes 60 × 14 mm
