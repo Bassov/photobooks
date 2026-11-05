@@ -2,7 +2,7 @@
 import { FolioMarks, useMasters } from "./v7"
 import * as React from "react"
 import { useDrop, useDrag, type DropItem } from "react-aria"
-import { AlertTriangle, ImagePlus, Lock, Link2 } from "lucide-react"
+import { AlertTriangle, ImagePlus, Lock, Unlink2 } from "lucide-react"
 import { TT, useTemplatePreview } from "./templates"
 import { cn } from "@/lib/utils"
 import { P } from "@/data"
@@ -14,6 +14,7 @@ import {
 import { useStudio, mapSpread, mapFrames, useKeys, type Studio } from "./store"
 import { anchorPhoto, fillTokens } from "./meta"
 import { setTextOverflow, takeTextGrow, useTextOverflow } from "./text-overflow"
+import { badgeFit, frameContains, isOverridePress, overrideFrame, parentFramesOf, parentHit } from "./parent-overrides"
 
 export const PHOTO_TYPE = "application/x-photobooks-photo"
 export const FRAME_TYPE = "application/x-photobooks-frame"
@@ -153,6 +154,17 @@ function useDragLive(on: boolean) {
   }, [on])
   return on && live
 }
+/** Designer parent-overrides PO3: the override copy chip, screen px at every zoom; icon-only or none on small frames (fit rule). */
+function OverrideBadge({ fit }: { fit: ReturnType<typeof badgeFit> }) {
+  if (fit === "none") return null
+  const icon = fit === "icon"
+  return (
+    <span data-testid="override-badge" data-fit={fit} role={icon ? "img" : undefined} aria-label={icon ? "Override" : undefined} title={icon ? "Override" : undefined}
+      className="pointer-events-none absolute left-1 top-1 inline-flex h-[16.84px] items-center justify-center gap-1 whitespace-nowrap rounded-xs bg-parent px-1 py-px text-2xs font-semibold leading-[14.85px] text-white">
+      <Unlink2 className="size-2.5" />{!icon && "override"}
+    </span>
+  )
+}
 function FrameEl(p: FrameProps) {
   const st = useStudio()
   const { f, sc } = p
@@ -180,14 +192,15 @@ function FrameEl(p: FrameProps) {
     <div ref={ref} {...(canDrop ? dropProps : {})} {...(swap ? dragProps : {})}
       data-frame={f.id} data-testid={p.inherited ? "master-frame" : "frame"}
       onPointerDown={(e) => p.onDown(e, f)} onDoubleClick={() => p.onDouble(f)}
-      className={cn("group/frame absolute", p.inherited ? cn("z-10", st.features.overrides && st.view.tool === "select" && !st.view.preview ? "cursor-default" : "pointer-events-none") : "", dragLive && "opacity-40", p.hidden && "opacity-0")}
+      data-override={f.overrides ? "true" : undefined}
+      className={cn("group/frame absolute", p.inherited && "pointer-events-none", dragLive && "opacity-40", p.hidden && "opacity-0")}
       style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined, zIndex: crop || p.editing ? 30 : undefined }}>
       {crop && <div className="pointer-events-none absolute inset-0 overflow-visible"><PhotoImg f={f} wpx={f.w * sc} hpx={f.h * sc} ghost /></div>}
       <FrameBody f={f} s={p.s} sc={sc} missing={missing} inherited={p.inherited} editing={p.editing} onEditDone={p.onEditDone} />
       {f.kind === "image" && f.caption && <div data-testid="frame-caption" className="pointer-events-none absolute inset-x-0 truncate" style={{ top: f.h * sc + 1.5 * sc, fontSize: TEXT.caption.size * sc, fontFamily: TEXT.caption.font, color: "#535152", lineHeight: 1.3 }}>{f.caption}</div>}
       {!p.selected && !p.inherited && <div className="pointer-events-none absolute inset-0 outline-1 outline-select/0 transition-[outline-color] group-hover/frame:outline-select/70 [outline-style:solid]" />}
       {p.inherited && !st.view.preview && <div data-allow-border className="pointer-events-none absolute inset-0 outline-1 outline-offset-0 outline-parent-soft [outline-style:dashed]" />}
-      {f.overrides && !st.view.preview && <span className="pointer-events-none absolute left-1 top-1 inline-flex items-center gap-1 rounded-xs bg-parent px-1 py-px text-2xs font-semibold text-white"><Link2 className="size-2.5" />override</span>}
+      {f.overrides && !st.view.preview && !crop && <OverrideBadge fit={badgeFit(f.w * sc, f.h * sc)} />}
       {dropLive && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-start justify-center bg-parent/20 pt-2 outline-2 outline-select [outline-style:solid]">
           <span className="rounded-md bg-field px-2 py-0.5 text-2xs font-medium text-foreground shadow">{f.photo ? "Release to replace" : "Release to place"}</span>
@@ -334,8 +347,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   const [editing, setEditing] = React.useState<string | null>(null)
   const fresh = React.useRef<string | null>(null)
   const par = parentOf(doc, s)
-  const overridden = new Set(s.frames.map((f) => f.overrides).filter(Boolean) as string[])
-  const parentFrames = (par?.frames ?? []).filter((f) => !(s.hiddenParent ?? []).includes(f.id) && !overridden.has(f.id))
+  const parentFrames = parentFramesOf(doc, s)
   const selFrames = s.frames.filter((f) => st.sel.includes(f.id))
 
   const pt = (e: { clientX: number; clientY: number }) => {
@@ -388,6 +400,10 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
     if (!ft.handles || view.tool !== "select") { if (collapse) st.setSel([f.id]); return }
     const moving = s.frames.filter((x) => sel.includes(x.id) && !x.locked)
     if (!moving.length) { if (collapse) st.setSel([f.id]); if (f.locked) st.setStatus(FRAME_LOCKED_STATUS); return }
+    moveFrames(e, moving, () => { if (collapse) st.setSel([f.id]) })
+  }
+  /** Move gesture after the 3 px slop: one "Move frame(s)" step on release; `onClick` when the press never moved. */
+  const moveFrames = (e: React.PointerEvent, moving: Frame[], onClick: () => void) => {
     const orig = moving.map((x) => ({ id: x.id, x: x.x, y: x.y }))
     const bb = bbox(moving)
     const A = anc(moving.map((x) => x.id))
@@ -407,8 +423,30 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
       }
       setLines(ls)
       st.preview((d) => mapSpread(d, si, (sp) => ({ ...sp, template: null, frames: sp.frames.map((x) => { const o = orig.find((q) => q.id === x.id); return o ? { ...x, x: round(o.x + dx, 2), y: round(o.y + dy, 2) } : x }) })))
-    }, (m) => { if (m) { st.commit(moving.length > 1 ? `Move ${moving.length} frames` : "Move frame"); st.setStatus("") } else if (collapse) st.setSel([f.id]) })
+    }, (m) => { if (m) { st.commit(moving.length > 1 ? `Move ${moving.length} frames` : "Move frame"); st.setStatus("") } else onClick() })
   }
+  /* Designer parent-overrides PO2 (+ parent-overrides-canvas review 3): Ctrl/⌘+Shift press, geometric and through own frames —
+     a parent guide (viewport.tsx copies it and drags), else the topmost override copy (selected, no step; moves after 3 px),
+     else the topmost parent frame ("Override parent item": the copy is selected and the press moves it). */
+  const onOverridePress = (e: React.PointerEvent) => {
+    if (e.button !== 0 || !ft.overrides || view.tool !== "select" || view.preview || !isOverridePress(e)) return
+    // guides only where they can be dragged (the rulers' single-spread camera passes onGuideDown; the stack does not)
+    const hit = parentHit(doc, s, pt(e), sc, onGuideDown && view.guides ? allGuides(doc, s).filter((g) => g.inherited) : [])
+    if (!hit) return
+    e.stopPropagation() // no preventDefault: the press still focuses the canvas, as a plain frame press does
+    st.setCur(si)
+    if (st.cropId) st.setCropId(null)
+    if (hit.kind === "guide") { onGuideDown?.(e, hit.guide.id); return }
+    const f = hit.kind === "parent" ? { ...hit.frame, id: uid(), overrides: hit.frame.id } : hit.frame
+    if (hit.kind === "parent") {
+      st.update((d) => mapSpread(d, si, (sp) => overrideFrame(sp, hit.frame, f.id)), "Override parent item")
+      st.setStatus("Local copy created — it no longer follows the parent on this spread")
+    }
+    st.setSel([f.id])
+    if (ft.handles && !f.locked) moveFrames(e, [f], () => { })
+  }
+  // Plain press on the paper over an uncovered parent item: it stays click-through, the status names it (PO2)
+  const parentAt = (e: React.PointerEvent) => parentFrames.filter((f) => frameContains(f, pt(e))).at(-1)
   const onHandle = (e: React.PointerEvent, h: string) => {
     e.stopPropagation()
     const f = selFrames[0]; if (!f || f.locked) return
@@ -451,6 +489,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
     st.setCur(si)
     if (st.cropId) { st.setCropId(null); return }
     if (view.tool === "frame" || view.tool === "text") { drawFrame(e, view.tool); return }
+    if (ft.overrides && view.tool === "select" && parentAt(e)) st.setStatus(`Parent item from “${par?.name}”. Ctrl+Shift+click to override it on this spread.`)
     startMarquee(e)
   }
   /* Frame / Text draw. Text (Designer text-frames): a drag keeps min 10 × 4.5 mm (one caption line); a click makes 60 × 14 mm
@@ -546,25 +585,18 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   const single = selFrames.length === 1 ? selFrames[0] : null
   const folios = view.pageNumbers || pageNumbersOf(par) ? foliosOf(doc, s, si, st.book.safe) : []
   return (
-    <div ref={ref} {...dropProps} onPointerDown={onBgDown} onWheel={onWheel} data-testid="spread" data-spread={si} data-current={si === st.cur || undefined}
+    <div ref={ref} {...dropProps} onPointerDownCapture={onOverridePress} onPointerDown={onBgDown} onWheel={onWheel} data-testid="spread" data-spread={si} data-current={si === st.cur || undefined}
       className={cn("relative shrink-0 select-none", view.preview ? "" : "shadow-page", isDropTarget && "outline-2 outline-offset-4 outline-mark [outline-style:dashed]",
         view.tool === "frame" && "cursor-tool-frame", view.tool === "text" && "cursor-tool-text", view.tool === "hand" && "cursor-grab", className)}
       style={{ width: SW * sc, height: SH * sc, background: s.bg ?? "var(--paper, #fff)", clipPath: si === 0 ? "inset(-60px -60px -60px 50%)" : undefined }}>
       {parentFrames.map((f) => (
         <FrameEl key={`p-${f.id}`} f={f} si={si} s={s} sc={sc} selected={false} inherited
-          onDown={(e) => {
-            e.stopPropagation()
-            if (ft.overrides && (e.altKey || (e.ctrlKey && e.shiftKey) || (e.metaKey && e.shiftKey))) {
-              const copy = { ...f, id: uid(), overrides: f.id }
-              st.update((d) => mapSpread(d, si, (sp) => ({ ...sp, frames: [...sp.frames, copy] })), "Override parent item")
-              st.setSel([copy.id]); st.setStatus("Local copy created — it no longer follows the parent on this spread")
-            } else st.setStatus(ft.overrides ? `Parent item from “${par?.name}” — Alt+click to override on this spread` : `Parent item from “${par?.name}” — edit it on the parent spread`)
-          }}
-          onDouble={() => { }} editing={false} onEditDone={() => { }} />
+          onDown={() => { }} onDouble={() => { }} editing={false} onEditDone={() => { }} />
       ))}
       {/* Designer page-numbers: the folio is printed parent content, under the spread's own frames (a full-bleed photo hides it) */}
       <FolioMarks folios={folios} sc={sc} />
-      {s.frames.map((f) => (
+      {/* parent-overrides PO3: a copy keeps the parent paint slot — after the parent items, before every own frame */}
+      {[...s.frames.filter((f) => f.overrides), ...s.frames.filter((f) => !f.overrides)].map((f) => (
         <FrameEl key={f.id} f={f} si={si} s={s} sc={sc} selected={st.sel.includes(f.id)} onDown={onFrameDown} onDouble={onDouble}
           editing={editing === f.id} onEditDone={(t, h) => endEdit(f, t, h)} />
       ))}

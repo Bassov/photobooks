@@ -43,7 +43,8 @@ export type Frame = {
   /** parent items: id of the parent item a local copy overrides */
   overrides?: string
 }
-export type Guide = { id: string; axis: "v" | "h"; pos: number; locked?: boolean; scope?: "spread" | "book" | "parent" }
+/** `overrides`: a spread's local copy of the parent guide with that id (Designer parent-overrides PO5) */
+export type Guide = { id: string; axis: "v" | "h"; pos: number; locked?: boolean; scope?: "spread" | "book" | "parent"; overrides?: string }
 export type Grid = { top: number; bottom: number; inside: number; outside: number; cols: number; rows: number; colGutter: number; rowGutter: number }
 export type FrameStyle = { id: string; name: string; stroke: number; strokeColor: string; mat: number; radius: number; shadow?: boolean }
 export type Parent = { id: string; name: string; frames: Frame[]; guides: Guide[]; grid?: Partial<Grid>; pageNumbers?: boolean }
@@ -252,7 +253,8 @@ export function lastPageFolios(doc: Doc, safe: number, force = false): Folio[] {
 }
 export function allGuides(doc: Doc, s: Spread): (Guide & { inherited?: boolean })[] {
   const par = parentOf(doc, s)
-  const pg = guidesOf(par).filter((g) => !(s.hiddenParent ?? []).includes(g.id)).map((g) => ({ ...g, inherited: true }))
+  const copied = new Set(s.guides.map((g) => g.overrides))
+  const pg = guidesOf(par).filter((g) => !(s.hiddenParent ?? []).includes(g.id) && !copied.has(g.id)).map((g) => ({ ...g, inherited: true }))
   return [...pg, ...s.guides]
 }
 export type SnapLine = { axis: "v" | "h"; pos: number; kind: string }
