@@ -28,14 +28,20 @@ function spreadOf(book: Book, spreadId: string): Spread | undefined {
   return book.spreads.find((spread) => spread.id === spreadId)
 }
 
+function copyOn(
+  spread: Spread,
+  frameId: string,
+): (Frame & { overridesId: string }) | undefined {
+  return spread.parentOverrides?.frames?.find((frame) => frame.id === frameId)
+}
+
 /** The book spread's local copy `target` names; undefined for own frames. */
 export function overrideCopyOf(
   book: Book,
   target: SpreadItemTarget,
 ): (Frame & { overridesId: string }) | undefined {
-  return spreadOf(book, target.spreadId)?.parentOverrides?.frames?.find(
-    (frame) => frame.id === target.frameId,
-  )
+  const spread = spreadOf(book, target.spreadId)
+  return spread === undefined ? undefined : copyOn(spread, target.frameId)
 }
 
 /** The parent a local copy overrides ("Override · {name}"); null otherwise. */
@@ -44,7 +50,7 @@ export function overrideParentName(
   target: SpreadItemTarget,
 ): string | null {
   const spread = spreadOf(book, target.spreadId)
-  return spread === undefined || overrideCopyOf(book, target) === undefined
+  return spread === undefined || copyOn(spread, target.frameId) === undefined
     ? null
     : (spreadParent(book, spread)?.name ?? null)
 }

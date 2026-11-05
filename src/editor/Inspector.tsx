@@ -27,7 +27,6 @@ import { PhotoRotateSection } from './PhotoRotateSection'
 import {
   getFrameSelection,
   getFrameSource,
-  setFrameSource,
   subscribeFrameSelection,
   type FrameSelection,
 } from './frameSelection'
@@ -330,7 +329,10 @@ function OverrideMeta({ target }: { target: FrameTarget }) {
   )
 }
 
-/** Designer PO6: ↺ at the header's right end; the inspector falls back to the spread. */
+/**
+ * Designer PO6: ↺ at the header's right end. The store drops the copy's
+ * selection with it, so the inspector falls back to the spread.
+ */
 function OverrideReset({ target }: { target: FrameTarget }) {
   const read = () => overrideCopyOf(readBook(), target)?.overridesId ?? null
   const parentItemId = useSyncExternalStore(subscribeBookStore, read, read)
@@ -350,7 +352,6 @@ function OverrideReset({ target }: { target: FrameTarget }) {
           spreadId: target.spreadId,
           parentItemId,
         })
-        setFrameSource(null)
       }}
     >
       <Icon name="rotateCcw" size={14} />

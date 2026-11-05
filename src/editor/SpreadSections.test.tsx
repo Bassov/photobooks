@@ -399,6 +399,11 @@ describe('MasterSpacingSection "Changed from {parent}"', () => {
       'Empty frame· hidden',
       'Guide · vertical 74.3 mm· hidden',
     ])
+    expect(
+      screen
+        .getAllByTestId('parent-change-row')
+        .map((row) => row.firstElementChild?.getAttribute('data-icon')),
+    ).toEqual(['unlink2', 'eyeOff', 'eyeOff'])
     const resets = screen.getAllByTestId('parent-change-reset')
     expect(resets.map((button) => button.getAttribute('aria-label'))).toEqual([
       'Reset Empty frame to Master A',

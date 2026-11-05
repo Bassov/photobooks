@@ -99,13 +99,20 @@ function parentMenuAt(event: MouseEvent): ParentMenuAt | null {
     event.target instanceof Element
       ? event.target.closest(SPREAD_SELECTOR)
       : null
-  const spreadId = spreadEl?.getAttribute('data-spread-id') ?? ''
-  const book = readBook()
-  const spreadIndex = book.spreads.findIndex((s) => s.id === spreadId)
-  const box = spreadEl?.getBoundingClientRect()
-  if (box === undefined || box.width <= 0 || spreadIndex === -1) {
+  if (spreadEl === null) {
     return null
   }
+  const book = readBook()
+  const spread = book.spreads.find(
+    (s) => s.id === spreadEl.getAttribute('data-spread-id'),
+  )
+  if (spread === undefined) {
+    return null
+  }
+  const spreadId = spread.id
+  const spreadIndex = book.spreads.indexOf(spread)
+  // A zero-size box gives non-finite mm, which hit nothing.
+  const box = spreadEl.getBoundingClientRect()
   const pxPerMm = box.width / getSpreadSizeMm(book, spreadIndex).widthMm
   const hit = parentHitAt(
     book,
@@ -150,13 +157,12 @@ function FrameMenu({
       className={MENU_CLASS}
       onAction={(key) => {
         if (copy !== undefined && (key === 'reset' || key === 'hide')) {
-          // The copy goes either way, and its selection with it.
+          // The copy goes either way; the store drops its selection.
           dispatchBookOp({
             type: key === 'reset' ? 'resetParentItem' : 'hideParentItem',
             spreadId: target.spreadId,
             parentItemId: copy.overridesId,
           })
-          setFrameSource(null)
         } else {
           runArrangeAction(
             target,

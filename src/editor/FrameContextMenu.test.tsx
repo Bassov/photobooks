@@ -387,6 +387,11 @@ describe('FrameContextMenu on parent items and override copies', () => {
     rect: { x: 20, y: 4, width: 24, height: 8 },
     z: 1,
   })
+  const STAMP = makeFrame({
+    id: 'stamp',
+    rect: { x: 400, y: 4, width: 24, height: 8 },
+    z: 2,
+  })
   function parentBook(
     parentOverrides?: Book['spreads'][number]['parentOverrides'],
   ) {
@@ -395,7 +400,7 @@ describe('FrameContextMenu on parent items and override copies', () => {
         {
           id: 'm',
           name: 'Master A',
-          frames: [LOGO],
+          frames: [LOGO, STAMP],
           guides: [{ id: 'g', orientation: 'vertical', offsetMm: 100 }],
         },
       ],
@@ -440,9 +445,9 @@ describe('FrameContextMenu on parent items and override copies', () => {
     )
   }
 
-  /** Right-click the paper at spread mm. */
+  /** Right-click the paper at spread mm; false once the menu took it. */
   function openAt(xMm: number, yMm: number) {
-    fireEvent.contextMenu(screen.getByText('paper'), {
+    return fireEvent.contextMenu(screen.getByText('paper'), {
       clientX: 10 + xMm * 2,
       clientY: 20 + yMm * 2,
     })
@@ -454,9 +459,14 @@ describe('FrameContextMenu on parent items and override copies', () => {
       .map((item) => item.getAttribute('data-testid'))
 
   it('opens the parent item menu through the own frame; Override selects the copy', () => {
-    seed(parentBook())
+    // The spread already overrides another parent frame.
+    seed(
+      parentBook({
+        frames: [{ ...STAMP, id: 'stamp-copy', overridesId: 'stamp' }],
+      }),
+    )
     renderSpread()
-    openAt(32, 8)
+    expect(openAt(32, 8)).toBe(false)
     const menu = screen.getByTestId('parent-menu')
     expect(menu.getAttribute('aria-label')).toBe('Parent item')
     expect(rows()).toEqual(['parent-menu-override', 'parent-menu-hide'])
@@ -470,11 +480,14 @@ describe('FrameContextMenu on parent items and override copies', () => {
       spreadId: 's',
       parentFrameId: 'logo',
     })
-    const copy =
+    const copies =
       bookStore.getBookStoreSnapshot().book.spreads[1]?.parentOverrides
-        ?.frames?.[0]
-    expect(copy?.overridesId).toBe('logo')
-    expect(getFrameSource()).toEqual({ spreadId: 's', frameId: copy?.id })
+        ?.frames ?? []
+    expect(copies.map((copy) => copy.overridesId)).toEqual(['stamp', 'logo'])
+    expect(getFrameSource()).toEqual({
+      spreadId: 's',
+      frameId: copies[1]?.id,
+    })
     expect(screen.queryByTestId('parent-menu')).toBeNull()
   })
 

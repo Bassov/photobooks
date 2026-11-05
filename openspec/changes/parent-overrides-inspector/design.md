@@ -2,7 +2,7 @@
 
 1. `FrameContextMenu`: own frame button (incl. a copy) → frame menu; else, in a book `spread-view`, `parentHitAt` → `ParentMenu` (frame or guide). The Masters canvas has no parent layer, so it never hits.
 2. Pure `overrideCopyOf` in new `src/editor/parentChanges.ts` serves the copy menu and the inspector head.
-3. PO6 in `Inspector.tsx`; ↺ dispatches `resetParentItem`, then `setFrameSource(null)` clears the selection. Class `inspector-reset-parent` in `EditorShell.css` (own class: runtime chrome CSS beats `.e7-ghost` overrides).
+3. PO6 in `Inspector.tsx`; ↺ dispatches `resetParentItem`; the store already drops the gone copy's selection, so the inspector shows the spread. Class `inspector-reset-parent` in `EditorShell.css` (own class: runtime chrome CSS beats `.e7-ghost` overrides).
 4. PO7: pure `parentChanges(book, spread)` → ordered named rows; hidden guides placed with exported core `onSpreadPage`. The block renders only when rows exist; row ↺ reuses `e7-ghost insp-grid-reset`.
 
 ## Touch-set & Test Plan
