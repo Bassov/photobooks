@@ -1,0 +1,57 @@
+/* Site demo 7, Index on the system: rows 80 high, the others dim to .3 in 0.2 s, the sticky preview crossfades in 0.4 s. */
+.ss7-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.ss7-pv {
+  position: absolute;
+  inset: 0;
+  animation: ss-in 400ms var(--ease) both;
+}
+.ss7-pv button {
+  pointer-events: auto;
+}
+.ss7-pv.ss7-out {
+  animation: ss7-out 400ms var(--ease) both;
+}
+@keyframes ss7-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.ss7-pv .sd-floor {
+  opacity: 0.8;
+}
+.ss7-row {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 80px;
+  border-top: 1px solid var(--line);
+  transition: opacity 200ms var(--ease);
+}
+.ss7-row[data-dim] {
+  opacity: 0.3;
+}
+.ss7-row .t44 {
+  white-space: nowrap;
+}
+.ss7-mrow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 92px;
+  border-top: 1px solid var(--line);
+}
+.ss7-thumb {
+  flex: none;
+  width: 56px;
+  background-size: cover;
+  background-position: center;
+}

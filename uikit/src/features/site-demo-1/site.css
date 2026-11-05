@@ -1,0 +1,117 @@
+/* Photographer site, demo 1 (Designer Spec site-awards): the site theme, scoped to [data-surface="site"] so the kit
+   and #/demo stay as they are. The true Lora italic lives under its own family name ("Site Lora") for the same reason. */
+@font-face{font-family:"Site Lora";font-style:italic;font-display:swap;font-weight:400 700;src:url("../../fonts/lora-cyrillic-wght-italic.woff2") format("woff2-variations");unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;}
+@font-face{font-family:"Site Lora";font-style:italic;font-display:swap;font-weight:400 700;src:url("../../fonts/lora-latin-ext-wght-italic.woff2") format("woff2-variations");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:"Site Lora";font-style:italic;font-display:swap;font-weight:400 700;src:url("../../fonts/lora-latin-wght-italic.woff2") format("woff2-variations");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+
+[data-surface="site"] {
+  --site-bg: #ECE8E1; --site-bg-lit: #F5F2EC; --site-bg-deep: #E1DCD3; --site-paper: #FFFFFF;
+  --site-ink: #1A1918; --site-text: #2E2C29; --site-muted: #605B54; --site-rule: rgb(26 25 24 / .14);
+  --site-band: #1F1E1E; --site-on-band: #ECE8E1; --site-on-band-muted: #9A958D;
+  --site-serif: "Lora Variable", Lora, serif; --site-serif-it: "Site Lora", "Lora Variable", Lora, serif;
+  --site-sans: "Inter Variable", Inter, sans-serif;
+  --site-ease: cubic-bezier(.2, .7, .2, 1); --site-turn: cubic-bezier(.45, .05, .25, 1);
+  --site-shadow-book: 0 2px 4px rgb(26 25 24 / .14), 0 34px 60px -22px rgb(26 25 24 / .42);
+  --site-stage: radial-gradient(120% 90% at 50% 40%, var(--site-bg-lit) 0%, var(--site-bg) 55%, var(--site-bg-deep) 100%);
+  background: var(--site-bg); color: var(--site-text); font-family: var(--site-sans);
+  -webkit-font-smoothing: antialiased;
+}
+[data-surface="site"] em, [data-surface="site"] .sd-it { font-family: var(--site-serif-it); font-style: italic; font-weight: 400 }
+:where([data-surface="site"]) :where(button) { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit }
+:where([data-surface="site"]) :where(:focus) { outline: none }
+.sd-grain { position: absolute; inset: 0; pointer-events: none; z-index: 60; opacity: .05; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>") }
+
+/* type */
+.sd-serif { font-family: var(--site-serif); font-weight: 400; color: var(--site-ink) }
+.sd-display { font-family: var(--site-serif); font-weight: 400; line-height: .98; letter-spacing: -.035em; color: var(--site-ink) }
+.sd-h1 { font-family: var(--site-serif); font-weight: 400; font-size: 48px; line-height: 1; letter-spacing: -.03em; color: var(--site-ink) }
+.sd-h2 { font-family: var(--site-serif); font-weight: 400; font-size: 56px; line-height: 1; letter-spacing: -.03em; color: var(--site-ink) }
+.sd-statement { font-family: var(--site-serif); font-weight: 400; font-size: 32px; line-height: 1.35; letter-spacing: -.01em; color: var(--site-ink); text-wrap: pretty }
+.sd-label { font: 500 12px/1 var(--site-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--site-muted) }
+.sd-meta { font: 400 13px/1.4 var(--site-sans); color: var(--site-muted); font-variant-numeric: tabular-nums }
+.sd-narrow .sd-h1 { font-size: 36px }
+.sd-narrow .sd-statement { font-size: 22px; line-height: 1.4 }
+
+/* links and round buttons */
+.sd-link { font: 500 15px/1 var(--site-sans); color: var(--site-ink); text-decoration: underline 1px; text-underline-offset: 5px;
+  text-decoration-color: rgb(26 25 24 / .35); transition: text-decoration-color 160ms; border-radius: 2px }
+.sd-link:hover { text-decoration-color: var(--site-ink) }
+.sd-link.sd-quiet { color: var(--site-muted); text-decoration-color: rgb(96 91 84 / .4) }
+.sd-link.sd-quiet:hover { text-decoration-color: var(--site-muted) }
+[data-surface="site"] .sd-link:focus-visible, [data-surface="site"] .sd-nav:focus-visible, [data-surface="site"] .sd-name:focus-visible { outline: 2px solid var(--site-ink); outline-offset: 3px; border-radius: 2px }
+.sd-ctl { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; border: 1px solid rgb(26 25 24 / .18);
+  color: var(--site-ink); transition: background-color 160ms, color 160ms, border-color 160ms }
+.sd-ctl svg { width: 18px; height: 18px }
+.sd-ctl:not(:disabled):hover { background: var(--site-ink); color: var(--site-bg); border-color: var(--site-ink) }
+.sd-dark .sd-ctl { border-color: rgb(236 232 225 / .25); color: var(--site-on-band) }
+.sd-dark .sd-ctl:not(:disabled):hover { background: var(--site-on-band); color: var(--site-band); border-color: var(--site-on-band) }
+[data-surface="site"] .sd-dark .sd-ctl:focus-visible { outline-color: var(--site-on-band) }
+[data-surface="site"] .sd-ctl:focus-visible { outline: 2px solid var(--site-ink); outline-offset: 3px }
+.sd-ctl:disabled { opacity: .3; cursor: default }
+
+/* masthead */
+.sd-mast { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; transition: background-color 240ms, backdrop-filter 240ms }
+.sd-mast[data-scrolled] { background: rgb(236 232 225 / .86); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px) }
+.sd-name { font-family: var(--site-serif); font-size: 22px; line-height: 1; letter-spacing: -.01em; color: var(--site-ink) }
+.sd-nav { font: 500 14px/1 var(--site-sans); color: var(--site-muted); padding: 6px 0; transition: color 160ms }
+.sd-nav:hover, .sd-nav[aria-current] { color: var(--site-ink) }
+.sd-nav[aria-current] { text-decoration: underline 1px; text-underline-offset: 6px }
+
+/* Book3D: `site-book/book3d.css` */
+.sd-host .sd-ul { text-decoration: underline 1px transparent; text-underline-offset: 6px; transition: text-decoration-color 160ms }
+.sd-host:hover .sd-ul, .sd-host:focus-visible .sd-ul { text-decoration-color: currentColor }
+[data-surface="site"] .sd-host:focus-visible { outline: none }
+[data-surface="site"] .sd-host:focus-visible .sd-ring { outline: 2px solid var(--site-ink); outline-offset: 8px; border-radius: 4px }
+[data-surface="site"] .sd-host.sd-ringself:focus-visible { outline: 2px solid var(--site-ink); outline-offset: 8px; border-radius: 4px }
+
+/* shelf */
+.sd-shelf-line { position: absolute; left: 0; right: 0; height: 1px; background: rgb(26 25 24 / .22); pointer-events: none }
+.sd-shelf-line::after { content: ""; position: absolute; left: 0; right: 0; top: 1px; height: 14px; background: linear-gradient(rgb(26 25 24 / .08), rgb(26 25 24 / 0)) }
+
+/* reveal on scroll */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal] { opacity: 0; transform: translateY(24px); transition: opacity 900ms var(--site-ease), transform 900ms var(--site-ease); transition-delay: var(--d, 0ms) }
+  [data-reveal].sd-in { opacity: 1; transform: none }
+}
+
+/* cursor label */
+.sd-cursor { position: absolute; left: 0; top: 0; z-index: 70; pointer-events: none; border-radius: 50%; background: var(--site-ink); color: var(--site-bg-lit);
+  display: grid; place-items: center; font: 500 13px/1 var(--site-sans); transition: scale 200ms var(--site-ease), width 200ms, height 200ms; scale: 0 }
+.sd-cursor[data-on] { scale: 1 }
+.sd-cursor[data-dark] { background: var(--site-on-band); color: var(--site-band) }
+@media (hover: hover) and (pointer: fine) { [data-surface="site"] [data-cursor] { cursor: none } }
+@media (hover: none), (pointer: coarse) { .sd-cursor { display: none } .sd-hover-only { display: none } }
+
+/* reader */
+.sd-reader { position: relative; touch-action: pan-y; user-select: none; -webkit-user-select: none }
+[data-surface="site"] .sd-reader:focus-visible { outline: 2px solid var(--site-ink); outline-offset: 8px; border-radius: 4px }
+.sd-dark .sd-reader:focus-visible { outline-color: var(--site-on-band) }
+.sd-rbook { position: absolute; left: 0; top: 0; transform-style: preserve-3d }
+.sd-rbook > div { position: absolute }
+.sd-pg { overflow: hidden; background: var(--site-paper) }
+.sd-edge { background: repeating-linear-gradient(90deg, #FBFAF7 0 1px, #D9D4CA 1px 2px) }
+.sd-leaf { transform-style: preserve-3d; transform-origin: left center }
+.sd-leaf > .sd-face { position: absolute; inset: 0; backface-visibility: hidden; overflow: hidden; background: var(--site-paper) }
+.sd-leaf > .sd-face.sd-back { transform: rotateY(180deg) }
+.sd-fade { position: absolute; inset: 0; pointer-events: none; animation: sd-fade var(--fd, 160ms) linear both }
+@keyframes sd-fade { from { opacity: 1 } to { opacity: 0 } }
+
+/* thumbs */
+.sd-thumb { display: block; width: 100%; transition: transform 300ms var(--site-ease) }
+.sd-thumb:hover { transform: translateY(-3px) }
+.sd-thumb .sd-thumb-art { border-radius: 1px }
+[data-surface="site"] .sd-thumb[aria-current] .sd-thumb-art, [data-surface="site"] .sd-thumb:focus-visible .sd-thumb-art { outline: 2px solid var(--site-ink); outline-offset: 6px }
+@media (prefers-reduced-motion: reduce) { .sd-thumb { transition: none } .sd-thumb:hover { transform: none } }
+
+/* footer: the one dark band */
+.sd-foot { background: var(--site-band); color: var(--site-on-band-muted) }
+.sd-foot .sd-label { color: var(--site-on-band-muted) }
+.sd-email { font-family: var(--site-serif); font-weight: 400; line-height: 1; letter-spacing: -.03em; color: var(--site-on-band);
+  text-decoration: underline 1px; text-underline-offset: 12px; text-decoration-color: rgb(236 232 225 / .35); transition: text-decoration-color 160ms }
+.sd-email:hover { text-decoration-color: var(--site-on-band) }
+[data-surface="site"] .sd-email:focus-visible { outline: 2px solid var(--site-on-band); outline-offset: 6px; border-radius: 2px }
+
+/* shelf → book */
+::view-transition-group(site-book) { animation-duration: 600ms; animation-timing-function: cubic-bezier(.2, .7, .2, 1) }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 300ms }
