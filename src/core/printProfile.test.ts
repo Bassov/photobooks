@@ -45,6 +45,8 @@ describe('print profile', () => {
     expect(profile).toEqual(genericPrintProfile())
     expect(profile).toMatchObject({
       id: 'generic',
+      coverWrapMm: 15,
+      coverHingeMm: 8,
       trimMinMm: TRIM_MIN_MM,
       trimMaxMm: TRIM_MAX_MM,
       bleedMinMm: 0,
