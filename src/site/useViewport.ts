@@ -6,11 +6,13 @@ export interface Viewport {
 }
 
 /**
- * Root width and window height; null on the server and in the hydrating
- * render, so the first client render matches the prerendered markup.
+ * Root width and window height (`height: 'element'`: the root's own height,
+ * for a page embedded in a scroll box); null on the server and in the
+ * hydrating render, so the first client render matches the prerendered markup.
  */
 export function useViewport(
   ref: RefObject<HTMLElement | null>,
+  { height = 'window' }: { height?: 'window' | 'element' } = {},
 ): Viewport | null {
   const [viewport, setViewport] = useState<Viewport | null>(null)
   useLayoutEffect(() => {
@@ -18,7 +20,10 @@ export function useViewport(
     if (el === null) return
     const measure = () => {
       const vw = el.clientWidth
-      const vh = document.documentElement.clientHeight
+      const vh =
+        height === 'element'
+          ? el.clientHeight
+          : document.documentElement.clientHeight
       setViewport((prev) =>
         prev?.vw === vw && prev.vh === vh ? prev : { vw, vh },
       )
@@ -31,6 +36,6 @@ export function useViewport(
       observer.disconnect()
       window.removeEventListener('resize', measure)
     }
-  }, [ref])
+  }, [ref, height])
   return viewport
 }

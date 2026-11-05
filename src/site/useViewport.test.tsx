@@ -10,9 +10,17 @@ const observers: {
 }[] = []
 const seen: (Viewport | null)[] = []
 
-function Probe({ attach = true }: { attach?: boolean }) {
+const box = { height: 620 }
+
+function Probe({
+  attach = true,
+  height,
+}: {
+  attach?: boolean
+  height?: 'window' | 'element'
+}) {
   const ref = useRef<HTMLDivElement>(null)
-  seen.push(useViewport(ref))
+  seen.push(useViewport(ref, height === undefined ? undefined : { height }))
   return attach ? <div ref={ref} /> : null
 }
 
@@ -20,8 +28,11 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(
     () => size.width,
   )
-  vi.spyOn(document.documentElement, 'clientHeight', 'get').mockImplementation(
-    () => size.height,
+  // One getter: the window height on <html>, the root's own height elsewhere.
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(
+    function (this: HTMLElement) {
+      return this === document.documentElement ? size.height : box.height
+    },
   )
   vi.stubGlobal(
     'ResizeObserver',
@@ -44,6 +55,7 @@ afterEach(() => {
   observers.length = 0
   seen.length = 0
   Object.assign(size, { width: 1440, height: 900 })
+  box.height = 620
 })
 
 describe('useViewport', () => {
@@ -86,6 +98,24 @@ describe('useViewport', () => {
 
     expect(observers[0]?.disconnect).toHaveBeenCalledTimes(1)
     expect(seen).toHaveLength(count)
+  })
+
+  it('takes the height from the element with height: element', () => {
+    render(<Probe height="element" />)
+
+    expect(seen.at(-1)).toStrictEqual({ vw: 1440, vh: 620 })
+
+    box.height = 572
+    act(() => {
+      observers[0]?.callback()
+    })
+    expect(seen.at(-1)).toStrictEqual({ vw: 1440, vh: 572 })
+  })
+
+  it('keeps the window height with height: window', () => {
+    render(<Probe height="window" />)
+
+    expect(seen.at(-1)).toStrictEqual({ vw: 1440, vh: 900 })
   })
 
   it('stays null without an element', () => {
