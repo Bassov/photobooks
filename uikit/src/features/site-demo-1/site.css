@@ -58,27 +58,7 @@
 .sd-nav:hover, .sd-nav[aria-current] { color: var(--site-ink) }
 .sd-nav[aria-current] { text-decoration: underline 1px; text-underline-offset: 6px }
 
-/* Book3D */
-.sd-b3wrap { position: relative; perspective: 1800px }
-.sd-b3 { position: absolute; left: 0; top: 0; transform-style: preserve-3d;
-  transform: translateY(calc(-1px * var(--lift))) rotateZ(calc(1deg * var(--rz, 0))) rotateX(calc(1deg * var(--rx))) rotateY(calc(1deg * var(--ry)));
-  transition: transform 600ms var(--site-ease) }
-.sd-b3 > div { position: absolute; backface-visibility: hidden }
-.sd-b3-cover { left: 0; top: 0; width: 100%; height: 100%; transform-origin: left center; border-radius: 1px 3px 3px 1px;
-  transform: translateZ(var(--t2)) rotateY(calc(-1deg * var(--peek))); transition: transform 600ms var(--site-ease) 60ms, box-shadow 600ms }
-.sd-b3-page { background: #FBFAF7; box-shadow: inset 6px 0 10px -6px rgb(0 0 0 / .25) }
-.sd-b3-fore { background: repeating-linear-gradient(90deg, #FBFAF7 0 1px, #DCD7CE 1px 2px) }
-.sd-b3-top { background: repeating-linear-gradient(0deg, #FBFAF7 0 1px, #DCD7CE 1px 2px) }
-.sd-b3-spine { display: grid; place-items: center; overflow: hidden }
-.sd-b3-spine span { writing-mode: vertical-rl; white-space: nowrap; line-height: 1 }
-.sd-floor { position: absolute; pointer-events: none; background: radial-gradient(closest-side, rgb(26 25 24 / .34), rgb(26 25 24 / 0)); filter: blur(2px);
-  opacity: calc(1 - var(--lift) / 60); transform: translateY(calc(var(--lift) * .2px)) scaleX(calc(1 + var(--peek) / 600)); transition: opacity 600ms var(--site-ease), transform 600ms var(--site-ease) }
-.sd-pose { --ry: 24; --rx: -4; --lift: 0; --peek: 0 }
-@media (prefers-reduced-motion: no-preference) {
-  .sd-host:hover .sd-pose, .sd-host:focus-visible .sd-pose { --ry: 6; --rx: -3; --lift: 12; --peek: 30 }
-  .sd-host:active .sd-pose { --ry: 4; --rx: -2; --lift: 6; --peek: 14 }
-}
-@media (prefers-reduced-motion: reduce) { .sd-b3, .sd-b3-cover, .sd-floor { transition: none } }
+/* Book3D: `site-book/book3d.css` */
 .sd-host .sd-ul { text-decoration: underline 1px transparent; text-underline-offset: 6px; transition: text-decoration-color 160ms }
 .sd-host:hover .sd-ul, .sd-host:focus-visible .sd-ul { text-decoration-color: currentColor }
 [data-surface="site"] .sd-host:focus-visible { outline: none }

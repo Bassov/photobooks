@@ -49,16 +49,6 @@
 .ss6-book .sd-floor {
   opacity: 0.55;
 }
-.ss.ss-dark .ss6-book .sd-pose {
-  --ry: -4;
-  --rx: -2;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .ss.ss-dark .ss6-book:is(:hover, :focus-visible) .sd-pose {
-    --ry: -14;
-    --lift: 4;
-  }
-}
 .ss6-bar {
   display: flex;
   align-items: baseline;

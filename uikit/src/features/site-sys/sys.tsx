@@ -3,7 +3,7 @@
    Contact, All books, and SysSite: the shell every demo 6–9 renders its home into. Data, Book3D and the reader come from
    site-demo-1; `?books=1|3|6|12` from the v2 work. 1 book = BookPage as the home page. */
 import * as React from 'react'
-import { Book3D, type Pose } from '../site-demo-1/book3d'
+import { Book3D } from '../site-demo-1/book3d'
 import { AUTHOR, EMAIL, pagesOf, SPREAD_R, viewLabel, viewsOf, type SiteBook } from '../site-demo-1/data'
 import { BookReader, type ReaderApi } from '../site-demo-1/reader'
 import { COUNTS, metaOf, reduced, useBooks, useBox, type Box } from '../site-demo-1/v2'
@@ -168,8 +168,6 @@ function AllBooks({ books, g, onOpen }: { books: SiteBook[]; g: Grid; onOpen: (b
     </div>
   )
 }
-
-const POSE: Pose = { ry: -16, rx: -3 }
 type BookPageProps = {
   b: SiteBook; books: SiteBook[]; box: Box; g: Grid; dark?: boolean
   reading: boolean; setReading: (on: boolean) => void; view: number; setView: (v: number) => void
@@ -205,7 +203,7 @@ export function BookPage({ b, books, box, g, dark, reading, setReading, view, se
   )
   const cover = (
     <button type="button" className="ss-host" aria-label={`Open ${b.title}`} onClick={() => setReading(true)} tabIndex={-1}>
-      <Book3D b={b} s={s} pose={POSE} />
+      <Book3D b={b} s={s} />
     </button>
   )
   return (
