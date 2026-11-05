@@ -8,3 +8,5 @@
 ## Manual test scenarios
 
 1. `?fixture=` editor → Cover → inspector Back section: Fill row shows a charcoal swatch and `#3E3C3B`, no "coming later"; the canvas back is the same colour.
+
+- problem (harness, not product): `pnpm agent manual-qa --change cover-back-fill` blocked at the welcome screen — the header intercepts the `start-session` click (known harness issue). Covered instead by e2e M6 `design-r2-cover-book.spec.ts` (`fill-readonly` = `#3E3C3B`, `fill-swatch` rgb(62, 60, 59), no "coming later" in `insp-cover`) and `design-inspector-book-cover.spec.ts:90,108`; the canvas back fill is unchanged (`src/render/CoverView.tsx` untouched).
