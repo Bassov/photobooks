@@ -288,16 +288,19 @@ function flushPendingGalleryAndMeta(): void {
   let galleryChanged = false
   if (ids.length > 0) {
     book = applyBookOp(book, { type: 'addToGallery', assetIds: ids })
-    if (pendingAssetRecords.size > 0) {
+    if (pendingAssetRecords.size > 0 || pendingAssetPatches.size > 0) {
       let assets = book.assets
       let assetsChanged = false
       for (const id of ids) {
         const record = pendingAssetRecords.get(id)
-        if (record === undefined) {
+        // A patch made after the enqueue (head-pass EXIF) waits here too.
+        const patch = pendingAssetPatches.get(id)
+        if (record === undefined && patch === undefined) {
           continue
         }
         pendingAssetRecords.delete(id)
-        assets = { ...assets, [id]: { ...assets[id], ...record } }
+        pendingAssetPatches.delete(id)
+        assets = { ...assets, [id]: { ...assets[id], ...record, ...patch } }
         assetsChanged = true
       }
       if (assetsChanged) {

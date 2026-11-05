@@ -93,7 +93,9 @@
   line-height: 1.4;
 }
 
-.live-caption-select {
+/* Kit SelectRow: h-8; long file names end in an ellipsis. */
+.pb-select.live-caption-select {
+  height: 2rem;
   text-overflow: ellipsis;
 }
 
