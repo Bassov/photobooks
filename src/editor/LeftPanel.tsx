@@ -6,6 +6,7 @@ import {
   subscribeLeftPanelTab,
   type LeftPanelTab,
 } from './leftPanelTabStore'
+import { setBookSettingsSelected } from './bookSettingsSelection'
 import { setFrameSource } from './frameSelection'
 import { MastersPanel } from './MastersPanel'
 import { SpreadsPanel } from './SpreadsPanel'
@@ -41,9 +42,11 @@ export function LeftPanel({
           className="editor-left-tab flex h-6.5 flex-1 items-center justify-center rounded-sm"
           data-testid={`left-tab-${item.id}`}
           onClick={() => {
-            // A picked frame belongs to the other mode's canvas.
+            // A picked frame belongs to the other mode's canvas; Book
+            // settings opened from a master hint closes with the mode.
             if (item.id !== tab) {
               setFrameSource(null)
+              setBookSettingsSelected(false)
             }
             setLeftPanelTab(item.id)
           }}

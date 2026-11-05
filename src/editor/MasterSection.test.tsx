@@ -3,11 +3,16 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { Book, ParentSpread } from '../core'
 import { makeBook, makeSpread } from '../core/testing/fixtures'
 import {
+  dispatchBookOp,
   getBookStoreSnapshot,
   getHistorySnapshot,
   resetBookStore,
   undoBook,
 } from './bookStore'
+import {
+  isBookSettingsSelected,
+  setBookSettingsSelected,
+} from './bookSettingsSelection'
 import { FIELD, SUB, T } from './editorChromeTokens'
 import { MasterSection } from './MasterSection'
 
@@ -251,5 +256,89 @@ describe('MasterSection', () => {
     const before = getBookStoreSnapshot().book
     fireEvent.click(screen.getByTestId('master-field-link'))
     expect(getBookStoreSnapshot().book).toBe(before)
+  })
+})
+
+describe('MasterSection page numbers', () => {
+  afterEach(() => {
+    cleanup()
+    resetBookStore()
+    setBookSettingsSelected(false)
+  })
+
+  const items = () =>
+    getBookStoreSnapshot().book.parents?.[0]?.pageNumbers?.map(
+      (item) => `${item.id}:${String(item.align)}`,
+    )
+
+  it('comes after Grid with Show off: no position, no hint, no items', () => {
+    seed()
+    render(<MasterSection parentId="pa" />)
+
+    const titles = screen
+      .getAllByRole('heading', { level: 3 })
+      .map((el) => el.textContent)
+    expect(titles).toEqual(['Grid', 'Page numbers'])
+    const toggle = screen.getByTestId('master-pn-toggle')
+    expect(toggle.getAttribute('aria-label')).toBe('Page numbers')
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
+    expect(screen.queryByTestId('master-pn-position')).toBeNull()
+    expect(screen.queryByTestId('master-pn-note')).toBeNull()
+    expect(items()).toBeUndefined()
+  })
+
+  it('Show on writes Outer folios (one step); the segments move them; off removes them', () => {
+    seed()
+    render(<MasterSection parentId="pa" />)
+
+    fireEvent.click(screen.getByTestId('master-pn-toggle'))
+    expect(items()).toEqual(['pa-pn-l:left', 'pa-pn-r:right'])
+    expect(getHistorySnapshot().canUndo).toBe(true)
+    const group = screen.getByRole('radiogroup', {
+      name: 'Page number position',
+    })
+    const labels = Array.from(group.querySelectorAll('label')).map(
+      (el) => el.textContent,
+    )
+    expect(labels).toEqual(['Outer', 'Centre', 'Inner'])
+    expect(
+      screen.getByRole<HTMLInputElement>('radio', { name: 'Outer' }).checked,
+    ).toBe(true)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Inner' }))
+    expect(items()).toEqual(['pa-pn-l:right', 'pa-pn-r:left'])
+    fireEvent.click(screen.getByRole('radio', { name: 'Centre' }))
+    expect(items()).toEqual(['pa-pn-l:center', 'pa-pn-r:center'])
+
+    fireEvent.click(screen.getByTestId('master-pn-toggle'))
+    expect(items()).toBeUndefined()
+    act(() => {
+      undoBook()
+    })
+    expect(items()).toEqual(['pa-pn-l:center', 'pa-pn-r:center'])
+  })
+
+  it('hints the book numbering and opens Book settings from its link', () => {
+    seed({ ...MASTER_A })
+    render(<MasterSection parentId="pa" />)
+    fireEvent.click(screen.getByTestId('master-pn-toggle'))
+
+    const note = screen.getByTestId('master-pn-note')
+    expect(note.textContent).toBe('Starts at 1 · 1, 2, 3 · Book settings')
+    expect(note.style.color.toUpperCase()).toBe(SUB)
+    expect(note.className).toBe('mt-1.5 text-2xs leading-[1.35]')
+    act(() => {
+      dispatchBookOp({
+        type: 'setPageNumbering',
+        patch: { start: 4, skipFirst: true, format: 'upper-roman' },
+      })
+    })
+    expect(note.textContent).toBe(
+      'Starts at IV · I, II, III · page 1 blank · Book settings',
+    )
+
+    expect(isBookSettingsSelected()).toBe(false)
+    fireEvent.click(screen.getByTestId('master-pn-book-settings'))
+    expect(isBookSettingsSelected()).toBe(true)
   })
 })
