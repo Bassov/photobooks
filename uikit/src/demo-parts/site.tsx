@@ -2,7 +2,7 @@ import * as React from "react"
 import { ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useStudio, StudioProvider } from "@/sandbox/store"
-import { setEditorExtras, CoverSpread, coverW } from "@/sandbox/v7"
+import { setEditorExtras, CoverSpread, coverW, pagesOf } from "@/sandbox/v7"
 import { SiteViewer, type SiteState } from "@/features/site-viewer"
 import { BOOKS } from "@/features/screens"
 import { useSession, blankDoc, blankExtras, coverOf, fmtOf, slug } from "./session"
@@ -41,6 +41,6 @@ export function DemoSite({ id, initial }: { id: string; initial?: Partial<SiteSt
 }
 
 export function SiteCover({ w }: { w: number }) {
-  const bk = useStudio().book
-  return <div style={{ width: w, height: (w * bk.h) / coverW(bk) }} data-testid="site-cover"><CoverSpread /></div>
+  const st = useStudio(), bk = st.book
+  return <div style={{ width: w, height: (w * bk.h) / coverW(bk, pagesOf(st.doc.spreads.length)) }} data-testid="site-cover"><CoverSpread /></div>
 }

@@ -37,6 +37,8 @@ const onSite = (site: RootInit["site"], entry: "catalog" | "book" = "catalog"): 
 }
 /* editor seeds (EditorView = the #/demo editor with an explicit studio state) */
 const ed = (p: React.ComponentProps<typeof EditorView>) => () => <EditorView book={LAKE_BOOK} {...p} />
+/* cover-editor: 60 spreads = 120 pages, the widest generic spine (32 mm) */
+const docThick = (): Doc => ({ ...docAdded(), spreads: Array.from({ length: 6 }, () => docAdded().spreads).flat().slice(0, 60) })
 /** docFilled with the third frame of spread 2 (three frames) locked. */
 const docThreeOneLocked = (): Doc => {
   const d = docFilled()
@@ -180,8 +182,9 @@ export const PAGES: Record<string, FeatureDef> = {
   "cover-editor": page([
     ["blank", "New cover", ed({ doc: docAdded, cur: 0, node: { k: "cover" } })],
     ["done", "Photo + title", ed({ doc: docAdded, cur: 0, node: { k: "cover" }, extras: COVER_DONE })],
+    ["thick", "120 pages", ed({ doc: docThick, cur: 0, node: { k: "cover" }, extras: COVER_DONE })],
   ], {
-    what: "The cover: back · spine · front on the canvas; drop a photo on the front, edit the front / spine / back text in place or in the inspector.",
+    what: "The cover: back · spine · front with the wrap band, hinge strips and safe frames; spine width from the print profile and page count.",
     where: "#/demo steps 9 and 13.",
     edge: ["A new book’s cover text is its title"],
   }),

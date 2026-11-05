@@ -6,7 +6,7 @@ import * as React from "react"
 import { MiniSpread } from "@/sandbox/chrome"
 import { SW, SH, lastPageFolios } from "@/sandbox/model"
 import { useStudio } from "@/sandbox/store"
-import { coverW, CoverSpread, FolioMarks, PAPER } from "@/sandbox/v7"
+import { coverW, CoverSpread, FolioMarks, PAPER, pagesOf } from "@/sandbox/v7"
 
 /** Prod cover slide (PresentationMode.tsx, CoverCanvas.css): 0.5 px / mm wide, the canvas texts (34 / 12 / 11 px) at the cover width / 848 */
 const COVER_PX_PER_MM = 0.5, COVER_FIT_PX = 848
@@ -53,7 +53,7 @@ export function Presentation({ onExit }: { onExit: () => void }) {
   React.useLayoutEffect(() => { const el = ref.current; if (!el) return; const r = () => setBox({ w: el.clientWidth, h: el.clientHeight }); r(); const ro = new ResizeObserver(r); ro.observe(el); return () => ro.disconnect() }, [])
   /** natural size + content of slide `j` */
   const slide = (j: number): [number, number, React.ReactNode] => {
-    if (j === 0) { const cw = coverW(bk) * 10 * COVER_PX_PER_MM; return [cw, bk.h * 10 * COVER_PX_PER_MM, <div className="size-full" data-testid="presentation-cover"><CoverSpread slide={cw / COVER_FIT_PX} /></div>] }
+    if (j === 0) { const cw = coverW(bk, pagesOf(st.doc.spreads.length)) * 10 * COVER_PX_PER_MM; return [cw, bk.h * 10 * COVER_PX_PER_MM, <div className="size-full" data-testid="presentation-cover"><CoverSpread slide={cw / COVER_FIT_PX} /></div>] }
     // Designer page-numbers: every page slide prints its folios (1 px / mm here, the slide box scales it)
     if (j === 1) return [SW / 2, SH, <div className="-ml-[100%] w-[200%]" data-testid="presentation-page"><MiniSpread s={st.doc.spreads[0]} width={SW} si={0} folios className="rounded-none shadow-none!" /></div>]
     if (j === n - 1) return [SW / 2, SH, <div className="relative size-full" style={{ background: PAPER }} data-paper data-testid="presentation-page"><FolioMarks folios={lastPageFolios(st.doc, st.book.safe, st.view.pageNumbers)} sc={1} /></div>]
