@@ -421,3 +421,178 @@ describe('SpreadPager', () => {
     expect(screen.queryByTestId('spread-0')).toBeNull()
   })
 })
+
+function LightboxHarness({
+  count = 3,
+  start = 0,
+  onExit = () => undefined,
+}: {
+  count?: number
+  start?: number
+  onExit?: () => void
+}) {
+  const [index, setIndex] = useState(start)
+  return (
+    <SpreadPager
+      variant="lightbox"
+      ariaLabel="Alps — fullscreen"
+      testId="lightbox"
+      count={count}
+      index={index}
+      onIndexChange={setIndex}
+      onExit={onExit}
+      renderSpread={(i) => <div data-testid={`spread-${String(i)}`} />}
+    />
+  )
+}
+
+/** Alps 190×230 spread (380 × 230 natural) in a 1440 × 900 viewport. */
+function stubAlps(hover = true) {
+  stubSizes({ w: 380, h: 230, stageW: 1440, stageH: 900 })
+  vi.stubGlobal('matchMedia', () => ({
+    matches: hover,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }))
+}
+
+const lightbox = () => screen.getByTestId('lightbox')
+const activeSlide = () =>
+  screen
+    .getAllByTestId('lightbox-slide')
+    .find((slide) => slide.dataset.active === 'true')
+/** By label: an inert arrow is out of the accessibility tree. */
+const arrow = (name: string) => {
+  const el = document.querySelector<HTMLElement>(`[aria-label="${name}"]`)
+  if (el === null) throw new Error(`no ${name}`)
+  return el
+}
+
+describe('SpreadPager lightbox', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('fits the slide inside the control insets as a named dialog', () => {
+    stubAlps()
+    render(<LightboxHarness />)
+    const style = activeSlide()?.style
+    expect(Number.parseFloat(style?.left ?? '')).toBeCloseTo(69.04, 2)
+    expect(style?.top).toBe('64px')
+    expect(Number.parseFloat(style?.width ?? '')).toBeCloseTo(1301.91, 2)
+    expect(style?.height).toBe('788px')
+    expect(lightbox().getAttribute('role')).toBe('dialog')
+    expect(lightbox().getAttribute('aria-label')).toBe('Alps — fullscreen')
+    expect(lightbox().dataset.zoom).toBe('1.00')
+    expect(screen.queryByTestId('presentation')).toBeNull()
+    expect(screen.queryByText('Esc')).toBeNull()
+  })
+
+  it('labels Close and Zoom, and hides the arrows at the ends', () => {
+    stubAlps()
+    render(<LightboxHarness count={2} />)
+    const close = screen.getByTestId('site-fullscreen-close')
+    expect(close.getAttribute('aria-label')).toBe('Exit fullscreen')
+    expect(close.getAttribute('title')).toBe('Close (Esc)')
+    expect(
+      screen.getByTestId('site-fullscreen-zoom').getAttribute('aria-label'),
+    ).toBe('Zoom in')
+    expect(arrow('Previous spread').style.visibility).toBe('hidden')
+    expect(arrow('Previous spread').hasAttribute('inert')).toBe(true)
+    expect(arrow('Next spread').style.visibility).toBe('')
+    fireEvent.click(arrow('Next spread'))
+    expect(arrow('Next spread').style.visibility).toBe('hidden')
+    expect(arrow('Previous spread').style.visibility).toBe('')
+  })
+
+  it('has no arrows and 8 px sides without a hover pointer', () => {
+    stubAlps(false)
+    render(<LightboxHarness />)
+    expect(screen.queryByRole('button', { name: 'Next spread' })).toBeNull()
+    expect(Number.parseFloat(activeSlide()?.style.left ?? '')).toBeCloseTo(
+      69.04,
+      2,
+    )
+    // Height-bound: the narrower sides do not widen the Alps spread.
+    expect(activeSlide()?.style.height).toBe('788px')
+  })
+
+  it('does not page or close on a click on the spread or the backdrop', () => {
+    stubAlps()
+    const onExit = vi.fn()
+    render(<LightboxHarness onExit={onExit} />)
+    fireEvent.click(screen.getByTestId('spread-0'))
+    fireEvent.click(lightbox(), { clientX: 1400, clientY: 450 })
+    expect(screen.getByTestId('site-fullscreen-indicator').textContent).toBe(
+      '1 / 3',
+    )
+    expect(onExit).not.toHaveBeenCalled()
+  })
+
+  it('steps with the arrows, Space, Home and End', () => {
+    stubAlps()
+    render(<LightboxHarness count={5} />)
+    const at = () => screen.getByTestId('site-fullscreen-indicator').textContent
+    fireEvent.keyDown(window, { key: 'End' })
+    expect(at()).toBe('5 / 5')
+    fireEvent.keyDown(window, { key: 'ArrowLeft' })
+    expect(at()).toBe('4 / 5')
+    fireEvent.keyDown(window, { key: 'Home' })
+    expect(at()).toBe('1 / 5')
+    fireEvent.keyDown(window, { key: ' ' })
+    expect(at()).toBe('2 / 5')
+    fireEvent.keyDown(window, { key: 'ArrowRight', ctrlKey: true })
+    expect(at()).toBe('2 / 5')
+  })
+
+  it('closes on Esc while zoomed in', () => {
+    stubAlps()
+    const onExit = vi.fn()
+    render(<LightboxHarness onExit={onExit} />)
+    fireEvent.click(screen.getByTestId('site-fullscreen-zoom'))
+    expect(lightbox().dataset.zoom).toBe('2.00')
+    expect(
+      screen.getByTestId('site-fullscreen-zoom').getAttribute('aria-label'),
+    ).toBe('Zoom out')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onExit).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByTestId('site-fullscreen-close'))
+    expect(onExit).toHaveBeenCalledTimes(2)
+  })
+
+  it('opens the next slide at 1× while the old one slides away at its zoom', () => {
+    stubAlps()
+    render(<LightboxHarness />)
+    fireEvent.keyDown(window, { key: '+' })
+    expect(lightbox().dataset.zoom).toBe('1.50')
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(lightbox().dataset.zoom).toBe('1.00')
+    const old = screen.getAllByTestId('lightbox-slide')[0]
+    expect(old?.dataset.active).toBe('false')
+    expect(
+      (old?.firstElementChild as HTMLElement | null)?.style.transform,
+    ).toContain('scale(1.5)')
+    fireEvent.keyDown(window, { key: 'ArrowLeft' })
+    expect(lightbox().dataset.zoom).toBe('1.00')
+  })
+
+  it('keeps Tab on Previous, Next, Zoom and Close', () => {
+    stubAlps()
+    render(<LightboxHarness start={1} />)
+    expect(document.activeElement).toBe(lightbox())
+    const names: (string | null)[] = []
+    for (let i = 0; i < 5; i += 1) {
+      fireEvent.keyDown(window, { key: 'Tab' })
+      names.push(document.activeElement?.getAttribute('aria-label') ?? null)
+    }
+    expect(names).toStrictEqual([
+      'Previous spread',
+      'Next spread',
+      'Zoom in',
+      'Exit fullscreen',
+      'Previous spread',
+    ])
+  })
+})

@@ -1,3 +1,6 @@
+import type { Book } from '../core'
+// Not the barrel: it would pull the zod schemas into the viewer entry.
+import { getSpreadSizeMm } from '../core/geometry/spreadSize'
 import { pageLabel, pagesOf, pagesText } from '../core/pages'
 import {
   bookObjectWidthForHeight,
@@ -30,6 +33,20 @@ export function slideLabel(slide: number, n: number): string {
   const label = pageLabel(slide - 1, n)
   const pages = label.includes('–') ? `Pages ${label}` : `Page ${label}`
   return `${pages} · ${String(slide)} / ${String(n)}`
+}
+
+/**
+ * A single first / last page sits on its own side of the spread box (the
+ * cover, spread index -1, counts as two pages).
+ */
+export function slideSide(
+  book: Book,
+  slide: number,
+): 'left' | 'right' | undefined {
+  if (getSpreadSizeMm(book, slide - 1).pageCount === 2) {
+    return undefined
+  }
+  return slide === 1 ? 'right' : 'left'
 }
 
 /** `#p{first page}` of slide `slide`; the cover (and out of range) has none. */

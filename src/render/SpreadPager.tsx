@@ -7,24 +7,13 @@ import {
   type ReactNode,
 } from 'react'
 import { takeFocus, trapTab } from '../lib/focusTrap'
+import { LightboxPager } from './LightboxPager'
 import { halfDelta, stepIndex, swipeDelta } from './pagerIndex'
 
 const defaultPosition = (index: number, count: number): string =>
   `${String(index + 1)} / ${String(count)}`
 
-/**
- * Fullscreen one-spread-at-a-time pager (presentation mode; reusable by a
- * site lightbox). Neighbours stay mounted at opacity 0 so their images are
- * requested and decoded before a flip; slides move with transform / opacity.
- */
-export function SpreadPager({
-  count,
-  index,
-  onIndexChange,
-  onExit,
-  renderSpread,
-  position = defaultPosition,
-}: {
+interface PagerProps {
   count: number
   index: number
   onIndexChange: (next: number) => void
@@ -32,7 +21,51 @@ export function SpreadPager({
   renderSpread: (index: number) => ReactNode
   /** Position line text for a non-empty pager (default `i / n`). */
   position?: (index: number, count: number) => string
+}
+
+/**
+ * Fullscreen one-spread-at-a-time pager: presentation mode, or the site
+ * lightbox (`variant="lightbox"`: fit insets, chips, arrows, zoom and pan).
+ * Neighbours stay mounted at opacity 0 so their images are requested and
+ * decoded before a flip; slides move with transform / opacity.
+ */
+export function SpreadPager({
+  variant = 'presentation',
+  ariaLabel = 'Lightbox',
+  testId = 'lightbox',
+  onZoomSettle,
+  position = defaultPosition,
+  ...props
+}: PagerProps & {
+  variant?: 'presentation' | 'lightbox'
+  /** Lightbox dialog name. */
+  ariaLabel?: string
+  /** Lightbox root test id. */
+  testId?: string
+  /** Lightbox: zoom settled at `z` on a slide fitted `width` px wide. */
+  onZoomSettle?: ((z: number, width: number) => void) | undefined
 }) {
+  return variant === 'lightbox' ? (
+    <LightboxPager
+      {...props}
+      position={position}
+      ariaLabel={ariaLabel}
+      testId={testId}
+      onZoomSettle={onZoomSettle}
+    />
+  ) : (
+    <PresentationPager {...props} position={position} />
+  )
+}
+
+function PresentationPager({
+  count,
+  index,
+  onIndexChange,
+  onExit,
+  renderSpread,
+  position = defaultPosition,
+}: PagerProps) {
   const stageRef = useRef<HTMLDivElement>(null)
   const fitRef = useRef<HTMLDivElement>(null)
   const [fit, setFit] = useState({ scale: 1, width: 0, height: 0 })
