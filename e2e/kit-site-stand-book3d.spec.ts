@@ -21,7 +21,8 @@ const pose = (book: Locator) =>
 /** the hover host of each demo's first closed book (demo 7's only closed book
    is its preview, covered by its own test; the book page is gone) */
 async function host(page: Page, slug: Slug): Promise<Locator> {
-  await page.goto(`/uikit/#/full/${slug}`)
+  // the CSS book's pose and faces (`?gl=0`); the GL book: kit-site-stand-gl.spec.ts
+  await page.goto(`/uikit/#/full/${slug}?gl=0`)
   return page.getByTestId('ss6-book').first()
 }
 
@@ -63,7 +64,7 @@ async function paints(face: Locator) {
 const SLUGS: Slug[] = ['site-demo-6']
 
 test('demo 7 preview rests in the shared pose', async ({ page }) => {
-  await page.goto('/uikit/#/full/site-demo-7')
+  await page.goto('/uikit/#/full/site-demo-7?gl=0')
   const book = page.getByTestId('ss7-preview').getByTestId('book3d')
   expect(await pose(book)).toEqual([30, -14])
 })
