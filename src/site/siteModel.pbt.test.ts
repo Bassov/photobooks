@@ -1,8 +1,8 @@
 import { fc, test } from '@fast-check/vitest'
 import { describe, expect } from 'vitest'
+import { pagesOf } from '../core/pages'
 import {
   hashForSlide,
-  sitePageCount,
   slideCount,
   slideForHash,
   slideLabel,
@@ -26,7 +26,7 @@ describe('siteModel properties', () => {
       spreads.chain((n) =>
         fc.tuple(
           fc.constant(n),
-          fc.integer({ min: 1, max: Math.max(1, sitePageCount(n)) }),
+          fc.integer({ min: 1, max: Math.max(1, pagesOf(n)) }),
         ),
       ),
     ],

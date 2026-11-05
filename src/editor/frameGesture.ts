@@ -25,6 +25,7 @@ import {
 import { getFrameSelection, setFrameSource } from './frameSelection'
 import { buildGridAnchors } from './gridSnap'
 import { getGridVisible, getSnapOn } from './gridView'
+import { startParentGuideOverride } from './guideGesture'
 import { getGuidesVisible } from './guidesView'
 import { clearLiveGeometry, publishLiveGeometry } from './liveGeometry'
 import { isMacPlatform, parentHitAt, type ParentHit } from './parentHit'
@@ -449,14 +450,20 @@ function overridePress(
 /**
  * Designer PO2: a modifier press on a parent frame overrides it, selects the
  * copy and continues as the copy's move. A press on an existing copy (even
- * under own frames) only reselects and moves it (review 3). A parent guide
- * (PO5) or no hit → null.
+ * under own frames) only reselects and moves it (review 3). On a parent guide
+ * (PO5) the copy's guide drag takes the press → 'guide'. No hit → null.
  */
 function overrideSession(
   event: PointerEvent,
   spreadEl: HTMLElement,
-): MoveSession | null {
+): MoveSession | 'guide' | null {
   let press = overridePress(event, spreadEl)
+  if (
+    press?.hit?.kind === 'guide' &&
+    startParentGuideOverride(event, spreadEl, press.hit.guideId)
+  ) {
+    return 'guide'
+  }
   if (press?.hit?.kind === 'frame') {
     dispatchBookOp({
       type: 'overrideParentFrame',
@@ -598,6 +605,13 @@ export function installFrameGesture(): () => void {
       tool === 'select' && overrideModifiers(event)
         ? overrideSession(event, spreadEl)
         : null
+    if (override === 'guide') {
+      // The guide drag owns the press; its release must not click the frame
+      // under the line.
+      event.preventDefault()
+      window.addEventListener('pointerup', swallowRelease)
+      return
+    }
     if (override !== null) {
       // The press belongs to the parent item, not to the frames over it.
       event.preventDefault()

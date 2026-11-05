@@ -1,4 +1,11 @@
-import { editableSpread, getSinglePageSide, getSpreadSizeMm } from '../core'
+import { flushSync } from 'react-dom'
+import {
+  editableSpread,
+  getSinglePageSide,
+  getSpreadSizeMm,
+  type BookOp,
+  type Spread,
+} from '../core'
 import { dispatchBookOp, getBookStoreSnapshot } from './bookStore'
 import {
   guideStatus,
@@ -20,6 +27,37 @@ export interface GuideDragStart {
   rulerEl: HTMLElement | null
   /** Dragging a placed guide: its line element and committed offset. */
   existing?: { id: string; lineEl: HTMLElement; offsetMm: number }
+}
+
+/** The ruler `spreadEl`'s guides of `orientation` belong to (top / left), if shown. */
+export function guideRuler(
+  spreadEl: HTMLElement,
+  orientation: GuideOrientation,
+): HTMLElement | null {
+  // The pasteboard or Masters stage, whichever hosts this spread's rulers.
+  const stage = spreadEl.closest('[data-rulers]')
+  return (
+    stage?.querySelector<HTMLElement>(
+      orientation === 'horizontal'
+        ? '[data-testid="ruler-x"]'
+        : '[data-testid="ruler-y"]',
+    ) ?? null
+  )
+}
+
+/**
+ * Removing a placed guide: an own guide goes; a parent guide's copy hides
+ * the parent guide on the spread (Designer PO5).
+ */
+function removeOp(spread: Spread, guideId: string): BookOp {
+  const copy = spread.parentOverrides?.guides?.find((g) => g.id === guideId)
+  return copy === undefined
+    ? { type: 'removeGuide', spreadId: spread.id, guideId }
+    : {
+        type: 'hideParentItem',
+        spreadId: spread.id,
+        parentItemId: copy.overridesId,
+      }
 }
 
 function overRuler(
@@ -129,7 +167,7 @@ export function startGuideDrag(start: GuideDragStart): void {
       dispatchBookOp(
         outcome === 'commit'
           ? { type: 'moveGuide', spreadId, guideId: existing.id, offsetMm }
-          : { type: 'removeGuide', spreadId, guideId: existing.id },
+          : removeOp(target.spread, existing.id),
       )
     }
     if (outcome === 'commit') {
@@ -139,4 +177,40 @@ export function startGuideDrag(start: GuideDragStart): void {
   window.addEventListener('pointermove', onMove)
   window.addEventListener('pointerup', onUp)
   apply()
+}
+
+/**
+ * Designer PO5: a Ctrl/⌘+Shift press on a parent guide overrides it on the
+ * spread, and the press continues as the copy's drag (a locked copy stays).
+ * False when nothing was overridden, so the press is not consumed.
+ */
+export function startParentGuideOverride(
+  event: PointerEvent,
+  spreadEl: HTMLElement,
+  parentGuideId: string,
+): boolean {
+  const spreadId = spreadEl.dataset.spreadId ?? ''
+  // The copy's line must be on the page before the drag takes it.
+  flushSync(() => {
+    dispatchBookOp({ type: 'overrideParentGuide', spreadId, parentGuideId })
+  })
+  const copy = getBookStoreSnapshot()
+    .book.spreads.find((spread) => spread.id === spreadId)
+    ?.parentOverrides?.guides?.find((g) => g.overridesId === parentGuideId)
+  if (copy === undefined) return false
+  const lineEl = [
+    ...(spreadEl
+      .closest('.spread-stage')
+      ?.querySelectorAll<HTMLElement>('[data-testid="guide-line"]') ?? []),
+  ].find((line) => line.dataset.guideId === copy.id)
+  if (lineEl !== undefined && copy.locked !== true) {
+    startGuideDrag({
+      event,
+      spreadEl,
+      orientation: copy.orientation,
+      rulerEl: guideRuler(spreadEl, copy.orientation),
+      existing: { id: copy.id, lineEl, offsetMm: copy.offsetMm },
+    })
+  }
+  return true
 }

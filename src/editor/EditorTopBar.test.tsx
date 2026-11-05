@@ -526,7 +526,7 @@ describe('EditorTopBar', () => {
       await attachMemoryLibraryForTests()
     })
     expect(screen.getByTestId('book-size').textContent).toBe(
-      '30 × 30 cm · 6 pages · saved',
+      '30 × 30 cm · 4 pages · saved',
     )
   })
 

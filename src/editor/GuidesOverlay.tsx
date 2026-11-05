@@ -5,7 +5,7 @@ import {
 } from 'react'
 import { editableSpread, viewGuides, type ResolvedGuide } from '../core'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
-import { startGuideDrag } from './guideGesture'
+import { guideRuler, startGuideDrag } from './guideGesture'
 import { getGuidesVisible, subscribeGuidesVisible } from './guidesView'
 import type { GuideOrientation } from './guidesMath'
 import './Guides.css'
@@ -40,18 +40,11 @@ function beginDrag(
   if (spreadEl === null) return
   event.preventDefault()
   event.stopPropagation()
-  // The pasteboard or Masters stage, whichever hosts this spread's rulers.
-  const stage = spreadEl.closest('[data-rulers]')
-  const ruler = stage?.querySelector<HTMLElement>(
-    orientation === 'horizontal'
-      ? '[data-testid="ruler-x"]'
-      : '[data-testid="ruler-y"]',
-  )
   startGuideDrag({
     event: event.nativeEvent,
     spreadEl,
     orientation,
-    rulerEl: ruler ?? null,
+    rulerEl: guideRuler(spreadEl, orientation),
     existing: { id: guide.id, lineEl, offsetMm: guide.offsetMm },
   })
 }
@@ -84,7 +77,8 @@ export function GuidesOverlay({
         const horizontal = guide.orientation === 'horizontal'
         const at = `${String(guide.offsetMm * pxPerMm)}px`
         if (layer === 'parent') {
-          // Read-only and pointer-transparent: edited on the Masters canvas.
+          // Read-only and pointer-transparent: edited on the Masters canvas;
+          // Ctrl/⌘+Shift overrides it here (frameGesture → guideGesture).
           return (
             <div
               key={`parent:${guide.id}`}
@@ -98,11 +92,13 @@ export function GuidesOverlay({
             />
           )
         }
+        // A parent guide's local copy is an own guide on this spread (PO5).
         return (
           <div
             key={guide.id}
             className="guide-line"
             data-testid="guide-line"
+            data-layer={layer}
             data-orientation={guide.orientation}
             data-guide-id={guide.id}
             data-offset-mm={guide.offsetMm}

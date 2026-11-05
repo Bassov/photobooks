@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
+import { pagesOf } from '../core/pages'
 import { displayBookTitle } from '../project/bookTitle'
 import { Icon } from '../ui/Icon'
 import { ShareButton } from './ShareButton'
@@ -6,7 +7,6 @@ import type { SitePageInput } from './siteInput'
 import {
   bookMeta,
   hashForSlide,
-  sitePageCount,
   slideForHash,
   slideLabel,
   spreadRatio,
@@ -121,7 +121,7 @@ export function SiteBookPage({
             {title}
           </h1>
           <div className="site-book-meta" data-testid="site-author">
-            {bookMeta(site.author, sitePageCount(n))}
+            {bookMeta(site.author, pagesOf(n))}
           </div>
         </div>
         <ShareButton title={title} url={() => bookUrl(input)} />
