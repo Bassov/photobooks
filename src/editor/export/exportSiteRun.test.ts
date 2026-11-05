@@ -126,9 +126,7 @@ describe('collectSiteDerivatives', () => {
     const bare = publishBook({}, bookWithHash('four', undefined), 4).revision
     const twin = publishBook({}, bookWithHash('four', undefined), 5).revision
     const deps = derivativeDeps(() => undefined)
-    const hash = await sha256Hex(
-      new TextEncoder().encode('four-photo').buffer,
-    )
+    const hash = await sha256Hex(new TextEncoder().encode('four-photo').buffer)
 
     const out = await collectSiteDerivatives([bare, twin], deps, vi.fn())
 
