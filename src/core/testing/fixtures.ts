@@ -1,6 +1,8 @@
 import { addToGallery } from '../ops/gallery'
 import { defaultCover, defaultEndpapers } from '../cover'
 import { placeAsset } from '../ops/place'
+import { genericPrintProfile } from '../print/genericProfile'
+import type { PrintProfile } from '../print/profileSchema'
 import type { Book, Frame, Spread } from '../schema'
 import { CURRENT_SCHEMA_VERSION } from '../schema'
 import { applyTemplate } from '../templates/apply'
@@ -165,4 +167,26 @@ export function largeBook(spreadCount = 40, assetCount = 1000): Book {
   }
 
   return makeBook({ assets, gallery, spreads })
+}
+
+/**
+ * A library custom profile copied from Generic: one 3.175 mm bleed, 12.7 mm
+ * safe margin, 15–30 cm pages, 24–80 pages in steps of 4, photos ≥ 300 ppi.
+ */
+export function makeCustomPrintProfile(
+  overrides: Partial<PrintProfile> = {},
+): PrintProfile {
+  return {
+    ...genericPrintProfile(),
+    id: 'custom-lab',
+    name: 'Lab · Photo book',
+    trimMinMm: 150,
+    trimMaxMm: 300,
+    bleedMinMm: 3.175,
+    bleedMaxMm: 3.175,
+    safeMarginMm: 12.7,
+    pageCount: { min: 24, step: 4, max: 80 },
+    dpi: { warn: 300, min: 150 },
+    ...overrides,
+  }
 }

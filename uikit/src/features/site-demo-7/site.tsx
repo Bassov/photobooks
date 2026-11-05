@@ -2,7 +2,7 @@
    year / pages t13 grey; rows 80 high) and a sticky preview in columns 8–11 (Book3D at 13 px/cm, statement t16, meta, link).
    Hover: the other rows go to .3 over 0.2 s; the preview crossfades in 0.4 s. Phone: rows with a 56 px cover, title m28. */
 import * as React from 'react'
-import { Book3D } from '../site-demo-1/book3d'
+import { Book3D } from '../site-book/book3d'
 import { pad2, pagesOf, src, type SiteBook } from '../site-demo-1/data'
 import { LEAD, metaOf, Statement, SysSite, type Grid, type HomeApi } from '../site-sys/sys'
 import './site.css'

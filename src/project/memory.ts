@@ -1,7 +1,11 @@
 import { parseBook, type Book } from '../core'
 import { bookSummaryFromBook } from './bookSummary'
 import { bookTitleFromUnknown } from './bookTitle'
-import { parseSavedTemplates } from './libraryDocument'
+import {
+  parseDefaultPrintProfileId,
+  parsePrintProfiles,
+  parseSavedTemplates,
+} from './libraryDocument'
 import {
   parsePublished,
   serializePublished,
@@ -40,7 +44,12 @@ function mapParseFailure(
 }
 
 export function createMemoryLibraryStorage(): MemoryLibraryStorage {
-  let libraryMeta: LibraryMeta = { books: {}, templates: [] }
+  let libraryMeta: LibraryMeta = {
+    books: {},
+    templates: [],
+    printProfiles: [],
+    defaultPrintProfileId: parseDefaultPrintProfileId(undefined),
+  }
   const books = new Map<string, unknown>()
   const published = new Map<string, unknown>()
   const editedAtMsById = new Map<string, number>()
@@ -90,6 +99,10 @@ export function createMemoryLibraryStorage(): MemoryLibraryStorage {
           libraryMeta = {
             books: structuredClone(meta.books ?? {}),
             templates: parseSavedTemplates(meta.templates),
+            printProfiles: parsePrintProfiles(meta.printProfiles),
+            defaultPrintProfileId: parseDefaultPrintProfileId(
+              meta.defaultPrintProfileId,
+            ),
           }
           return success(libraryMeta)
         }),

@@ -129,7 +129,12 @@ describe('draft / published transitions', () => {
       const stored = JSON.parse(JSON.stringify(serializeLibrary(meta)))
       expect(parseLibrary(stored)).toEqual({
         ok: true,
-        meta: { books: meta.books ?? {}, templates: [] },
+        meta: {
+          books: meta.books ?? {},
+          templates: [],
+          printProfiles: [],
+          defaultPrintProfileId: 'generic',
+        },
       })
       for (const revision of revisions.values()) {
         const text = JSON.stringify(serializePublished(revision))
