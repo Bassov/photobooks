@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P5
 Title: Bug: /next-roadmap-item prepush-scoped-units
+Status: done
 
 Process item P-20261105-1543-2. Pre-push (`ts-rig-ci hook-pre-push` → `pnpm check:integrity && pnpm check:fast`) runs the whole unit + property suite at full `numRuns` on a machine loaded by 3 workers + e2e (load 30+): it takes 222–274 s and fails on PBT timeouts in files the branch never touched (`buildSiteTree.pbt`, `EditorTopBar`), leaving commits unpushed (#440, #477, #481). CI runs the full suite on every push anyway.
 
