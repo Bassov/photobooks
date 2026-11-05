@@ -12,3 +12,4 @@ Roadmap: `docs/roadmap/P5/prepush-scoped-units.md` (scope / Done when / Browser 
 
 - Local `check:fast` misses failures outside the diff's import graph; CI's full run catches them.
 - Gate config: local unit step drops global coverage thresholds; `patch-coverage` and CI unchanged.
+- Local lint cache can keep a stale type-aware result; CI lints uncached.
