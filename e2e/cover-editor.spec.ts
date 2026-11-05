@@ -337,8 +337,11 @@ async function pagesGate(page: Page, testInfo: TestInfo): Promise<void> {
       }),
   )
   const rows = await page.evaluate(browserTakeLoafScripts)
+  const inpMs = await page.evaluate(
+    () => window.__photobooksPerf?.getInpMs() ?? null,
+  )
   console.log(
-    `cover-editor-perf pages: ${String(rows.length)} LoAF ${JSON.stringify(rows)}`,
+    `cover-editor-perf pages: ${String(rows.length)} LoAF ${JSON.stringify(rows)} INP ${String(inpMs)} ms`,
   )
   await page.evaluate(browserAssertNoLoaf, PERF_BUDGETS.loafEntriesMax)
   await page.evaluate((budgetMs) => {

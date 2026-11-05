@@ -21,13 +21,11 @@ import {
 //
 // M59 editor-cover-photo-and-title, insp-cover: head title y 64.00
 //     (13px / 500 / rgb(57, 55, 56)), subline 84.84, FRONT 121.64, front text
-//     block 148.48, Front title field 231.86, Title font row 275.86 (a 26.84
-//     `Val`), SPINE 334.70, Spine text 361.55, Spine width row 405.55,
-//     Direction row 436.39, BACK 495.23, Back text 522.08, Fill row 566.08,
-//     MATERIAL 624.92, Cover row 651.77, Finish row 690.61.
-//     Prod keeps the native 36 px Title font / Cover / Finish selects (open
-//     Owner question), so everything below Title font sits SELECT_RESIDUAL
-//     (36 − 26.84 = 9.16) lower, and Finish twice that.
+//     block 148.48, Front title field 231.86, Title font row 275.86 (a 36 px
+//     select, as prod), SPINE 343.86, Spine text 370.70, Spine width row
+//     414.70, spine hint 439.55 (cover-editor, re-measured 2026-11-06),
+//     Direction row 468.34, BACK 527.19, Back text 554.03, Fill row 598.03,
+//     MATERIAL 656.88, Cover row 683.72, Finish row 731.72.
 // M59 editor-inspector-book, insp-book: head 64.00 / subline 84.84, PAGE SIZE
 //     121.64, Page size select 148.48 (32 px), Portrait 194.48, cm 236.48 (26
 //     px segments), W / H fields 276.48, size hint 314.48, BINDING 378.48,
@@ -65,8 +63,6 @@ import {
 
 const INK = 'rgb(57, 55, 56)'
 const MUTED = 'rgb(83, 81, 82)'
-const SELECT_RESIDUAL = 36 - 26.84
-
 const KIT = {
   head: { title: 64, sub: 84.84 },
   cover: {
@@ -74,16 +70,17 @@ const KIT = {
     frontText: 148.48,
     frontTitle: 231.86,
     titleFontRow: 275.86,
-    spine: 334.7,
-    spineText: 361.55,
-    spineWidthRow: 405.55,
-    directionRow: 436.39,
-    back: 495.23,
-    backText: 522.08,
-    fillRow: 566.08,
-    material: 624.92,
-    coverRow: 651.77,
-    finishRow: 690.61,
+    spine: 343.86,
+    spineText: 370.7,
+    spineWidthRow: 414.7,
+    spineHint: 439.55,
+    directionRow: 468.34,
+    back: 527.19,
+    backText: 554.03,
+    fillRow: 598.03,
+    material: 656.88,
+    coverRow: 683.72,
+    finishRow: 731.72,
   },
   book: {
     pageSize: 121.64,
@@ -286,20 +283,20 @@ test.describe('M59–M61: Cover, Book and Photo inspectors match the kit', () =>
     await near(panel.locator('.cover-front-info'), c.frontText)
     await near(page.getByTestId('cover-text-front'), c.frontTitle)
     await near(rows.nth(0), c.titleFontRow)
-    // The Title font select row itself is the only residual (open Owner
-    // question): 36 px against the kit 26.84 px `Val` row.
     expect(Math.abs((await box(rows.nth(0))).height - 36)).toBeLessThan(0.01)
-    const below = (kit: number) => kit + SELECT_RESIDUAL
-    await near(titles.nth(1), below(c.spine))
-    await near(page.getByTestId('cover-text-spine'), below(c.spineText))
-    await near(rows.nth(1), below(c.spineWidthRow))
-    await near(rows.nth(2), below(c.directionRow))
-    await near(titles.nth(2), below(c.back))
-    await near(page.getByTestId('cover-text-back'), below(c.backText))
-    await near(rows.nth(3), below(c.fillRow))
-    await near(titles.nth(3), below(c.material))
-    await near(rows.nth(4), below(c.coverRow))
-    await near(rows.nth(5), c.finishRow + 2 * SELECT_RESIDUAL)
+    await near(titles.nth(1), c.spine)
+    await near(page.getByTestId('cover-text-spine'), c.spineText)
+    await near(rows.nth(1), c.spineWidthRow)
+    // The page-count hint sits right under Spine width (6 px gap) and pushes
+    // every later row down by its 16.8 px line.
+    await near(page.getByTestId('cover-spine-hint'), c.spineHint)
+    await near(rows.nth(2), c.directionRow)
+    await near(titles.nth(2), c.back)
+    await near(page.getByTestId('cover-text-back'), c.backText)
+    await near(rows.nth(3), c.fillRow)
+    await near(titles.nth(3), c.material)
+    await near(rows.nth(4), c.coverRow)
+    await near(rows.nth(5), c.finishRow)
   })
 
   test('M59: the Book settings inspector is as tight as the kit', async ({
