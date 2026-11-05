@@ -1,4 +1,9 @@
-import { overrideParentFrame, type Book } from '../core'
+import {
+  applyBookOp,
+  overrideParentFrame,
+  type Book,
+  type BookOp,
+} from '../core'
 import {
   makePainterFixture,
   PAINTER_ASSET_IDS,
@@ -44,17 +49,69 @@ function withMasterGuides(book: Book): Book {
   }
 }
 
+/** Spread 2 of the painter fixture: four filled image frames. */
+export const PAINTER_CAPTION_SPREAD_ID = 'painter-spread-1'
+
+/**
+ * EXIF-like metadata on the painter photos, and a live caption
+ * (`{title} · {date}`) over the lower part of each of spread 2's `count`
+ * image frames, anchored to it.
+ */
+function withLiveCaptions(book: Book, count: number): Book {
+  if (count <= 0) {
+    return book
+  }
+  const assets: Book['assets'] = Object.fromEntries(
+    PAINTER_ASSET_IDS.map((assetId, index) => [
+      assetId,
+      {
+        ...book.assets[assetId],
+        capturedAt: `2025-07-${String(10 + index)}T08:35:00`,
+        meta: { title: `Photo ${assetId}`, camera: 'Canon EOS R5' },
+      },
+    ]),
+  )
+  const spread = book.spreads.find(
+    (item) => item.id === PAINTER_CAPTION_SPREAD_ID,
+  )
+  const frames = spread?.frames.slice(0, count) ?? []
+  return frames.reduce(
+    (next, frame, index) => {
+      const id = `painter-caption-${String(index)}`
+      const { x, y, width, height } = frame.rect
+      const at = { spreadId: PAINTER_CAPTION_SPREAD_ID, frameId: id }
+      const ops: BookOp[] = [
+        {
+          type: 'addTextFrame',
+          spreadId: PAINTER_CAPTION_SPREAD_ID,
+          rect: { x, y: y + height - 12, width, height: 10 },
+          id,
+        },
+        { type: 'editText', ...at, text: '{title} · {date}' },
+        { type: 'setTextLive', ...at, live: true },
+      ]
+      return ops.reduce(applyBookOp, next)
+    },
+    { ...book, assets },
+  )
+}
+
 /**
  * Replace the in-memory book with the painter fixture and its preview URLs.
  * `&parent=a` makes Master A the book default, so all 40 spreads use it;
- * `&overrides=<n>` then has the first n spreads override its logo, and
- * `&guides=a` gives Master A two guides.
+ * `&overrides=<n>` then has the first n spreads override its logo,
+ * `&guides=a` gives Master A two guides and `&captions=<n>` puts n live
+ * captions on spread 2.
  */
 export function loadPainterFixture(search = window.location.search): void {
   const fixture = makePainterFixture()
   const params = new URLSearchParams(search)
+  const captioned = withLiveCaptions(
+    fixture.book,
+    Number(params.get('captions') ?? 0),
+  )
   const base =
-    params.get('guides') === 'a' ? withMasterGuides(fixture.book) : fixture.book
+    params.get('guides') === 'a' ? withMasterGuides(captioned) : captioned
   const book =
     params.get('parent') === 'a'
       ? withLogoOverrides(

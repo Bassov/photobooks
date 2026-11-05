@@ -10,6 +10,16 @@ import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
+import { PERF_BUDGETS } from './perf/budgets'
+import {
+  browserAssertNoLoaf,
+  browserBeginLoafScenarioWindow,
+  browserStartLoafScripts,
+  browserTakeLoafScripts,
+  clearPerfScenario,
+  collectFrameStatsArtifact,
+  enablePerfScenario,
+} from './perf/perfFixture'
 
 // Designer live-captions (item 3, prod UI): a text frame's Live block reads
 // the EXIF of the photo in its anchor frame (real import + head pass).
@@ -194,4 +204,106 @@ test('Live block layout matches the kit: one chip row, Designer y positions', as
   expect(ys.section[1]).toBeCloseTo(372.8, 0)
   expect(ys.chipRows).toBe(1)
   expect(ys.scroll).toEqual([0, 0])
+})
+
+// Perf: `&captions=4` puts a live caption (`{title} · {date}`) on each of
+// spread 2's four photos; frame drags swap the photos across the spread.
+const CAPTION_SPREAD = 'painter-spread-1'
+const FRAME_DRAG_MIME = 'application/x-photobooks-frame'
+
+const captionTexts = (page: Page) =>
+  page
+    .locator(`[data-spread-id="${CAPTION_SPREAD}"] [data-testid="frame-text"]`)
+    .allTextContents()
+
+async function openCaptionSpread(page: Page): Promise<string[]> {
+  await page.getByTestId(`spread-list-item-${CAPTION_SPREAD}`).click()
+  await expect.poll(async () => (await captionTexts(page)).length).toBe(4)
+  return captionTexts(page)
+}
+
+/** Drag the photo of image frame `from` onto image frame `to` (a swap). */
+async function swapFrames(page: Page, from: number, to: number) {
+  await page.evaluate(
+    ({ mime, spreadId, from: a, to: b }) => {
+      const frames = [
+        ...document.querySelectorAll<HTMLElement>(
+          `[data-spread-id="${spreadId}"] button.spread-frame:not([data-kind="text"])`,
+        ),
+      ]
+      const source = frames[a]
+      const target = frames[b]?.getBoundingClientRect()
+      const scroll = document.querySelector('[data-testid="pasteboard-scroll"]')
+      if (source === undefined || target === undefined || scroll === null) {
+        throw new Error('missing frames')
+      }
+      const dataTransfer = new DataTransfer()
+      dataTransfer.setData(
+        mime,
+        `${spreadId}\n${source.getAttribute('data-frame-id') ?? ''}`,
+      )
+      const point = {
+        clientX: target.left + target.width / 2,
+        clientY: target.top + target.height / 4,
+      }
+      document.dispatchEvent(
+        new DragEvent('dragstart', { bubbles: true, dataTransfer }),
+      )
+      for (const type of ['dragover', 'drop']) {
+        scroll.dispatchEvent(
+          new DragEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer,
+            ...point,
+          }),
+        )
+      }
+      document.dispatchEvent(new DragEvent('dragend', { bubbles: true }))
+    },
+    { mime: FRAME_DRAG_MIME, spreadId: CAPTION_SPREAD, from, to },
+  )
+}
+
+test('swapping photos across a spread updates only the live captions of the swapped frames', async ({
+  page,
+}) => {
+  await page.goto(`/?fixture=painter&captions=4`)
+  const before = await openCaptionSpread(page)
+  expect(before).toEqual([
+    'Photo painter-a · 10 Jul 2025',
+    'Photo painter-b · 11 Jul 2025',
+    'Photo painter-c · 12 Jul 2025',
+    'Photo painter-d · 13 Jul 2025',
+  ])
+  await swapFrames(page, 0, 1)
+  await expect
+    .poll(() => captionTexts(page))
+    .toEqual([before[1], before[0], before[2], before[3]])
+})
+
+test.describe('frame-budget gates', () => {
+  test('swaps across a spread with 4 live captions stay LoAF-free', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(120_000)
+    await enablePerfScenario(page, '/?fixture=painter&perf=1&captions=4')
+    const before = await openCaptionSpread(page)
+    await clearPerfScenario(page)
+    // Attribution first, so every entry the gate counts is also logged.
+    await page.evaluate(browserStartLoafScripts)
+    await page.evaluate(browserBeginLoafScenarioWindow)
+    await swapFrames(page, 0, 3)
+    await expect.poll(() => captionTexts(page)).not.toEqual(before)
+    await swapFrames(page, 1, 2)
+    await expect
+      .poll(() => captionTexts(page))
+      .toEqual([before[3], before[2], before[1], before[0]])
+    const rows = await page.evaluate(browserTakeLoafScripts)
+    console.log(
+      `live-captions-perf swap: ${String(rows.length)} LoAF ${JSON.stringify(rows)}`,
+    )
+    await page.evaluate(browserAssertNoLoaf, PERF_BUDGETS.loafEntriesMax)
+    await collectFrameStatsArtifact(page, testInfo)
+  })
 })
