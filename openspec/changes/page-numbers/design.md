@@ -4,7 +4,7 @@
 2. `MastersCanvas` adds a `#` chip per `parent.pageNumbers` item over the master spread (kit v7 `chip`), token in `docs/design.md` Folios.
 3. `MasterSection` "Page numbers" after Grid: Show → `setParentPageNumbers` `outer` / `null`; when on, position seg and hint with a "Book settings" button (top-bar title steps).
 4. `Inspector` shows Book settings in Masters mode while selected; master pick and tab switch clear it.
-5. `BookSettingsSection` "Page numbers" between Binding and Print: `StartAtField` (`PagesField` pattern; the op clamps / ignores NaN), format seg, Skip first toggle, note. Copy in pure `pageNumberCopy` (`inspectorModel.ts`).
+5. `BookSettingsSection` "Page numbers" between Binding and Print: `StartAtField` (`PagesField` pattern; the op clamps / ignores NaN), format seg, Skip first toggle, note. Copy in pure `masterPageNumbersHint` / `bookPageNumbersNote` / `PAGE_NUMBER_FORMATS` (`inspectorModel.ts`).
 
 ## Touch-set & Test Plan
 
