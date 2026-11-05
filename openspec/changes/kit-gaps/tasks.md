@@ -10,3 +10,5 @@
 1. `/uikit/#/demo` editor, spread 4: select a frame → Del removes it; Shift-select two → Backspace removes both.
 2. Lock a frame → Del keeps it; lock two, select both → ArrowRight: nothing moves, the locked status shows.
 3. Text tool, type in the editor → Del / Backspace edit text only.
+
+- harness problem: `pnpm agent manual-qa` drives the prod editor shell, not `/uikit/#/demo`; scenarios 1–3 are walked by `e2e/kit-frame-keys.spec.ts` (4 passed, real keyboard + pointer on the kit demo) and `uikit:qa:quick` (379 passed, 0 console errors).
