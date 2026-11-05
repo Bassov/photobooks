@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: /next-roadmap-item parent-overrides-copy-reselect
+Status: done
 
 Bug: after a click elsewhere, an override copy fully covered by an own frame cannot be selected again with Ctrl/⌘+Shift. Designer decision (tracker, parent-overrides-canvas review 3): a Ctrl/⌘+Shift press checks override copies first (topmost, rotation-aware), then parent items; a copy hit selects the copy and moves it past 3 px, with no new override and no undo step.
 
