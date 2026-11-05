@@ -1,6 +1,9 @@
 import { expect, test } from './fixtures/coverage'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
+import { addSpreads } from './fixtures/layoutTiles'
+import { openLibraryBook } from './fixtures/openLibraryBook'
 import { openSessionEditor } from './fixtures/openSessionEditor'
+import { pixelsAt } from './fixtures/paintProbe'
 
 const rows = (page: import('@playwright/test').Page) =>
   page.locator('[data-testid^="spread-list-item-"]')
@@ -36,6 +39,21 @@ test('spread list follows kit v0.10 structure and tokens', async ({ page }) => {
   // design-r2-spread-list M17: the kit #/demo list has no Add spread button.
   await expect(page.getByTestId('add-spread')).toHaveCount(0)
   await assertDocumentFitsViewport(page)
+})
+
+test('a two-page row paints nothing in its thumb box beside the paper', async ({
+  page,
+}) => {
+  // spread-thumb-grey-backing: a 15 × 21 cm trim centres a narrow paper in
+  // the row-wide thumb box.
+  await openLibraryBook(page, 'A5', { widthMm: 150, heightMm: 210 })
+  await addSpreads(page, 2)
+  // Pages 2–3 at rest (4–5 is selected): no row menu trigger over the box.
+  await rows(page).nth(2).click()
+  await expect(rows(page).nth(2)).toHaveAttribute('aria-selected', 'true')
+  const thumb = rows(page).nth(1).locator('.editor-spread-thumb')
+  await page.mouse.move(700, 450)
+  expect(await pixelsAt(thumb, thumb.locator('.spread-view--thumb'))).toBe(0)
 })
 
 test('row menu keeps Add after / Duplicate / Delete with Undo toast', async ({
