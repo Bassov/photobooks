@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import { describe, expect, it, vi } from 'vitest'
 import {
   LOCAL_FC_NUM_RUNS,
   configureLocalFcNumRuns,
@@ -7,6 +8,11 @@ import {
   mergeBase,
   vitestArgv,
 } from './unit-changed.mjs'
+
+vi.mock('node:child_process', async (importOriginal) => ({
+  ...(await importOriginal()),
+  spawnSync: vi.fn(),
+}))
 
 const SHA = '616dc3c346ea05ac88f1b7fdcb3f6ee2ae5c2f32'
 
@@ -166,5 +172,31 @@ describe('main', () => {
   it('fails when vitest is killed without a status', () => {
     const { spawn } = fakeSpawn({ vitest: { status: null } })
     expect(main({ env: {}, spawn, write: () => {} })).toBe(1)
+  })
+
+  it('defaults to process.env, spawnSync and stderr', async () => {
+    const { spawn, calls } = fakeSpawn({
+      base: { status: 128, stdout: '' },
+      vitest: { status: 2 },
+    })
+    vi.mocked(spawnSync).mockImplementation(spawn)
+    // The setup file loaded the module before the mock; reload it so it binds the mocked spawnSync.
+    vi.resetModules()
+    const { main: mainWithDefaults } = await import('./unit-changed.mjs')
+    vi.stubEnv('UNIT_CHANGED_BASE', 'abc123')
+    const stderr = vi
+      .spyOn(process.stderr, 'write')
+      .mockImplementation(() => true)
+    try {
+      expect(mainWithDefaults()).toBe(2)
+      expect(stderr).toHaveBeenCalledWith(
+        'unit-changed: no merge-base with abc123; running the full suite\n',
+      )
+    } finally {
+      stderr.mockRestore()
+      vi.unstubAllEnvs()
+    }
+    expect(calls[0].args).toEqual(['merge-base', 'HEAD', 'abc123'])
+    expect(calls[1].opts.env.UNIT_CHANGED_BASE).toBe('abc123')
   })
 })
