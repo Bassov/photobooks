@@ -15,3 +15,12 @@
 1. "120 pages": wider spine, spine title still centred.
 1. `#/demo`: Book settings → A3, Landscape → Cover: no chip.
 1. Cover inspector: a long spine text ends in an ellipsis on the spine.
+
+Kit-only change: `pnpm agent manual-qa` drives the prod editor-shell, not the kit, so it was not run. Evidence is the kit qa run (headless Playwright, real clicks and fills on `#/full/cover-editor`) plus the `#/demo` baseline walk:
+
+- OK 1: "cover-editor: empty cover": sheet, hinges, safe frames, 4-strip veil (`pointer-events: none`) and chip present; no photo layer.
+- OK 2: 20 pages: sheet 848 × 522.45, cover 787.70 × 462.16, spine 24.11, wrap 30.14, hinge 16.06. Safe frames 355.67 × 442.06. Chip 8 px from the sheet edge. Labels 10 px under the sheet.
+- OK 3: 120 pages: spine 61.39, sheet height 498.81, wrap 28.77. Spine text centre within 0.01 px of the spine centre.
+- OK 4: A3 landscape set through Book settings: sheet 848 × 314.39, band 14.41 px, no chip.
+- OK 5: long spine text: `text-overflow: ellipsis`, clipped, box 442.08 px = trim height − 2 × safe; still centred.
+- OK `#/demo` baseline capture (77 steps): steps 09 and 13 show the sheet, veil, hinges, safe frames, chip and inspector hint. `ui-review`: no findings. Overlays are `aria-hidden` / non-interactive and there are no new controls.
