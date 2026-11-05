@@ -16,7 +16,7 @@ import { Section, IconButton } from "@/components/app/ui"
 import { SliderRow, Segmented } from "@/components/app/controls"
 import { Tabs, TabList, Tab, TabPanel } from "@/components/ui/tabs"
 import { P } from "@/data"
-import { useStudio, mapSpread, mapFrames } from "./store"
+import { useStudio, mapSpread, mapFrames, removeFrames } from "./store"
 import { round, clamp, effectiveDpi, type Frame } from "./model"
 import { bbox } from "./canvas"
 import { segList, segTab } from "./chrome"
@@ -267,7 +267,7 @@ export function DeleteFrameButton() {
   return (
     <div className="p-3">
       <Button variant="destructive-ghost" size="sm" className="w-full gap-1.5 text-sm [&_svg]:size-4"
-    onPress={() => { const ids = frames.map((f) => f.id); st.update((d) => mapSpread(d, st.cur, (s) => ({ ...s, template: null, frames: s.frames.filter((f) => !ids.includes(f.id)) })), ids.length > 1 ? `Delete ${ids.length} frames` : "Delete frame"); st.setSel([]) }}>
+    onPress={() => { const ids = frames.map((f) => f.id); st.update((d) => removeFrames(d, st.cur, ids), ids.length > 1 ? `Delete ${ids.length} frames` : "Delete frame"); st.setSel([]) }}>
         <Trash2 />Delete {frames.length > 1 ? `${frames.length} frames` : "frame"}<span className="ml-auto text-xs">Del</span>
       </Button>
     </div>

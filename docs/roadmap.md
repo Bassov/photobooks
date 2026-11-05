@@ -190,6 +190,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [page-count-mismatch](roadmap/P5/page-count-mismatch.md) — Bug: /next-roadmap-item page-count-mismatch
 - [ ] [feature] [e2e-paint-probe](roadmap/P5/e2e-paint-probe.md) — Bug: /next-roadmap-item e2e-paint-probe
 - [ ] [feature] [kit-gaps](roadmap/P5/kit-gaps.md) — Bug: /next-roadmap-item kit-gaps
+- [ ] [feature] [live-captions-kit](roadmap/P5/live-captions-kit.md) — Bug: /next-roadmap-item live-captions-kit
 - [ ] [feature] [text-blocks-close](roadmap/P5/text-blocks-close.md) — Bug: /next-roadmap-item text-blocks-close
 - [ ] [feature] [site-lightbox-zoom-core](roadmap/P5/site-lightbox-zoom-core.md) — Bug: /next-roadmap-item site-lightbox-zoom-core
 
