@@ -81,6 +81,8 @@ export const ICON_NAMES = [
   'alignHorizontalDistributeCenter',
   'alignVerticalDistributeCenter',
   'layers',
+  'share',
+  'arrowLeft',
   'alignLeft',
   'alignCenter',
   'alignRight',
@@ -640,6 +642,17 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
         d: 'M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17',
       },
     ],
+  ],
+  share: [
+    ['circle', { cx: '18', cy: '5', r: '3' }],
+    ['circle', { cx: '6', cy: '12', r: '3' }],
+    ['circle', { cx: '18', cy: '19', r: '3' }],
+    ['line', { x1: '8.59', x2: '15.42', y1: '13.51', y2: '17.49' }],
+    ['line', { x1: '15.41', x2: '8.59', y1: '6.51', y2: '10.49' }],
+  ],
+  arrowLeft: [
+    ['path', { d: 'm12 19-7-7 7-7' }],
+    ['path', { d: 'M19 12H5' }],
   ],
   // Lucide text-align-start / -center / -end (kit AlignLeft / Center / Right).
   alignLeft: [

@@ -150,7 +150,7 @@ When a template change removes placements, the polite live region MUST read `1 p
 
 ### Requirement: Multi-photo drop fills frames or creates a spread
 
-Dropping several photos on a spread frame SHALL place them in gallery order into the target frame (replacing it if filled) and the remaining empty frames, as one history step; photos beyond free frames SHALL stay unplaced and the status SHALL report how many. Dropping them in the gap between spreads (or after the last) SHALL insert one new spread using the best-fit template with the photos placed in order, as one history step.
+Dropping several photos on a spread frame SHALL place them in gallery order into the target frame (replacing it if filled) and the remaining empty frames, as one history step; photos beyond free frames SHALL stay unplaced and the status SHALL report how many. Dropping them in the gap between spreads (or after the last) SHALL insert one new spread using the best-fit template with the photos placed in order, as one history step. Best fit SHALL score the builtin templates and the user's saved templates of the new spread's page count the same way (slot orientation on its trim); on an equal score the earlier candidate SHALL win (builtins first, then save order), and a saved template of another page count SHALL never be chosen.
 
 #### Scenario: Four photos on a 4-grid
 
@@ -161,6 +161,11 @@ Dropping several photos on a spread frame SHALL place them in gallery order into
 
 - **WHEN** two portraits are dropped between two spreads
 - **THEN** a new two-portrait spread appears there; Undo removes it
+
+#### Scenario: Saved template fits better
+
+- **WHEN** photos are dropped between spreads and a saved spread template matches their orientations strictly better than every builtin
+- **THEN** the new spread uses that saved template
 
 #### Scenario: More photos than frames
 

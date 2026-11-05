@@ -107,7 +107,8 @@ function resolvePath(fromDir: string, url: string): string {
     }
   }
   const path = parts.join('/')
-  return url.endsWith('/') ? `${path}/index.html` : path
+  if (!url.endsWith('/')) return path
+  return path === '' ? 'index.html' : `${path}/index.html`
 }
 
 /** Site-root paths of every `src` / `href` in the HTML and every manifest path. */

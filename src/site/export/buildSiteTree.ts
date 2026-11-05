@@ -1,5 +1,3 @@
-import { renderToStaticMarkup } from 'react-dom/server'
-import type { ReactElement } from 'react'
 import { sha256HexSync } from '../../assets/sha256Sync'
 import { resolveParentFrames, type Book } from '../../core'
 import { DERIVATIVE_PRESETS, resolvePresets } from '../../derivatives/plan'
@@ -9,12 +7,19 @@ import {
   siteAssetIds,
   type PublishedRevision,
 } from '../../project'
-import { defaultRenderer } from './defaultRenderer'
+import { bookFormatFromTrim } from '../../render/bookObjectLayout'
+import { renderSitePage } from '../renderSitePage'
+import type {
+  ImageRef,
+  SiteCatalogBook,
+  SiteMeta,
+  SitePageAssets,
+} from '../siteInput'
+import { sitePageCount } from '../siteModel'
 import type {
   SiteDerivativeInput,
   SiteExportInput,
   SiteFile,
-  SiteImage,
   SiteImageSource,
   SiteMissingDerivative,
   SiteSpreadModel,
@@ -50,9 +55,21 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
   ).join('')
 }
 
-function html(element: ReactElement): Uint8Array {
-  return encoder.encode(`<!doctype html>${renderToStaticMarkup(element)}`)
-}
+const DEFAULT_SITE: SiteMeta = { title: 'Photobooks' }
+
+/** `<img>` / book page source and the catalog cover source. */
+const DISPLAY_PRESET = 'site-display'
+const THUMB_PRESET = 'site-thumb'
+const SHARE_PRESET = 'site-share'
+const WEBP_PRESETS = new Set(
+  DERIVATIVE_PRESETS.filter((preset) => preset.mimeType === 'image/webp').map(
+    (preset) => preset.id,
+  ),
+)
+
+/** Cover ink on a photo (library card) and on the bare cloth. */
+const INK_ON_PHOTO = '#F5F5F5'
+const INK_ON_CLOTH = '#2E2C2D'
 
 /** The revisions `buildSiteTree` exports: published books only, newest first. */
 export function publishedRevisions(
@@ -121,8 +138,10 @@ function viewerFiles(viewer: SiteViewerBundle): SiteFile[] {
     }
     paths.add(path)
   }
-  if (!paths.has(viewer.entry)) {
-    throw new Error(`Viewer entry not in bundle: ${viewer.entry}`)
+  for (const path of [viewer.entry, ...(viewer.css ?? [])]) {
+    if (!paths.has(path)) {
+      throw new Error(`Viewer entry not in bundle: ${path}`)
+    }
   }
   return viewer.files.map(({ path, bytes }) => ({
     path: `viewer/${path}`,
@@ -156,7 +175,8 @@ function exportedBook(revision: PublishedRevision): ExportedBook {
 }
 
 /** Root-relative sources per asset hash; assets without any are absent. */
-type AssetSources = Map<string, [SiteImageSource, ...SiteImageSource[]]>
+type Sources = [SiteImageSource, ...SiteImageSource[]]
+type AssetSources = Map<string, Sources>
 
 async function derivativeFiles(
   wanted: readonly string[],
@@ -208,16 +228,54 @@ function spreadModels(book: Book, sources: AssetSources): SiteSpreadModel[] {
   }))
 }
 
-function relativeTo(prefix: string, image: SiteImage): SiteImage {
-  const move = (source: SiteImageSource) => ({
-    ...source,
-    src: `${prefix}${source.src}`,
-  })
-  const [first, ...rest] = image.sources
+/**
+ * Page-relative srcset of a photo: its webp sizes (any size when it has
+ * none), `src` = the `preferred` preset when present.
+ */
+function imageRef(
+  sources: Sources,
+  prefix: string,
+  preferred: string,
+): ImageRef {
+  const webp = sources.filter((source) => WEBP_PRESETS.has(source.presetId))
+  const pool: readonly SiteImageSource[] = webp.length > 0 ? webp : sources
+  const main =
+    pool.find((source) => source.presetId === preferred) ??
+    pool[0] ??
+    sources[0]
+  const largest = pool.reduce((a, b) => (b.width > a.width ? b : a), main)
   return {
-    assetHash: image.assetHash,
-    sources: [move(first), ...rest.map(move)],
+    src: `${prefix}${main.src}`,
+    srcset: pool
+      .map((source) => `${prefix}${source.src} ${String(source.width)}w`)
+      .join(', '),
+    w: largest.width,
+    h: largest.height,
   }
+}
+
+/** Page-relative `og:image`: the JPEG share size, else the display size. */
+function shareImage(sources: Sources, prefix: string): string {
+  const found =
+    sources.find((source) => source.presetId === SHARE_PRESET) ??
+    sources.find((source) => source.presetId === DISPLAY_PRESET) ??
+    sources[0]
+  return `${prefix}${found.src}`
+}
+
+/** The frozen book with asset records reduced to their ids (no paths, captions, GPS). */
+function siteBook(book: Book): Book {
+  return {
+    ...book,
+    assets: Object.fromEntries(Object.keys(book.assets).map((id) => [id, {}])),
+    gallery: [],
+  }
+}
+
+/** Exported sources of the book's cover front photo, if any. */
+function coverSources(book: Book, sources: AssetSources): Sources | undefined {
+  const hash = assetHashes(book).get(book.cover.front.assetId)
+  return hash === undefined ? undefined : sources.get(hash)
 }
 
 function manifest(
@@ -258,7 +316,8 @@ function manifest(
  * viewer bundle and `site.json`. Same input in any order → identical bytes.
  */
 export async function buildSiteTree(input: SiteExportInput): Promise<SiteTree> {
-  const renderer = input.renderer ?? defaultRenderer
+  const renderer = input.renderer ?? renderSitePage
+  const site = input.site ?? DEFAULT_SITE
   const derivatives = indexDerivatives(input.derivatives)
   const exported = publishedRevisions(input).map(exportedBook)
   const wanted = [
@@ -272,34 +331,77 @@ export async function buildSiteTree(input: SiteExportInput): Promise<SiteTree> {
   const viewer = input.viewer === undefined ? [] : viewerFiles(input.viewer)
   const viewerSrc =
     input.viewer === undefined ? undefined : `viewer/${input.viewer.entry}`
+  const pageAssets = (prefix: string): SitePageAssets => ({
+    css: (input.viewer?.css ?? []).map((path) => `${prefix}viewer/${path}`),
+    ...(viewerSrc === undefined ? {} : { js: `${prefix}${viewerSrc}` }),
+  })
 
-  const pages: SiteFile[] = books.map(({ revision, title, dir, spreads }) => ({
-    path: `${dir}index.html`,
-    bytes: html(
-      renderer.book({
-        bookId: revision.bookId,
-        title,
-        spreads: spreads.map((spread) => ({
-          spreadId: spread.spreadId,
-          images: spread.images.map((image) => relativeTo(BOOK_TO_ROOT, image)),
-        })),
-        ...(viewerSrc === undefined
-          ? {}
-          : { viewerSrc: `${BOOK_TO_ROOT}${viewerSrc}` }),
-      }),
-    ),
-  }))
+  const pages: SiteFile[] = books.map(({ revision, dir }) => {
+    const { book } = revision
+    const hashOf = assetHashes(book)
+    const images: Record<string, ImageRef> = {}
+    for (const assetId of siteAssetIds(revision)) {
+      const found = assets.sources.get(hashOf.get(assetId) ?? '')
+      if (found !== undefined) {
+        images[assetId] = imageRef(found, BOOK_TO_ROOT, DISPLAY_PRESET)
+      }
+    }
+    const cover = coverSources(book, assets.sources)
+    return {
+      path: `${dir}index.html`,
+      bytes: encoder.encode(
+        renderer(
+          {
+            kind: 'book',
+            site,
+            path: dir,
+            catalogHref: BOOK_TO_ROOT,
+            book: siteBook(book),
+            images,
+            ...(cover === undefined
+              ? {}
+              : { ogImage: shareImage(cover, BOOK_TO_ROOT) }),
+          },
+          pageAssets(BOOK_TO_ROOT),
+        ),
+      ),
+    }
+  })
+  const catalog: SiteCatalogBook[] = books.map(({ revision, title, dir }) => {
+    const { book } = revision
+    const cover = coverSources(book, assets.sources)
+    return {
+      id: revision.bookId,
+      href: dir,
+      title,
+      pages: sitePageCount(book.spreads.length),
+      fmt: bookFormatFromTrim(
+        book.settings.trim.widthMm,
+        book.settings.trim.heightMm,
+      ),
+      cover: cover === undefined ? null : imageRef(cover, '', THUMB_PRESET),
+      ink: cover === undefined ? INK_ON_CLOTH : INK_ON_PHOTO,
+      place: 'top',
+    }
+  })
+  const firstCover = books
+    .map(({ revision }) => coverSources(revision.book, assets.sources))
+    .find((found) => found !== undefined)
   const index: SiteFile = {
     path: 'index.html',
-    bytes: html(
-      renderer.index({
-        books: books.map(({ revision, title, dir }) => ({
-          bookId: revision.bookId,
-          title,
-          href: dir,
-        })),
-        ...(viewerSrc === undefined ? {} : { viewerSrc }),
-      }),
+    bytes: encoder.encode(
+      renderer(
+        {
+          kind: 'catalog',
+          site,
+          path: '',
+          books: catalog,
+          ...(firstCover === undefined
+            ? {}
+            : { ogImage: shareImage(firstCover, '') }),
+        },
+        pageAssets(''),
+      ),
     ),
   }
 

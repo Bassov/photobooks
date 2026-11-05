@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P2
 Title: worker-batch-tool-calls: headless workers send independent tool calls in one message
+Status: done
 
 Process item P-20261104-1530-1 (tag: process; Owner 2026-11-04 approved retro items 1–4). Why: orch token analysis 2026-11-04: 73% of worker turns have one tool call; each turn re-reads ~92K context (cache reads = 70% of worker cost); exploration + edit turns = ~66% of worker cost.
 
