@@ -47,12 +47,16 @@ async function dropOnCoverFront(page: Page, assetId: string): Promise<void> {
       }
       const dataTransfer = new DataTransfer()
       dataTransfer.setData(mime, id)
+      // The sheet accepts drops right of the spine only: aim at the front.
+      const box = front.getBoundingClientRect()
       for (const type of ['dragover', 'drop']) {
         front.dispatchEvent(
           new DragEvent(type, {
             bubbles: true,
             cancelable: true,
             dataTransfer,
+            clientX: box.x + box.width / 2,
+            clientY: box.y + box.height / 2,
           }),
         )
       }
@@ -110,7 +114,7 @@ test('cover photo upgrades to the same working preview as a page frame', async (
   )
 
   await dropOnCoverFront(page, assetId)
-  const front = page.getByTestId('cover-front')
+  const front = page.getByTestId('cover-front-photo')
   await expect
     .poll(async () => (await backgroundImage(front)).width, { timeout: 60_000 })
     .toBeGreaterThan(THUMB_EDGE)

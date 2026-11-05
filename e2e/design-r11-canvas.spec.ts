@@ -30,6 +30,12 @@ import { chooseZoom } from './fixtures/zoomMenu'
 //     y 149.22 (656.77 − 10 − 497.55), where prod has it, so y uses those.
 // Designer (other renderer): front width 141.08, labels y 656.77, Spine x
 //     663.02; prod before 30.53 / 500, 11.02 / 500, 10.18, y 654.77, x 659.96.
+// Designer cover-editor: Fit now fits the printed sheet (848 × 522.47 at
+//     y 136.76, 15 mm wrap = 30.14 px), so the closed cover is 787.73 ×
+//     462.18 at 282.14, 166.9 and the labels sit 10 px under the sheet
+//     (y 669.24). The type keeps its kit ratio to the cover: the M75 px above
+//     are on the 848 px cover, so they are asserted as shares of the cover
+//     width (front title 31.58 px at Fit).
 
 const KIT = {
   spread: { x: 252, width: 848, height: 513.25 },
@@ -47,7 +53,13 @@ const KIT = {
   front: { size: 34, weight: '400', width: 228 },
   spine: { size: 12, weight: '400' },
   back: { size: 11 },
-  labels: { y: 656.77, back: 443, spine: 663.02, front: 879.47, size: '12px' },
+  labels: { size: '12px' },
+} as const
+
+/** Designer cover-editor at Fit: the closed cover inside the printed sheet. */
+const SHEET_FIT = {
+  cover: { x: 282.14, y: 166.9, width: 787.73, height: 462.18 },
+  labels: { y: 669.24, back: 458.53, spine: 663.95, front: 863.95 },
 } as const
 
 const FRONT_TITLE = 'Lake trip 2026'
@@ -66,11 +78,16 @@ interface Rect {
   height: number
 }
 
-function near(actual: number, expected: number, what: string): void {
+function near(
+  actual: number,
+  expected: number,
+  what: string,
+  tolerance = 0.5,
+): void {
   expect(
     Math.abs(actual - expected),
     `${what}: ${String(actual)}`,
-  ).toBeLessThanOrEqual(0.5)
+  ).toBeLessThanOrEqual(tolerance)
 }
 
 async function openLakeTrip(page: Page): Promise<void> {
@@ -295,27 +312,30 @@ test.describe('M74 / M75: list thumbnails and cover canvas text match the kit', 
     page,
   }) => {
     const read = await readCover(page)
-    near(read.cover.x, KIT.cover.x, 'cover x')
-    near(read.cover.y, KIT.cover.y, 'cover y')
-    near(read.cover.width, KIT.cover.width, 'cover width')
-    near(read.cover.height, KIT.cover.height, 'cover height')
+    near(read.cover.x, SHEET_FIT.cover.x, 'cover x')
+    near(read.cover.y, SHEET_FIT.cover.y, 'cover y')
+    near(read.cover.width, SHEET_FIT.cover.width, 'cover width')
+    near(read.cover.height, SHEET_FIT.cover.height, 'cover height')
 
-    near(read.front.size, KIT.front.size, 'front size')
+    const w = read.cover.width
+    near(read.front.size, ratioOf(KIT.front.size) * w, 'front size')
     expect(read.front.weight).toBe(KIT.front.weight)
     expect(read.front.family).toBe(COVER_FAMILY)
     expect(read.front.style).toBe('italic')
-    near(read.front.width, KIT.front.width, 'front width')
-    near(read.spine.size, KIT.spine.size, 'spine size')
+    // Glyph advances round per font size: the scaled width holds within 1 px.
+    near(read.front.width, ratioOf(KIT.front.width) * w, 'front width', 1)
+    near(read.spine.size, ratioOf(KIT.spine.size) * w, 'spine size')
     expect(read.spine.weight).toBe(KIT.spine.weight)
     expect(read.spine.family).toBe(COVER_FAMILY)
     expect(read.spine.style).toBe('italic')
-    near(read.back.size, KIT.back.size, 'back size')
+    near(read.back.size, ratioOf(KIT.back.size) * w, 'back size')
     expect(read.back.weight).toBe('400')
 
     expect(read.labels.map((l) => l.text)).toEqual(['Back', 'Spine', 'Front'])
-    const xs = [KIT.labels.back, KIT.labels.spine, KIT.labels.front]
+    const { labels } = SHEET_FIT
+    const xs = [labels.back, labels.spine, labels.front]
     read.labels.forEach((label, i) => {
-      near(label.y, KIT.labels.y, `${label.text} label y`)
+      near(label.y, labels.y, `${label.text} label y`)
       near(label.x, xs[i] ?? Number.NaN, `${label.text} label x`)
       expect(label.size).toBe(KIT.labels.size)
     })

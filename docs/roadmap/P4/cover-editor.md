@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P4
 Title: cover in the editor
+Status: done
 
 ## Scope
 
