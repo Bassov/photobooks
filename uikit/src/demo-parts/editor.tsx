@@ -17,7 +17,8 @@ import { FolderPicker } from "@/features/screens"
 import { useSession, blankDoc, blankExtras, type Extras } from "./session"
 import { profileById } from "./printProfiles"
 import { ExportSiteDialog, PrintDialog, PublishDialog, RelinkDialog, useExportRun, type ExportPhase, type ExportStep } from "./dialogs"
-import { Presentation } from "./presentation"
+import { DemoSitePreview } from "./site"
+import type { SiteState } from "@/features/site-viewer"
 import { SLOT } from "./layout"
 
 /** The editor features #/demo enables. `overrides`: Ctrl/⌘+Shift+click a parent item or guide on a spread to make a local copy. Guides on a master are edited in the Masters view (see Viewport).
@@ -136,12 +137,12 @@ export function EditorTopBar({ title, onLibrary, onPreview, onSettings, exportSi
 }
 
 /** The whole #/demo editor for one session book. */
-export function DemoEditor({ id, initialDialog = null, initialPreview = false }: { id: string; initialDialog?: null | "publish" | "print"; initialPreview?: boolean }) {
+export function DemoEditor({ id, initialDialog = null, initialPreview = false }: { id: string; initialDialog?: null | "publish" | "print"; initialPreview?: boolean | Partial<SiteState> }) {
   const { S, set } = useSession()
   const b = S.books.find((x) => x.id === id)!
   React.useState(() => { setEditorExtras(b.extras ?? blankExtras(b.title)); return 0 }) // restore before Std mounts (Std keep)
   const [dlg, setDlg] = React.useState<null | "publish" | "print" | "export">(initialDialog)
-  const [preview, setPreview] = React.useState(initialPreview)
+  const [preview, setPreview] = React.useState(!!initialPreview)
   const openSite = () => { const oid = S.open; set({ books: S.books.map((x) => (x.id === oid ? { ...x, published: true } : x)), stage: "site", back: "editor", siteEntry: "catalog" }) }
   // the export run lives here, not in the dialog: Hide closes the dialog and the pill keeps running
   const ex = useExportRun()
@@ -154,7 +155,7 @@ export function DemoEditor({ id, initialDialog = null, initialPreview = false }:
         top={<EditorTopBar title={b.title} onLibrary={() => set({ stage: "library", open: null })} onPreview={() => setPreview(true)} onSettings={() => set({ stage: "settings", back: "editor" })} exportSite={{ phase: ex.phase, p: ex.p }} onExportSite={openExport} onPrint={() => setDlg("print")} onPublish={() => setDlg("publish")} />}
         dock={<PhotosDock />}
         overlay={<><DocSpy id={id} /><MissingSync id={id} />
-          {preview && <Presentation onExit={() => setPreview(false)} />}
+          {preview && <DemoSitePreview id={id} onExit={() => setPreview(false)} initial={typeof initialPreview === "object" ? initialPreview : undefined} />}
           {dlg === "publish" && <PublishDialog title={b.title} onClose={() => setDlg(null)} onOpenSite={openSite} />}{dlg === "print" && <PrintDialog book={b.book} spreads={b.doc?.spreads.length ?? 10} title={b.title} profile={profileById(b.printProfile, S.printProfiles)} onClose={() => setDlg(null)} />}
           {dlg === "export" && <ExportSiteDialog title={b.title} otherBooks={others} initialStep={exStep} run={ex} onHide={() => setDlg(null)} />}</>} />
     </div>

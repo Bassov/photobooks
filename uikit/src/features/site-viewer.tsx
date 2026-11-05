@@ -34,17 +34,17 @@ const sitePages = (n: number) => 2 * (n - 1)
 const RATIO = { portrait: 4 / 5, landscape: 5 / 4, square: 1 } as const
 /** Root-width layout (spec §3–§4): narrow < 768; catalog columns by content width; stage width clamps to the content and the height left for it.
     `R` = spread width / height (SW / SH are live: setGeom changes them per book, so read them at render). */
-export const siteLayout = (W: number, H: number, R: number) => {
+export const siteLayout = (W: number, H: number, R: number, allBooks = true) => {
   const narrow = W < 768, pad = narrow ? 20 : 32, gapX = narrow ? 20 : 32
   const content = Math.min(1100, W) - 2 * pad
   const cols = content >= 940 ? 4 : content >= 680 ? 3 : 2
-  // header + top pad + title block + stage margin + pager margin + pager + bottom pad
-  const availH = H - (narrow ? 56 + 8 + 138.85 + 20 + 16 + 36 + 20 : 64 + 16 + 94.85 + 32 + 24 + 36 + 32)
+  // header + top pad + title block + stage margin + pager margin + pager + bottom pad; no All books row (32 + 4 gap) in `single`
+  const availH = H - (narrow ? 56 + 8 + 138.85 + 20 + 16 + 36 + 20 : 64 + 16 + 94.85 + 32 + 24 + 36 + 32) + (allBooks ? 0 : 36)
   const stage = Math.min(W - 2 * pad, Math.max(280, Math.min(760, availH * R)))
   return { narrow, pad, cols, gapX, gapY: narrow ? 32 : 40, col: (content - gapX * (cols - 1)) / cols, row: Math.min(960, W - 2 * pad), stage }
 }
 export type SiteState = { page: "catalog" | "book"; book: string; slide: number; lb: boolean; lbZoom?: number }
-export function SiteViewer({ title = "Aleksandr’s photobooks", author = AUTHOR, books = BOOKS.filter((b, i) => i < 4 || b.status === "published"), onClose, initial, single, cover, onBookSelect, onCatalog }: { title?: string; author?: string; books?: typeof BOOKS; onClose?: () => void; initial?: Partial<SiteState>; single?: boolean; cover?: (w: number) => React.ReactNode; onBookSelect?: (id: string) => void; onCatalog?: () => void }) {
+export function SiteViewer({ title = "Aleksandr’s photobooks", author = AUTHOR, books = BOOKS.filter((b, i) => i < 4 || b.status === "published"), onClose, initial, single, share: canShare = true, cover, onBookSelect, onCatalog }: { title?: string; author?: string; books?: typeof BOOKS; onClose?: () => void; initial?: Partial<SiteState>; single?: boolean; share?: boolean; cover?: (w: number) => React.ReactNode; onBookSelect?: (id: string) => void; onCatalog?: () => void }) {
   const st = useStudio()
   const [s, setS] = React.useState<SiteState>({ page: single ? "book" : "catalog", book: books[0]?.id ?? "b1", slide: 0, lb: false, ...initial })
   const [copied, setCopied] = React.useState(false)
@@ -55,7 +55,7 @@ export function SiteViewer({ title = "Aleksandr’s photobooks", author = AUTHOR
   const [box, setBox] = React.useState({ w: 1440, h: 856 })
   React.useLayoutEffect(() => { const el = root.current; if (!el) return; const r = () => setBox({ w: el.clientWidth, h: el.clientHeight }); r(); const ro = new ResizeObserver(r); ro.observe(el); return () => ro.disconnect() }, [])
   const R = SW / SH
-  const l = siteLayout(box.w, box.h, R)
+  const l = siteLayout(box.w, box.h, R, !single)
   const sp = st.doc.spreads
   const n = sp.length
   const to = (i: number) => setS((x) => ({ ...x, slide: Math.max(0, Math.min(n, i)) }))
@@ -67,7 +67,8 @@ export function SiteViewer({ title = "Aleksandr’s photobooks", author = AUTHOR
       if (e.key === "ArrowRight") go(1); if (e.key === "ArrowLeft") go(-1)
       if (e.key === "Home") { e.preventDefault(); to(0) } if (e.key === "End") { e.preventDefault(); to(n) }
     }
-    window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k)
+    // document capture: still runs when the editor's site preview stops keys from reaching the editor's window handlers
+    document.addEventListener("keydown", k, true); return () => document.removeEventListener("keydown", k, true)
   })
   // v0.8.1 (P1-2): resolve from the books passed in (the user's own book in #/demo), then the sample catalog
   const book = books.find((b) => b.id === s.book) ?? BOOKS.find((b) => b.id === s.book) ?? books[0] ?? BOOKS[0]
@@ -125,13 +126,13 @@ export function SiteViewer({ title = "Aleksandr’s photobooks", author = AUTHOR
               <div className="text-sm text-[color:var(--site-muted)]" data-testid="site-author">by {author} · {sitePages(n)} pages</div>
             </div>
             <div className={cn("flex items-center gap-2", l.narrow ? "mt-3" : "ml-auto")}>
-              <button type="button" className={cn(quietBtn, "inline-grid")} onClick={share} data-testid="site-share">
+              {canShare && <button type="button" className={cn(quietBtn, "inline-grid")} onClick={share} data-testid="site-share">
                 <span className={cn(cell, copied && "invisible")}><Share2 />Share</span>
                 <span className={cn(cell, !copied && "invisible")}><Check />Link copied</span>
-              </button>
+              </button>}
               <button type="button" className={quietBtn} ref={fsBtn} onClick={() => setS((x) => ({ ...x, lb: true }))} data-testid="site-fullscreen-btn"><Maximize2 />Fullscreen</button>
             </div>
-            <span className="sr-only" role="status" data-testid="site-share-status">{said}</span>
+            {canShare && <span className="sr-only" role="status" data-testid="site-share-status">{said}</span>}
           </div>
           <div className={cn("grid shrink-0 place-items-center", l.narrow ? "mt-5" : "mt-8")} style={{ width: l.stage, height: l.stage / R }} data-testid="site-stage">
             <button type="button" onClick={() => setS((x) => ({ ...x, lb: true }))} className={cn("relative block cursor-zoom-in rounded-2xs focus-visible:outline-offset-4", focus)} aria-label="Open fullscreen" data-testid="site-spread">

@@ -628,6 +628,7 @@ export function EditorFrame({ top, left, right, dock, canvas, overlay, className
     }
     const on = (e: KeyboardEvent) => {
       if (e.code !== "Space" || typing(e.target)) return
+      if ((e.target as HTMLElement | null)?.closest?.('[aria-modal="true"]')) return // a modal over the editor (site preview) owns Space
       if (e.type === "keydown") {
         e.preventDefault()
         e.stopPropagation()

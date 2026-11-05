@@ -113,7 +113,7 @@ export async function capture(out, { log = console.log, probe } = {}) {
     ["editor-relink-found", () => dlgBtn(/Choose|Select|Use|Open/i).click()],
     ["editor-relinked", () => c('[data-testid="relink-resolve"]')],
     ["editor-preview", () => c('[data-testid="demo-preview"]')],
-    // kit-sync KS14: Preview = prod presentation mode (opens on the cover); Esc closes it
+    // site-preview-mode: Preview = the site's book page of the current book (opens on the cover); Esc closes it
     ["print-options", async () => { await page.keyboard.press("Escape"); await settle(); await c('[data-testid="demo-print"]') }],
     ["print-options-4up-no-bleed", async () => { await page.locator("[role=dialog]").getByText("4-up", { exact: true }).click(); await page.locator("[role=dialog]").getByText(/Add 3 mm bleed/).click() }],
     ["print-running-50pct", () => midRun('[data-testid="print-go"]')],
