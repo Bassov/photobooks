@@ -198,8 +198,9 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
     )
     expect(listed()).toEqual([])
     expect(screen.getByTestId('tab-mine').textContent).toBe('My templates 0')
+    // Designer spec `user-templates` UT1: a single page asks for a page.
     expect(screen.getByTestId('tpl-empty').textContent).toBe(
-      'No templates yet. Save a spread you like.',
+      'No templates yet. Save a page you like.',
     )
     fireEvent.click(chip('2'))
     expect(screen.getByTestId('tpl-empty').textContent).toBe(
