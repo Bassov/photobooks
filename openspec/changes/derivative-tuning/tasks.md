@@ -9,3 +9,4 @@
 ## Manual test scenarios
 
 1. Open `/dev/derivative-lab.html` in dev: three fixture sections, 63 variants, each with bytes, SSIM and band step; the picks list names one quality (or none) per edge and format.
+   - OK (Playwright Chromium, `e2e/derivative-lab.spec.ts`, 2026-11-05): `data-lab-state=done`, 63 `lab-variant` figures, every `img.decode()` resolved with naturalWidth > 0, 6 picks, page scroll overflow `[0, 0]`. No product UI: `pnpm agent manual-qa` N/A (it drives the prod editor shell).

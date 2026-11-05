@@ -16,7 +16,7 @@ export interface DerivativePreset {
  * Display / share qualities are the lowest passing the derivative lab bar
  * (`dev/derivative-lab.html`, `LAB_THRESHOLDS`) at that edge and format. No
  * WebP passes at 3200 (shadows SSIM); large keeps WebP for the site srcset at
- * the only quality clearing sky and foliage. The thumb is not lab-tuned.
+ * the only quality clearing both sky and foliage. The thumb is not lab-tuned.
  */
 export const DERIVATIVE_PRESETS: readonly DerivativePreset[] = [
   { id: 'site-thumb', maxEdge: 480, mimeType: 'image/webp', quality: 0.8 },
