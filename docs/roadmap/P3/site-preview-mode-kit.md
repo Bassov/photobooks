@@ -2,18 +2,18 @@
 
 Tag: feature
 Milestone: P3
-Title: Bug: /next-roadmap-item site-preview-mode-kit
+Title: kit Preview opens the site book page (Designer site-preview-mode item 1)
 Status: done
 
 ## Scope
 
 Item 1 of the Designer `site-preview-mode` spec (2026-11-05): the kit Preview opens the site's book page of the current book (`DemoSitePreview`) instead of presentation mode. Kit only (`uikit/`); `src/**` and `uikit/src/**/canvas.tsx` are off limits.
 
-- [ ] `uikit/src/features/site-viewer.tsx`: `share` prop (default on); `single` drops the All books row from the stage height.
-- [ ] `uikit/src/demo-parts/site.tsx`: `DemoSitePreview` (48 px bar #E1E1E1, "‹ Back to the editor" exactly on the Library link, "Site preview" label, `.site` scroll box; All books + Share hidden; Fullscreen = site lightbox).
-- [ ] `uikit/src/demo-parts/editor.tsx`: Preview renders `DemoSitePreview` over the still-mounted editor; delete `uikit/src/demo-parts/presentation.tsx`.
-- [ ] `uikit/src/features/pages.tsx` `site-preview-mode`: states preview, spread, fullscreen + notes.
-- [ ] `uikit/scripts/qa.mjs`: KS14 presentation checks → site-preview checks; demo step `editor-preview` comment + re-baseline.
+- [x] `uikit/src/features/site-viewer.tsx`: `share` prop (default on); `single` drops the All books row from the stage height.
+- [x] `uikit/src/demo-parts/site.tsx`: `DemoSitePreview` (48 px bar #E1E1E1, "‹ Back to the editor" exactly on the Library link, "Site preview" label, `.site` scroll box; All books + Share hidden; Fullscreen = site lightbox).
+- [x] `uikit/src/demo-parts/editor.tsx`: Preview renders `DemoSitePreview` over the still-mounted editor; delete `uikit/src/demo-parts/presentation.tsx`.
+- [x] `uikit/src/features/pages.tsx` `site-preview-mode`: states preview, spread, fullscreen + notes.
+- [x] `uikit/scripts/qa.mjs`: KS14 presentation checks → site-preview checks; demo step `editor-preview` comment + re-baseline.
 - **Browser check:** `#/demo` editor → Preview: the site book page under a 48 px bar, Back on the Library link; → steps; Delete does nothing; Fullscreen → Esc closes it, Esc again returns to the unchanged editor with focus on Preview.
 
 ## Done when

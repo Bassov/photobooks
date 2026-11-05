@@ -1640,6 +1640,10 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await page.keyboard.press("ArrowRight"); await page.waitForTimeout(200)
   const ind1 = (await spv()).ind
   for (const key of ["Delete", "Backspace", "ControlOrMeta+z", "["]) { await page.keyboard.press(key); await page.waitForTimeout(120) }
+  // held Space must not arm the editor's pan (data-panning) under the preview
+  await page.keyboard.down("Space"); await page.waitForTimeout(150)
+  const spacePan = await page.locator('[data-testid="demo-editor"] [data-panning]').count()
+  await page.keyboard.up("Space"); await page.waitForTimeout(120)
   // Tab ×10 / Shift+Tab ×10 stay inside the preview
   const inSp = () => page.evaluate(() => !!document.activeElement?.closest('[data-testid="site-preview"]'))
   const tabTrail = [await inSp()]
@@ -1653,10 +1657,17 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const esc2 = await page.locator('[data-testid="site-preview"]').count()
   const escFocus = await page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? document.activeElement?.tagName)
   const ed1 = await edSnap(), stageEsc = await page.locator('[data-testid="demo"]').getAttribute("data-demo-stage")
-  ok("site-preview-mode §4: → gives slide 1; Delete / Backspace / ⌘Z / [ change nothing in the editor; Tab ×10 and Shift+Tab ×10 stay inside",
-    /^Page 1 · 1 \/ \d+$/.test(ind1 ?? "") && JSON.stringify(ed1) === JSON.stringify(ed0) && tabTrail.every(Boolean), JSON.stringify({ ind1, ed0, ed1, tabTrail: tabTrail.map(Number).join("") }))
+  ok("site-preview-mode §4: → gives slide 1; Delete / Backspace / ⌘Z / [ / Space change nothing in the editor (no data-panning); Tab ×10 and Shift+Tab ×10 stay inside",
+    /^Page 1 · 1 \/ \d+$/.test(ind1 ?? "") && JSON.stringify(ed1) === JSON.stringify(ed0) && spacePan === 0 && tabTrail.every(Boolean), JSON.stringify({ ind1, ed0, ed1, spacePan, tabTrail: tabTrail.map(Number).join("") }))
   ok("site-preview-mode §4: Fullscreen open → first Esc closes the lightbox only, second Esc closes the preview; focus back on Preview, still the editor stage",
     lb0 === 1 && JSON.stringify(esc1) === "[0,1]" && esc2 === 0 && escFocus === "demo-preview" && stageEsc === "editor", JSON.stringify({ lb0, esc1, esc2, escFocus, stageEsc }))
+  // Space activates the focused Back button (the editor's Space-to-pan must not swallow it)
+  await page.click('[data-testid="demo-preview"]'); await page.waitForTimeout(600)
+  await page.focus('[data-testid="site-preview-back"]'); await page.keyboard.press("Space"); await page.waitForTimeout(300)
+  const spBack = { open: await page.locator('[data-testid="site-preview"]').count(), focus: await page.evaluate(() => document.activeElement?.getAttribute("data-testid")),
+    pan: await page.locator('[data-testid="demo-editor"] [data-panning]').count() }
+  ok("site-preview-mode §4: Space on the focused 'Back to the editor' closes the preview; focus back on Preview, no pan armed",
+    spBack.open === 0 && spBack.focus === "demo-preview" && spBack.pan === 0, JSON.stringify(spBack))
   await go(feat("editor-chrome-toolbar"), 1000) // Stage 3: kit pages mount the #/demo editor parts
   // a selected own frame survives Delete / Backspace pressed while the preview is open
   const ownFrames = () => page.locator('[data-testid="demo-editor"] [data-testid="canvas"] [data-testid="frame"]').count()
