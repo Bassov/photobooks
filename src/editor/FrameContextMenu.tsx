@@ -316,7 +316,7 @@ function ParentMenu({ at, close }: { at: ParentMenuAt; close: () => void }) {
       aria-label={guide ? 'Parent guide' : 'Parent item'}
       autoFocus="first"
       data-testid="parent-menu"
-      className={MENU_CLASS}
+      className={`${MENU_CLASS} whitespace-nowrap`}
       onAction={(key) => {
         if (key === 'hide') {
           dispatchBookOp({ type: 'hideParentItem', spreadId, parentItemId })
@@ -351,12 +351,10 @@ function ParentMenu({ at, close }: { at: ParentMenuAt; close: () => void }) {
       >
         <Icon name="unlink2" size={16} />
         Override on this spread
-        {/* The Ctrl+Shift press overrides parent frames only (PO2). */}
-        {guide ? null : (
-          <MenuKeyboard>
-            {isMacPlatform() ? '⌘⇧Click' : 'Ctrl+Shift+Click'}
-          </MenuKeyboard>
-        )}
+        {/* The Ctrl+Shift press overrides parent frames (PO2) and guides (PO5). */}
+        <MenuKeyboard>
+          {isMacPlatform() ? '⌘⇧Click' : 'Ctrl+Shift+Click'}
+        </MenuKeyboard>
       </MenuItem>
       {hideItem('parent-menu-hide')}
     </Menu>
@@ -421,7 +419,9 @@ export function FrameContextMenu() {
             }
           }}
           placement="bottom start"
-          className="w-56"
+          // PO4: a parent row and its press hint stay on one line (rows 30.84);
+          // the frame and set menus keep the kit's 224 px.
+          className={at.kind === 'parent' ? 'w-max min-w-56' : 'w-56'}
         >
           {at.kind === 'parent' ? (
             <ParentMenu at={at} close={close} />

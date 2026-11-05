@@ -353,6 +353,17 @@ async function rightClickCentre(page: Page, target: Locator) {
 
 const parentChanges = (page: Page) => page.getByTestId('parent-changes')
 const changeRows = (page: Page) => page.getByTestId('parent-change-row')
+const menuPopover = (page: Page) => page.locator('.pb-menu-popover')
+
+/** PO4: every parent-menu row is one 30.84 px line; the menu is ≥ 224 px. */
+async function expectOneLineRows(page: Page) {
+  const rows = page.getByTestId('parent-menu').getByRole('menuitem')
+  await expect(rows).toHaveCount(2)
+  for (const row of await rows.all()) {
+    expect(Math.abs((await boxOf(row)).height - 30.84)).toBeLessThanOrEqual(0.5)
+  }
+  expect((await boxOf(menuPopover(page))).width).toBeGreaterThanOrEqual(224)
+}
 
 test('the parent menu overrides and hides the logo; the head ↺ and a row ↺ restore it', async ({
   page,
@@ -374,6 +385,7 @@ test('the parent menu overrides and hides the logo; the head ↺ and a row ↺ r
     /^Override on this spread(Ctrl\+Shift\+Click|⌘⇧Click)$/,
     'Hide on this spread',
   ])
+  await expectOneLineRows(page)
   await page.getByTestId('parent-menu-override').click()
   const copy = copyOf(page, a)
   await expect(copy).toHaveCount(1)
@@ -430,6 +442,8 @@ test('a copy menu reads Reset / Hide / Lock; Reset all restores the moved logo',
   await expect(page.getByTestId('frame-menu').getByRole('menuitem')).toHaveText(
     ['Reset to parent', 'Hide on this spread', /^Lock/],
   )
+  // The frame menu keeps the kit's fixed 224 px.
+  expect((await boxOf(menuPopover(page))).width).toBeCloseTo(224, 0)
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('frame-menu')).toHaveCount(0)
 
@@ -452,4 +466,44 @@ test('a copy menu reads Reset / Hide / Lock; Reset all restores the moved logo',
   await page.getByTestId('parent-reset-all').click()
   await expect(inheritedLogo(page, a)).toHaveCount(1)
   await expect(parentChanges(page)).toHaveCount(0)
+})
+
+test('the parent guide menu has the item rows and press hint on one line each', async ({
+  page,
+}) => {
+  // A horizontal guide pulled onto Master A near the bottom trim, off frames.
+  await page.getByTestId('left-tab-masters').click()
+  const master = page.getByTestId('masters-canvas')
+  const masterSpread = master.getByTestId('spread-view')
+  await expect(masterSpread).toBeVisible()
+  await page.keyboard.press('Shift+R')
+  const ruler = await boxOf(master.getByTestId('ruler-x'))
+  const masterBox = await boxOf(masterSpread)
+  const x = masterBox.x + masterBox.width * 0.25
+  await page.mouse.move(x, ruler.y + ruler.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(x, masterBox.y + masterBox.height * 0.98, { steps: 6 })
+  await page.mouse.up()
+  await expect(master.getByTestId('guide-line')).toHaveCount(1)
+  await page.getByTestId('left-tab-pages').click()
+
+  const a = 'painter-spread-2'
+  await openSpread(page, a)
+  const line = page
+    .getByTestId('pasteboard-scroll')
+    .locator(`[data-pasteboard-slot][data-spread-id="${a}"]`)
+    .getByTestId('guide-line-parent')
+  await expect(line).toHaveCount(1)
+  const spread = await boxOf(canvasSpread(page, a))
+  const lineBox = await boxOf(line)
+  await page.mouse.click(spread.x + 4, lineBox.y + lineBox.height / 2, {
+    button: 'right',
+  })
+  const menu = page.getByTestId('parent-menu')
+  await expect(menu).toHaveAttribute('aria-label', 'Parent guide')
+  await expect(menu.getByRole('menuitem')).toHaveText([
+    /^Override on this spread(Ctrl\+Shift\+Click|⌘⇧Click)$/,
+    'Hide on this spread',
+  ])
+  await expectOneLineRows(page)
 })

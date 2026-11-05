@@ -79,6 +79,10 @@ const SHORTCUTS: Record<ZMove, KeyboardEventInit> = {
   back: { code: 'BracketLeft', ctrlKey: true, shiftKey: true },
 }
 
+/** The open menu's popover classes (its width utilities). */
+const popoverClass = (testId: string) =>
+  screen.getByTestId(testId).closest('.pb-menu-popover')?.className
+
 describe('FrameContextMenu', () => {
   afterEach(() => {
     cleanup()
@@ -139,6 +143,7 @@ describe('FrameContextMenu', () => {
     const event = openMenu('f2')
     expect(event).toBe(false)
     expect(getFrameSource()).toEqual({ spreadId: 's', frameId: 'f2' })
+    expect(popoverClass('frame-menu')).toBe('pb-menu-popover w-56')
     const items = screen
       .getAllByRole('menuitem')
       .map((item) => item.getAttribute('data-testid'))
@@ -283,6 +288,7 @@ describe('FrameContextMenu on a multi-selection', () => {
     renderSet(stackBook(4))
     openMenu('f1')
     expect(getFrameSelection()).toEqual(set)
+    expect(popoverClass('frame-menu')).toBe('pb-menu-popover w-56')
     expect(
       screen
         .getAllByRole('menuitem')
@@ -469,6 +475,9 @@ describe('FrameContextMenu on parent items and override copies', () => {
     expect(openAt(32, 8)).toBe(false)
     const menu = screen.getByTestId('parent-menu')
     expect(menu.getAttribute('aria-label')).toBe('Parent item')
+    // PO4: the menu grows to fit a one-line row; its rows never wrap.
+    expect(popoverClass('parent-menu')).toBe('pb-menu-popover w-max min-w-56')
+    expect(menu.className).toContain('whitespace-nowrap')
     expect(rows()).toEqual(['parent-menu-override', 'parent-menu-hide'])
     expect(screen.getByTestId('parent-menu-override').textContent).toBe(
       'Override on this spreadCtrl+Shift+Click',
@@ -521,9 +530,9 @@ describe('FrameContextMenu on parent items and override copies', () => {
     expect(screen.getByTestId('parent-menu').getAttribute('aria-label')).toBe(
       'Parent guide',
     )
-    // The guide override has no press shortcut (PO5 is the guides item).
+    // PO4: the same two rows as the item menu, press hint included (PO5).
     expect(screen.getByTestId('parent-menu-override').textContent).toBe(
-      'Override on this spread',
+      'Override on this spreadCtrl+Shift+Click',
     )
     fireEvent.click(screen.getByTestId('parent-menu-override'))
     expect(
