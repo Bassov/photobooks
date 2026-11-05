@@ -46,6 +46,38 @@ async function addText(page: Page, text: string) {
   await expect(editBox(page)).toHaveCount(0)
 }
 
+/**
+ * How a painted text node sets its text, relative to its frame width (layout
+ * px, so the camera zoom and the thumbnail scale both cancel out).
+ */
+async function textLook(text: Locator) {
+  return text.evaluate((el) => {
+    if (!(el instanceof HTMLElement)) {
+      throw new Error('not an element')
+    }
+    const frame = el.closest('.spread-frame')
+    if (!(frame instanceof HTMLElement)) {
+      throw new Error('no frame')
+    }
+    const s = getComputedStyle(el)
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    const tops = new Set(
+      // Hundredths of a px: thumbnail lines sit about 1 px apart.
+      [...range.getClientRects()].map((rect) => Math.round(rect.top * 100)),
+    )
+    return {
+      family: s.fontFamily,
+      weight: s.fontWeight,
+      color: s.color,
+      align: s.textAlign,
+      lines: tops.size,
+      sizePerWidth: parseFloat(s.fontSize) / frame.offsetWidth,
+      heightPerWidth: el.offsetHeight / frame.offsetWidth,
+    }
+  })
+}
+
 test.describe('text frames', () => {
   test('a Text click makes a 60 × 14 mm frame, typing lands, Esc keeps then drops the selection', async ({
     page,
@@ -209,6 +241,32 @@ test.describe('text frames', () => {
         .locator('.spread-view--thumb .spread-frame-text')
         .filter({ hasText: 'Kept' }),
     ).toHaveCount(1)
+  })
+
+  test('a caption renders the same in the workspace and the spread thumbnail', async ({
+    page,
+  }) => {
+    await openSessionEditor(page)
+    const caption = 'Morning on the lake at 6:40, mist over the water'
+    await addText(page, caption)
+    await page.keyboard.press('Escape')
+    const canvas = textFrames(page).getByTestId('frame-text')
+    const thumb = page
+      .getByTestId('spreads-list')
+      .locator('.spread-view--thumb .spread-frame-text')
+      .filter({ hasText: caption })
+    await expect(canvas).toHaveText(caption)
+    await expect(thumb).toHaveCount(1)
+    const [onCanvas, inThumb] = await Promise.all([
+      textLook(canvas),
+      textLook(thumb),
+    ])
+    expect(onCanvas.lines).toBe(2)
+    expect(inThumb).toEqual({
+      ...onCanvas,
+      sizePerWidth: expect.closeTo(onCanvas.sizePerWidth, 3),
+      heightPerWidth: expect.closeTo(onCanvas.heightPerWidth, 2),
+    })
   })
 
   test('text frames are not drop targets: the text box selects, never swaps', async ({
