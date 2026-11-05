@@ -11,3 +11,6 @@
 1. `#/demo` editor → Preview: site book page under the 48 px bar, Back on the Library link, "Cover".
 2. → steps a slide; Delete / ⌘Z change nothing in the editor.
 3. Fullscreen → Esc closes it only; Esc again closes the preview, focus on Preview.
+
+- OK 1–3: kit qa (`uikit:qa:quick`, headless walk of `#/demo` and `#/feature/site-preview-mode`) — "site-preview-mode §2 / §3 / §4" and "kit page" all PASS; demo step `editor-preview` re-captured (`.cache/agent/demo-baseline/47-editor-preview.png`) matches the mockup.
+- Harness: `pnpm agent manual-qa` drives the prod editor only and cannot open the kit; kit-only item, evidence is the kit qa walk above.
