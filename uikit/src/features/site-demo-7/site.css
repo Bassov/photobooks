@@ -32,6 +32,13 @@
   border-top: 1px solid var(--line);
   transition: opacity 200ms var(--ease);
 }
+/* year row (more than 12 books over more than 2 years): the year in column 0, 40 high, a top hairline */
+.ss7-year {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  border-top: 1px solid var(--line);
+}
 .ss7-row[data-dim] {
   opacity: 0.3;
 }

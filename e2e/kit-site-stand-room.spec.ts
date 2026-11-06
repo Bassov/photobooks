@@ -2,8 +2,8 @@ import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { visibleCentres, white } from './fixtures/sitePagePaint'
 
-// site-stand S5 + S6 (DEMO branch): demo 7's book page opens the shared
-// reading room; on a phone portrait the room shows one page at a time.
+// site-stand S5 + S6, site-stand-v2 S (DEMO branch): a demo 7 row opens the
+// shared reading room; on a phone portrait the room shows one page at a time.
 
 async function box(l: Locator) {
   const b = await l.boundingBox()
@@ -14,12 +14,7 @@ async function box(l: Locator) {
 /** the CSS reader (`?gl=0`): its page boxes are DOM; the GL reader's paint is in kit-site-stand-reader-gl */
 async function openRoom(page: Page) {
   await page.goto('/uikit/#/full/site-demo-7?gl=0')
-  await page.getByTestId('ss7-book').first().click()
-  await expect(page.getByTestId('ss-open')).toBeFocused()
-  await page.screenshot({
-    path: test.info().outputPath('demo7-book-page.png'),
-  })
-  await page.getByTestId('ss-open').click()
+  await page.getByTestId('ss7-book').locator('visible=true').first().click()
   await expect(page.getByTestId('ss-reader-page')).toBeVisible()
 }
 
@@ -89,7 +84,7 @@ test.describe('phone 390×844: single page', () => {
 test.describe('desktop 1440×900: the reading room', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
 
-  test('demo 7: the room book is 1157 × 723; Esc closes once and focus returns to Open the book', async ({
+  test('demo 7: the room book is 1157 × 723; Esc closes and focus returns to the row', async ({
     page,
   }) => {
     await openRoom(page)
@@ -119,11 +114,6 @@ test.describe('desktop 1440×900: the reading room', () => {
 
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('ss-reader-page')).toHaveCount(0)
-    // one press: the book page stays
-    await expect(page.getByTestId('ss-book')).toBeVisible()
-    await expect(page.getByTestId('ss-open')).toBeFocused()
-    await page.screenshot({
-      path: test.info().outputPath('demo7-1440-book.png'),
-    })
+    await expect(page.getByTestId('ss7-book').first()).toBeFocused()
   })
 })

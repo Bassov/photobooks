@@ -180,11 +180,10 @@ test('demo 7 (1440): the closed book head has no dashes, a soft top edge and a â
   expect(Math.min(...s.head)).toBeGreaterThanOrEqual(4)
 })
 
-// demo 7's phone home lists thumbs (no Book3D); fresh C's phone list rows sit below the fold
+// demo 7's phone home lists thumbs (no Book3D); fresh C left the stand (site-stand-v2 D9)
 for (const [w, h, slug] of [
   [1440, 900, 'site-demo-6'],
   [1440, 900, 'site-demo-7'],
-  [1440, 900, 'site-fresh-c'],
   [390, 844, 'site-demo-6'],
 ] as const) {
   test(`${slug} (${String(w)}): the GL book paints, three loads as its own file, no console errors`, async ({

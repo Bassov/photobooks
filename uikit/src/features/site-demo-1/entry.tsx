@@ -1,19 +1,18 @@
-/* Entry for the photographer-site demo stand (DEMO branch site-stand): the three demos the Owner kept, each a full-window
-   route. Demo 1's data, Book3D, art and reader stay: all three use them. */
+/* Entry for the photographer-site demo stand (DEMO branch site-stand): the demos the Owner kept, each a full-window
+   route. Demo 1's data, Book3D, art and reader stay: they all use them. Fresh C left the stand (site-stand-v2 D9). */
 import * as React from "react"
 
 type Demo = { slug: string; name: string }
 const DEMOS: Demo[] = [
   { slug: "site-demo-6", name: "Gallery on the system: the dark wall, one spotlight per book" },
   { slug: "site-demo-7", name: "Index on the system: the list and a sticky preview" },
-  { slug: "site-fresh-c", name: "Fresh C, the programme: the site runs on the clock, each book owns a minute" },
 ]
 
 export function SiteDemos() {
   return (
     <div className="h-full overflow-y-auto bg-background px-12 py-12 text-foreground" data-testid="site-demos">
       <h1 className="text-2xl leading-tight" style={{ fontFamily: "var(--font-heading)" }}>Photographer site: demos</h1>
-      <p className="mt-2 max-w-[60ch] text-sm text-muted-foreground">Each demo opens in the full window and takes ?books=1|3|6|12.</p>
+      <p className="mt-2 max-w-[60ch] text-sm text-muted-foreground">Each demo opens in the full window and takes ?books=1|3|6|12|30|100.</p>
       <ol className="mt-8 flex flex-col gap-3 text-sm">
         {DEMOS.map((d) => (
           <li key={d.slug} className="flex items-baseline gap-3" data-testid="site-demo-row" data-demo={d.slug}>

@@ -7,7 +7,7 @@ import { pixelsAt } from './fixtures/paintProbe'
 // Before, demo 6 stood flat (ry −4), demo 7 and the book page showed only the
 // fore-edge (ry −12 / −16), fresh C had no tilt (rx 0).
 
-type Slug = 'site-demo-6' | 'site-demo-7' | 'site-fresh-c'
+type Slug = 'site-demo-6'
 
 const pose = (book: Locator) =>
   book.evaluate((el) => {
@@ -18,20 +18,12 @@ const pose = (book: Locator) =>
     ]
   })
 
-/** the hover host of each demo's first closed book (demo 7: its book page) */
+/** the hover host of each demo's first closed book (demo 7's only closed book
+   is its preview, covered by its own test; the book page is gone) */
 async function host(page: Page, slug: Slug): Promise<Locator> {
   // the CSS book's pose and faces (`?gl=0`); the GL book: kit-site-stand-gl.spec.ts
   await page.goto(`/uikit/#/full/${slug}?gl=0`)
-  if (slug === 'site-demo-6') return page.getByTestId('ss6-book').first()
-  if (slug === 'site-fresh-c')
-    // home stand on desktop, the list rows on a phone
-    return page
-      .locator('a:has([data-testid="book3d"])')
-      .locator('visible=true')
-      .first()
-  await page.getByTestId('ss7-book').locator('visible=true').first().click()
-  await page.mouse.move(0, 0)
-  return page.getByTestId('ss-book').locator('.ss-host')
+  return page.getByTestId('ss6-book').first()
 }
 
 /** no finite animation or transition left on the book, its faces or its layers */
@@ -69,7 +61,7 @@ async function paints(face: Locator) {
   return shown.filter((c, i) => c.join() !== hidden[i]?.join()).length
 }
 
-const SLUGS: Slug[] = ['site-demo-6', 'site-demo-7', 'site-fresh-c']
+const SLUGS: Slug[] = ['site-demo-6']
 
 test('demo 7 preview rests in the shared pose', async ({ page }) => {
   await page.goto('/uikit/#/full/site-demo-7?gl=0')

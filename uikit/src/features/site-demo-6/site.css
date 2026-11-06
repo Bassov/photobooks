@@ -46,18 +46,73 @@
   width: max-content;
   text-align: left;
 }
-.ss6-bar {
-  display: flex;
-  align-items: baseline;
-  gap: 24px;
+/* site-stand-v2 W: edge fades while the row continues that way (under the header), the floor scrubber */
+.ss6-lead {
+  z-index: 2;
 }
-.ss6-titles {
-  display: flex;
-  gap: 24px;
-  min-width: 0;
-  overflow: hidden;
+.ss6-fade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 160px;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms var(--ease-out);
+}
+.ss6-fade[data-on] {
+  opacity: 1;
+}
+.ss6-fade-r {
+  right: 0;
+  background: linear-gradient(90deg, rgb(17 17 16 / 0), #111110);
+}
+.ss6-fade-l {
+  left: 0;
+  background: linear-gradient(270deg, rgb(17 17 16 / 0), #111110);
+}
+/* 24 px hit area, its centre line is the track (bottom 40) */
+.ss6-scrub {
+  position: absolute;
+  bottom: 29px;
+  height: 24px;
+  z-index: 2;
+  cursor: pointer;
+  touch-action: none;
+}
+.ss6-rail,
+.ss6-thumb {
+  position: absolute;
+  top: 11px;
+  height: 2px;
+  transition:
+    top 200ms var(--ease-out),
+    height 200ms var(--ease-out);
+}
+.ss6-rail {
+  left: 0;
+  right: 0;
+  background: rgb(236 234 230 / 0.16);
+}
+.ss6-thumb {
+  left: 0;
+  background: rgb(236 234 230 / 0.6);
+  will-change: transform;
+}
+.ss6-scrub:is(:hover, [data-drag]) :is(.ss6-rail, .ss6-thumb) {
+  top: 10px;
+  height: 4px;
+}
+.ss6-scrub-label {
+  position: absolute;
+  bottom: 23px;
   white-space: nowrap;
-  margin-right: auto;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms var(--ease-out);
+}
+.ss6-scrub:is(:hover, [data-drag]) .ss6-scrub-label {
+  opacity: 1;
 }
 .ss6-phone {
   position: absolute;

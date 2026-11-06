@@ -169,9 +169,11 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
 - [x] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
 - [ ] [feature] [stand-v2-gl-reader](roadmap/P3/stand-v2-gl-reader.md) — Bug: /next-roadmap-item stand-v2-gl-reader
+- [ ] [feature] [stand-v2-demo6](roadmap/P3/stand-v2-demo6.md) — Bug: /next-roadmap-item stand-v2-demo6
 - [ ] [feature] [site-preview-mode-kit](roadmap/P3/site-preview-mode-kit.md) — kit Preview opens the site book page (Designer site-preview-mode item 1)
 - [ ] [feature] [kit-undo-fixes](roadmap/P3/kit-undo-fixes.md) — Bug: /next-roadmap-item kit-undo-fixes
 - [ ] [feature] [publish-credentials](roadmap/P3/publish-credentials.md) — connect the editor to your hosting (Security Review)
+- [ ] [feature] [stand-v2-site](roadmap/P3/stand-v2-site.md) — Bug: /next-roadmap-item stand-v2-site
 - [ ] [feature] [stand-v2-gl-core](roadmap/P3/stand-v2-gl-core.md) — Bug: /next-roadmap-item stand-v2-gl-core
 - [ ] [feature] [in-app-publish](roadmap/P3/in-app-publish.md) — publish button (Security Review)
 - [ ] [feature] [site-settings](roadmap/P3/site-settings.md) — personalize the showcase

@@ -13,7 +13,6 @@ import type { Doc } from "@/sandbox/model"
 import { WithScenarios } from "./parts"
 import { PhotographerSite } from "./site-photographer"
 import { SiteDemos } from "./site-demo-1/entry"
-import { SiteFreshC } from "./site-fresh-c/site"
 import { SiteDemo6 } from "./site-demo-6/site"
 import { SiteDemo7 } from "./site-demo-7/site"
 import type { FeatureDef, Notes } from "./types"
@@ -238,16 +237,8 @@ export const PAGES: Record<string, FeatureDef> = {
   },
   "site-demos": {
     Demo: SiteDemos, h: SLOT.app.h, notes: {
-      what: "Entry for the photographer-site demo stand: demo 6, demo 7 and fresh C; each takes ?books=1|3|6|12.",
+      what: "Entry for the photographer-site demo stand: demo 6 and demo 7; each takes ?books=1|3|6|12|30|100.",
       where: "DEMO branch only. Full window: #/full/site-demos.",
-    },
-  },
-  "site-fresh-c": {
-    Demo: SiteFreshC, h: SLOT.app.h, notes: {
-      what: "Site fresh C, the programme: the site runs on the clock; each book owns a minute and turns its own pages.",
-      where: "DEMO branch only. Full window: #/full/site-fresh-c (?books=1|3|6|12).",
-      keys: [["← / →", "turn (takes over)"], ["Esc", "book page → home"]],
-      edge: ["Touch the book = paused; Play = back to the clock", "Reduced motion starts paused"],
     },
   },
   "site-demo-6": {
@@ -261,8 +252,8 @@ export const PAGES: Record<string, FeatureDef> = {
   "site-demo-7": {
     Demo: SiteDemo7, h: SLOT.app.h, notes: {
       what: "Site demo 7, the index on the design system (spec-sys): a typographic list, the other rows dim on hover, a sticky preview.",
-      where: "DEMO branch only. Full window: #/full/site-demo-7?books=1|3|6|12.",
-      keys: [["Tab", "preview"], ["Esc", "close the book · back"]],
+      where: "DEMO branch only. Full window: #/full/site-demo-7?books=1|3|6|12|30|100 (&book=<id> opens a book).",
+      keys: [["Tab", "preview"], ["Esc / Back", "close the book"], ["Play", "turns a page every 4 s"]],
       edge: ["Phone = rows with a small cover"],
     },
   },

@@ -37,9 +37,8 @@ const seats = (page: Page, scope: string) =>
 /** the CSS reader (`?gl=0`): its page boxes are DOM; the GL reader's paint is in kit-site-stand-reader-gl */
 async function openRoom(page: Page) {
   await page.goto('/uikit/#/full/site-demo-6?gl=0')
+  // site-stand-v2 S: a click opens the room (no book page between)
   await page.getByTestId('ss6-book').first().click()
-  await expect(page.getByTestId('ss-open')).toBeFocused()
-  await page.getByTestId('ss-open').click()
   await expect(page.getByTestId('ss-reader-page')).toBeVisible()
 }
 
@@ -83,23 +82,21 @@ for (const [label, viewport, scope] of [
       expect(errors).toEqual([])
     })
 
-    for (const [name, slug, row] of [
-      ['demo 6: the home', 'site-demo-6', 'ss6-book'],
-      // demo 7's phone index lists covers as thumbs: check its book page
-      ['demo 7: the book page', 'site-demo-7', 'ss7-book'],
-    ] as const) {
-      test(`${name}'s closed book paints its cover`, async ({ page }) => {
-        const errors = collectErrors(page)
-        await page.goto(`/uikit/#/full/${slug}`)
-        await page.getByTestId(row).locator('visible=true').first().click()
-        const c = await homePaint(page)
-        test
-          .info()
-          .annotations.push({ type: 'paint', description: JSON.stringify(c) })
-        expect(white(c)).toBe(false)
-        expect(errors).toEqual([])
-      })
-    }
+    // site-stand-v2 S: the book page is gone (a click opens the room), so the
+    // home's own closed book is the one checked; demo 7's phone index lists
+    // covers as thumbs and its desktop preview is in kit-site-stand-book3d
+    test("demo 6: the home's closed book paints its cover", async ({
+      page,
+    }) => {
+      const errors = collectErrors(page)
+      await page.goto('/uikit/#/full/site-demo-6')
+      const c = await homePaint(page)
+      test
+        .info()
+        .annotations.push({ type: 'paint', description: JSON.stringify(c) })
+      expect(white(c)).toBe(false)
+      expect(errors).toEqual([])
+    })
   })
 }
 
@@ -183,7 +180,7 @@ test.describe('desktop 1440×900: demo 6 reading room', () => {
 
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('ss-reader-page')).toHaveCount(0)
-    await expect(page.getByTestId('ss-open')).toBeFocused()
+    await expect(page.getByTestId('ss6-book').first()).toBeFocused()
     expect(errors).toEqual([])
   })
 })

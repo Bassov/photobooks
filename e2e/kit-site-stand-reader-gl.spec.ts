@@ -67,8 +67,8 @@ async function box(l: Locator) {
 /** demo 7: open the first book (Lake trip) in the reading room; resolves once the GL reader rests on view 1 */
 async function openRoom(page: Page, query = '') {
   await page.goto(`/uikit/#/full/site-demo-7${query}`)
-  await page.getByTestId('ss7-book').first().click()
-  await page.getByTestId('ss-open').click()
+  // a click opens the room at the cover, which turns to view 1 at once
+  await page.getByTestId('ss7-book').locator('visible=true').first().click()
   await expect(page.getByTestId('ps-reader')).toHaveAttribute('data-view', '1')
 }
 
@@ -131,6 +131,8 @@ test.describe('desktop 1440×900', () => {
   test('Pages 4–5: grained paper, page-block edges and tail band; the leaf bends at θ 70°', async ({
     page,
   }) => {
+    // six decoded screenshots and a held drag: past 30 s when the lane runs in parallel
+    test.setTimeout(90_000)
     const errors = collectErrors(page)
     await openRoom(page)
     const reader = page.getByTestId('ps-reader')
