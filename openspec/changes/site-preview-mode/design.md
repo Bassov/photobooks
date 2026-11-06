@@ -31,7 +31,7 @@
 | `src/editor/EditorShell.test.tsx`                              | update         |
 | `src/editor/lowDpiBadge.test.tsx`                              | update         |
 | `e2e/site-preview-mode.spec.ts`                                | new            |
-| `e2e/presentation-mode.spec.ts`                                | delete         |
+| `e2e/presentation-mode.spec.ts`                                | guard          |
 | `e2e/preview-no-overlays.spec.ts`                              | update         |
 | `e2e/design-r7-panels.spec.ts`                                 | update         |
 | `e2e/text-frames-core.spec.ts`                                 | update         |
