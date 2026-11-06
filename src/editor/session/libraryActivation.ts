@@ -107,6 +107,8 @@ export function createLibraryActivation(
   initialHost: LibraryActivationHost,
 ): LibraryActivation {
   let host = initialHost
+  // Settles when the last `tryRestore` lands; binds wait so it cannot clear them.
+  let restoreSettled: Promise<unknown> = Promise.resolve()
 
   function bookHasContent(book: Book): boolean {
     if (book.gallery.length > 0) {
@@ -281,6 +283,9 @@ export function createLibraryActivation(
     nextStorage: LibraryStorage,
     mode: 'adopt' | 'open' | 'browse' = 'adopt',
   ): Promise<StorageResult<void>> {
+    // A restore still recalling the stored handle would clear this library
+    // (and its new book) when it lands; bind after it instead.
+    await restoreSettled
     await host.releaseHeldBookLock()
     host.setStorage(nextStorage)
     host.setLibraryId(nextLibraryId)
@@ -655,7 +660,7 @@ export function createLibraryActivation(
   }
 
   async function tryRestore(): Promise<StorageResult<Book | null>> {
-    const result = await host.withActionBusy(async () => {
+    const running = host.withActionBusy(async () => {
       host.setRestorePending(true)
       host.setHomeError(null)
       host.emit()
@@ -758,6 +763,9 @@ export function createLibraryActivation(
         host.emit()
       }
     })
+    // Chain: a call dropped by the busy guard must not shorten the wait.
+    restoreSettled = Promise.allSettled([restoreSettled, running])
+    const result = await running
     return result ?? { ok: true, value: null }
   }
 

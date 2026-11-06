@@ -2003,6 +2003,38 @@ describe('projectSession', () => {
       await restorePromise
     })
 
+    it('a library bound during restore survives the restore and leave shows the library', async () => {
+      const session = createMemorySessionState()
+      let releaseRecall!: (value: StorageResult<SessionDirectoryHandle>) => void
+      const recallGate = new Promise<StorageResult<SessionDirectoryHandle>>(
+        (resolve) => {
+          releaseRecall = resolve
+        },
+      )
+      configureProjectSession({
+        session: { ...session, recallLibraryHandle: () => recallGate },
+      })
+      const restorePromise = tryRestore()
+      expect(getProjectSessionSnapshot().restorePending).toBe(true)
+      // e2e seam order: attach → create → leave while the restore still waits.
+      const seam = (async () => {
+        const attached = await attachMemoryLibraryForTests()
+        assert.equal(attached.ok, true)
+        const created = await createBookInLibrary()
+        assert.equal(created.ok, true)
+        await leaveEditorForLibrary()
+      })()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      releaseRecall({ ok: false, code: 'not-found' })
+      await restorePromise
+      await seam
+
+      const snapshot = getProjectSessionSnapshot()
+      expect(snapshot.surface).toBe('library')
+      expect(snapshot.libraryOpen).toBe(true)
+      expect(snapshot.bookId).toBeNull()
+    })
+
     it('locked-elsewhere from home clears accessPhase on home', async () => {
       const storage = createMemoryLibraryStorage()
       const session = createMemorySessionState()
