@@ -76,11 +76,12 @@ async function openRoom(page: Page, query = '') {
   await expect(page.getByTestId('ps-reader')).toHaveAttribute('data-view', '1')
 }
 
-/** a 1-px line from outside the book inward: past the background and floor shadow (> 200) and the board (≤ 120), the
-   page-block band = the run of pixels darker than the paper before the paper starts */
+/** a 1-px line from outside the book inward: past the background and floor shadow (> 120) and the board (≤ 120), the
+   page-block band = the run of pixels darker than the paper before the paper starts (its shade moves with the book's
+   place in the canvas: 202–207 on demo 9's final desktop reader, so the board, not a background level, anchors it) */
 function band(line: number[], paper: number) {
   let i = 0
-  while (i < line.length && (line[i] ?? 0) > 200) i++
+  while (i < line.length && (line[i] ?? 0) > 120) i++
   while (i < line.length && (line[i] ?? 0) <= 120) i++
   let n = 0
   while (
