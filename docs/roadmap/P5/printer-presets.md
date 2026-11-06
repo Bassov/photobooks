@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P5
 Title: print for everyone
+Status: done
 
 ## Scope
 
