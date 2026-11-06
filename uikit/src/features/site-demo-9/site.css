@@ -1,0 +1,182 @@
+/* Site demo 9, the bookcase (Spec site-stand-v2 B, site-stand-v3 B2): front #E4DED3, back #CEC6B7 with AO under each
+   shelf and at the sides, 16 px shelves, a 40 px plinth, every frame length × --z (the case scale); spines lean about the
+   bottom corner on the side they rest on, hover / focus / tap = up 14 px, 300 ms; the face-out tips toward you. */
+.ss9-col {
+  position: sticky;
+  top: 104px;
+}
+.ss9-case {
+  --z: 1;
+  background: #e4ded3;
+  box-shadow:
+    0 1px 0 rgb(0 0 0 / 0.06),
+    0 calc(30px * var(--z)) calc(50px * var(--z)) calc(-30px * var(--z)) rgb(0 0 0 / 0.35);
+}
+.ss9-bay {
+  position: absolute;
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 0.2), rgb(0 0 0 / 0) calc(28px * var(--z))),
+    linear-gradient(
+      90deg,
+      rgb(0 0 0 / 0.1),
+      rgb(0 0 0 / 0) calc(18px * var(--z)),
+      rgb(0 0 0 / 0) calc(100% - 18px * var(--z)),
+      rgb(0 0 0 / 0.1)
+    ),
+    #cec6b7;
+}
+.ss9-shelf {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: calc(16px * var(--z));
+  background: linear-gradient(180deg, #d9d2c5 0 calc(6px * var(--z)), #e8e2d7 calc(6px * var(--z)), #dcd5c9);
+  box-shadow: 0 2px 3px rgb(0 0 0 / 0.12);
+  z-index: 1;
+}
+.ss9-plinth {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(40px * var(--z));
+  background: linear-gradient(#e4ded3 0 calc(100% - 14px * var(--z)), #d3ccbf calc(100% - 14px * var(--z)));
+}
+.ss9-face,
+.ss9-spine,
+.ss9-flat {
+  position: absolute;
+  bottom: 0;
+  padding: 0;
+}
+.ss9-face {
+  display: block;
+}
+.ss9-lean {
+  display: block;
+  transform: perspective(1400px) rotateX(8deg);
+  transform-origin: 50% 100%;
+  transition: transform 300ms var(--ease-out);
+}
+.ss9-face[data-up] .ss9-lean {
+  transform: perspective(1400px) rotateX(-4deg);
+}
+.ss9-contact {
+  position: absolute;
+  left: 0;
+  bottom: -3px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.32), rgb(0 0 0 / 0));
+  transition:
+    opacity 300ms var(--ease-out),
+    transform 300ms var(--ease-out);
+}
+.ss9-face[data-up] .ss9-contact {
+  opacity: 0.6;
+  transform: scaleX(0.94);
+}
+.ss9-face:focus-visible {
+  outline-offset: 6px;
+}
+.ss9-spine,
+.ss9-flat {
+  overflow: hidden;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+.ss9-spine {
+  transform-origin: var(--o, 0 100%);
+  transform: translateY(0) rotate(var(--lean));
+  filter: drop-shadow(4px 0 4px rgb(0 0 0 / 0.22));
+  transition:
+    transform 300ms var(--ease-out),
+    filter 300ms var(--ease-out);
+}
+.ss9-flat {
+  filter: drop-shadow(0 -1px 2px rgb(0 0 0 / 0.18));
+  transition: transform 300ms var(--ease-out);
+}
+.ss9-spine::before,
+.ss9-flat::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.ss9-spine::before {
+  background:
+    linear-gradient(90deg, rgb(0 0 0 / 0.3) 0, rgb(0 0 0 / 0.06) 10%, rgb(255 255 255 / 0.16) 28%, rgb(255 255 255 / 0) 48%, rgb(0 0 0 / 0.08) 80%, rgb(0 0 0 / 0.32) 100%),
+    linear-gradient(180deg, rgb(0 0 0 / 0.18) 0 2px, transparent 2px calc(100% - 2px), rgb(0 0 0 / 0.22) calc(100% - 2px));
+}
+.ss9-flat::before {
+  background: linear-gradient(180deg, rgb(0 0 0 / 0.28), rgb(255 255 255 / 0.14) 30%, rgb(255 255 255 / 0) 50%, rgb(0 0 0 / 0.3));
+}
+.ss9-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.12;
+  mix-blend-mode: multiply;
+}
+.ss9-spine span,
+.ss9-spine em {
+  position: absolute;
+  left: 50%;
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.ss9-spine span {
+  top: 10%;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+.ss9-spine em,
+.ss9-flat em {
+  font-size: calc(9px * var(--z));
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  opacity: 0.7;
+}
+.ss9-spine em {
+  bottom: 8%;
+}
+.ss9-flat em {
+  position: absolute;
+  right: calc(8px * var(--z));
+  top: 50%;
+  translate: 0 -50%;
+}
+.ss9-flat span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.ss9-spine:focus-visible,
+.ss9-flat:focus-visible {
+  outline-offset: 2px;
+}
+.ss9-spine[data-up] {
+  transform: translateY(calc(-14px * var(--z))) rotate(var(--lean));
+  filter: drop-shadow(4px 6px 8px rgb(0 0 0 / 0.28));
+}
+.ss9-flat[data-up] {
+  transform: translateY(calc(-6px * var(--z)));
+}
+.ss9-cap {
+  animation: ss-in 200ms var(--ease) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ss9-spine,
+  .ss9-flat,
+  .ss9-lean,
+  .ss9-contact {
+    transition: none;
+  }
+}

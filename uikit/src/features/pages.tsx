@@ -13,6 +13,10 @@ import type { SessionState } from "@/demo-parts/session"
 import type { Doc } from "@/sandbox/model"
 import { WithScenarios } from "./parts"
 import { PhotographerSite } from "./site-photographer"
+import { SiteDemos } from "./site-demo-1/entry"
+import { SiteDemo6 } from "./site-demo-6/site"
+import { SiteDemo7 } from "./site-demo-7/site"
+import { SiteDemo9 } from "./site-demo-9/site"
 import type { FeatureDef, Notes } from "./types"
 
 /** Stage height = the #/demo viewport height (+ the 40 px scenario strip), so every slot sits at its #/demo size. */
@@ -233,6 +237,36 @@ export const PAGES: Record<string, FeatureDef> = {
       what: "Proposal for the published site as a photographer's site of books: home with the books on a shelf, one page per book with text, facts and all spreads, the kit Fullscreen viewer. Sample books and texts.",
       where: "Standalone demo; not in #/demo yet. Full window: #/full/site-photographer.",
       edge: ["Click a book, a spread or the closed book; Esc leaves fullscreen", "Narrow window (< 768) = one column"],
+    },
+  },
+  "site-demos": {
+    Demo: SiteDemos, h: SLOT.app.h, notes: {
+      what: "Entry for the photographer-site demo stand: demos 6, 7 and 9; each takes ?books=1|3|6|12|30|100.",
+      where: "DEMO branch only. Full window: #/full/site-demos.",
+    },
+  },
+  "site-demo-6": {
+    Demo: SiteDemo6, h: SLOT.app.h, notes: {
+      what: "Site demo 6, the gallery on the design system (spec-sys): a dark wall, one spotlight per book, labels under the books.",
+      where: "DEMO branch only. Full window: #/full/site-demo-6?books=1|3|6|12.",
+      keys: [["← / →", "walk / turn"], ["Esc", "close the book · back"]],
+      edge: ["Wheel or drag walks the wall", "Phone = one book per screen"],
+    },
+  },
+  "site-demo-7": {
+    Demo: SiteDemo7, h: SLOT.app.h, notes: {
+      what: "Site demo 7, the index on the design system (spec-sys): a typographic list, the other rows dim on hover, a sticky preview.",
+      where: "DEMO branch only. Full window: #/full/site-demo-7?books=1|3|6|12|30|100 (&book=<id> opens a book).",
+      keys: [["Tab", "preview"], ["Esc / Back", "close the book"], ["Play", "turns a page every 4 s"]],
+      edge: ["Phone = rows with a small cover"],
+    },
+  },
+  "site-demo-9": {
+    Demo: SiteDemo9, h: SLOT.app.h, notes: {
+      what: "Site demo 9, the bookcase on the design system: the case grows with the books (wider, then more shelves); per shelf the newest book face-out, the rest spines.",
+      where: "DEMO branch only. Full window: #/full/site-demo-9?books=1|3|6|12|30|100 (&book=<id> opens a book).",
+      keys: [["Tab", "raise a book"], ["Esc / Back", "close the book"]],
+      edge: ["The page scrolls down the case", "Phone: the first tap raises a book, the second opens it"],
     },
   },
   "site-preview-mode": page([
