@@ -1,12 +1,17 @@
 /* Phone portrait reader, Page turn mode (Spec site-stand-v6 T / C / F, D28–D29): every slide is a page-sized sheet over a
    fixed bed; a drag peels the top sheet with an e-reader curl (the model below, ported from the Designer's mockup-src.html),
    tap / Next / keys / Play run a 600 ms scripted turn, Home / End and `jump` crossfade 240 ms, reduced motion crossfades
-   160 ms. Same props and `SlidesApi` as the carousel (slides.tsx), so the room drives both alike. This item draws the curl
-   state as a flat CSS fold (r = 0, β = 0): the top sheet clipped at xm, a shadow right of it, the part past xm mirrored to
-   its left (`pt-flap`). The commit (end of a completing turn) moves the slide, the label and the room's view. */
+   160 ms. Same props and `SlidesApi` as the carousel (slides.tsx), so the room drives both alike. With WebGL (G) the
+   `pt-gl` canvas draws the sheets, at rest too, and the DOM sheets stay hidden for a11y and tests; without it (`gl=0`,
+   `file://`, a failed load), and for a turn whose textures aren't in yet, the state is drawn as a flat CSS fold (r = 0,
+   β = 0): the top sheet clipped at xm, a shadow right of it, the part past xm mirrored to its left (`pt-flap`). Crossfades
+   are DOM. The commit (end of a completing turn) moves the slide, the label and the room's view. */
 import * as React from "react"
 import { ENDPAPER } from "../site-demo-1/art"
 import type { SiteBook } from "../site-demo-1/data"
+import { OV, PageCurl } from "./gl/curl"
+import { faceLook } from "./gl/open"
+import { glWanted, loadThree } from "./gl/three"
 import { EASE, TURN } from "./reader"
 import { Paper, slideOfView, type Slide, type SlidesApi } from "./slides"
 import "./turn.css"
@@ -36,6 +41,8 @@ export function fromDrag(pw: number, ph: number, r: number, C: { x: number; y: n
 export const scripted = (pw: number, ph: number, r: number, e: number): Curl => ({ xm: xmStart(pw, ph, B0) + (xmEnd(r) - xmStart(pw, ph, B0)) * e, beta: B0 * (1 - e), r })
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches
+/** the GL canvas' backing pixels per CSS px */
+const backing = () => Math.min(2, Math.max(1, devicePixelRatio || 1))
 const SCRIPT_MS = 600, JUMP_MS = 240, FADE_MS = 160
 
 type Props = {
@@ -45,8 +52,9 @@ type Props = {
   /** the slide to open on */
   start: number
 }
-/** a turn in progress: `top` is the sheet that moves (fade: the one fading out), `under` the one it uncovers */
-type Turn = { top: number; under: number; dir: "fwd" | "back" | "fade" }
+/** a turn in progress: `top` is the sheet that moves (fade: the one fading out), `under` the one it uncovers; `gl`: the
+   canvas draws it (both textures were in at its start) */
+type Turn = { top: number; under: number; dir: "fwd" | "back" | "fade"; gl?: boolean }
 type Drag = { id: number; x0: number; y0: number; t0: number; py: number; active: boolean; dead: boolean; dx: number; trail: [number, number][] }
 
 export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b, slides, w, top, pw, ph, view, setView, onSi, onRest, start }, ref) {
@@ -54,44 +62,67 @@ export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b
   const clamp = (i: number) => Math.max(0, Math.min(n - 1, i))
   const [si, setSi] = React.useState(() => clamp(start))
   const [turn, setTurn] = React.useState<Turn | null>(null)
-  const live = React.useRef({ si, view, turn: null as Turn | null, xm: null as number | null, raf: 0, end: null as (() => void) | null })
+  const live = React.useRef({ si, view, turn: null as Turn | null, xm: null as number | null, beta: 0, raf: 0, end: null as (() => void) | null, drawn: false })
   const cb = React.useRef({ setView, onSi, onRest })
   cb.current = { setView, onSi, onRest }
   const stage = React.useRef<HTMLDivElement>(null)
   const topEl = React.useRef<HTMLDivElement>(null)
   const shadow = React.useRef<HTMLDivElement>(null)
   const flap = React.useRef<HTMLDivElement>(null)
+  const canvas = React.useRef<HTMLCanvasElement>(null)
+  const probe = React.useRef<HTMLSpanElement>(null)
+  const curl = React.useRef<PageCurl | null>(null)
+  const [gl, setGl] = React.useState(glWanted)
   const rOf = (i: number) => (slides[i]?.kind === "cover" ? 0.3 : 0.09) * pw
 
-  // the flat fold for the live state (xm null: at rest); fade: the top sheet's opacity
+  /** the canvas draws the live state (at rest: the flat top sheet); false → the DOM sheets show */
+  const glPaint = () => {
+    const L = live.current, t = L.turn, c = canvas.current, pc = curl.current
+    if (!c || !pc || (t && !t.gl)) return false
+    const k = backing(), cw = Math.round(w * k), ch = Math.round((ph + 2 * OV) * k)
+    if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch }
+    return pc.draw(c, k, t ? { top: t.top, under: t.under, xm: L.xm ?? pw, beta: L.beta, r: rOf(t.top) } : { top: L.si, under: null, xm: pw, beta: 0, r: rOf(L.si) })
+  }
+  // the live state (xm null: at rest): on the canvas, or as the flat fold; fade: the top sheet's opacity
   const paint = () => {
     const L = live.current, xm = L.xm, t = L.turn
     const st = stage.current
-    if (st) st.dataset.xm = xm == null || t?.dir === "fade" ? "" : xm.toFixed(1)
+    const on = glPaint()
+    if (on) L.drawn = true
+    if (st) {
+      st.dataset.xm = xm == null || t?.dir === "fade" ? "" : xm.toFixed(1)
+      st.dataset.gl = L.drawn ? "1" : "0"
+      for (const el of st.querySelectorAll<HTMLElement>(":scope > .pt-sheet")) el.style.visibility = on ? "hidden" : ""
+    }
+    if (canvas.current) canvas.current.style.visibility = on ? "" : "hidden"
     const top = topEl.current?.style
     if (top) {
       top.clipPath = xm == null || t?.dir === "fade" ? "" : `inset(0 ${Math.min(pw, Math.max(0, pw - xm))}px 0 0)`
       top.opacity = xm != null && t?.dir === "fade" ? String(xm) : ""
     }
-    if (xm == null || t?.dir === "fade") return
+    if (on || xm == null || t?.dir === "fade") return
     const cut = Math.max(0, pw - xm)
     if (shadow.current) Object.assign(shadow.current.style, { left: `${16 + xm}px`, width: `${Math.min(cut, 28)}px` })
     if (flap.current) Object.assign(flap.current.style, { left: `${16 + 2 * xm - pw}px`, width: `${cut}px` })
   }
   React.useLayoutEffect(paint)
+  const repaint = React.useRef(paint)
+  repaint.current = paint
 
-  const begin = (t: Turn, xm: number) => {
-    const L = live.current
-    L.turn = t; L.xm = xm
+  const begin = (t: Turn, xm: number, beta = 0) => {
+    const L = live.current, pc = curl.current
+    t.gl = !!pc && L.drawn && t.dir !== "fade" && pc.ready(t.top) && pc.ready(t.under)
+    L.turn = t; L.xm = xm; L.beta = beta
     setTurn(t)
     paint()
   }
   const commit = (i: number) => {
     const L = live.current
-    L.turn = null; L.xm = null
+    L.turn = null; L.xm = null; L.beta = 0
     setTurn(null)
     if (i !== L.si) {
       L.si = i
+      curl.current?.keep(i)
       setSi(i)
       cb.current.onSi(i); cb.current.onRest(i)
       const s = slides[i]
@@ -127,18 +158,19 @@ export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b
     if (i < 0 || i >= n) return
     if (reduced()) return fade(i, FADE_MS)
     const t: Turn = d > 0 ? { top: L.si, under: i, dir: "fwd" } : { top: i, under: L.si, dir: "back" }
-    const at = (u: number) => scripted(pw, ph, rOf(t.top), TURN(d > 0 ? u : 1 - u)).xm
-    begin(t, at(0))
-    run(SCRIPT_MS, (u) => { L.xm = at(u) }, () => commit(i))
+    const at = (u: number) => scripted(pw, ph, rOf(t.top), TURN(d > 0 ? u : 1 - u))
+    const s0 = at(0)
+    begin(t, s0.xm, s0.beta)
+    run(SCRIPT_MS, (u) => { const s = at(u); L.xm = s.xm; L.beta = s.beta }, () => commit(i))
   }
   /** release: animate xm to the end of the turn (`complete`) or back to where it started */
   const settle = (complete: boolean) => {
     const L = live.current, t = L.turn
     if (!t || L.xm == null) return
-    const end = xmEnd(rOf(t.top)), from = L.xm
+    const end = xmEnd(rOf(t.top)), from = L.xm, b0 = L.beta
     const to = (t.dir === "fwd") === complete ? end : pw
     const target = complete ? (t.dir === "fwd" ? t.under : t.top) : L.si
-    run(160 + (440 * Math.abs(to - from)) / (pw - end), (u) => { L.xm = from + (to - from) * EASE(u) }, () => commit(target))
+    run(160 + (440 * Math.abs(to - from)) / (pw - end), (u) => { const e = EASE(u); L.xm = from + (to - from) * e; L.beta = b0 * (1 - e) }, () => commit(target))
   }
 
   const go = (d: number) => { finish(); script(d > 0 ? 1 : -1) }
@@ -153,6 +185,30 @@ export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b
     const L = live.current
     return () => cancelAnimationFrame(L.raf)
   }, [])
+  // GL (Spec G): the slide textures in the page's look on `--site-paper`; a failed load falls back to the CSS fold
+  React.useEffect(() => {
+    if (!gl) return
+    let dead = false, pc: PageCurl | undefined
+    const st = stage.current!
+    // the sheet texture at the canvas backing scale: at rest one texel per backing pixel, as the DOM draws it
+    const look = { ...faceLook(st, probe.current), pagePx: Math.round(pw * backing()) }
+    const paper = getComputedStyle(st).getPropertyValue("--site-paper").trim() || "#fff"
+    void (async () => {
+      try {
+        const T = await loadThree()
+        if (dead) return
+        pc = new PageCurl(T, b, slides, look, paper, pw, ph)
+        pc.onChange = () => repaint.current()
+        curl.current = pc
+        pc.keep(live.current.si)
+      } catch (e) {
+        if (!dead) { console.warn("PageTurn: GL failed, CSS fold", e); setGl(false) }
+      }
+    })()
+    return () => { dead = true; curl.current = null; pc?.dispose(); live.current.drawn = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gl, b, slides, pw, ph])
+
   // a view change from outside (rotation, deep link): jump there without animation
   React.useEffect(() => {
     const L = live.current
@@ -160,7 +216,8 @@ export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b
     if (slides[L.si]?.view === view) return
     cancelAnimationFrame(L.raf); L.end = null
     const i = slideOfView(slides, view)
-    L.turn = null; L.xm = null; L.si = i
+    L.turn = null; L.xm = null; L.beta = 0; L.si = i
+    curl.current?.keep(i)
     setTurn(null); setSi(i)
     cb.current.onSi(i); cb.current.onRest(i)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -187,12 +244,14 @@ export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b
     if (t.dir === "fwd") {
       const corner = g.py < 0.25 * ph || g.py > 0.75 * ph
       const C = { x: pw, y: corner ? (g.py < 0.25 * ph ? 0 : ph) : g.py }
-      L.xm = fromDrag(pw, ph, r, C, corner, x - g.x0, y - g.y0).xm
+      const s = fromDrag(pw, ph, r, C, corner, x - g.x0, y - g.y0)
+      L.xm = s.xm; L.beta = s.beta
     } else {
       const end = xmEnd(r), k = (pw - end) / Math.max(40, w - 16 - g.x0)
       L.xm = end + (x - g.x0) * k
     }
-    L.xm = Math.max(xmEnd(r), Math.min(pw, L.xm))
+    // up to the start, where the axis just touches the leading corner (pw for a straight curl)
+    L.xm = Math.max(xmEnd(r), Math.min(xmStart(pw, ph, Math.abs(L.beta)), L.xm))
     paint()
   }
   const onPointerDown = (e: React.PointerEvent) => {
@@ -238,8 +297,9 @@ export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b
       if (s * g.dx > 40) fade(t.dir === "fwd" ? t.under : t.top, FADE_MS)
       return
     }
-    const back = g.trail.find(([tt]) => e.timeStamp - tt <= 80) ?? [e.timeStamp, g.dx]
-    const v = e.timeStamp > back[0] ? (g.dx - back[1]) / (e.timeStamp - back[0]) : 0
+    // the release velocity over the moves of the last 80 ms (not the dwell before the lift); a finger rested longer: 0
+    const [t0, d0] = g.trail[0] ?? [0, 0], [t1, d1] = g.trail[g.trail.length - 1] ?? [0, 0]
+    const v = e.timeStamp - t1 <= 80 && t1 > t0 ? (d1 - d0) / (t1 - t0) : 0
     const end = xmEnd(rOf(t.top)), xm = L.xm ?? pw
     const p = t.dir === "fwd" ? (pw - xm) / (pw - end) : (xm - end) / (pw - end)
     settle((p > 0.5 || s * v > 0.3) && !(s * v < -0.3))
@@ -254,7 +314,7 @@ export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b
   }
 
   const topI = turn ? turn.top : si, underI = turn ? turn.under : null
-  const fold = !!turn && turn.dir !== "fade"
+  const fold = !!turn && turn.dir !== "fade" && !turn.gl
   const sheet = (i: number, role: "top" | "under") => {
     const s = slides[i]!
     return (
@@ -268,9 +328,16 @@ export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b
   return (
     <div ref={stage} className="pt-stage" style={{ top, width: w, height: ph }} data-testid="pt-stage"
       role="region" aria-roledescription="book" aria-label={b.title} tabIndex={0}
-      data-si={si} data-dir={turn && turn.dir !== "fade" ? turn.dir : ""} data-gl="0"
+      data-si={si} data-dir={turn && turn.dir !== "fade" ? turn.dir : ""}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel}>
       <div className="pt-bed" style={{ width: pw, height: ph }} aria-hidden data-testid="pt-bed" />
+      {gl && (
+        <>
+          <canvas ref={canvas} aria-hidden data-testid="pt-gl"
+            style={{ position: "absolute", left: 0, top: -OV, width: w, height: ph + 2 * OV, zIndex: 5, pointerEvents: "none", visibility: "hidden" }} />
+          <span ref={probe} className="sd-it" aria-hidden style={{ position: "absolute", visibility: "hidden", whiteSpace: "nowrap" }} />
+        </>
+      )}
       {[topI, underI].filter((i): i is number => i != null).sort((a, c) => a - c).map((i) => sheet(i, i === topI ? "top" : "under"))}
       {fold && (
         <>

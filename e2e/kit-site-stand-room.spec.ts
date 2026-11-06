@@ -647,11 +647,11 @@ test.describe('phone 844×390', () => {
       { x: r.x + r.width * 0.1, y },
     )
     await expect(label).toHaveText('Pages 2–3 of 22')
-    await page.waitForTimeout(400)
+    await expect(page.getByTestId('ps-leaf')).toHaveCount(0)
     await expect(room).toBeVisible()
 
-    // 120 px < 0.25·w: a fling (~1 px/ms) closes it; an instant swipe coalesces into one move with no speed
-    await swipe(page, { x: 20, y: 195 }, { x: 140, y: 195 }, 8)
+    // 240 px > 0.25·w (211): past the distance threshold, so it closes whatever the swipe speed
+    await swipe(page, { x: 20, y: 195 }, { x: 260, y: 195 })
     await expect(room).toHaveCount(0)
     expect(page.url()).not.toContain('book=')
     expect(errors).toEqual([])

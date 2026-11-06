@@ -25,4 +25,9 @@ export const RepeatWrapping: number
 export const VSMShadowMap: number
 export const ShadowMaterial: Ctor
 export const BufferGeometry: Ctor
+export const ShaderMaterial: Ctor
+export const Camera: Ctor
+export const Vector2: Ctor
+export const GLSL3: string
+export const NoColorSpace: string
 export const Float32BufferAttribute: Ctor

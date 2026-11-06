@@ -255,3 +255,178 @@ test('?gl=0 keeps the CSS reader', async ({ page }) => {
   await expect(reader).toHaveAttribute('data-view', '2')
   await expect(reader.getByTestId('ps-leaf')).toHaveCount(0)
 })
+
+// site-stand-v6 G (D28): the phone Page turn draws its sheets in WebGL (`pt-gl`), at rest too; the DOM sheets stay hidden
+test.describe('phone 390×844: page turn GL', () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  })
+  const turnUrl = (gl: boolean) =>
+    `/uikit/#/full/site-demo-6?book=lake-trip${gl ? '' : '&gl=0'}&reader=turn`
+  const near = (a: number, b: number, d = 0.5) => {
+    expect(Math.abs(a - b), `${String(a)} ≈ ${String(b)}`).toBeLessThanOrEqual(
+      d,
+    )
+  }
+  /** Next (a 600 ms turn, the label moves at its commit) until the label reads `label`; then the stage rests */
+  async function nextTo(page: Page, label: string) {
+    const room = page.getByTestId('ss-reader-page')
+    const lbl = room.getByTestId('ss-label')
+    while ((await lbl.innerText()) !== label) {
+      const was = await lbl.innerText()
+      await room.getByTestId('ss-next').click()
+      await expect(lbl).not.toHaveText(was)
+    }
+    await expect(room.getByTestId('pt-stage')).toHaveAttribute('data-xm', '')
+  }
+  /** a held one-finger touch (CDP) */
+  async function touch(page: Page, x: number, y: number) {
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x, y, id: 1 }],
+    })
+    let at = { x, y }
+    return {
+      async move(tx: number, ty: number) {
+        const from = at
+        for (let i = 1; i <= 12; i++) {
+          at = {
+            x: from.x + ((tx - from.x) * i) / 12,
+            y: from.y + ((ty - from.y) * i) / 12,
+          }
+          await cdp.send('Input.dispatchTouchEvent', {
+            type: 'touchMove',
+            touchPoints: [{ ...at, id: 1 }],
+          })
+        }
+      },
+      async up() {
+        await cdp.send('Input.dispatchTouchEvent', {
+          type: 'touchEnd',
+          touchPoints: [],
+        })
+        await cdp.detach()
+      },
+    }
+  }
+  /** mean |Δ| per channel of two same-size images */
+  const meanDelta = (a: Img, b: Img) => {
+    const s = [0, 0, 0]
+    for (let i = 0; i < a.w * a.h; i++)
+      for (let c = 0; c < 3; c++)
+        s[c] =
+          (s[c] ?? 0) + Math.abs((a.a[4 * i + c] ?? 0) - (b.a[4 * i + c] ?? 0))
+    return s.map((v) => v / (a.w * a.h))
+  }
+  const differing = (a: Img, b: Img) => {
+    let n = 0
+    for (let i = 0; i < a.w * a.h; i++)
+      if (Math.abs(lumAt(a, i) - lumAt(b, i)) > 8) n++
+    return n / (a.w * a.h)
+  }
+
+  test('the canvas draws the sheet at rest as the DOM does, the curl under a drag, a flat sheet after the commit', async ({
+    page,
+  }) => {
+    const errors = collectErrors(page)
+    await page.goto(turnUrl(true))
+    const room = page.getByTestId('ss-reader-page')
+    const stage = room.getByTestId('pt-stage')
+    const lbl = room.getByTestId('ss-label')
+    const canvas = stage.getByTestId('pt-gl')
+    await expect(stage).toHaveAttribute('data-gl', '1', { timeout: 3000 })
+    const c = await box(canvas)
+    near(c.x, 0)
+    near(c.y, 174.25)
+    near(c.width, 390)
+    near(c.height, 495.5)
+    await expect(canvas).toBeVisible()
+    for (const s of await stage.getByTestId('pt-sheet').all())
+      await expect(s).toHaveCSS('visibility', 'hidden')
+
+    // the title page's paper (Page 1), 40 × 40 above the title
+    await expect(lbl).toHaveText('Page 1 of 22')
+    const s = await box(stage)
+    const title = lums(
+      await shot(page, { x: 40, y: s.y + 40, width: 40, height: 40 }),
+    )
+    const tMean = title.reduce((a, v) => a + v, 0) / title.length
+    expect(tMean).toBeGreaterThanOrEqual(250)
+
+    // at rest on Page 4 = the DOM sheet at gl=0
+    await nextTo(page, 'Page 4 of 22')
+    await expect(canvas).toBeVisible()
+    const clip = { x: 0, y: s.y, width: 390, height: s.height }
+    const glRest = await shot(page, clip)
+    const dom = await page.context().newPage()
+    await dom.goto(turnUrl(false))
+    await expect(dom.getByTestId('pt-stage')).toHaveAttribute('data-gl', '0')
+    await nextTo(dom, 'Page 4 of 22')
+    let delta = [255, 255, 255]
+    await expect
+      .poll(async () => {
+        delta = meanDelta(glRest, await shot(dom, clip))
+        return Math.max(...delta)
+      })
+      .toBeLessThanOrEqual(3)
+    await dom.close()
+
+    // a held edge drag 370 → 200 on Page 5: the flipped back at (221, 420), the stage differs from rest
+    await nextTo(page, 'Page 5 of 22')
+    await expect(canvas).toBeVisible()
+    const rest = await shot(page, clip)
+    const f = await touch(page, 370, 420)
+    await f.move(200, 420)
+    await expect
+      .poll(async () => Number(await stage.getAttribute('data-xm')))
+      .toBeCloseTo(222.4, 0)
+    await expect(stage).toHaveAttribute('data-gl', '1')
+    await expect(stage.getByTestId('pt-flap')).toHaveCount(0)
+    const held = await shot(page, clip)
+    const back = lumAt(
+      await shot(page, { x: 221, y: 420, width: 1, height: 1 }),
+      0,
+    )
+    expect(back).toBeGreaterThanOrEqual(200)
+    expect(back).toBeLessThanOrEqual(250)
+    const diff = differing(rest, held)
+    expect(diff).toBeGreaterThanOrEqual(0.05)
+    await page.screenshot({ path: test.info().outputPath('turn-gl-held.png') })
+
+    // on past half way and released: the next slide, the canvas a flat sheet again
+    await f.move(30, 420)
+    await f.up()
+    await expect(lbl).toHaveText('Page 6 of 22')
+    await expect(stage).toHaveAttribute('data-xm', '')
+    await expect(canvas).toBeVisible()
+    const after = await shot(page, clip)
+    // flat: the margins left and right of the sheet are the room's again, as at rest
+    for (const x of [4, 384]) {
+      const col = (m: Img) => ({
+        w: 1,
+        h: m.h,
+        a: Array.from({ length: m.h }, (_, y) =>
+          m.a.slice(4 * (y * m.w + x), 4 * (y * m.w + x) + 4),
+        ).flat(),
+      })
+      expect(Math.max(...meanDelta(col(rest), col(after)))).toBeLessThanOrEqual(
+        1,
+      )
+    }
+    test.info().annotations.push({
+      type: 'paint',
+      description: `title paper lum ${tMean.toFixed(1)}; rest vs gl=0 mean |Δ| ${delta.map((v) => v.toFixed(2)).join('/')}; held back lum ${back.toFixed(1)}, ${(diff * 100).toFixed(1)} % of the stage differs`,
+    })
+    expect(errors).toEqual([])
+  })
+
+  test('gl=0: no canvas, the CSS fold', async ({ page }) => {
+    await page.goto(turnUrl(false))
+    const stage = page.getByTestId('pt-stage')
+    await expect(stage).toHaveAttribute('data-gl', '0')
+    await expect(stage.getByTestId('pt-gl')).toHaveCount(0)
+  })
+})

@@ -11,7 +11,7 @@
 import * as React from "react"
 import { CoverFace, ENDPAPER, SpreadArt, TitlePage } from "../site-demo-1/art"
 import { pagesOf, SPREAD_R, src, viewLabel, viewsOf, type SiteBook } from "../site-demo-1/data"
-import { OpenBook } from "./gl/open"
+import { faceLook, OpenBook } from "./gl/open"
 import { drawInto, glWanted, loadThree, type Three } from "./gl/three"
 import { paperLayers } from "./paper"
 import "./reader.css"
@@ -214,14 +214,11 @@ function ReaderGl({ b, a, th, W, H, box, s, dark, board, bend, label, fade, onFa
   const pagePx = W >= 1600 ? 2048 : 1024
   React.useEffect(() => {
     let dead = false, book: OpenBook | undefined
-    const el = root.current!, cs = getComputedStyle(el), pc = getComputedStyle(probe.current ?? el)
-    const num = (v: string, d: number) => (Number.isFinite(parseFloat(v)) ? parseFloat(v) : d)
-    const title = { family: pc.fontFamily, weight: pc.fontWeight, style: pc.fontStyle, variation: pc.fontVariationSettings, k: 0.14, ls: num(cs.getPropertyValue("--cover-ls"), -0.02) }
-    const css = (p: string, d: string) => cs.getPropertyValue(p).trim() || d
+    const look = faceLook(root.current!, probe.current)
     void (async () => {
       try {
         const T = await loadThree()
-        book = await OpenBook.create(T, b, { dark: !!dark, board, bend, pagePx, title, body: cs.fontFamily, ink: css("--site-ink", "#2E2C2D"), muted: css("--site-muted", "#8A8580") })
+        book = await OpenBook.create(T, b, { dark: !!dark, board, bend, pagePx, ...look })
         if (dead) { book.dispose(); return }
         book.onChange = () => setTick((t) => t + 1)
         setGl({ T, book })

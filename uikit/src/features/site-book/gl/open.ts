@@ -37,8 +37,52 @@ function curve(W: number, y0: number, angle: (t: number) => number) {
 }
 
 /** the page faces' look: fonts and colours read from the page (TitlePage), texture width per page */
-export type OpenLook = { dark: boolean; board: string; bend: boolean; pagePx: number; title: TitleFont; body: string; ink: string; muted: string }
-type Face = { v: number; side: 0 | 1 }
+export type OpenLook = { dark: boolean; board: string; bend: boolean } & FaceLook
+export type FaceLook = { pagePx: number; title: TitleFont; body: string; ink: string; muted: string }
+export type Face = { v: number; side: 0 | 1 }
+
+/** the faces' fonts and colours as the page sets them: `el` carries the site's variables, `probe` the title class (`sd-it`) */
+export function faceLook(el: HTMLElement, probe: HTMLElement | null): Omit<FaceLook, "pagePx"> {
+  const cs = getComputedStyle(el), pc = getComputedStyle(probe ?? el)
+  const num = (v: string, d: number) => (Number.isFinite(parseFloat(v)) ? parseFloat(v) : d)
+  const css = (p: string, d: string) => cs.getPropertyValue(p).trim() || d
+  return {
+    title: { family: pc.fontFamily, weight: pc.fontWeight, style: pc.fontStyle, variation: pc.fontVariationSettings, k: 0.14, ls: num(cs.getPropertyValue("--cover-ls"), -0.02) },
+    body: cs.fontFamily, ink: css("--site-ink", "#2E2C2D"), muted: css("--site-muted", "#8A8580"),
+  }
+}
+
+/** a page face as a canvas on `paper`: the spread's frames (LAST for the single last page), the title page or the
+   endpaper, grain ±2.5 lum per 2-texel cell over paper and photos */
+export async function faceCanvas(b: SiteBook, look: FaceLook, { v, side }: Face, paper: string) {
+  const PW = look.pagePx, PH = Math.round((PW * b.h) / b.w), c = cv(PW, PH), x = ctx(c), k = v - 1
+  const s = k >= 1 && k <= b.spreads.length ? b.spreads[k - 1] : null
+  const endpaper = v === 1 ? side === 0 : !s || (side === 1 && s.template === "last")
+  x.fillStyle = endpaper ? ENDPAPER : paper
+  x.fillRect(0, 0, PW, PH)
+  if (v === 1 && side === 1) {
+    const f = look.title, fs = PH * 0.055, fs2 = Math.max((12 * PH) / 600, PH * 0.018), gap = PH * 0.025
+    const font = `${f.style} ${f.weight} ${fs}px ${f.family}`, font2 = `400 ${fs2}px ${look.body}`
+    await Promise.all([document.fonts.load(font, b.title), document.fonts.load(font2, AUTHOR)]).catch(() => [])
+    const top = (PH - fs - gap - fs2) / 2
+    x.textAlign = "center"; x.textBaseline = "top"
+    x.font = font; x.fillStyle = look.ink
+    if ("letterSpacing" in x) x.letterSpacing = `${f.ls * fs}px`
+    x.fillText(b.title, PW / 2, top)
+    x.font = font2; x.fillStyle = look.muted
+    if ("letterSpacing" in x) x.letterSpacing = `${0.2 * fs2}px`
+    x.fillText(`${AUTHOR.toUpperCase()} · ${b.year}`, PW / 2, top + fs + gap)
+  } else if (s && !endpaper) {
+    const frames = s.template === "last" ? [LAST] : template(s.template).frames
+    const ims = await Promise.all(frames.map((_, i) => (s.photos[i] ? photo(s.photos[i]).catch(() => null) : null)))
+    frames.forEach((f, i) => {
+      const im = ims[i]
+      if (im) coverAt(x, im, (f.x / 100) * 2 * PW - side * PW, (f.y / 100) * PH, (f.w / 100) * 2 * PW, (f.h / 100) * PH)
+    })
+  }
+  grain(x, PW, PH, 5, 2)
+  return c
+}
 type Mats = { front: Any; back: Any; tex: Any }
 
 export class OpenBook {
@@ -107,36 +151,8 @@ export class OpenBook {
     return { tex: t, front: new T.MeshStandardMaterial({ ...p, side: T.FrontSide }), back: new T.MeshStandardMaterial({ ...p, side: T.BackSide }) }
   }
 
-  /** a page face as a canvas: paper, the spread's frames (LAST for the single last page), the title page or the endpaper,
-     grain ±7 lum per pixel over paper and photos */
-  private async face({ v, side }: Face) {
-    const b = this.b, PW = this.look.pagePx, PH = Math.round((PW * b.h) / b.w), c = cv(PW, PH), x = ctx(c), k = v - 1
-    const s = k >= 1 && k <= b.spreads.length ? b.spreads[k - 1] : null
-    const endpaper = v === 1 ? side === 0 : !s || (side === 1 && s.template === "last")
-    x.fillStyle = endpaper ? ENDPAPER : PAPER
-    x.fillRect(0, 0, PW, PH)
-    if (v === 1 && side === 1) {
-      const f = this.look.title, fs = PH * 0.055, fs2 = Math.max((12 * PH) / 600, PH * 0.018), gap = PH * 0.025
-      const font = `${f.style} ${f.weight} ${fs}px ${f.family}`, font2 = `400 ${fs2}px ${this.look.body}`
-      await Promise.all([document.fonts.load(font, b.title), document.fonts.load(font2, AUTHOR)]).catch(() => [])
-      const top = (PH - fs - gap - fs2) / 2
-      x.textAlign = "center"; x.textBaseline = "top"
-      x.font = font; x.fillStyle = this.look.ink
-      if ("letterSpacing" in x) x.letterSpacing = `${f.ls * fs}px`
-      x.fillText(b.title, PW / 2, top)
-      x.font = font2; x.fillStyle = this.look.muted
-      if ("letterSpacing" in x) x.letterSpacing = `${0.2 * fs2}px`
-      x.fillText(`${AUTHOR.toUpperCase()} · ${b.year}`, PW / 2, top + fs + gap)
-    } else if (s && !endpaper) {
-      const frames = s.template === "last" ? [LAST] : template(s.template).frames
-      const ims = await Promise.all(frames.map((_, i) => (s.photos[i] ? photo(s.photos[i]).catch(() => null) : null)))
-      frames.forEach((f, i) => {
-        const im = ims[i]
-        if (im) coverAt(x, im, (f.x / 100) * 2 * PW - side * PW, (f.y / 100) * PH, (f.w / 100) * 2 * PW, (f.h / 100) * PH)
-      })
-    }
-    grain(x, PW, PH, 5, 2)
-    return c
+  private face(f: Face) {
+    return faceCanvas(this.b, this.look, f, PAPER)
   }
 
   /** the materials of a face; the paper placeholder until its canvas lands */
