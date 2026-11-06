@@ -19,5 +19,7 @@
 | `src/editor/export/exportSiteRun.test.ts`    | unit: request carries bundle |
 | `src/editor/export/startExportSite.ts`       | wire loader                  |
 | `src/editor/export/startExportSite.test.ts`  | unit                         |
-| `src/site/export/buildSiteTree.test.ts`      | output holds viewer files    |
+| `src/site/export/site-export.worker.test.ts` | request viewer → dist/viewer |
 | `e2e/static-export-viewer.spec.ts`           | served dist, both sizes      |
+| `e2e/fixtures/siteExport.ts`                 | shared folder/export helpers |
+| `e2e/static-export.spec.ts`                  | uses the shared helpers      |

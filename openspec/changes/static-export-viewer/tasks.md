@@ -9,3 +9,5 @@
 ## Manual test scenarios
 
 1. Export site into a folder, serve `dist/` statically, open a book page: styled viewer, next page turns.
+
+OK (automated): `e2e/static-export-viewer.spec.ts` exports the painter fixture, serves `dist/` with a plain node static server and passes at 390×844 and 1440×900 (field paints #e1e1e1, pager control rgb(215, 215, 215), Next spread turns the indicator, 0 console errors, 0 failed requests). `pnpm agent manual-qa` drives the editor origin only and cannot serve an exported folder.
