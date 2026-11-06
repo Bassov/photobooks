@@ -177,6 +177,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [prep] [print-profiles](roadmap/P4/print-profiles.md) — printer data
 - [ ] [prep] [preflight-core](roadmap/P4/preflight-core.md) — pure preflight
 - [ ] [prep] [pdf-painter](roadmap/P4/pdf-painter.md) — worker PDF painter (Security Review: dependency)
+- [ ] [feature] [kit-preview-fold-strip](roadmap/P4/kit-preview-fold-strip.md) — Bug: /next-roadmap-item kit-preview-fold-strip
 - [ ] [prep] [pdf-color-tagging](roadmap/P4/pdf-color-tagging.md) — keep photo colors
 - [ ] [feature] [pdf-export](roadmap/P4/pdf-export.md) — print PDF
 - [ ] [prep] [pdf-captions](roadmap/P4/pdf-captions.md) — text in the PDF
