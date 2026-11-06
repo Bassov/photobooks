@@ -138,36 +138,55 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [page-numbers-kit](roadmap/P2/page-numbers-kit.md) — Bug: /next-roadmap-item page-numbers-kit
 - [x] [feature] [page-numbers-core](roadmap/P2/page-numbers-core.md) — Bug: /next-roadmap-item page-numbers-core
 - [ ] [feature] [user-templates](roadmap/P2/user-templates.md) — your own layouts
+- [ ] [feature] [site-awards-demos](roadmap/P2/site-awards-demos.md) — Bug: /next-roadmap-item site-awards-demos
 
 ## P3 — Personal site
 
 **Review cut:** your own live site with your books: viewer, lightbox, preview, publish, site and hosting settings, at 60 fps on a phone and a 27″ 4K screen.
 
 - [x] [prep] [image-derivatives](roadmap/P3/image-derivatives.md) — web image pipeline
+- [ ] [feature] [stand-v2-demo9](roadmap/P3/stand-v2-demo9.md) — Bug: /next-roadmap-item stand-v2-demo9
 - [ ] [prep] [avif-encoder](roadmap/P3/avif-encoder.md) — AVIF derivatives (Security Review: dependency)
 - [x] [prep] [publish-revisions](roadmap/P3/publish-revisions.md) — draft vs published
+- [ ] [feature] [stand-v3-demo6](roadmap/P3/stand-v3-demo6.md) — Bug: /next-roadmap-item stand-v3-demo6
+- [ ] [feature] [stand-v3-demo9](roadmap/P3/stand-v3-demo9.md) — Bug: /next-roadmap-item stand-v3-demo9
 - [ ] [feature] [static-export-closeout](roadmap/P3/static-export-closeout.md) — Bug: /next-roadmap-item static-export-closeout
 - [x] [feature] [user-templates-store](roadmap/P3/user-templates-store.md) — Bug: /next-roadmap-item user-templates-store
+- [ ] [feature] [stand-v4-drop-demo7](roadmap/P3/stand-v4-drop-demo7.md) — Bug: /next-roadmap-item stand-v4-drop-demo7
 - [ ] [feature] [user-templates-picker](roadmap/P3/user-templates-picker.md) — Bug: /next-roadmap-item user-templates-picker
 - [ ] [feature] [design-r20-kit-mod-arrows](roadmap/P3/design-r20-kit-mod-arrows.md) — Bug: /next-roadmap-item design-r20-kit-mod-arrows
+- [ ] [feature] [stand-v4-demo9](roadmap/P3/stand-v4-demo9.md) — Bug: /next-roadmap-item stand-v4-demo9
 - [ ] [feature] [user-templates-best-fit](roadmap/P3/user-templates-best-fit.md) — Bug: /next-roadmap-item user-templates-best-fit
 - [ ] [feature] [site-viewer](roadmap/P3/site-viewer.md) — viewer entry
+- [ ] [feature] [stand-v4-reader](roadmap/P3/stand-v4-reader.md) — Bug: /next-roadmap-item stand-v4-reader
 - [ ] [feature] [site-lightbox-kit](roadmap/P3/site-lightbox-kit.md) — Bug: /next-roadmap-item site-lightbox-kit
 - [x] [feature] [site-viewer-render](roadmap/P3/site-viewer-render.md) — Bug: /next-roadmap-item site-viewer-render
+- [ ] [feature] [stand-v5-home6](roadmap/P3/stand-v5-home6.md) — Bug: /next-roadmap-item stand-v5-home6
 - [x] [feature] [site-viewer-kit](roadmap/P3/site-viewer-kit.md) — Bug: /next-roadmap-item site-viewer-kit
 - [ ] [feature] [site-preview-mode](roadmap/P3/site-preview-mode.md) — preview the site from the editor
 - [ ] [feature] [site-lightbox](roadmap/P3/site-lightbox.md) — fullscreen and swipe
 - [ ] [feature] [stand-v6-turn](roadmap/P3/stand-v6-turn.md) — Bug: /next-roadmap-item stand-v6-turn
+- [ ] [feature] [site-stand-fresh-c](roadmap/P3/site-stand-fresh-c.md) — Bug: /next-roadmap-item site-stand-fresh-c
+- [ ] [feature] [site-stand-sys](roadmap/P3/site-stand-sys.md) — Bug: /next-roadmap-item site-stand-sys
+- [ ] [feature] [stand-v5-reader-port](roadmap/P3/stand-v5-reader-port.md) — Bug: /next-roadmap-item stand-v5-reader-port
+- [ ] [feature] [stand-v5-reader-land](roadmap/P3/stand-v5-reader-land.md) — Bug: /next-roadmap-item stand-v5-reader-land
 - [ ] [feature] [site-preview-embed](roadmap/P3/site-preview-embed.md) — Bug: /next-roadmap-item site-preview-embed
 - [x] [prep] [static-export-core](roadmap/P3/static-export-core.md) — deterministic site tree
 - [x] [feature] [static-export-writer](roadmap/P3/static-export-writer.md) — Bug: /next-roadmap-item static-export-writer
+- [ ] [feature] [site-stand-book3d](roadmap/P3/site-stand-book3d.md) — Bug: /next-roadmap-item site-stand-book3d
+- [ ] [feature] [site-stand-reader](roadmap/P3/site-stand-reader.md) — Bug: /next-roadmap-item site-stand-reader
 - [ ] [feature] [static-export-kit](roadmap/P3/static-export-kit.md) — Bug: /next-roadmap-item static-export-kit
 - [ ] [feature] [static-export](roadmap/P3/static-export.md) — write `dist/`
+- [ ] [feature] [site-stand-pager-room](roadmap/P3/site-stand-pager-room.md) — Bug: /next-roadmap-item site-stand-pager-room
 - [ ] [prep] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
 - [x] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
+- [ ] [feature] [stand-v2-gl-reader](roadmap/P3/stand-v2-gl-reader.md) — Bug: /next-roadmap-item stand-v2-gl-reader
+- [ ] [feature] [stand-v2-demo6](roadmap/P3/stand-v2-demo6.md) — Bug: /next-roadmap-item stand-v2-demo6
 - [ ] [feature] [site-preview-mode-kit](roadmap/P3/site-preview-mode-kit.md) — kit Preview opens the site book page (Designer site-preview-mode item 1)
 - [ ] [feature] [kit-undo-fixes](roadmap/P3/kit-undo-fixes.md) — Bug: /next-roadmap-item kit-undo-fixes
 - [ ] [feature] [publish-credentials](roadmap/P3/publish-credentials.md) — connect the editor to your hosting (Security Review)
+- [ ] [feature] [stand-v2-site](roadmap/P3/stand-v2-site.md) — Bug: /next-roadmap-item stand-v2-site
+- [ ] [feature] [stand-v2-gl-core](roadmap/P3/stand-v2-gl-core.md) — Bug: /next-roadmap-item stand-v2-gl-core
 - [ ] [feature] [in-app-publish](roadmap/P3/in-app-publish.md) — publish button (Security Review)
 - [ ] [feature] [site-settings](roadmap/P3/site-settings.md) — personalize the showcase
 
@@ -211,6 +230,8 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [printer-presets-kit-book](roadmap/P5/printer-presets-kit-book.md) — Bug: /next-roadmap-item printer-presets-kit-book
 - [ ] [lite] [deps-dev-knip-relink](roadmap/P5/deps-dev-knip-relink.md) — Bug: /next-roadmap-item deps-dev-knip-relink
 - [ ] [feature] [spread-thumb-grey-backing](roadmap/P5/spread-thumb-grey-backing.md) — Bug: /next-roadmap-item spread-thumb-grey-backing
+- [ ] [feature] [site-fresh-c](roadmap/P5/site-fresh-c.md) — Bug: /next-roadmap-item site-fresh-c
+- [ ] [feature] [site-stand](roadmap/P5/site-stand.md) — Bug: /next-roadmap-item site-stand
 - [ ] [feature] [page-count-mismatch](roadmap/P5/page-count-mismatch.md) — Bug: /next-roadmap-item page-count-mismatch
 - [ ] [feature] [e2e-paint-probe](roadmap/P5/e2e-paint-probe.md) — Bug: /next-roadmap-item e2e-paint-probe
 - [ ] [feature] [kit-gaps](roadmap/P5/kit-gaps.md) — Bug: /next-roadmap-item kit-gaps
