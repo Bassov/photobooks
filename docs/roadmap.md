@@ -144,6 +144,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 **Review cut:** your own live site with your books: viewer, lightbox, preview, publish, site and hosting settings, at 60 fps on a phone and a 27″ 4K screen.
 
 - [x] [prep] [image-derivatives](roadmap/P3/image-derivatives.md) — web image pipeline
+- [ ] [feature] [stand-v2-demo9](roadmap/P3/stand-v2-demo9.md) — Bug: /next-roadmap-item stand-v2-demo9
 - [ ] [prep] [avif-encoder](roadmap/P3/avif-encoder.md) — AVIF derivatives (Security Review: dependency)
 - [x] [prep] [publish-revisions](roadmap/P3/publish-revisions.md) — draft vs published
 - [x] [feature] [user-templates-store](roadmap/P3/user-templates-store.md) — Bug: /next-roadmap-item user-templates-store
