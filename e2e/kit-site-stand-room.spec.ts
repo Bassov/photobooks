@@ -664,11 +664,37 @@ test.describe('phone 844×390', () => {
       near(c.height, want.height, 1)
     }
     await fits()
+    // every frame with the leaf up, the page records the canvas box (a starved poll can miss a whole turn)
+    await page.evaluate(() => {
+      const w = window as unknown as { __turnBoxes: number[][] }
+      w.__turnBoxes = []
+      const tick = () => {
+        const c = document.querySelector('[data-testid="ps-reader-canvas"]')
+        if (c && document.querySelector('[data-testid="ps-leaf"]')) {
+          const r = c.getBoundingClientRect()
+          w.__turnBoxes.push([r.x, r.y, r.width, r.height])
+        } else if (w.__turnBoxes.length) return
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
     await page.getByTestId('ss-next').click()
-    await expect(page.getByTestId('ps-leaf')).toHaveCount(1)
-    await fits()
     await expect(page.getByTestId('ss-label')).toHaveText('Pages 2–3 of 22')
+    await expect(page.getByTestId('ps-reader')).toHaveAttribute(
+      'data-turn',
+      'rest',
+    )
     await expect(page.getByTestId('ps-leaf')).toHaveCount(0)
+    const turnBoxes = await page.evaluate(
+      () => (window as unknown as { __turnBoxes: number[][] }).__turnBoxes,
+    )
+    expect(turnBoxes.length).toBeGreaterThan(0)
+    for (const [x = 0, y = 0, width = 0, height = 0] of turnBoxes) {
+      near(x, want.x, 1)
+      near(y, want.y, 1)
+      near(width, want.width, 1)
+      near(height, want.height, 1)
+    }
     await fits()
     const rb2 = await box(reader)
     near(rb2.x, rb.x)
