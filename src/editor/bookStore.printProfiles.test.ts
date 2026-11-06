@@ -8,6 +8,7 @@ import {
 import {
   getBookPrintProfiles,
   getSpreadPaintSnapshot,
+  isBulkRepaint,
   resetBookStore,
   setBookPrintProfiles,
   subscribeBookStore,
@@ -49,6 +50,43 @@ describe('bookStore print profiles (low-res gates)', () => {
     expect(getSpreadPaintSnapshot('s1')).not.toBe(before)
     stopSpread()
     stopStore()
+  })
+
+  it('repaints when only Warn under or only Minimum changes', () => {
+    seed()
+    for (const dpi of [
+      { ...CUSTOM.dpi, warn: CUSTOM.dpi.warn + 1 },
+      { ...CUSTOM.dpi, min: CUSTOM.dpi.min + 1 },
+    ]) {
+      setBookPrintProfiles([])
+      const store = vi.fn()
+      const stop = subscribeBookStore(store)
+      setBookPrintProfiles([{ ...CUSTOM, dpi }])
+      expect(store).toHaveBeenCalledTimes(1)
+      stop()
+    }
+  })
+
+  it('defers the repaint past 8 spreads only', () => {
+    for (const count of [8, 9]) {
+      resetBookStore({
+        book: setPrintProfile(
+          makeBook({
+            spreads: Array.from({ length: count }, (_, i) =>
+              makeSpread({ id: `s${String(i)}` }),
+            ),
+          }),
+          CUSTOM.id,
+          [CUSTOM],
+        ),
+        sessionMeta: new Map(),
+        importRunning: false,
+        importExpectedCount: 0,
+      })
+      setBookPrintProfiles([{ ...CUSTOM, dpi: { warn: 120, min: 60 } }])
+      expect(isBulkRepaint()).toBe(count > 8)
+      setBookPrintProfiles([])
+    }
   })
 
   it('keeps the paint when the gates stay the same', () => {

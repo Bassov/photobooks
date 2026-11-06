@@ -125,6 +125,46 @@ describe('Settings → Print presets', () => {
     expect(getPrintProfiles()[0]?.dpi.min).toBe(100)
   })
 
+  it('draws kit field boxes: width, unit, ring on error, aria-invalid', () => {
+    savePrintProfile(CUSTOM)
+    renderSection()
+    fireEvent.click(screen.getByTestId(`print-edit-${CUSTOM.id}`))
+    const box = (key: string) => screen.getByTestId(`pp-${key}`)
+    expect(box('bleed').style.width).toBe('96px')
+    expect(box('pStep').style.width).toBe('64px')
+    expect(box('bleed').textContent).toBe('mm')
+    expect(box('pMin').querySelector('span')).toBeNull()
+    expect(box('dpiMin').textContent).toBe('ppi')
+    expect(box('bleed').className).toContain('shadow-xs')
+    expect(box('bleed').className).not.toContain('ring-[#a8403a]')
+    expect(input('Bleed').getAttribute('aria-invalid')).toBeNull()
+    expect(input('Name').getAttribute('aria-invalid')).toBeNull()
+    expect(box('name').className).not.toContain('ring-[#a8403a]')
+    type('Bleed', 'x')
+    type('Name', '')
+    expect(box('bleed').className).toContain('ring-[#a8403a]')
+    expect(box('bleed').className).not.toContain('shadow-xs')
+    expect(box('name').className).toContain('ring-[#a8403a]')
+    expect(input('Name').getAttribute('aria-invalid')).toBe('true')
+  })
+
+  it('saves on Enter in a field only; Escape cancels', () => {
+    savePrintProfile(CUSTOM)
+    renderSection()
+    fireEvent.click(screen.getByTestId(`print-edit-${CUSTOM.id}`))
+    type('Name', 'Renamed')
+    fireEvent.keyDown(input('Name'), { key: 'a' })
+    fireEvent.keyDown(screen.getByText('Cancel'), { key: 'Enter' })
+    expect(getPrintProfiles()[0]?.name).toBe(CUSTOM.name)
+    expect(fireEvent.keyDown(input('Name'), { key: 'Enter' })).toBe(false)
+    expect(getPrintProfiles()[0]?.name).toBe('Renamed')
+    fireEvent.click(screen.getByTestId(`print-edit-${CUSTOM.id}`))
+    type('Name', 'Dropped')
+    fireEvent.keyDown(input('Name'), { key: 'Escape' })
+    expect(screen.queryByTestId('print-profile-dialog')).toBeNull()
+    expect(getPrintProfiles()[0]?.name).toBe('Renamed')
+  })
+
   it('shows a table spine as a read-only range', () => {
     savePrintProfile({
       ...CUSTOM,
@@ -174,6 +214,32 @@ describe('Settings → Print presets', () => {
       defaultId: 'generic',
     })
     expect(screen.getByTestId('print-custom-empty')).toBeTruthy()
+  })
+
+  it('rules between customs only, one Default badge, copy names skip taken ones', () => {
+    savePrintProfile({ ...CUSTOM, name: 'Generic (copy)' })
+    savePrintProfile({ ...CUSTOM, id: 'custom-b', name: 'B' })
+    renderSection()
+    expect(document.querySelectorAll('hr')).toHaveLength(1)
+    expect(screen.getAllByText('Default')).toHaveLength(1)
+    expect(screen.getByTestId('print-default').style.width).toBe('240px')
+    fireEvent.click(screen.getByTestId('print-duplicate-generic'))
+    expect(getPrintProfiles().map((p) => p.name)).toEqual([
+      'Generic (copy)',
+      'B',
+      'Generic (copy 2)',
+    ])
+  })
+
+  it('deleting a non-default says nothing of Generic; Cancel keeps it', () => {
+    savePrintProfile(CUSTOM)
+    renderSection()
+    fireEvent.click(screen.getByTestId(`print-more-${CUSTOM.id}`))
+    fireEvent.click(screen.getByText('Delete…'))
+    expect(screen.getByText('Books that use it keep its values.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByText(`Delete “${CUSTOM.name}”?`)).toBeNull()
+    expect(getPrintProfiles()).toEqual([CUSTOM])
   })
 
   it('More → Duplicate copies a custom profile', () => {

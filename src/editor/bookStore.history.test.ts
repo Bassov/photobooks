@@ -309,6 +309,9 @@ describe('bookStore history: page numbers', () => {
     expect(getBookStoreSnapshot().book.settings.safeMarginMm).toBe(9)
     undoBook()
     expect(getBookStoreSnapshot().book.printProfile).toBe(before.printProfile)
+    expect('printProfile' in getBookStoreSnapshot().book).toBe(
+      'printProfile' in before,
+    )
     expect(getBookStoreSnapshot().book.settings).toEqual(before.settings)
     expect(getHistorySnapshot().canUndo).toBe(false)
     redoBook()

@@ -31,6 +31,7 @@ afterEach(() => {
   resetBookStore()
   setEditorStatus('')
   vi.restoreAllMocks()
+  vi.unstubAllEnvs()
 })
 
 type Library = ReturnType<typeof createMemoryLibraryStorage>
@@ -50,6 +51,12 @@ describe('copyName (D9)', () => {
     expect(
       copyName('Generic (copy 2)', ['Generic (copy)', 'Generic (copy 2)']),
     ).toBe('Generic (copy 3)')
+  })
+
+  it('strips only a trailing (copy) / (copy n), any number of digits', () => {
+    expect(copyName('Lab (copy)', [])).toBe('Lab (copy)')
+    expect(copyName('Lab (copy 12)', [])).toBe('Lab (copy)')
+    expect(copyName('Lab (copy) A', [])).toBe('Lab (copy) A (copy)')
   })
 })
 
@@ -152,8 +159,142 @@ describe('print profiles store', () => {
   it('seeds the kit sample once from ?printProfiles=kit', () => {
     seedPrintProfilesFromQuery('?printProfiles=other')
     expect(getPrintProfiles()).toEqual([])
+    const custom = makeCustomPrintProfile()
+    savePrintProfile(custom)
     seedPrintProfilesFromQuery('?printProfiles=kit')
+    seedPrintProfilesFromQuery('?printProfiles=kit')
+    expect(getPrintProfiles()).toEqual([custom, kitSampleProfile()])
+  })
+
+  it('seeds only in dev or a fixtures build', () => {
+    vi.stubEnv('DEV', false)
+    vi.stubEnv('VITE_TEST_FIXTURES', '0')
+    seedPrintProfilesFromQuery('?printProfiles=kit')
+    expect(getPrintProfiles()).toEqual([])
+    vi.stubEnv('VITE_TEST_FIXTURES', '1')
     seedPrintProfilesFromQuery('?printProfiles=kit')
     expect(getPrintProfiles()).toEqual([kitSampleProfile()])
+  })
+
+  it('is the kit sample: 15.2–30.5 cm, bleed and safe, 24–240 by 2, 300 / 150 ppi', () => {
+    expect(kitSampleProfile()).toEqual({
+      ...genericPrintProfile(),
+      id: 'custom-kit-sample',
+      name: 'Photo book 300 ppi',
+      basedOn: 'Generic',
+      trimMinMm: 152,
+      trimMaxMm: 305,
+      bleedMinMm: 5,
+      bleedMaxMm: 5,
+      safeMarginMm: 15,
+      pageCount: { min: 24, step: 2, max: 240 },
+      dpi: { warn: 300, min: 150 },
+    })
+  })
+
+  it('re-seeds from the page URL when a library (or none) is bound', async () => {
+    window.history.replaceState(null, '', '/?printProfiles=kit')
+    try {
+      await bindPrintProfilesLibrary(createMemoryLibraryStorage())
+      expect(getPrintProfiles()).toEqual([kitSampleProfile()])
+      await bindPrintProfilesLibrary(null)
+      expect(getPrintProfiles()).toEqual([kitSampleProfile()])
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('replaces only the saved profile and adds a new one after the others', () => {
+    const a = makeCustomPrintProfile()
+    const b = { ...makeCustomPrintProfile(), id: 'custom-b', name: 'B' }
+    savePrintProfile(a)
+    savePrintProfile(b)
+    savePrintProfile({ ...a, name: 'A2' })
+    expect(getPrintProfiles()).toEqual([{ ...a, name: 'A2' }, b])
+  })
+
+  it('deletes one profile and keeps a default it did not hold', () => {
+    const a = makeCustomPrintProfile()
+    const b = { ...makeCustomPrintProfile(), id: 'custom-b', name: 'B' }
+    savePrintProfile(a)
+    savePrintProfile(b)
+    setDefaultPrintProfileId(b.id)
+    deletePrintProfile(a.id)
+    expect(getPrintProfilesState()).toEqual({ customs: [b], defaultId: b.id })
+  })
+
+  it('stops notifying after unsubscribe; binding notifies', async () => {
+    const listener = vi.fn()
+    const stop = subscribePrintProfiles(listener)
+    await bindPrintProfilesLibrary(createMemoryLibraryStorage())
+    expect(listener).toHaveBeenCalled()
+    listener.mockClear()
+    await bindPrintProfilesLibrary(null)
+    expect(listener).toHaveBeenCalledTimes(1)
+    stop()
+    savePrintProfile(makeCustomPrintProfile())
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('rebinding the same library keeps its profiles', async () => {
+    const library = createMemoryLibraryStorage()
+    await bindPrintProfilesLibrary(library)
+    const custom = makeCustomPrintProfile()
+    savePrintProfile(custom)
+    await bindPrintProfilesLibrary(library)
+    expect(getPrintProfiles()).toEqual([custom])
+  })
+
+  it('a library bound meanwhile wins over a slower load', async () => {
+    const first = createMemoryLibraryStorage()
+    await bindPrintProfilesLibrary(first)
+    savePrintProfile(makeCustomPrintProfile())
+    await printProfilesSettled()
+    resetPrintProfilesForTests()
+    const second = createMemoryLibraryStorage()
+    void bindPrintProfilesLibrary(first)
+    await bindPrintProfilesLibrary(second)
+    expect(getPrintProfiles()).toEqual([])
+    const write = vi.spyOn(first, 'updateLibrary')
+    savePrintProfile(makeCustomPrintProfile())
+    await printProfilesSettled()
+    expect(write).not.toHaveBeenCalled()
+  })
+
+  it('an unreadable library.json keeps the session list and writes nothing', async () => {
+    const library = createMemoryLibraryStorage()
+    vi.spyOn(library, 'getLibrary').mockResolvedValue({
+      ok: false,
+      error: { kind: 'unknown' },
+    } as never)
+    const write = vi.spyOn(library, 'updateLibrary')
+    await bindPrintProfilesLibrary(library)
+    savePrintProfile(makeCustomPrintProfile())
+    await printProfilesSettled()
+    expect(getPrintProfiles()).toHaveLength(1)
+    expect(write).not.toHaveBeenCalled()
+  })
+
+  it('says so when library.json turns unreadable before a write; quiet on success', async () => {
+    const library = createMemoryLibraryStorage()
+    await bindPrintProfilesLibrary(library)
+    savePrintProfile(makeCustomPrintProfile())
+    await printProfilesSettled()
+    expect(getEditorStatus()).toBe('')
+    vi.spyOn(library, 'getLibrary').mockResolvedValue({
+      ok: false,
+      error: { kind: 'unknown' },
+    } as never)
+    setDefaultPrintProfileId('generic-x')
+    await printProfilesSettled()
+    expect(getEditorStatus()).toBe(
+      "Couldn't save print profiles to the library folder",
+    )
+  })
+
+  it('the test reset also clears the book store customs', () => {
+    savePrintProfile(makeCustomPrintProfile())
+    resetPrintProfilesForTests()
+    expect(getBookPrintProfiles()).toEqual([])
   })
 })

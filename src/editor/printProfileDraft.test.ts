@@ -125,6 +125,32 @@ describe('draftIssues', () => {
     ).toEqual({ pMin: 'Enter a number above 0.' })
   })
 
+  it('treats blank, infinite and negative text as no number, even where 0 is fine', () => {
+    for (const text of ['', ' ', 'Infinity', '-0.5']) {
+      expect(draftIssues(CUSTOM, { ...toDraft(CUSTOM), bleed: text })).toEqual({
+        bleed: 'Enter a number above 0.',
+      })
+    }
+    expect(draftIssues(CUSTOM, { ...toDraft(CUSTOM), bleed: '0.5' })).toEqual(
+      {},
+    )
+  })
+
+  it('checks the spine numbers of a formula spine', () => {
+    expect(draftIssues(CUSTOM, { ...toDraft(CUSTOM), spineBase: 'x' })).toEqual(
+      { spineBase: 'Enter a number above 0.' },
+    )
+  })
+
+  it('saves a trimmed name, and nothing while a core rule fails', () => {
+    expect(
+      savableProfile(CUSTOM, { ...toDraft(CUSTOM), name: '  Lab  ' })?.name,
+    ).toBe('Lab')
+    expect(
+      savableProfile(CUSTOM, { ...toDraft(CUSTOM), dpiMin: '400' }),
+    ).toBeUndefined()
+  })
+
   it('skips the spine numbers of a table spine', () => {
     const draft = { ...toDraft(TABLE), spineBase: 'x', spinePer: '' }
     expect(draftIssues(TABLE, draft)).toEqual({})
@@ -142,5 +168,7 @@ describe('printProfileOptions', () => {
     ])
     expect(printProfileOptions([CUSTOM], CUSTOM)).toHaveLength(2)
     expect(printProfileOptions([], genericPrintProfile())).toHaveLength(1)
+    const other = { ...CUSTOM, id: 'custom-other', name: 'Other' }
+    expect(printProfileOptions([other, CUSTOM], CUSTOM)).toHaveLength(3)
   })
 })

@@ -40,8 +40,8 @@
 | `src/editor/PrintPresetsSection.test.tsx`    | unit                         |
 | `src/editor/BookSettingsPrinter.test.tsx`    | unit                         |
 | `src/editor/bookStore.printProfiles.test.ts` | unit                         |
-| `src/editor/bookStore.history.test.ts`       | one undo step                |
-| `src/editor/SettingsScreen.test.tsx`         | nav                          |
+| `src/editor/bookStore.history.test.ts`       | one undo step                |     | `src/editor/SettingsScreen.test.tsx` | nav |
+| `src/ui/Select.test.tsx`                     | optgroups                    |
 | `src/editor/settingsScreenModel.test.ts`     | nav                          |
 | `e2e/printer-presets.spec.ts`                | e2e + perf gate              |
 | `e2e/library-screens.spec.ts`                | nav rows                     |
