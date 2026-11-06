@@ -15,3 +15,10 @@
 2. Editor: empty name, odd step, Minimum above Warn under → messages, Save disabled.
 3. Book settings → Printer: pick the custom; hint and B/S follow; Cmd+Z restores Generic.
 4. Delete the custom the book uses: the book keeps its values; a deleted default falls back to Generic.
+
+Manual QA (`pnpm agent manual-qa`): all 4 blocked by a harness problem, not product: the welcome header intercepts the start-session click (known). Covered instead by:
+
+- 1: problem (harness) — e2e `printer-presets` "Settings → Print presets matches the kit" + duplicate → save in the Book settings test; unit `PrintPresetsSection` Duplicate / New profile.
+- 2: problem (harness) — e2e `printer-presets` "Invalid values" editor (3 painted errors, Save disabled); unit `PrintPresetsSection` live errors, `printProfileDraft` odd step / Minimum rules.
+- 3: problem (harness) — e2e `printer-presets` pick "Generic (copy)" (hint, issue, B/S offsets, one undo step, Redo) and low-res marks follow the pick.
+- 4: problem (harness) — unit `PrintPresetsSection` delete after confirm with the Generic fallback, `printProfilesStore` default falls back to Generic; the book keeps its snapshot (`bookStore.history` / `printPresets` refresh tests).
