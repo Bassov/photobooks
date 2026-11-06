@@ -223,8 +223,9 @@ function PanelToggles() {
 }
 
 /* ---------------------------------------------------------------- mini spread (thumbnails) */
-/** `folios` (Preview slides): print the page numbers under the spread's own frames; spread-list thumbnails have none */
-export function MiniSpread({ s, width = 0, className, si, fill, folios }: { s: Spread; width?: number; className?: string; si?: number; fill?: boolean; folios?: boolean }) {
+/** `folios` (Preview slides): print the page numbers under the spread's own frames; spread-list thumbnails have none.
+    `page` (single-page Preview slides): clip to that page and drop the centre fold, which would paint a strip at its edge */
+export function MiniSpread({ s, width = 0, className, si, fill, folios, page }: { s: Spread; width?: number; className?: string; si?: number; fill?: boolean; folios?: boolean; page?: "l" | "r" }) {
   const st = useStudio()
   const [ref, setRef] = React.useState<HTMLDivElement | null>(null)
   const [fw, setFw] = React.useState(0)
@@ -242,11 +243,11 @@ export function MiniSpread({ s, width = 0, className, si, fill, folios }: { s: S
       ))
   return (
     <div ref={setRef} className={cn("relative shrink-0 overflow-hidden rounded-2xs shadow-thumb", fill && "size-full", className)} data-paper
-      style={{ ...(fill ? {} : { width, height: SH * sc }), background: s.bg ?? "var(--paper,#fff)", clipPath: si === 0 ? "inset(0 0 0 50%)" : undefined }}>
+      style={{ ...(fill ? {} : { width, height: SH * sc }), background: s.bg ?? "var(--paper,#fff)", clipPath: page === "l" ? "inset(0 50% 0 0)" : page === "r" || si === 0 ? "inset(0 0 0 50%)" : undefined }}>
       {frames(par?.frames ?? [])}
       <FolioMarks folios={fo} sc={sc} />
       {frames(s.frames)}
-      <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-black/10" />
+      {!page && <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-black/10" />}
     </div>
   )
 }

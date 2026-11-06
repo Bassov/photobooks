@@ -78,8 +78,8 @@ export function SiteViewer({ title = "Aleksandr’s photobooks", author = AUTHOR
   const coverFit = (w: number) => Math.min(w, (w / R) * coverR)
   // own: `w` is already the slide's own width (the lightbox fits the cover at coverR)
   const page = (i: number, w: number, own = false) => {
-    // the last spread shows its left page only (mirror of MiniSpread's si === 0 clip)
-    if (i > 0) return i === n && n > 1 ? <div style={{ clipPath: "inset(0 50% 0 0)" }}><MiniSpread s={sp[i - 1]} width={w} si={i - 1} /></div> : <MiniSpread s={sp[i - 1]} width={w} si={i - 1} />
+    // spread 0 shows its right page only, the last spread its left page: no centre fold at that page's edge
+    if (i > 0) return <MiniSpread s={sp[i - 1]} width={w} si={i - 1} page={i === 1 ? "r" : i === n ? "l" : undefined} />
     const cw = own ? w : coverFit(w)
     return <div className="mx-auto" style={{ width: cw }}>{cover ? cover(cw) : <div style={{ width: cw, height: (cw * st.book.h) / cvW }} data-testid="site-cover"><CoverSpread /></div>}</div>
   }
