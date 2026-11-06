@@ -146,6 +146,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [prep] [image-derivatives](roadmap/P3/image-derivatives.md) — web image pipeline
 - [ ] [prep] [avif-encoder](roadmap/P3/avif-encoder.md) — AVIF derivatives (Security Review: dependency)
 - [x] [prep] [publish-revisions](roadmap/P3/publish-revisions.md) — draft vs published
+- [ ] [feature] [static-export-closeout](roadmap/P3/static-export-closeout.md) — Bug: /next-roadmap-item static-export-closeout
 - [x] [feature] [user-templates-store](roadmap/P3/user-templates-store.md) — Bug: /next-roadmap-item user-templates-store
 - [ ] [feature] [user-templates-picker](roadmap/P3/user-templates-picker.md) — Bug: /next-roadmap-item user-templates-picker
 - [ ] [feature] [user-templates-best-fit](roadmap/P3/user-templates-best-fit.md) — Bug: /next-roadmap-item user-templates-best-fit
