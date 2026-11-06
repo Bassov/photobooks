@@ -718,18 +718,31 @@ test.describe('phone 390×844: demo 6', () => {
       // capOff = ceil(0.09 · 24 · 12) + 20 = 46
       [{ width: 390, height: 844 }, '1', 12, 614, 660],
     ] as const
+    const screen = page.locator('.ss6-screen').first()
+    // the second goto only changes the hash: the home re-lays out once its
+    // ResizeObserver sees the new viewport, so poll instead of reading once
+    const settled = async (s: number, F: number, cap: number) => {
+      await expect
+        .poll(
+          async () => (await box(screen.getByTestId('ss6-book'))).width / 24,
+        )
+        .toBeCloseTo(s, 1)
+      await expect
+        .poll(async () => (await box(screen.locator('.ss6-floor'))).y)
+        .toBeCloseTo(F, 0)
+      await expect
+        .poll(async () => (await box(screen.locator('.t13.g').first())).y)
+        .toBeCloseTo(cap, 0)
+    }
     for (const [vp, n, s, F, cap] of cases) {
       await page.setViewportSize(vp)
       await page.goto(`/uikit/#/full/site-demo-6?books=${n}`)
-      const screen = page.locator('.ss6-screen').first()
-      const bb = await box(screen.getByTestId('ss6-book'))
-      expect(bb.width / 24).toBeCloseTo(s, 1)
-      expect((await box(screen.locator('.ss6-floor'))).y).toBeCloseTo(F, 0)
-      expect((await box(screen.locator('.t13.g').first())).y).toBeCloseTo(
-        cap,
-        0,
-      )
+      await settled(s, F, cap)
     }
+    // the same numbers after a fresh load of the last case
+    await page.reload()
+    const [, , s, F, cap] = cases[1]
+    await settled(s, F, cap)
     expect(errors).toEqual([])
   })
 })
