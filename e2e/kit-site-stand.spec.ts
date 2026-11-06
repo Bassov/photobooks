@@ -645,23 +645,90 @@ for (const vp of VIEWPORTS)
         expect(await bays.locator('[data-kind="face"]').count()).toBe(
           await bays.count(),
         )
-        // the case is centred in columns 4–11 (493.33…1416 at 1440)
+        // site-stand-v4 D17: no side column or caption; the lead 104 from the top on the case's left edge,
+        // the case 40 below it, centred in the scroller, at most span 8 (891.33 at 1440) / 1100 wide
+        await expect(page.getByTestId('ss9-caption')).toHaveCount(0)
         const c = await box(page.getByTestId('ss9-case'))
-        expect(c.x).toBeGreaterThanOrEqual(493 - 0.5)
-        expect(c.x + c.width).toBeLessThanOrEqual(1416.5)
-        expect(
-          Math.abs(c.x + c.width / 2 - (493.33 + 1416) / 2),
-        ).toBeLessThanOrEqual(0.5)
+        const lead = await box(page.getByTestId('ss9-lead'))
+        expect(Math.abs(lead.y - 104)).toBeLessThanOrEqual(0.5)
+        expect(Math.abs(lead.x - c.x)).toBeLessThanOrEqual(0.5)
+        expect(Math.abs(c.y - (lead.y + lead.height + 40))).toBeLessThanOrEqual(
+          0.5,
+        )
+        const cw = await page
+          .getByTestId('ss9-home')
+          .evaluate((el) => el.clientWidth)
+        expect(Math.abs(c.x + c.width / 2 - cw / 2)).toBeLessThanOrEqual(0.5)
+        expect(c.width).toBeLessThanOrEqual(Math.min(891.33, 1100) + 0.5)
       })
 
-    // site-stand-v3 B2 / D11: a short case scales up to 14 px/cm and stands 72 px above the page bottom
+    // site-stand-v4 D17: Z = clamp(h/900 · 4/3, 1, 14/9) floors the scale, rows packed for min(span 8, 1100)/Z
     if (!phone)
-      for (const [n, rest] of [
-        [1, '1 book.'],
-        [3, '3 books.'],
-        [6, '6 books.'],
+      for (const [n, w, h, z, width] of [
+        [30, 1440, 900, 4 / 3, [890.7, 892.7]],
+        [100, 2000, 1011, 1.498, [0, 1100.5]],
       ] as const)
-        test(`books=${String(n)}: the case scales to z 1.556, ends 72 px above the bottom, no scroll`, async ({
+        test(`books=${String(n)} at ${String(w)}×${String(h)}: z ${z.toFixed(3)}, case within span 8 / 1100`, async ({
+          page,
+        }) => {
+          await page.setViewportSize({ width: w, height: h })
+          await page.goto(`/uikit/#/full/site-demo-9?books=${String(n)}`)
+          await expect(page.getByTestId('ss9-book')).toHaveCount(n)
+          const cs = page.getByTestId('ss9-case')
+          const zz = await cs.evaluate((el) =>
+            Number(el.style.getPropertyValue('--z')),
+          )
+          expect(Math.abs(zz - z)).toBeLessThanOrEqual(0.01)
+          const c = await box(cs)
+          // [min, max] case width
+          expect(c.width).toBeGreaterThanOrEqual(width[0])
+          expect(c.width).toBeLessThanOrEqual(width[1])
+        })
+
+    // site-stand-v4 D18–D19: the face-out comes off the shelf without tipping; the lower flat of a stack
+    // slides out from its top edge and never runs into the book above
+    if (!phone)
+      test('books=30: face-out hover lifts without tipping, the lower flat stays under the upper', async ({
+        page,
+      }) => {
+        await page.goto('/uikit/#/full/site-demo-9?books=30')
+        await expect(page.getByTestId('ss9-book')).toHaveCount(30)
+        const z = await page
+          .getByTestId('ss9-case')
+          .evaluate((el) => Number(el.style.getPropertyValue('--z')))
+        const face = page.locator('.ss9-face').first()
+        const lean = face.locator('.ss9-lean')
+        const r0 = await box(lean)
+        await face.hover()
+        await page.waitForTimeout(450)
+        const m23 = await lean.evaluate(
+          (el) => new DOMMatrix(getComputedStyle(el).transform).m23,
+        )
+        expect(m23).toBeGreaterThan(0)
+        const r1 = await box(lean)
+        expect(r0.y - r1.y).toBeGreaterThanOrEqual((8 - 1) * z)
+        expect(r1.width / r0.width).toBeGreaterThanOrEqual(1.03)
+
+        const lower = page.locator('.ss9-flat[data-under]').first()
+        const upper = lower.locator(
+          'xpath=../button[contains(@class,"ss9-flat") and not(@data-under)]',
+        )
+        await expect(upper).toHaveCount(1)
+        await lower.scrollIntoViewIfNeeded()
+        const u0 = await box(upper)
+        await lower.hover()
+        await page.waitForTimeout(450)
+        await expect(lower).toHaveAttribute('data-up', '')
+        const [l1, u1] = [await box(lower), await box(upper)]
+        expect(l1.y).toBeGreaterThanOrEqual(u1.y + u1.height - 0.5)
+        expect(Math.abs(u1.y - u0.y)).toBeLessThanOrEqual(0.5)
+        expect(Math.abs(u1.x - u0.x)).toBeLessThanOrEqual(0.5)
+      })
+
+    // site-stand-v3 B2 / v4 D17: a short case scales up to 14 px/cm under the lead, no scroll
+    if (!phone)
+      for (const n of [1, 3, 6] as const)
+        test(`books=${String(n)}: the case scales to z 1.556, no scroll`, async ({
           page,
         }) => {
           await page.goto(`/uikit/#/full/site-demo-9?books=${String(n)}`)
@@ -670,14 +737,12 @@ for (const vp of VIEWPORTS)
           const z = await cs.evaluate((el) =>
             Number(el.style.getPropertyValue('--z')),
           )
-          expect(z).toBeCloseTo(14 / 9, 2)
-          const c = await box(cs)
-          expect(Math.abs(c.y + c.height - (900 - 72))).toBeLessThanOrEqual(0.5)
+          expect(Math.abs(z - 14 / 9)).toBeLessThanOrEqual(0.01)
           const [sh, ch] = await page
             .getByTestId('ss9-home')
             .evaluate((el) => [el.scrollHeight, el.clientHeight])
           expect(sh).toBe(ch)
-          await expect(page.getByTestId('ss9-caption')).toHaveText(rest)
+          await expect(page.getByTestId('ss9-caption')).toHaveCount(0)
         })
 
     // site-stand-v3 B2 / D12–D14: per-shelf patterns, leans rest on their neighbour, years on the spines
