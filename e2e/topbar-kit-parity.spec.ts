@@ -32,11 +32,12 @@ test('zoom menu shows the Ctrl+0 hint on Fit spread', async ({ page }) => {
   await expect(page.getByRole('menu')).toHaveCount(0)
 })
 
-test('Preview pill enters presentation', async ({ page }) => {
+test('Preview pill enters the site preview', async ({ page }) => {
   await openSessionEditor(page)
   const pill = page.getByTestId('present')
   await expect(pill).toHaveText('Preview')
+  await expect(pill).toHaveAttribute('title', 'Preview site')
   await expect(pill).toBeEnabled()
   await pill.click()
-  await expect(page.getByTestId('presentation')).toBeVisible()
+  await expect(page.getByTestId('site-preview')).toBeVisible()
 })

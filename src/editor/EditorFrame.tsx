@@ -42,6 +42,7 @@ export function EditorFrame({
   panels,
   onPanelsChange,
   className,
+  inert,
 }: {
   top?: ReactNode
   left: ReactNode
@@ -53,6 +54,8 @@ export function EditorFrame({
   panels?: EditorPanels
   onPanelsChange?: (next: EditorPanels) => void
   className?: string
+  /** A layer over the editor (site preview) is open: the editor stays mounted. */
+  inert?: boolean
 }) {
   ensureEditorChromeStyles()
   const [internal, setInternal] = useState(DEFAULT_EDITOR_PANELS)
@@ -109,6 +112,7 @@ export function EditorFrame({
     <div
       className={['e7', 'editor-shell', className].filter(Boolean).join(' ')}
       data-testid="editor-shell"
+      inert={inert === true ? true : undefined}
       style={
         {
           '--panel-left': `${String(widthL)}px`,

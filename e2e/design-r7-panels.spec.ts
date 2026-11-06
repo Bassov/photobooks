@@ -275,35 +275,35 @@ test.describe('M53 the preview starts from the cover', () => {
     // A selected later spread must not change where the show starts.
     await page.locator('[data-testid^="spread-list-item-"]').nth(1).click()
     await page.getByTestId('present').click()
-    const stage = page.getByTestId('presentation')
+    const stage = page.getByTestId('site-preview')
     await expect(stage).toBeVisible()
     return stage
   }
 
-  const activeSlide = (stage: Locator) =>
-    stage.locator('[data-testid="presentation-slide"][data-active="true"]')
+  const activeSlide = (stage: Locator) => stage.getByTestId('site-spread')
 
   test('the first item is the cover; next goes to page 1', async ({ page }) => {
     const stage = await openPreview(page)
-    await expect(page.getByTestId('pager-position')).toHaveText('Cover')
+    const indicator = page.getByTestId('site-page-indicator')
+    await expect(indicator).toHaveText('Cover')
     const first = activeSlide(stage)
-    await expect(first.getByTestId('presentation-cover')).toBeVisible()
     await expect(first.locator('.cover-spread')).toHaveCount(1)
+    await expect(first.locator('.cover-spread')).toBeVisible()
     await expect(first.getByTestId('spread-view')).toHaveCount(0)
 
     await page.keyboard.press('ArrowRight')
-    await expect(page.getByTestId('pager-position')).toHaveText('1 / 3')
+    await expect(indicator).toHaveText(/ · 1 \/ 3$/)
     const next = activeSlide(stage)
-    await expect(next.getByTestId('presentation-cover')).toHaveCount(0)
+    await expect(next.locator('.cover-spread')).toHaveCount(0)
     await expect(next.getByTestId('spread-view')).toHaveAttribute(
       'data-spread-id',
       'spread-1',
     )
 
     await page.keyboard.press('ArrowLeft')
-    await expect(page.getByTestId('pager-position')).toHaveText('Cover')
+    await expect(indicator).toHaveText('Cover')
     await page.keyboard.press('ArrowLeft')
-    await expect(page.getByTestId('pager-position')).toHaveText('Cover')
+    await expect(indicator).toHaveText('Cover')
   })
 })
 

@@ -4,12 +4,13 @@ import type { Book } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
 import {
+  getBookStoreSnapshot,
   getSpreadPaintSnapshot,
   resetBookStore,
   setAssetSessionMeta,
   type AssetSessionMeta,
 } from './bookStore'
-import { PresentationMode } from './PresentationMode'
+import { PreviewSlide } from './SitePreview'
 
 // A 254 mm (10 in) square frame: N source pixels across = N / 10 dpi.
 function bookWith(asset: Book['assets'][string]): Book {
@@ -142,8 +143,14 @@ describe('badge in the editor and Preview', () => {
 
   it('does not paint in Preview', () => {
     load({}, meta(1000, 1000))
-    render(<PresentationMode onExit={() => undefined} />)
-    expect(screen.getByTestId('presentation')).toBeTruthy()
+    render(
+      <PreviewSlide
+        book={getBookStoreSnapshot().book}
+        slide={1}
+        widthPx={760}
+      />,
+    )
+    expect(screen.getByTestId('spread-view')).toBeTruthy()
     expect(screen.queryByTestId('dpi-badge')).toBeNull()
   })
 })

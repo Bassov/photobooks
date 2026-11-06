@@ -37,6 +37,7 @@ import {
   shouldHoldCameraScroll,
   stopDelayedFitFollow,
 } from './pasteboardCameraFit'
+import { editorKeysSuspended } from './editorKeysGate'
 import { PASTEBOARD_PAD_PX, stackHeightFitZoom } from './pasteboardView'
 import { pasteboardStridePx } from './pasteboardWindow'
 
@@ -830,7 +831,7 @@ export function usePasteboardCamera({
     }
 
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (isTextField(event.target)) {
+      if (isTextField(event.target) || editorKeysSuspended()) {
         return
       }
       if (event.code === 'Space' || event.key === ' ') {

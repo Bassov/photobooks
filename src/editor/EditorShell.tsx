@@ -1,4 +1,11 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from 'react'
+import { flushSync } from 'react-dom'
 import { Status } from '../ui/Status'
 import { ToastRegion } from '../ui/Toast'
 import { createToastQueue } from '../ui/toastQueue'
@@ -24,10 +31,13 @@ import { installEditorKeys } from './galleryDrop'
 import { setImportProgress } from './importProgressStore'
 import { MastersCanvas } from './MastersCanvas'
 import { Pasteboard } from './Pasteboard'
-import { PresentationMode } from './PresentationMode'
+import { SitePreviewFrame } from './SitePreviewBar'
 import { installThumbBackgroundWarm } from './thumbBackgroundWarm'
 import { useChromeImport } from './useChromeImport'
 import './EditorShell.css'
+
+// Its chunk holds the site book page and siteViewer.css.
+const SitePreview = lazy(() => import('./SitePreview'))
 
 export function EditorShell() {
   const editorStatus = useSyncExternalStore(
@@ -44,37 +54,46 @@ export function EditorShell() {
 
   const [toastQueue] = useState(() => createToastQueue())
   const [panels, setPanels] = useState(DEFAULT_EDITOR_PANELS)
-  const [presenting, setPresenting] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
   const chromeImport = useChromeImport({
     // External store: progress ticks must not re-render Pasteboard / top bar.
     onImportProgress: setImportProgress,
   })
+  // Back from the preview: commit (the editor is no longer inert), then focus
+  // the Preview pill.
+  const closePreview = () => {
+    flushSync(() => {
+      setPreviewing(false)
+    })
+    document.querySelector<HTMLElement>('[data-testid="present"]')?.focus()
+  }
 
   return (
-    <EditorFrame
-      panels={panels}
-      onPanelsChange={setPanels}
-      top={
-        <EditorTopBar
-          chromeImport={chromeImport}
-          panels={panels}
-          onPanelsChange={setPanels}
-          onPresent={() => {
-            setPresenting(true)
-          }}
-        />
-      }
-      left={<LeftPanel toastQueue={toastQueue} />}
-      right={<Inspector />}
-      dock={
-        <FilmstripDock
-          onDropPhotoFolder={chromeImport.onDropPhotoFolder}
-          onChoosePhotoFolder={chromeImport.onChoosePhotoFolder}
-          importDisabled={chromeImport.importDisabled}
-        />
-      }
-      canvas={
-        presenting ? null : (
+    <>
+      <EditorFrame
+        panels={panels}
+        onPanelsChange={setPanels}
+        inert={previewing}
+        top={
+          <EditorTopBar
+            chromeImport={chromeImport}
+            panels={panels}
+            onPanelsChange={setPanels}
+            onPresent={() => {
+              setPreviewing(true)
+            }}
+          />
+        }
+        left={<LeftPanel toastQueue={toastQueue} />}
+        right={<Inspector />}
+        dock={
+          <FilmstripDock
+            onDropPhotoFolder={chromeImport.onDropPhotoFolder}
+            onChoosePhotoFolder={chromeImport.onChoosePhotoFolder}
+            importDisabled={chromeImport.importDisabled}
+          />
+        }
+        canvas={
           <>
             <Pasteboard fitOnOpen />
             <CoverOverlay />
@@ -89,21 +108,19 @@ export function EditorShell() {
               {editorStatus}
             </Status>
           </>
-        )
-      }
-      overlay={
-        <>
-          {presenting ? (
-            <PresentationMode
-              onExit={() => {
-                setPresenting(false)
-              }}
-            />
-          ) : null}
-          <ImportErrorsPanel />
-          <ToastRegion queue={toastQueue} data-testid="editor-toast-region" />
-        </>
-      }
-    />
+        }
+        overlay={
+          <>
+            <ImportErrorsPanel />
+            <ToastRegion queue={toastQueue} data-testid="editor-toast-region" />
+          </>
+        }
+      />
+      {previewing && (
+        <Suspense fallback={<SitePreviewFrame onExit={closePreview} />}>
+          <SitePreview onExit={closePreview} />
+        </Suspense>
+      )}
+    </>
   )
 }

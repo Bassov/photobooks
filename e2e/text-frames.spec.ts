@@ -218,13 +218,12 @@ test.describe('text frames', () => {
     await page.keyboard.press('Escape')
     await expect(chip).toBeVisible()
     await page.getByTestId('present').click()
-    await expect(page.getByTestId('presentation')).toBeVisible()
-    await expect(
-      page.getByTestId('presentation').getByTestId('frame-text'),
-    ).not.toHaveCount(0)
-    await expect(
-      page.getByTestId('presentation').getByTestId('text-overflow-chip'),
-    ).toHaveCount(0)
+    const preview = page.getByTestId('site-preview')
+    await expect(preview.getByTestId('site-page-indicator')).toHaveText('Cover')
+    await page.keyboard.press('ArrowRight')
+    const slide = preview.getByTestId('site-spread')
+    await expect(slide.getByTestId('frame-text')).not.toHaveCount(0)
+    await expect(preview.getByTestId('text-overflow-chip')).toHaveCount(0)
   })
 
   test('a layout keeps the text and the list thumbnail paints it', async ({
