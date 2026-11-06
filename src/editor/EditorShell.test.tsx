@@ -332,6 +332,18 @@ describe('EditorShell viewport containment', () => {
     expect(pill.hasAttribute('data-pill')).toBe(false)
   })
 
+  it('disables Preview when the book has no spreads', () => {
+    const { book, sessionMeta } = getBookStoreSnapshot()
+    resetBookStore({
+      book: { ...book, spreads: [] },
+      sessionMeta,
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<EditorShell />)
+    expect(screen.getByTestId('present').hasAttribute('disabled')).toBe(true)
+  })
+
   it('opens the site preview over the mounted, inert editor; Esc returns', async () => {
     vi.stubGlobal(
       'ResizeObserver',

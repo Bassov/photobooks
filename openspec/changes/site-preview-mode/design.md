@@ -17,6 +17,7 @@
 | `src/editor/editorKeysGate.ts`                                 | gate           |
 | `src/editor/editorKeysGate.test.ts`                            | unit           |
 | `src/site/siteViewer.css`                                      | h1 gap         |
+| `docs/design.md`                                               | preview tokens |
 | `src/editor/EditorShell.tsx`                                   | mount, inert   |
 | `src/editor/EditorFrame.tsx`                                   | `inert`        |
 | `src/editor/EditorTopBar.tsx`                                  | title          |

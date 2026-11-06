@@ -46,7 +46,7 @@ UI ref: `uikit#/feature/design-tokens`.
 
 ## Semantic color roles
 
-Surfaces: `--background`, `--chrome`, `--canvas`, `--paper`, `--card`, `--popover`. Presentation overlay (`SpreadPager`): `--presentation` backdrop, `--presentation-ink/-chip/-chip-hover/-chip-ink`, `--shadow-stage-dark`; sits above chrome and toast.  
+Surfaces: `--background`, `--chrome`, `--canvas`, `--paper`, `--card`, `--popover`. Fullscreen pager (`SpreadPager`, site lightbox): `--presentation` backdrop, `--presentation-ink/-chip/-chip-hover/-chip-ink`, `--shadow-stage-dark`; sits above chrome and toast. Editor Preview = the site book page under a `--bar` bar with an inset `--border` rule.  
 Text: `--foreground`, `--muted-foreground`, `--primary` / `--primary-foreground`.  
 Fills: `--secondary`, `--muted`, `--subtle`, `--accent` / `--accent-foreground`; `--t-field-hover` (secondary button on `--field`), `--t-tag` (quiet tag tint, e.g. the masters "Default" tag).  
 Lines: `--border`, `--input`, `--ring`.  
