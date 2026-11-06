@@ -219,13 +219,17 @@ function Wall({ books, box, g, active, open }: HomeApi) {
 
 /** Phone: one book per screen, vertical scroll snap; label under the book */
 function Phone({ books, box, g, open, showAll }: HomeApi) {
-  const n = books.length, base = Math.round((520 * box.h) / 844)
-  const s = Math.min(10, (g.span(4) * 0.7) / 30, ((base - 150) * 1) / 30)
-  const capY = captionTop(books, s, base)
+  // D22: one scale and one floor; the book + caption group sits halfway between the lead and the switch row
+  const n = books.length, h = box.h
+  const wMax = Math.max(...books.map((b) => b.w)), hMax = Math.max(...books.map((b) => b.h))
+  const T = 72 + 49.4 + (n >= 12 ? 52 : 0) + 32
+  const s = Math.min(12, (0.9 * g.span(4)) / wMax, (h - 64 - T - 38.8) / (hMax + 0.09 * wMax))
+  const capOff = captionTop(books, s, 0)
+  const F = Math.round(T + (h - 64 - T - (hMax * s + capOff + 18.8)) / 2 + hMax * s)
   return (
     <div className="ss6-phone" data-testid="ss6-phone">
       {books.map((b, i) => {
-        const W = b.w * s, H = b.h * s, top = seat(b, s, base)
+        const W = b.w * s, H = b.h * s, top = seat(b, s, F)
         return (
           <section key={b.id} className="ss6-screen" style={{ height: box.h }}>
             {i === 0 && (
@@ -234,15 +238,12 @@ function Phone({ books, box, g, open, showAll }: HomeApi) {
                 {n >= 12 && <button type="button" className="m15 u" style={{ marginTop: 8, minHeight: 44 }} onClick={showAll}>All books</button>}
               </div>
             )}
-            <div className="ss6-spot ss6-spot-m" style={{ left: box.w / 2 - W / 2 - 120, top: base - H - 200, width: W + 240, height: H + 320 }} />
-            <button type="button" className="ss6-book ss-abs" style={{ left: box.w / 2 - W / 2, top }} aria-label={b.title} onClick={() => open(b)} data-testid="ss6-book" data-id={b.id}>
+            <div className="ss6-spot ss6-spot-m" style={{ left: box.w / 2 - W / 2 - 120, top: F - H - 200, width: W + 240, height: H + 320 }} />
+            <div className="ss6-floor" style={{ top: F, left: g.M, right: g.M }} />
+            <button type="button" className="ss6-book ss-abs" style={{ left: box.w / 2 - W / 2, top }} aria-label={`${b.title}, ${metaOf(b)}`} onClick={() => open(b)} data-testid="ss6-book" data-id={b.id}>
               <Book3D b={b} s={s} />
             </button>
-            <div className="ss6-floor" style={{ top: base, left: g.M, right: g.M }} />
-            <div className="ss-abs" style={{ left: g.M, top: capY, width: g.span(4) }}>
-              <div className="t13 g">{metaOf(b)}</div>
-              <button type="button" className="m15 u" style={{ marginTop: 6, minHeight: 44 }} onClick={() => open(b)}>Open the book</button>
-            </div>
+            <div className="ss-abs t13 g" style={{ left: g.M, right: g.M, top: F + capOff, textAlign: 'center' }}>{metaOf(b)}</div>
           </section>
         )
       })}

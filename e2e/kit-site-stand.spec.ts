@@ -606,6 +606,75 @@ test.describe('phone 390×844: demo 6', () => {
     expect(sw[0]).toBe(sw[1])
     expect(errors).toEqual([])
   })
+
+  test('books=6 (D22): tap the book to open, the floor under the book, the group centred', async ({
+    page,
+  }) => {
+    const errors = consoleErrors(page)
+    await page.goto('/uikit/#/full/site-demo-6?books=6')
+    const screen = page.locator('.ss6-screen').first()
+    const book = screen.getByTestId('ss6-book')
+    await expect(book).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Open the book' }),
+    ).toHaveCount(0)
+    await expect(book).toHaveAttribute('aria-label', /^Lake trip, /)
+    const bb = await box(book)
+    const floor = await box(screen.locator('.ss6-floor'))
+    const lead = await box(screen.locator('.m19'))
+    const cap = await box(screen.locator('.t13.g').first())
+    const sw = await box(page.getByTestId('ss-switch'))
+    // D22 numbers (Spec H, 390 × 844): s 10.74, F 594, caption 643
+    expect(floor.y).toBeCloseTo(594, 0)
+    expect(cap.y).toBeCloseTo(643, 0)
+    expect(bb.x).toBeCloseTo(66.1, 0)
+    // seat() centres the contact shadow on F, so the top lands ~1 px below the Spec's 271.8
+    expect(Math.abs(bb.y - 271.8)).toBeLessThanOrEqual(1.5)
+    expect(bb.width).toBeCloseTo(257.8, 0)
+    expect(bb.height).toBeCloseTo(322.2, 0)
+    // paint: the floor line is drawn under the book, not across it
+    const hit = await page.evaluate(
+      ([x, y]) =>
+        !!document.elementFromPoint(x, y)?.closest('[data-testid="ss6-book"]'),
+      [bb.x + 10, floor.y] as const,
+    )
+    expect(hit).toBe(true)
+    const top = bb.y - (lead.y + lead.height)
+    const bottom = sw.y - (cap.y + cap.height)
+    test.info().annotations.push({
+      type: 'paint',
+      description: JSON.stringify({ F: floor.y, cap: cap.y, top, bottom }),
+    })
+    expect(Math.abs(top - bottom)).toBeLessThanOrEqual(2)
+    await book.click()
+    await expect(page.getByTestId('ss6')).toHaveAttribute('data-open', /.+/)
+    expect(errors).toEqual([])
+  })
+
+  test('D22: one scale and floor per screen size and book count', async ({
+    page,
+  }) => {
+    const errors = consoleErrors(page)
+    // [viewport, books, s (px/cm, Lake trip is 24 cm wide), F, caption top]
+    const cases = [
+      [{ width: 375, height: 667 }, '6', 10.29, 499, 547],
+      // capOff = ceil(0.09 · 24 · 12) + 20 = 46
+      [{ width: 390, height: 844 }, '1', 12, 614, 660],
+    ] as const
+    for (const [vp, n, s, F, cap] of cases) {
+      await page.setViewportSize(vp)
+      await page.goto(`/uikit/#/full/site-demo-6?books=${n}`)
+      const screen = page.locator('.ss6-screen').first()
+      const bb = await box(screen.getByTestId('ss6-book'))
+      expect(bb.width / 24).toBeCloseTo(s, 1)
+      expect((await box(screen.locator('.ss6-floor'))).y).toBeCloseTo(F, 0)
+      expect((await box(screen.locator('.t13.g').first())).y).toBeCloseTo(
+        cap,
+        0,
+      )
+    }
+    expect(errors).toEqual([])
+  })
 })
 
 // site-stand-v2 B / D8: the demo 9 case grows with the books: one shelf at 6,

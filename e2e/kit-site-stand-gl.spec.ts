@@ -315,12 +315,13 @@ test('demo 6 (390): the phone caption is the meta line only, 20 px clear of the 
   await expect(screen.locator('.m28')).toHaveCount(0)
   const meta = screen.locator('.t13.g').first()
   const box = await boxOf(meta)
-  const base = Math.round((520 * 844) / 844)
+  // D22: the floor F of Spec H at 390 × 844, books=6
+  const F = 594
   const low = await lowestBookY(page, {
     x: 0,
-    y: base + 1,
+    y: F + 1,
     width: 390,
-    height: box.y - base - 1,
+    height: box.y - F - 1,
   })
   const ink = await inkRows(page, {
     x: box.x,
@@ -335,6 +336,13 @@ test('demo 6 (390): the phone caption is the meta line only, 20 px clear of the 
   expect(low + 20).toBeLessThanOrEqual(box.y)
   expect(ink.length).toBeGreaterThan(0)
   expect(Math.max(...ink) - Math.min(...ink)).toBeLessThan(16)
+  const text = await meta.evaluate((el) => {
+    const r = document.createRange()
+    r.selectNodeContents(el)
+    const t = r.getBoundingClientRect()
+    return t.x + t.width / 2
+  })
+  expect(Math.abs(text - 195)).toBeLessThanOrEqual(1)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
     390,
   )
