@@ -20,7 +20,10 @@ import type {
   SiteExportMessage,
   SiteExportRequest,
 } from '../../site/export/site-export.worker'
-import type { SiteDerivativeInput } from '../../site/export/types'
+import type {
+  SiteDerivativeInput,
+  SiteViewerBundle,
+} from '../../site/export/types'
 import type { SiteDirectoryHandle } from '../../site/export/writeSiteTree'
 import type { ExportSiteEvent } from './exportSiteStore'
 import { exportPercent } from './exportSiteText'
@@ -234,6 +237,8 @@ export interface ExportSiteRunDeps {
   now: () => number
   requestWrite: (folder: FileSystemDirectoryHandle) => Promise<boolean>
   derivatives: SiteDerivativeDeps
+  /** The built site viewer every exported page links. */
+  loadViewer: () => Promise<SiteViewerBundle>
   /** Posts the request; calls `onMessage` for each worker message. */
   runWorker: (
     request: SiteExportRequest,
@@ -273,11 +278,14 @@ export async function runExportSite(deps: ExportSiteRunDeps): Promise<void> {
         })
       },
     )
+    const viewer = await deps.loadViewer()
     const request: SiteExportRequest = {
       folder: deps.folder as unknown as SiteDirectoryHandle,
-      input: { meta: frozen.meta, revisions, derivatives },
+      input: { meta: frozen.meta, revisions, derivatives, viewer },
     }
-    const transfer = derivatives.map((d) => d.bytes.buffer as ArrayBuffer)
+    const transfer = [...derivatives, ...viewer.files].map(
+      (file) => file.bytes.buffer as ArrayBuffer,
+    )
     await new Promise<void>((resolve) => {
       deps.runWorker(request, transfer, (message) => {
         if ('phase' in message) {

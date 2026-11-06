@@ -95,6 +95,33 @@ describe('runSiteExport', () => {
     expect(total?.bytes).toBeGreaterThan(0)
   })
 
+  it('writes the viewer bundle a request carries under dist/viewer/', async () => {
+    const folder = createMemorySiteDirectory()
+    const viewer = {
+      entry: 'assets/site.js',
+      css: ['assets/site.css'],
+      files: [
+        { path: 'assets/site.css', bytes: new TextEncoder().encode('a{}') },
+        { path: 'assets/site.js', bytes: new TextEncoder().encode('x()') },
+      ],
+    }
+    const posts: SiteExportMessage[] = []
+
+    await runSiteExport(
+      { folder: folder.root, input: { ...exportInput(), viewer } },
+      (message) => posts.push(message),
+      () => 0,
+    )
+
+    expect(posts.at(-1)).toMatchObject({ done: { books: 2 } })
+    expect(folder.ops).toEqual(
+      expect.arrayContaining([
+        'write dist/viewer/assets/site.css',
+        'write dist/viewer/assets/site.js',
+      ]),
+    )
+  })
+
   it('replaces its own earlier export', async () => {
     const folder = createMemorySiteDirectory()
     await run(folder)

@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 import IstanbulPlugin from 'vite-plugin-istanbul'
 import { defineConfig } from 'vitest/config'
 import { loadGates } from '@albasov/ts-agent-rig/load-gates'
+import { siteViewerManifestPlugin } from './scripts/vite-site-viewer-manifest.mjs'
 import { uikitDevMiddleware } from './scripts/vite-uikit-middleware.mjs'
 
 const gates = loadGates()
@@ -40,6 +41,8 @@ export default defineConfig({
     }),
     tailwindcss(),
     uikitDevMiddleware(),
+    // Export site copies the `site` entry's files listed here into dist/viewer/.
+    siteViewerManifestPlugin('site'),
     codecovVitePlugin({
       enableBundleAnalysis: Boolean(codecovToken),
       bundleName: 'photobooks',

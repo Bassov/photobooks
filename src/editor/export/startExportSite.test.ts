@@ -86,6 +86,17 @@ describe('startExportSite', () => {
     vi.restoreAllMocks()
   })
 
+  it('loads the built viewer from the app base', async () => {
+    const fetchFile = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('', { status: 404 }))
+
+    await expect(start().loadViewer()).rejects.toThrow('HTTP 404')
+
+    expect(fetchFile).toHaveBeenCalledWith('/site-viewer.json')
+    vi.restoreAllMocks()
+  })
+
   it('reads a photo from the session file first', async () => {
     const file = new File(['x'], 'a.jpg')
     vi.mocked(getAssetSource).mockReturnValueOnce(file)
