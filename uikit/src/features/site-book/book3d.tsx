@@ -56,6 +56,9 @@ const Book3DGl = React.forwardRef<HTMLDivElement, Book3DProps & { onFail: () => 
       return active ? ACTIVE : hover || focus ? HOVER : REST
     }
     let cur = target(), from = cur, to = cur
+    // data-pose: the settled pose (rest / hover / active / pose), "moving" while tweening (tests wait on it)
+    const settled = () => { el.dataset.pose = poseRef.current ? "pose" : reduce.matches ? "rest" : active ? "active" : hover || focus ? "hover" : "rest" }
+    settled()
     const draw = () => {
       if (!view || !T) return
       view.pose(cur)
@@ -66,13 +69,15 @@ const Book3DGl = React.forwardRef<HTMLDivElement, Book3DProps & { onFail: () => 
       cur = u >= 1 ? to : mix(from, to, ease(u))
       draw()
       raf = u < 1 && !dead ? requestAnimationFrame(step) : 0
+      if (u >= 1) settled()
     }
     retarget.current = () => {
       const next = target()
-      if (same(next, to)) return
+      if (same(next, to)) return settled()
       from = cur
       to = next
-      if (reduce.matches || !view) { cur = to; draw(); return }
+      if (reduce.matches || !view) { cur = to; draw(); settled(); return }
+      el.dataset.pose = "moving"
       t0 = performance.now()
       if (!raf) raf = requestAnimationFrame(step)
     }

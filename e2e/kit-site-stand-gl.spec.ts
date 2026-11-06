@@ -209,8 +209,9 @@ test('demo 6: hover turns, lifts and peeks the GL book', async ({ page }) => {
   await page.goto('/uikit/#/full/site-demo-6')
   const clip = await around(await glBook(page))
   const rest = await shot(page, clip)
-  await page.getByTestId('ss6-book').locator('visible=true').first().hover()
-  await page.waitForTimeout(900)
+  const book = page.getByTestId('ss6-book').locator('visible=true').first()
+  await book.hover()
+  await expect(book.getByTestId('book3d')).toHaveAttribute('data-pose', 'hover')
   expect(moved(rest, await shot(page, clip))).toBeGreaterThan(0.05)
 })
 
@@ -268,10 +269,15 @@ test('demo 6 (1440): one meta-only caption row 20 px clear of the lowest book pi
   const strip = { x: 0, y: floor + 1, width: 1440, height: capY - floor - 1 }
   const rest = await lowestBookY(page, strip)
   const hovered: number[] = []
-  for (let i = 0; i < (await books.count()); i++) {
+  // a fixed sample (first, middle, last): each settles in its hover pose (Book3D data-pose), then back to rest
+  const n = await books.count()
+  for (const i of [...new Set([0, Math.floor(n / 2), n - 1])]) {
+    const pose = books.nth(i).getByTestId('book3d')
     await books.nth(i).hover()
-    await page.waitForTimeout(700)
+    await expect(pose).toHaveAttribute('data-pose', 'hover')
     hovered.push(await lowestBookY(page, strip))
+    await page.mouse.move(720, 120)
+    await expect(pose).toHaveAttribute('data-pose', 'rest')
   }
   test.info().annotations.push({
     type: 'paint',

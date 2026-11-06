@@ -14,7 +14,7 @@ export async function visibleCentres(cam: Locator): Promise<number[][]> {
       const [cx, cy] = [p.left + p.width / 2, p.top + p.height / 2]
       if (cx < o.left || cx > o.right) return []
       const cut = [...pg.querySelectorAll<HTMLElement>('*')]
-        .filter((n) => /url\("?(?!data:)/.test(n.style.backgroundImage))
+        .filter((n) => /^url\((?!"?data:)/.test(n.style.backgroundImage))
         .map((n) => n.getBoundingClientRect())
         .filter((r) => r.width * r.height > 0)
         .sort((a, b) => b.width * b.height - a.width * a.height)
