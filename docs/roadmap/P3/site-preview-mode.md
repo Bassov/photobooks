@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P3
 Title: preview the site from the editor
+Status: done
 
 ## Scope
 

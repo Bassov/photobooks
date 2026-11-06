@@ -395,7 +395,7 @@ export function EditorTopBar({
             style={{ background: FIELD, color: T }}
             data-testid="present"
             disabled={spreadCount === 0}
-            title="Preview"
+            title="Preview site"
             onClick={onPresent}
           >
             <Icon name="eye" size={16} />

@@ -78,6 +78,25 @@ describe('fitSpreadZoomFor', () => {
       }),
     ).toBeCloseTo(1, 10)
   })
+
+  // Kit `#/demo` A5 portrait (14.8 × 21 cm, two-page spread 296 × 210 mm),
+  // `spread` rect of `[data-stack-item]` measured in kit and prod on 2026-11-06.
+  it.each([
+    { viewport: '1440 × 900', clientHeight: 692, width: 828.8, height: 588 },
+    { viewport: '1440 × 920', clientHeight: 712, width: 848, height: 601.61 },
+  ])(
+    'draws the A5 portrait spread at the kit size ($viewport)',
+    ({ clientHeight, width, height }) => {
+      const zoom = fitSpreadZoomFor({
+        widestSpreadWidthPx: 296,
+        spreadHeightPx: 210,
+        clientWidth: 928,
+        clientHeight,
+      })
+      expect(Math.abs(296 * zoom - width)).toBeLessThanOrEqual(0.5)
+      expect(Math.abs(210 * zoom - height)).toBeLessThanOrEqual(0.5)
+    },
+  )
 })
 
 describe('shouldHoldCameraScroll', () => {

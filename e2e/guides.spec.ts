@@ -221,15 +221,22 @@ test('Ctrl+; hides and shows guides without deleting them (no bar control)', asy
   await expect(page.getByTestId('guide-line')).toHaveCount(2)
 })
 
-test('guides never appear in presentation mode', async ({ page }) => {
+test('guides never appear in the site preview', async ({ page }) => {
   await openWithRulers(page)
   await pullHorizontal(page, 60)
   await expect(page.getByTestId('guide-line')).toHaveCount(1)
   await page.getByTestId('present').click()
-  await expect(page.getByTestId('presentation')).toBeVisible()
-  await expect(page.getByTestId('spread-view').first()).toBeVisible()
-  await expect(page.getByTestId('guide-line')).toHaveCount(0)
+  const preview = page.getByTestId('site-preview')
+  await expect(preview.getByTestId('site-page-indicator')).toHaveText('Cover')
+  await page.keyboard.press('ArrowRight')
+  await expect(
+    preview.getByTestId('site-spread').getByTestId('spread-view'),
+  ).toBeVisible()
+  await expect(preview.getByTestId('guide-line')).toHaveCount(0)
+  // The editor stays mounted (inert) under the preview, its guide with it.
+  await expect(page.getByTestId('guide-line')).toHaveCount(1)
   await page.keyboard.press('Escape')
+  await expect(preview).toHaveCount(0)
   await expect(page.getByTestId('guide-line')).toHaveCount(1)
 })
 

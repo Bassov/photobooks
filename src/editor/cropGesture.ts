@@ -9,6 +9,7 @@ import {
 } from './bookStore'
 import { cropWheelFactor, panCrop, zoomCrop, type FramePx } from './cropMath'
 import { exitCropMode, getCropTarget, type CropTarget } from './cropMode'
+import { editorKeysSuspended } from './editorKeysGate'
 
 type Crop = NonNullable<Frame['crop']>
 
@@ -303,7 +304,7 @@ export function installCropGesture(): () => void {
 
   const onKeyDown = (event: KeyboardEvent): void => {
     const cropTarget = getCropTarget()
-    if (cropTarget === null) {
+    if (cropTarget === null || editorKeysSuspended()) {
       return
     }
     if (event.key === 'Escape') {

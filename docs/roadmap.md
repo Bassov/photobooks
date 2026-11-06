@@ -173,10 +173,13 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 **Review cut:** a print PDF from the `#/demo` Print dialog (1 per sheet with a bleed checkbox; 2-up saddle-stitch and 4-up duplex with `booklet-imposition`) and a cover with the right spine; exporting never freezes the editor.
 
 - [x] [prep] [print-model-schema](roadmap/P4/print-model-schema.md) — print settings and cover in the document
+- [ ] [feature] [design-r19-cover-dots](roadmap/P4/design-r19-cover-dots.md) — Bug: /next-roadmap-item design-r19-cover-dots
 - [x] [feature] [print-model-pbt-timeout](roadmap/P4/print-model-pbt-timeout.md) — Bug: print-model PBT times out in loaded pre-push runs
 - [x] [prep] [print-profiles](roadmap/P4/print-profiles.md) — printer data
+- [ ] [feature] [design-r18-kit-toggle](roadmap/P4/design-r18-kit-toggle.md) — Bug: /next-roadmap-item design-r18-kit-toggle
 - [ ] [prep] [preflight-core](roadmap/P4/preflight-core.md) — pure preflight
 - [ ] [prep] [pdf-painter](roadmap/P4/pdf-painter.md) — worker PDF painter (Security Review: dependency)
+- [ ] [feature] [roadmap-status-sync-2](roadmap/P4/roadmap-status-sync-2.md) — Bug: /next-roadmap-item roadmap-status-sync-2
 - [ ] [prep] [pdf-color-tagging](roadmap/P4/pdf-color-tagging.md) — keep photo colors
 - [ ] [feature] [pdf-export](roadmap/P4/pdf-export.md) — print PDF
 - [ ] [feature] [static-export-viewer](roadmap/P4/static-export-viewer.md) — Bug: /next-roadmap-item static-export-viewer
@@ -192,6 +195,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 **Review cut:** someone else gets their own library and site. **Kit-first:** Designer drafts the P5 kit pages (onboarding / account, own library + site, hosting / connect) before items are sliced (call D6); `printer-presets` and `connect-own-hosting` have a partial kit (Settings → Print presets / Hosting rows). `onboarding-others` is held in `docs/backlog/` until then.
 
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
+- [ ] [lite] [a5-fit-parity](roadmap/P5/a5-fit-parity.md) — Bug: /next-roadmap-item a5-fit-parity
 - [ ] [feature] [connect-own-hosting](roadmap/P5/connect-own-hosting.md) — bring your own hosting (Security Review)
 - [ ] [feature] [prepush-scoped-units](roadmap/P5/prepush-scoped-units.md) — Bug: /next-roadmap-item prepush-scoped-units
 - [ ] [lite] [ratchet-merge-base](roadmap/P5/ratchet-merge-base.md) — Bug: /next-roadmap-item ratchet-merge-base

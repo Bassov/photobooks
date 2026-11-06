@@ -227,7 +227,7 @@ describe('EditorShell viewport containment', () => {
     expect(editorShellCss).toMatch(/\.editor-shell\s*\{[^}]*max-width:\s*100%/s)
     expect(editorShellCss).toMatch(/\.editor-shell\s*\{[^}]*min-width:\s*0/s)
     expect(editorShellCss).toMatch(
-      /\.editor-workspace\s*\{[^}]*background-color:\s*var\(--canvas\)[^}]*radial-gradient\([^)]*var\(--dot\)/s,
+      /\.editor-workspace,\s*\.cover-stage\s*\{[^}]*background-color:\s*var\(--canvas\)[^}]*radial-gradient\([^)]*var\(--dot\)/s,
     )
     expect(editorShellCss).toMatch(
       /\.editor-shell\s*\{[^}]*max-height:\s*100svh/s,
@@ -332,12 +332,48 @@ describe('EditorShell viewport containment', () => {
     expect(pill.hasAttribute('data-pill')).toBe(false)
   })
 
-  it('hides the status pill in Presentation', () => {
+  it('disables Preview when the book has no spreads', () => {
+    const { book, sessionMeta } = getBookStoreSnapshot()
+    resetBookStore({
+      book: { ...book, spreads: [] },
+      sessionMeta,
+      importRunning: false,
+      importExpectedCount: 0,
+    })
     render(<EditorShell />)
+    expect(screen.getByTestId('present').hasAttribute('disabled')).toBe(true)
+  })
+
+  it('opens the site preview over the mounted, inert editor; Esc returns', async () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {
+          return undefined
+        }
+        disconnect() {
+          return undefined
+        }
+      },
+    )
+    render(<EditorShell />)
+    const present = screen.getByTestId('present')
+    fireEvent.click(present)
+    expect(screen.getByTestId('site-preview-bar')).toBeTruthy()
+    const scroll = await screen.findByTestId('site-preview-scroll')
+    expect(scroll.className).toContain('site')
+    expect(screen.getByTestId('site-page-indicator').textContent).toBe('Cover')
     expect(screen.queryByTestId('editor-status')).not.toBeNull()
-    fireEvent.click(screen.getByTestId('present'))
-    expect(screen.queryByTestId('presentation')).not.toBeNull()
-    expect(screen.queryByTestId('editor-status')).toBeNull()
+    expect(screen.getByTestId('editor-shell').hasAttribute('inert')).toBe(true)
+    expect(document.activeElement).toBe(screen.getByTestId('site-preview'))
+
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: 'Escape',
+    })
+    expect(screen.queryByTestId('site-preview')).toBeNull()
+    expect(screen.getByTestId('editor-shell').hasAttribute('inert')).toBe(false)
+    expect(document.activeElement).toBe(present)
+    vi.unstubAllGlobals()
   })
 
   it('has no Rename / New book / Save chrome', async () => {

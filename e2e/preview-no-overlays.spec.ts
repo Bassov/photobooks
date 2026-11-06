@@ -55,14 +55,16 @@ test('Preview shows no selection, handles, pills, grid, guides or hover chrome; 
   await frame.hover()
 
   await page.getByTestId('present').click()
-  const stage = page.getByTestId('presentation')
+  const stage = page.getByTestId('site-preview')
   await expect(stage).toBeVisible()
   // Owner design change (round 7, M53): Preview opens on the cover; Next
   // shows the spread with the selected frame.
-  await expect(page.getByTestId('pager-position')).toHaveText('Cover')
+  const indicator = page.getByTestId('site-page-indicator')
+  await expect(indicator).toHaveText('Cover')
   await page.keyboard.press('ArrowRight')
-  await expect(page.getByTestId('pager-position')).toHaveText('1 / 3')
-  await expect(stage.getByTestId('spread-frame').first()).toBeVisible()
+  await expect(indicator).toHaveText(/ · 1 \/ 3$/)
+  const current = stage.getByTestId('site-spread')
+  await expect(current.getByTestId('spread-frame').first()).toBeVisible()
   const counts: Record<string, number> = {}
   for (const [name, selector] of Object.entries(EDITOR_OVERLAYS)) {
     counts[name] = await stage.locator(selector).count()
@@ -70,8 +72,9 @@ test('Preview shows no selection, handles, pills, grid, guides or hover chrome; 
   expect(counts).toEqual(
     Object.fromEntries(Object.keys(EDITOR_OVERLAYS).map((name) => [name, 0])),
   )
-  // No outline ring on any frame, hovered or not.
-  await stage.getByTestId('spread-frame').first().hover()
+  // No outline ring on any frame, hovered or not (the stage's open button
+  // covers the slide, so the pointer is forced over the frame).
+  await current.getByTestId('spread-frame').first().hover({ force: true })
   const rings = await stage
     .getByTestId('spread-frame')
     .evaluateAll((els) =>

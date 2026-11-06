@@ -112,7 +112,7 @@ test('text frames paint on the canvas, list thumbnail and Preview; layouts keep 
 
   // Preview paints the text, never the editor-only placeholder.
   await page.getByTestId('present').click()
-  const stage = page.getByTestId('presentation')
+  const stage = page.getByTestId('site-preview')
   await expect(stage).toBeVisible()
   await expect(stage.getByTestId('frame-text').first()).toHaveText(TEXT)
 })
@@ -238,30 +238,30 @@ test('text frames are transparent, and Preview sets lines at screen size like th
   }
 
   await page.getByTestId('present').click()
+  await expect(page.getByTestId('site-page-indicator')).toHaveText('Cover')
   await page.keyboard.press('ArrowRight')
-  const slide = '[data-testid="presentation-slide"][data-active="true"]'
+  const slide = '[data-testid="site-spread"]'
   const previewFrame = page.locator(`${slide} [data-frame-id="e2e-body"]`)
   await expect(previewFrame).toBeVisible()
   await expect(previewFrame).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
-  // The zoomed spread fills its unzoomed shadow box (zoom measures stable).
+  // The spread paints at the site stage scale (px / mm = width / 2 trims).
   const fit = await page.locator(slide).evaluate((el) => {
-    const shadow = (el.firstElementChild as HTMLElement).getBoundingClientRect()
     const spreadView = el.querySelector('[data-testid="spread-view"]')
     if (spreadView === null) {
       throw new Error('no spread in the active slide')
     }
-    const spread = spreadView.getBoundingClientRect()
-    // SpreadPager's fit: 94 % of the width or 96 % of the height above the
-    // 64 px position line, whichever binds.
-    const aspect = spread.width / spread.height
+    const s = el.getBoundingClientRect()
+    const v = spreadView.getBoundingClientRect()
     return {
-      shadow: shadow.width,
-      spread: spread.width,
-      fitted: Math.min(innerWidth * 0.94, (innerHeight - 64) * 0.96 * aspect),
+      side: el.getAttribute('data-side'),
+      slide: { width: s.width, right: s.right },
+      spread: { width: v.width, right: v.right },
     }
   })
-  expect(Math.abs(fit.spread - fit.shadow)).toBeLessThan(1)
-  expect(Math.abs(fit.spread - fit.fitted)).toBeLessThan(1)
+  // Page 1 is a single right page: half the stage, on its right side.
+  expect(fit.side).toBe('right')
+  expect(Math.abs(fit.spread.width - fit.slide.width / 2)).toBeLessThan(1)
+  expect(Math.abs(fit.spread.right - fit.slide.right)).toBeLessThan(1)
 
   // A scaled tree set text at ~0.5 px / mm and rounded each baseline there
   // (Body gaps 15 / 23 px); Preview now lays it out at its on-screen size.
@@ -295,7 +295,7 @@ test('an empty text frame shows Empty text in the editor only', async ({
   await expect(text).toHaveText('Empty text')
   await expect(text).toHaveCSS('opacity', '0.4')
   await page.getByTestId('present').click()
-  const stage = page.getByTestId('presentation')
+  const stage = page.getByTestId('site-preview')
   await expect(stage).toBeVisible()
   await expect(stage.getByTestId('frame-text').first()).toHaveText('')
 })
