@@ -2,13 +2,17 @@ import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { pixelsAt } from './fixtures/paintProbe'
 
-// site-stand (DEMO branch): the kit site stand holds demo 6 and demo 7 (fresh C
+// site-stand (DEMO branch): the kit site stand holds demos 6, 7 and 9 (fresh C
 // left it, site-stand-v2 D9). Two states (D3): home and the open book; a click
 // opens the reading room, `&book=<id>` is pushed, Back / Esc / "All books"
 // close it and focus returns to the book.
 
-const SLUGS = ['site-demo-6', 'site-demo-7'] as const
-const BOOK = { 'site-demo-6': 'ss6-book', 'site-demo-7': 'ss7-book' } as const
+const SLUGS = ['site-demo-6', 'site-demo-7', 'site-demo-9'] as const
+const BOOK = {
+  'site-demo-6': 'ss6-book',
+  'site-demo-7': 'ss7-book',
+  'site-demo-9': 'ss9-book',
+} as const
 
 async function box(l: Locator) {
   const b = await l.boundingBox()
@@ -628,3 +632,141 @@ test.describe('phone 390×844: demo 6', () => {
     expect(errors).toEqual([])
   })
 })
+
+// site-stand-v2 B / D8: the demo 9 case grows with the books: one shelf at 6,
+// more at 12, as many as 30 books need; the page scrolls down to every book.
+
+const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))
+
+for (const vp of VIEWPORTS)
+  test.describe(`${vp.name}: demo 9 bookcase`, () => {
+    test.use({
+      viewport: vp.viewport,
+      isMobile: vp.isMobile,
+      hasTouch: vp.hasTouch,
+    })
+    const phone = vp.viewport.width < 768
+
+    if (!phone)
+      test('books=6 → one shelf, books=12 → two or more', async ({ page }) => {
+        const bays = page.getByTestId('ss9-bay')
+        await page.goto('/uikit/#/full/site-demo-9?books=6')
+        await expect(page.getByTestId('ss9-book')).toHaveCount(6)
+        await expect(bays).toHaveCount(1)
+        // 6 books: one face-out, five spines
+        await expect(bays.locator('[data-kind="face"]')).toHaveCount(1)
+        await page.goto('/uikit/#/full/site-demo-9?books=12')
+        await expect(page.getByTestId('ss9-book')).toHaveCount(12)
+        expect(await bays.count()).toBeGreaterThanOrEqual(2)
+        // every shelf starts with a face-out book
+        expect(await bays.locator('[data-kind="face"]').count()).toBe(
+          await bays.count(),
+        )
+        // the case runs from column 4 and ends by column 11 (1416 at 1440)
+        const c = await box(page.getByTestId('ss9-case'))
+        expect(Math.round(c.x)).toBe(493)
+        expect(c.x + c.width).toBeLessThanOrEqual(1416.5)
+      })
+
+    test('books=30: 30 books, every one reachable by scrolling the case', async ({
+      page,
+    }) => {
+      const errors = consoleErrors(page)
+      await page.goto('/uikit/#/full/site-demo-9?books=30')
+      const books = page.getByTestId('ss9-book')
+      await expect(books).toHaveCount(30)
+      expect(await page.getByTestId('ss9-bay').count()).toBeGreaterThan(2)
+      const ids = await books.evaluateAll((els) =>
+        els.map((e) => e.getAttribute('data-id') ?? ''),
+      )
+      expect(new Set(ids).size).toBe(30)
+      // each book scrolled to the centre is the topmost hit at its centre
+      const hits: string[] = []
+      for (const id of ids)
+        hits.push(
+          await page
+            .locator(`[data-testid="ss9-book"][data-id="${id}"]`)
+            .evaluate((el) => {
+              el.scrollIntoView({ block: 'center' })
+              const r = el.getBoundingClientRect()
+              const top = document.elementFromPoint(
+                r.x + r.width / 2,
+                r.y + r.height / 2,
+              )
+              return (
+                top
+                  ?.closest('[data-testid="ss9-book"]')
+                  ?.getAttribute('data-id') ?? ''
+              )
+            }),
+        )
+      expect(hits).toEqual(ids)
+      // the case scrolled: the last book sits below the first screen
+      const scrolled = await page
+        .getByTestId('ss9-home')
+        .evaluate((el) => el.scrollTop)
+      expect(scrolled).toBeGreaterThan(0)
+      expect(errors).toEqual([])
+    })
+
+    test('books=6: the case, a spine and the face-out book paint', async ({
+      page,
+    }) => {
+      const errors = consoleErrors(page)
+      await page.goto('/uikit/#/full/site-demo-9?books=6')
+      const bay = page.getByTestId('ss9-bay').first()
+      const spine = bay.locator('[data-kind="spine"]').first()
+      const face = bay.locator('[data-kind="face"]')
+      // the GL book has drawn into its canvas
+      await expect(face.getByTestId('book3d-gl')).toBeVisible()
+      await page.waitForTimeout(500)
+      const [b, sp, fb] = [await box(bay), await box(spine), await box(face)]
+      const ink = await spine.evaluate(
+        (el) => getComputedStyle(el).backgroundColor,
+      )
+      const spineRgb = ink.match(/\d+/g)?.map(Number) ?? []
+      const grid = [0.3, 0.5, 0.7].flatMap((u) =>
+        [0.3, 0.5, 0.7].map((v) => ({
+          x: fb.x - b.x + fb.width * u,
+          y: fb.y - b.y + fb.height * v,
+        })),
+      )
+      const px = await pixelsAt(bay, [
+        // the back wall above the spine, under the top shadow
+        { x: sp.x - b.x + sp.width / 2, y: 32 },
+        // the spine's head: mid-width (no shading), above the title (10 %)
+        { x: sp.x - b.x + sp.width * 0.5, y: sp.y - b.y + sp.height * 0.05 },
+        ...grid,
+      ])
+      const wall = rgbDiff(px[0] ?? [], hex('#cec6b7'))
+      const spineD = rgbDiff(px[1] ?? [], spineRgb)
+      const faceD = Math.max(
+        ...px.slice(2).map((c) => rgbDiff(c, hex('#cec6b7'))),
+      )
+      const plinth = page.locator('.ss9-plinth')
+      const pb = await box(plinth)
+      const pp = await pixelsAt(plinth, [
+        { x: pb.width / 2, y: 10 },
+        { x: pb.width / 2, y: 33 },
+      ])
+      const front = rgbDiff(pp[0] ?? [], hex('#e4ded3'))
+      const foot = rgbDiff(pp[1] ?? [], hex('#d3ccbf'))
+      test.info().annotations.push({
+        type: 'paint',
+        description: JSON.stringify({
+          vp: vp.viewport.width,
+          wall,
+          spine: spineD,
+          face: faceD,
+          front,
+          foot,
+        }),
+      })
+      expect(wall).toBeLessThanOrEqual(8)
+      expect(spineD).toBeLessThanOrEqual(40)
+      expect(faceD).toBeGreaterThan(20)
+      expect(front).toBeLessThanOrEqual(3)
+      expect(foot).toBeLessThanOrEqual(3)
+      expect(errors).toEqual([])
+    })
+  })
