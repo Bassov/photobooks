@@ -45,9 +45,12 @@ function renderer(T: Three, w: number, h: number) {
 }
 export const maxAnisotropy = (T: Three) => renderer(T, 1, 1).r.capabilities.getMaxAnisotropy() as number
 
-/** render `scene` through `cam` at the 2D canvas' backing size and copy it there (same task: no preserveDrawingBuffer) */
-export function drawInto(T: Three, scene: Any, cam: Any, out: HTMLCanvasElement) {
+/** render `scene` through `cam` at the 2D canvas' backing size and copy it there (same task: no preserveDrawingBuffer);
+   `shadows`: VSM shadow maps (the open book, Spec R) */
+export function drawInto(T: Three, scene: Any, cam: Any, out: HTMLCanvasElement, shadows = false) {
   const w = out.width, h = out.height, s = renderer(T, w, h), r = s.r
+  r.shadowMap.enabled = shadows
+  r.shadowMap.type = T.VSMShadowMap
   r.setViewport(0, s.h - h, w, h)
   r.setScissor(0, s.h - h, w, h)
   r.setScissorTest(true)

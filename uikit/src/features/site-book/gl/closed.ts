@@ -6,7 +6,7 @@ import { pagesOf, src, type SiteBook } from "../../site-demo-1/data"
 import { maxAnisotropy, type Any, type Three } from "./three"
 
 export const BT = 0.25, SQ = 0.3
-const PAPER = "#FBFAF7"
+export const PAPER = "#FBFAF7"
 /** thickness in cm: book3d.tsx `thick()` (including its 12 px floor) */
 export const thickCm = (b: SiteBook, s: number) => Math.max(0.6 + (pagesOf(b) / 2) * 0.1, 12 / s)
 
@@ -22,9 +22,9 @@ export type TitleFont = { family: string; weight: string; style: string; k: numb
 /** the canvas around the host box (fractions of W / H): the shadow falls right and back, the lift and the head go up */
 export const OVER = { l: 0.15, r: 0.35, b: 0.12, t: 0.1 }
 
-const cv = (w: number, h: number) => Object.assign(document.createElement("canvas"), { width: Math.max(1, Math.round(w)), height: Math.max(1, Math.round(h)) })
-const ctx = (c: HTMLCanvasElement) => c.getContext("2d") as CanvasRenderingContext2D
-function photo(id: string) {
+export const cv = (w: number, h: number) => Object.assign(document.createElement("canvas"), { width: Math.max(1, Math.round(w)), height: Math.max(1, Math.round(h)) })
+export const ctx = (c: HTMLCanvasElement) => c.getContext("2d") as CanvasRenderingContext2D
+export function photo(id: string) {
   const i = new Image()
   i.decoding = "async"
   i.src = src(id)
@@ -34,7 +34,7 @@ function coverDraw(x: CanvasRenderingContext2D, im: HTMLImageElement, W: number,
   const k = Math.max(W / im.naturalWidth, H / im.naturalHeight), sw = W / k, sh = H / k
   x.drawImage(im, (im.naturalWidth - sw) / 2, (im.naturalHeight - sh) / 2, sw, sh, 0, 0, W, H)
 }
-function tex(T: Three, c: HTMLCanvasElement) {
+export function tex(T: Three, c: HTMLCanvasElement) {
   const t = new T.CanvasTexture(c)
   t.colorSpace = T.SRGBColorSpace
   t.anisotropy = maxAnisotropy(T)
@@ -44,7 +44,7 @@ function tex(T: Three, c: HTMLCanvasElement) {
 }
 
 /** page edges: one soft light/dark pair per leaf (lum 222–251, G −3, B −9, ±3 noise), varying along u (`alongU`) or v */
-function stripes(T: Three, n: number, alongU: boolean) {
+export function stripes(T: Three, n: number, alongU: boolean) {
   const L = 512, c = alongU ? cv(L, 8) : cv(8, L), x = ctx(c)
   for (let i = 0; i < L; i++) {
     const k = (i / L) * n, f = k - Math.floor(k), v = 0.5 + 0.5 * Math.cos(f * 2 * Math.PI)
@@ -57,7 +57,7 @@ function stripes(T: Three, n: number, alongU: boolean) {
 }
 
 /** cover: photo cover-crop, the hinge shade over 5 %, the title 9 % from the top or bottom; `px` = canvas width */
-async function coverCanvas(b: SiteBook, px: number, f: TitleFont) {
+export async function coverCanvas(b: SiteBook, px: number, f: TitleFont) {
   const W = px, H = Math.round((px * b.h) / b.w), c = cv(W, H), x = ctx(c)
   x.fillStyle = b.spine
   x.fillRect(0, 0, W, H)

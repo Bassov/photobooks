@@ -5,10 +5,14 @@
    Spec site-stand S2–S4: the open book shows its thickness (boards, page-block side edges, tail strip, gutter), every
    page is photo paper (paper.ts), interior leaves curl (`leaf="paper"`, the default; covers stay rigid).
    Demos 2–5 (Spec site-awards-5) add `turnMs`, `board` and `scrub` (the page follows the scroll), demo 4 `corner`,
-   demo 5 `api.riffle`. */
+   demo 5 `api.riffle`.
+   Spec site-stand-v2 R (D1, D2): with WebGL 2 (not `?gl=0`) the open book is drawn by three.js (gl/open.ts) into one
+   canvas over the reader box (`glBox`, the pager's camera box on a phone); the turn logic above drives it as (a, θ). */
 import * as React from "react"
 import { CoverFace, ENDPAPER, SpreadArt, TitlePage } from "../site-demo-1/art"
 import { pagesOf, SPREAD_R, src, viewLabel, viewsOf, type SiteBook } from "../site-demo-1/data"
+import { OpenBook } from "./gl/open"
+import { drawInto, glWanted, loadThree, type Three } from "./gl/three"
 import { paperLayers } from "./paper"
 import "./reader.css"
 
@@ -191,6 +195,72 @@ function PaperLeaf({ g, a, th }: { g: Geo; a: number; th: number }) {
   return inner
 }
 
+/** the GL canvas within the reader box (css px); the pager pans it over one page */
+export type GlBox = { x: number; y: number; w: number; h: number }
+type GlProps = {
+  b: SiteBook; a: number; th: number; W: number; H: number; box: GlBox; s: number; dark?: boolean; board: string; bend: boolean
+  label: string; fade: { ms: number; id: number } | null; onFade: () => void; onFail: () => void
+}
+
+/** The render layer of the reader in WebGL (Spec site-stand-v2 R): one canvas, drawn on demand when (a, θ), the box or a
+   page texture changes; a crossfade snapshots the last frame into an overlay canvas and fades it out. */
+function ReaderGl({ b, a, th, W, H, box, s, dark, board, bend, label, fade, onFade, onFail }: GlProps) {
+  const root = React.useRef<HTMLDivElement>(null), canvas = React.useRef<HTMLCanvasElement>(null), over = React.useRef<HTMLCanvasElement>(null)
+  const probe = React.useRef<HTMLSpanElement>(null)
+  const [gl, setGl] = React.useState<{ T: Three; book: OpenBook } | null>(null)
+  const [tick, setTick] = React.useState(0)
+  const cb = React.useRef({ onFail, onFade })
+  cb.current = { onFail, onFade }
+  const pagePx = W >= 1600 ? 2048 : 1024
+  React.useEffect(() => {
+    let dead = false, book: OpenBook | undefined
+    const el = root.current!, cs = getComputedStyle(el), pc = getComputedStyle(probe.current ?? el)
+    const num = (v: string, d: number) => (Number.isFinite(parseFloat(v)) ? parseFloat(v) : d)
+    const title = { family: pc.fontFamily, weight: pc.fontWeight, style: pc.fontStyle, variation: pc.fontVariationSettings, k: 0.14, ls: num(cs.getPropertyValue("--cover-ls"), -0.02) }
+    const css = (p: string, d: string) => cs.getPropertyValue(p).trim() || d
+    void (async () => {
+      try {
+        const T = await loadThree()
+        book = await OpenBook.create(T, b, { dark: !!dark, board, bend, pagePx, title, body: cs.fontFamily, ink: css("--site-ink", "#2E2C2D"), muted: css("--site-muted", "#8A8580") })
+        if (dead) { book.dispose(); return }
+        book.onChange = () => setTick((t) => t + 1)
+        setGl({ T, book })
+      } catch (e) {
+        if (!dead) { console.warn("BookReader: GL failed, CSS fallback", e); cb.current.onFail() }
+      }
+    })()
+    return () => { dead = true; book?.dispose(); setGl(null) }
+  }, [b, dark, board, bend, pagePx])
+
+  const lastFade = React.useRef<number | null>(null)
+  React.useLayoutEffect(() => {
+    const c = canvas.current, o = over.current
+    if (!gl || !c || !o) return
+    if (fade && fade.id !== lastFade.current) {
+      lastFade.current = fade.id
+      o.width = c.width; o.height = c.height
+      o.getContext("2d")?.drawImage(c, 0, 0)
+      const an = o.animate([{ opacity: 1 }, { opacity: 0 }], { duration: fade.ms, easing: "linear", fill: "forwards" })
+      an.onfinish = () => cb.current.onFade()
+    }
+    const k = Math.max(2, window.devicePixelRatio || 1), cw = Math.round(box.w * k), ch = Math.round(box.h * k)
+    if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch }
+    gl.book.set(a, th)
+    gl.book.frame(W, H, s, box)
+    drawInto(gl.T, gl.book.scene, gl.book.cam, c, true)
+    root.current?.setAttribute("data-gl", "ready")
+  }, [gl, tick, a, th, W, H, s, box.x, box.y, box.w, box.h, fade])
+
+  const place: React.CSSProperties = { position: "absolute", left: box.x, top: box.y, width: box.w, height: box.h, pointerEvents: "none" }
+  return (
+    <div ref={root} className="sd-rgl" style={{ position: "absolute", inset: 0 }} data-testid="ps-reader-gl">
+      <canvas ref={canvas} role="img" aria-label={label} style={place} data-testid="ps-reader-canvas" />
+      <canvas ref={over} aria-hidden style={{ ...place, opacity: 0 }} />
+      <span ref={probe} className="sd-it" aria-hidden style={{ position: "absolute", visibility: "hidden", whiteSpace: "nowrap" }} />
+    </div>
+  )
+}
+
 type ReaderProps = {
   b: SiteBook; view: number; onView: (v: number) => void; width: number; dark?: boolean; keys?: boolean; vt?: boolean
   /** "paper" (default, Spec site-stand S4): interior leaves curl as 12 strips; "board": rigid layflat leaves (demo 1). The
@@ -205,16 +275,20 @@ type ReaderProps = {
   scrub?: number
   /** the outer band of a page where the corner lifts under a fine pointer, px (demo 4: 80) */
   corner?: number
+  /** the GL canvas box within the reader (default the reader box) and px per cm (default: 2w + 10 cm fill the width) */
+  glBox?: GlBox
+  glScale?: number
 }
 
 export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
-  function BookReader({ b, view, onView, width: W, dark, keys = true, vt, leaf = "paper", turnMs = 820, board = b.spine, scrub, corner = 64 }, apiRef) {
+  function BookReader({ b, view, onView, width: W, dark, keys = true, vt, leaf = "paper", turnMs = 820, board = b.spine, scrub, corner = 64, glBox, glScale }, apiRef) {
     const n = viewsOf(b)
     const sc = scrub === undefined ? null : clamp(scrub, 0, n - 1)
     const sa = sc === null ? 0 : Math.min(Math.floor(sc), n - 2), sf = sc === null ? 0 : sc - sa
     const sth = sf * sf * (3 - 2 * sf) * 180
     const H = W / SPREAD_R[b.fmt], pw = W / 2
     const g = geoOf(b, W, H, n, board, leaf === "paper")
+    const [gl, setGl] = React.useState(glWanted)
     const el = React.useRef<HTMLDivElement>(null)
     const [shown, setShown] = React.useState(view)
     const [turn, setTurnS] = React.useState<Turn | null>(null)
@@ -381,13 +455,25 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
     React.useEffect(() => { el.current?.setAttribute("data-cursor", shown === 0 ? "Open" : shown === n - 1 ? "←" : "→") }, [shown, n])
 
     const label = viewLabel(b, at)
+    // GL (Spec site-stand-v2 R): the same state drawn as (a, θ); the closed back = the back board turned to 180
+    const lt = scrubbing ? (sth > 0 && sth < 180 ? { a: sa, th: sth } : null) : turn
+    const [ga, gth] = lt ? [lt.a, lt.th] : at === n - 1 ? [n - 2, 180] : [at, 0]
+    // the canvas overhangs the reader box (pointer-events none): the leaf rises toward the eye past the head mid-turn
+    const box = glBox ?? { x: -0.04 * W, y: -0.25 * H, w: 1.08 * W, h: 1.3 * H }
+    const glLayer = gl && (
+      <>
+        <ReaderGl b={b} a={ga} th={gth} W={W} H={H} box={box} s={glScale ?? W / (2 * b.w + 10)} dark={dark} board={board} bend={leaf === "paper"}
+          label={label} fade={fade} onFade={() => setFade(null)} onFail={() => setGl(false)} />
+        {lt && <div aria-hidden data-testid="ps-leaf" data-leaf={lt.a === 0 || lt.a === n - 2 ? "board" : leaf} data-theta={lt.th.toFixed(1)} />}
+      </>
+    )
     const handlers = scrubbing ? {} : { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: () => { ptr.current = null; setTurn(null) }, onPointerLeave }
     return (
       <div ref={el} className={dark ? "sd-reader sd-dark" : "sd-reader"} style={{ width: W, height: H, perspective: `${Math.round(W * 2)}px`, perspectiveOrigin: "50% 50%" }}
         role="region" aria-roledescription="book" aria-label={b.title} tabIndex={0} data-testid="ps-reader" data-view={at} data-views={n} {...handlers}>
-        {scrubbing ? sth > 0 && sth < 180 ? <TurningBook g={g} a={sa} th={sth} /> : <StaticBook g={g} v={at} vt={vt} />
-          : turn ? <TurningBook g={g} a={turn.a} th={turn.th} /> : <StaticBook g={g} v={shown} vt={vt} />}
-        {fade && <div key={fade.id} className="sd-fade" style={{ "--fd": `${fade.ms}ms` } as React.CSSProperties} onAnimationEnd={() => setFade(null)}><StaticBook g={g} v={fade.from} /></div>}
+        {glLayer || (scrubbing ? sth > 0 && sth < 180 ? <TurningBook g={g} a={sa} th={sth} /> : <StaticBook g={g} v={at} vt={vt} />
+          : turn ? <TurningBook g={g} a={turn.a} th={turn.th} /> : <StaticBook g={g} v={shown} vt={vt} />)}
+        {fade && !gl && <div key={fade.id} className="sd-fade" style={{ "--fd": `${fade.ms}ms` } as React.CSSProperties} onAnimationEnd={() => setFade(null)}><StaticBook g={g} v={fade.from} /></div>}
         <div className="sr-only" aria-live="polite" data-testid="ps-reader-live">{label}</div>
       </div>
     )

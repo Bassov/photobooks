@@ -31,9 +31,9 @@ test('the site-demos entry lists exactly the stand demos', async ({ page }) => {
 // read fraction, tail strip, gutter), every page is photo paper, interior
 // leaves curl (paper leaf), perspective 2 × the reader width.
 
-/** opens the first book's reader on view 1 (endpaper | title page) */
+/** opens the first book's CSS reader (`?gl=0`) on view 1 (endpaper | title page) */
 async function openReader(page: Page, slug: keyof typeof BOOK) {
-  await page.goto(`/uikit/#/full/${slug}`)
+  await page.goto(`/uikit/#/full/${slug}?gl=0`)
   // the click opens the room at the cover, which turns to view 1 at once
   await page.getByTestId(BOOK[slug]).first().click()
   const reader = page.getByTestId('ps-reader')
@@ -267,7 +267,8 @@ test.describe('desktop 1440×900: Play and the year rows', () => {
   }) => {
     const errors = consoleErrors(page)
     await page.clock.install()
-    await page.goto('/uikit/#/full/site-demo-7?books=6&book=lake-trip')
+    // the CSS reader (`gl=0`): runFor fires every frame back to back, a GL frame each makes the lane time out under load
+    await page.goto('/uikit/#/full/site-demo-7?books=6&book=lake-trip&gl=0')
     const reader = page.getByTestId('ps-reader')
     await page.clock.runFor(500)
     await expect(reader).toHaveAttribute('data-view', '1')
@@ -422,7 +423,8 @@ for (const vp of VIEWPORTS)
       page,
     }) => {
       const errors = consoleErrors(page)
-      await page.goto('/uikit/#/full/site-demo-7?books=30')
+      // the CSS reader (`gl=0`): page centres are read off its page boxes
+      await page.goto('/uikit/#/full/site-demo-7?books=30&gl=0')
       await page
         .locator('[data-testid="ss7-book"][data-id="book-20"]')
         .locator('visible=true')
@@ -449,7 +451,7 @@ for (const vp of VIEWPORTS)
         page,
       }) => {
         const errors = consoleErrors(page)
-        await page.goto(`/uikit/#/full/site-demo-7?books=6&book=${id}`)
+        await page.goto(`/uikit/#/full/site-demo-7?books=6&book=${id}&gl=0`)
         const seen = await walkRoom(page.getByTestId('ss-reader-page'), phone)
         expect(seen.at(-1)?.label).toBe('Back cover')
         // no photo page paints as #FFFFFF
