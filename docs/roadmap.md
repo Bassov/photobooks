@@ -175,6 +175,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [prep] [print-model-schema](roadmap/P4/print-model-schema.md) — print settings and cover in the document
 - [x] [feature] [print-model-pbt-timeout](roadmap/P4/print-model-pbt-timeout.md) — Bug: print-model PBT times out in loaded pre-push runs
 - [x] [prep] [print-profiles](roadmap/P4/print-profiles.md) — printer data
+- [ ] [feature] [design-r18-kit-toggle](roadmap/P4/design-r18-kit-toggle.md) — Bug: /next-roadmap-item design-r18-kit-toggle
 - [ ] [prep] [preflight-core](roadmap/P4/preflight-core.md) — pure preflight
 - [ ] [prep] [pdf-painter](roadmap/P4/pdf-painter.md) — worker PDF painter (Security Review: dependency)
 - [ ] [prep] [pdf-color-tagging](roadmap/P4/pdf-color-tagging.md) — keep photo colors
