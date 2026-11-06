@@ -2,6 +2,7 @@ import { findSpreadFrame, MIN_FRAME_EDGE_MM, type Frame } from '../core'
 import { measureHandlerSync } from '../perf/measureHandler'
 import { dispatchBookOp } from './bookStore'
 import { getCropTarget } from './cropMode'
+import { editorKeysSuspended } from './editorKeysGate'
 import { STATUS_FRAME_LOCKED, setEditorStatus } from './editorStatus'
 import { getEditorTool } from './editorToolStore'
 import {
@@ -363,6 +364,7 @@ export function installFrameHandleGesture(): () => void {
     const selection = getFrameSelection()
     if (
       arrow === undefined ||
+      editorKeysSuspended() ||
       selection === null ||
       session !== null ||
       event.ctrlKey ||

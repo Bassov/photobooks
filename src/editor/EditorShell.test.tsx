@@ -332,12 +332,36 @@ describe('EditorShell viewport containment', () => {
     expect(pill.hasAttribute('data-pill')).toBe(false)
   })
 
-  it('hides the status pill in Presentation', () => {
+  it('opens the site preview over the mounted, inert editor; Esc returns', async () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {
+          return undefined
+        }
+        disconnect() {
+          return undefined
+        }
+      },
+    )
     render(<EditorShell />)
+    const present = screen.getByTestId('present')
+    fireEvent.click(present)
+    expect(screen.getByTestId('site-preview-bar')).toBeTruthy()
+    const scroll = await screen.findByTestId('site-preview-scroll')
+    expect(scroll.className).toContain('site')
+    expect(screen.getByTestId('site-page-indicator').textContent).toBe('Cover')
     expect(screen.queryByTestId('editor-status')).not.toBeNull()
-    fireEvent.click(screen.getByTestId('present'))
-    expect(screen.queryByTestId('presentation')).not.toBeNull()
-    expect(screen.queryByTestId('editor-status')).toBeNull()
+    expect(screen.getByTestId('editor-shell').hasAttribute('inert')).toBe(true)
+    expect(document.activeElement).toBe(screen.getByTestId('site-preview'))
+
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: 'Escape',
+    })
+    expect(screen.queryByTestId('site-preview')).toBeNull()
+    expect(screen.getByTestId('editor-shell').hasAttribute('inert')).toBe(false)
+    expect(document.activeElement).toBe(present)
+    vi.unstubAllGlobals()
   })
 
   it('has no Rename / New book / Save chrome', async () => {

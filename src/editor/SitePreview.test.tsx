@@ -1,0 +1,136 @@
+import { act, cleanup, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeBook, makeSpread } from '../core/testing/fixtures'
+import {
+  dispatchBookOp,
+  getBookStoreSnapshot,
+  resetBookStore,
+} from './bookStore'
+import SitePreview, { PreviewSlide } from './SitePreview'
+
+const book = makeBook({
+  title: 'Lake trip',
+  spreads: ['s0', 's1', 's2'].map((id) => makeSpread({ id })),
+})
+
+function load(): void {
+  resetBookStore({
+    book,
+    sessionMeta: new Map(),
+    previewUrls: new Map(),
+    importRunning: false,
+    importExpectedCount: 0,
+  })
+}
+
+/** Scroll box 1440 × 852 under a window too short for any stage. */
+function stubLayout(): void {
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1440)
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(
+    function (this: HTMLElement) {
+      return this.dataset.testid === 'site-preview-scroll' ? 852 : 100
+    },
+  )
+}
+
+function press(key: string): void {
+  act(() => {
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
+    )
+  })
+}
+
+const indicator = () => screen.getByTestId('site-page-indicator').textContent
+
+beforeEach(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {
+        return undefined
+      }
+      disconnect() {
+        return undefined
+      }
+    },
+  )
+  load()
+})
+
+afterEach(() => {
+  cleanup()
+  resetBookStore()
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
+
+describe('SitePreview', () => {
+  it('renders the unpublished site book page of the live book', () => {
+    stubLayout()
+    render(<SitePreview onExit={vi.fn()} />)
+    const scroll = screen.getByTestId('site-preview-scroll')
+    expect(scroll.style.minHeight).toBe('0')
+    const siteTitle = scroll.querySelector('.site-header .site-title')
+    expect(siteTitle?.tagName).toBe('SPAN')
+    expect(siteTitle?.textContent).toBe('Photobooks')
+    expect(screen.getByTestId('site-title').textContent).toBe('Lake trip')
+    expect(screen.queryByTestId('site-all-books')).toBeNull()
+    expect(screen.queryByTestId('site-share')).toBeNull()
+    expect(screen.getByTestId('site-fullscreen-btn')).toBeTruthy()
+    // Sized by the scroll box, not the window.
+    expect(screen.getByTestId('site-stage').style.width).toBe('760px')
+    expect(indicator()).toBe('Cover')
+  })
+
+  it('steps with the keys and follows book edits', () => {
+    render(<SitePreview onExit={vi.fn()} />)
+    press('ArrowRight')
+    expect(indicator()).toMatch(/ · 1 \/ 3$/)
+    press('End')
+    expect(indicator()).toMatch(/ · 3 \/ 3$/)
+    act(() => {
+      dispatchBookOp({ type: 'setTitle', title: 'Alps' })
+    })
+    expect(screen.getByTestId('site-title').textContent).toBe('Alps')
+    // Removing the shown spread clamps to the new last slide.
+    act(() => {
+      dispatchBookOp({ type: 'removeSpread', spreadId: 's2' })
+    })
+    expect(indicator()).toMatch(/ · 2 \/ 2$/)
+  })
+
+  it('closes on Escape', () => {
+    const onExit = vi.fn()
+    render(<SitePreview onExit={onExit} />)
+    press('Escape')
+    expect(onExit).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('PreviewSlide', () => {
+  const live = () => getBookStoreSnapshot().book
+
+  it('paints the cover first', () => {
+    const { container } = render(
+      <PreviewSlide book={live()} slide={0} widthPx={760} />,
+    )
+    expect(container.querySelector('.cover-spread')).not.toBeNull()
+    expect(screen.queryByTestId('spread-view')).toBeNull()
+  })
+
+  it('paints a spread at the slide width with no editor layer', () => {
+    render(<PreviewSlide book={live()} slide={2} widthPx={760} />)
+    const view = screen.getByTestId('spread-view')
+    expect(view.getAttribute('data-spread-id')).toBe('s1')
+    expect(view.style.width).toBe('760px')
+    expect(screen.queryByTestId('spread-stage')).toBeNull()
+  })
+
+  it('paints nothing past the last spread', () => {
+    const { container } = render(
+      <PreviewSlide book={live()} slide={4} widthPx={760} />,
+    )
+    expect(container.childElementCount).toBe(0)
+  })
+})

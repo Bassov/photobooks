@@ -1,3 +1,5 @@
+import { editorKeysSuspended } from './editorKeysGate'
+
 /** True when Space should type into the focused control instead of arming pan. */
 export function isTypingTarget(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false
@@ -21,7 +23,7 @@ export function isTypingTarget(el: EventTarget | null): boolean {
  * pointer-over-pasteboard).
  */
 export function shouldDeferChromeSpacePan(el: EventTarget | null): boolean {
-  if (isTypingTarget(el)) return true
+  if (editorKeysSuspended() || isTypingTarget(el)) return true
   if (el instanceof HTMLInputElement) {
     // Native radios/checkboxes use Space to toggle; not covered by isTypingTarget.
     if (el.type === 'radio' || el.type === 'checkbox') return true
