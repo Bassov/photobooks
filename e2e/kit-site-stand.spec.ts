@@ -664,11 +664,104 @@ for (const vp of VIEWPORTS)
         expect(await bays.locator('[data-kind="face"]').count()).toBe(
           await bays.count(),
         )
-        // the case runs from column 4 and ends by column 11 (1416 at 1440)
+        // the case is centred in columns 4–11 (493.33…1416 at 1440)
         const c = await box(page.getByTestId('ss9-case'))
-        expect(Math.round(c.x)).toBe(493)
+        expect(c.x).toBeGreaterThanOrEqual(493 - 0.5)
         expect(c.x + c.width).toBeLessThanOrEqual(1416.5)
+        expect(
+          Math.abs(c.x + c.width / 2 - (493.33 + 1416) / 2),
+        ).toBeLessThanOrEqual(0.5)
       })
+
+    // site-stand-v3 B2 / D11: a short case scales up to 14 px/cm and stands 72 px above the page bottom
+    if (!phone)
+      for (const [n, rest] of [
+        [1, '1 book.'],
+        [3, '3 books.'],
+        [6, '6 books.'],
+      ] as const)
+        test(`books=${String(n)}: the case scales to z 1.556, ends 72 px above the bottom, no scroll`, async ({
+          page,
+        }) => {
+          await page.goto(`/uikit/#/full/site-demo-9?books=${String(n)}`)
+          await expect(page.getByTestId('ss9-book')).toHaveCount(n)
+          const cs = page.getByTestId('ss9-case')
+          const z = await cs.evaluate((el) =>
+            Number(el.style.getPropertyValue('--z')),
+          )
+          expect(z).toBeCloseTo(14 / 9, 2)
+          const c = await box(cs)
+          expect(Math.abs(c.y + c.height - (900 - 72))).toBeLessThanOrEqual(0.5)
+          const [sh, ch] = await page
+            .getByTestId('ss9-home')
+            .evaluate((el) => [el.scrollHeight, el.clientHeight])
+          expect(sh).toBe(ch)
+          await expect(page.getByTestId('ss9-caption')).toHaveText(rest)
+        })
+
+    // site-stand-v3 B2 / D12–D14: per-shelf patterns, leans rest on their neighbour, years on the spines
+    test('books=30: shelf patterns differ, every lean touches its neighbour, spines carry the year', async ({
+      page,
+    }) => {
+      await page.goto('/uikit/#/full/site-demo-9?books=30')
+      await expect(page.getByTestId('ss9-book')).toHaveCount(30)
+      const bays = await page.getByTestId('ss9-bay').evaluateAll((els) =>
+        els.map((bay) => {
+          const kids = [
+            ...bay.querySelectorAll<HTMLElement>('[data-testid="ss9-book"]'),
+          ]
+          const n = (el: HTMLElement, k: 'left' | 'width' | 'height') =>
+            parseFloat(el.style[k])
+          const leans = kids.flatMap((el, i) => {
+            const lean = parseFloat(el.style.getPropertyValue('--lean') || '0')
+            const nb = kids[lean < 0 ? i - 1 : i + 1]
+            if (!lean) return []
+            // a lean with nothing to rest on fails below
+            if (!nb) return [{ off: Infinity, deg: 0, nb: '', z: '' }]
+            const th = (Math.abs(lean) * Math.PI) / 180
+            const [w, h] = [n(el, 'width'), n(el, 'height')]
+            const yc =
+              Math.min(n(nb, 'height'), h * Math.cos(th)) * Math.tan(th)
+            const want =
+              lean < 0
+                ? n(nb, 'left') + n(nb, 'width') - 2 + yc
+                : n(nb, 'left') + 2 - yc - w
+            return [
+              {
+                off: Math.abs(n(el, 'left') - want),
+                deg: Math.abs(lean),
+                nb: nb.dataset.kind,
+                z: getComputedStyle(el).zIndex,
+              },
+            ]
+          })
+          return {
+            p: bay.dataset.p,
+            face: kids.findIndex((el) => el.dataset.kind === 'face'),
+            leans,
+          }
+        }),
+      )
+      expect(bays.length).toBeGreaterThanOrEqual(3)
+      for (let i = 1; i < bays.length; i++)
+        expect(bays[i]?.p).not.toBe(bays[i - 1]?.p)
+      expect(new Set(bays.map((b) => b.face)).size).toBeGreaterThan(1)
+      const leans = bays.flatMap((b) => b.leans)
+      expect(leans.length).toBeGreaterThan(0)
+      for (const l of leans) {
+        expect(l.off).toBeLessThanOrEqual(0.5)
+        expect(l.deg).toBeGreaterThanOrEqual(10)
+        expect(l.deg).toBeLessThanOrEqual(14)
+        expect(l.nb).toBe('spine')
+        expect(l.z).toBe('1')
+      }
+      const years = await page
+        .locator('.ss9-spine em, .ss9-flat em')
+        .allTextContents()
+      // every book but the face-outs (one per shelf)
+      expect(years.length).toBe(30 - bays.length)
+      for (const y of years) expect(y).toMatch(/^\d{4}$/)
+    })
 
     test('books=30: 30 books, every one reachable by scrolling the case', async ({
       page,
@@ -723,6 +816,10 @@ for (const vp of VIEWPORTS)
       await expect(face.getByTestId('book3d-gl')).toBeVisible()
       await page.waitForTimeout(500)
       const [b, sp, fb] = [await box(bay), await box(spine), await box(face)]
+      // the case scale: frame lengths (AO, plinth bands) grow with it
+      const z = await page
+        .getByTestId('ss9-case')
+        .evaluate((el) => Number(el.style.getPropertyValue('--z')))
       const ink = await spine.evaluate(
         (el) => getComputedStyle(el).backgroundColor,
       )
@@ -735,7 +832,7 @@ for (const vp of VIEWPORTS)
       )
       const px = await pixelsAt(bay, [
         // the back wall above the spine, under the top shadow
-        { x: sp.x - b.x + sp.width / 2, y: 32 },
+        { x: sp.x - b.x + sp.width / 2, y: Math.ceil(32 * z) },
         // the spine's head: mid-width (no shading), above the title (10 %)
         { x: sp.x - b.x + sp.width * 0.5, y: sp.y - b.y + sp.height * 0.05 },
         ...grid,
@@ -748,8 +845,8 @@ for (const vp of VIEWPORTS)
       const plinth = page.locator('.ss9-plinth')
       const pb = await box(plinth)
       const pp = await pixelsAt(plinth, [
-        { x: pb.width / 2, y: 10 },
-        { x: pb.width / 2, y: 33 },
+        { x: pb.width / 2, y: Math.round(10 * z) },
+        { x: pb.width / 2, y: Math.round(33 * z) },
       ])
       const front = rgbDiff(pp[0] ?? [], hex('#e4ded3'))
       const foot = rgbDiff(pp[1] ?? [], hex('#d3ccbf'))
