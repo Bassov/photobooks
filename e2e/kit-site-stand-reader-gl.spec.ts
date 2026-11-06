@@ -342,6 +342,8 @@ test.describe('phone 390×844: page turn GL', () => {
   test('the canvas draws the sheet at rest as the DOM does, the curl under a drag, a flat sheet after the commit', async ({
     page,
   }) => {
+    // two pages (GL and the DOM fold), CDP touch drags on the GL curl: ~18 s alone, past 30 s beside other workers
+    test.slow()
     const errors = collectErrors(page)
     await page.goto(turnUrl(true))
     const room = page.getByTestId('ss-reader-page')

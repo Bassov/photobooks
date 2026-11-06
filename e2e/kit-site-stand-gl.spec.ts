@@ -271,9 +271,21 @@ test('demo 6 (1440): one meta-only caption row 20 px clear of the lowest book pi
   const strip = { x: 0, y: floor + 1, width: 1440, height: capY - floor - 1 }
   const rest = await lowestBookY(page, strip)
   const hovered: number[] = []
-  // a fixed sample (first, middle, last): each settles in its hover pose (Book3D data-pose), then back to rest
-  const n = await books.count()
-  for (const i of [...new Set([0, Math.floor(n / 2), n - 1])]) {
+  // a fixed sample (first, middle, last of the books inside the viewport; hover() on one past the edge scrolls the
+  // wall, which snaps back to 0 under the pointer): each settles in its hover pose (Book3D data-pose), then back to rest
+  const inView = (
+    await books.evaluateAll((bs) =>
+      bs.map((b) => {
+        const r = b.getBoundingClientRect()
+        return r.left >= 0 && r.right <= innerWidth
+      }),
+    )
+  ).flatMap((on, i) => (on ? [i] : []))
+  expect(inView.length).toBeGreaterThan(0)
+  const pick = [0, Math.floor(inView.length / 2), inView.length - 1].map(
+    (k) => inView[k] ?? 0,
+  )
+  for (const i of [...new Set(pick)]) {
     const pose = books.nth(i).getByTestId('book3d')
     await books.nth(i).hover()
     await expect(pose).toHaveAttribute('data-pose', 'hover')

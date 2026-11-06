@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
-import { animationsSettled, pageTimePasses } from './fixtures/animationsSettled'
+import { animationsSettled } from './fixtures/animationsSettled'
+import { cdpTouch } from './fixtures/cdpTouch'
 import { expect, test } from './fixtures/coverage'
 import { pixelsAt } from './fixtures/paintProbe'
 import { visibleCentres, white } from './fixtures/sitePagePaint'
@@ -29,27 +30,9 @@ async function swipe(
   to: { x: number; y: number },
   stepMs = 0,
 ) {
-  const cdp = await page.context().newCDPSession(page)
-  const at = (x: number, y: number) => [{ x, y, id: 1 }]
-  await cdp.send('Input.dispatchTouchEvent', {
-    type: 'touchStart',
-    touchPoints: at(from.x, from.y),
-  })
-  for (let i = 1; i <= 12; i++) {
-    if (stepMs) await pageTimePasses(page, stepMs)
-    await cdp.send('Input.dispatchTouchEvent', {
-      type: 'touchMove',
-      touchPoints: at(
-        from.x + ((to.x - from.x) * i) / 12,
-        from.y + ((to.y - from.y) * i) / 12,
-      ),
-    })
-  }
-  await cdp.send('Input.dispatchTouchEvent', {
-    type: 'touchEnd',
-    touchPoints: [],
-  })
-  await cdp.detach()
+  const f = await cdpTouch(page, from)
+  await f.move(to, 12, stepMs)
+  await f.up()
 }
 
 const LABELS = [
@@ -266,34 +249,12 @@ const TURN_URL = '/uikit/#/full/site-demo-6?book=lake-trip&gl=0&reader=turn'
 
 /** a held one-finger touch (CDP): `move` in `steps` steps `stepMs` apart, `up` lifts it */
 async function touch(page: Page, x: number, y: number) {
-  const cdp = await page.context().newCDPSession(page)
-  let at = { x, y }
-  await cdp.send('Input.dispatchTouchEvent', {
-    type: 'touchStart',
-    touchPoints: [{ ...at, id: 1 }],
-  })
+  const f = await cdpTouch(page, { x, y })
   return {
-    async move(tx: number, ty: number, steps = 12, stepMs = 0) {
-      const from = at
-      for (let i = 1; i <= steps; i++) {
-        if (stepMs) await pageTimePasses(page, stepMs)
-        at = {
-          x: from.x + ((tx - from.x) * i) / steps,
-          y: from.y + ((ty - from.y) * i) / steps,
-        }
-        await cdp.send('Input.dispatchTouchEvent', {
-          type: 'touchMove',
-          touchPoints: [{ ...at, id: 1 }],
-        })
-      }
-    },
-    async up() {
-      await cdp.send('Input.dispatchTouchEvent', {
-        type: 'touchEnd',
-        touchPoints: [],
-      })
-      await cdp.detach()
-    },
+    move: (tx: number, ty: number, steps = 12, stepMs = 0) =>
+      f.move({ x: tx, y: ty }, steps, stepMs),
+    hold: f.hold,
+    up: f.up,
   }
 }
 
@@ -411,7 +372,7 @@ test.describe('phone 390×844: page turn', () => {
     }
     expect(Math.abs(r - b)).toBeLessThanOrEqual(25)
     // held still past the 80 ms flick window, then released: under half way, no flick → it springs back
-    await pageTimePasses(page, 200)
+    f.hold(200)
     await f.up()
     await expect(stage).toHaveAttribute('data-xm', '')
     await expect(stage.getByTestId('pt-flap')).toHaveCount(0)
