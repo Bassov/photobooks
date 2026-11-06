@@ -9,6 +9,7 @@ import {
   PAINTER_ASSET_IDS,
 } from '../core/testing/painterFixture'
 import { resetBookStore } from '../editor/bookStore'
+import { seedPrintProfilesFromQuery } from '../editor/printProfilesStore'
 import { retainAssetSource } from '../photo/assetSources'
 import { painterSourceFile } from './painterSourceFile'
 
@@ -117,7 +118,7 @@ function withLiveCaptions(book: Book, count: number): Book {
  * `&overrides=<n>` then has the first n spreads override its logo,
  * `&guides=a` gives Master A two guides and `&captions=<n>` puts n live
  * captions on spread 2; `&px=<n>` records an n px wide source on every
- * painter asset.
+ * painter asset, and `&printProfiles=kit` adds the kit's sample profile.
  */
 export function loadPainterFixture(search = window.location.search): void {
   const fixture = makePainterFixture()
@@ -145,4 +146,5 @@ export function loadPainterFixture(search = window.location.search): void {
   for (const assetId of PAINTER_ASSET_IDS) {
     retainAssetSource(assetId, painterSourceFile(assetId), { cover: true })
   }
+  seedPrintProfilesFromQuery(search)
 }

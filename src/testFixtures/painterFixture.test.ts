@@ -3,6 +3,11 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { PAINTER_ASSET_IDS } from '../core/testing/painterFixture'
 import { getBookStoreSnapshot, resetBookStore } from '../editor/bookStore'
 import {
+  getPrintProfiles,
+  kitSampleProfile,
+  resetPrintProfilesForTests,
+} from '../editor/printProfilesStore'
+import {
   assetSourceCovers,
   getAssetSource,
   resetAssetSources,
@@ -17,6 +22,7 @@ import { painterSourceFile } from './painterSourceFile'
 afterEach(() => {
   resetAssetSources()
   resetBookStore()
+  resetPrintProfilesForTests()
 })
 
 interface PngChunk {
@@ -202,5 +208,28 @@ describe('loadPainterFixture', () => {
     expect(
       getBookStoreSnapshot().book.assets['painter-a']?.meta,
     ).toBeUndefined()
+  })
+
+  it('records an n × 3n/4 px source on every painter asset with px=n only', () => {
+    const sizes = () =>
+      PAINTER_ASSET_IDS.map((id) => {
+        const asset = getBookStoreSnapshot().book.assets[id]
+        return [asset?.widthPx, asset?.heightPx]
+      })
+    loadPainterFixture('?fixture=painter&px=4001')
+    expect(sizes()).toEqual(PAINTER_ASSET_IDS.map(() => [4001, 3001]))
+    for (const query of ['', '&px=0', '&px=-5', '&px=x']) {
+      loadPainterFixture(`?fixture=painter${query}`)
+      expect(sizes()).toEqual(
+        PAINTER_ASSET_IDS.map(() => [undefined, undefined]),
+      )
+    }
+  })
+
+  it('adds the kit sample print profile with printProfiles=kit only', () => {
+    loadPainterFixture('?fixture=painter')
+    expect(getPrintProfiles()).toEqual([])
+    loadPainterFixture('?fixture=painter&printProfiles=kit')
+    expect(getPrintProfiles()).toEqual([kitSampleProfile()])
   })
 })

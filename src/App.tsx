@@ -6,7 +6,6 @@ import { WelcomeScreen } from './editor/WelcomeScreen'
 import { getBrowserSupport } from './editor/browserSupport'
 import { loadPainterFixture } from './editor/bookStore'
 import { isPainterFixtureQuery } from './editor/painterFixtureQuery'
-import { seedPrintProfilesFromQuery } from './editor/printProfilesStore'
 import {
   attachOpfsTestLibrary,
   exposeProjectSessionTestApi,
@@ -44,7 +43,6 @@ function App() {
     if (isPainterFixtureQuery()) {
       startSessionEditor()
       loadPainterFixture()
-      seedPrintProfilesFromQuery()
       return
     }
     if (isTestLibraryQuery()) {

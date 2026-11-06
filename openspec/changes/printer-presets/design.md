@@ -9,47 +9,47 @@
 
 ## Touch-set & Test Plan
 
-| File                                         | Why                         |
-| -------------------------------------------- | --------------------------- |
-| `src/core/print/profileSchema.ts`            | `basedOn`                   |
-| `src/core/ops/bookSettings.ts`               | `refreshPrintProfile`       |
-| `src/core/ops/applyBookOp.ts`                | op                          |
-| `src/core/geometry/resolveSpread.ts`         | customs                     |
-| `src/core/index.ts`                          | export                      |
-| `src/editor/printProfilesStore.ts`           | store                       |
-| `src/editor/printProfileDraft.ts`            | editor rules                |
-| `src/editor/PrintPresetsSection.tsx`         | Settings section            |
-| `src/editor/PrintProfileDialog.tsx`          | editor                      |
-| `src/editor/SettingsScreen.tsx`              | sections                    |
-| `src/editor/settingsScreenModel.ts`          | `print` row                 |
-| `src/editor/BookSettingsSection.tsx`         | Printer PRINT               |
-| `src/editor/bookHistory.ts`                  | snapshot                    |
-| `src/editor/bookStore.ts`                    | customs, paint key, restore |
-| `src/editor/FilmstripItem.tsx`               | customs                     |
-| `src/editor/PhotoSection.tsx`                | customs                     |
-| `src/editor/projectSession.ts`               | bind store                  |
-| `src/ui/Select.tsx`                          | optgroups                   |
-| `src/editor/editorChromePanels.ts`           | `pagesNote` range           |
-| `src/editor/editorChromeTokens.ts`           | drop unused page re-exports |
-| `src/App.tsx`                                | `?printProfiles=kit` seed   |
-| `src/testFixtures/loadPainterFixture.ts`     | `&px=` source size          |
-| `styles/app.css`                             | dialog box                  |
-| `src/core/printPresets.test.ts`              | refresh                     |
-| `src/editor/printProfileDraft.test.ts`       | unit / PBT                  |
-| `src/editor/printProfilesStore.test.ts`      | unit                        |
-| `src/editor/PrintPresetsSection.test.tsx`    | unit                        |
-| `src/editor/BookSettingsPrinter.test.tsx`    | unit                        |
-| `src/editor/bookStore.printProfiles.test.ts` | unit                        |
-| `src/editor/bookStore.history.test.ts`       | one undo step               |
-| `src/editor/SettingsScreen.test.tsx`         | nav                         |
-| `src/editor/settingsScreenModel.test.ts`     | nav                         |
-| `e2e/printer-presets.spec.ts`                | e2e + perf gate             |
-| `e2e/library-screens.spec.ts`                | nav rows                    |
-| `e2e/design-r10-inspectors.spec.ts`          | PRINT +66                   |
-| `e2e/design-r11-controls.spec.ts`            | PRINT +66                   |
-| `docs/roadmap/P5/printer-presets.md`         | scope change                |
-| `docs/roadmap/P4/preflight-core.md`          | moved criterion             |
-| `docs/roadmap/P4/pdf-export.md`              | moved criterion             |
+| File                                         | Why                          |
+| -------------------------------------------- | ---------------------------- |
+| `src/core/print/profileSchema.ts`            | `basedOn`                    |
+| `src/core/ops/bookSettings.ts`               | `refreshPrintProfile`        |
+| `src/core/ops/applyBookOp.ts`                | op                           |
+| `src/core/geometry/resolveSpread.ts`         | customs                      |
+| `src/core/index.ts`                          | export                       |
+| `src/editor/printProfilesStore.ts`           | store                        |
+| `src/editor/printProfileDraft.ts`            | editor rules                 |
+| `src/editor/PrintPresetsSection.tsx`         | Settings section             |
+| `src/editor/PrintProfileDialog.tsx`          | editor                       |
+| `src/editor/SettingsScreen.tsx`              | sections                     |
+| `src/editor/settingsScreenModel.ts`          | `print` row                  |
+| `src/editor/BookSettingsSection.tsx`         | Printer PRINT                |
+| `src/editor/bookHistory.ts`                  | snapshot                     |
+| `src/editor/bookStore.ts`                    | customs, paint key, restore  |
+| `src/editor/FilmstripItem.tsx`               | customs                      |
+| `src/editor/PhotoSection.tsx`                | customs                      |
+| `src/editor/projectSession.ts`               | bind store                   |
+| `src/ui/Select.tsx`                          | optgroups                    |
+| `src/editor/editorChromePanels.ts`           | `pagesNote` range            |
+| `src/editor/editorChromeTokens.ts`           | drop unused page re-exports  |
+| `src/testFixtures/loadPainterFixture.ts`     | `&px=`, `&printProfiles=kit` |
+| `src/testFixtures/painterFixture.test.ts`    | unit                         |
+| `styles/app.css`                             | dialog box                   |
+| `src/core/printPresets.test.ts`              | refresh                      |
+| `src/editor/printProfileDraft.test.ts`       | unit / PBT                   |
+| `src/editor/printProfilesStore.test.ts`      | unit                         |
+| `src/editor/PrintPresetsSection.test.tsx`    | unit                         |
+| `src/editor/BookSettingsPrinter.test.tsx`    | unit                         |
+| `src/editor/bookStore.printProfiles.test.ts` | unit                         |
+| `src/editor/bookStore.history.test.ts`       | one undo step                |
+| `src/editor/SettingsScreen.test.tsx`         | nav                          |
+| `src/editor/settingsScreenModel.test.ts`     | nav                          |
+| `e2e/printer-presets.spec.ts`                | e2e + perf gate              |
+| `e2e/library-screens.spec.ts`                | nav rows                     |
+| `e2e/design-r10-inspectors.spec.ts`          | PRINT +66                    |
+| `e2e/design-r11-controls.spec.ts`            | PRINT +66                    |
+| `docs/roadmap/P5/printer-presets.md`         | scope change                 |
+| `docs/roadmap/P4/preflight-core.md`          | moved criterion              |
+| `docs/roadmap/P4/pdf-export.md`              | moved criterion              |
 
 - Unit / PBT: store, draft rules (valid round-trip PBT), `refreshPrintProfile`, pick undo (bleed clamp, safe, trim kept), `settingsScreenModel`, `SettingsScreen` (aria-current), `EditorSettings`, Book settings Printer + custom-range Pages.
 - e2e `printer-presets.spec.ts`: empty, duplicate→edit→save→pick (B/S, low-res), invalid, delete keeps values, default for new books, undo; `print-profile-switch` gate (40 spreads, zero LoAF). Updated: `library-screens` (2 rows), `design-r10-inspectors` / `design-r11-controls` (+66).
