@@ -8,3 +8,6 @@
 1. Kit `#/demo` → Book settings: Endpapers (on) and Skip first page (off) look like the Live `Switch`; click flips the knob; Tab shows the focus ring.
 2. Kit master → Page numbers Show toggle: same size and knob travel.
 3. `uikit:build` + `demo:baseline` into `.cache/agent/`: the Endpapers / master Page numbers steps show the 36×20 Toggle.
+
+- OK 1–2: `e2e/kit-toggle-size.spec.ts` 3/3 on `#/demo` at 1440 × 900 (box, knob paint, right edge 1424, rows 18.84, focus ring); `pnpm agent manual-qa` drives prod only, kit-only change.
+- OK 3: `uikit:qa:quick` 422 passed / 0 failed; `demo:baseline` 80 steps, no page errors (steps 25, 26, 35, 37 show the Toggle).
