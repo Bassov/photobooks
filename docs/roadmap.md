@@ -154,6 +154,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [site-viewer](roadmap/P3/site-viewer.md) — viewer entry
 - [ ] [feature] [site-lightbox-kit](roadmap/P3/site-lightbox-kit.md) — Bug: /next-roadmap-item site-lightbox-kit
 - [x] [feature] [site-viewer-render](roadmap/P3/site-viewer-render.md) — Bug: /next-roadmap-item site-viewer-render
+- [ ] [feature] [stand-v5-home6](roadmap/P3/stand-v5-home6.md) — Bug: /next-roadmap-item stand-v5-home6
 - [x] [feature] [site-viewer-kit](roadmap/P3/site-viewer-kit.md) — Bug: /next-roadmap-item site-viewer-kit
 - [ ] [feature] [site-preview-mode](roadmap/P3/site-preview-mode.md) — preview the site from the editor
 - [ ] [feature] [site-lightbox](roadmap/P3/site-lightbox.md) — fullscreen and swipe
