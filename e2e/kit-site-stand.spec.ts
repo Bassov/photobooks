@@ -433,14 +433,12 @@ for (const vp of VIEWPORTS)
         }) => {
           const errors = consoleErrors(page)
           await page.goto(`/uikit/#/full/${slug}?books=${String(n)}`)
-          await expect(page.getByTestId('ss-switch').locator('a')).toHaveText([
-            '1',
-            '3',
-            '6',
-            '12',
-            '30',
-            '100',
-          ])
+          // the final phone home (demo 9, site-stand-v7 D32) has no Books switch
+          await expect(page.getByTestId('ss-switch').locator('a')).toHaveText(
+            vp.isMobile && slug === 'site-demo-9'
+              ? []
+              : ['1', '3', '6', '12', '30', '100'],
+          )
           const root = page.locator('[data-books]')
           await expect(root).toHaveAttribute('data-books', String(n))
           const ids = await page
@@ -763,22 +761,22 @@ for (const vp of VIEWPORTS)
     const phone = vp.viewport.width < 768
 
     if (!phone)
-      test('books=6 → one shelf, books=12 → two or more', async ({ page }) => {
+      test('books=6 → one shelf, books=30 → two or more', async ({ page }) => {
         const bays = page.getByTestId('ss9-bay')
         await page.goto('/uikit/#/full/site-demo-9?books=6')
         await expect(page.getByTestId('ss9-book')).toHaveCount(6)
         await expect(bays).toHaveCount(1)
         // 6 books: one face-out, five spines
         await expect(bays.locator('[data-kind="face"]')).toHaveCount(1)
-        await page.goto('/uikit/#/full/site-demo-9?books=12')
-        await expect(page.getByTestId('ss9-book')).toHaveCount(12)
+        await page.goto('/uikit/#/full/site-demo-9?books=30')
+        await expect(page.getByTestId('ss9-book')).toHaveCount(30)
         expect(await bays.count()).toBeGreaterThanOrEqual(2)
         // every shelf starts with a face-out book
         expect(await bays.locator('[data-kind="face"]').count()).toBe(
           await bays.count(),
         )
-        // site-stand-v4 D17: no side column or caption; the lead 104 from the top on the case's left edge,
-        // the case 40 below it, centred in the scroller, at most span 8 (891.33 at 1440) / 1100 wide
+        // site-stand-v4 D17 / v7 D30: no side column or caption; the lead 104 from the top on the case's left
+        // edge, the case 40 below it, centred in the scroller, min(span 10, 1430) wide (1157.33 at 1440)
         await expect(page.getByTestId('ss9-caption')).toHaveCount(0)
         const c = await box(page.getByTestId('ss9-case'))
         const lead = await box(page.getByTestId('ss9-lead'))
@@ -791,16 +789,19 @@ for (const vp of VIEWPORTS)
           .getByTestId('ss9-home')
           .evaluate((el) => el.clientWidth)
         expect(Math.abs(c.x + c.width / 2 - cw / 2)).toBeLessThanOrEqual(0.5)
-        expect(c.width).toBeLessThanOrEqual(Math.min(891.33, 1100) + 0.5)
+        expect(Math.abs(c.width - 1157.33)).toBeLessThanOrEqual(0.5)
       })
 
-    // site-stand-v4 D17: Z = clamp(h/900 · 4/3, 1, 14/9) floors the scale, rows packed for min(span 8, 1100)/Z
+    // site-stand-v7 D30: one case width min(span 10, 1430) and one scale z for any count
+    // (z = clamp((h − 104 − 62.4 − 40 − 72) / H1, Z, 14/9), H1 = one 30 cm shelf at z 1)
     if (!phone)
       for (const [n, w, h, z, width] of [
-        [30, 1440, 900, 4 / 3, [890.7, 892.7]],
-        [100, 2000, 1011, 1.498, [0, 1100.5]],
+        [6, 1440, 900, 14 / 9, 1157.33],
+        [12, 1440, 900, 14 / 9, 1157.33],
+        [100, 1440, 900, 14 / 9, 1157.33],
+        [100, 1920, 1080, 14 / 9, 1430],
       ] as const)
-        test(`books=${String(n)} at ${String(w)}×${String(h)}: z ${z.toFixed(3)}, case within span 8 / 1100`, async ({
+        test(`books=${String(n)} at ${String(w)}×${String(h)}: z ${z.toFixed(4)}, case ${String(width)} wide`, async ({
           page,
         }) => {
           await page.setViewportSize({ width: w, height: h })
@@ -810,12 +811,106 @@ for (const vp of VIEWPORTS)
           const zz = await cs.evaluate((el) =>
             Number(el.style.getPropertyValue('--z')),
           )
-          expect(Math.abs(zz - z)).toBeLessThanOrEqual(0.01)
+          expect(Math.abs(zz - z)).toBeLessThanOrEqual(0.0001)
           const c = await box(cs)
-          // [min, max] case width
-          expect(c.width).toBeGreaterThanOrEqual(width[0])
-          expect(c.width).toBeLessThanOrEqual(width[1])
+          expect(Math.abs(c.width - width)).toBeLessThanOrEqual(0.5)
         })
+
+    // site-stand-v7 D30: every shelf row keeps its natural width, centred in its bay (unrotated items)
+    if (!phone)
+      for (const n of [1, 6, 100] as const)
+        test(`books=${String(n)}: each bay's books are centred`, async ({
+          page,
+        }) => {
+          await page.goto(`/uikit/#/full/site-demo-9?books=${String(n)}`)
+          await expect(page.getByTestId('ss9-book')).toHaveCount(n)
+          const gaps = await page.getByTestId('ss9-bay').evaluateAll((bays) =>
+            bays.map((bay) => {
+              const pad =
+                12 *
+                Number(
+                  bay
+                    .closest<HTMLElement>('[data-testid="ss9-case"]')
+                    ?.style.getPropertyValue('--z'),
+                )
+              // the painted extent at rest (nothing hovered): a leaning spine counts by its rotated box
+              const b = bay.getBoundingClientRect()
+              const items = [
+                ...bay.querySelectorAll<HTMLElement>(
+                  '[data-testid="ss9-book"]',
+                ),
+              ].map((el) => el.getBoundingClientRect())
+              const l = Math.min(...items.map((it) => it.left))
+              const r = Math.max(...items.map((it) => it.right))
+              return { l: l - b.left - pad, r: b.right - pad - r }
+            }),
+          )
+          expect(gaps.length).toBeGreaterThan(0)
+          for (const { l, r } of gaps)
+            expect(
+              Math.abs(l - r),
+              `gaps ${String(l)} / ${String(r)}`,
+            ).toBeLessThanOrEqual(1)
+        })
+
+    // site-stand-v7 D32: the phone home is the name, the lead and the case; one tap opens a book
+    if (phone)
+      test('phone: no caption or Books switch, one tap opens, the name scrolls away', async ({
+        page,
+      }) => {
+        const errors = consoleErrors(page)
+        await page.goto('/uikit/#/full/site-demo-9?books=30')
+        await expect(page.getByTestId('ss9-book')).toHaveCount(30)
+        await expect(page.getByTestId('ss9-caption')).toHaveCount(0)
+        await expect(page.getByTestId('ss-switch')).toHaveCount(0)
+        await expect(
+          page.getByRole('button', { name: 'Open the book' }),
+        ).toHaveCount(0)
+        await expect(page.locator('.ss-head')).toHaveCount(0)
+        const name = page.getByTestId('ss9-name')
+        await expect(name).toHaveText('Aleksandr Basov')
+        expect(Math.abs((await box(name)).y - 16)).toBeLessThanOrEqual(1)
+        await page.getByTestId('ss9-home').evaluate((el) => {
+          el.scrollTop = 300
+        })
+        await expect.poll(async () => (await box(name)).y).toBeCloseTo(-284, 0)
+        const first = page.getByTestId('ss9-book').first()
+        const id = await first.getAttribute('data-id')
+        await page.getByTestId('ss9-home').evaluate((el) => {
+          el.scrollTop = 0
+        })
+        await first.tap()
+        await expect(page.getByTestId('ss9')).toHaveAttribute(
+          'data-open',
+          id ?? '',
+        )
+        expect(errors).toEqual([])
+      })
+
+    // site-stand-v7 F: demo 9 paints the browser bars paper (html, body, theme-color); leaving the route restores them
+    test('paper browser bars on demo 9, restored after leaving', async ({
+      page,
+    }) => {
+      const bars = () =>
+        page.evaluate(() => [
+          getComputedStyle(document.documentElement).backgroundColor,
+          getComputedStyle(document.body).backgroundColor,
+          document
+            .querySelector('meta[name="theme-color"]')
+            ?.getAttribute('content') ?? null,
+        ])
+      await page.goto('/uikit/#/full/site-demo-6?books=6')
+      await expect(page.getByTestId('ss6-book').first()).toBeVisible()
+      const before = await bars()
+      expect(before[2]).toBeNull()
+      await page.goto('/uikit/#/full/site-demo-9?books=6')
+      await expect(page.getByTestId('ss9-book').first()).toBeVisible()
+      const paper = 'rgb(244, 243, 240)'
+      expect(await bars()).toEqual([paper, paper, paper])
+      await page.goto('/uikit/#/full/site-demo-6?books=6')
+      await expect(page.getByTestId('ss6-book').first()).toBeVisible()
+      expect(await bars()).toEqual(before)
+    })
 
     // site-stand-v4 D18–D19: the face-out comes off the shelf without tipping; the lower flat of a stack
     // slides out from its top edge and never runs into the book above
@@ -861,10 +956,10 @@ for (const vp of VIEWPORTS)
         expect(Math.abs(u1.x - u0.x)).toBeLessThanOrEqual(0.5)
       })
 
-    // site-stand-v3 B2 / v4 D17: a short case scales up to 14 px/cm under the lead, no scroll
+    // site-stand-v3 B2 / v4 D17 / v7 D30: every count is at 14 px/cm; one shelf (≤ 12 books) fits, no scroll
     if (!phone)
-      for (const n of [1, 3, 6] as const)
-        test(`books=${String(n)}: the case scales to z 1.556, no scroll`, async ({
+      for (const n of [1, 3, 6, 12, 100] as const)
+        test(`books=${String(n)}: the case scales to z 1.556`, async ({
           page,
         }) => {
           await page.goto(`/uikit/#/full/site-demo-9?books=${String(n)}`)
@@ -877,8 +972,11 @@ for (const vp of VIEWPORTS)
           const [sh, ch] = await page
             .getByTestId('ss9-home')
             .evaluate((el) => [el.scrollHeight, el.clientHeight])
-          expect(sh).toBe(ch)
+          expect(sh > ch).toBe(n > 12)
           await expect(page.getByTestId('ss9-caption')).toHaveCount(0)
+          expect(Math.abs((await box(cs)).width - 1157.33)).toBeLessThanOrEqual(
+            0.5,
+          )
         })
 
     // site-stand-v3 B2 / D12–D14: per-shelf patterns, leans rest on their neighbour, years on the spines

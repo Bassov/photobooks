@@ -1,20 +1,20 @@
-/* Site demo 9, the bookcase (Spec site-stand-v2 B, site-stand-v3 B2, site-stand-v4 D17–D19): a greige case centred on
-   the page (at most span 8 / 1100 wide) under the lead, that grows with the collection and scales with it (z = Z…14/9,
-   Z = clamp(h/900 · 4/3, 1, 14/9), so a short case fills the page down to 72 px above the bottom), then as many shelves
-   as the books need (the page scrolls down the case). Each shelf has its own arrangement (`shelf.ts`): the newest book
-   face-out (GL Book3D at rest, coming off the shelf toward you on hover), spines with the year, the two thinnest flat on
-   P1 / P3, a book leaning 10–14° onto its neighbour. Phone: the case between the margins at z = 1, the first tap raises
-   a book, the second opens it. */
+/* Site demo 9, the bookcase and the final site design (Spec site-stand-v2 B, site-stand-v3 B2, site-stand-v4 D17–D19,
+   site-stand-v7 D30 / D32): a greige case centred on the page under the lead, span 10 (at most 1430) wide for any
+   count, at one scale z = Z…14/9 (Z = clamp(h/900 · 4/3, 1, 14/9)) so one shelf fills the page down to 72 px above the
+   bottom, then as many shelves as the books need (the page scrolls down the case). Each shelf has its own arrangement
+   (`shelf.ts`), centred in its bay: the newest book face-out (GL Book3D at rest, coming off the shelf toward you on
+   hover), spines with the year, the two thinnest flat on P1 / P3, a book leaning 10–14° onto its neighbour. Phone: the
+   name, the lead and the case between the margins at z = 1; one tap opens a book. */
 import * as React from 'react'
 import { Book3D, type Pose } from '../site-book/book3d'
 import { GRAIN } from '../site-book/paper'
-import { type SiteBook } from '../site-demo-1/data'
+import { AUTHOR, type SiteBook } from '../site-demo-1/data'
 import { LEAD, metaOf, SysSite, type HomeApi } from '../site-sys/sys'
 import { faceW, rowOf, shelve, type Item } from './shelf'
 import './site.css'
 
 export function SiteDemo9() {
-  return <SysSite n={9} home={(h) => <Home {...h} />} />
+  return <SysSite n={9} final home={(h) => <Home {...h} />} />
 }
 
 /** case frame (px at z = 1): sides, top, shelf, plinth; the row padding inside a bay */
@@ -27,31 +27,36 @@ const REST: Pose = { ry: 0, rx: 3.5 }
 function Home({ books, box, g, open }: HomeApi) {
   const phone = box.narrow
   const k = Math.min(1, box.h / 900)
-  // desktop: hover / focus; phone: the raised book (first tap), books[0] at first
-  const [sel, setSel] = React.useState<SiteBook | null>(phone ? books[0] : null)
-  React.useEffect(() => setSel(phone ? books[0] : null), [books, phone])
-  // desktop scale floor (D17): 12 px/cm at 900 high, 14 at ≥ 1050; the case is at most span 8 / 1100 wide
+  // desktop: the hovered / focused book
+  const [sel, setSel] = React.useState<SiteBook | null>(null)
+  React.useEffect(() => setSel(null), [books, phone])
+  // desktop scale floor (D17): 12 px/cm at 900 high, 14 at ≥ 1050
   const Z = phone ? 1 : Math.min(Math.max(((box.h / 900) * 4) / 3, 1), 14 / 9)
-  const max = phone ? box.w - 2 * g.M : Math.min(g.span(8), 1100)
-  const avail = max / Z - 2 * SIDE - 2 * PAD
-  // phone: s fits the widest face-out and two spines on a shelf
+  // the case width, for every count (D30): span 10, at most 1430; phone: between the margins
+  const CW = phone ? box.w - 2 * g.M : Math.min(g.span(10), 1430)
   let s0 = 9 * k
+  // desktop: one shelf (the stand's tallest book, 30 cm) fits under the lead (104 top, two t24 lines, 40 gap) and 72
+  // above the bottom, never below Z: the scale does not depend on the count
+  const H1 = TOP + Math.max(30, ...books.map((b) => b.h)) * s0 + 40 + PLINTH
+  const z = phone ? 1 : Math.min(Math.max((box.h - 104 - LEAD_H - 40 - 72) / H1, Z), 14 / 9)
+  const avail = CW / z - 2 * (SIDE + PAD)
+  // phone: s fits the widest face-out and two spines on a shelf
   if (phone) while (s0 > 4 && Math.max(...books.map((b) => faceW(b, s0, 1))) + 50 > avail) s0 *= 0.96
-  // base pass at z = 1, then the same rows and patterns at z
+  // rows at z = 1, then the same rows and patterns at z; desktop rows keep their natural width, centred in the bay
   const { rows: groups, ps } = shelve(books, s0, 1, avail)
-  const base = groups.map((r, i) => rowOf(r, ps[i], s0, 1, 0))
-  const caseW0 = phone ? max : Math.max(g.span(3), Math.min(max / Z, Math.max(...base.map((r) => r.width)) + 2 * SIDE + 2 * PAD))
-  const caseH0 = TOP + base.reduce((a, r) => a + r.height, 0) + (base.length - 1) * SHELF + PLINTH
-  // desktop: the case fits under the lead (104 top, two t24 lines, 40 gap) and 72 above the bottom, never below Z
-  const z = phone ? 1 : Math.min(Math.max(Math.min((box.h - 104 - LEAD_H - 40 - 72) / caseH0, max / caseW0), Z), 14 / 9)
-  const s = s0 * z, caseW = caseW0 * z
-  const rows = groups.map((r, i) => rowOf(r, ps[i], s, z, caseW - 2 * (SIDE + PAD) * z))
+  const s = s0 * z, caseW = CW, inner = CW - 2 * (SIDE + PAD) * z
+  const rows = groups.map((r, i) => {
+    if (phone) return rowOf(r, ps[i], s, z, inner)
+    const row = rowOf(r, ps[i], s, z, 0), off = (inner - row.width) / 2
+    return { ...row, items: row.items.map((it) => ({ ...it, x: it.x + off })) }
+  })
   const caseH = (TOP + (rows.length - 1) * SHELF + PLINTH) * z + rows.reduce((a, r) => a + r.height, 0)
-  // phone placement (the desktop case flows under the lead instead)
+  // phone placement (the desktop case flows under the lead instead); the last plinth stays above a floating browser bar
   const top = 184
-  const total = Math.max(box.h, top + caseH + 240)
+  const total = Math.max(box.h, top + caseH + 96)
   const leave = (b: SiteBook) => () => setSel((h) => (h === b ? null : h))
-  const act = (b: SiteBook) => (phone ? { onClick: () => (sel === b ? open(b) : setSel(b)) } : {
+  // phone (D32): one tap opens the book
+  const act = (b: SiteBook) => (phone ? { onClick: () => open(b) } : {
     onClick: () => open(b),
     onPointerEnter: (e: React.PointerEvent) => { if (e.pointerType === 'mouse') setSel(b) },
     onPointerLeave: leave(b), onFocus: () => setSel(b), onBlur: leave(b),
@@ -88,21 +93,15 @@ function Home({ books, box, g, open }: HomeApi) {
         </div>
       </div>
     )
-  const c = sel ?? books[0]
+  // phone (D32): only the name (scrolling with the page), the lead and the case
   return (
     <div className="ss-layer ss-scroll" data-testid="ss9-home">
       <div style={{ position: 'relative', height: total }}>
+        <p className="ss-abs m15 w5" style={{ left: g.M, top: 16, margin: 0, lineHeight: '24px' }} data-testid="ss9-name">{AUTHOR}</p>
         <p className="ss-abs m19" style={{ left: g.M, top: 72, width: g.span(4), maxWidth: 340 }}>{LEAD}</p>
         <div className="ss-abs ss9-case" style={{ left: g.M, top, width: caseW, height: caseH, '--z': z } as React.CSSProperties} data-testid="ss9-case">
           {bays}
           {plinth}
-        </div>
-        <div className="ss-abs" style={{ left: g.M, top: top + caseH + 24, width: g.span(4), paddingBottom: 64 }} data-testid="ss9-caption">
-          <div key={c.id} className="ss9-cap">
-            <div className="m28">{c.title}</div>
-            <div className="t13 g" style={{ marginTop: 6 }}>{metaOf(c)}</div>
-            <button type="button" className="m15 u" style={{ marginTop: 6, minHeight: 44 }} onClick={() => open(c)}>Open the book</button>
-          </div>
         </div>
       </div>
     </div>

@@ -31,6 +31,8 @@ type RoomProps = {
   onClose?: () => void
   /** a swipe back is pulling the room aside: the home layer shows under it */
   onPeek?: (on: boolean) => void
+  /** the final site design (demo 9, site-stand-v7 F): its own reader layout; demo 6 leaves it off */
+  final?: boolean
 }
 
 export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: RoomProps) {

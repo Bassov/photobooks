@@ -30,7 +30,26 @@ export function Statement({ s }: { s: string }) {
   return <>{s.split('*').map((x, i) => (i % 2 ? <span key={i} className="g">{x}</span> : x))}</>
 }
 
-export type HomeApi = { books: SiteBook[]; box: Box; g: Grid; active: boolean; open: (b: SiteBook) => void; showAll: () => void }
+export type HomeApi = { books: SiteBook[]; box: Box; g: Grid; active: boolean; open: (b: SiteBook) => void; showAll: () => void; final?: boolean }
+
+/** site-stand-v7 F: the browser bars (html, body, theme-color) take the site's paper colour; restored on leaving */
+function usePaperBars(root: React.RefObject<HTMLDivElement | null>, on: boolean, dark?: boolean) {
+  React.useLayoutEffect(() => {
+    if (!on || !root.current) return
+    const bg = getComputedStyle(root.current).backgroundColor
+    const html = document.documentElement, body = document.body
+    const was = { html: html.style.background, body: body.style.background }
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+    const made = !meta, content = meta?.content ?? ''
+    if (!meta) { meta = document.createElement('meta'); meta.name = 'theme-color'; document.head.append(meta) }
+    html.style.background = bg; body.style.background = bg; meta.content = bg
+    return () => {
+      html.style.background = was.html; body.style.background = was.body
+      if (made) meta.remove()
+      else meta.content = content
+    }
+  }, [root, on, dark])
+}
 
 /** `#/full/<id>?books=6&book=<id>`: the book id on the hash (full-window routes only) */
 const bookOfHash = () => (/^#\/full\//.test(location.hash) ? (/[?&]book=([^&]+)/.exec(location.hash)?.[1] ?? null) : null)
@@ -46,10 +65,13 @@ const hashWith = (id: string | null) => {
 type Open = { b: SiteBook; pushed: boolean }
 
 /** The site shell: home (kept mounted under the room, so the place is kept), the reading room, Head, the switch. */
-export function SysSite({ n, dark, home, testId }: { n: number; dark?: boolean; home: (h: HomeApi) => React.ReactNode; testId?: string }) {
+export function SysSite({ n, dark, final, home, testId }: { n: number; dark?: boolean; final?: boolean; home: (h: HomeApi) => React.ReactNode; testId?: string }) {
   const books = useBooks()
   const [root, box] = useBox<HTMLDivElement>()
   const g = gridOf(box)
+  usePaperBars(root, !!final, dark)
+  // the final phone home draws the name itself and has no Books switch (site-stand-v7 D32)
+  const bare = !!final && g.narrow
   const find = (id: string | null) => books.find((b) => b.id === id) ?? null
   // a deep link opens at view 1, without the cover turn
   const [cur, setCur] = React.useState<Open | null>(() => { const b = find(bookOfHash()); return b ? { b, pushed: false } : null })
@@ -105,16 +127,16 @@ export function SysSite({ n, dark, home, testId }: { n: number; dark?: boolean; 
   return (
     <div ref={root} className={`ss${dark ? ' ss-dark' : ''}`} data-testid={testId ?? `ss${n}`} data-books={books.length} data-open={cur?.b.id}>
       <div className="ss-layer" data-off={covered && !peek ? '' : undefined} inert={covered}>
-        {home({ books, box, g, active: !covered, open, showAll: () => setList(true) })}
+        {home({ books, box, g, active: !covered, open, showAll: () => setList(true), final })}
       </div>
       {list && !cur && (
         <div className="ss-page ss-scroll" data-testid={`ss${n}-list`}>
           <AllBooks books={books} g={g} onOpen={open} />
         </div>
       )}
-      {cur && <ReadingRoom key={cur.b.id} b={cur.b} view={view} setView={setView} dark={dark} box={box} onClose={close} onPeek={setPeek} />}
-      {!phoneRoom && <Head g={g} reading={!!cur} onHome={() => (cur ? close() : setList(false))} />}
-      {!phoneRoom && <Switch demo={n} count={books.length} g={g} />}
+      {cur && <ReadingRoom key={cur.b.id} b={cur.b} view={view} setView={setView} dark={dark} box={box} onClose={close} onPeek={setPeek} final={final} />}
+      {!phoneRoom && !(bare && !cur) && <Head g={g} reading={!!cur} onHome={() => (cur ? close() : setList(false))} />}
+      {!phoneRoom && !bare && <Switch demo={n} count={books.length} g={g} />}
     </div>
   )
 }

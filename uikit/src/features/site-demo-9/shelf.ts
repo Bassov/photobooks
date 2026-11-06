@@ -1,4 +1,4 @@
-/* Site demo 9 shelf layout (Spec site-stand-v3 B2, D13–D14): the TS port of the Designer's reference `shelf.js`, kept as
+/* Site demo 9 shelf layout (Spec site-stand-v3 B2, D13, site-stand-v7 D30): the TS port of the Designer's reference `shelf.js`, kept as
    written. Pure: books → rows of items in case px. Units: s px/cm (already × z), z = case scale (≥ 1). */
 import { pagesOf, type SiteBook } from '../site-demo-1/data'
 
@@ -45,8 +45,8 @@ export function nextPattern(ps: Pattern[], first: SiteBook): Pattern {
   const c = ([0, 1, 2, 3] as const).filter((p) => !ps.slice(-2).includes(p))
   return c[hash(first.id) % c.length]
 }
-/** books per shelf: 7…10 from the hash of the shelf's first (newest) book */
-export const capOf = (first: SiteBook) => 7 + (hash(first.id) % 4)
+/** books per shelf: 9…13 from the hash of the shelf's first (newest) book (site-stand-v7 D30) */
+export const capOf = (first: SiteBook) => 9 + (hash(first.id) % 5)
 
 /** lean geometry: a spine (w, h) resting on its neighbour (top hn) at θ; returns the horizontal room it takes past the neighbour */
 export function leanRoom(w: number, h: number, hn: number, th: number) {
@@ -134,7 +134,7 @@ export function rowOf(r: SiteBook[], p: Pattern, s: number, z: number, inner: nu
 }
 
 /** greedy rows, newest first. Row i gets its pattern when it starts (nextPattern); a book joins the row while the row
-   is under its cap (7…10) and that pattern still fits `avail`. */
+   is under its cap (9…13) and that pattern still fits `avail`. */
 export function shelve(books: SiteBook[], s: number, z: number, avail: number) {
   const rows: SiteBook[][] = [], ps: Pattern[] = []
   for (const b of books) {
