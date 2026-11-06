@@ -87,12 +87,17 @@ function thickness(reader: Locator) {
 /** RGBA at the centre of each page that holds a photo: the page centre when a
    photo covers it, else the centre of the page's largest photo (art.tsx paints
    photos as background images; the paper grain is a data: URL) */
-async function pageCentres(reader: Locator, clip: Locator = reader) {
+async function pageCentres(
+  reader: Locator,
+  clip: Locator = reader,
+  testId?: string,
+) {
   const pts = await reader.evaluate(
-    (el, cl) => {
+    (el, [cl, id]) => {
       // the single-page camera (`clip`) shows only the pages inside it
-      const o = cl.getBoundingClientRect()
-      return [...el.querySelectorAll('.sd-pg')].flatMap((pg) => {
+      const o = (cl as Element).getBoundingClientRect()
+      const sel = id ? `[data-testid="${id}"]` : '.sd-pg'
+      return [...el.querySelectorAll(sel)].flatMap((pg) => {
         const p = pg.getBoundingClientRect()
         const cut = [...pg.querySelectorAll<HTMLElement>('*')]
           .filter((n) => /^url\((?!"?data:)/.test(n.style.backgroundImage))
@@ -126,7 +131,7 @@ async function pageCentres(reader: Locator, clip: Locator = reader) {
         return [{ x: c.x - o.left, y: c.y - o.top }]
       })
     },
-    await clip.elementHandle(),
+    [await clip.elementHandle(), testId ?? ''] as const,
   )
   return pts.length ? pixelsAt(clip, pts) : []
 }
@@ -225,13 +230,31 @@ const VIEWPORTS = [
   },
 ]
 
-/** Next through the room to the back cover; at each rest the RGB at the
-   centre of every visible photo page */
+/** the phone portrait slide at rest (its paper at x 16): label + photo centre RGB */
+async function slideAtRest(room: Locator) {
+  const label = (await room.getByTestId('ss-label').textContent()) ?? ''
+  const slide = room.locator(`[data-testid="ps-slide"][aria-label="${label}"]`)
+  const paper = slide.getByTestId('ps-paper')
+  await expect.poll(async () => Math.round((await box(paper)).x)).toBe(16)
+  return { label, centres: await pageCentres(slide, slide, 'ps-paper') }
+}
+
+/** Next through the room to the back cover (phone portrait: the last slide);
+   at each rest the RGB at the centre of every visible photo page */
 async function walkRoom(room: Locator) {
   const reader = room.getByTestId('ps-reader')
   const next = room.getByTestId('ss-next')
   const seen: { label: string; centres: number[][] }[] = []
-  // the room opens on view 1; a phone reads by spreads too (site-stand-v4 D20)
+  // a phone portrait reads one page per slide (site-stand-v5 D23)
+  if ((await room.getAttribute('data-mode')) === 'port')
+    for (;;) {
+      const s = await slideAtRest(room)
+      seen.push(s)
+      if (await next.isDisabled()) return seen
+      await next.click()
+      await expect(room.getByTestId('ss-label')).not.toHaveText(s.label)
+    }
+  // the room opens on view 1
   for (let k = 1; ; k++) {
     // at rest: the reader on view k
     await expect(reader).toHaveAttribute('data-view', String(k))
@@ -243,6 +266,52 @@ async function walkRoom(room: Locator) {
     if (await next.isDisabled()) return seen
     await next.click()
   }
+}
+
+/** a room just opened by a click rests on view 1; a phone portrait on the cover slide (site-stand-v5 D23) */
+async function expectOpened(room: Locator, phone: boolean) {
+  if (phone) await expect(room.getByTestId('ss-label')).toHaveText('Cover')
+  else
+    await expect(room.getByTestId('ss-reader')).toHaveAttribute(
+      'data-view',
+      '1',
+    )
+}
+
+/** a deep link rests on page 1; it closes by the site name, on a phone by the room's back button (no site head, D24) */
+async function deepLinkCloser(page: Page, phone: boolean) {
+  const room = page.getByTestId('ss-reader-page')
+  if (!phone) {
+    await expect(room.getByTestId('ss-reader')).toHaveAttribute(
+      'data-view',
+      '1',
+    )
+    return page.locator('.ss-head > button')
+  }
+  await expect(room.getByTestId('ss-label')).toHaveText(/^Page 1 of/)
+  await expect(page.locator('.ss-head')).toHaveCount(0)
+  return room.getByTestId('ss-all')
+}
+
+/** Next to the first interior view (a phone: Cover → page 1 → the first interior slide); its photo centre RGBs */
+async function firstSpreadCentres(room: Locator, phone: boolean) {
+  const next = room.getByTestId('ss-next')
+  await next.click()
+  if (!phone) {
+    const reader = room.getByTestId('ps-reader')
+    await expect(reader.getByTestId('ps-leaf')).toHaveCount(0)
+    return pageCentres(reader)
+  }
+  await expect(room.getByTestId('ss-label')).toHaveText(/^Page 1 of/)
+  await next.click()
+  await expect(room.getByTestId('ss-label')).not.toHaveText(/^Page 1 of/)
+  return (await slideAtRest(room)).centres
+}
+
+/** [views walked from page 1, last label]: a phone reads slides with no back cover (D23) */
+const walkEnd = (id: string, phone: boolean) => {
+  if (!phone) return [expect.any(Number), 'Back cover']
+  return id === 'lake-trip' ? [15, 'Page 20 of 22'] : [9, 'Page 12 of 14']
 }
 
 function consoleErrors(page: Page) {
@@ -330,11 +399,7 @@ for (const vp of VIEWPORTS)
           await book.click()
           await expect(room).toBeVisible()
           expect(page.url()).toContain(`book=${id ?? ''}`)
-          // the cover turns at once: the room rests on view 1
-          await expect(room.getByTestId('ss-reader')).toHaveAttribute(
-            'data-view',
-            '1',
-          )
+          await expectOpened(room, vp.isMobile)
           await expect(all).toBeVisible()
           await shut()
           await expect(room).toHaveCount(0)
@@ -350,11 +415,7 @@ for (const vp of VIEWPORTS)
     }) => {
       await page.goto('/uikit/#/full/site-demo-6?books=6&book=coast')
       const room = page.getByTestId('ss-reader-page')
-      await expect(room.getByTestId('ss-reader')).toHaveAttribute(
-        'data-view',
-        '1',
-      )
-      await page.locator('.ss-head > button').click()
+      await (await deepLinkCloser(page, vp.isMobile)).click()
       await expect(room).toHaveCount(0)
       expect(page.url()).not.toContain('book=')
       await expect(
@@ -406,14 +467,8 @@ for (const vp of VIEWPORTS)
         .locator('visible=true')
         .click()
       const room = page.getByTestId('ss-reader-page')
-      await expect(room.getByTestId('ss-reader')).toHaveAttribute(
-        'data-view',
-        '1',
-      )
-      await room.getByTestId('ss-next').click()
-      const reader = room.getByTestId('ps-reader')
-      await expect(reader.getByTestId('ps-leaf')).toHaveCount(0)
-      const centres = await pageCentres(reader)
+      await expectOpened(room, vp.isMobile)
+      const centres = await firstSpreadCentres(room, vp.isMobile)
       expect(centres.length).toBeGreaterThan(0)
       expect(centres.filter(white)).toEqual([])
       expect(errors).toEqual([])
@@ -426,7 +481,9 @@ for (const vp of VIEWPORTS)
         const errors = consoleErrors(page)
         await page.goto(`/uikit/#/full/site-demo-6?books=6&book=${id}&gl=0`)
         const seen = await walkRoom(page.getByTestId('ss-reader-page'))
-        expect(seen.at(-1)?.label).toBe('Back cover')
+        expect([seen.length, seen.at(-1)?.label]).toEqual(
+          walkEnd(id, vp.isMobile),
+        )
         // no photo page paints as #FFFFFF
         expect(seen.flatMap((s) => s.centres).filter(white)).toEqual([])
         // every view between the covers was sampled; most hold a photo

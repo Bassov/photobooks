@@ -6,7 +6,7 @@
 import * as React from 'react'
 import { AUTHOR, pagesOf, type SiteBook } from '../site-demo-1/data'
 import { COUNTS, useBooks } from '../site-book/many'
-import { ReadingRoom } from '../site-book/room'
+import { ReadingRoom, roomMode } from '../site-book/room'
 import { metaOf, reduced, useBox, type Box } from '../site-demo-1/v2'
 import '../site-demo-1/site.css'
 import './system.css'
@@ -98,9 +98,13 @@ export function SysSite({ n, dark, home, testId }: { n: number; dark?: boolean; 
     addEventListener('keydown', k); return () => removeEventListener('keydown', k)
   }, [])
   const covered = !!cur || list
+  // a phone room has its own header (site-stand-v5 D24); a swipe back peeks at the home under it (D25)
+  const phoneRoom = !!cur && roomMode(box) !== 'desk'
+  const [peek, setPeek] = React.useState(false)
+  if (peek && !cur) setPeek(false)
   return (
     <div ref={root} className={`ss${dark ? ' ss-dark' : ''}`} data-testid={testId ?? `ss${n}`} data-books={books.length} data-open={cur?.b.id}>
-      <div className="ss-layer" data-off={covered ? '' : undefined} inert={covered}>
+      <div className="ss-layer" data-off={covered && !peek ? '' : undefined} inert={covered}>
         {home({ books, box, g, active: !covered, open, showAll: () => setList(true) })}
       </div>
       {list && !cur && (
@@ -108,9 +112,9 @@ export function SysSite({ n, dark, home, testId }: { n: number; dark?: boolean; 
           <AllBooks books={books} g={g} onOpen={open} />
         </div>
       )}
-      {cur && <ReadingRoom key={cur.b.id} b={cur.b} view={view} setView={setView} dark={dark} box={box} />}
-      <Head g={g} reading={!!cur} onHome={() => (cur ? close() : setList(false))} />
-      <Switch demo={n} count={books.length} g={g} />
+      {cur && <ReadingRoom key={cur.b.id} b={cur.b} view={view} setView={setView} dark={dark} box={box} onClose={close} onPeek={setPeek} />}
+      {!phoneRoom && <Head g={g} reading={!!cur} onHome={() => (cur ? close() : setList(false))} />}
+      {!phoneRoom && <Switch demo={n} count={books.length} g={g} />}
     </div>
   )
 }

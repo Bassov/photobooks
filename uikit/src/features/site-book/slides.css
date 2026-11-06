@@ -1,0 +1,32 @@
+/* Phone portrait reader (Spec site-stand-v5 R): the stage is a native scroll-snap strip, one page-sized slide per swipe
+   (no scrollbar: `.no-scrollbar`). */
+.ps-strip {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pinch-zoom;
+  outline: none;
+}
+.ps-strip:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+.ps-slide {
+  flex: none;
+  height: 100%;
+  position: relative;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+.ps-paper {
+  position: absolute;
+  left: 8px;
+  overflow: hidden;
+  background: var(--site-paper);
+  box-shadow: var(--site-shadow-book);
+}

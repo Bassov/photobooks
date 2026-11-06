@@ -27,6 +27,17 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+/* phone portrait header (site-stand-v5 D24): "‹ Title" back to the list, ink, one line, ellipsis */
+.sb-back {
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+  color: var(--ink);
+}
 /* Play / Pause (D4): ink text, ≥ 44 px target; the 1 px progress line under the label grows over the dwell */
 .sb-play {
   position: relative;

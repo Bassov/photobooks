@@ -1,18 +1,19 @@
 /* ReadingRoom (Spec site-stand S6, site-stand-v2 S): the open book over the site, opened by the sys shell (demos 6, 9).
    Grid M 24 / 16, G 16 / 12, 12 / 4 columns. Desktop: top 72, foot 96, rw = max(200, min(span(10), (h − 168)·R))
    centred; the foot 32 px below: title + meta (cols 0–3), Previous · label · Next (centre), Play (cols 9–11). Phone
-   portrait (w < 768, h > w, site-stand-v4 D20): the whole spread at rw = min(w − 32, (h − 184)·R), the group (book + 24
-   + row 44 + 16 + row 44) centred between 56 and h; row 1 Previous · label · Next 24 px below the book, row 2 (16 px
-   below) title + meta and Play. The book never moves between views. Landscape phone (h < 500): the spread at
+   portrait (w < 768, h > w, site-stand-v5 R / D23–D24): one page per slide (slides.tsx); a row above holds "‹ Title"
+   (back) and Play, a row below Previous · label · Next, the group centred. Landscape phone (h < 500): the spread at
    W = min(w − 32, (h − 72)·R), Play at the right of row 1. Opens with a 240 ms fade, focuses the book; at view 0 the
-   cover turns 120 ms after the fade; ← / → turn.
-   Play (fresh C's auto page-turn, D4): after each turn ends wait 4000 ms and turn; stops at the back cover;
-   any key, click or drag (outside Play) and a hidden tab pause it; a 1 px line under the label grows over the dwell.
-   The autoplay lives here, not in reader.tsx: it drives the reader through its `go` API only. */
+   cover turns 120 ms after the fade (not in portrait: it opens on the cover slide); ← / → turn.
+   Swipe back (D25, phones): a rightward swipe that starts outside the book pulls the room aside and closes it.
+   Play (fresh C's auto page-turn, D4): after each turn ends wait 4000 ms and turn; stops at the back cover (portrait: the
+   last slide); any key, click or drag (outside Play) and a hidden tab pause it; a 1 px line under the label grows over
+   the dwell. The autoplay lives here, not in reader.tsx: it drives the reader through its `go` API only. */
 import * as React from "react"
 import { pagesOf, SPREAD_R, viewLabel, viewsOf, type SiteBook } from "../site-demo-1/data"
 import { metaOf, type Box } from "../site-demo-1/v2"
 import { BookReader, type ReaderApi } from "./reader"
+import { portGeo, Slides, slideOfView, slidesOf, type SlidesApi } from "./slides"
 import "./room.css"
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -21,31 +22,46 @@ export const roomMode = (box: Box): Mode => (box.w < 768 && box.h > box.w ? "por
 /** the room fade, then the cover starts turning this much later */
 export const FADE_MS = 240, COVER_DELAY_MS = 120
 
-type RoomProps = { b: SiteBook; view: number; setView: (v: number) => void; dark?: boolean; box: Box }
+type RoomProps = {
+  b: SiteBook; view: number; setView: (v: number) => void; dark?: boolean; box: Box
+  /** back to the list (the room's back button, swipe back) */
+  onClose?: () => void
+  /** a swipe back is pulling the room aside: the home layer shows under it */
+  onPeek?: (on: boolean) => void
+}
 
-export function ReadingRoom({ b, view, setView, dark, box }: RoomProps) {
+export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: RoomProps) {
   const root = React.useRef<HTMLDivElement>(null)
   const api = React.useRef<ReaderApi>(null)
-  const mode = roomMode(box), nar = box.narrow, wide = mode === "desk" && !nar
+  const sapi = React.useRef<SlidesApi>(null)
+  const mode = roomMode(box), nar = box.narrow, wide = mode === "desk" && !nar, port = mode === "port"
   const M = nar ? 16 : 24, G = nar ? 12 : 16, C = nar ? 4 : 12
   const col = (box.w - 2 * M - (C - 1) * G) / C, span = (k: number) => k * col + (k - 1) * G, x = (k: number) => M + k * (col + G)
   const R = SPREAD_R[b.fmt], last = viewsOf(b) - 1
-  const go = (d: number) => api.current?.go(d)
+  const slides = React.useMemo(() => slidesOf(b), [b])
+  // portrait: the live slide (label, Previous / Next) and the one the strip rests on (Play)
+  const [si, setSi] = React.useState(() => slideOfView(slides, view))
+  const [rest, setRest] = React.useState(si)
+  const go = (d: number) => (port ? sapi.current?.go(d) : api.current?.go(d))
   const goRef = React.useRef(go)
   goRef.current = go
 
-  // open: focus the book; a closed cover turns once the fade is done
+  // open (and a new mode: the first render may come before the box is measured): focus the book, no ring
   React.useEffect(() => {
-    root.current?.querySelector<HTMLElement>('[role="region"]')?.focus({ preventScroll: true })
-    const t = view === 0 ? setTimeout(() => goRef.current(1), reduced() ? 0 : FADE_MS + COVER_DELAY_MS) : 0
+    root.current?.querySelector<HTMLElement>('[role="region"]')?.focus({ preventScroll: true, focusVisible: false } as FocusOptions)
+  }, [mode])
+  // a closed cover turns once the fade is done (not in portrait)
+  React.useEffect(() => {
+    const t = view === 0 && !port ? setTimeout(() => goRef.current(1), reduced() ? 0 : FADE_MS + COVER_DELAY_MS) : 0
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // autoplay: `delay` = the turn still running when the dwell starts; `n` restarts the progress line
-  const pos = view, end = last, dwell = 4000
+  const pos = port ? rest : view, end = port ? slides.length - 1 : last, dwell = 4000
   const [play, setPlay] = React.useState<{ delay: number; n: number } | null>(null)
   const turnMs = (a: number, z: number) => {
+    if (port) return 0
     if (reduced() || Math.abs(z - a) !== 1) return 240
     return Math.min(a, z) === 0 || Math.max(a, z) === last ? 1000 : 820
   }
@@ -80,30 +96,55 @@ export function ReadingRoom({ b, view, setView, dark, box }: RoomProps) {
   const toggle = () => {
     if (play) return setPlay(null)
     setPlay({ delay: 0, n: 0 })
-    // at the back cover: view 1 first
-    if (pos >= end) setView(1)
+    // at the end: page 1 first (portrait: at once)
+    if (pos >= end) { if (port) sapi.current?.jump(1); else setView(1) }
   }
 
+  const swipe = useSwipeBack(root, mode !== "desk", box.w, onClose, onPeek)
+
   const txt = nar || mode !== "desk" ? "m15" : "t16"
-  let label = viewLabel(b, view)
-  if (label.startsWith("Page")) label += ` of ${pagesOf(b)}`
-  const prev = view <= 0, next = view >= last
-  // port: the group (book + 24 + row 44 + 16 + row 44 = rh + 128) centred between the 56 px header and h
-  const top = mode === "port" ? 56 : mode === "land" ? 8 : nar ? 64 : 72, foot = mode === "port" ? 128 : mode === "land" ? 64 : nar ? 104 : 96
-  const rw = mode === "desk"
-    ? Math.max(200, Math.min(span(nar ? 4 : 10), (box.h - top - foot) * R))
-    : Math.min(box.w - 32, (box.h - top - foot) * R)
-  const rh = rw / R
-  const bookLeft = (box.w - rw) / 2, bookTop = top + (box.h - top - foot - rh) / 2, bookBottom = bookTop + rh
-  const book = <BookReader ref={api} b={b} view={view} onView={setView} width={rw} dark={dark} />
+  let label = port ? slides[si]?.label ?? "" : viewLabel(b, view)
+  if (!port && label.startsWith("Page")) label += ` of ${pagesOf(b)}`
+  const prev = port ? si <= 0 : view <= 0, next = port ? si >= end : view >= last
   const row = { display: "flex", alignItems: "center", height: 44 } as const
-  const footTop = bookBottom + (wide ? 32 : mode === "land" ? 12 : 24)
   const playBtn = (
     <button type="button" className={`${txt} sb-play`} aria-pressed={playing} onClick={toggle} data-testid="sd-play">
       {playing ? "Pause" : "Play"}
       {play && <span key={play.n} className="sb-prog" style={{ animationDelay: `${play.delay}ms`, animationDuration: `${dwell}ms` }} data-testid="sd-progress" />}
     </button>
   )
+  const pager = (top: number, style?: React.CSSProperties) => (
+    <div className="ss-abs" style={{ ...row, top, justifyContent: "center", gap: wide ? 40 : 24, ...style }}>
+      <button type="button" className={`${txt} g ss-tx`} style={{ minHeight: 44 }} disabled={prev} onClick={() => go(-1)} data-testid="ss-prev">Previous</button>
+      <span className="t13 g" data-testid="ss-label">{label}</span>
+      <button type="button" className={`${txt} g ss-tx`} style={{ minHeight: 44 }} disabled={next} onClick={() => go(1)} data-testid="ss-next">Next</button>
+    </div>
+  )
+  const roomProps = { ref: root, className: "sb-room", "data-testid": "ss-reader-page", "data-mode": mode, ...swipe }
+
+  if (port) {
+    const g = portGeo(b, box.w, box.h)
+    return (
+      <div {...roomProps}>
+        <div className="ss-abs" style={{ ...row, left: 16, right: 16, top: g.gt, justifyContent: "space-between", gap: 16 }}>
+          <button type="button" className="m15 sb-back" onClick={onClose} aria-label="All books" data-testid="ss-all">
+            <span className="g" aria-hidden>‹</span>&nbsp;{b.title}
+          </button>
+          {playBtn}
+        </div>
+        <Slides ref={sapi} b={b} slides={slides} w={box.w} top={g.stageTop} pw={g.pw} ph={g.ph} view={view} setView={setView} si={si} onSi={setSi} onRest={setRest} />
+        {pager(g.footTop, { left: 16, right: 16 })}
+      </div>
+    )
+  }
+
+  const top = mode === "land" ? 8 : nar ? 64 : 72, foot = mode === "land" ? 64 : nar ? 104 : 96
+  const rw = mode === "desk"
+    ? Math.max(200, Math.min(span(nar ? 4 : 10), (box.h - top - foot) * R))
+    : Math.min(box.w - 32, (box.h - top - foot) * R)
+  const rh = rw / R
+  const bookLeft = (box.w - rw) / 2, bookTop = top + (box.h - top - foot - rh) / 2, bookBottom = bookTop + rh
+  const footTop = bookBottom + (wide ? 32 : mode === "land" ? 12 : 24)
   const about = (
     <p className="sb-about" data-testid="sd-about">
       <span className={wide ? "t16" : "m15"}>{b.title}</span>
@@ -111,17 +152,79 @@ export function ReadingRoom({ b, view, setView, dark, box }: RoomProps) {
     </p>
   )
   return (
-    <div ref={root} className="sb-room" data-testid="ss-reader-page" data-mode={mode}>
-      <div className="ss-abs" style={{ left: bookLeft, top: bookTop }} data-testid="ss-reader" data-view={view}>{book}</div>
-      {wide && <div className="ss-abs" style={{ ...row, left: x(0), top: footTop, width: span(4) }}>{about}</div>}
-      <div className="ss-abs" style={{ ...row, left: wide ? x(4) : M, right: wide ? undefined : M, width: wide ? span(5) : undefined, top: footTop, justifyContent: "center", gap: wide ? 40 : 24 }}>
-        <button type="button" className={`${txt} g ss-tx`} style={{ minHeight: 44 }} disabled={prev} onClick={() => go(-1)} data-testid="ss-prev">Previous</button>
-        <span className="t13 g" data-testid="ss-label">{label}</span>
-        <button type="button" className={`${txt} g ss-tx`} style={{ minHeight: 44 }} disabled={next} onClick={() => go(1)} data-testid="ss-next">Next</button>
+    <div {...roomProps}>
+      <div className="ss-abs" style={{ left: bookLeft, top: bookTop }} data-testid="ss-reader" data-view={view}>
+        <BookReader ref={api} b={b} view={view} onView={setView} width={rw} dark={dark} />
       </div>
+      {wide && <div className="ss-abs" style={{ ...row, left: x(0), top: footTop, width: span(4) }}>{about}</div>}
+      {pager(footTop, wide ? { left: x(4), width: span(5) } : { left: M, right: M })}
       {wide || mode === "land"
         ? <div className="ss-abs" style={{ ...row, left: wide ? x(9) : undefined, right: wide ? undefined : M, width: wide ? span(3) : undefined, top: footTop, justifyContent: "flex-end" }}>{playBtn}</div>
         : <div className="ss-abs" style={{ ...row, left: M, right: M, top: footTop + 44 + 16, gap: 16 }}>{about}{playBtn}</div>}
     </div>
   )
+}
+
+/** Swipe back (D25; touch and pen on phones): a rightward swipe that starts outside the book (`ps-strip` / `ss-reader`)
+   follows the finger once dx > 10 and dx > 1.5·|dy| (abandoned if |dy| > 10 or dx < −10 comes first); on release past
+   0.25·w or faster than 0.5 px/ms (over the last 80 ms) the room slides out in 200 ms and closes, else springs back.
+   Reduced motion: no follow, a release past the threshold closes at once. */
+function useSwipeBack(root: React.RefObject<HTMLDivElement | null>, on: boolean, w: number, onClose?: () => void, onPeek?: (on: boolean) => void) {
+  type S = { id: number; x0: number; y0: number; active: boolean; dx: number; trail: [number, number][] }
+  const s = React.useRef<S | null>(null)
+  const timer = React.useRef(0)
+  // the click that may follow an active swipe's release is swallowed
+  const swallow = React.useRef(false)
+  React.useEffect(() => () => clearTimeout(timer.current), [])
+  if (!on) return {}
+  const el = () => root.current!
+  const paint = (dx: number, ms: number) => {
+    const st = el().style
+    st.transition = ms ? `transform ${ms}ms var(--ease-out), box-shadow ${ms}ms var(--ease-out)` : "none"
+    st.transform = dx ? `translate3d(${dx}px,0,0)` : ""
+    st.boxShadow = dx ? "-16px 0 32px rgb(0 0 0 / .5)" : ""
+  }
+  const end = (e: React.PointerEvent, cancel: boolean) => {
+    const g = s.current
+    if (!g || g.id !== e.pointerId) return
+    s.current = null
+    if (!g.active) return
+    setTimeout(() => { swallow.current = false }, 0)
+    const t = e.timeStamp, back = g.trail.find(([tt]) => t - tt <= 80) ?? [t, g.dx]
+    const v = t > back[0] ? (g.dx - back[1]) / (t - back[0]) : 0
+    const shut = !cancel && (g.dx > 0.25 * w || v > 0.5)
+    if (reduced()) { if (shut) onClose?.(); else onPeek?.(false); return }
+    paint(shut ? w : 0, 200)
+    timer.current = window.setTimeout(() => {
+      if (shut) onClose?.()
+      else { paint(0, 0); onPeek?.(false) }
+    }, 200)
+  }
+  return {
+    style: { touchAction: "none" } as React.CSSProperties,
+    onPointerDown: (e: React.PointerEvent) => {
+      if (e.pointerType === "mouse" || s.current) return
+      if ((e.target as Element).closest('[data-testid="ps-strip"],[data-testid="ss-reader"]')) return
+      s.current = { id: e.pointerId, x0: e.clientX, y0: e.clientY, active: false, dx: 0, trail: [] }
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const g = s.current
+      if (!g || g.id !== e.pointerId) return
+      const dx = e.clientX - g.x0, dy = e.clientY - g.y0
+      if (!g.active) {
+        if (Math.abs(dy) > 10 || dx < -10) { s.current = null; return }
+        if (!(dx > 10 && dx > 1.5 * Math.abs(dy))) return
+        g.active = true
+        el().setPointerCapture(e.pointerId)
+        onPeek?.(true)
+        swallow.current = true
+      }
+      g.dx = Math.max(0, dx)
+      g.trail = [...g.trail.filter(([t]) => e.timeStamp - t <= 80), [e.timeStamp, g.dx]]
+      if (!reduced()) paint(g.dx, 0)
+    },
+    onClickCapture: (e: React.MouseEvent) => { if (swallow.current) { e.stopPropagation(); e.preventDefault() } },
+    onPointerUp: (e: React.PointerEvent) => end(e, false),
+    onPointerCancel: (e: React.PointerEvent) => end(e, true),
+  }
 }
