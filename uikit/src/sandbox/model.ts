@@ -60,7 +60,11 @@ export type Doc = { spreads: Spread[]; grid: Grid; styles: FrameStyle[]; parents
   defaultMaster?: "A" | "B"
   /** sketch-only: book spreads stashed while a parent spread is open for editing */
   stash?: { spreads: Spread[]; cur: number; parent: string }
-  userTemplates?: { id: string; name: string; frames: Frame[] }[] }
+  userTemplates?: { id: string; name: string; frames: Frame[] }[]
+  /** printer-presets D4: the book's print profile with the bleed / safe margin (mm) picked with it; absent = Generic, 3 mm, `Book.safe` */
+  print?: { profile: string; bleed: number; safe: number } }
+/** the safe margin (mm) folios and S read: the picked profile's, else the book's */
+export const printSafe = (d: Doc, b: { safe: number }) => d.print?.safe ?? b.safe
 
 let n = 0
 export const uid = (p = "f") => `${p}${++n}${Math.random().toString(36).slice(2, 5)}`

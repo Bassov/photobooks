@@ -22,7 +22,7 @@ import { IconButton, ThumbGrid, ThumbItem, Kbd, AlertDialog, thumbWidth } from "
 import { photos, P, type Photo } from "@/data"
 import { useStudio, placedSet, mapSpread, mapSpreadFreezing } from "./store"
 import { PhotoImg, PHOTO_TYPE, FRAME_TYPE } from "./canvas"
-import { SW, SH, spread, parentOf, defaultMasterOf, pageNumbersOf, foliosOf, type Frame, type Spread } from "./model"
+import { SW, SH, spread, parentOf, defaultMasterOf, pageNumbersOf, foliosOf, printSafe, type Frame, type Spread } from "./model"
 import type { Node } from "./store"
 import { pagesOf, pageLabel, pagesName, fmtN, coverW, SegC, CoverSpread, EndpaperSpread, MasterSpread, LastPage, FolioMarks, MASTERS, useMasters, useCoverPhoto, T, SUB, BAR, FIELD, SURROUND, V7CSS } from "./v7"
 import { ALL_TEMPLATES, TT, basePageId, pageId } from "./templates"
@@ -232,7 +232,7 @@ export function MiniSpread({ s, width = 0, className, si, fill, folios }: { s: S
   if (fill) width = fw
   const sc = width / SW
   const par = parentOf(st.doc, s)
-  const fo = folios && si !== undefined && (st.view.pageNumbers || pageNumbersOf(par)) ? foliosOf(st.doc, s, si, st.book.safe) : []
+  const fo = folios && si !== undefined && (st.view.pageNumbers || pageNumbersOf(par)) ? foliosOf(st.doc, s, si, printSafe(st.doc, st.book)) : []
   const frames = (fr: Frame[]) => fr.map((f) => (
         <div key={f.id} className="absolute overflow-hidden" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined }}>
           {f.kind === "text" ? <div className="mt-[30%] h-0.5 w-3/4 rounded bg-black/25" />

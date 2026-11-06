@@ -4,8 +4,9 @@ import * as React from "react"
 import { useStudio, type Book } from "./store"
 import { Slider as USlider, SliderTrack, SliderFillTrack, SliderThumb } from "@/components/ui/slider"
 import { P } from "@/data"
-import { MASTER_GRIDS, MASTER_GUIDES, MASTER_PN, MASTER_POS, FOLIO_W, builtinMaster, defaultMasterOf, folioBox, formatPageNumber, lastPageFolios, masterPages, masterUsage, pageNumbersOf, type Doc, type Folio, type Grid, type Guide, type PageFormat, type PnPos } from "./model"
-import { Check, Link2, RotateCcw, Unlink2 } from "lucide-react"
+import { MASTER_GRIDS, MASTER_GUIDES, MASTER_PN, MASTER_POS, FOLIO_W, builtinMaster, defaultMasterOf, folioBox, formatPageNumber, lastPageFolios, masterPages, masterUsage, pageNumbersOf, printSafe, type Doc, type Folio, type Grid, type Guide, type PageFormat, type PnPos } from "./model"
+import { Check, Link2, RotateCcw, TriangleAlert, Unlink2 } from "lucide-react"
+import { CATALOG, PrintCustomsCtx, pagesRange, pickPrint, printIssues, profileById, profileHint } from "@/demo-parts/printProfiles"
 
 export const T = "#393738", SUB = "#535152", INK = "#232223", ON_INK = "#F2F2F2", SURROUND = "#C8CACB", BAR = "#E1E1E1", FIELD = "#D7D7D7", PAPER = "#FFFFFF"
 const serif = { fontFamily: "var(--font-heading)" } as const
@@ -139,13 +140,13 @@ export const resetMasters = () => { MASTERS = MASTERS0; syncGrids() }
 export const defaultMasters = () => MASTERS0
 export const useMasters = () => React.useSyncExternalStore((f) => { masterSubs.add(f); return () => { masterSubs.delete(f) } }, () => MASTERS)
 export function MasterSpread({ id, big, m }: { id: "A" | "B"; big?: boolean; m: Master }) {
-  const bk = useBook()
+  const st = useStudio(), bk = st.book, safe = printSafe(st.doc, bk)
   const g = m.grid, PW = bk.w * 10, PH = bk.h * 10, pc = (v: number, d: number) => `${(v / d) * 100}%`
   const cw = (PW - g.inside - g.outside - g.colGutter * (g.cols - 1)) / g.cols, ch = PH - g.top - g.bottom, rh = (ch - g.rowGutter * (g.rows - 1)) / g.rows
   const mx = pc(g.outside, PW), cq = (mm: number) => `${(mm / PW) * 100}cqw`
   /* Designer page-numbers: the `#` chip sits at the folio box in the folio font at true scale (cqw of its page) */
   const chip = (side: "l" | "r") => {
-    const b = folioBox(g, PW, PH, m.pos as PnPos, side === "l" ? 0 : 1, bk.safe)
+    const b = folioBox(g, PW, PH, m.pos as PnPos, side === "l" ? 0 : 1, safe)
     const at = b.align === "center" ? { left: pc(b.x + FOLIO_W / 2, PW), transform: "translateX(-50%)" } : b.align === "left" ? { left: pc(b.x, PW) } : { right: pc(PW - b.x - FOLIO_W, PW) }
     return <span className="pointer-events-none absolute whitespace-nowrap" data-testid="master-pn" data-align={b.align}
       style={{ top: pc(b.y, PH), ...at, fontFamily: "'Inter Variable', system-ui, sans-serif", fontSize: cq(3.1), fontWeight: 400, lineHeight: 1.4, padding: `0 ${cq(1)}`, borderRadius: 2, color: SUB, background: "rgb(57 55 56/.08)" }}>#</span>
@@ -175,7 +176,7 @@ export function LastPage({ big, sc }: { big?: boolean; sc?: number }) {
     <div className="relative flex h-full w-full" data-testid={big ? "canvas-last" : undefined}>
       <div className="h-full flex-1" style={{ background: PAPER, boxShadow: big ? shadowBig : shadowSm }} data-paper />
       <div className="h-full flex-1" />
-      {sc !== undefined && <FolioMarks folios={lastPageFolios(st.doc, st.book.safe, st.view.pageNumbers)} sc={sc} />}
+      {sc !== undefined && <FolioMarks folios={lastPageFolios(st.doc, printSafe(st.doc, st.book), st.view.pageNumbers)} sc={sc} />}
     </div>)
 }
 
@@ -283,21 +284,33 @@ export function BookInspector() {
   const masters = useMasters(); const cov = useCoverPhoto(); const ct = useCoverText()
   const st = useStudio(), sel = st.node, book = st.book, setBook = st.setBook
   const pages = pagesOf(st.doc.spreads.length), def = defaultMasterOf(st.doc)
+  const customs = React.useContext(PrintCustomsCtx), [said, setSaid] = React.useState("")
   if (!sel || sel.k === "none") return <div className="grid h-full place-items-center px-8 text-center text-sm" style={{ color: SUB }} data-testid="inspector-empty">Select a spread or photo</div>
   const pc = <span className="text-sm" style={{ color: SUB }} data-testid="page-colour-readonly">Paper white · coming later</span>
   const doc = st.doc, pnFmt = PN_FORMATS.indexOf(doc.pageFormat ?? "decimal"), pnAny = masters.A.pn || masters.B.pn || doc.parents.some((p) => pageNumbersOf(p))
+  const pr = st.doc.print, prof = profileById(pr?.profile, customs), [pLo, pHi] = pagesRange(prof), mm = (n: number) => String(Number(n.toFixed(3)))
+  const pickPrinter = (id: string) => { const p = profileById(id, customs); st.update((d) => ({ ...d, print: pickPrint(p, d.print?.bleed ?? 3) }), "Printer"); setSaid(`Printer: ${p.name}`) }
   if (sel.k === "book") return <div data-testid="insp-book">
     <Head t="Book settings" s={`${ct.back || ct.front || "Untitled book"} · applies to the whole book`} />
     <Sec title="Page size"><SizeEditor book={book} setBook={setBook} /></Sec>
     <Sec title="Binding"><Row l="Style"><ReadOnly v="Hardcover" note="read-only" tid="binding-readonly" /></Row>
       <Row l="Endpapers"><Toggle label="Endpapers" on={book.endp} onClick={() => setBook({ ...book, endp: !book.endp })} /></Row>
-      <Row l="Pages"><span className="flex items-center gap-1" data-testid="book-pages"><Val v={`${pages}`} /><span className="text-2xs" style={{ color: SUB }}>{PAGE_MIN}–{PAGE_MAX}</span></span></Row>
-      <div className="mt-1.5 text-2xs" style={{ color: SUB }} data-testid="book-pages-note">{pages < PAGE_MIN ? `Add ${Math.ceil((PAGE_MIN - pages) / 2)} spread${PAGE_MIN - pages > 2 ? "s" : ""} to reach the ${PAGE_MIN}-page minimum` : pages > PAGE_MAX ? `Remove ${Math.ceil((pages - PAGE_MAX) / 2)} spreads to stay within ${PAGE_MAX} pages` : "Pages are added in spreads of 2"}</div></Sec>
+      <Row l="Pages"><span className="flex items-center gap-1" data-testid="book-pages"><Val v={`${pages}`} /><span className="text-2xs" style={{ color: SUB }} data-testid="book-pages-range">{pLo}–{pHi}</span></span></Row>
+      <div className="mt-1.5 text-2xs" style={{ color: SUB }} data-testid="book-pages-note">{pages < pLo ? `Add ${Math.ceil((pLo - pages) / 2)} spread${pLo - pages > 2 ? "s" : ""} to reach the ${pLo}-page minimum` : pages > pHi ? `Remove ${Math.ceil((pages - pHi) / 2)} spreads to stay within ${pHi} pages` : "Pages are added in spreads of 2"}</div></Sec>
     <Sec title="Page numbers" tid="book-page-numbers"><Row l="Start at"><StartAt v={doc.pageStart ?? 1} set={(n) => st.update((d) => ({ ...d, pageStart: n }), "Start page numbers at")} /></Row>
       <div className="mt-3"><SegC label="Page number format" tid="book-pn-format" items={PN_LABELS} on={pnFmt} set={(i) => st.update((d) => ({ ...d, pageFormat: PN_FORMATS[i] }), "Page number format")} /></div>
       <Row l="Skip first page"><Toggle label="Skip first page" tid="book-pn-skip-first" on={!!doc.skipFirst} onClick={() => st.update((d) => ({ ...d, skipFirst: !d.skipFirst }), "Skip first page")} /></Row>
       <div className="mt-1.5 text-2xs leading-[1.35]" style={{ color: SUB }} data-testid="book-pn-note">{!pnAny ? "No master prints page numbers yet. Turn them on in Masters." : doc.skipFirst ? `Page 1 has no number · page 2 is ${formatPageNumber((doc.pageStart ?? 1) + 1, doc.pageFormat)}` : `Page 1 is ${pnStart(doc)}`}</div></Sec>
-    <Sec title="Print"><div className="grid grid-cols-2 gap-2"><Field l="B" v="3" u="mm" /><Field l="S" v={`${book.safe}`} u="mm" /></div><Row l="Paper"><Val v="Matte 200 g" /></Row></Sec>
+    <Sec title="Print">
+      {/* printer-presets: Printer select → hint → warnings → B/S (bleed / safe from the profile, D4) → Paper */}
+      <select aria-label="Printer" data-testid="book-print-profile" value={prof.id} onChange={(e) => pickPrinter(e.target.value)}
+        className="e7-sel h-8 w-full rounded-md border-0 pr-7 pl-2.5 text-sm outline-none" style={{ backgroundColor: FIELD, color: T }}>
+        <optgroup label="Print shops">{CATALOG.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>
+        {customs.length > 0 && <optgroup label="Custom">{customs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>}</select>
+      <span className="sr-only" aria-live="polite">{said}</span>
+      <div className="mt-1.5 text-2xs leading-4" style={{ color: SUB }} data-testid="book-print-hint">{profileHint(prof)}</div>
+      {printIssues(pr?.profile, customs, book, pages).map((t) => <div key={t} className="mt-2 flex gap-1.5 text-xs leading-[16.8px] text-[#8a5a12]" data-testid="book-print-issue"><TriangleAlert className="size-3 shrink-0" style={{ marginTop: 2.4 }} aria-hidden />{t}</div>)}
+      <div className="mt-3 grid grid-cols-2 gap-2"><div data-testid="book-bleed"><Field l="B" v={mm(pr?.bleed ?? 3)} u="mm" name="Bleed" /></div><div data-testid="book-safe"><Field l="S" v={mm(printSafe(st.doc, book))} u="mm" name="Safe margin" /></div></div><Row l="Paper"><Val v="Matte 200 g" /></Row></Sec>
     <Sec title="Defaults"><Row l="Default master"><Val v={`Master ${def}`} /></Row><Row l="Page colour">{pc}</Row></Sec></div>
   if (sel.k === "cover") return <div data-testid="insp-cover">
     <Head t="Cover" s={`Hardcover · wrap ${fmtN(WRAP * 10)} mm · hinge ${fmtN(HINGE * 10)} mm`} sTid="cover-head-sub" />
