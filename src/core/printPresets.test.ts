@@ -9,6 +9,7 @@ import {
   pagesOf,
   parseBook,
   printIssues,
+  refreshPrintProfile,
   resolvePrintProfile,
   serializeBook,
   setPageCount,
@@ -209,5 +210,25 @@ describe('setPrintProfile (D4)', () => {
     expect(applyBookOp(book, { type: 'setPrintProfile', id: CUSTOM.id })).toBe(
       book,
     )
+  })
+})
+
+describe('refreshPrintProfile (D6 snapshot refresh)', () => {
+  const book = setPrintProfile(bookOfPages(20), CUSTOM.id, [CUSTOM])
+  const edited = { ...CUSTOM, name: 'Edited', safeMarginMm: 9 }
+
+  it('re-snapshots a book on the edited profile with its safe margin', () => {
+    const next = applyBookOp(book, {
+      type: 'refreshPrintProfile',
+      profile: edited,
+    })
+    expect(next.printProfile?.snapshot).toEqual(edited)
+    expect(next.settings.safeMarginMm).toBe(9)
+  })
+
+  it('leaves a book on another profile as it is', () => {
+    const generic = bookOfPages(20)
+    expect(refreshPrintProfile(generic, edited)).toBe(generic)
+    expect(refreshPrintProfile(book, { ...edited, id: 'other' })).toBe(book)
   })
 })

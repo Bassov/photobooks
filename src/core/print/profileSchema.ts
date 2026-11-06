@@ -52,6 +52,8 @@ export function printProfileSchema() {
     .object({
       id: z.string().min(1),
       name: z.string().min(1),
+      /** Name of the profile a custom one was made from ("Based on …"). */
+      basedOn: z.string().min(1).optional(),
       trimMinMm: positiveMm,
       trimMaxMm: positiveMm,
       /** Page bleed range; the book's bleed is the user's value inside it. */

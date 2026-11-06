@@ -1,14 +1,23 @@
 import { useState, useSyncExternalStore } from 'react'
 import {
+  bookPrintProfile,
+  findPrintProfile,
   PAGE_NUMBER_START_MAX,
   PAGE_NUMBER_START_MIN,
-  PAGE_STEP,
+  pageCountRange,
   pageNumberingOf,
+  printIssues,
+  printIssueText,
+  profileHint,
   TRIM_MAX_MM,
   TRIM_MIN_MM,
   type Book,
+  type PageCountRange,
 } from '../core'
+import { Icon } from '../ui/Icon'
 import { bookPageNumbersNote, PAGE_NUMBER_FORMATS } from './inspectorModel'
+import { printProfileOptions } from './printProfileDraft'
+import { getPrintProfiles, subscribePrintProfiles } from './printProfilesStore'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import {
   dispatchBookOp,
@@ -19,8 +28,6 @@ import {
   bookSettingsSubtitle,
   FIELD,
   fmtN,
-  PAGE_MAX,
-  PAGE_MIN,
   pagesNote,
   pagesOf,
   SUB,
@@ -36,6 +43,14 @@ import {
 } from './InspectorControls'
 
 type Unit = 'cm' | 'mm'
+
+/** Kit PRINT warning text (`text-[#8a5a12]`); the prod status tokens are grey. */
+const WARNING_TEXT = '#8a5a12'
+
+/** Kit v7.tsx `mm`: profile values as is, up to 3 decimals (3.175, 12.7). */
+function exactMm(n: number): string {
+  return String(Number(n.toFixed(3)))
+}
 
 /** Kit PRESETS (uikit/src/sandbox/v7.tsx:55-57), cm. */
 const PRESETS: readonly { id: string; name: string; w: number; h: number }[] = [
@@ -151,7 +166,13 @@ function SizeField({
  * spin arrows). A typed count commits on Enter / blur, clamped to 20–120 in
  * steps of 2, and adds or removes spreads at the end (one undo step).
  */
-function PagesField({ pages }: { pages: number }) {
+function PagesField({
+  pages,
+  range,
+}: {
+  pages: number
+  range: PageCountRange
+}) {
   const [draft, setDraft] = useState<string | null>(null)
   const shown = draft ?? String(pages)
   const commit = () => {
@@ -168,9 +189,9 @@ function PagesField({ pages }: { pages: number }) {
       className="insp-pages-field rounded-sm px-2 py-1 text-sm"
       aria-label="Pages"
       data-testid="book-pages-input"
-      min={PAGE_MIN}
-      max={PAGE_MAX}
-      step={PAGE_STEP}
+      min={range.min}
+      max={range.max}
+      step={range.step}
       value={shown}
       style={{
         width: `calc(${String(Math.max(2, shown.length))}ch + 1rem)`,
@@ -291,6 +312,14 @@ export function BookSettingsSection() {
   const pages = pagesOf(spreads.length)
   const [unit, setUnit] = useState<Unit>('cm')
   const [customPicked, setCustomPicked] = useState(false)
+  const [said, setSaid] = useState('')
+  const customs = useSyncExternalStore(
+    subscribePrintProfiles,
+    getPrintProfiles,
+    getPrintProfiles,
+  )
+  const profile = bookPrintProfile(book, customs)
+  const range = pageCountRange(profile)
   const { trim, endpapers } = settings
   const landscape = trim.widthMm > trim.heightMm
   const matched = presetFor(trim)
@@ -398,13 +427,13 @@ export function BookSettingsSection() {
         {/* Rendered #/demo step 24: pages box, range hint and the spreads note. */}
         <InspectorRow label="Pages">
           <span className="flex items-center gap-1" data-testid="book-pages">
-            <PagesField pages={pages} />
+            <PagesField pages={pages} range={range} />
             <span
               className="text-2xs"
               style={{ color: SUB }}
               data-testid="book-pages-range"
             >
-              {PAGE_MIN}–{PAGE_MAX}
+              {range.min}–{range.max}
             </span>
           </span>
         </InspectorRow>
@@ -412,22 +441,60 @@ export function BookSettingsSection() {
           className="mt-1.5 text-2xs text-muted-foreground"
           data-testid="book-pages-note"
         >
-          {pagesNote(pages)}
+          {pagesNote(pages, range)}
         </div>
       </InspectorSec>
       <BookPageNumbers book={book} />
       <InspectorSec title="Print">
-        {/* Kit v7.tsx:209: bleed / safe margin Fields, paper pill. */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* Kit v7.tsx:305-313: Printer select, hint, warnings, then B / S
+            (bleed / safe from the profile, D4) and the paper pill. */}
+        <Select
+          aria-label="Printer"
+          data-testid="book-print-profile"
+          className="insp-size-select"
+          value={profile.id}
+          options={printProfileOptions(customs, book.printProfile?.snapshot)}
+          onChange={(id) => {
+            dispatchBookOp({ type: 'setPrintProfile', id, customs })
+            const picked = findPrintProfile(id, customs) ?? profile
+            setSaid(`Printer: ${picked.name}`)
+          }}
+        />
+        <span className="sr-only" aria-live="polite">
+          {said}
+        </span>
+        <div
+          className="mt-1.5 text-2xs leading-4 text-muted-foreground"
+          data-testid="book-print-hint"
+        >
+          {profileHint(profile)}
+        </div>
+        {printIssues(book, customs).map((issue) => {
+          const text = printIssueText(issue, profile.name)
+          return (
+            <div
+              key={text}
+              className="mt-2 flex gap-1.5 text-xs leading-[16.8px]"
+              style={{ color: WARNING_TEXT }}
+              data-testid="book-print-issue"
+            >
+              <span className="shrink-0" style={{ marginTop: 2.4 }}>
+                <Icon name="warning" size={14} className="block size-3" />
+              </span>
+              {text}
+            </div>
+          )
+        })}
+        <div className="mt-3 grid grid-cols-2 gap-2">
           <ReadOnlyField
             label="B"
-            value={fmtN(settings.bleedMm)}
+            value={exactMm(settings.bleedMm)}
             unit="mm"
             testId="book-bleed"
           />
           <ReadOnlyField
             label="S"
-            value={fmtN(settings.safeMarginMm)}
+            value={exactMm(settings.safeMarginMm)}
             unit="mm"
             testId="book-safe-margin"
           />

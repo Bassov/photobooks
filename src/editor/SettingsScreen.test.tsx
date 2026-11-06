@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -8,12 +9,18 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import * as assets from '../assets'
+import { makeCustomPrintProfile } from '../core/testing/fixtures'
 import { SettingsScreen } from './SettingsScreen'
+import {
+  resetPrintProfilesForTests,
+  savePrintProfile,
+} from './printProfilesStore'
 import * as projectSession from './projectSession'
 
 describe('SettingsScreen', () => {
   afterEach(() => {
     cleanup()
+    resetPrintProfilesForTests()
     vi.restoreAllMocks()
   })
 
@@ -95,15 +102,45 @@ describe('SettingsScreen', () => {
 
   it('hides sections without backing behavior (no stubs, no inputs)', () => {
     render(<SettingsScreen libraryPath="Lib" bookCount={0} />)
-    for (const id of ['hosting', 'site', 'print', 'interface']) {
+    for (const id of ['hosting', 'site', 'interface']) {
       expect(screen.queryByTestId(`settings-nav-${id}`)).toBeNull()
       expect(screen.queryByTestId(`settings-deferred-${id}`)).toBeNull()
     }
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
       'Library',
+      'Print presets',
       'Change library folder…',
     ])
+  })
+
+  it('switches to Print presets: title, aria-current and active row follow', () => {
+    render(<SettingsScreen libraryPath="Lib" bookCount={0} />)
+    const library = screen.getByTestId('settings-nav-library')
+    const print = screen.getByTestId('settings-nav-print')
+    expect(print.getAttribute('aria-current')).toBeNull()
+    expect(print.className).not.toMatch(/\bbg-accent\b/)
+    fireEvent.click(print)
+    expect(screen.getByTestId('settings-section-title').textContent).toBe(
+      'Print presets',
+    )
+    expect(print.getAttribute('aria-current')).toBe('page')
+    expect(print.className).toMatch(/\bbg-accent\b/)
+    expect(library.getAttribute('aria-current')).toBeNull()
+    expect(library.className).not.toMatch(/\bbg-accent\b/)
+    expect(screen.getByTestId('print-shops')).toBeTruthy()
+    expect(screen.queryByTestId('library-settings-panel')).toBeNull()
+    expect(screen.queryAllByTestId('settings-rule')).toHaveLength(0)
+    act(() => {
+      savePrintProfile(makeCustomPrintProfile())
+      savePrintProfile({ ...makeCustomPrintProfile(), id: 'custom-b' })
+    })
+    expect(screen.getAllByTestId('settings-rule')).toHaveLength(1)
+    expect(
+      screen.getByTestId('settings-rule').getAttribute('aria-hidden'),
+    ).toBe('true')
+    fireEvent.click(library)
+    expect(screen.getByTestId('library-settings-panel')).toBeTruthy()
   })
 
   it('Change library cancel leaves path and closes confirm', () => {

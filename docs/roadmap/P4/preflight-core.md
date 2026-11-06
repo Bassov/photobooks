@@ -9,6 +9,7 @@ Status: done
 
 - [ ] Pure preflight with severities (error / warning / info) and fix-action ids: effective DPI, safe-zone intrusion, bleed hazard, empty frames, missing / modified assets, page-count rules
 - **Done when:** each rule has a fixture that triggers it and one that does not; severities and fix-action ids are stable (snapshot); PBT: a book with no issues yields an empty list
+- **Perf (from `printer-presets`):** switching print presets re-runs preflight in a worker; zero LoAF.
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
 - **Musts:** see Scope

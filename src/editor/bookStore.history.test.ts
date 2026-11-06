@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { makeBook, makeBookWithAsset } from '../core/testing/fixtures'
+import {
+  makeBook,
+  makeBookWithAsset,
+  makeCustomPrintProfile,
+} from '../core/testing/fixtures'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
@@ -284,5 +288,33 @@ describe('bookStore history: page numbers', () => {
     loadMasterBook()
     dispatchBookOp({ type: 'setPageNumbering', patch: { start: 1 } })
     expect(getHistorySnapshot().canUndo).toBe(false)
+  })
+
+  it('picks a printer in one undo step; a profile refresh is not a step', () => {
+    resetBookStore()
+    const before = getBookStoreSnapshot().book
+    const custom = makeCustomPrintProfile()
+    dispatchBookOp({
+      type: 'setPrintProfile',
+      id: custom.id,
+      customs: [custom],
+    })
+    expect(getBookStoreSnapshot().book.printProfile?.id).toBe(custom.id)
+    expect(getBookStoreSnapshot().book.settings.safeMarginMm).toBe(12.7)
+    expect(getHistorySnapshot().undoLabel).toBe('Printer')
+    dispatchBookOp({
+      type: 'refreshPrintProfile',
+      profile: { ...custom, safeMarginMm: 9 },
+    })
+    expect(getBookStoreSnapshot().book.settings.safeMarginMm).toBe(9)
+    undoBook()
+    expect(getBookStoreSnapshot().book.printProfile).toBe(before.printProfile)
+    expect('printProfile' in getBookStoreSnapshot().book).toBe(
+      'printProfile' in before,
+    )
+    expect(getBookStoreSnapshot().book.settings).toEqual(before.settings)
+    expect(getHistorySnapshot().canUndo).toBe(false)
+    redoBook()
+    expect(getBookStoreSnapshot().book.printProfile?.id).toBe(custom.id)
   })
 })

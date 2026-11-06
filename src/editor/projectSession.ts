@@ -88,6 +88,10 @@ import {
 } from './session/libraryActivation'
 import { upgradeSessionAssetsForLibrary } from './upgradeSessionAssets'
 import { bindSavedTemplatesLibrary } from './savedTemplates'
+import {
+  bindPrintProfilesLibrary,
+  printProfilesSettled,
+} from './printProfilesStore'
 import { exposeDerivativesTestApi } from '../derivatives/pool'
 
 const DEFAULT_AUTOSAVE_DEBOUNCE_MS = 1000
@@ -156,10 +160,11 @@ let nowId: () => string = () => crypto.randomUUID()
 
 let storage: LibraryStorage | null = null
 
-/** Every library switch goes here: My templates follow `library.json`. */
+/** Every library switch goes here: My templates and print profiles follow `library.json`. */
 function setLibraryStorage(next: LibraryStorage | null): void {
   storage = next
   void bindSavedTemplatesLibrary(next)
+  void bindPrintProfilesLibrary(next)
 }
 
 let libraryId: string | null = null
@@ -1056,7 +1061,8 @@ export async function createBookInLibrary(
   const normalized =
     title === undefined ? undefined : normalizeBookTitleInput(title)
   // Spec D6: the library's default profile (unknown → Generic) and its
-  // bleed / safe margin.
+  // bleed / safe margin, after the Settings writes still queued.
+  await printProfilesSettled()
   const library = await storage.getLibrary()
   const meta = library.ok ? library.value : {}
   const book = setPrintProfile(

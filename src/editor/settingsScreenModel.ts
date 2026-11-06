@@ -1,13 +1,18 @@
 import type { IconName } from '../ui/icons/glyphs'
 
-/** Hosting / Site / Print presets / Interface have no backing behavior yet (D2): hidden, not stubbed. */
+export type SettingsSectionId = 'library' | 'print'
+
+/** Hosting / Site / Interface have no backing behavior yet (D2): hidden, not stubbed. */
 export const SETTINGS_SECTIONS: readonly {
-  id: 'library'
+  id: SettingsSectionId
   label: string
   icon: IconName
-}[] = [{ id: 'library', label: 'Library', icon: 'hardDrive' }]
+}[] = [
+  { id: 'library', label: 'Library', icon: 'hardDrive' },
+  { id: 'print', label: 'Print presets', icon: 'printer' },
+]
 
-/** The single visible section is always the current one (kit `bg-accent`, r11 M71). */
-export function settingsNavActiveClass(): string {
-  return 'bg-accent font-medium'
+/** Kit `bg-accent font-medium` on the current section only (r11 M71). */
+export function settingsNavActiveClass(current: boolean): string {
+  return current ? 'bg-accent font-medium' : ''
 }

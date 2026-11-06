@@ -9,15 +9,27 @@ import { FeaturedIcon } from '../ui/FeaturedIcon'
 import { Icon } from '../ui/Icon'
 import { ensureKitTypeStyles } from './kitTypeStyles'
 import { changeLibraryFolder } from './projectSession'
+import { PrintPresetsSection } from './PrintPresetsSection'
 import {
   SETTINGS_SECTIONS,
   settingsNavActiveClass,
+  type SettingsSectionId,
 } from './settingsScreenModel'
 
 ensureKitTypeStyles()
 
 const ROW =
   'flex min-h-13 items-center gap-4 px-4 py-2' /* v0.9.1: no card border; chrome surface only */
+
+function settingsRule() {
+  return (
+    <div
+      className="mx-4 h-px shrink-0 bg-black/[0.06]"
+      aria-hidden
+      data-testid="settings-rule"
+    />
+  )
+}
 
 export function SettingsScreen({
   libraryPath,
@@ -29,6 +41,7 @@ export function SettingsScreen({
   bookCount: number | null
   changeDisabled?: boolean
 }) {
+  const [sectionId, setSectionId] = useState<SettingsSectionId>('library')
   const [confirm, setConfirm] = useState(false)
   const [cacheBytes, setCacheBytes] = useState<number | null>(null)
 
@@ -50,15 +63,19 @@ export function SettingsScreen({
           <span className="text-base font-semibold">Settings</span>
         </div>
         {SETTINGS_SECTIONS.map((section) => {
+          const current = section.id === sectionId
           return (
             <button
               key={section.id}
               type="button"
-              aria-current="page"
+              aria-current={current ? 'page' : undefined}
               data-testid={`settings-nav-${section.id}`}
+              onClick={() => {
+                setSectionId(section.id)
+              }}
               className={cn(
                 'flex items-center gap-2 rounded-md border-0 px-2 py-2 text-left text-sm leading-[1.45] shadow-none outline-hidden hover:bg-[#D7D7D7] focus-visible:bg-[#D7D7D7]',
-                settingsNavActiveClass(),
+                settingsNavActiveClass(current),
               )}
             >
               <Icon
@@ -81,96 +98,100 @@ export function SettingsScreen({
           className="heading m-0 text-2xl leading-[1.2]" /* kit .heading text-2xl = 31.2px */
           data-testid="settings-section-title"
         >
-          Library
+          {SETTINGS_SECTIONS.find((section) => section.id === sectionId)?.label}
         </h1>
-        <>
-          <p className="mt-1 max-w-[560px] text-sm leading-relaxed text-muted-foreground">
-            Photobooks keeps every book in one folder on your disk — your
-            library. To use a different library, change the folder.
-          </p>
-          <div
-            className="mt-5 max-w-[640px] overflow-hidden rounded-xl bg-chrome"
-            data-testid="library-settings-panel"
-          >
-            <div className={ROW}>
-              <FeaturedIcon
-                color="gray"
-                theme="outline"
-                size="md"
-                className="border-transparent" /* kit settings.tsx:42 tile reads borderless */
-              >
-                <Icon name="hardDrive" size={16} />
-              </FeaturedIcon>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium">Library folder</div>
-                <div
-                  className="truncate font-mono text-xs text-muted-foreground"
-                  data-testid="library-path"
-                  title={libraryPath}
+        {sectionId === 'print' ? (
+          <PrintPresetsSection row={ROW} rule={settingsRule} />
+        ) : (
+          <>
+            <p className="mt-1 max-w-[560px] text-sm leading-relaxed text-muted-foreground">
+              Photobooks keeps every book in one folder on your disk — your
+              library. To use a different library, change the folder.
+            </p>
+            <div
+              className="mt-5 max-w-[640px] overflow-hidden rounded-xl bg-chrome"
+              data-testid="library-settings-panel"
+            >
+              <div className={ROW}>
+                <FeaturedIcon
+                  color="gray"
+                  theme="outline"
+                  size="md"
+                  className="border-transparent" /* kit settings.tsx:42 tile reads borderless */
                 >
-                  {libraryPath}
+                  <Icon name="hardDrive" size={16} />
+                </FeaturedIcon>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium">Library folder</div>
+                  <div
+                    className="truncate font-mono text-xs text-muted-foreground"
+                    data-testid="library-path"
+                    title={libraryPath}
+                  >
+                    {libraryPath}
+                  </div>
                 </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="gap-1.5 px-3 text-sm shadow-xs [&_svg]:size-4"
+                  isDisabled={Boolean(changeDisabled)}
+                  onPress={() => {
+                    setConfirm(true)
+                  }}
+                  data-testid="change-library"
+                >
+                  <Icon name="folderSync" size={16} />
+                  Change library folder…
+                </Button>
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="gap-1.5 px-3 text-sm shadow-xs [&_svg]:size-4"
-                isDisabled={Boolean(changeDisabled)}
-                onPress={() => {
-                  setConfirm(true)
-                }}
-                data-testid="change-library"
-              >
-                <Icon name="folderSync" size={16} />
-                Change library folder…
-              </Button>
-            </div>
-            <div
-              className="mx-4 h-px shrink-0 bg-black/[0.06]"
-              aria-hidden
-              data-testid="settings-rule"
-            />
-            <div className={ROW}>
-              <div className="min-w-0 flex-1 text-sm">Books</div>
-              <span
-                className="text-sm tabular-nums text-muted-foreground"
-                data-testid="settings-book-count"
-              >
-                {bookCount ?? '—'}
-              </span>
-            </div>
-            <div
-              className="mx-4 h-px shrink-0 bg-black/[0.06]"
-              aria-hidden
-              data-testid="settings-rule"
-            />
-            <div className={ROW}>
-              <div className="min-w-0 flex-1 text-sm">Folder access</div>
-              <Badge color="success" dot>
-                Allowed · read and write
-              </Badge>
-            </div>
-            <div
-              className="mx-4 h-px shrink-0 bg-black/[0.06]"
-              aria-hidden
-              data-testid="settings-rule"
-            />
-            <div className={ROW}>
-              <div className="min-w-0 flex-1 text-sm">
-                Preview cache
-                <div className="text-xs text-muted-foreground">
-                  Rebuilt automatically if cleared
+              <div
+                className="mx-4 h-px shrink-0 bg-black/[0.06]"
+                aria-hidden
+                data-testid="settings-rule"
+              />
+              <div className={ROW}>
+                <div className="min-w-0 flex-1 text-sm">Books</div>
+                <span
+                  className="text-sm tabular-nums text-muted-foreground"
+                  data-testid="settings-book-count"
+                >
+                  {bookCount ?? '—'}
+                </span>
+              </div>
+              <div
+                className="mx-4 h-px shrink-0 bg-black/[0.06]"
+                aria-hidden
+                data-testid="settings-rule"
+              />
+              <div className={ROW}>
+                <div className="min-w-0 flex-1 text-sm">Folder access</div>
+                <Badge color="success" dot>
+                  Allowed · read and write
+                </Badge>
+              </div>
+              <div
+                className="mx-4 h-px shrink-0 bg-black/[0.06]"
+                aria-hidden
+                data-testid="settings-rule"
+              />
+              <div className={ROW}>
+                <div className="min-w-0 flex-1 text-sm">
+                  Preview cache
+                  <div className="text-xs text-muted-foreground">
+                    Rebuilt automatically if cleared
+                  </div>
                 </div>
+                <span
+                  className="text-sm tabular-nums text-muted-foreground"
+                  data-testid="settings-preview-cache"
+                >
+                  {cacheBytes === null ? '—' : formatBytes(cacheBytes)}
+                </span>
               </div>
-              <span
-                className="text-sm tabular-nums text-muted-foreground"
-                data-testid="settings-preview-cache"
-              >
-                {cacheBytes === null ? '—' : formatBytes(cacheBytes)}
-              </span>
             </div>
-          </div>
-        </>
+          </>
+        )}
       </main>
 
       <AlertDialog

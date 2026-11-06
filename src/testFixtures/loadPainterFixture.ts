@@ -9,6 +9,7 @@ import {
   PAINTER_ASSET_IDS,
 } from '../core/testing/painterFixture'
 import { resetBookStore } from '../editor/bookStore'
+import { seedPrintProfilesFromQuery } from '../editor/printProfilesStore'
 import { retainAssetSource } from '../photo/assetSources'
 import { painterSourceFile } from './painterSourceFile'
 
@@ -21,6 +22,22 @@ function withLogoOverrides(book: Book, count: number): Book {
         overrideParentFrame(next, spread.id, 'painter-parent-logo'),
       book,
     )
+}
+
+/** Every painter asset records a `px` × 3/4 `px` source, so print profiles flag low-res photos. */
+function withPixelSize(book: Book, px: number): Book {
+  if (!(px > 0)) {
+    return book
+  }
+  const assets = { ...book.assets }
+  for (const assetId of PAINTER_ASSET_IDS) {
+    assets[assetId] = {
+      ...assets[assetId],
+      widthPx: px,
+      heightPx: Math.round((px * 3) / 4),
+    }
+  }
+  return { ...book, assets }
 }
 
 /** Master A with a horizontal guide at mid height and a vertical one on the right page. */
@@ -100,13 +117,14 @@ function withLiveCaptions(book: Book, count: number): Book {
  * `&parent=a` makes Master A the book default, so all 40 spreads use it;
  * `&overrides=<n>` then has the first n spreads override its logo,
  * `&guides=a` gives Master A two guides and `&captions=<n>` puts n live
- * captions on spread 2.
+ * captions on spread 2; `&px=<n>` records an n px wide source on every
+ * painter asset, and `&printProfiles=kit` adds the kit's sample profile.
  */
 export function loadPainterFixture(search = window.location.search): void {
   const fixture = makePainterFixture()
   const params = new URLSearchParams(search)
   const captioned = withLiveCaptions(
-    fixture.book,
+    withPixelSize(fixture.book, Number(params.get('px') ?? 0)),
     Number(params.get('captions') ?? 0),
   )
   const base =
@@ -128,4 +146,5 @@ export function loadPainterFixture(search = window.location.search): void {
   for (const assetId of PAINTER_ASSET_IDS) {
     retainAssetSource(assetId, painterSourceFile(assetId), { cover: true })
   }
+  seedPrintProfilesFromQuery(search)
 }

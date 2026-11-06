@@ -2,6 +2,7 @@ import {
   addSpread,
   ensureDefaultParent,
   applyBookOp,
+  bookDpiThresholds,
   CURRENT_SCHEMA_VERSION,
   defaultCover,
   defaultEndpapers,
@@ -17,6 +18,7 @@ import {
   type BookOp,
   type Frame,
   type ParentSpread,
+  type PrintProfile,
   type ResolvedSpread,
   type Spread,
 } from '../core'
@@ -620,6 +622,36 @@ export function getGalleryDisplayNamesSnapshot(): readonly string[] {
   return galleryNamesSnapshot
 }
 
+/** The library's custom print profiles (Spec D6: before the book snapshot). */
+let printProfiles: readonly PrintProfile[] = []
+
+export function getBookPrintProfiles(): readonly PrintProfile[] {
+  return printProfiles
+}
+
+/**
+ * The print profiles store publishes its list here; when the book's DPI
+ * gates change, every spread repaints its low-res marks.
+ */
+export function setBookPrintProfiles(next: readonly PrintProfile[]): void {
+  if (next === printProfiles) {
+    return
+  }
+  const before = bookDpiThresholds(state.book, printProfiles)
+  printProfiles = next
+  const after = bookDpiThresholds(state.book, printProfiles)
+  if (before.warn === after.warn && before.min === after.min) {
+    return
+  }
+  const ids = [...paintSources(state.book).keys()]
+  bulkRepaint = ids.length > BULK_REPAINT_SPREADS
+  for (const id of ids) {
+    paintCache.delete(id)
+    notifySpread(id)
+  }
+  emit()
+}
+
 export function getBookStoreSnapshot(): BookStoreState {
   return state
 }
@@ -884,6 +916,11 @@ function moveHistory(move: HistoryMove | null): void {
   } else {
     book.pageNumbering = move.snapshot.pageNumbering
   }
+  if (move.snapshot.printProfile === undefined) {
+    delete book.printProfile
+  } else {
+    book.printProfile = move.snapshot.printProfile
+  }
   setHistory(move.history)
   publishBook(book)
 }
@@ -1022,6 +1059,7 @@ export function getSpreadPaintSnapshot(
   const resolved = resolveSpread(state.book, spreadId, {
     getAspectRatio: (assetId) => meta.get(assetId)?.aspect ?? 1,
     getPixelSize: (assetId) => sessionPixelSize(meta.get(assetId)),
+    printProfiles,
   })
   if (resolved === undefined) {
     return undefined
@@ -1110,6 +1148,7 @@ function sharedPaintInputsSame(
     prev.book.frameStyles === next.book.frameStyles &&
     prev.book.assets === next.book.assets &&
     prev.book.pageNumbering === next.book.pageNumbering &&
+    prev.book.printProfile === next.book.printProfile &&
     prev.book.spreads.length === next.book.spreads.length
   )
 }
@@ -1124,6 +1163,9 @@ function paintInputKey(
   const { trim, bleedMm, safeMarginMm } = book.settings
   let key = `${String(book.spreads.length)}:${String(trim.widthMm)}:${String(trim.heightMm)}:${String(bleedMm)}:${String(safeMarginMm)}`
   key += `:${book.settings.pageColor ?? ''}`
+  // Low-res marks follow the book profile's DPI gates.
+  const dpi = bookDpiThresholds(book, printProfiles)
+  key += `:${String(dpi.warn)}:${String(dpi.min)}`
   // The book numbering reads only on spreads whose parent prints folios.
   if (parent?.pageNumbers !== undefined) {
     key += `:${JSON.stringify(book.pageNumbering ?? null)}`

@@ -3,12 +3,14 @@
 Tag: feature
 Milestone: P5
 Title: print for everyone
+Status: done
 
 ## Scope
 
-- [ ] Catalog of common print-shop profiles plus a custom profile editor
-- **Browser check:** pick a preset, export a PDF that matches its spec.
-- **Perf:** switching presets re-runs preflight in a worker; zero LoAF.
+- [x] Catalog of common print-shop profiles plus a custom profile editor
+- **Browser check:** pick a preset; Book settings (hint, warnings, bleed / safe, page range) and the low-res marks follow it; picking is one undo step.
+- **Perf:** switching presets recomputes the low-res marks over 40 spreads; zero LoAF (`print-profile-switch`).
+- Owner-approved scope change: Designer printer-presets Spec item 3 (Owner 2026-11-05) moves "re-runs preflight in a worker" to `preflight-core` and "export a PDF that matches its spec" to `pdf-export`.
 - **Kit components:** `uikit#/feature/site-settings` scenario `print` (`uikit/src/demo-parts/settings.tsx` `SettingsScreen`); partial: custom profile editor not in kit (Designer, D6)
 - **Demo:** `#/feature/site-settings` scenario `print` (not in `#/demo`)
 - **Musts:** print presets for everyone

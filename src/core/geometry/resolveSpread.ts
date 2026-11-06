@@ -4,6 +4,7 @@ import {
   spreadParent,
 } from '../parentSpreads'
 import { spreadFolios } from '../pageNumbers'
+import type { PrintProfile } from '../print/profileSchema'
 import { bookDpiThresholds } from '../printProfile'
 import type { Book, Frame, FrameStyle, ParentSpread, Spread } from '../schema'
 import { isTextFrame, resolveTextContent } from '../text/resolveText'
@@ -53,6 +54,8 @@ export interface ResolveSpreadOptions {
   getPixelSize?: (
     assetId: string,
   ) => { widthPx: number; heightPx: number } | undefined
+  /** The library's custom print profiles (Spec D6: before the snapshot). */
+  printProfiles?: readonly PrintProfile[]
 }
 
 export function resolveSpread(
@@ -68,7 +71,7 @@ export function resolveSpread(
 
   const getAspectRatio = options.getAspectRatio ?? defaultAspect
   const structural = getStructural(book, spread, index)
-  const dpiThresholds = bookDpiThresholds(book)
+  const dpiThresholds = bookDpiThresholds(book, options.printProfiles)
   const items: ResolvedItem[] = structural.entries.map(({ item, frame }) => {
     // Per call, not memoized: templates read the title and anchor meta.
     if (isTextFrame(frame)) {

@@ -56,15 +56,18 @@ export function isPanelToggleChord(mod: boolean, key: string): boolean {
 }
 
 /** Kit v7.tsx:208 note under Pages; spreads add 2 pages each. */
-export function pagesNote(pages: number): string {
-  if (pages < PAGE_MIN) {
-    const short = PAGE_MIN - pages
+export function pagesNote(
+  pages: number,
+  range: { min: number; max: number } = { min: PAGE_MIN, max: PAGE_MAX },
+): string {
+  if (pages < range.min) {
+    const short = range.min - pages
     const spreads = String(Math.ceil(short / 2))
-    return `Add ${spreads} spread${short > 2 ? 's' : ''} to reach the ${String(PAGE_MIN)}-page minimum`
+    return `Add ${spreads} spread${short > 2 ? 's' : ''} to reach the ${String(range.min)}-page minimum`
   }
-  if (pages > PAGE_MAX) {
-    const spreads = String(Math.ceil((pages - PAGE_MAX) / 2))
-    return `Remove ${spreads} spreads to stay within ${String(PAGE_MAX)} pages`
+  if (pages > range.max) {
+    const spreads = String(Math.ceil((pages - range.max) / 2))
+    return `Remove ${spreads} spreads to stay within ${String(range.max)} pages`
   }
   return 'Pages are added in spreads of 2'
 }

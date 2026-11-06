@@ -10,6 +10,7 @@ Title: print PDF
 - [ ] Peak memory measured on a 40-spread book against a recorded threshold; if above it, do `pdf-streaming`
 - **Perf:** scenario: edit while the PDF builds — zero LoAF.
 - **Browser check:** export with and without the bleed checkbox; pages match the editor at trim size; bleed + crop marks only when checked; Show in folder opens the exports folder.
+- **Browser check (from `printer-presets`):** pick a print preset, export a PDF that matches its spec (trim, bleed, page count, spine).
 - **Kit components:** `uikit#/feature/pdf-export` (`uikit/src/features/pages.tsx` page `pdf-export`); parts: `uikit/src/demo-parts/dialogs.tsx` (`PrintDialog (editor top bar "Print")`)
 - **Demo:** `uikit#/demo` steps 27 `print-options`, 28 `print-options-4up-no-bleed`, 29 `print-running-50pct`, 30 `print-done`, 31 `print-done-shown-in-folder` (walk in `uikit/scripts/demo-capture.mjs`)
 - **Musts:** Print dialog: page size, '1 per sheet', bleed + crop marks checkbox, progress, PDF ready + Show in folder; 2-up / 4-up **hidden** (not disabled) until `booklet-imposition` owns them
