@@ -9,6 +9,7 @@ import {
 } from '../../project'
 import { sha256Hex } from '../../lib/sha256Hex'
 import type { SiteExportMessage } from '../../site/export/site-export.worker'
+import type { SiteViewerBundle } from '../../site/export/types'
 import {
   collectSiteDerivatives,
   freezeForExport,
@@ -284,6 +285,17 @@ describe('freezeForExport', () => {
   })
 })
 
+function viewerBundle(): SiteViewerBundle {
+  return {
+    entry: 'assets/site.js',
+    css: ['assets/site.css'],
+    files: [
+      { path: 'assets/site.css', bytes: new Uint8Array(5) },
+      { path: 'assets/site.js', bytes: new Uint8Array(7) },
+    ],
+  }
+}
+
 function runDeps(
   messages: SiteExportMessage[],
   overrides: Partial<ExportSiteRunDeps> = {},
@@ -298,6 +310,7 @@ function runDeps(
     now: () => 7,
     requestWrite: () => Promise.resolve(true),
     derivatives: derivativeDeps(() => webp(2, 2)),
+    loadViewer: () => Promise.resolve(viewerBundle()),
     runWorker: (request, transfer, onMessage) => {
       posted.push({ request, transfer })
       for (const message of messages) {
@@ -347,15 +360,32 @@ describe('runExportSite', () => {
     })
     const [post] = run.posted as [
       {
-        request: { input: { revisions: PublishedRevision[] } }
+        request: {
+          input: { revisions: PublishedRevision[]; viewer: SiteViewerBundle }
+        }
         transfer: ArrayBuffer[]
       },
     ]
     expect(post.request.input.revisions.map((r) => r.publishedAtMs)).toEqual([
       7,
     ])
-    expect(post.transfer).toHaveLength(4)
-    expect(post.transfer.every((b) => b.byteLength === 30)).toBe(true)
+    expect(post.request.input.viewer).toEqual(viewerBundle())
+    expect(post.transfer.map((b) => b.byteLength)).toEqual([
+      30, 30, 30, 30, 5, 7,
+    ])
+  })
+
+  it('fails as unknown without starting the worker when the viewer cannot load', async () => {
+    const runWorker = vi.fn()
+    const run = runDeps([], {
+      loadViewer: () => Promise.reject(new Error('HTTP 404')),
+      runWorker,
+    })
+
+    await runExportSite(run.deps)
+
+    expect(run.state()).toMatchObject({ kind: 'failed', code: 'unknown' })
+    expect(runWorker).not.toHaveBeenCalled()
   })
 
   it('passes a worker failure through', async () => {

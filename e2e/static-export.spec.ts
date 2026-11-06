@@ -11,11 +11,17 @@ import {
   collectFrameStatsArtifact,
   enablePerfScenario,
 } from './perf/perfFixture'
+import {
+  dialog,
+  exportToDone,
+  FIXTURE,
+  openFixture,
+  openOptions,
+  pill,
+  startExport,
+  useOpfsFolder,
+} from './fixtures/siteExport'
 
-// Designer spec static-export Tests: the `?fixture=painter` editor exports
-// into an OPFS folder that stands in for the `showDirectoryPicker` folder.
-// Its photos have no `contentHash`, like a folder import: Export hashes them.
-const FIXTURE = '/?fixture=painter'
 const BOOK_ID = 'painter-fixture'
 // Solid colours of the four placed photos (`src/testFixtures/painterSourceFile.ts`).
 const PHOTO_RGB = [
@@ -37,37 +43,6 @@ interface PillSample {
 type ExportWindow = Window & {
   __pillSamples?: PillSample[]
   __movesWhileRunning?: number
-}
-
-const pill = (page: Page) => page.getByTestId('export-site')
-const dialog = (page: Page) => page.getByTestId('export-site-dialog')
-
-/** `showDirectoryPicker` double → a fresh OPFS folder (`dist/notes.txt` when foreign). */
-async function useOpfsFolder(
-  page: Page,
-  name: string,
-  foreign = false,
-): Promise<void> {
-  await page.evaluate(
-    async ({ name, foreign }) => {
-      const root = await navigator.storage.getDirectory()
-      await root.removeEntry(name, { recursive: true }).catch(() => undefined)
-      const folder = await root.getDirectoryHandle(name, { create: true })
-      if (foreign) {
-        const dist = await folder.getDirectoryHandle('dist', { create: true })
-        const file = await dist.getFileHandle('notes.txt', { create: true })
-        const writable = await file.createWritable()
-        await writable.write('mine')
-        await writable.close()
-      }
-      Object.defineProperty(window, 'showDirectoryPicker', {
-        configurable: true,
-        writable: true,
-        value: () => Promise.resolve(folder),
-      })
-    },
-    { name, foreign },
-  )
 }
 
 /** `dist/` of an OPFS folder: path → SHA-256 hex of the bytes. */
@@ -207,32 +182,6 @@ async function recordPill(page: Page): Promise<void> {
   })
 }
 
-/** Open Options with a folder (picked when asked). */
-async function openOptions(page: Page, pick: boolean): Promise<void> {
-  await pill(page).click()
-  await expect(dialog(page)).toHaveAttribute('data-step', 'opts')
-  if (pick) {
-    await page.getByTestId('export-site-choose').click()
-  }
-  await expect(page.getByTestId('export-site-folder')).toBeVisible()
-}
-
-/** Options → (pick when asked) → Export. */
-async function startExport(page: Page, pick: boolean): Promise<void> {
-  await openOptions(page, pick)
-  await page.getByTestId('export-site-go').click()
-}
-
-/** Export and stay in the dialog until it shows Done, then close it. */
-async function exportToDone(page: Page, pick: boolean): Promise<void> {
-  await startExport(page, pick)
-  await expect(dialog(page)).toHaveAttribute('data-step', 'done', {
-    timeout: 30_000,
-  })
-  await page.getByTestId('export-site-close').click()
-  await expect(dialog(page)).toHaveCount(0)
-}
-
 /** Press on the first canvas frame and start the drag with one move. */
 async function grabFrame(page: Page): Promise<{ x: number; y: number }> {
   const frame = page
@@ -281,11 +230,6 @@ async function dragWhileRunning(page: Page): Promise<void> {
       return
     }
   }
-}
-
-async function openFixture(page: Page): Promise<void> {
-  await page.goto(FIXTURE)
-  await expect(page.getByTestId('spread-view').first()).toBeVisible()
 }
 
 test('without a folder Export stays disabled', async ({ page }) => {

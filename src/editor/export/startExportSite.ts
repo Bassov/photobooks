@@ -8,6 +8,7 @@ import { getOpenLibrary } from '../projectSession'
 import { requestFolderWrite } from './exportSiteFolder'
 import { runExportSite, type SiteDerivativeDeps } from './exportSiteRun'
 import { exportSiteStore } from './exportSiteStore'
+import { loadSiteViewerBundle } from './siteViewerBundle'
 
 /** Session file, else the registered photo folder; any book's asset record. */
 const readSource: SiteDerivativeDeps['readSource'] = async (assetId, asset) => {
@@ -60,6 +61,8 @@ export function startExportSite(folder: FileSystemDirectoryHandle): void {
       get: getDerivative,
       readSource,
     },
+    loadViewer: () =>
+      loadSiteViewerBundle((url) => fetch(url), import.meta.env.BASE_URL),
     runWorker: runInWorker,
     dispatch: exportSiteStore.dispatch,
   })
