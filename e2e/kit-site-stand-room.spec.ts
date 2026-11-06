@@ -649,12 +649,12 @@ test.describe('phone 844×390', () => {
     const reader = page.getByTestId('ps-reader')
     const canvas = page.getByTestId('ps-reader-canvas')
     const rb = await box(reader)
-    // site-stand-v4 D20: the default overhang (x −0.04 W, y −0.25 H, 1.08 W × 1.3 H), no camera box
+    // site-stand-v4 D20 + v7 T2: the default overhang (x −0.04 W, y −0.21 W, 1.08 W × (H + 0.21 W + 0.05 H)), no camera box
     const want = {
       x: rb.x - 0.04 * rb.width,
-      y: rb.y - 0.25 * rb.height,
+      y: rb.y - 0.21 * rb.width,
       width: 1.08 * rb.width,
-      height: 1.3 * rb.height,
+      height: 1.05 * rb.height + 0.21 * rb.width,
     }
     const fits = async () => {
       const c = await box(canvas)

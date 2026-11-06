@@ -83,7 +83,8 @@ export async function faceCanvas(b: SiteBook, look: FaceLook, { v, side }: Face,
   grain(x, PW, PH, 5, 2)
   return c
 }
-type Mats = { front: Any; back: Any; tex: Any }
+/** top = the front pushed back in depth (polygon offset) for the stack tops, so a leaf landing on them always wins */
+type Mats = { front: Any; back: Any; top: Any; tex: Any }
 
 export class OpenBook {
   scene: Any; cam: Any
@@ -148,7 +149,8 @@ export class OpenBook {
 
   private pageMats(c: HTMLCanvasElement): Mats {
     const T = this.T, t = tex(T, c), p = { map: t, roughness: 0.62, bumpMap: this.bump, bumpScale: 0.25 }
-    return { tex: t, front: new T.MeshStandardMaterial({ ...p, side: T.FrontSide }), back: new T.MeshStandardMaterial({ ...p, side: T.BackSide }) }
+    const top = new T.MeshStandardMaterial({ ...p, side: T.FrontSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 4 })
+    return { tex: t, front: new T.MeshStandardMaterial({ ...p, side: T.FrontSide }), back: new T.MeshStandardMaterial({ ...p, side: T.BackSide }), top }
   }
 
   private face(f: Face) {
@@ -179,7 +181,7 @@ export class OpenBook {
     for (const [key, m] of this.mats) {
       const v = Number(key.split(":")[0])
       if (v >= a - 1 && v <= a + 2) continue
-      if (m) { m.tex.dispose(); m.front.dispose(); m.back.dispose() }
+      if (m) { m.tex.dispose(); m.front.dispose(); m.back.dispose(); m.top.dispose() }
       this.mats.delete(key)
     }
     for (let v = Math.max(1, a - 1); v <= Math.min(this.n - 2, a + 2); v++) { this.mat({ v, side: 0 }); this.mat({ v, side: 1 }) }
@@ -214,7 +216,7 @@ export class OpenBook {
     const W = this.W, H = this.H, y0 = BD + 0.08
     const ang = (t: number) => o * aRest(t) + (t < 0.12 ? Math.atan(hs / (0.12 * W)) : 0)
     const pts = curve(W - 0.2, y0, ang)
-    this.add(this.sheet(pts, sign > 0 ? (t) => t : (t) => 1 - t, sign), this.mat(f).front)
+    this.add(this.sheet(pts, sign > 0 ? (t) => t : (t) => 1 - t, sign), this.mat(f).top)
     // fore-edge: from the top page edge down to the board, splayed out by 0.5 × the stack height so it faces up
     const [xe, ye] = pts[N], sp = (ye - BD) * 0.5
     this.add(this.geo([sign * xe, ye, -H / 2, sign * xe, ye, H / 2, sign * (xe + sp), BD, -H / 2, sign * (xe + sp), BD, H / 2], [0, 1, 0, 0, 1, 1, 1, 0], [0, 1, 2, 2, 1, 3]), this.edgeU, false)
@@ -246,20 +248,24 @@ export class OpenBook {
     this.book.clear()
     const n = this.n, f = th / 180, W = this.W, block = this.block
     const opening = a === 0, closing = a === n - 2 && th > 0
+    // an interior turn draws the stacks without the leaf (left = read pages of a, right = unread of a + 1); the leaf
+    // rides 0.02 above both, so the old view never wins the depth test as it lands
+    const turning = !opening && !closing && th > 0 && th < 180
     const r = readAt(n, a) + (readAt(n, a + 1) - readAt(n, a)) * f
+    const rl = turning ? readAt(n, a) : r, rr = turning ? readAt(n, a + 1) : r
     this.prune(a)
     this.book.position.x = opening ? (-W / 2) * (1 - f) : closing ? (W / 2) * f : 0
     const e = this.board
     if (!opening) this.boardBox(e, -1)
     if (!closing) this.boardBox(e, 1)
-    const L = opening ? null : this.side(-1, block * r, { v: a, side: 0 }, closing ? 1 - f : 1)
-    const R = closing ? null : this.side(1, block * (1 - r), { v: th > 0 ? a + 1 : a, side: 1 }, opening ? f : 1)
+    const L = opening ? null : this.side(-1, block * rl, { v: a, side: 0 }, closing ? 1 - f : 1)
+    const R = closing ? null : this.side(1, block * (1 - rr), { v: th > 0 ? a + 1 : a, side: 1 }, opening ? f : 1)
     if (opening && R) this.boardBox([e, e, this.cover, this.endpaper, e, e], 0, R.top + 0.02 + (BD - R.top - 0.02) * f, th)
     else if (closing && L) this.boardBox([e, e, this.endpaper, e, e, e], 0, (L.top + BD) * f, th)
     else if (th > 0 && R) {
-      const s = Math.sin((th * Math.PI) / 180), bend = this.look.bend ? 0.95 : 0
-      const ang = (t: number) => (1 - f) * R.ang(t) + f * (Math.PI - R.ang(t)) - bend * s * t ** 1.4
-      const pts = curve(W - 0.2, R.y0 + 0.02, ang)
+      const s = Math.sin((th * Math.PI) / 180), bend = this.look.bend ? 0.95 : 0, D = L ?? R
+      const ang = (t: number) => (1 - f) * R.ang(t) + f * (Math.PI - D.ang(t)) - bend * s * t ** 1.4
+      const pts = curve(W - 0.2, (1 - f) * R.y0 + f * D.y0 + 0.02, ang)
       this.add(this.sheet(pts, (t) => t, 1), this.mat({ v: a, side: 1 }).front)
       this.add(this.sheet(pts, (t) => 1 - t, 1), this.mat({ v: a + 1, side: 0 }).back)
     }
@@ -300,7 +306,7 @@ export class OpenBook {
   dispose() {
     this.dead = true
     for (const g of this.dyn) g.dispose()
-    for (const m of [...this.mats.values(), this.paper]) if (m) { m.tex.dispose(); m.front.dispose(); m.back.dispose() }
+    for (const m of [...this.mats.values(), this.paper]) if (m) { m.tex.dispose(); m.front.dispose(); m.back.dispose(); m.top.dispose() }
     for (const d of this.keep) d.dispose?.()
     this.mats.clear()
   }

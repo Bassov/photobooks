@@ -240,7 +240,8 @@ function ReaderGl({ b, a, th, W, H, box, s, dark, board, bend, label, fade, onFa
       const an = o.animate([{ opacity: 1 }, { opacity: 0 }], { duration: fade.ms, easing: "linear", fill: "forwards" })
       an.onfinish = () => cb.current.onFade()
     }
-    const k = Math.max(2, window.devicePixelRatio || 1), cw = Math.round(box.w * k), ch = Math.round(box.h * k)
+    // capped so a wide reader's backing store stays within 4096 px
+    const k = Math.min(Math.max(2, window.devicePixelRatio || 1), 4096 / Math.max(box.w, box.h)), cw = Math.round(box.w * k), ch = Math.round(box.h * k)
     if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch }
     gl.book.set(a, th)
     gl.book.frame(W, H, s, box)
@@ -459,7 +460,9 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
     const lt = scrubbing ? (sth > 0 && sth < 180 ? { a: sa, th: sth } : null) : turn
     const [ga, gth] = lt ? [lt.a, lt.th] : at === n - 1 ? [n - 2, 180] : [at, 0]
     // the canvas overhangs the reader box (pointer-events none): the leaf rises toward the eye past the head mid-turn
-    const box = { x: -0.04 * W, y: -0.25 * H, w: 1.08 * W, h: 1.3 * H }
+    // (site-stand-v7 T2: the rise scales with the spread width; a landscape cover peaks ≈ 0.19·W over the head mid-opening)
+    const RISE = 0.21
+    const box = { x: -0.04 * W, y: -RISE * W, w: 1.08 * W, h: H + RISE * W + 0.05 * H }
     const glLayer = gl && (
       <>
         <ReaderGl b={b} a={ga} th={gth} W={W} H={H} box={box} s={W / (2 * b.w + 10)} dark={dark} board={board} bend={leaf === "paper"}
