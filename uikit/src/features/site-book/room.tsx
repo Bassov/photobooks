@@ -43,8 +43,9 @@ const BODY: Record<keyof typeof SPREAD_R, readonly [number, number, number]> = {
   portrait: [0.874, 0.849, 0.079], landscape: [0.906, 0.894, 0.0525], square: [0.88, 0.859, 0.073],
 }
 /** a turning leaf rises ≤ RISE·W over the visible book. The rigid cover opening is the highest frame (T2 test at 1440,
-   alpha ≥ 200 over the body top): landscape 0.210·W, square 0.179·W, portrait 0.169·W (θ 45–135: 0.180 / 0.156 / 0.141) */
-const RISE: Record<keyof typeof SPREAD_R, number> = { portrait: 0.175, landscape: 0.215, square: 0.185 }
+   alpha ≥ 200 over the body top, highest of all sampled frames): landscape 0.2144·W, square 0.1857·W, portrait 0.1707·W
+   (θ 45–135: 0.180 / 0.156 / 0.141); each plus ≈ 0.005 */
+const RISE: Record<keyof typeof SPREAD_R, number> = { portrait: 0.18, landscape: 0.22, square: 0.19 }
 
 export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek, final }: RoomProps) {
   const root = React.useRef<HTMLDivElement>(null)

@@ -743,10 +743,10 @@ test.describe('desktop 1440×900: the reading room', () => {
   })
 
   // site-stand-v7 R (D31): demo 9 sizes the visible GL book, pins the foot at h − 54 and centres the pager. RISE is
-  // the measured cover-opening rise (room.tsx), not the Spec's 0.15, so W is 1446.0 / 1173.4 (Spec 1448.1 / 1216.6)
+  // the measured cover-opening rise (room.tsx), not the Spec's 0.15, so W is 1433.5 / 1165.2 (Spec 1448.1 / 1216.6)
   for (const [id, W, top] of [
-    ['coast', 1446.0, 288.5],
-    ['lake-trip', 1173.4, 155.4],
+    ['coast', 1433.5, 293.3],
+    ['lake-trip', 1165.2, 160.2],
   ] as const)
     test(`demo 9 ${id}: W ${String(W)}, foot row top 846, pager centre 720`, async ({
       page,
