@@ -3,7 +3,8 @@ import { expect, test } from './fixtures/coverage'
 import { visibleCentres, white } from './fixtures/sitePagePaint'
 
 // site-stand S5 + S6, site-stand-v2 S (DEMO branch): a demo 6 book opens the
-// shared reading room; on a phone portrait the room shows one page at a time.
+// shared reading room; on a phone portrait the room reads by spreads and the
+// book never moves (site-stand-v4 D20).
 
 async function box(l: Locator) {
   const b = await l.boundingBox()
@@ -18,66 +19,141 @@ async function openRoom(page: Page) {
   await expect(page.getByTestId('ss-reader-page')).toBeVisible()
 }
 
-test.describe('phone 390×844: single page', () => {
+type Rect = [number, number, number, number]
+interface Sampler { rects: Rect[]; raf: number }
+
+/** every rAF frame: the ps-reader rect, until `stopRects` */
+const startRects = (page: Page) =>
+  page.evaluate(() => {
+    const s: Sampler = { rects: [], raf: 0 }
+    ;(window as unknown as { __rects: Sampler }).__rects = s
+    const tick = () => {
+      const r = document
+        .querySelector('[data-testid="ps-reader"]')
+        ?.getBoundingClientRect()
+      if (r) s.rects.push([r.x, r.y, r.width, r.height])
+      s.raf = requestAnimationFrame(tick)
+    }
+    tick()
+  })
+const stopRects = (page: Page) =>
+  page.evaluate(() => {
+    const s = (window as unknown as { __rects: Sampler }).__rects
+    cancelAnimationFrame(s.raf)
+    return s.rects
+  })
+
+/** a one-finger swipe through the browser's touch input (pointer events + touch-action) */
+async function swipe(
+  page: Page,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+) {
+  const cdp = await page.context().newCDPSession(page)
+  const at = (x: number, y: number) => [{ x, y, id: 1 }]
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: at(from.x, from.y),
+  })
+  for (let i = 1; i <= 12; i++)
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: at(
+        from.x + ((to.x - from.x) * i) / 12,
+        from.y + ((to.y - from.y) * i) / 12,
+      ),
+    })
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchEnd',
+    touchPoints: [],
+  })
+  await cdp.detach()
+}
+
+test.describe('phone 390×844: spreads', () => {
   test.use({
     viewport: { width: 390, height: 844 },
     isMobile: true,
     hasTouch: true,
   })
 
-  test('demo 6: one page 345.7 × 432 fills the width; Cover → Page 1 → Page 2', async ({
+  test('demo 6 lake-trip: the whole spread 358 × 223.75 at x 16; the book never moves; swipes turn one leaf', async ({
     page,
   }) => {
-    await openRoom(page)
-    const pager = page.getByTestId('ps-pager')
-    const label = page.getByTestId('ss-label')
-    await expect(page.getByTestId('ss-reader-page')).toHaveAttribute(
-      'data-mode',
-      'page',
+    const errors: string[] = []
+    page.on('pageerror', (e) => errors.push(e.message))
+    page.on('console', (m) => {
+      if (m.type() === 'error') errors.push(m.text())
+    })
+    await page.goto('/uikit/#/full/site-demo-6?books=6&book=lake-trip&gl=0')
+    const room = page.getByTestId('ss-reader-page')
+    await expect(room).toHaveAttribute('data-mode', 'port')
+    const reader = room.getByTestId('ps-reader')
+    const label = room.getByTestId('ss-label')
+    await expect(reader).toHaveAttribute('data-view', '1')
+    await expect(reader.getByTestId('ps-leaf')).toHaveCount(0)
+    await expect(page.getByTestId('ps-pager')).toHaveCount(0)
+    await expect(reader).toHaveCSS('touch-action', 'pan-y')
+    const r = await box(reader)
+    expect(Math.abs(r.width - 358)).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(r.height - 223.75)).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(r.x - 16)).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(r.y - 274.1)).toBeLessThanOrEqual(0.5)
+    await expect(label).toHaveText('Page 1 of 22')
+
+    // Next × 3: one leaf each; the reader rect is the same at every view and on every frame of the turns
+    await startRects(page)
+    for (const want of [
+      'Pages 2–3 of 22',
+      'Pages 4–5 of 22',
+      'Pages 6–7 of 22',
+    ]) {
+      await room.getByTestId('ss-next').click()
+      await expect(label).toHaveText(want)
+      await expect(reader.getByTestId('ps-leaf')).toHaveCount(0)
+      const v = await box(reader)
+      expect(Math.abs(v.x - r.x)).toBeLessThanOrEqual(0.5)
+      expect(Math.abs(v.y - r.y)).toBeLessThanOrEqual(0.5)
+    }
+    const rects = await stopRects(page)
+    expect(rects.length).toBeGreaterThan(10)
+    const off = rects.filter(
+      ([x, y, w, h]) =>
+        Math.abs(x - r.x) > 0.5 ||
+        Math.abs(y - r.y) > 0.5 ||
+        Math.abs(w - r.width) > 0.5 ||
+        Math.abs(h - r.height) > 0.5,
     )
-    // the cover opens on its own
-    await expect(label).toHaveText(/^Page 1 of \d+$/)
-    await expect(pager).toHaveAttribute('data-side', 'R')
-    const reader = pager.getByTestId('ps-reader')
-    await expect(reader).toHaveAttribute('data-view', '1')
-    const pg = await box(reader.locator('.sd-pg').nth(1))
-    expect(Math.abs(pg.width - 345.7)).toBeLessThanOrEqual(2)
-    expect(Math.abs(pg.height - 432)).toBeLessThanOrEqual(2)
-    expect(pg.height).toBeGreaterThanOrEqual(0.45 * 844)
-    // centred, inside the screen
-    expect(Math.abs(pg.x + pg.width / 2 - 195)).toBeLessThanOrEqual(1)
+    expect(off).toEqual([])
+    await expect(reader).toHaveAttribute('data-view', '4')
 
-    await page.getByTestId('ss-prev').click()
-    await expect(label).toHaveText('Cover')
-    await expect(pager).toHaveAttribute('data-side', 'C')
-    await expect(reader).toHaveAttribute('data-view', '0')
-    await page.getByTestId('ss-next').click()
-    await expect(label).toHaveText(/^Page 1 of \d+$/)
-    await expect(reader).toHaveAttribute('data-view', '1')
-    // the next leaf turns: the left page of spread 1, centred
-    await page.getByTestId('ss-next').click()
-    await expect(label).toHaveText(/^Page 2 of \d+$/)
-    await expect(pager).toHaveAttribute('data-side', 'L')
-    await expect(reader).toHaveAttribute('data-view', '2')
-    const left = await box(reader.locator('.sd-pg').nth(0))
-    expect(Math.abs(left.x + left.width / 2 - 195)).toBeLessThanOrEqual(1)
-    // a tap on the right 40 % pans to page 3 of the same spread
-    const pb = await box(pager)
-    await pager.click({ position: { x: pb.width * 0.85, y: pb.height / 2 } })
-    await expect(label).toHaveText(/^Page 3 of \d+$/)
-    await expect(reader).toHaveAttribute('data-view', '2')
-    await expect(pager).toHaveCSS('touch-action', 'pan-y')
-
-    const centres = await visibleCentres(pager)
+    // a photo page of the spread paints
+    const centres = await visibleCentres(reader)
     expect(centres.length).toBeGreaterThan(0)
     for (const c of centres) expect(white(c)).toBe(false)
     await page.screenshot({
       path: test.info().outputPath('demo6-390-room.png'),
     })
+
+    // a horizontal swipe 300 → 80 turns one leaf
+    const y = r.y + r.height / 2
+    await swipe(page, { x: 300, y }, { x: 80, y })
+    await expect(label).toHaveText('Pages 8–9 of 22')
+    await expect(reader).toHaveAttribute('data-view', '5')
+    await expect(reader.getByTestId('ps-leaf')).toHaveCount(0)
+    // a vertical swipe of 220 px turns none
+    await swipe(page, { x: 300, y: r.y + 10 }, { x: 300, y: r.y + 230 })
+    await page.waitForTimeout(1200)
+    await expect(label).toHaveText('Pages 8–9 of 22')
+    await expect(reader).toHaveAttribute('data-view', '5')
+    const after = await box(reader)
+    expect(Math.abs(after.x - r.x)).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(after.y - r.y)).toBeLessThanOrEqual(0.5)
     test.info().annotations.push({
       type: 'paint',
-      description: `page ${pg.width.toFixed(1)}×${pg.height.toFixed(1)}; centre ${JSON.stringify(centres)}`,
+      description: `reader ${r.width.toFixed(2)}×${r.height.toFixed(2)} at ${r.x.toFixed(1)},${r.y.toFixed(1)}; ${String(rects.length)} frames, 0 off; centre ${JSON.stringify(centres)}`,
     })
+    expect(errors).toEqual([])
   })
 })
 

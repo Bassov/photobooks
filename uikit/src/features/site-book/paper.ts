@@ -13,7 +13,7 @@ const LAYER: React.CSSProperties = { position: "absolute", top: 0, bottom: 0, po
 export function paperLayers(x = 0, w?: number): [React.CSSProperties, React.CSSProperties] {
   const box = w === undefined ? { left: 0, right: 0 } : { left: x, width: w }
   return [
-    { ...LAYER, ...box, backgroundImage: GRAIN, backgroundSize: "160px", mixBlendMode: "multiply", opacity: 0.06 },
+    { ...LAYER, ...box, backgroundImage: GRAIN, backgroundSize: "160px", mixBlendMode: "multiply", opacity: 0.03 },
     { ...LAYER, ...box, background: SHEEN },
   ]
 }

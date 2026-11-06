@@ -173,7 +173,9 @@ test.describe('desktop 1440×900', () => {
     )
     console.log(`paper lum ${mean.toFixed(1)} sd ${sd.toFixed(2)}`)
     expect(mean).toBeGreaterThanOrEqual(236)
-    expect(sd).toBeGreaterThanOrEqual(2)
+    // site-stand-v4 D21: a quiet grain, still there
+    expect(sd).toBeGreaterThanOrEqual(0.5)
+    expect(sd).toBeLessThanOrEqual(1.5)
 
     // the tail band: under the right page, above the board
     const col = await shot(page, {
@@ -246,43 +248,43 @@ test.describe('phone 390×844', () => {
     hasTouch: true,
   })
 
-  test('the pager pans the GL camera over one page', async ({ page }) => {
+  test('the GL canvas = the reader box + the overhang and stays put across a turn', async ({
+    page,
+  }) => {
     const errors = collectErrors(page)
     await openRoom(page)
-    const pager = page.getByTestId('ps-pager')
-    await expect(pager).toHaveAttribute('data-side', 'R')
     await expect(page.getByTestId('ps-reader-gl')).toHaveAttribute(
       'data-gl',
       'ready',
     )
+    const reader = page.getByTestId('ps-reader')
     const canvas = page.getByTestId('ps-reader-canvas')
-    const pb = await box(pager),
-      cb = await box(canvas)
-    // the canvas covers the pager box
-    expect(Math.abs(cb.x - pb.x)).toBeLessThanOrEqual(1)
-    expect(Math.abs(cb.width - pb.width)).toBeLessThanOrEqual(1)
-    await page.waitForTimeout(800)
-    const centre = async () =>
-      lums(
-        await shot(page, {
-          x: Math.round(pb.x + pb.width / 2 - 20),
-          y: Math.round(pb.y + pb.height * 0.3),
-          width: 40,
-          height: 40,
-        }),
-      )
-    // Page 1 (title page) fills the centre with paper
-    const p1 = await centre()
-    expect(Math.min(...p1)).toBeGreaterThanOrEqual(200)
-    await page.screenshot({ path: test.info().outputPath('gl-phone-p1.png') })
+    const rb = await box(reader)
+    // site-stand-v4 D20: the default overhang (x −0.04 W, y −0.25 H, 1.08 W × 1.3 H), no camera box
+    const want = {
+      x: rb.x - 0.04 * rb.width,
+      y: rb.y - 0.25 * rb.height,
+      width: 1.08 * rb.width,
+      height: 1.3 * rb.height,
+    }
+    const near = (c: Clip) => {
+      expect(Math.abs(c.x - want.x)).toBeLessThanOrEqual(1)
+      expect(Math.abs(c.y - want.y)).toBeLessThanOrEqual(1)
+      expect(Math.abs(c.width - want.width)).toBeLessThanOrEqual(1)
+      expect(Math.abs(c.height - want.height)).toBeLessThanOrEqual(1)
+    }
+    near(await box(canvas))
+    await page.screenshot({ path: test.info().outputPath('gl-phone-v1.png') })
     await page.getByTestId('ss-next').click()
-    await expect(page.getByTestId('ss-label')).toHaveText(/^Page 2 of \d+$/)
-    await expect(pager).toHaveAttribute('data-side', 'L')
-    await page.waitForTimeout(800)
-    // Page 2 is centred now: the camera moved with the pager (the canvas did not)
-    const cb2 = await box(canvas)
-    expect(Math.abs(cb2.x - pb.x)).toBeLessThanOrEqual(1)
-    await page.screenshot({ path: test.info().outputPath('gl-phone-p2.png') })
+    await expect(page.getByTestId('ps-leaf')).toHaveCount(1)
+    near(await box(canvas))
+    await expect(page.getByTestId('ss-label')).toHaveText(/^Pages 2–3 of \d+$/)
+    await expect(page.getByTestId('ps-leaf')).toHaveCount(0)
+    near(await box(canvas))
+    const rb2 = await box(reader)
+    expect(Math.abs(rb2.x - rb.x)).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(rb2.y - rb.y)).toBeLessThanOrEqual(0.5)
+    await page.screenshot({ path: test.info().outputPath('gl-phone-v2.png') })
     expect(errors).toEqual([])
   })
 })

@@ -5,8 +5,8 @@ import { visibleCentres, white } from './fixtures/sitePagePaint'
 
 // site-stand S7 (DEMO branch): demo 6 stands every Book3D on its floor line
 // (the contact shadow's centre on the 1 px line, ±1 px; before, thick books
-// floated up to ~4 px above it) and reads through the shared room (S6), one
-// page at a time on a phone (S5). Demo 7's room is in kit-site-stand-room.
+// floated up to ~4 px above it) and reads through the shared room (S6). The
+// phone room (spreads, site-stand-v4 D20) is in kit-site-stand-room.
 
 function collectErrors(page: Page) {
   const errors: string[] = []
@@ -99,57 +99,6 @@ for (const [label, viewport, scope] of [
     })
   })
 }
-
-test.describe('phone 390×844: demo 6 reads one page at a time', () => {
-  test.use({
-    viewport: { width: 390, height: 844 },
-    isMobile: true,
-    hasTouch: true,
-  })
-
-  test('demo 6: one page ≥ 0.45 × 844; Cover → Page 1 → Page 2; pages paint', async ({
-    page,
-  }) => {
-    const errors = collectErrors(page)
-    await openRoom(page)
-    await expect(page.getByTestId('ss-reader-page')).toHaveAttribute(
-      'data-mode',
-      'page',
-    )
-    const label = page.getByTestId('ss-label')
-    const reader = page.getByTestId('ps-pager').getByTestId('ps-reader')
-    await expect(label).toHaveText(/^Page 1 of \d+$/)
-    const pg = await reader.locator('.sd-pg').nth(1).boundingBox()
-    expect(pg?.height ?? 0).toBeGreaterThanOrEqual(0.45 * 844)
-    expect(
-      Math.abs((pg?.x ?? 0) + (pg?.width ?? 0) / 2 - 195),
-    ).toBeLessThanOrEqual(1)
-
-    const seen: string[] = []
-    await page.getByTestId('ss-prev').click()
-    await expect(label).toHaveText('Cover')
-    seen.push((await label.textContent()) ?? '')
-    await page.getByTestId('ss-next').click()
-    await expect(label).toHaveText(/^Page 1 of \d+$/)
-    seen.push((await label.textContent()) ?? '')
-    await page.getByTestId('ss-next').click()
-    await expect(label).toHaveText(/^Page 2 of \d+$/)
-    seen.push((await label.textContent()) ?? '')
-    await expect(reader).toHaveAttribute('data-view', '2')
-
-    const centres = await visibleCentres(page.getByTestId('ps-pager'))
-    expect(centres.length).toBeGreaterThan(0)
-    for (const c of centres) expect(white(c)).toBe(false)
-    await page.screenshot({
-      path: test.info().outputPath('demo6-390-room.png'),
-    })
-    test.info().annotations.push({
-      type: 'paint',
-      description: `page ${String(pg?.width.toFixed(1))}×${String(pg?.height.toFixed(1))}; ${seen.join(' → ')}; centre ${JSON.stringify(centres)}`,
-    })
-    expect(errors).toEqual([])
-  })
-})
 
 test.describe('desktop 1440×900: demo 6 reading room', () => {
   test.use({ viewport: { width: 1440, height: 900 } })

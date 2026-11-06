@@ -227,22 +227,18 @@ const VIEWPORTS = [
 
 /** Next through the room to the back cover; at each rest the RGB at the
    centre of every visible photo page */
-async function walkRoom(room: Locator, phone: boolean) {
+async function walkRoom(room: Locator) {
   const reader = room.getByTestId('ps-reader')
-  const pager = room.getByTestId('ps-pager')
   const next = room.getByTestId('ss-next')
   const seen: { label: string; centres: number[][] }[] = []
-  // the room opens on view 1 (the pager's step 1)
+  // the room opens on view 1; a phone reads by spreads too (site-stand-v4 D20)
   for (let k = 1; ; k++) {
-    // at rest: the pager landed on step k / the reader on view k
-    await expect(phone ? pager : reader).toHaveAttribute(
-      phone ? 'data-step' : 'data-view',
-      String(k),
-    )
+    // at rest: the reader on view k
+    await expect(reader).toHaveAttribute('data-view', String(k))
     await expect(reader.getByTestId('ps-leaf')).toHaveCount(0)
     seen.push({
       label: (await room.getByTestId('ss-label').textContent()) ?? '',
-      centres: await pageCentres(reader, phone ? pager : reader),
+      centres: await pageCentres(reader),
     })
     if (await next.isDisabled()) return seen
     await next.click()
@@ -302,7 +298,6 @@ for (const vp of VIEWPORTS)
       isMobile: vp.isMobile,
       hasTouch: vp.hasTouch,
     })
-    const phone = vp.viewport.width < 768
 
     for (const slug of SLUGS)
       test(`${slug}: a click opens the room with book= in the URL; Back, Esc and All books close it, focus returns`, async ({
@@ -418,10 +413,7 @@ for (const vp of VIEWPORTS)
       await room.getByTestId('ss-next').click()
       const reader = room.getByTestId('ps-reader')
       await expect(reader.getByTestId('ps-leaf')).toHaveCount(0)
-      const centres = await pageCentres(
-        reader,
-        phone ? room.getByTestId('ps-pager') : reader,
-      )
+      const centres = await pageCentres(reader)
       expect(centres.length).toBeGreaterThan(0)
       expect(centres.filter(white)).toEqual([])
       expect(errors).toEqual([])
@@ -433,7 +425,7 @@ for (const vp of VIEWPORTS)
       }) => {
         const errors = consoleErrors(page)
         await page.goto(`/uikit/#/full/site-demo-6?books=6&book=${id}&gl=0`)
-        const seen = await walkRoom(page.getByTestId('ss-reader-page'), phone)
+        const seen = await walkRoom(page.getByTestId('ss-reader-page'))
         expect(seen.at(-1)?.label).toBe('Back cover')
         // no photo page paints as #FFFFFF
         expect(seen.flatMap((s) => s.centres).filter(white)).toEqual([])

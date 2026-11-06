@@ -78,7 +78,7 @@ export class OpenBook {
     this.edgeU = this.k(new T.MeshStandardMaterial({ map: this.k(stripes(T, n, true)), roughness: 0.9, side: T.DoubleSide }))
     this.edgeV = this.k(new T.MeshStandardMaterial({ map: this.k(stripes(T, n, false)), roughness: 0.9, side: T.DoubleSide }))
     this.board = this.k(new T.MeshStandardMaterial({ color: this.look.board, roughness: 0.55 }))
-    this.endpaper = this.k(new T.MeshStandardMaterial({ color: ENDPAPER, roughness: 0.62, bumpMap: this.bump, bumpScale: 0.6 }))
+    this.endpaper = this.k(new T.MeshStandardMaterial({ color: ENDPAPER, roughness: 0.62, bumpMap: this.bump, bumpScale: 0.25 }))
     this.cover = this.k(new T.MeshStandardMaterial({ map: this.k(tex(T, await coverCanvas(b, 1024, this.look.title))), roughness: 0.45 }))
     // light: sky/ground, one key with a soft VSM shadow (the leaf shades the page under it), a shadow-only floor; the sky
     // is 1.9 (gl.js 1.75 leaves flat paper at lum 234, the Spec's paper check wants ≥ 236)
@@ -103,7 +103,7 @@ export class OpenBook {
   }
 
   private pageMats(c: HTMLCanvasElement): Mats {
-    const T = this.T, t = tex(T, c), p = { map: t, roughness: 0.62, bumpMap: this.bump, bumpScale: 0.6 }
+    const T = this.T, t = tex(T, c), p = { map: t, roughness: 0.62, bumpMap: this.bump, bumpScale: 0.25 }
     return { tex: t, front: new T.MeshStandardMaterial({ ...p, side: T.FrontSide }), back: new T.MeshStandardMaterial({ ...p, side: T.BackSide }) }
   }
 
@@ -135,7 +135,7 @@ export class OpenBook {
         if (im) coverAt(x, im, (f.x / 100) * 2 * PW - side * PW, (f.y / 100) * PH, (f.w / 100) * 2 * PW, (f.h / 100) * PH)
       })
     }
-    grain(x, PW, PH, 14, 2)
+    grain(x, PW, PH, 5, 2)
     return c
   }
 

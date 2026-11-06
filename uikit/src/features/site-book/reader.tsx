@@ -7,7 +7,7 @@
    Demos 2–5 (Spec site-awards-5) add `turnMs`, `board` and `scrub` (the page follows the scroll), demo 4 `corner`,
    demo 5 `api.riffle`.
    Spec site-stand-v2 R (D1, D2): with WebGL 2 (not `?gl=0`) the open book is drawn by three.js (gl/open.ts) into one
-   canvas over the reader box (`glBox`, the pager's camera box on a phone); the turn logic above drives it as (a, θ). */
+   canvas over the reader box (plus a fixed overhang); the turn logic above drives it as (a, θ). */
 import * as React from "react"
 import { CoverFace, ENDPAPER, SpreadArt, TitlePage } from "../site-demo-1/art"
 import { pagesOf, SPREAD_R, src, viewLabel, viewsOf, type SiteBook } from "../site-demo-1/data"
@@ -195,7 +195,7 @@ function PaperLeaf({ g, a, th }: { g: Geo; a: number; th: number }) {
   return inner
 }
 
-/** the GL canvas within the reader box (css px); the pager pans it over one page */
+/** the GL canvas within the reader box (css px) */
 export type GlBox = { x: number; y: number; w: number; h: number }
 type GlProps = {
   b: SiteBook; a: number; th: number; W: number; H: number; box: GlBox; s: number; dark?: boolean; board: string; bend: boolean
@@ -275,13 +275,10 @@ type ReaderProps = {
   scrub?: number
   /** the outer band of a page where the corner lifts under a fine pointer, px (demo 4: 80) */
   corner?: number
-  /** the GL canvas box within the reader (default the reader box) and px per cm (default: 2w + 10 cm fill the width) */
-  glBox?: GlBox
-  glScale?: number
 }
 
 export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
-  function BookReader({ b, view, onView, width: W, dark, keys = true, vt, leaf = "paper", turnMs = 820, board = b.spine, scrub, corner = 64, glBox, glScale }, apiRef) {
+  function BookReader({ b, view, onView, width: W, dark, keys = true, vt, leaf = "paper", turnMs = 820, board = b.spine, scrub, corner = 64 }, apiRef) {
     const n = viewsOf(b)
     const sc = scrub === undefined ? null : clamp(scrub, 0, n - 1)
     const sa = sc === null ? 0 : Math.min(Math.floor(sc), n - 2), sf = sc === null ? 0 : sc - sa
@@ -404,7 +401,11 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
       el.current?.setAttribute("data-cursor", cursorAt(e.clientX))
       const p = ptr.current
       if (p && p.id === e.pointerId) {
-        if (!p.drag && Math.hypot(e.clientX - p.x0, e.clientY - p.y0) > 6 && canDrag(p.side) && !busy) {
+        const dx = Math.abs(e.clientX - p.x0), dy = Math.abs(e.clientY - p.y0)
+        // touch / pen (site-stand-v4 D20): only a horizontal move turns; a vertical one is the page scroll (pan-y)
+        if (!p.drag && e.pointerType !== "mouse" && dy > 6 && dy > dx) { ptr.current = null; return }
+        const moved = e.pointerType === "mouse" ? Math.hypot(dx, dy) > 6 : dx > 6 && dx >= dy
+        if (!p.drag && moved && canDrag(p.side) && !busy) {
           p.drag = true; cancelAnimationFrame(raf.current); el.current?.setPointerCapture(e.pointerId)
         }
         if (p.drag) {
@@ -459,17 +460,17 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
     const lt = scrubbing ? (sth > 0 && sth < 180 ? { a: sa, th: sth } : null) : turn
     const [ga, gth] = lt ? [lt.a, lt.th] : at === n - 1 ? [n - 2, 180] : [at, 0]
     // the canvas overhangs the reader box (pointer-events none): the leaf rises toward the eye past the head mid-turn
-    const box = glBox ?? { x: -0.04 * W, y: -0.25 * H, w: 1.08 * W, h: 1.3 * H }
+    const box = { x: -0.04 * W, y: -0.25 * H, w: 1.08 * W, h: 1.3 * H }
     const glLayer = gl && (
       <>
-        <ReaderGl b={b} a={ga} th={gth} W={W} H={H} box={box} s={glScale ?? W / (2 * b.w + 10)} dark={dark} board={board} bend={leaf === "paper"}
+        <ReaderGl b={b} a={ga} th={gth} W={W} H={H} box={box} s={W / (2 * b.w + 10)} dark={dark} board={board} bend={leaf === "paper"}
           label={label} fade={fade} onFade={() => setFade(null)} onFail={() => setGl(false)} />
         {lt && <div aria-hidden data-testid="ps-leaf" data-leaf={lt.a === 0 || lt.a === n - 2 ? "board" : leaf} data-theta={lt.th.toFixed(1)} />}
       </>
     )
     const handlers = scrubbing ? {} : { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: () => { ptr.current = null; setTurn(null) }, onPointerLeave }
     return (
-      <div ref={el} className={dark ? "sd-reader sd-dark" : "sd-reader"} style={{ width: W, height: H, perspective: `${Math.round(W * 2)}px`, perspectiveOrigin: "50% 50%" }}
+      <div ref={el} className={dark ? "sd-reader sd-dark" : "sd-reader"} style={{ width: W, height: H, touchAction: "pan-y", perspective: `${Math.round(W * 2)}px`, perspectiveOrigin: "50% 50%" }}
         role="region" aria-roledescription="book" aria-label={b.title} tabIndex={0} data-testid="ps-reader" data-view={at} data-views={n} {...handlers}>
         {glLayer || (scrubbing ? sth > 0 && sth < 180 ? <TurningBook g={g} a={sa} th={sth} /> : <StaticBook g={g} v={at} vt={vt} />
           : turn ? <TurningBook g={g} a={turn.a} th={turn.th} /> : <StaticBook g={g} v={shown} vt={vt} />)}
