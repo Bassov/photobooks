@@ -460,3 +460,171 @@ for (const vp of VIEWPORTS)
         expect(errors).toEqual([])
       })
   })
+
+// site-stand-v2 W / D7: the demo 6 wall has no bottom titles list or "1 / 6";
+// edge fades and a floor scrubber show the position; a row that fits is
+// centred in columns 4–11 with neither.
+
+const rgbDiff = (a: number[], b: number[]) =>
+  Math.max(...[0, 1, 2].map((i) => Math.abs((a[i] ?? 0) - (b[i] ?? 0))))
+
+test.describe('desktop 1440×900: demo 6 wall', () => {
+  test.use({ viewport: { width: 1440, height: 900 } })
+
+  test('books=6: no bottom nav; the scrubber drags, glides, keys and paints; fades follow', async ({
+    page,
+  }) => {
+    const errors = consoleErrors(page)
+    await page.goto('/uikit/#/full/site-demo-6?books=6')
+    const wall = page.getByTestId('ss6-wall')
+    await expect(wall.getByTestId('ss6-book')).toHaveCount(6)
+    await expect(page.getByText(/^\s*\d+ \/ \d+\s*$/)).toHaveCount(0)
+    await expect(page.getByTestId('ss6-count')).toHaveCount(0)
+    const scrub = page.getByRole('scrollbar', { name: 'Books' })
+    const thumb = scrub.getByTestId('ss6-thumb')
+    const label = scrub.getByTestId('ss6-scrub-label')
+    const fadeL = page.getByTestId('ss6-fade-l')
+    const fadeR = page.getByTestId('ss6-fade-r')
+    await expect(scrub).toHaveAttribute('aria-valuenow', '0')
+    // from column 4 (x 493.3 at 1440), 96 px apart
+    const e0 = await box(page.locator('.ss6-ex').nth(0))
+    const e1 = await box(page.locator('.ss6-ex').nth(1))
+    expect(e0.x).toBeCloseTo(24 + 4 * ((1440 - 48 - 11 * 16) / 12 + 16), 0)
+    expect(e1.x - (e0.x + e0.width)).toBeCloseTo(96, 0)
+    await expect(fadeR).toHaveCSS('opacity', '1')
+    await expect(fadeL).toHaveCSS('opacity', '0')
+
+    // geometry: track M..W−M, bottom 40; thumb ≥ 24 px
+    const sb = await box(scrub)
+    expect(sb.x).toBe(24)
+    expect(sb.width).toBe(1440 - 48)
+    expect(900 - (sb.y + sb.height / 2)).toBeCloseTo(41, 0)
+    const tb = await box(thumb)
+    expect(tb.width).toBeGreaterThanOrEqual(24)
+    expect(tb.width).toBeLessThan(sb.width)
+
+    // paint: thumb brighter than the rail, the rail brighter than the wall
+    const [onThumb = [], onRail = [], wallBg = []] = await pixelsAt(scrub, [
+      { x: tb.width / 2, y: 12 },
+      { x: sb.width - 4, y: 12 },
+      { x: sb.width / 2, y: 2 },
+    ])
+    const paint = {
+      thumb: rgbDiff(onThumb, wallBg),
+      rail: rgbDiff(onRail, wallBg),
+    }
+    test.info().annotations.push({
+      type: 'paint',
+      description: JSON.stringify({ vp: 1440, ...paint }),
+    })
+    expect(paint.thumb).toBeGreaterThan(paint.rail + 40)
+    expect(paint.rail).toBeGreaterThan(10)
+
+    // hover: a 4 px track, the label names the book nearest the centre
+    const first = (
+      (await wall.getByTestId('ss6-book').first().getAttribute('aria-label')) ??
+      ''
+    ).split(',')[0]
+    await page.mouse.move(sb.x + tb.width / 2, sb.y + 12)
+    await expect(thumb).toHaveCSS('height', '4px')
+    await expect(label).toHaveCSS('opacity', '1')
+    await expect(label).toHaveText(first ?? '')
+
+    // drag: 1:1 by the content / track ratio
+    await page.mouse.down()
+    await page.mouse.move(sb.x + tb.width / 2 + 200, sb.y + 12, { steps: 5 })
+    await page.mouse.up()
+    expect((await box(thumb)).x - tb.x).toBeCloseTo(200, 0)
+    await expect(fadeL).toHaveCSS('opacity', '1')
+    await expect(label).not.toHaveText(first ?? '')
+
+    // a track click glides to the end; Home goes back, ← / → step a book
+    await page.mouse.click(sb.x + sb.width - 4, sb.y + 12)
+    await expect(scrub).toHaveAttribute('aria-valuenow', '100')
+    await expect(fadeR).toHaveCSS('opacity', '0')
+    await scrub.focus()
+    await page.keyboard.press('Home')
+    await expect(scrub).toHaveAttribute('aria-valuenow', '0')
+    await page.keyboard.press('ArrowRight')
+    await expect(scrub).not.toHaveAttribute('aria-valuenow', '0')
+    await page.keyboard.press('End')
+    await expect(scrub).toHaveAttribute('aria-valuenow', '100')
+
+    const sw = await page.evaluate(() => [
+      document.documentElement.scrollWidth,
+      innerWidth,
+    ])
+    expect(sw[0]).toBe(sw[1])
+    expect(errors).toEqual([])
+  })
+
+  test('books=1: 14 px/cm, centred in columns 4–11, no scrubber or fades', async ({
+    page,
+  }) => {
+    const errors = consoleErrors(page)
+    await page.goto('/uikit/#/full/site-demo-6?books=1')
+    const ex = page.locator('.ss6-ex')
+    await expect(ex).toHaveCount(1)
+    await expect(page.getByTestId('ss6-scrub')).toHaveCount(0)
+    await expect(page.getByTestId('ss6-fade-r')).toHaveCount(0)
+    const b = await box(ex)
+    // the first book is 24 cm wide
+    expect(b.width).toBeCloseTo(24 * 14, 0)
+    // cols 4–11 at 1440: x(4) = 24 + 4·(cw + 16), span(8) = 8·cw + 7·16
+    const cw = (1440 - 48 - 11 * 16) / 12
+    const mid = 24 + 4 * (cw + 16) + (8 * cw + 7 * 16) / 2
+    expect(b.x + b.width / 2).toBeCloseTo(mid, 0)
+    expect(errors).toEqual([])
+  })
+})
+
+test.describe('phone 390×844: demo 6', () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  })
+
+  test('books=6: one book per screen, no scrubber, no bottom strip; the book paints', async ({
+    page,
+  }) => {
+    const errors = consoleErrors(page)
+    await page.goto('/uikit/#/full/site-demo-6?books=6')
+    const screen = page.locator('.ss6-screen').first()
+    await expect(page.locator('.ss6-screen')).toHaveCount(6)
+    await expect(page.getByTestId('ss6-scrub')).toHaveCount(0)
+    await expect(page.getByText(/^\s*\d+ \/ \d+\s*$/)).toHaveCount(0)
+    const sb = await box(screen)
+    const bb = await box(screen.getByTestId('ss6-book'))
+    // the bottom 40 px of the screen is bare wall; the book is not
+    // (left half: the count switch sits bottom right)
+    const xs = [16, 40, 70, 100, 130, 160]
+    const grid = [0.25, 0.5, 0.75].flatMap((u) =>
+      [0.25, 0.5, 0.75].map((v) => ({
+        x: bb.x - sb.x + bb.width * u,
+        y: bb.y - sb.y + bb.height * v,
+      })),
+    )
+    const px = await pixelsAt(screen, [
+      { x: 4, y: sb.height - 4 },
+      ...xs.map((x) => ({ x, y: sb.height - 24 })),
+      ...grid,
+    ])
+    const bg = px[0] ?? []
+    const diffs = px.slice(1).map((c) => rgbDiff(c, bg))
+    const strip = Math.max(...diffs.slice(0, xs.length))
+    const book = Math.max(...diffs.slice(xs.length))
+    test.info().annotations.push({
+      type: 'paint',
+      description: JSON.stringify({ vp: 390, strip, book }),
+    })
+    expect(strip).toBeLessThanOrEqual(2)
+    expect(book).toBeGreaterThan(20)
+    const sw = await page.evaluate(() => [
+      document.documentElement.scrollWidth,
+      innerWidth,
+    ])
+    expect(sw[0]).toBe(sw[1])
+    expect(errors).toEqual([])
+  })
+})
