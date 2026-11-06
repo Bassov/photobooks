@@ -154,6 +154,15 @@ A book SHALL be `draft` unless its `library.json` entry says `published`. Publis
 - **WHEN** an asset is in the gallery but placed nowhere in the published revision, or placed only after publishing
 - **THEN** it is not among the assets needed for the site, and an asset placed several times is listed once
 
+### Requirement: Published revision storage
+
+`LibraryStorage` SHALL save and load a book's published revision (`savePublished(revision)`, `loadPublished(bookId)`) as `books/<id>/published.json` in the FSA adapter and in memory in the memory adapter; a missing revision loads as `not-found`, an invalid one as `corrupted` or `newer-schema`, and deleting the book deletes its revision.
+
+#### Scenario: Round trip
+
+- **WHEN** a revision is saved and loaded again in either adapter
+- **THEN** the loaded revision equals the saved one, and editing the draft book afterwards leaves it unchanged
+
 ### Requirement: Worker-backed book load validation
 
 The File System Access adapter SHALL perform parse, validate, and migrate of stored book JSON inside a Web Worker. The main thread MUST NOT run book parse/migrate for loads through this adapter. Parse failures MUST map to the same typed codes as the memory adapter (`corrupted`, `newer-schema`).
