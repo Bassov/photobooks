@@ -9,8 +9,8 @@ Status: done
 
 Designer parity `cover-editor` (2026-11-06 04:08), Must M95, fix in prod. `.cover-stage` (`src/render/CoverView.css`) sits over the workspace at z-index 30 and paints a flat `var(--canvas)`, so the cover, endpaper and masters canvases hide the pasteboard dot grid the kit shows (pixels beside the cover 229–230 in the kit, flat 198–200 in prod). Spread steps already match. Predates #513.
 
-- [ ] `.cover-stage` takes the `.editor-workspace` pasteboard background (`src/editor/EditorShell.css`: `var(--canvas)` + `radial-gradient(circle, var(--dot) 1px, transparent 1.4px)`, 16 px pitch at 8 px offset) from one shared rule; the flat `background: var(--canvas)` goes; the stage stays opaque
-- [ ] Every `.cover-stage` caller (cover, endpaper, masters) listed in the PR body as fixed or left out with a reason
+- [x] `.cover-stage` takes the `.editor-workspace` pasteboard background (`src/editor/EditorShell.css`: `var(--canvas)` + `radial-gradient(circle, var(--dot) 1px, transparent 1.4px)`, 16 px pitch at 8 px offset) from one shared rule; the flat `background: var(--canvas)` goes; the stage stays opaque
+- [x] Every `.cover-stage` caller (cover, endpaper, masters) listed in the PR body as fixed or left out with a reason
 - **Kit components:** none (kit is already right)
 - **Demo:** n/a (prod only)
 - **Browser check:** at 1440×900 the pasteboard beside the cover, endpaper and masters sheets shows the dot grid at the spread workspace pitch and phase; no spread shows through the stage
