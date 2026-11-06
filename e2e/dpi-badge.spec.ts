@@ -139,11 +139,13 @@ test.describe('low-resolution badge on frames', () => {
 
     await expect(page.getByTestId('present')).toBeEnabled()
     await page.getByTestId('present').click()
-    await expect(page.getByTestId('presentation')).toBeVisible()
-    await expect(page.getByTestId('spread-frame-image').first()).toBeVisible()
-    // The editor stays mounted under the stage; only the stage is Preview.
-    const stage = page.getByTestId('presentation')
-    await expect(stage.getByTestId('spread-frame-image').first()).toBeVisible()
+    // The editor stays mounted under the preview; only the preview is Preview.
+    const stage = page.getByTestId('site-preview')
+    // Keys step once the lazy page has loaded.
+    await expect(stage.getByTestId('site-page-indicator')).toHaveText('Cover')
+    await page.keyboard.press('ArrowRight')
+    const slide = stage.getByTestId('site-spread')
+    await expect(slide.getByTestId('spread-frame-image').first()).toBeVisible()
     await expect(stage.getByTestId('dpi-badge')).toHaveCount(0)
   })
 

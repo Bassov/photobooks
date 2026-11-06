@@ -19,6 +19,7 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import { enterCropMode, exitCropMode, type CropTarget } from './cropMode'
+import { editorKeysSuspended } from './editorKeysGate'
 import './FitCropSection.css'
 
 /** Zoom slider range (percent display); wheel zoom may exceed it. */
@@ -232,6 +233,7 @@ function ZoomSlider({
       const up = event.key === 'ArrowUp'
       if (
         !hovered.current ||
+        editorKeysSuspended() ||
         (!up && event.key !== 'ArrowDown') ||
         event.metaKey ||
         event.ctrlKey ||

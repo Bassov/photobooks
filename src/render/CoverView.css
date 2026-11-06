@@ -43,7 +43,7 @@
   /* Kit viewport.tsx:110-121: band [FIT_TOP 56, H - FIT_BOTTOM 48], 40 px sides. */
   padding: 56px 40px 48px;
   container-type: size;
-  background: var(--canvas);
+  /* Background: the pasteboard dot grid shared with `.editor-workspace` (EditorShell.css). */
 }
 
 .cover-spread {

@@ -161,6 +161,12 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+/* Pasteboard dot grid: the spread workspace and the opaque cover / endpaper /
+   masters stage over it (inset 0, so the same phase) share one paint (M95). */
+.editor-workspace,
+.cover-stage {
   background-color: var(--canvas);
   background-image: radial-gradient(circle, var(--dot) 1px, transparent 1.4px);
   background-size: 16px 16px;

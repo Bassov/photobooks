@@ -192,7 +192,8 @@
   color: var(--site-text);
 }
 
-.site-title-block .site-h1 {
+/* The 4 px gap belongs to the "All books" link (stageWidth's 36 = 32 + 4). */
+.site-all-books + .site-h1 {
   margin-top: 4px;
 }
 

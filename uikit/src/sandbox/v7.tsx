@@ -44,7 +44,7 @@ export const V7CSS = `
 .e7-item { cursor: default; outline: none; transition: background-color .12s } .e7-item:hover { background: ${FIELD} }
 .e7-item[aria-selected=true], .e7-item[aria-selected=true]:hover { background: #CACACA }
 .e7-title { transition: background-color .12s } .e7-title:hover { background: rgb(57 55 56/.08) } .e7-title:active { background: #CDCDCD } .e7-title[aria-pressed=true] { background: ${FIELD} }
-.e7-tg { background: #CACACA } .e7-tg[data-on] { background: #A8A8A8 } .e7-tg[data-on]:hover { background: #8E8E8E }
+.e7-tg { background: #CACACA } .e7-tg[data-on] { background: #A8A8A8 } .e7-tg[data-on]:hover { background: #8E8E8E } .e7-tg:focus-visible { outline: 2px solid #535152; outline-offset: 2px }
 .e7-tog[aria-pressed=true] { background: ${FIELD} } .e7-sec:hover { background: #CDCDCD !important }
 .e7-csel { -webkit-appearance: none; appearance: none; padding: 0 33px 0 11px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b696a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-position: right 9px center; background-size: 16px 16px; background-repeat: no-repeat }
 .e7-sel { -webkit-appearance: none; appearance: none; background-image: linear-gradient(45deg, transparent 50%, ${SUB} 50%), linear-gradient(135deg, ${SUB} 50%, transparent 50%); background-position: calc(100% - 13px) 12px, calc(100% - 9px) 12px; background-size: 4px 4px; background-repeat: no-repeat }
@@ -202,8 +202,9 @@ export const Slider = ({ l, v, pct }: { l: string; v: string; pct: number }) => 
     <USlider aria-label={l} defaultValue={pct} className="w-full" data-testid="e7-slider"><SliderTrack><SliderFillTrack /><SliderThumb /></SliderTrack></USlider></div>)
 export const Row = ({ l, children }: { l: string; children: React.ReactNode }) => <div className="mt-3 flex items-center justify-between text-sm"><span style={{ color: SUB }}>{l}</span>{children}</div>
 export const Toggle = ({ on, onClick, label, tid }: { on: boolean; onClick?: () => void; label: string; tid?: string }) => (
-  <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={onClick} data-testid={tid} className="e7-tg relative h-4.5 w-8 rounded-full border-0 p-0" data-on={on || undefined}>
-    <span className="e7-knob absolute top-0.5 size-3.5 rounded-full transition-[left]" style={{ left: on ? 16 : 2 }} /></button>)
+  <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={onClick} data-testid={tid} className="e7-tg relative -my-px h-5 w-9 shrink-0 rounded-full border-0 p-0" data-on={on || undefined}>
+    {/* design-r18: Switch sm box (36×20, knob 16 at 2 / 18); -my-px keeps the 18.84 px Row like prod .insp-toggle */}
+    <span className="e7-knob absolute top-0.5 size-4 rounded-full transition-[left]" style={{ left: on ? 18 : 2 }} /></button>)
 export const Val = ({ v }: { v: string }) => <span className="rounded-sm px-2 py-1 text-sm" style={{ background: FIELD, color: T }}>{v}</span>
 /** kit-sync KS10: read-only pill + note as one right-aligned group (prod ReadOnlyPill) */
 const ReadOnly = ({ v, note, tid }: { v: string; note: string; tid: string }) => <span className="flex items-center"><Val v={v} /><span className="ml-1.5 text-2xs" style={{ color: SUB }} data-testid={tid}>{note}</span></span>
