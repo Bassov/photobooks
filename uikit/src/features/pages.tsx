@@ -15,7 +15,6 @@ import { WithScenarios } from "./parts"
 import { PhotographerSite } from "./site-photographer"
 import { SiteDemos } from "./site-demo-1/entry"
 import { SiteDemo6 } from "./site-demo-6/site"
-import { SiteDemo7 } from "./site-demo-7/site"
 import { SiteDemo9 } from "./site-demo-9/site"
 import type { FeatureDef, Notes } from "./types"
 
@@ -241,7 +240,7 @@ export const PAGES: Record<string, FeatureDef> = {
   },
   "site-demos": {
     Demo: SiteDemos, h: SLOT.app.h, notes: {
-      what: "Entry for the photographer-site demo stand: demos 6, 7 and 9; each takes ?books=1|3|6|12|30|100.",
+      what: "Entry for the photographer-site demo stand: demos 6 and 9; each takes ?books=1|3|6|12|30|100.",
       where: "DEMO branch only. Full window: #/full/site-demos.",
     },
   },
@@ -251,14 +250,6 @@ export const PAGES: Record<string, FeatureDef> = {
       where: "DEMO branch only. Full window: #/full/site-demo-6?books=1|3|6|12.",
       keys: [["← / →", "walk / turn"], ["Esc", "close the book · back"]],
       edge: ["Wheel or drag walks the wall", "Phone = one book per screen"],
-    },
-  },
-  "site-demo-7": {
-    Demo: SiteDemo7, h: SLOT.app.h, notes: {
-      what: "Site demo 7, the index on the design system (spec-sys): a typographic list, the other rows dim on hover, a sticky preview.",
-      where: "DEMO branch only. Full window: #/full/site-demo-7?books=1|3|6|12|30|100 (&book=<id> opens a book).",
-      keys: [["Tab", "preview"], ["Esc / Back", "close the book"], ["Play", "turns a page every 4 s"]],
-      edge: ["Phone = rows with a small cover"],
     },
   },
   "site-demo-9": {

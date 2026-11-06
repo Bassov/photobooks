@@ -168,11 +168,11 @@ const loaded = (page: Page) =>
   )
 const isThree = (f: string) => /three\.module\.min\.js(\?|$)/.test(f)
 
-test('demo 7 (1440): the closed book head has no dashes, a soft top edge and a ≥ 4 px page block', async ({
+test('demo 6 (1440): the closed book head has no dashes, a soft top edge and a ≥ 4 px page block', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.goto('/uikit/#/full/site-demo-7')
+  await page.goto('/uikit/#/full/site-demo-6?books=1')
   const s = headStats(await shot(page, await around(await glBook(page))))
   test.info().annotations.push({ type: 'head', description: JSON.stringify(s) })
   expect(s.dashes).toBe(0)
@@ -180,10 +180,9 @@ test('demo 7 (1440): the closed book head has no dashes, a soft top edge and a �
   expect(Math.min(...s.head)).toBeGreaterThanOrEqual(4)
 })
 
-// demo 7's phone home lists thumbs (no Book3D); fresh C left the stand (site-stand-v2 D9)
+// fresh C left the stand (site-stand-v2 D9)
 for (const [w, h, slug] of [
   [1440, 900, 'site-demo-6'],
-  [1440, 900, 'site-demo-7'],
   [390, 844, 'site-demo-6'],
 ] as const) {
   test(`${slug} (${String(w)}): the GL book paints, three loads as its own file, no console errors`, async ({
@@ -338,8 +337,13 @@ test('demo 6 (390): the phone caption is the meta line only, 20 px clear of the 
 
 test('?gl=0 keeps the CSS book and never loads three', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.goto('/uikit/#/full/site-demo-7?gl=0')
-  await expect(page.getByTestId('ss7-preview').locator('.sd-b3')).toHaveCount(1)
+  await page.goto('/uikit/#/full/site-demo-9?gl=0')
+  await expect(
+    page
+      .locator('[data-testid="ss9-book"][data-kind="face"] .sd-b3')
+      .locator('visible=true')
+      .first(),
+  ).toBeVisible()
   await expect(page.getByTestId('book3d-gl')).toHaveCount(0)
   expect((await loaded(page)).some(isThree)).toBe(false)
 })

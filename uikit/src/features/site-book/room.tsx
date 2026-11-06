@@ -1,4 +1,4 @@
-/* ReadingRoom (Spec site-stand S6, site-stand-v2 S): the open book over the site, opened by the sys shell (demos 6, 7).
+/* ReadingRoom (Spec site-stand S6, site-stand-v2 S): the open book over the site, opened by the sys shell (demos 6, 9).
    Grid M 24 / 16, G 16 / 12, 12 / 4 columns. Desktop: top 72, foot 96, rw = max(200, min(span(10), (h − 168)·R))
    centred; the foot 32 px below: title + meta (cols 0–3), Previous · label · Next (centre), Play (cols 9–11). Phone
    portrait (w < 768, h > w): the single-page Pager (S5), row 1 Previous · label · Next 24 px below the page, row 2

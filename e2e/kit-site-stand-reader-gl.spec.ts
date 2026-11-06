@@ -64,11 +64,14 @@ async function box(l: Locator) {
   return b
 }
 
-/** demo 7: open the first book (Lake trip) in the reading room; resolves once the GL reader rests on view 1 */
+/** demo 9 (the light room; demo 6's is dark): open Lake trip in the reading room; resolves once the GL reader rests on view 1 */
 async function openRoom(page: Page, query = '') {
-  await page.goto(`/uikit/#/full/site-demo-7${query}`)
+  await page.goto(`/uikit/#/full/site-demo-9${query}`)
   // a click opens the room at the cover, which turns to view 1 at once
-  await page.getByTestId('ss7-book').locator('visible=true').first().click()
+  await page
+    .locator('[data-testid="ss9-book"][data-id="lake-trip"]')
+    .locator('visible=true')
+    .click()
   await expect(page.getByTestId('ps-reader')).toHaveAttribute('data-view', '1')
 }
 

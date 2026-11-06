@@ -5,7 +5,6 @@ import * as React from "react"
 type Demo = { slug: string; name: string }
 const DEMOS: Demo[] = [
   { slug: "site-demo-6", name: "Gallery on the system: the dark wall, one spotlight per book" },
-  { slug: "site-demo-7", name: "Index on the system: the list and a sticky preview" },
   { slug: "site-demo-9", name: "Bookcase on the system: the case grows with the books" },
 ]
 

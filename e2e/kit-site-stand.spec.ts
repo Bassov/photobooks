@@ -2,15 +2,14 @@ import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { pixelsAt } from './fixtures/paintProbe'
 
-// site-stand (DEMO branch): the kit site stand holds demos 6, 7 and 9 (fresh C
+// site-stand (DEMO branch): the kit site stand holds demos 6 and 9 (fresh C
 // left it, site-stand-v2 D9). Two states (D3): home and the open book; a click
 // opens the reading room, `&book=<id>` is pushed, Back / Esc / "All books"
 // close it and focus returns to the book.
 
-const SLUGS = ['site-demo-6', 'site-demo-7', 'site-demo-9'] as const
+const SLUGS = ['site-demo-6', 'site-demo-9'] as const
 const BOOK = {
   'site-demo-6': 'ss6-book',
-  'site-demo-7': 'ss7-book',
   'site-demo-9': 'ss9-book',
 } as const
 
@@ -259,7 +258,7 @@ function consoleErrors(page: Page) {
   return errors
 }
 
-test.describe('desktop 1440×900: Play and the year rows', () => {
+test.describe('desktop 1440×900: Play', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
 
   test('sd-play turns the page after 4000 + 820 ms; a key press pauses it', async ({
@@ -268,7 +267,7 @@ test.describe('desktop 1440×900: Play and the year rows', () => {
     const errors = consoleErrors(page)
     await page.clock.install()
     // the CSS reader (`gl=0`): runFor fires every frame back to back, a GL frame each makes the lane time out under load
-    await page.goto('/uikit/#/full/site-demo-7?books=6&book=lake-trip&gl=0')
+    await page.goto('/uikit/#/full/site-demo-6?books=6&book=lake-trip&gl=0')
     const reader = page.getByTestId('ps-reader')
     await page.clock.runFor(500)
     await expect(reader).toHaveAttribute('data-view', '1')
@@ -293,24 +292,6 @@ test.describe('desktop 1440×900: Play and the year rows', () => {
     await page.clock.runFor(4000 + 820 + 200)
     await expect(reader).toHaveAttribute('data-view', '2')
     expect(errors).toEqual([])
-  })
-
-  test('demo 7: year rows past 12 books over more than 2 years, none at 12', async ({
-    page,
-  }) => {
-    await page.goto('/uikit/#/full/site-demo-7?books=30')
-    const years = page.getByTestId('ss7-year')
-    const ys = await years.allTextContents()
-    expect(ys.length).toBeGreaterThan(2)
-    expect(ys).toEqual([...ys].sort().reverse())
-    // a year row is 40 high with a top hairline, numbering continues past it
-    const y = await box(years.nth(1))
-    expect(y.height).toBe(40)
-    await expect(
-      page.getByTestId('ss7-book').last().locator('.t13').first(),
-    ).toHaveText('30')
-    await page.goto('/uikit/#/full/site-demo-7?books=12')
-    await expect(years).toHaveCount(0)
   })
 })
 
@@ -372,7 +353,7 @@ for (const vp of VIEWPORTS)
     test('a deep link opens at view 1; the name closes it and focus lands on the book', async ({
       page,
     }) => {
-      await page.goto('/uikit/#/full/site-demo-7?books=6&book=coast')
+      await page.goto('/uikit/#/full/site-demo-6?books=6&book=coast')
       const room = page.getByTestId('ss-reader-page')
       await expect(room.getByTestId('ss-reader')).toHaveAttribute(
         'data-view',
@@ -383,7 +364,7 @@ for (const vp of VIEWPORTS)
       expect(page.url()).not.toContain('book=')
       await expect(
         page
-          .locator('[data-testid="ss7-book"][data-id="coast"]')
+          .locator('[data-testid="ss6-book"][data-id="coast"]')
           .locator('visible=true'),
       ).toBeFocused()
     })
@@ -424,9 +405,9 @@ for (const vp of VIEWPORTS)
     }) => {
       const errors = consoleErrors(page)
       // the CSS reader (`gl=0`): page centres are read off its page boxes
-      await page.goto('/uikit/#/full/site-demo-7?books=30&gl=0')
+      await page.goto('/uikit/#/full/site-demo-6?books=30&gl=0')
       await page
-        .locator('[data-testid="ss7-book"][data-id="book-20"]')
+        .locator('[data-testid="ss6-book"][data-id="book-20"]')
         .locator('visible=true')
         .click()
       const room = page.getByTestId('ss-reader-page')
@@ -451,7 +432,7 @@ for (const vp of VIEWPORTS)
         page,
       }) => {
         const errors = consoleErrors(page)
-        await page.goto(`/uikit/#/full/site-demo-7?books=6&book=${id}&gl=0`)
+        await page.goto(`/uikit/#/full/site-demo-6?books=6&book=${id}&gl=0`)
         const seen = await walkRoom(page.getByTestId('ss-reader-page'), phone)
         expect(seen.at(-1)?.label).toBe('Back cover')
         // no photo page paints as #FFFFFF

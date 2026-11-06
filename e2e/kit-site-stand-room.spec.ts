@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { visibleCentres, white } from './fixtures/sitePagePaint'
 
-// site-stand S5 + S6, site-stand-v2 S (DEMO branch): a demo 7 row opens the
+// site-stand S5 + S6, site-stand-v2 S (DEMO branch): a demo 6 book opens the
 // shared reading room; on a phone portrait the room shows one page at a time.
 
 async function box(l: Locator) {
@@ -13,8 +13,8 @@ async function box(l: Locator) {
 
 /** the CSS reader (`?gl=0`): its page boxes are DOM; the GL reader's paint is in kit-site-stand-reader-gl */
 async function openRoom(page: Page) {
-  await page.goto('/uikit/#/full/site-demo-7?gl=0')
-  await page.getByTestId('ss7-book').locator('visible=true').first().click()
+  await page.goto('/uikit/#/full/site-demo-6?gl=0')
+  await page.getByTestId('ss6-book').locator('visible=true').first().click()
   await expect(page.getByTestId('ss-reader-page')).toBeVisible()
 }
 
@@ -25,7 +25,7 @@ test.describe('phone 390×844: single page', () => {
     hasTouch: true,
   })
 
-  test('demo 7: one page 345.7 × 432 fills the width; Cover → Page 1 → Page 2', async ({
+  test('demo 6: one page 345.7 × 432 fills the width; Cover → Page 1 → Page 2', async ({
     page,
   }) => {
     await openRoom(page)
@@ -72,7 +72,7 @@ test.describe('phone 390×844: single page', () => {
     expect(centres.length).toBeGreaterThan(0)
     for (const c of centres) expect(white(c)).toBe(false)
     await page.screenshot({
-      path: test.info().outputPath('demo7-390-room.png'),
+      path: test.info().outputPath('demo6-390-room.png'),
     })
     test.info().annotations.push({
       type: 'paint',
@@ -84,12 +84,12 @@ test.describe('phone 390×844: single page', () => {
 test.describe('desktop 1440×900: the reading room', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
 
-  test('demo 7: the room book is 1157 × 723; Esc closes and focus returns to the row', async ({
+  test('demo 6: the room book is 1157 × 723; Esc closes and focus returns to the book', async ({
     page,
   }) => {
     await openRoom(page)
     await page.screenshot({
-      path: test.info().outputPath('demo7-1440-room-open.png'),
+      path: test.info().outputPath('demo6-1440-room-open.png'),
     })
     const reader = page.getByTestId('ps-reader')
     await expect(reader).toHaveAttribute('data-view', '1')
@@ -105,7 +105,7 @@ test.describe('desktop 1440×900: the reading room', () => {
     expect(centres.length).toBeGreaterThan(0)
     for (const c of centres) expect(white(c)).toBe(false)
     await page.screenshot({
-      path: test.info().outputPath('demo7-1440-room.png'),
+      path: test.info().outputPath('demo6-1440-room.png'),
     })
     test.info().annotations.push({
       type: 'paint',
@@ -114,6 +114,8 @@ test.describe('desktop 1440×900: the reading room', () => {
 
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('ss-reader-page')).toHaveCount(0)
-    await expect(page.getByTestId('ss7-book').first()).toBeFocused()
+    await expect(
+      page.getByTestId('ss6-book').locator('visible=true').first(),
+    ).toBeFocused()
   })
 })
