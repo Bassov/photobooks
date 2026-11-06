@@ -241,54 +241,6 @@ test.describe('desktop 1440×900', () => {
   })
 })
 
-test.describe('phone 390×844', () => {
-  test.use({
-    viewport: { width: 390, height: 844 },
-    isMobile: true,
-    hasTouch: true,
-  })
-
-  test('the GL canvas = the reader box + the overhang and stays put across a turn', async ({
-    page,
-  }) => {
-    const errors = collectErrors(page)
-    await openRoom(page)
-    await expect(page.getByTestId('ps-reader-gl')).toHaveAttribute(
-      'data-gl',
-      'ready',
-    )
-    const reader = page.getByTestId('ps-reader')
-    const canvas = page.getByTestId('ps-reader-canvas')
-    const rb = await box(reader)
-    // site-stand-v4 D20: the default overhang (x −0.04 W, y −0.25 H, 1.08 W × 1.3 H), no camera box
-    const want = {
-      x: rb.x - 0.04 * rb.width,
-      y: rb.y - 0.25 * rb.height,
-      width: 1.08 * rb.width,
-      height: 1.3 * rb.height,
-    }
-    const near = (c: Clip) => {
-      expect(Math.abs(c.x - want.x)).toBeLessThanOrEqual(1)
-      expect(Math.abs(c.y - want.y)).toBeLessThanOrEqual(1)
-      expect(Math.abs(c.width - want.width)).toBeLessThanOrEqual(1)
-      expect(Math.abs(c.height - want.height)).toBeLessThanOrEqual(1)
-    }
-    near(await box(canvas))
-    await page.screenshot({ path: test.info().outputPath('gl-phone-v1.png') })
-    await page.getByTestId('ss-next').click()
-    await expect(page.getByTestId('ps-leaf')).toHaveCount(1)
-    near(await box(canvas))
-    await expect(page.getByTestId('ss-label')).toHaveText(/^Pages 2–3 of \d+$/)
-    await expect(page.getByTestId('ps-leaf')).toHaveCount(0)
-    near(await box(canvas))
-    const rb2 = await box(reader)
-    expect(Math.abs(rb2.x - rb.x)).toBeLessThanOrEqual(0.5)
-    expect(Math.abs(rb2.y - rb.y)).toBeLessThanOrEqual(0.5)
-    await page.screenshot({ path: test.info().outputPath('gl-phone-v2.png') })
-    expect(errors).toEqual([])
-  })
-})
-
 test('?gl=0 keeps the CSS reader', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openRoom(page, '?gl=0')

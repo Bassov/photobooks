@@ -2,8 +2,9 @@
    Grid M 24 / 16, G 16 / 12, 12 / 4 columns. Desktop: top 72, foot 96, rw = max(200, min(span(10), (h − 168)·R))
    centred; the foot 32 px below: title + meta (cols 0–3), Previous · label · Next (centre), Play (cols 9–11). Phone
    portrait (w < 768, h > w, site-stand-v5 R / D23–D24): one page per slide (slides.tsx); a row above holds "‹ Title"
-   (back) and Play, a row below Previous · label · Next, the group centred. Landscape phone (h < 500): the spread at
-   W = min(w − 32, (h − 72)·R), Play at the right of row 1. Opens with a 240 ms fade, focuses the book; at view 0 the
+   (back) and Play, a row below Previous · label · Next, the group centred. Landscape phone (h < 500, v5 L / D26): the
+   larger of side (W = min(w − 272, (h − 24)·R), centred; back + Play top, label + Previous / Next bottom, in 136 px bands)
+   and foot (W = min(w − 32, (h − 64)·R) over one row at h − 52: back, Previous · label · Next, Play). Opens with a 240 ms fade, focuses the book; at view 0 the
    cover turns 120 ms after the fade (not in portrait: it opens on the cover slide); ← / → turn.
    Swipe back (D25, phones): a rightward swipe that starts outside the book pulls the room aside and closes it.
    Play (fresh C's auto page-turn, D4): after each turn ends wait 4000 ms and turn; stops at the back cover (portrait: the
@@ -113,12 +114,19 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
       {play && <span key={play.n} className="sb-prog" style={{ animationDelay: `${play.delay}ms`, animationDuration: `${dwell}ms` }} data-testid="sd-progress" />}
     </button>
   )
+  const btn = (d: -1 | 1) => (
+    <button type="button" className={`${txt} g ss-tx`} style={{ minHeight: 44 }} disabled={d < 0 ? prev : next} onClick={() => go(d)} data-testid={d < 0 ? "ss-prev" : "ss-next"}>
+      {d < 0 ? "Previous" : "Next"}
+    </button>
+  )
+  const lbl = <span className="t13 g" data-testid="ss-label">{label}</span>
   const pager = (top: number, style?: React.CSSProperties) => (
-    <div className="ss-abs" style={{ ...row, top, justifyContent: "center", gap: wide ? 40 : 24, ...style }}>
-      <button type="button" className={`${txt} g ss-tx`} style={{ minHeight: 44 }} disabled={prev} onClick={() => go(-1)} data-testid="ss-prev">Previous</button>
-      <span className="t13 g" data-testid="ss-label">{label}</span>
-      <button type="button" className={`${txt} g ss-tx`} style={{ minHeight: 44 }} disabled={next} onClick={() => go(1)} data-testid="ss-next">Next</button>
-    </div>
+    <div className="ss-abs" style={{ ...row, top, justifyContent: "center", gap: wide ? 40 : 24, ...style }}>{btn(-1)}{lbl}{btn(1)}</div>
+  )
+  const back = (style?: React.CSSProperties) => (
+    <button type="button" className="m15 sb-back" style={style} onClick={onClose} aria-label="All books" data-testid="ss-all">
+      <span className="g" aria-hidden>‹</span>&nbsp;{b.title}
+    </button>
   )
   const roomProps = { ref: root, className: "sb-room", "data-testid": "ss-reader-page", "data-mode": mode, ...swipe }
 
@@ -127,9 +135,7 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
     return (
       <div {...roomProps}>
         <div className="ss-abs" style={{ ...row, left: 16, right: 16, top: g.gt, justifyContent: "space-between", gap: 16 }}>
-          <button type="button" className="m15 sb-back" onClick={onClose} aria-label="All books" data-testid="ss-all">
-            <span className="g" aria-hidden>‹</span>&nbsp;{b.title}
-          </button>
+          {back()}
           {playBtn}
         </div>
         <Slides ref={sapi} b={b} slides={slides} w={box.w} top={g.stageTop} pw={g.pw} ph={g.ph} view={view} setView={setView} si={si} onSi={setSi} onRest={setRest} />
@@ -138,13 +144,43 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
     )
   }
 
-  const top = mode === "land" ? 8 : nar ? 64 : 72, foot = mode === "land" ? 64 : nar ? 104 : 96
-  const rw = mode === "desk"
-    ? Math.max(200, Math.min(span(nar ? 4 : 10), (box.h - top - foot) * R))
-    : Math.min(box.w - 32, (box.h - top - foot) * R)
+  const reader = (rw: number, left: number, top: number) => (
+    <div className="ss-abs" style={{ left, top }} data-testid="ss-reader" data-view={view}>
+      <BookReader ref={api} b={b} view={view} onView={setView} width={rw} dark={dark} />
+    </div>
+  )
+
+  if (mode === "land") {
+    const B = 136, W1 = Math.min(box.w - 2 * B, (box.h - 24) * R), W3 = Math.min(box.w - 32, (box.h - 64) * R)
+    const side = W1 >= W3, rw = side ? W1 : W3, rh = rw / R, left = (box.w - rw) / 2
+    const bottom = box.h - 52
+    return (
+      <div {...roomProps} data-layout={side ? "side" : "foot"}>
+        {reader(rw, left, side ? (box.h - rh) / 2 : 8 + (box.h - 64 - rh) / 2)}
+        {side ? (
+          <>
+            {back({ position: "absolute", left: 16, top: 8, maxWidth: B - 24, whiteSpace: "normal", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", textAlign: "start" })}
+            <div className="ss-abs" style={{ ...row, right: 16, top: 8 }}>{playBtn}</div>
+            <div className="ss-abs" style={{ ...row, left: 16, top: bottom }}>{lbl}</div>
+            <div className="ss-abs" style={{ ...row, right: 16, top: bottom, gap: 12 }}>{btn(-1)}{btn(1)}</div>
+          </>
+        ) : (
+          // 1fr auto 1fr keeps the pager centred; the 16 px gaps leave back its centre-left − 32
+          <div className="ss-abs" style={{ ...row, display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)", columnGap: 16, left: 16, right: 16, top: bottom }}>
+            {back({ justifySelf: "start", maxWidth: "100%" })}
+            <div style={{ ...row, gap: 24 }}>{btn(-1)}{lbl}{btn(1)}</div>
+            <div style={{ justifySelf: "end" }}>{playBtn}</div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const top = nar ? 64 : 72, foot = nar ? 104 : 96
+  const rw = Math.max(200, Math.min(span(nar ? 4 : 10), (box.h - top - foot) * R))
   const rh = rw / R
   const bookLeft = (box.w - rw) / 2, bookTop = top + (box.h - top - foot - rh) / 2, bookBottom = bookTop + rh
-  const footTop = bookBottom + (wide ? 32 : mode === "land" ? 12 : 24)
+  const footTop = bookBottom + (wide ? 32 : 24)
   const about = (
     <p className="sb-about" data-testid="sd-about">
       <span className={wide ? "t16" : "m15"}>{b.title}</span>
@@ -153,13 +189,11 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
   )
   return (
     <div {...roomProps}>
-      <div className="ss-abs" style={{ left: bookLeft, top: bookTop }} data-testid="ss-reader" data-view={view}>
-        <BookReader ref={api} b={b} view={view} onView={setView} width={rw} dark={dark} />
-      </div>
+      {reader(rw, bookLeft, bookTop)}
       {wide && <div className="ss-abs" style={{ ...row, left: x(0), top: footTop, width: span(4) }}>{about}</div>}
       {pager(footTop, wide ? { left: x(4), width: span(5) } : { left: M, right: M })}
-      {wide || mode === "land"
-        ? <div className="ss-abs" style={{ ...row, left: wide ? x(9) : undefined, right: wide ? undefined : M, width: wide ? span(3) : undefined, top: footTop, justifyContent: "flex-end" }}>{playBtn}</div>
+      {wide
+        ? <div className="ss-abs" style={{ ...row, left: x(9), width: span(3), top: footTop, justifyContent: "flex-end" }}>{playBtn}</div>
         : <div className="ss-abs" style={{ ...row, left: M, right: M, top: footTop + 44 + 16, gap: 16 }}>{about}{playBtn}</div>}
     </div>
   )

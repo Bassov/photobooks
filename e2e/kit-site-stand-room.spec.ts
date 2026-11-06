@@ -248,6 +248,191 @@ test.describe('phone 390×844: slides', () => {
   })
 })
 
+test.describe('phone 844×390', () => {
+  test.use({
+    viewport: { width: 844, height: 390 },
+    isMobile: true,
+    hasTouch: true,
+  })
+
+  const room6 = (id: string, gl = false) =>
+    `/uikit/#/full/site-demo-6?books=6&book=${id}${gl ? '' : '&gl=0'}`
+
+  // site-stand-v5 L / D26: the larger of side (136 px bands) and foot (one row under the book)
+  const CASES = [
+    {
+      w: 844,
+      h: 390,
+      id: 'lake-trip',
+      layout: 'side',
+      box: [136, 16.25, 572, 357.5],
+    },
+    { w: 844, h: 390, id: 'coast', layout: 'foot', box: [16, 8.6, 812, 324.8] },
+    {
+      w: 844,
+      h: 390,
+      id: 'summer-family',
+      layout: 'foot',
+      box: [96, 8, 652, 326],
+    },
+    {
+      w: 667,
+      h: 375,
+      id: 'lake-trip',
+      layout: 'foot',
+      box: [84.7, 8, 497.6, 311],
+    },
+    { w: 667, h: 375, id: 'coast', layout: 'foot', box: [16, 36.5, 635, 254] },
+  ] as const
+
+  test('side or foot: the reader box, and nothing drawn on the book', async ({
+    page,
+  }) => {
+    const errors: string[] = []
+    page.on('console', (m) => {
+      if (m.type() === 'error') errors.push(m.text())
+    })
+    page.on('pageerror', (e) => errors.push(e.message))
+    const lines: string[] = []
+    for (const c of CASES) {
+      await page.setViewportSize({ width: c.w, height: c.h })
+      await page.goto(room6(c.id))
+      const room = page.getByTestId('ss-reader-page')
+      await expect(room).toHaveAttribute('data-layout', c.layout)
+      await expect(room.getByTestId('ss-label')).toHaveText(/^Page 1 of \d+$/)
+      const r = await box(room.getByTestId('ss-reader'))
+      const [x, y, w, h] = c.box
+      near(r.x, x)
+      near(r.y, y)
+      near(r.width, w)
+      near(r.height, h)
+      await expect(page.locator('.ss-head')).toHaveCount(0)
+      await expect(page.getByTestId('ss-switch')).toHaveCount(0)
+      for (const id of [
+        'ss-all',
+        'sd-play',
+        'ss-label',
+        'ss-prev',
+        'ss-next',
+      ]) {
+        const o = await box(room.getByTestId(id))
+        const apart =
+          o.x + o.width <= r.x ||
+          o.x >= r.x + r.width ||
+          o.y + o.height <= r.y ||
+          o.y >= r.y + r.height
+        expect(
+          apart,
+          `${c.id} ${String(c.w)}: ${id} ${JSON.stringify(o)} vs reader`,
+        ).toBe(true)
+      }
+      // paint: whatever is topmost over the book belongs to the reader
+      const hits = await page.evaluate(
+        (b) =>
+          [0.1, 0.5, 0.9].flatMap((fx) =>
+            [0.1, 0.5, 0.9].map((fy) => {
+              const el = document.elementFromPoint(
+                b.x + fx * b.width,
+                b.y + fy * b.height,
+              )
+              return !!el?.closest('[data-testid="ss-reader"]')
+            }),
+          ),
+        r,
+      )
+      expect(
+        hits.every(Boolean),
+        `${c.id} ${String(c.w)}: ${JSON.stringify(hits)}`,
+      ).toBe(true)
+      lines.push(
+        `${c.id} ${String(c.w)}×${String(c.h)} ${c.layout} ${r.width.toFixed(1)}×${r.height.toFixed(1)} @ ${r.x.toFixed(1)},${r.y.toFixed(1)}`,
+      )
+    }
+    await page.screenshot({ path: test.info().outputPath('room-844-foot.png') })
+    test
+      .info()
+      .annotations.push({ type: 'paint', description: lines.join('; ') })
+    expect(errors).toEqual([])
+  })
+
+  test('a swipe from the left band closes; a drag on the book turns a leaf', async ({
+    page,
+  }) => {
+    const errors: string[] = []
+    page.on('pageerror', (e) => errors.push(e.message))
+    await page.goto(room6('lake-trip'))
+    const room = page.getByTestId('ss-reader-page')
+    await expect(room).toHaveAttribute('data-layout', 'side')
+    const label = room.getByTestId('ss-label')
+    await expect(label).toHaveText('Page 1 of 22')
+    await expect(page.getByTestId('ps-leaf')).toHaveCount(0)
+    await page.screenshot({ path: test.info().outputPath('room-844-side.png') })
+
+    const r = await box(room.getByTestId('ss-reader'))
+    const y = r.y + r.height / 2
+    await swipe(
+      page,
+      { x: r.x + r.width * 0.9, y },
+      { x: r.x + r.width * 0.1, y },
+    )
+    await expect(label).toHaveText('Pages 2–3 of 22')
+    await page.waitForTimeout(400)
+    await expect(room).toBeVisible()
+
+    // 120 px < 0.25·w: a fling (~1 px/ms) closes it; an instant swipe coalesces into one move with no speed
+    await swipe(page, { x: 20, y: 195 }, { x: 140, y: 195 }, 8)
+    await expect(room).toHaveCount(0)
+    expect(page.url()).not.toContain('book=')
+    expect(errors).toEqual([])
+  })
+
+  test('the GL canvas = the reader box + the overhang and stays put across a turn', async ({
+    page,
+  }) => {
+    const errors: string[] = []
+    page.on('console', (m) => {
+      if (m.type() === 'error') errors.push(m.text())
+    })
+    page.on('pageerror', (e) => errors.push(e.message))
+    await page.goto(room6('lake-trip', true))
+    await expect(page.getByTestId('ps-reader-gl')).toHaveAttribute(
+      'data-gl',
+      'ready',
+    )
+    await expect(page.getByTestId('ss-label')).toHaveText('Page 1 of 22')
+    await expect(page.getByTestId('ps-leaf')).toHaveCount(0)
+    const reader = page.getByTestId('ps-reader')
+    const canvas = page.getByTestId('ps-reader-canvas')
+    const rb = await box(reader)
+    // site-stand-v4 D20: the default overhang (x −0.04 W, y −0.25 H, 1.08 W × 1.3 H), no camera box
+    const want = {
+      x: rb.x - 0.04 * rb.width,
+      y: rb.y - 0.25 * rb.height,
+      width: 1.08 * rb.width,
+      height: 1.3 * rb.height,
+    }
+    const fits = async () => {
+      const c = await box(canvas)
+      near(c.x, want.x, 1)
+      near(c.y, want.y, 1)
+      near(c.width, want.width, 1)
+      near(c.height, want.height, 1)
+    }
+    await fits()
+    await page.getByTestId('ss-next').click()
+    await expect(page.getByTestId('ps-leaf')).toHaveCount(1)
+    await fits()
+    await expect(page.getByTestId('ss-label')).toHaveText('Pages 2–3 of 22')
+    await expect(page.getByTestId('ps-leaf')).toHaveCount(0)
+    await fits()
+    const rb2 = await box(reader)
+    near(rb2.x, rb.x)
+    near(rb2.y, rb.y)
+    await page.screenshot({ path: test.info().outputPath('gl-844-v2.png') })
+    expect(errors).toEqual([])
+  })
+})
+
 test.describe('desktop 1440×900: the reading room', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
 
