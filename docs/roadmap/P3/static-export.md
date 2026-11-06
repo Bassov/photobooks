@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P3
 Title: write `dist/`
+Status: done
 
 ## Scope
 
@@ -18,3 +19,7 @@ Title: write `dist/`
 - **Depends:** static-export-core
 - **Audit 2026-11-05:** worker writes, progress, Export site pill / dialog, deterministic `dist/` and the drag-during-export zero-LoAF gate ship in #466, #481, #495 (`e2e/static-export.spec.ts`); left: the viewer bundle in `dist/` (#495 proposal scope-out `static-export-viewer`; `exportSiteRun` passes no `viewer`, so pages ship without viewer CSS / JS and the phone / desktop browser check is unmet) and archiving `openspec/changes/static-export`.
 - **UI kit:** `uikit#/feature/in-app-publish` (`uikit/src/features/pages.tsx` page `in-app-publish`); parts: `uikit/src/demo-parts/dialogs.tsx` (`PublishDialog`); partial: kit shows export only as part of Publish
+
+## Done note
+
+closed in static-export-closeout: every Scope bullet evidenced on main (#466, #481, #495, #530)

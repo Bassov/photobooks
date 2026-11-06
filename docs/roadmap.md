@@ -146,8 +146,10 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [prep] [image-derivatives](roadmap/P3/image-derivatives.md) — web image pipeline
 - [ ] [prep] [avif-encoder](roadmap/P3/avif-encoder.md) — AVIF derivatives (Security Review: dependency)
 - [x] [prep] [publish-revisions](roadmap/P3/publish-revisions.md) — draft vs published
+- [ ] [feature] [static-export-closeout](roadmap/P3/static-export-closeout.md) — Bug: /next-roadmap-item static-export-closeout
 - [x] [feature] [user-templates-store](roadmap/P3/user-templates-store.md) — Bug: /next-roadmap-item user-templates-store
 - [ ] [feature] [user-templates-picker](roadmap/P3/user-templates-picker.md) — Bug: /next-roadmap-item user-templates-picker
+- [ ] [feature] [design-r20-kit-mod-arrows](roadmap/P3/design-r20-kit-mod-arrows.md) — Bug: /next-roadmap-item design-r20-kit-mod-arrows
 - [ ] [feature] [user-templates-best-fit](roadmap/P3/user-templates-best-fit.md) — Bug: /next-roadmap-item user-templates-best-fit
 - [ ] [feature] [site-viewer](roadmap/P3/site-viewer.md) — viewer entry
 - [ ] [feature] [site-lightbox-kit](roadmap/P3/site-lightbox-kit.md) — Bug: /next-roadmap-item site-lightbox-kit
@@ -180,6 +182,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [preflight-core](roadmap/P4/preflight-core.md) — pure preflight
 - [ ] [prep] [pdf-painter](roadmap/P4/pdf-painter.md) — worker PDF painter (Security Review: dependency)
 - [ ] [feature] [roadmap-status-sync-2](roadmap/P4/roadmap-status-sync-2.md) — Bug: /next-roadmap-item roadmap-status-sync-2
+- [ ] [feature] [kit-preview-fold-strip](roadmap/P4/kit-preview-fold-strip.md) — Bug: /next-roadmap-item kit-preview-fold-strip
 - [ ] [prep] [pdf-color-tagging](roadmap/P4/pdf-color-tagging.md) — keep photo colors
 - [ ] [feature] [pdf-export](roadmap/P4/pdf-export.md) — print PDF
 - [ ] [feature] [static-export-viewer](roadmap/P4/static-export-viewer.md) — Bug: /next-roadmap-item static-export-viewer
