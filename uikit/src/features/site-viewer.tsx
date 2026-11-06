@@ -64,6 +64,7 @@ export function SiteViewer({ title = "Aleksandr’s photobooks", author = AUTHOR
     if (s.page !== "book" || s.lb) return
     const k = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement; if (t?.closest?.("input,textarea")) return
+      if (e.altKey || e.ctrlKey || e.metaKey) return // modified keys never step (site-preview-mode §4), like the lightbox
       if (e.key === "ArrowRight") go(1); if (e.key === "ArrowLeft") go(-1)
       if (e.key === "Home") { e.preventDefault(); to(0) } if (e.key === "End") { e.preventDefault(); to(n) }
     }
