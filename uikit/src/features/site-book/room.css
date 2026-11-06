@@ -1,0 +1,56 @@
+/* ReadingRoom (Spec site-stand S6): a layer over the page, fades in 240 ms. */
+.sb-room {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--bg);
+  animation: sb-room-in 240ms var(--ease-out) both;
+}
+@keyframes sb-room-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-room {
+    animation: none;
+  }
+}
+/* foot: title + meta on one line, ellipsis */
+.sb-about {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* Play / Pause (D4): ink text, ≥ 44 px target; the 1 px progress line under the label grows over the dwell */
+.sb-play {
+  position: relative;
+  flex: none;
+  min-height: 44px;
+  color: var(--ink);
+}
+.sb-prog {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 5px;
+  height: 1px;
+  background: var(--ink);
+  transform-origin: left center;
+  animation-name: sb-prog;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+@keyframes sb-prog {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
