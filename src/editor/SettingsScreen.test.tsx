@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -8,12 +9,18 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import * as assets from '../assets'
+import { makeCustomPrintProfile } from '../core/testing/fixtures'
 import { SettingsScreen } from './SettingsScreen'
+import {
+  resetPrintProfilesForTests,
+  savePrintProfile,
+} from './printProfilesStore'
 import * as projectSession from './projectSession'
 
 describe('SettingsScreen', () => {
   afterEach(() => {
     cleanup()
+    resetPrintProfilesForTests()
     vi.restoreAllMocks()
   })
 
@@ -123,6 +130,15 @@ describe('SettingsScreen', () => {
     expect(library.className).not.toMatch(/\bbg-accent\b/)
     expect(screen.getByTestId('print-shops')).toBeTruthy()
     expect(screen.queryByTestId('library-settings-panel')).toBeNull()
+    expect(screen.queryAllByTestId('settings-rule')).toHaveLength(0)
+    act(() => {
+      savePrintProfile(makeCustomPrintProfile())
+      savePrintProfile({ ...makeCustomPrintProfile(), id: 'custom-b' })
+    })
+    expect(screen.getAllByTestId('settings-rule')).toHaveLength(1)
+    expect(
+      screen.getByTestId('settings-rule').getAttribute('aria-hidden'),
+    ).toBe('true')
     fireEvent.click(library)
     expect(screen.getByTestId('library-settings-panel')).toBeTruthy()
   })
