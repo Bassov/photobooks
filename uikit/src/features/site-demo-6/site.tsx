@@ -20,6 +20,8 @@ const easeOut = (t: number) => {
 const GLIDE = 600
 /** Book3D's top for its contact shadow (bottom −4, height max(6, T/2); S1) to sit centred on the 1 px floor line at `floor` */
 const seat = (b: SiteBook, s: number, floor: number) => floor + 0.5 - (b.h * s + 4 - Math.max(6, thick(b, s) / 2) / 2)
+/** One caption row for the whole wall (D10): clear of the widest book's turned corner (0.09 · w_max · s) by 20 px */
+const captionTop = (books: SiteBook[], s: number, floor: number) => floor + Math.ceil(0.09 * Math.max(0, ...books.map((b) => b.w)) * s) + 20
 
 export function SiteDemo6() {
   return <SysSite n={6} dark home={(h) => (h.box.narrow ? <Phone {...h} /> : <Wall {...h} />)} />
@@ -43,6 +45,7 @@ function layout(books: SiteBook[], box: HomeApi['box'], g: HomeApi['g']) {
 function Wall({ books, box, g, active, open }: HomeApi) {
   const L = layout(books, box, g), { s, fits } = L
   const floor = Math.round((640 * box.h) / 900)
+  const capY = captionTop(books, s, floor)
   const G = React.useRef(L); G.current = L
   const host = React.useRef<HTMLDivElement>(null), track = React.useRef<HTMLDivElement>(null)
   const scrub = React.useRef<HTMLDivElement>(null), thumb = React.useRef<HTMLDivElement>(null), label = React.useRef<HTMLSpanElement>(null)
@@ -189,8 +192,7 @@ function Wall({ books, box, g, active, open }: HomeApi) {
                 onFocus={() => { if (on.current) goTo(i) }}
                 onClick={() => { if (st.current.moved) { st.current.moved = false; return } open(b) }}>
                 <Book3D b={b} s={s} />
-                <span className="ss6-label" style={{ top: H + 28 }}>
-                  <span className="t16" style={{ display: 'block' }}>{b.title}</span>
+                <span className="ss6-label" style={{ top: capY - seat(b, s, floor) }}>
                   <span className="t13 g" style={{ display: 'block' }}>{metaOf(b)}</span>
                 </span>
               </button>
@@ -219,6 +221,7 @@ function Wall({ books, box, g, active, open }: HomeApi) {
 function Phone({ books, box, g, open, showAll }: HomeApi) {
   const n = books.length, base = Math.round((520 * box.h) / 844)
   const s = Math.min(10, (g.span(4) * 0.7) / 30, ((base - 150) * 1) / 30)
+  const capY = captionTop(books, s, base)
   return (
     <div className="ss6-phone" data-testid="ss6-phone">
       {books.map((b, i) => {
@@ -236,9 +239,8 @@ function Phone({ books, box, g, open, showAll }: HomeApi) {
               <Book3D b={b} s={s} />
             </button>
             <div className="ss6-floor" style={{ top: base, left: g.M, right: g.M }} />
-            <div className="ss-abs" style={{ left: g.M, top: base + 20, width: g.span(4) }}>
-              <div className="m28">{b.title}</div>
-              <div className="t13 g" style={{ marginTop: 6 }}>{metaOf(b)}</div>
+            <div className="ss-abs" style={{ left: g.M, top: capY, width: g.span(4) }}>
+              <div className="t13 g">{metaOf(b)}</div>
               <button type="button" className="m15 u" style={{ marginTop: 6, minHeight: 44 }} onClick={() => open(b)}>Open the book</button>
             </div>
           </section>

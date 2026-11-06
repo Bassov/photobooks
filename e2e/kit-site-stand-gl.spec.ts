@@ -215,6 +215,127 @@ test('demo 6: hover turns, lifts and peeks the GL book', async ({ page }) => {
   expect(moved(rest, await shot(page, clip))).toBeGreaterThan(0.05)
 })
 
+/** the lowest viewport y in `clip` where the GL canvases paint: the clip shot with the canvases shown vs hidden */
+async function lowestBookY(page: Page, clip: Clip) {
+  const on = await shot(page, clip)
+  const hide = await page.addStyleTag({
+    content: '[data-testid="book3d-gl"]{visibility:hidden!important}',
+  })
+  const off = await shot(page, clip)
+  await hide.evaluate((n) => {
+    n.parentNode?.removeChild(n)
+  })
+  for (let y = on.h - 1; y >= 0; y--)
+    for (let x = 0; x < on.w; x++)
+      if (dist(px(on, x, y), px(off, x, y)) > 60) return clip.y + y
+  return -Infinity
+}
+async function boxOf(l: Locator): Promise<Clip> {
+  const r = await l.boundingBox()
+  if (!r) throw new Error('no box')
+  return r
+}
+/** rows in `clip` that carry caption ink (a pixel far brighter than the row's background) */
+async function inkRows(page: Page, clip: Clip) {
+  const m = await shot(page, clip)
+  const rows: number[] = []
+  for (let y = 0; y < m.h; y++) {
+    const bg = lum(px(m, 0, y))
+    for (let x = 0; x < m.w; x++)
+      if (lum(px(m, x, y)) - bg > 40) {
+        rows.push(y)
+        break
+      }
+  }
+  return rows
+}
+
+// site-stand-v3 W3 / D10: one caption row (meta only) at floor + ⌈0.09 · w_max · s⌉ + 20, clear of every book by ≥ 20
+test('demo 6 (1440): one meta-only caption row 20 px clear of the lowest book pixel, at rest and on hover', async ({
+  page,
+}) => {
+  const errors = collectErrors(page)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/uikit/#/full/site-demo-6')
+  await glBook(page)
+  const books = page.getByTestId('ss6-book').locator('visible=true')
+  const labels = page.locator('.ss6-label').locator('visible=true')
+  const tops = await labels.evaluateAll((ls) =>
+    ls.map((l) => Math.round(l.getBoundingClientRect().top)),
+  )
+  expect(new Set(tops)).toEqual(new Set([698]))
+  const capY = 698
+  const floor = Math.round((640 * 900) / 900)
+  const strip = { x: 0, y: floor + 1, width: 1440, height: capY - floor - 1 }
+  const rest = await lowestBookY(page, strip)
+  const hovered: number[] = []
+  for (let i = 0; i < (await books.count()); i++) {
+    await books.nth(i).hover()
+    await page.waitForTimeout(700)
+    hovered.push(await lowestBookY(page, strip))
+  }
+  test.info().annotations.push({
+    type: 'paint',
+    description: JSON.stringify({ capY, rest, hovered }),
+  })
+  expect(rest + 20).toBeLessThanOrEqual(capY)
+  expect(Math.max(...hovered) + 20).toBeLessThanOrEqual(capY)
+  await page.mouse.move(720, 120)
+  const box = await boxOf(labels.first())
+  const ink = await inkRows(page, {
+    x: box.x,
+    y: capY - 4,
+    width: box.width,
+    height: 60,
+  })
+  expect(ink.length).toBeGreaterThan(0)
+  expect(Math.max(...ink) - Math.min(...ink)).toBeLessThan(16)
+  await expect(labels.first()).not.toContainText(
+    (await books.first().getAttribute('aria-label'))?.split(',')[0] ?? '?',
+  )
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    1440,
+  )
+  expect(errors).toEqual([])
+})
+
+test('demo 6 (390): the phone caption is the meta line only, 20 px clear of the book', async ({
+  page,
+}) => {
+  const errors = collectErrors(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/uikit/#/full/site-demo-6')
+  await glBook(page)
+  const screen = page.locator('.ss6-screen').first()
+  await expect(screen.locator('.m28')).toHaveCount(0)
+  const meta = screen.locator('.t13.g').first()
+  const box = await boxOf(meta)
+  const base = Math.round((520 * 844) / 844)
+  const low = await lowestBookY(page, {
+    x: 0,
+    y: base + 1,
+    width: 390,
+    height: box.y - base - 1,
+  })
+  const ink = await inkRows(page, {
+    x: box.x,
+    y: box.y - 4,
+    width: box.width,
+    height: box.height + 8,
+  })
+  test.info().annotations.push({
+    type: 'paint',
+    description: JSON.stringify({ capY: box.y, low, ink: ink.length }),
+  })
+  expect(low + 20).toBeLessThanOrEqual(box.y)
+  expect(ink.length).toBeGreaterThan(0)
+  expect(Math.max(...ink) - Math.min(...ink)).toBeLessThan(16)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    390,
+  )
+  expect(errors).toEqual([])
+})
+
 test('?gl=0 keeps the CSS book and never loads three', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/uikit/#/full/site-demo-7?gl=0')
