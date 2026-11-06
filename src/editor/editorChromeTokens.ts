@@ -15,8 +15,6 @@ export {
   bookSettingsSubtitle,
   fmtN,
   mmToCm,
-  PAGE_MAX,
-  PAGE_MIN,
   pagesNote,
   pagesOf,
 } from './editorChromePanels'

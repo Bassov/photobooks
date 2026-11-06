@@ -6,11 +6,15 @@ import {
 } from './settingsScreenModel'
 
 describe('settingsScreenModel', () => {
-  it('offers only the Library section', () => {
-    expect(SETTINGS_SECTIONS.map((x) => x.id)).toEqual(['library'])
+  it('offers the Library and Print presets sections', () => {
+    expect(SETTINGS_SECTIONS.map((x) => [x.id, x.label, x.icon])).toEqual([
+      ['library', 'Library', 'hardDrive'],
+      ['print', 'Print presets', 'printer'],
+    ])
   })
 
-  it('returns the active nav class', () => {
-    expect(settingsNavActiveClass()).toBe('bg-accent font-medium')
+  it('marks only the current section', () => {
+    expect(settingsNavActiveClass(true)).toBe('bg-accent font-medium')
+    expect(settingsNavActiveClass(false)).toBe('')
   })
 })

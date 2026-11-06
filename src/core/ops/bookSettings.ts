@@ -96,3 +96,14 @@ export function setPrintProfile(
     },
   }
 }
+
+/**
+ * Spec D6: a saved custom `profile` refreshes the snapshot of a book that
+ * uses it (bleed / safe follow it as on a pick); other books stay as they are.
+ */
+export function refreshPrintProfile(book: Book, profile: PrintProfile): Book {
+  if (book.printProfile?.id !== profile.id) {
+    return book
+  }
+  return setPrintProfile(book, profile.id, [profile])
+}

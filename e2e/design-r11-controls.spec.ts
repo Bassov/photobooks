@@ -25,7 +25,7 @@ import {
 //     Caption Inter 13px / 400. editor-inspector-book: W / H inputs
 //     ui-monospace 13px / 400 rgb(57, 55, 56), x 1186 / 1324, y 283.06,
 //     64 × 18.84; Pages Inter 13px; PRINT B / S values ui-monospace 13px,
-//     x 1186 / 1324, y 782.34 (588.13 before page-numbers), 60 × 18.84.
+//     x 1186 / 1324, y 848.34 (782.34 before printer-presets), 60 × 18.84.
 // M70 buttons (kit `outline`, no border: `0px solid rgba(0, 0, 0, 0)`):
 //     Crop, 90° left / right: 130 × 32 at x 1156 / 1294, bg rgb(215, 215,
 //     215), box-shadow 0 1px 2px rgba(20, 20, 19, .06) (kit `shadow-xs`;
@@ -336,7 +336,8 @@ test.describe('design-r11-controls: editor inspectors match the kit', () => {
       expect(await type(value)).toEqual(mono)
       // Kit #/demo editor-inspector-book after page-numbers-kit: Page
       // numbers (194.21 px, two-line "No master prints…" note) sits above Print.
-      await expectBox(value, { x, y: 782.34, width: 60, height: 18.84 })
+      // printer-presets: the Printer select, hint and mt-3 add 66 px.
+      await expectBox(value, { x, y: 848.34, width: 60, height: 18.84 })
     }
   })
 

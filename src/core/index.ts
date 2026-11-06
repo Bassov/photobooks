@@ -141,7 +141,12 @@ export {
   resetSpreadToParent,
 } from './parentSpreads'
 export { findBookFrame, findSpreadFrame, spreadFrames } from './update'
-export { setPrintProfile, TRIM_MAX_MM, TRIM_MIN_MM } from './ops/bookSettings'
+export {
+  refreshPrintProfile,
+  setPrintProfile,
+  TRIM_MAX_MM,
+  TRIM_MIN_MM,
+} from './ops/bookSettings'
 export {
   frameStylePresets,
   noAdjust,

@@ -113,6 +113,29 @@ body {
   overflow-y: auto;
 }
 
+/* Kit PrintProfileDialog: AppModal 560 on chrome; the root holds the max
+   height so the form body scrolls and Save stays in view. */
+.pb-dialog.pb-print-profile-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 96px);
+  overflow: hidden;
+  padding: 20px 24px;
+  border: 0;
+  background: var(--chrome);
+}
+
+.pb-print-profile-dialog .pb-dialog-title {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: 1.25;
+}
+
+.pb-print-profile-dialog .pb-button--ghost {
+  color: var(--foreground);
+}
+
 .pb-create-dialog .pb-create-footer {
   flex: none;
 }

@@ -17,6 +17,7 @@ export interface HistorySnapshot {
   endpapers: Book['endpapers']
   frameStyles: Book['frameStyles']
   pageNumbering: Book['pageNumbering']
+  printProfile: Book['printProfile']
 }
 
 export interface History {
@@ -51,15 +52,20 @@ export function snapshotOf(book: Book): HistorySnapshot {
     endpapers: book.endpapers,
     frameStyles: book.frameStyles,
     pageNumbering: book.pageNumbering,
+    printProfile: book.printProfile,
   }
 }
 
-/** Ops that edit the undoable slice; gallery ops are not steps. */
+/**
+ * Ops that edit the undoable slice; gallery ops are not steps, nor is a saved
+ * custom profile reaching the book (`refreshPrintProfile`).
+ */
 export function isUndoableOp(op: BookOp): boolean {
   switch (op.type) {
     case 'addToGallery':
     case 'removeFromGallery':
     case 'removeManyFromGallery':
+    case 'refreshPrintProfile':
       return false
     default:
       return true
@@ -104,6 +110,7 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
   setCoverPhoto: 'Cover photo',
   setCoverStyle: 'Cover style',
   setTrim: 'Page size',
+  setPrintProfile: 'Printer',
   setEndpapersEnabled: 'Endpapers',
   setEndpapersSame: 'Endpapers',
   setEndpaperPhoto: 'Endpaper photo',

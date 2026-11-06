@@ -6,6 +6,32 @@ interface SelectOption {
   value: string
   label: string
   isDisabled?: boolean
+  /** Consecutive options sharing a group render in one `<optgroup>`. */
+  group?: string
+}
+
+function renderOption(o: SelectOption) {
+  return (
+    <option key={o.value} value={o.value} disabled={o.isDisabled}>
+      {o.label}
+    </option>
+  )
+}
+
+/** Consecutive runs of the same group (ungrouped options stay as they are). */
+function groupsOf(
+  options: readonly SelectOption[],
+): [string | undefined, SelectOption[]][] {
+  const runs: [string | undefined, SelectOption[]][] = []
+  for (const option of options) {
+    const last = runs.at(-1)
+    if (last !== undefined && last[0] === option.group) {
+      last[1].push(option)
+    } else {
+      runs.push([option.group, [option]])
+    }
+  }
+  return runs
 }
 
 export interface SelectProps extends Omit<
@@ -54,11 +80,15 @@ export function Select({
           onChange(e.target.value)
         }}
       >
-        {options.map((o) => (
-          <option key={o.value} value={o.value} disabled={o.isDisabled}>
-            {o.label}
-          </option>
-        ))}
+        {groupsOf(options).map(([group, items]) =>
+          group === undefined ? (
+            items.map(renderOption)
+          ) : (
+            <optgroup key={group} label={group}>
+              {items.map(renderOption)}
+            </optgroup>
+          ),
+        )}
       </select>
     </FieldFrame>
   )

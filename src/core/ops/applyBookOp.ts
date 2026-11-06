@@ -82,7 +82,7 @@ import {
   type PageNumberPosition,
 } from '../pageNumbers'
 import type { PrintProfile } from '../print/profileSchema'
-import { setPrintProfile, setTrim } from './bookSettings'
+import { refreshPrintProfile, setPrintProfile, setTrim } from './bookSettings'
 import {
   applyFrameStyle,
   editFrameStyle,
@@ -280,6 +280,8 @@ export type BookOp =
       /** The library's custom profiles (a custom `id` resolves here). */
       customs?: readonly PrintProfile[]
     }
+  /** A saved custom profile reaches the book using it (not an undo step). */
+  | { type: 'refreshPrintProfile'; profile: PrintProfile }
   | { type: 'setEndpapersEnabled'; enabled: boolean }
   | { type: 'setEndpapersSame'; same: boolean }
   | {
@@ -486,6 +488,8 @@ function applyRaw(book: Book, op: BookOp): Book {
       )
     case 'setPrintProfile':
       return setPrintProfile(book, op.id, op.customs)
+    case 'refreshPrintProfile':
+      return refreshPrintProfile(book, op.profile)
     case 'setEndpapersEnabled':
       return setEndpapersEnabled(book, op.enabled)
     case 'setEndpapersSame':

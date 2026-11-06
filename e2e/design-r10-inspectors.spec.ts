@@ -97,10 +97,11 @@ const KIT = {
     // prints page numbers yet…" note wraps to a second 11 / 1.35 line.
     pageNumbers: 554.7,
     print: 748.92,
-    printFields: 775.77,
-    paperRow: 819.77,
-    defaults: 878.61,
-    defaultRows: [905.45, 944.3],
+    // printer-presets: Printer select 32 + hint 6 + 16, B / S mt-3 = +66.
+    printFields: 841.77,
+    paperRow: 885.77,
+    defaults: 944.61,
+    defaultRows: [971.45, 1010.3],
   },
   photo: {
     titleX: 1172,

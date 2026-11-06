@@ -11,6 +11,7 @@ import {
   getAssetAspectSnapshot,
   getAssetCacheKey,
   getAssetPixelSizeSnapshot,
+  getBookPrintProfiles,
   getBookStoreSnapshot,
   getPlacementCountSnapshot,
   subscribeBookStore,
@@ -150,7 +151,11 @@ function isAssetLowRes(id: string): boolean {
     return false
   }
   const { book } = getBookStoreSnapshot()
-  return pageFillLowRes(book.settings.trim, size, bookDpiThresholds(book))
+  return pageFillLowRes(
+    book.settings.trim,
+    size,
+    bookDpiThresholds(book, getBookPrintProfiles()),
+  )
 }
 
 function matchesFocusVisible(element: Element): boolean {

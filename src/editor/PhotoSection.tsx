@@ -14,6 +14,7 @@ import {
   dispatchBookOp,
   getAssetAspectSnapshot,
   getAssetPixelSizeSnapshot,
+  getBookPrintProfiles,
   getBookStoreSnapshot,
   subscribeBookStore,
 } from './bookStore'
@@ -93,7 +94,7 @@ export function PhotoSection({ target }: { target: CropTarget }) {
                     size.widthPx,
                     size.heightPx,
                   )}
-                  thresholds={bookDpiThresholds(book)}
+                  thresholds={bookDpiThresholds(book, getBookPrintProfiles())}
                 />
               </>
             )}
