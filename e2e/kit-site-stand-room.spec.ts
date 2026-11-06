@@ -11,8 +11,9 @@ async function box(l: Locator) {
   return b
 }
 
+/** the CSS reader (`?gl=0`): its page boxes are DOM; the GL reader's paint is in kit-site-stand-reader-gl */
 async function openRoom(page: Page) {
-  await page.goto('/uikit/#/full/site-demo-7')
+  await page.goto('/uikit/#/full/site-demo-7?gl=0')
   await page.getByTestId('ss7-book').first().click()
   await expect(page.getByTestId('ss-open')).toBeFocused()
   await page.screenshot({

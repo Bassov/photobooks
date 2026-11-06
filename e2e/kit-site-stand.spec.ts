@@ -65,7 +65,7 @@ test.describe('phone 390×844', () => {
     expect(menu.x + menu.width).toBeLessThanOrEqual(390)
 
     // the portrait book's page fills about half the screen height
-    await page.goto('/uikit/#/full/site-fresh-c?b=lake-trip')
+    await page.goto('/uikit/#/full/site-fresh-c?b=lake-trip&gl=0')
     // the closed cover opens on page 1
     await page.keyboard.press('ArrowRight')
     await expect(page.getByTestId('sfc-player')).toHaveAttribute(
@@ -88,17 +88,18 @@ test.describe('phone 390×844', () => {
 // read fraction, tail strip, gutter), every page is photo paper, interior
 // leaves curl (paper leaf), perspective 2 × the reader width.
 
-/** opens the first book's reader on view 1 (endpaper | title page) */
+/** opens the first book's CSS reader (`?gl=0`) on view 1 (endpaper | title page) */
 async function openReader(page: Page, slug: string) {
-  await page.goto(`/uikit/#/full/${slug}`)
   if (slug === 'site-fresh-c') {
-    await page.getByTestId('sfc-item').first().click()
+    // the first book's page (a list click rewrites the hash and drops `gl=0`)
+    await page.goto(`/uikit/#/full/${slug}?b=lake-trip&gl=0`)
     await page.getByTestId('sfc-open').click()
     // Read the book opens the reading room on view 1
     const reader = page.getByTestId('ss-reader-page').getByTestId('ps-reader')
     await expect(reader).toHaveAttribute('data-view', '1')
     return reader
   } else {
+    await page.goto(`/uikit/#/full/${slug}?gl=0`)
     await page
       .getByTestId(slug === 'site-demo-6' ? 'ss6-book' : 'ss7-book')
       .first()
@@ -357,7 +358,8 @@ for (const vp of VIEWPORTS)
     }) => {
       const errors = consoleErrors(page)
       // one book: Lake trip (portrait) owns every minute
-      await page.goto('/uikit/#/full/site-fresh-c?books=1')
+      // the CSS reader (`?gl=0`): the room book is measured off its page boxes
+      await page.goto('/uikit/#/full/site-fresh-c?books=1&gl=0')
       const actions = page.getByTestId('sfc-now').locator('.sfc-actions > *')
       await expect(actions).toHaveText(['Pause', 'Read', 'About this book'])
       const read = page.getByTestId('sfc-read-room')
@@ -432,7 +434,7 @@ for (const vp of VIEWPORTS)
         page,
       }) => {
         const errors = consoleErrors(page)
-        await page.goto(`/uikit/#/full/site-fresh-c?b=${id}`)
+        await page.goto(`/uikit/#/full/site-fresh-c?b=${id}&gl=0`)
         await page.getByTestId('sfc-open').click()
         const seen = await walkRoom(page.getByTestId('ss-reader-page'), phone)
         expect(seen.at(-1)?.label).toBe('Back cover')

@@ -171,7 +171,9 @@ export const Pager = React.forwardRef<PagerApi, PagerProps>(function Pager({ b, 
       data-testid="ps-pager" data-step={idx} data-side={steps[idx].side} data-page={P.toFixed(1)}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel}>
       <div ref={camEl} style={{ position: "absolute", left: 0, top: (CH - H) / 2, transform: `translateX(${tx}px)` }}>
-        <BookReader b={b} view={steps[idx].v} onView={() => {}} width={2 * P} dark={dark} keys={false} scrub={s} />
+        {/* GL (Spec site-stand-v2 R): the canvas stays on the pager box and the camera pans with it (view offset) */}
+        <BookReader b={b} view={steps[idx].v} onView={() => {}} width={2 * P} dark={dark} keys={false} scrub={s}
+          glBox={{ x: -tx, y: -(CH - H) / 2, w: CW, h: CH }} glScale={P / b.w} />
       </div>
       <div className="sr-only" aria-live="polite" data-testid="ps-pager-live">{steps[idx].label}</div>
     </div>

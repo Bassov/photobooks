@@ -19,3 +19,10 @@ export const SRGBColorSpace: string
 export const NoToneMapping: number
 export const LinearMipmapLinearFilter: number
 export const DoubleSide: number
+export const FrontSide: number
+export const BackSide: number
+export const RepeatWrapping: number
+export const VSMShadowMap: number
+export const ShadowMaterial: Ctor
+export const BufferGeometry: Ctor
+export const Float32BufferAttribute: Ctor

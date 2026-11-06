@@ -5,7 +5,7 @@ import { T, type Box } from "@/data"
 import { AUTHOR, src, SPREAD_R, type SiteBook } from "./data"
 
 /** the single last page (left): t-margin mirrored */
-const LAST: Box = { x: 4, y: 14, w: 42, h: 72 }
+export const LAST: Box = { x: 4, y: 14, w: 42, h: 72 }
 const HINGE = "linear-gradient(90deg, rgb(0 0 0/.30), rgb(0 0 0/.06) 45%, rgb(255 255 255/.26) 70%, rgb(0 0 0/.05))"
 export const FOLD = "linear-gradient(90deg, transparent, rgba(0,0,0,.06) 50%, transparent)"
 export const ENDPAPER = "#E9E4DA"
