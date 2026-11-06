@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P3
 Title: Bug: /next-roadmap-item static-export-closeout
+Status: done
 
 ## Scope
 
