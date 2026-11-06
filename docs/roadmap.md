@@ -148,6 +148,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [prep] [publish-revisions](roadmap/P3/publish-revisions.md) — draft vs published
 - [ ] [feature] [static-export-closeout](roadmap/P3/static-export-closeout.md) — Bug: /next-roadmap-item static-export-closeout
 - [x] [feature] [user-templates-store](roadmap/P3/user-templates-store.md) — Bug: /next-roadmap-item user-templates-store
+- [ ] [feature] [stand-v4-drop-demo7](roadmap/P3/stand-v4-drop-demo7.md) — Bug: /next-roadmap-item stand-v4-drop-demo7
 - [ ] [feature] [user-templates-picker](roadmap/P3/user-templates-picker.md) — Bug: /next-roadmap-item user-templates-picker
 - [ ] [feature] [design-r20-kit-mod-arrows](roadmap/P3/design-r20-kit-mod-arrows.md) — Bug: /next-roadmap-item design-r20-kit-mod-arrows
 - [ ] [feature] [user-templates-best-fit](roadmap/P3/user-templates-best-fit.md) — Bug: /next-roadmap-item user-templates-best-fit
