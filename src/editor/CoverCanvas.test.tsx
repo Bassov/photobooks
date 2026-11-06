@@ -7,8 +7,13 @@ import { maxDesiredTier, resetTierDisplay } from './tierDisplay'
 import { CoverCanvas } from './CoverCanvas'
 import { CoverOverlay } from './CoverOverlay'
 import { CoverSection } from './CoverSection'
-import { getBookStoreSnapshot, resetBookStore } from './bookStore'
+import {
+  dispatchBookOp,
+  getBookStoreSnapshot,
+  resetBookStore,
+} from './bookStore'
 import { setCoverSelected } from './coverSelection'
+import { readCoverGeometry } from './coverSelectors'
 import { ASSET_DRAG_MIME } from './dropTargets'
 
 const thumbs = vi.hoisted(() => new Map<string, string>())
@@ -81,14 +86,30 @@ describe('CoverCanvas', () => {
     expect(screen.getByTestId('cover-front-text').textContent).toBe('Lake trip')
     expect(screen.getByTestId('cover-spine-text').textContent).toBe('Lake trip')
     expect(screen.getByTestId('cover-back-text').textContent).toBe('Lake trip')
-    // makeBook trims to 300 mm; spine is the display-only 12 mm of 612 mm.
+    // makeBook trims to 300 mm; the generic profile spine is 12 mm at the
+    // 20-page minimum, of a 612 mm cover in a 642 × 330 mm sheet.
     const pct = (id: string) =>
       Number.parseFloat(screen.getByTestId(id).style.width)
     expect(pct('cover-back')).toBeCloseTo((300 / 612) * 100, 5)
     expect(pct('cover-front')).toBeCloseTo((300 / 612) * 100, 5)
     expect(pct('cover-spine')).toBeCloseTo((12 / 612) * 100, 5)
-    const spread = screen.getByTestId('canvas-cover')
-    expect(spread.style.aspectRatio.replace(/\s/g, '')).toBe('612/300')
+    expect(pct('canvas-cover')).toBeCloseTo((612 / 642) * 100, 5)
+    const sheet = screen.getByTestId('cover-sheet')
+    expect(sheet.style.aspectRatio.replace(/\s/g, '')).toBe('642/330')
+  })
+
+  it('keeps the geometry object across a text edit and swaps it on Pages', () => {
+    const first = readCoverGeometry()
+    act(() => {
+      dispatchBookOp({ type: 'setCoverText', panel: 'back', text: 'x' })
+    })
+    expect(readCoverGeometry()).toBe(first)
+    act(() => {
+      dispatchBookOp({ type: 'setPageCount', pages: 60 })
+    })
+    const next = readCoverGeometry()
+    expect(next).not.toBe(first)
+    expect(next.spine).toBe(20)
   })
 
   it('shows the cover photo thumb once published', () => {
@@ -110,7 +131,9 @@ describe('CoverCanvas', () => {
     })
     render(<CoverCanvas />)
     const front = screen.getByTestId('cover-front')
-    expect(front.style.backgroundImage).toContain('blob:a1')
+    expect(
+      screen.getByTestId('cover-front-photo').style.backgroundImage,
+    ).toContain('blob:a1')
     expect(front.getAttribute('data-photo-id')).toBe('a1')
   })
 
@@ -149,15 +172,18 @@ describe('CoverCanvas', () => {
       await Promise.resolve()
     })
 
-    expect(screen.getByTestId('cover-front').style.backgroundImage).toContain(
-      'blob:a1-1280',
-    )
+    expect(
+      screen.getByTestId('cover-front-photo').style.backgroundImage,
+    ).toContain('blob:a1-1280')
     expect(screen.getByTestId('cover-front').dataset.tier).toBe('1280')
     const rowFront = must(
       row.container.querySelector<HTMLElement>('[data-photo-id="a1"]'),
     )
-    expect(rowFront.style.backgroundImage).toContain('blob:a1')
-    expect(rowFront.style.backgroundImage).not.toContain('1280')
+    const rowPhoto = must(
+      rowFront.querySelector<HTMLElement>('.cover-front-photo'),
+    )
+    expect(rowPhoto.style.backgroundImage).toContain('blob:a1')
+    expect(rowPhoto.style.backgroundImage).not.toContain('1280')
     expect(rowFront.hasAttribute('data-tier')).toBe(false)
     canvas.unmount()
     expect(maxDesiredTier('a1')).toBeUndefined()
@@ -168,20 +194,38 @@ describe('CoverCanvas', () => {
       .spyOn(tierCache, 'requestTier')
       .mockImplementation(() => undefined)
     render(<CoverCanvas tierSlot="cover:canvas" />)
-    expect(screen.getByTestId('cover-front').style.backgroundImage).toBe('')
+    expect(screen.queryByTestId('cover-front-photo')).toBeNull()
     expect(screen.getByTestId('cover-front').hasAttribute('data-tier')).toBe(
       false,
     )
     expect(requestTier).not.toHaveBeenCalled()
   })
 
-  it('a filmstrip photo dropped on the front becomes the cover photo', () => {
+  it('a filmstrip photo dropped on the front band becomes the cover photo', () => {
+    vi.stubGlobal('DragEvent', class extends MouseEvent {})
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      DOMRect.fromRect({ width: 642, height: 330 }),
+    )
     render(<CoverCanvas />)
-    const front = screen.getByTestId('cover-front')
-    const over = dropEvent([ASSET_DRAG_MIME], 'a1')
+    // The right wrap band: past the front board (627 mm of the 642 mm sheet).
+    const front = screen.getByTestId('cover-wrap')
+    const over = { ...dropEvent([ASSET_DRAG_MIME], 'a1'), clientX: 635 }
     expect(fireEvent.dragOver(front, over)).toBe(false)
     expect(fireEvent.drop(front, over)).toBe(false)
     expect(getBookStoreSnapshot().book.cover.front.assetId).toBe('a1')
+  })
+
+  it('a photo dropped on the back board is refused', () => {
+    vi.stubGlobal('DragEvent', class extends MouseEvent {})
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      DOMRect.fromRect({ width: 642, height: 330 }),
+    )
+    render(<CoverCanvas />)
+    const back = screen.getByTestId('cover-back')
+    const over = { ...dropEvent([ASSET_DRAG_MIME], 'a1'), clientX: 100 }
+    expect(fireEvent.dragOver(back, over)).toBe(true)
+    expect(fireEvent.drop(back, over)).toBe(true)
+    expect(getBookStoreSnapshot().book.cover.front.assetId).toBeUndefined()
   })
 
   it('ignores foreign drags and empty payloads', () => {

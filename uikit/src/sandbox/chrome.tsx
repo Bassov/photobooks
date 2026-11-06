@@ -296,15 +296,14 @@ export function SpreadsPanel({ reorder = false, actions = false, onCollapse }: {
       const ids = [...e.keys].map(String).filter((k) => /^p\d+$/.test(k)).map((k) => st.doc.spreads[+k.slice(1)].id)
       const tk = String(e.target.key); if (!ids.length || !/^p\d+$/.test(tk)) return
       const tid = st.doc.spreads[+tk.slice(1)].id
-      st.update((d) => {
-        const moving = d.spreads.filter((s) => ids.includes(s.id))
-        const rest = d.spreads.filter((s) => !ids.includes(s.id))
+      const reorder = (spreads: Spread[]) => {
+        const moving = spreads.filter((s) => ids.includes(s.id))
+        const rest = spreads.filter((s) => !ids.includes(s.id))
         let at = rest.findIndex((s) => s.id === tid)
         if (e.target.dropPosition === "after") at += 1
-        const next = [...rest.slice(0, at), ...moving, ...rest.slice(at)]
-        st.setCur(next.findIndex((s) => s.id === ids[0]))
-        return { ...d, spreads: next }
-      }, "Reorder spreads")
+        return [...rest.slice(0, at), ...moving, ...rest.slice(at)]
+      }
+      st.update((d) => ({ ...d, spreads: reorder(d.spreads) }), "Reorder spreads", undefined, reorder(st.doc.spreads).findIndex((s) => s.id === ids[0]))
       st.setStatus(`Moved spread to pages ${pageLabel(1 + st.doc.spreads.findIndex((s) => s.id === tid))}`)
     },
   })
@@ -373,20 +372,19 @@ function SpreadItemMenu({ i }: { i: number }) {
     const n = Date.now() % 1000, cid = (id: string) => `${id}c${n}`
     // live captions follow their anchor into the copy (Designer live-captions §6)
     const copy: Spread = { ...src, id: `s${Date.now()}`, frames: src.frames.map((f) => ({ ...f, id: cid(f.id), ...(f.anchor && { anchor: cid(f.anchor) }) })) }
-    st.update((d) => ({ ...d, spreads: [...d.spreads.slice(0, i + 1), copy, ...d.spreads.slice(i + 1)] }), "Duplicate spread")
-    st.setCur(i + 1); st.setStatus(`${pagesName(i)} duplicated`)
+    st.update((d) => ({ ...d, spreads: [...d.spreads.slice(0, i + 1), copy, ...d.spreads.slice(i + 1)] }), "Duplicate spread", undefined, i + 1)
+    st.setStatus(`${pagesName(i)} duplicated`)
   }
   const del = () => {
     if (st.doc.spreads.length <= 1) return
-    st.update((d) => ({ ...d, spreads: d.spreads.filter((_, j) => j !== i) }), "Delete spread")
-    st.setCur(Math.max(0, i - 1))
+    st.update((d) => ({ ...d, spreads: d.spreads.filter((_, j) => j !== i) }), "Delete spread", undefined, Math.max(0, i - 1))
     st.toast({ title: `${pagesName(i)} deleted`, description: "Its photos are back in the gallery.", action: { label: "Undo", onAction: st.undo } })
   }
   return (
     <MenuTrigger>
       <AriaButton aria-label={`${pagesName(i)} actions`} className="absolute right-2.5 top-2.5 z-10 grid size-6 place-items-center rounded-md bg-popover/90 text-muted-foreground opacity-0 shadow-sm outline-hidden group-data-[hovered]/sp:opacity-100 group-data-[selected]/sp:opacity-100 data-[focus-visible]:opacity-100 data-[focus-visible]:ring-2 data-[focus-visible]:ring-ring" data-testid="spread-menu"><MoreHorizontal className="size-3.5" /></AriaButton>
       <MenuPopover placement="bottom end" className="w-44">
-        <Menu className="[&_svg]:size-4 [&_svg]:text-muted-foreground" onAction={(k) => { if (k === "dup") dup(); if (k === "del") del(); if (k === "add") { st.update((d) => ({ ...d, spreads: [...d.spreads.slice(0, i + 1), spread("t-pair"), ...d.spreads.slice(i + 1)] }), "Add spread"); st.setCur(i + 1) } }}>
+        <Menu className="[&_svg]:size-4 [&_svg]:text-muted-foreground" onAction={(k) => { if (k === "dup") dup(); if (k === "del") del(); if (k === "add") { st.update((d) => ({ ...d, spreads: [...d.spreads.slice(0, i + 1), spread("t-pair"), ...d.spreads.slice(i + 1)] }), "Add spread", undefined, i + 1) } }}>
           <MenuItem id="add"><Plus />Add after<MenuKeyboard>Ctrl+↵</MenuKeyboard></MenuItem>
           <MenuItem id="dup"><Copy />Duplicate<MenuKeyboard>Ctrl+D</MenuKeyboard></MenuItem>
           <MenuSeparator />
@@ -630,6 +628,7 @@ export function EditorFrame({ top, left, right, dock, canvas, overlay, className
     }
     const on = (e: KeyboardEvent) => {
       if (e.code !== "Space" || typing(e.target)) return
+      if ((e.target as HTMLElement | null)?.closest?.('[aria-modal="true"]')) return // a modal over the editor (site preview) owns Space
       if (e.type === "keydown") {
         e.preventDefault()
         e.stopPropagation()

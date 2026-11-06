@@ -1,10 +1,14 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultCover } from '../core'
 import { makeBookWithAsset } from '../core/testing/fixtures'
 import { CoverCanvas } from './CoverCanvas'
 import { CoverSection } from './CoverSection'
-import { getBookStoreSnapshot, resetBookStore } from './bookStore'
+import {
+  dispatchBookOp,
+  getBookStoreSnapshot,
+  resetBookStore,
+} from './bookStore'
 
 function seed(
   photo: { widthPx: number; heightPx: number } | null,
@@ -55,24 +59,37 @@ describe('CoverCanvas kit chrome', () => {
   afterEach(() => {
     cleanup()
     resetBookStore()
+    vi.restoreAllMocks()
   })
 
-  it('names the panels and draws the wrap guide and chip', () => {
+  it('names the panels and draws the safe frames, veil and chip', () => {
+    // Sheet 642 × 330 mm at 2 px / mm: a 30 px band shows the chip.
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      DOMRect.fromRect({ width: 1284, height: 660 }),
+    )
     render(<CoverCanvas />)
     expect(screen.getByTestId('cover-label-back').textContent).toBe('Back')
     expect(screen.getByTestId('cover-label-spine').textContent).toBe('Spine')
     expect(screen.getByTestId('cover-label-front').textContent).toBe('Front')
     expect(screen.getByTestId('cover-wrap-chip').textContent).toBe('Wrap 15 mm')
-    const guide = screen.getByTestId('cover-safe')
-    // makeBook trims to 300 mm: 15 mm of 300 high, of 612 wide.
-    expect(guide.style.inset.replace(/\s+/g, ' ')).toContain('5%')
-    expect(guide.getAttribute('aria-hidden')).toBe('true')
+    // makeBook trims to 300 mm: safe 5 mm, hinge 8 mm → 287 mm of 642 wide.
+    const safe = screen.getByTestId('cover-safe-front')
+    expect(Number.parseFloat(safe.style.width)).toBeCloseTo(
+      (287 / 642) * 100,
+      9,
+    )
+    expect(screen.getByTestId('cover-safe-back').style.width).toBe(
+      safe.style.width,
+    )
+    expect(screen.getByTestId('cover-wrap').getAttribute('aria-hidden')).toBe(
+      'true',
+    )
   })
 
   it('keeps the list thumbnail plain', () => {
     render(<CoverCanvas mini />)
     expect(document.querySelector('.cover-panel-label')).toBeNull()
-    expect(document.querySelector('.cover-wrap-guide')).toBeNull()
+    expect(document.querySelector('.cover-sheet')).toBeNull()
     expect(document.querySelector('.cover-wrap-chip')).toBeNull()
   })
 })
@@ -88,7 +105,13 @@ describe('CoverSection kit rows', () => {
     render(<CoverSection />)
     const section = screen.getByTestId('insp-cover')
     const text = section.textContent
-    expect(text).toContain('Hardcover · back, spine, front · wrap 15 mm')
+    expect(screen.getByTestId('cover-head-sub').textContent).toBe(
+      'Hardcover · wrap 15 mm · hinge 8 mm',
+    )
+    // makeBookWithAsset has under 20 pages: printed as the profile minimum.
+    expect(screen.getByTestId('cover-spine-hint').textContent).toMatch(
+      /^Generic print profile · \d+ pages, printed as 20$/,
+    )
     for (const label of [
       'Title font',
       'Spine width',
@@ -163,12 +186,42 @@ describe('CoverSection kit rows', () => {
     expect(screen.getByTestId('insp-cover').textContent).not.toContain('ppi')
   })
 
+  // D4: the photo box is the 300 mm front board plus 15 mm wrap on its outer,
+  // top and bottom edges: 315 × 330 mm.
+  it('names the spine source: profile pages, no hint for a manual spine', () => {
+    seed(null)
+    act(() => {
+      dispatchBookOp({ type: 'setPageCount', pages: 60 })
+    })
+    render(<CoverSection />)
+    const hint = screen.getByTestId('cover-spine-hint')
+    expect(hint.textContent).toBe('Generic print profile · 60 pages')
+    expect(hint.style.color).toBe('#535152')
+    expect(screen.getByTestId('cover-spine-width').textContent).toBe('20 mm')
+    cleanup()
+    const { book } = getBookStoreSnapshot()
+    resetBookStore({
+      ...getBookStoreSnapshot(),
+      book: {
+        ...book,
+        cover: {
+          ...book.cover,
+          print: { spineWidthSource: 'manual' },
+          style: { ...book.cover.style, spineWidthMm: 17 },
+        },
+      },
+    })
+    render(<CoverSection />)
+    expect(screen.queryByTestId('cover-spine-hint')).toBeNull()
+    expect(screen.getByTestId('cover-spine-width').textContent).toBe('17 mm')
+  })
+
   it('adds the effective resolution once the photo is decoded', () => {
     seed({ widthPx: 2400, heightPx: 1800 })
     render(<CoverSection />)
     expect(getBookStoreSnapshot().book.cover.front.assetId).toBe('a1')
     expect(screen.getByTestId('insp-cover').textContent).toContain(
-      'Full bleed · 152 ppi',
+      'Full bleed · 139 ppi',
     )
   })
 
@@ -178,17 +231,17 @@ describe('CoverSection kit rows', () => {
       { zoom: 2, center: { x: 0.5, y: 0.5 } },
     )
     render(<CoverSection />)
-    expect(screen.getByTestId('insp-cover').textContent).toContain('· 76 ppi')
+    expect(screen.getByTestId('insp-cover').textContent).toContain('· 69 ppi')
     cleanup()
     seed({ widthPx: 2400, heightPx: 1800 }, null)
     render(<CoverSection />)
-    expect(screen.getByTestId('insp-cover').textContent).toContain('· 152 ppi')
+    expect(screen.getByTestId('insp-cover').textContent).toContain('· 139 ppi')
   })
 
   it('uses the width axis when it is the tighter one', () => {
     seed({ widthPx: 1800, heightPx: 2400 })
     render(<CoverSection />)
-    expect(screen.getByTestId('insp-cover').textContent).toContain('· 152 ppi')
+    expect(screen.getByTestId('insp-cover').textContent).toContain('· 145 ppi')
   })
 
   it('only hides ppi when both sides are placeholder-sized', () => {

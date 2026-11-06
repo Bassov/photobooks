@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
-import { bookSpineWidthMm, type CoverPanelName, type CoverStyle } from '../core'
+import type { CoverPanelName, CoverStyle } from '../core'
+import type { CoverGeometry } from '../core/print/coverGeometry'
 import { Select } from '../ui/Select'
 import {
   DIRECTION_OPTIONS,
@@ -18,7 +19,8 @@ import {
   getBookStoreSnapshot,
   subscribeBookStore,
 } from './bookStore'
-import { COVER_WRAP_MM, coverPanelPpi } from '../render/coverLayout'
+import { coverPanelPpi } from '../render/coverLayout'
+import { readCoverGeometry } from './coverSelectors'
 import { SUB, fmtN } from './editorChromeTokens'
 import '../render/CoverView.css'
 import { useThumbUrl } from './useThumbUrl'
@@ -60,8 +62,15 @@ function useStyle(): CoverStyle {
   return useSyncExternalStore(subscribeBookStore, readStyle, readStyle)
 }
 
-function readSpineWidth(): number {
-  return bookSpineWidthMm(readBook())
+/** Designer cover-editor Inspector: where the spine width comes from. */
+function spineHint(geometry: CoverGeometry): string | undefined {
+  if (geometry.source === 'manual') {
+    return undefined
+  }
+  const { profileName, pages, printedPages } = geometry
+  const printed =
+    printedPages === pages ? '' : `, printed as ${String(printedPages)}`
+  return `${profileName} print profile · ${String(pages)} pages${printed}`
 }
 
 function setStyle(patch: Partial<CoverStyle>): void {
@@ -107,12 +116,11 @@ function frontPpi(): number | undefined {
   ) {
     return undefined
   }
+  // D4: the photo box is the front board plus its outer, top and bottom wrap.
+  const { trimW, trimH, wrap } = readCoverGeometry()
   return coverPanelPpi(
     { widthPx: meta.correctedWidth, heightPx: meta.correctedHeight },
-    {
-      widthMm: book.settings.trim.widthMm,
-      heightMm: book.settings.trim.heightMm,
-    },
+    { widthMm: trimW + wrap, heightMm: trimH + 2 * wrap },
     crop?.zoom ?? 1,
   )
 }
@@ -138,11 +146,12 @@ export function CoverSection() {
   )
   const ppi = useSyncExternalStore(subscribeBookStore, frontPpi, frontPpi)
   const style = useStyle()
-  const spineMm = useSyncExternalStore(
+  const geometry = useSyncExternalStore(
     subscribeBookStore,
-    readSpineWidth,
-    readSpineWidth,
+    readCoverGeometry,
+    readCoverGeometry,
   )
+  const hint = spineHint(geometry)
   // Kit Cover part (v7.tsx:212-217): Head plus Sec / Row blocks, the
   // Endpaper rhythm (Owner Must M59, round 10). The three style choices stay
   // native selects (open Owner question), so their rows are taller than a Val.
@@ -150,7 +159,8 @@ export function CoverSection() {
     <section data-testid="insp-cover" aria-label="Cover">
       <InspectorHead
         title="Cover"
-        sub={`Hardcover · back, spine, front · wrap ${String(COVER_WRAP_MM)} mm`}
+        sub={`Hardcover · wrap ${fmtN(geometry.wrap)} mm · hinge ${fmtN(geometry.hinge)} mm`}
+        subTestId="cover-head-sub"
       />
       <InspectorSec title="Front">
         <div className="flex items-center gap-3">
@@ -194,9 +204,18 @@ export function CoverSection() {
             className="font-mono text-sm tabular-nums"
             data-testid="cover-spine-width"
           >
-            {fmtN(spineMm)} mm
+            {fmtN(geometry.spine)} mm
           </span>
         </InspectorRow>
+        {hint === undefined ? null : (
+          <div
+            className="cover-spine-hint mt-1.5 text-xs"
+            style={{ color: SUB }}
+            data-testid="cover-spine-hint"
+          >
+            {hint}
+          </div>
+        )}
         {/* Kit v7.tsx:215: Direction is a read-only Val pill. */}
         <InspectorRow label="Direction">
           <ReadOnlyPill

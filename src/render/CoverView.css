@@ -119,9 +119,7 @@
 
 .cover-spine {
   position: relative;
-  display: grid;
   height: 100%;
-  place-items: center;
   background: var(--cover-spine);
 }
 
@@ -129,33 +127,80 @@
   position: relative;
   height: 100%;
   background-color: var(--cover-front-empty);
+}
+
+/* Designer cover-editor D4: the photo box is the front board plus the wrap on
+   its top, outer and bottom edges (offsets inline); it runs under the veiled
+   band on the canvas and is clipped to the board on mini covers. */
+.cover-front-photo {
+  position: absolute;
+  left: 0;
   background-position: 45% 50%;
   background-size: cover;
 }
 
-/* Kit cover-editor: dashed wrap/bleed guide, "Wrap 15 mm" chip, panel names. */
-.cover-wrap-guide {
+.cover-spread[data-mini] .cover-front {
+  overflow: hidden;
+}
+
+/* Designer cover-editor "Layers": the printed sheet (paint gradient inline)
+   fitted to the stage band, the closed cover placed in it. */
+.cover-sheet {
+  position: relative;
+}
+
+.cover-sheet[data-drop-target='true'] {
+  outline: 2px dashed var(--select);
+  outline-offset: 2px;
+}
+
+.cover-hinge,
+.cover-safe,
+.cover-wrap,
+.cover-wrap-chip {
   position: absolute;
   pointer-events: none;
+}
+
+.cover-hinge {
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--cover-title-ink) 24%, transparent) 0 1px,
+    transparent 1px 6px
+  );
+}
+
+.cover-safe {
   outline: 1px dashed
     color-mix(in srgb, var(--cover-title-ink) 45%, transparent);
 }
 
-.cover-wrap-chip {
+.cover-wrap {
+  inset: 0;
+}
+
+.cover-wrap-strip {
   position: absolute;
-  top: 0.375rem;
+  background: color-mix(in srgb, var(--canvas) 72%, transparent);
+}
+
+/* D6: inside the top band, 8 px from the sheet's right edge (top inline). */
+.cover-wrap-chip {
   right: 0.5rem;
-  pointer-events: none;
-  color: color-mix(in srgb, var(--cover-title-ink) 92%, transparent);
+  color: var(--foreground);
   font-size: var(--text-2xs);
+  font-weight: 400;
+  line-height: 14px;
+  white-space: nowrap;
 }
 
 /* Kit viewport.tsx PageLabels: Back / Spine / Front sit 10 px (pt-2.5) under
-   the cover in a panel-wide centred cell; a label wider than its panel (Spine)
-   starts at the panel's left edge (Owner Must M75, round 11). */
+   the sheet (cover bottom plus the wrap band) in a panel-wide centred cell; a
+   label wider than its panel (Spine) starts at the panel's left edge (Owner
+   Must M75, round 11). */
 .cover-panel-label {
   position: absolute;
-  top: 100%;
+  top: calc(100% * (1 + var(--band-of-trim, 0)));
   right: 0;
   left: 0;
   margin-top: 0.625rem;
@@ -180,11 +225,24 @@
   white-space: pre-wrap;
 }
 
+/* Designer cover-editor D5: centred on the spine whatever its length; at most
+   12 px at the 848 px reference and half the spine; trim height − 2 × safe
+   long, then an ellipsis. Same rule on the canvas and mini covers. */
 .cover-spine-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: calc(100cqw * var(--spine-len-frac));
+  overflow: hidden;
   color: var(--cover-ink);
-  font-size: calc(100cqw * 12 / var(--cover-kit-fit-px));
+  font-size: min(
+    calc(100cqw * 12 / var(--cover-kit-fit-px)),
+    calc(100cqw * var(--spine-frac) * 0.5)
+  );
+  line-height: 1.5;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  transform: rotate(90deg);
+  transform: translate(-50%, -50%) rotate(90deg);
 }
 
 .cover-front-text {
@@ -246,6 +304,11 @@
   line-height: 1.35;
 }
 
+/* Designer cover-editor: the Spine width source hint, kit 12 / 16.8 (M81). */
+.cover-spine-hint {
+  line-height: 1.4;
+}
+
 .cover-thumb {
   width: 2.625rem;
   height: 3.25rem;
@@ -258,7 +321,7 @@
 
 /* Cover style (schema cover.style): spine direction, title font, material, finish. */
 .cover-spine-text[data-direction='bottom-to-top'] {
-  transform: rotate(-90deg);
+  transform: translate(-50%, -50%) rotate(-90deg);
 }
 
 .cover-spread[data-title-font='serif'] .cover-front-text em,

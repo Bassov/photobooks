@@ -1604,74 +1604,96 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("v0.9.1 §1 Create book dialog shared (title + Page size) on demo and library", demoCreate === 1 && libCreate === 1 && demoSize >= 1 && libSize >= 1, `demo=${demoCreate}/${demoSize} lib=${libCreate}/${libSize}`)
 
   // §2 Preview = current-book preview, not Site stage
-  await go("#/demo", 400); await page.evaluate(() => { const d = window.__demo; d.reset(); d.state().path = "~/Pictures/Photobooks"; d.state().books = [{ id: "s1", title: "Prev", book: { endp: true, endpSame: true, w: 14.8, h: 21, preset: "A5" } }]; d.state().open = "s1"; d.go("editor") })
+  await go("#/demo", 400); await page.evaluate(() => { const d = window.__demo; d.reset(); d.state().path = "~/Pictures/Photobooks"; d.state().books = [{ id: "s1", title: "Prev", book: { endp: true, endpSame: true, w: 19, h: 23, preset: "custom" } }]; d.state().open = "s1"; d.go("editor") })
+  // (Lake trip trim 19 × 23: the site stage ratio is the spread's, 38 / 23 = 760 / 460 as the site-preview-mode values table)
   await page.waitForTimeout(800)
-  await page.click('[data-testid="demo-preview"]'); await page.waitForTimeout(500)
-  const prevOpen = await page.locator('[data-testid="presentation"]').count()
-  const stage = await page.locator('[data-testid="demo"]').getAttribute("data-demo-stage")
-  // kit-sync KS14 (M16, M53): Preview = prod presentation mode (src/render/SpreadPager.tsx, styles/tokens.css --presentation*): fixed full-screen
-  // #0d0d0d, the spread fitted to 94 % w / 96 % of (h − 64), opens on the cover; "Esc" chip top-right, caption bottom centre; Esc closes
-  const pm = await page.evaluate(() => {
-    const root = document.querySelector('[data-testid="presentation"]'); if (!root) return null
-    const cs = (e) => getComputedStyle(e), r = (e) => e.getBoundingClientRect(), rr = r(root)
-    const esc = root.querySelector('[data-testid="presentation-exit"]'), cap = root.querySelector('[data-testid="pager-position"]'), eb = r(esc), cb = r(cap.parentElement)
-    const fit = root.querySelector('[data-testid="presentation-slide"][data-active="true"] [data-testid="presentation-cover"]')?.getBoundingClientRect()
-    return {
-      box: [rr.x, rr.y, rr.width - innerWidth, rr.height - innerHeight], pos: cs(root).position, bg: cs(root).backgroundColor, role: root.getAttribute("role"),
-      esc: [esc.textContent, eb.top - rr.top, rr.right - eb.right, eb.height, cs(esc).fontSize, cs(esc).backgroundColor, cs(esc).color, cs(esc).paddingLeft, parseFloat(cs(esc).borderTopLeftRadius) >= eb.height / 2, esc.getAttribute("aria-label")],
-      cap: [cap.textContent, rr.bottom - cb.bottom, cs(cap).fontSize, cs(cap).color, cs(cap.parentElement).textAlign, Math.round((r(cap).left + r(cap).right) / 2 - (rr.left + rr.width / 2))],
-      fit: fit ? +Math.min(rr.width * 0.94 - fit.width, (rr.height - 64) * 0.96 - fit.height).toFixed(2) : null,
-      // rework: prod line boxes are 16 (leading-4) — caption text top = 900 − 32 = 868 at 1440 × 900
-      lh: [cs(cap.parentElement).lineHeight, cs(esc).lineHeight, +(innerHeight - r(cap).top).toFixed(2)],
-      // rework: the cover is the kit's own CoverSpread at prod's 0.5 px / mm, texts × cover / 848 (prod: front 61.15 tall, spine vertical 22.93 wide, back 22.93 tall)
-      text: (() => { const c = root.querySelector('[data-testid="presentation-cover"]'), b = (i) => c.children[0].children[i], h = (e) => +r(e).height.toFixed(2)
-        const sp = () => r(b(1).firstElementChild.firstElementChild)
-        return c ? [h(b(2).firstElementChild.firstElementChild), +sp().width.toFixed(2), sp().height > sp().width, h(b(0).firstElementChild)] : null })(),
-      slide: (() => { const s = root.querySelector('[data-testid="presentation-slide"][data-active="true"]'); return [cs(s).transitionProperty, cs(s).transitionDuration, cs(s).transitionTimingFunction, root.querySelectorAll('[data-testid="presentation-slide"]').length] })(),
-    }
-  })
-  // rework: the slides follow the spread list after the cover — page 1 alone, the spreads, the last page alone (one page wide, centred)
-  const seq = []
-  for (let k = 0; k < 40; k++) {
-    seq.push(await page.evaluate(() => { const root = document.querySelector('[data-testid="presentation"]'), b = root.querySelector('[data-testid="presentation-slide"][data-active="true"]').firstElementChild.getBoundingClientRect()
-      return { cap: root.querySelector('[data-testid="pager-position"]').textContent, w: +b.width.toFixed(2), cx: Math.round(b.left + b.width / 2 - innerWidth / 2), page: !!root.querySelector('[data-testid="presentation-slide"][data-active="true"] [data-testid="presentation-page"]'),
-        sq: [...root.querySelectorAll('[data-testid="presentation-slide"][data-active="true"] [data-paper]')].map((e) => { const s = getComputedStyle(e); return `${s.borderRadius}/${s.boxShadow.split(/,(?![^(]*\))/).every((l) => l === "none" || l.includes("rgba(0, 0, 0, 0)")) ? "none" : s.boxShadow}` }) } }))
-    if (k > 0 && seq[k].cap === seq[k - 1].cap) { seq.pop(); break }
-    await page.keyboard.press("ArrowRight"); await page.waitForTimeout(260)
-  }
-  const mid = seq.slice(2, -1), N = seq.length - 1
-  ok("kit-sync KS14 rework: Preview walks Cover, 1 / N (page 1 alone), the spreads, N / N (the last page alone) — single pages half a spread wide, every slide centred",
-    seq.map((s) => s.cap).join() === ["Cover", ...Array.from({ length: N }, (_, j) => `${j + 1} / ${N}`)].join() && N >= 3 && seq[1].page && seq[N].page && !mid.some((s) => s.page)
-      && mid.every((s) => s.w === mid[0].w) && Math.abs(seq[1].w - mid[0].w / 2) <= 0.5 && Math.abs(seq[N].w - mid[0].w / 2) <= 0.5 && seq.every((s) => Math.abs(s.cx) <= 0.5), JSON.stringify(seq.map((s) => `${s.cap}:${s.w}${s.page ? "p" : ""}@${s.cx}`)))
-  // round 2: prod slides are square paper — no MiniSpread card radius, no thumbnail shadow
-  ok("kit-sync KS14 round 2: page 1, spread and last-page slides are square (border-radius 0) with no shadow",
-    seq.slice(1).every((s) => s.sq.length > 0 && s.sq.every((v) => v === "0px/none")), JSON.stringify([...new Set(seq.slice(1).flatMap((s) => s.sq))]))
-  ok("kit-sync KS14 rework: cover slide = the kit cover at prod's sizes (front title 61.15 tall, spine text vertical 22.93 wide, back text 22.93 tall, ±0.5)",
-    !!pm?.text && Math.abs(pm.text[0] - 61.15) <= 0.5 && Math.abs(pm.text[1] - 22.93) <= 0.5 && pm.text[2] && Math.abs(pm.text[3] - 22.93) <= 0.5, JSON.stringify(pm?.text))
-  ok("kit-sync KS14 rework: slides move sideways + fade 200 ms cubic-bezier(0.2, 0.7, 0.3, 1), neighbours mounted (2 at the cover); caption + Esc line height 16, caption text top 868",
-    JSON.stringify(pm?.slide) === JSON.stringify(["transform, opacity", "0.2s", "cubic-bezier(0.2, 0.7, 0.3, 1)", 2]) && JSON.stringify(pm?.lh) === JSON.stringify(["16px", "16px", 32]), JSON.stringify([pm?.slide, pm?.lh]))
-  for (let k = 1; k < seq.length; k++) await page.keyboard.press("ArrowLeft")
-  await page.waitForTimeout(260); await page.keyboard.press("ArrowRight"); await page.waitForTimeout(260)
-  const next = await page.locator('[data-testid="presentation"] [data-testid="pager-position"]').textContent().catch(() => null)
-  // tab-leaves-presentation: Tab ×10 / Shift+Tab ×10 keep focus inside the presentation; Esc hands it back to Preview
-  const inPm = () => page.evaluate(() => !!document.activeElement?.closest('[data-testid="presentation"]'))
-  const tabTrail = [await inPm()]
-  for (const key of [...Array(10).fill("Tab"), ...Array(10).fill("Shift+Tab")]) { await page.keyboard.press(key); tabTrail.push(await inPm()) }
-  await page.keyboard.press("Escape"); await page.waitForTimeout(300)
-  const escFocus = await page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? document.activeElement?.tagName)
-  ok("tab-leaves-presentation: Preview takes focus; Tab ×10 and Shift+Tab ×10 never leave it; Esc returns focus to Preview",
-    tabTrail.every(Boolean) && escFocus === "demo-preview", JSON.stringify({ tabTrail: tabTrail.map(Number).join(""), escFocus }))
-  const afterEsc = await page.locator('[data-testid="presentation"]').count(), stageEsc = await page.locator('[data-testid="demo"]').getAttribute("data-demo-stage")
-  ok("kit-sync KS14: Preview = presentation mode as prod — fixed full-screen rgb(13, 13, 13) dialog, the cover fitted, Esc chip 16 / 16 h 32 12 px white/0.1, caption 'Cover' 16 px up 12 px white/0.6, → '1 / n', Esc closes",
-    !!pm && pm.box.every((v) => Math.abs(v) <= 0.5) && pm.pos === "fixed" && pm.bg === "rgb(13, 13, 13)" && pm.role === "dialog"
-      && JSON.stringify(pm.esc) === JSON.stringify(["Esc", 16, 16, 32, "12px", "rgba(255, 255, 255, 0.1)", "rgb(255, 255, 255)", "12px", true, "Exit presentation"])
-      && JSON.stringify(pm.cap) === JSON.stringify(["Cover", 16, "12px", "rgba(255, 255, 255, 0.6)", "center", 0]) && pm.fit !== null && Math.abs(pm.fit) <= 0.5
-      && /^1 \/ \d+$/.test(next ?? "") && afterEsc === 0 && stageEsc === "editor", JSON.stringify({ ...pm, next, afterEsc }))
-  await go(feat("editor-chrome-toolbar"), 1000) // Stage 3: kit pages mount the #/demo editor parts
+  // site-preview-mode §2 / §4 / §6: Delete / ⌘Z / "[" while the preview is open must not reach the editor — select a frame first if the book has one
+  const edSnap = () => page.evaluate(() => ({ doc: JSON.stringify(window.__demo?.state().books[0]?.doc ?? null).length, frames: document.querySelectorAll('[data-testid="demo-editor"] [data-testid="canvas"] [data-testid="frame"]').length, panel: !!document.querySelector('[data-testid="spreads-panel"]') }))
+  const ed0 = await edSnap()
   await page.click('[data-testid="demo-preview"]'); await page.waitForTimeout(600)
-  const kitPrev = await page.locator('[data-testid="presentation"]').count()
-  ok("v0.9.1 §2 Preview opens in-app book preview (not Site stage) — kit-sync KS14: the presentation mode", prevOpen === 1 && stage === "editor" && kitPrev === 1, `demoPrev=${prevOpen} stage=${stage} kit=${kitPrev}`)
-  await page.keyboard.press("Escape")
+  const prevOpen = await page.locator('[data-testid="site-preview"]').count()
+  const stage = await page.locator('[data-testid="demo"]').getAttribute("data-demo-stage")
+  const spv = () => page.evaluate(() => {
+    const q = (s) => document.querySelector(`[data-testid="${s}"]`), r = (s) => { const b = q(s)?.getBoundingClientRect(); return b ? [b.x, b.y, b.width, b.height].map((v) => +v.toFixed(2)) : null }
+    const root = q("site-preview"), cs = root && getComputedStyle(root), bar = q("site-preview-bar"), stg = r("site-stage"), se = document.scrollingElement
+    const at = stg && document.elementFromPoint(stg[0] + stg[2] / 2, stg[1] + stg[3] / 2)
+    return { root: root ? [cs.position, root.getAttribute("role"), root.getAttribute("aria-modal"), root.getAttribute("aria-label")] : null,
+      bar: bar ? [r("site-preview-bar")[3], getComputedStyle(bar).backgroundColor, getComputedStyle(bar).boxShadow] : null, back: r("site-preview-back"), label: r("site-preview-label"),
+      backTxt: q("site-preview-back")?.textContent, backTitle: q("site-preview-back")?.closest("[title]")?.getAttribute("title"), backKeys: q("site-preview-back")?.getAttribute("aria-keyshortcuts"),
+      lib: r("editor-library"), stage: stg, ind: q("site-page-indicator")?.textContent.trim(), share: !!q("site-share"), all: !!q("site-all-books"), fs: !!q("site-fullscreen-btn"),
+      paint: !!at?.closest('[data-testid="site-preview"]'), docScroll: [se.scrollWidth - innerWidth, se.scrollHeight - innerHeight] }
+  })
+  const sp0 = await spv()
+  const near = (a, b) => a != null && Math.abs(a - b) <= 0.5
+  ok("site-preview-mode §2: Preview opens the site preview dialog in the editor stage — 48 px #E1E1E1 bar with an inset rule, Back x 12 y 8 h 32 on the Library link, label 8 px right of Back",
+    prevOpen === 1 && stage === "editor" && JSON.stringify(sp0.root) === JSON.stringify(["fixed", "dialog", "true", "Site preview"]) && sp0.bar?.[0] === 48 && sp0.bar[1] === "rgb(225, 225, 225)" && /inset/.test(sp0.bar[2])
+      && near(sp0.back?.[0], 12) && near(sp0.back?.[1], 8) && near(sp0.back?.[3], 32) && sp0.backTxt === "Back to the editor" && sp0.backTitle === "Back to the editor (Esc)" && sp0.backKeys === "Escape"
+      && near(sp0.label?.[0], sp0.back[0] + sp0.back[2] + 8), JSON.stringify(sp0))
+  ok("site-preview-mode §3: stage 760 × 460 at x 340 y 218.84 (±0.5) painted on top, opens on 'Cover'; Share and All books hidden, Fullscreen kept; no document scroll at 1440 × 900",
+    near(sp0.stage?.[0], 340) && near(sp0.stage?.[1], 218.84) && near(sp0.stage?.[2], 760) && near(sp0.stage?.[3], 460) && sp0.paint && sp0.ind === "Cover" && !sp0.share && !sp0.all && sp0.fs
+      && sp0.docScroll.every((v) => v === 0), JSON.stringify(sp0))
+  await page.setViewportSize({ width: 1280, height: 720 }); await page.waitForTimeout(400)
+  const spS = await spv()
+  await page.setViewportSize({ width: 1440, height: 900 }); await page.waitForTimeout(400)
+  ok("site-preview-mode §3: 1280 × 720 stage 676 × 409.15 (±0.5), no document scroll", near(spS.stage?.[2], 676) && near(spS.stage?.[3], 409.15) && spS.docScroll.every((v) => v === 0), JSON.stringify([spS.stage, spS.docScroll]))
+  // keys: → steps, the editor sees nothing (Delete, ⌘Z, "[" panel toggle)
+  await page.keyboard.press("ArrowRight"); await page.waitForTimeout(200)
+  const ind1 = (await spv()).ind
+  for (const key of ["Delete", "Backspace", "ControlOrMeta+z", "["]) { await page.keyboard.press(key); await page.waitForTimeout(120) }
+  // held Space must not arm the editor's pan (data-panning) under the preview
+  await page.keyboard.down("Space"); await page.waitForTimeout(150)
+  const spacePan = await page.locator('[data-testid="demo-editor"] [data-panning]').count()
+  await page.keyboard.up("Space"); await page.waitForTimeout(120)
+  // Tab ×10 / Shift+Tab ×10 stay inside the preview
+  const inSp = () => page.evaluate(() => !!document.activeElement?.closest('[data-testid="site-preview"]'))
+  const tabTrail = [await inSp()]
+  for (const key of [...Array(10).fill("Tab"), ...Array(10).fill("Shift+Tab")]) { await page.keyboard.press(key); tabTrail.push(await inSp()) }
+  // Fullscreen: Esc closes the lightbox only, a second Esc the preview
+  await page.click('[data-testid="site-fullscreen-btn"]'); await page.waitForTimeout(400)
+  const lb0 = await page.locator('[data-testid="lightbox"]').count()
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300)
+  const esc1 = [await page.locator('[data-testid="lightbox"]').count(), await page.locator('[data-testid="site-preview"]').count()]
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300)
+  const esc2 = await page.locator('[data-testid="site-preview"]').count()
+  const escFocus = await page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? document.activeElement?.tagName)
+  const ed1 = await edSnap(), stageEsc = await page.locator('[data-testid="demo"]').getAttribute("data-demo-stage")
+  ok("site-preview-mode §4: → gives slide 1; Delete / Backspace / ⌘Z / [ / Space change nothing in the editor (no data-panning); Tab ×10 and Shift+Tab ×10 stay inside",
+    /^Page 1 · 1 \/ \d+$/.test(ind1 ?? "") && JSON.stringify(ed1) === JSON.stringify(ed0) && spacePan === 0 && tabTrail.every(Boolean), JSON.stringify({ ind1, ed0, ed1, spacePan, tabTrail: tabTrail.map(Number).join("") }))
+  ok("site-preview-mode §4: Fullscreen open → first Esc closes the lightbox only, second Esc closes the preview; focus back on Preview, still the editor stage",
+    lb0 === 1 && JSON.stringify(esc1) === "[0,1]" && esc2 === 0 && escFocus === "demo-preview" && stageEsc === "editor", JSON.stringify({ lb0, esc1, esc2, escFocus, stageEsc }))
+  // Space activates the focused Back button (the editor's Space-to-pan must not swallow it)
+  await page.click('[data-testid="demo-preview"]'); await page.waitForTimeout(600)
+  await page.focus('[data-testid="site-preview-back"]'); await page.keyboard.press("Space"); await page.waitForTimeout(300)
+  const spBack = { open: await page.locator('[data-testid="site-preview"]').count(), focus: await page.evaluate(() => document.activeElement?.getAttribute("data-testid")),
+    pan: await page.locator('[data-testid="demo-editor"] [data-panning]').count() }
+  ok("site-preview-mode §4: Space on the focused 'Back to the editor' closes the preview; focus back on Preview, no pan armed",
+    spBack.open === 0 && spBack.focus === "demo-preview" && spBack.pan === 0, JSON.stringify(spBack))
+  await go(feat("editor-chrome-toolbar"), 1000) // Stage 3: kit pages mount the #/demo editor parts
+  // a selected own frame survives Delete / Backspace pressed while the preview is open
+  const ownFrames = () => page.locator('[data-testid="demo-editor"] [data-testid="canvas"] [data-testid="frame"]').count()
+  const selFrame = page.locator('[data-testid="demo-editor"] [data-testid="canvas"] [data-testid="frame"]').first()
+  const fr0 = await ownFrames()
+  if (fr0) { await selFrame.click(); await page.waitForTimeout(200) }
+  await page.click('[data-testid="demo-preview"]'); await page.waitForTimeout(600)
+  const kitPrev = await page.locator('[data-testid="site-preview"]').count()
+  for (const key of ["Delete", "Backspace"]) { await page.keyboard.press(key); await page.waitForTimeout(120) }
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300)
+  const fr1 = await ownFrames()
+  await page.keyboard.press("Delete"); await page.waitForTimeout(200) // control: after Esc the editor gets Delete again
+  const fr2 = await ownFrames()
+  ok("v0.9.1 §2 Preview opens in-app book preview (not Site stage) — site-preview-mode: the site's book page", prevOpen === 1 && stage === "editor" && kitPrev === 1, `demoPrev=${prevOpen} stage=${stage} kit=${kitPrev}`)
+  ok("site-preview-mode §4: a selected frame survives Delete / Backspace pressed in the preview; after Esc (selection kept) Delete removes it",
+    fr0 > 0 && fr1 === fr0 && fr2 === fr0 - 1, JSON.stringify({ fr0, fr1, fr2 }))
+  // kit page #/feature/site-preview-mode: Preview (cover), Spread 2 (slide 2), Fullscreen (the lightbox over the preview)
+  await go(feat("site-preview-mode"), 1000)
+  const spStates = []
+  for (const tab of ["Preview", "Spread 2", "Fullscreen"]) {
+    await page.locator(`[data-testid="scenarios"] [role="tab"]:text-is("${tab}")`).evaluate((t) => t.click()); await page.waitForTimeout(500)
+    spStates.push(await page.evaluate(() => [document.querySelectorAll('[data-testid="site-preview"]').length, document.querySelector('[data-testid="site-page-indicator"]')?.textContent.trim(), document.querySelectorAll('[data-testid="lightbox"]').length]))
+  }
+  ok("site-preview-mode kit page: states Preview ('Cover'), Spread 2 ('Pages 2–3 · 2 / n'), Fullscreen (lightbox over the preview)",
+    spStates[0][0] === 1 && spStates[0][1] === "Cover" && spStates[0][2] === 0 && spStates[1][0] === 1 && /^Pages 2–3 · 2 \/ \d+$/.test(spStates[1][1] ?? "") && spStates[1][2] === 0
+      && spStates[2][0] === 1 && spStates[2][2] === 1, JSON.stringify(spStates))
 
   // §3 page counts (Designer site-viewer D1/D2/D5): slides = cover + every spread; indicator = page label + spread counter (prod Preview), meta pages = last page number 2(n − 1) (Designer review); deep-link into the book (v0.9.3 catalog home)
   await go("#/demo", 400); await page.evaluate(() => { const d = window.__demo; d.reset(); d.state().path = "~/Pictures/Photobooks"; d.state().books = [{ id: "s1", title: "Pages", book: { endp: true, endpSame: true, w: 14.8, h: 21, preset: "A5" }, published: true }]; d.state().open = "s1"; d.openSite("book") })
@@ -2098,21 +2120,6 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     ok("page-numbers-kit: Start at 5 + i, ii, iii + Skip first page → vi / vii on pages 2–3, none on page 1; Skip off → v on the right page", sv === "5" && note === "Page 1 has no number · page 2 is vi" && p1 === "vi,vii" && p0 === 0 && p0n.length === 1 && p0n[0].tx === "v" && p0n[0].l >= got[0].w / 2,
       `start=${sv} note="${note}" p1=${p1} p0=${p0}/${p0n.map((f) => f.tx)}`)
     await c('[data-testid="book-title"]'); await page.waitForTimeout(250); await start.fill("1"); await page.keyboard.press("Enter"); await fmt(0); await page.waitForTimeout(150); await toP1()
-    // Preview prints the folios on every page slide (page 1 alone, the spreads, the last page alone) at the slide scale
-    await page.click('[data-testid="demo-preview"]'); await page.waitForTimeout(500)
-    const pv = []
-    for (let j = 0; j < 40; j++) {
-      pv.push(await page.evaluate(() => { const root = document.querySelector('[data-testid="presentation"]'), s = root.querySelector('[data-testid="presentation-slide"][data-active="true"]'), b = s.firstElementChild.getBoundingClientRect()
-        return { cap: root.querySelector('[data-testid="pager-position"]').textContent, w: b.width, f: [...s.querySelectorAll('[data-testid="page-number"]')].map((e) => { const r = e.getBoundingClientRect(); return { l: r.left - b.left, r: r.right - b.left, t: r.top - b.top, tx: e.textContent } }) } }))
-      if (j > 0 && pv[j].cap === pv[j - 1].cap) { pv.pop(); break }
-      await page.keyboard.press("ArrowRight"); await page.waitForTimeout(260)
-    }
-    await page.keyboard.press("Escape"); await page.waitForTimeout(300)
-    const N = pv.length - 1, s1 = pv[1], sN = pv[N], ks = (x) => x.w / P
-    ok("page-numbers-kit: Preview prints folios on every page slide — page 1 right Outer, 2 per spread, the last page left Outer, top inside the safe margin (±0.5 px)",
-      N >= 3 && pv[0].f.length === 0 && pv.slice(2, -1).every((x) => x.f.length === 2 && x.f.every((f) => near(f.t, ymm * x.w / (2 * P))))
-        && s1.f.length === 1 && s1.f[0].tx === "1" && near(s1.f[0].r, s1.w - g.o * ks(s1)) && near(s1.f[0].t, ymm * ks(s1))
-        && sN.f.length === 1 && sN.f[0].tx === `${2 * got[0].n}` && near(sN.f[0].l, g.o * ks(sN)) && near(sN.f[0].t, ymm * ks(sN)), JSON.stringify(pv.map((x) => `${x.cap}:${x.f.map((f) => `${f.tx}@${f.l.toFixed(2)},${f.t.toFixed(2)}`).join("|")}`)))
   }
   // parent-guides PG5: inherited guides are dashed --parent-soft, 24 px past the page, under own guides and pointer-transparent
   const pg = await page.evaluate((demo) => {

@@ -4,11 +4,13 @@ name: pr-policy
 
 on:
   pull_request_target:
+    # `edited` stays: the waiver token is read from the event's PR body.
     types: [opened, synchronize, reopened, ready_for_review, edited]
 
+# Queue, don't cancel: a body edit must not leave a cancelled (red) run behind.
 concurrency:
   group: pr-policy-${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read

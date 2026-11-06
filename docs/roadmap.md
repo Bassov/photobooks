@@ -133,6 +133,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [parent-guides-snap](roadmap/P2/parent-guides-snap.md) — Bug: /next-roadmap-item parent-guides-snap
 - [x] [feature] [parent-guides-prod-overhang](roadmap/P2/parent-guides-prod-overhang.md) — Bug: /next-roadmap-item parent-guides-prod-overhang
 - [ ] [feature] [parent-overrides](roadmap/P2/parent-overrides.md) — change one spread without touching the parent
+- [ ] [feature] [switch-size-parity](roadmap/P2/switch-size-parity.md) — Bug: /next-roadmap-item switch-size-parity
 - [ ] [feature] [page-numbers](roadmap/P2/page-numbers.md) — page numbers
 - [x] [feature] [page-numbers-kit](roadmap/P2/page-numbers-kit.md) — Bug: /next-roadmap-item page-numbers-kit
 - [x] [feature] [page-numbers-core](roadmap/P2/page-numbers-core.md) — Bug: /next-roadmap-item page-numbers-core
@@ -161,6 +162,8 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [static-export](roadmap/P3/static-export.md) — write `dist/`
 - [ ] [prep] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
 - [x] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
+- [ ] [feature] [site-preview-mode-kit](roadmap/P3/site-preview-mode-kit.md) — kit Preview opens the site book page (Designer site-preview-mode item 1)
+- [ ] [feature] [kit-undo-fixes](roadmap/P3/kit-undo-fixes.md) — Bug: /next-roadmap-item kit-undo-fixes
 - [ ] [feature] [publish-credentials](roadmap/P3/publish-credentials.md) — connect the editor to your hosting (Security Review)
 - [ ] [feature] [in-app-publish](roadmap/P3/in-app-publish.md) — publish button (Security Review)
 - [ ] [feature] [site-settings](roadmap/P3/site-settings.md) — personalize the showcase
@@ -191,6 +194,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [a5-fit-parity](roadmap/P5/a5-fit-parity.md) — Bug: /next-roadmap-item a5-fit-parity
 - [ ] [feature] [connect-own-hosting](roadmap/P5/connect-own-hosting.md) — bring your own hosting (Security Review)
 - [ ] [feature] [prepush-scoped-units](roadmap/P5/prepush-scoped-units.md) — Bug: /next-roadmap-item prepush-scoped-units
+- [ ] [lite] [ratchet-merge-base](roadmap/P5/ratchet-merge-base.md) — Bug: /next-roadmap-item ratchet-merge-base
 - [ ] [feature] [printer-presets-core](roadmap/P5/printer-presets-core.md) — Bug: /next-roadmap-item printer-presets-core
 - [ ] [feature] [printer-presets-kit](roadmap/P5/printer-presets-kit.md) — Bug: /next-roadmap-item printer-presets-kit
 - [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
