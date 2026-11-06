@@ -21,5 +21,9 @@
   {"slug": "site-preview-mode", "title": "Site preview from the editor", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "site"},
   {"slug": "pdf-export", "title": "Print dialog (PDF)", "group": "M6 — Print", "kind": "interactive", "screen": "print"},
   {"slug": "static-export", "title": "Export site (local folder)", "group": "M7 — Deploy as my site", "kind": "interactive", "screen": "publish"},
-  {"slug": "in-app-publish", "title": "Publish dialog", "group": "M7 — Deploy as my site", "kind": "interactive", "screen": "publish"}
+  {"slug": "in-app-publish", "title": "Publish dialog", "group": "M7 — Deploy as my site", "kind": "interactive", "screen": "publish"},
+  {"slug": "site-demos", "title": "Photographer site: demos", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"},
+  {"slug": "site-demo-6", "title": "Site demo 6: gallery on the system", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"},
+  {"slug": "site-demo-7", "title": "Site demo 7: index on the system", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"},
+  {"slug": "site-demo-9", "title": "Site demo 9: bookcase on the system", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"}
 ]
