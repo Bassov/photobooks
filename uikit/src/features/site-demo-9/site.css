@@ -1,28 +1,36 @@
-/* Site demo 9, the bookcase (Spec site-stand-v2 B): front #E4DED3, back #CEC6B7 with AO under each shelf and at the
-   sides, 16 px shelves, a 40 px plinth; spines lean from the bottom-left, hover / focus / tap = up 14 px, 300 ms. */
+/* Site demo 9, the bookcase (Spec site-stand-v2 B, site-stand-v3 B2): front #E4DED3, back #CEC6B7 with AO under each
+   shelf and at the sides, 16 px shelves, a 40 px plinth, every frame length × --z (the case scale); spines lean about the
+   bottom corner on the side they rest on, hover / focus / tap = up 14 px, 300 ms; the face-out tips toward you. */
 .ss9-col {
   position: sticky;
   top: 104px;
 }
 .ss9-case {
+  --z: 1;
   background: #e4ded3;
   box-shadow:
     0 1px 0 rgb(0 0 0 / 0.06),
-    0 30px 50px -30px rgb(0 0 0 / 0.35);
+    0 calc(30px * var(--z)) calc(50px * var(--z)) calc(-30px * var(--z)) rgb(0 0 0 / 0.35);
 }
 .ss9-bay {
   position: absolute;
   background:
-    linear-gradient(180deg, rgb(0 0 0 / 0.2), rgb(0 0 0 / 0) 28px),
-    linear-gradient(90deg, rgb(0 0 0 / 0.1), rgb(0 0 0 / 0) 18px, rgb(0 0 0 / 0) calc(100% - 18px), rgb(0 0 0 / 0.1)),
+    linear-gradient(180deg, rgb(0 0 0 / 0.2), rgb(0 0 0 / 0) calc(28px * var(--z))),
+    linear-gradient(
+      90deg,
+      rgb(0 0 0 / 0.1),
+      rgb(0 0 0 / 0) calc(18px * var(--z)),
+      rgb(0 0 0 / 0) calc(100% - 18px * var(--z)),
+      rgb(0 0 0 / 0.1)
+    ),
     #cec6b7;
 }
 .ss9-shelf {
   position: absolute;
   left: 0;
   right: 0;
-  height: 16px;
-  background: linear-gradient(180deg, #d9d2c5 0 6px, #e8e2d7 6px, #dcd5c9);
+  height: calc(16px * var(--z));
+  background: linear-gradient(180deg, #d9d2c5 0 calc(6px * var(--z)), #e8e2d7 calc(6px * var(--z)), #dcd5c9);
   box-shadow: 0 2px 3px rgb(0 0 0 / 0.12);
   z-index: 1;
 }
@@ -31,8 +39,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  height: 40px;
-  background: linear-gradient(#e4ded3 0 calc(100% - 14px), #d3ccbf calc(100% - 14px));
+  height: calc(40px * var(--z));
+  background: linear-gradient(#e4ded3 0 calc(100% - 14px * var(--z)), #d3ccbf calc(100% - 14px * var(--z)));
 }
 .ss9-face,
 .ss9-spine,
@@ -48,6 +56,10 @@
   display: block;
   transform: perspective(1400px) rotateX(8deg);
   transform-origin: 50% 100%;
+  transition: transform 300ms var(--ease-out);
+}
+.ss9-face[data-up] .ss9-lean {
+  transform: perspective(1400px) rotateX(-4deg);
 }
 .ss9-contact {
   position: absolute;
@@ -56,6 +68,13 @@
   height: 8px;
   border-radius: 50%;
   background: radial-gradient(closest-side, rgb(0 0 0 / 0.32), rgb(0 0 0 / 0));
+  transition:
+    opacity 300ms var(--ease-out),
+    transform 300ms var(--ease-out);
+}
+.ss9-face[data-up] .ss9-contact {
+  opacity: 0.6;
+  transform: scaleX(0.94);
 }
 .ss9-face:focus-visible {
   outline-offset: 6px;
@@ -67,7 +86,7 @@
   background-clip: padding-box;
 }
 .ss9-spine {
-  transform-origin: 0 100%;
+  transform-origin: var(--o, 0 100%);
   transform: translateY(0) rotate(var(--lean));
   filter: drop-shadow(4px 0 4px rgb(0 0 0 / 0.22));
   transition:
@@ -112,12 +131,22 @@
   line-height: 1;
   letter-spacing: -0.01em;
 }
-.ss9-spine em {
-  bottom: 8%;
-  font-size: 9px;
+.ss9-spine em,
+.ss9-flat em {
+  font-size: calc(9px * var(--z));
   font-style: normal;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
   opacity: 0.7;
+}
+.ss9-spine em {
+  bottom: 8%;
+}
+.ss9-flat em {
+  position: absolute;
+  right: calc(8px * var(--z));
+  top: 50%;
+  translate: 0 -50%;
 }
 .ss9-flat span {
   position: absolute;
@@ -134,18 +163,20 @@
   outline-offset: 2px;
 }
 .ss9-spine[data-up] {
-  transform: translateY(-14px) rotate(var(--lean));
+  transform: translateY(calc(-14px * var(--z))) rotate(var(--lean));
   filter: drop-shadow(4px 6px 8px rgb(0 0 0 / 0.28));
 }
 .ss9-flat[data-up] {
-  transform: translateY(-6px);
+  transform: translateY(calc(-6px * var(--z)));
 }
 .ss9-cap {
   animation: ss-in 200ms var(--ease) both;
 }
 @media (prefers-reduced-motion: reduce) {
   .ss9-spine,
-  .ss9-flat {
+  .ss9-flat,
+  .ss9-lean,
+  .ss9-contact {
     transition: none;
   }
 }
