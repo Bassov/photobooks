@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
+import { animationsSettled } from './fixtures/animationsSettled'
 import { expect, test } from './fixtures/coverage'
 
 // GL reader (Designer Spec site-stand-v2 R, D1, D2): the open book is drawn by three.js into one canvas over the reader
@@ -155,7 +156,13 @@ test.describe('desktop 1440×900', () => {
     await reader.evaluate((el) => {
       ;(el as HTMLElement).blur()
     })
-    await page.waitForTimeout(1000)
+    // no turn or corner lift runs, every face drawn has its canvas, the room's transitions are done
+    await expect(reader).toHaveAttribute('data-turn', 'rest')
+    await expect(page.getByTestId('ps-reader-gl')).toHaveAttribute(
+      'data-faces',
+      'done',
+    )
+    await animationsSettled(reader)
     const b = await box(reader)
 
     // flat paper in the right page's bottom margin (under the photo): bright, with grain
@@ -221,7 +228,11 @@ test.describe('desktop 1440×900', () => {
     await expect(leaf).toHaveAttribute('data-leaf', 'paper')
     const th = Number(await leaf.getAttribute('data-theta'))
     expect(Math.abs(th - 70)).toBeLessThanOrEqual(1)
-    await page.waitForTimeout(500)
+    // the leaf's back and the page under it have their canvases
+    await expect(page.getByTestId('ps-reader-gl')).toHaveAttribute(
+      'data-faces',
+      'done',
+    )
     // from under the site header down to mid-page
     const top = await shot(page, {
       x: Math.round(spine),

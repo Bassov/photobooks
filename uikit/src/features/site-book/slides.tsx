@@ -87,7 +87,7 @@ export const Slides = React.forwardRef<SlidesApi, Props>(function Slides({ b, sl
     strip.current?.scrollTo({ left: i * pitch, behavior: "instant" })
     L.si = i
     cb.current.onSi(i); cb.current.onRest(i)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a new pitch only: `start` applies on mount, later the current slide stays
   }, [pitch])
   // a view change from outside (the room never shows it yet): jump there
   React.useEffect(() => {
@@ -98,7 +98,7 @@ export const Slides = React.forwardRef<SlidesApi, Props>(function Slides({ b, sl
     to(i, false)
     L.si = i
     cb.current.onSi(i); cb.current.onRest(i)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- an outside view change only; a new slide list must not jump the strip
   }, [view])
 
   // the live position on scroll; at rest (scrollend, fallback 150 ms without a scroll event) the view follows
@@ -106,7 +106,10 @@ export const Slides = React.forwardRef<SlidesApi, Props>(function Slides({ b, sl
     const el = strip.current
     if (!el) return
     const L = live.current
+    // data-scroll: "move" from a scroll event until rest (tests wait on it)
+    el.dataset.scroll = "rest"
     const settle = () => {
+      el.dataset.scroll = "rest"
       clearTimeout(L.idle)
       L.aim = null
       const s = slides[L.si]
@@ -114,6 +117,7 @@ export const Slides = React.forwardRef<SlidesApi, Props>(function Slides({ b, sl
       if (s && s.view !== L.view) { L.view = s.view; cb.current.setView(s.view) }
     }
     const scroll = () => {
+      el.dataset.scroll = "move"
       const i = clamp(Math.round(el.scrollLeft / pitch))
       if (i !== L.si) { L.si = i; cb.current.onSi(i) }
       clearTimeout(L.idle)
@@ -122,7 +126,7 @@ export const Slides = React.forwardRef<SlidesApi, Props>(function Slides({ b, sl
     el.addEventListener("scroll", scroll, { passive: true })
     el.addEventListener("scrollend", settle)
     return () => { el.removeEventListener("scroll", scroll); el.removeEventListener("scrollend", settle); clearTimeout(L.idle) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- clamp (new every render) only reads n, which follows slides
   }, [pitch, slides])
 
   // ← / → turn, Home / End jump
@@ -135,7 +139,7 @@ export const Slides = React.forwardRef<SlidesApi, Props>(function Slides({ b, sl
       else if (e.key === "Home" || e.key === "End") { e.preventDefault(); to(e.key === "Home" ? 0 : n - 1, !reduced()) }
     }
     addEventListener("keydown", k); return () => removeEventListener("keydown", k)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `to` (new every render) only reads pitch and refs
   }, [n, pitch])
 
   // a tap (< 8 px, < 350 ms) turns: the left half back, the right half on

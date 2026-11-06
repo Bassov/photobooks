@@ -169,6 +169,11 @@ export class OpenBook {
     }
     return this.paper
   }
+  /** a face canvas is still on its way (the paper placeholder shows) */
+  get loading() {
+    for (const m of this.mats.values()) if (m === null) return true
+    return false
+  }
   /** keep textures for the previous, current and next spread only */
   private prune(a: number) {
     for (const [key, m] of this.mats) {

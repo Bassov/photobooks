@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
+import { animationsSettled, pageTimePasses } from './fixtures/animationsSettled'
 import { expect, test } from './fixtures/coverage'
 import { pixelsAt } from './fixtures/paintProbe'
 import { visibleCentres, white } from './fixtures/sitePagePaint'
@@ -35,7 +36,7 @@ async function swipe(
     touchPoints: at(from.x, from.y),
   })
   for (let i = 1; i <= 12; i++) {
-    if (stepMs) await page.waitForTimeout(stepMs)
+    if (stepMs) await pageTimePasses(page, stepMs)
     await cdp.send('Input.dispatchTouchEvent', {
       type: 'touchMove',
       touchPoints: at(
@@ -82,6 +83,18 @@ async function rest(room: Locator, label: string) {
     .getByTestId('ps-paper')
   await expect.poll(async () => Math.round((await box(paper)).x)).toBe(16)
   return paper
+}
+
+/** after a gesture: the room no longer follows a swipe back, the strip / stage is at rest, no transition runs */
+async function still(room: Locator) {
+  await expect(room).not.toHaveAttribute('data-swipe', 'move')
+  const strip = room.getByTestId('ps-strip')
+  const stage = room.getByTestId('pt-stage')
+  if (await strip.count())
+    await expect(strip).toHaveAttribute('data-scroll', 'rest')
+  if (await stage.count())
+    await expect(stage).toHaveAttribute('data-turn', 'rest')
+  await animationsSettled(room)
 }
 
 test.describe('phone 390×844: slides', () => {
@@ -155,11 +168,11 @@ test.describe('phone 390×844: slides', () => {
     await swipe(page, { x: 300, y }, { x: 80, y })
     walked.push('Page 5 of 22')
     await rest(room, 'Page 5 of 22')
-    await page.waitForTimeout(600)
+    await still(room)
     await expect(room.getByTestId('ss-label')).toHaveText('Page 5 of 22')
     // a vertical swipe of 220: none
     await swipe(page, { x: 300, y: s.y + 10 }, { x: 300, y: s.y + 230 })
-    await page.waitForTimeout(800)
+    await still(room)
     await rest(room, 'Page 5 of 22')
 
     // Next until disabled: the slides after page 1, in order
@@ -217,7 +230,7 @@ test.describe('phone 390×844: slides', () => {
     await rest(room, 'Page 1 of 22')
     await swipe(page, { x: 60, y: 300 }, { x: 330, y: 300 })
     await rest(room, 'Cover')
-    await page.waitForTimeout(400)
+    await still(room)
     await expect(room).toBeVisible()
 
     // a slow 60 px pull above the stage springs back
@@ -263,7 +276,7 @@ async function touch(page: Page, x: number, y: number) {
     async move(tx: number, ty: number, steps = 12, stepMs = 0) {
       const from = at
       for (let i = 1; i <= steps; i++) {
-        if (stepMs) await page.waitForTimeout(stepMs)
+        if (stepMs) await pageTimePasses(page, stepMs)
         at = {
           x: from.x + ((tx - from.x) * i) / steps,
           y: from.y + ((ty - from.y) * i) / steps,
@@ -343,8 +356,8 @@ test.describe('phone 390×844: page turn', () => {
     expect(foot.y + foot.height).toBeLessThanOrEqual(b.y - 8)
 
     await room.getByTestId('ss-next').click()
-    await page.waitForTimeout(700)
     await expect(room.getByTestId('ss-label')).toHaveText('Pages 2–3 of 22')
+    await still(room)
     const t2 = await box(top)
     near(t2.width, 358)
     near(t2.height, 447.5)
@@ -397,8 +410,8 @@ test.describe('phone 390×844: page turn', () => {
       expect(c).toBeLessThanOrEqual(250)
     }
     expect(Math.abs(r - b)).toBeLessThanOrEqual(25)
-    // held still, then released: under half way, no flick → it springs back
-    await page.waitForTimeout(200)
+    // held still past the 80 ms flick window, then released: under half way, no flick → it springs back
+    await pageTimePasses(page, 200)
     await f.up()
     await expect(stage).toHaveAttribute('data-xm', '')
     await expect(stage.getByTestId('pt-flap')).toHaveCount(0)
@@ -420,7 +433,7 @@ test.describe('phone 390×844: page turn', () => {
 
     // a vertical swipe: nothing
     await swipe(page, { x: 200, y: 250 }, { x: 200, y: 470 })
-    await page.waitForTimeout(300)
+    await still(room)
     await expect(lbl).toHaveText('Page 7 of 22')
     await expect(stage.getByTestId('pt-flap')).toHaveCount(0)
 
@@ -437,7 +450,7 @@ test.describe('phone 390×844: page turn', () => {
     const stage = room.getByTestId('pt-stage')
     await turnTo(room, 'Cover')
     await swipe(page, { x: 60, y: 420 }, { x: 330, y: 420 })
-    await page.waitForTimeout(400)
+    await still(room)
     await expect(room).toBeVisible()
     await expect(room.getByTestId('ss-label')).toHaveText('Cover')
     await expect(stage.getByTestId('pt-flap')).toHaveCount(0)

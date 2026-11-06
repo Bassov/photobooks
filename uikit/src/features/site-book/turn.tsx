@@ -206,7 +206,7 @@ export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b
       }
     })()
     return () => { dead = true; curl.current = null; pc?.dispose(); live.current.drawn = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild the textures only for what they draw; helpers (new every render) read refs
   }, [gl, b, slides, pw, ph])
 
   // a view change from outside (rotation, deep link): jump there without animation
@@ -220,7 +220,7 @@ export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b
     curl.current?.keep(i)
     setTurn(null); setSi(i)
     cb.current.onSi(i); cb.current.onRest(i)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- an outside view change only; a new slide list must not jump the stage
   }, [view])
 
   // ← / → turn, Home / End jump
@@ -328,7 +328,7 @@ export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b
   return (
     <div ref={stage} className="pt-stage" style={{ top, width: w, height: ph }} data-testid="pt-stage"
       role="region" aria-roledescription="book" aria-label={b.title} tabIndex={0}
-      data-si={si} data-dir={turn && turn.dir !== "fade" ? turn.dir : ""}
+      data-si={si} data-dir={turn && turn.dir !== "fade" ? turn.dir : ""} data-turn={turn ? "move" : "rest"}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel}>
       <div className="pt-bed" style={{ width: pw, height: ph }} aria-hidden data-testid="pt-bed" />
       {gl && (

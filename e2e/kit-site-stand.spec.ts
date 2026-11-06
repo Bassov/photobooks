@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
+import { animationsSettled } from './fixtures/animationsSettled'
 import { expect, test } from './fixtures/coverage'
 import { pixelsAt } from './fixtures/paintProbe'
 
@@ -831,11 +832,15 @@ for (const vp of VIEWPORTS)
         const lean = face.locator('.ss9-lean')
         const r0 = await box(lean)
         await face.hover()
-        await page.waitForTimeout(450)
-        const m23 = await lean.evaluate(
-          (el) => new DOMMatrix(getComputedStyle(el).transform).m23,
-        )
-        expect(m23).toBeGreaterThan(0)
+        // the hover lift has started (m23 > 0), then every transition on the lean has ended
+        await expect
+          .poll(() =>
+            lean.evaluate(
+              (el) => new DOMMatrix(getComputedStyle(el).transform).m23,
+            ),
+          )
+          .toBeGreaterThan(0)
+        await animationsSettled(lean)
         const r1 = await box(lean)
         expect(r0.y - r1.y).toBeGreaterThanOrEqual((8 - 1) * z)
         expect(r1.width / r0.width).toBeGreaterThanOrEqual(1.03)
@@ -848,8 +853,8 @@ for (const vp of VIEWPORTS)
         await lower.scrollIntoViewIfNeeded()
         const u0 = await box(upper)
         await lower.hover()
-        await page.waitForTimeout(450)
         await expect(lower).toHaveAttribute('data-up', '')
+        await animationsSettled(lower)
         const [l1, u1] = [await box(lower), await box(upper)]
         expect(l1.y).toBeGreaterThanOrEqual(u1.y + u1.height - 0.5)
         expect(Math.abs(u1.y - u0.y)).toBeLessThanOrEqual(0.5)
@@ -991,7 +996,10 @@ for (const vp of VIEWPORTS)
       const face = bay.locator('[data-kind="face"]')
       // the GL book has drawn into its canvas
       await expect(face.getByTestId('book3d-gl')).toBeVisible()
-      await page.waitForTimeout(500)
+      const book = face.getByTestId('book3d')
+      await expect(book).toHaveAttribute('data-gl', 'ready')
+      await expect(book).not.toHaveAttribute('data-pose', 'moving')
+      await animationsSettled(bay)
       const [b, sp, fb] = [await box(bay), await box(spine), await box(face)]
       // the case scale: frame lengths (AO, plinth bands) grow with it
       const z = await page

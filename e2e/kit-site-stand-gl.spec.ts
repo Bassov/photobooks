@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
+import { animationsSettled } from './fixtures/animationsSettled'
 import { expect, test } from './fixtures/coverage'
 import { white } from './fixtures/sitePagePaint'
 
@@ -63,7 +64,8 @@ async function glBook(page: Page): Promise<Locator> {
     .locator('visible=true')
     .first()
   await expect(book).toBeVisible()
-  await page.waitForTimeout(300)
+  await expect(book).not.toHaveAttribute('data-pose', 'moving')
+  await animationsSettled(book)
   return book
 }
 /** the host box grown by the canvas overhang (left .15 W, right .35 W, top .1 H, bottom .12 H) */

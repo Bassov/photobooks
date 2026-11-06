@@ -246,6 +246,8 @@ function ReaderGl({ b, a, th, W, H, box, s, dark, board, bend, label, fade, onFa
     gl.book.frame(W, H, s, box)
     drawInto(gl.T, gl.book.scene, gl.book.cam, c, true)
     root.current?.setAttribute("data-gl", "ready")
+    // data-faces: "done" once every face drawn so far has its canvas, not the paper placeholder (tests wait on it)
+    root.current?.setAttribute("data-faces", gl.book.loading ? "loading" : "done")
   }, [gl, tick, a, th, W, H, s, box.x, box.y, box.w, box.h, fade])
 
   const place: React.CSSProperties = { position: "absolute", left: box.x, top: box.y, width: box.w, height: box.h, pointerEvents: "none" }
@@ -349,7 +351,7 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
       if (r) { run(a, th0, th1, (r.ms * Math.abs(th1 - th0)) / 180, OUT, "anim", () => land(view)); return }
       const full = a === 0 || a === n - 2 ? 1000 : turnMs
       run(a, th0, th1, Math.max(200, (full * Math.abs(th1 - th0)) / 180), TURN, "anim", () => land(view))
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- a new view or the end of a turn only; run / land / turnMs are read at that moment
     }, [view, shown, busy])
 
     // preload + decode the photos two views either side
@@ -468,7 +470,7 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
     const handlers = scrubbing ? {} : { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: () => { ptr.current = null; setTurn(null) }, onPointerLeave }
     return (
       <div ref={el} className={dark ? "sd-reader sd-dark" : "sd-reader"} style={{ width: W, height: H, touchAction: "pan-y", perspective: `${Math.round(W * 2)}px`, perspectiveOrigin: "50% 50%" }}
-        role="region" aria-roledescription="book" aria-label={b.title} tabIndex={0} data-testid="ps-reader" data-view={at} data-views={n} {...handlers}>
+        role="region" aria-roledescription="book" aria-label={b.title} tabIndex={0} data-testid="ps-reader" data-view={at} data-views={n} data-turn={turn ? turn.kind : fade ? "fade" : "rest"} {...handlers}>
         {glLayer || (scrubbing ? sth > 0 && sth < 180 ? <TurningBook g={g} a={sa} th={sth} /> : <StaticBook g={g} v={at} vt={vt} />
           : turn ? <TurningBook g={g} a={turn.a} th={turn.th} /> : <StaticBook g={g} v={shown} vt={vt} />)}
         {fade && !gl && <div key={fade.id} className="sd-fade" style={{ "--fd": `${fade.ms}ms` } as React.CSSProperties} onAnimationEnd={() => setFade(null)}><StaticBook g={g} v={fade.from} /></div>}

@@ -69,7 +69,7 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
   React.useEffect(() => {
     const t = view === 0 && !port ? setTimeout(() => goRef.current(1), reduced() ? 0 : FADE_MS + COVER_DELAY_MS) : 0
     return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- on open only: a later return to the cover must not turn it again
   }, [])
 
   // autoplay: `delay` = the turn still running when the dwell starts; `n` restarts the progress line
@@ -85,7 +85,7 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
     const a = prevPos.current
     prevPos.current = pos
     if (a !== pos) setPlay((p) => (!p || pos >= end ? null : { delay: turnMs(a, pos), n: p.n + 1 }))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a position change only; end / turnMs (new every render) are read at that moment
   }, [pos])
   React.useEffect(() => {
     if (!play) return
@@ -238,6 +238,8 @@ function useSwipeBack(root: React.RefObject<HTMLDivElement | null>, on: boolean,
   const el = () => root.current!
   const paint = (dx: number, ms: number) => {
     const st = el().style
+    // data-swipe: "move" while the room follows the finger or slides out / back (tests wait on it)
+    el().dataset.swipe = dx || ms ? "move" : ""
     st.transition = ms ? `transform ${ms}ms var(--ease-out), box-shadow ${ms}ms var(--ease-out)` : "none"
     st.transform = dx ? `translate3d(${dx}px,0,0)` : ""
     st.boxShadow = dx ? "-16px 0 32px rgb(0 0 0 / .5)" : ""
