@@ -248,6 +248,277 @@ test.describe('phone 390×844: slides', () => {
   })
 })
 
+// site-stand-v6 S / T / F (D27–D29): the Page turn mode, drawn as the CSS fold (`gl=0`)
+const TURN_URL = '/uikit/#/full/site-demo-6?book=lake-trip&gl=0&reader=turn'
+
+/** a held one-finger touch (CDP): `move` in `steps` steps `stepMs` apart, `up` lifts it */
+async function touch(page: Page, x: number, y: number) {
+  const cdp = await page.context().newCDPSession(page)
+  let at = { x, y }
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ ...at, id: 1 }],
+  })
+  return {
+    async move(tx: number, ty: number, steps = 12, stepMs = 0) {
+      const from = at
+      for (let i = 1; i <= steps; i++) {
+        if (stepMs) await page.waitForTimeout(stepMs)
+        at = {
+          x: from.x + ((tx - from.x) * i) / steps,
+          y: from.y + ((ty - from.y) * i) / steps,
+        }
+        await cdp.send('Input.dispatchTouchEvent', {
+          type: 'touchMove',
+          touchPoints: [{ ...at, id: 1 }],
+        })
+      }
+    },
+    async up() {
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchEnd',
+        touchPoints: [],
+      })
+      await cdp.detach()
+    },
+  }
+}
+
+/** Next (the label moves at the commit, 600 ms) until the label reads `label` */
+async function turnTo(room: Locator, label: string) {
+  const lbl = room.getByTestId('ss-label')
+  const i = LABELS.indexOf(label)
+  for (;;) {
+    const now = LABELS.indexOf(await lbl.innerText())
+    if (now === i) return
+    await room.getByTestId(now < i ? 'ss-next' : 'ss-prev').click()
+    await expect(lbl).toHaveText(LABELS[now + (now < i ? 1 : -1)] ?? '')
+  }
+}
+
+test.describe('phone 390×844: page turn', () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  })
+
+  test('geometry, the switch, Next and the 16 slides', async ({ page }) => {
+    const errors: string[] = []
+    page.on('pageerror', (e) => errors.push(e.message))
+    page.on('console', (m) => {
+      if (m.type() === 'error') errors.push(m.text())
+    })
+    await page.goto(TURN_URL)
+    const room = page.getByTestId('ss-reader-page')
+    await expect(room).toHaveAttribute('data-mode', 'port')
+    const stage = room.getByTestId('pt-stage')
+    await expect(stage).toBeFocused()
+    await expect(stage).toHaveAttribute('data-gl', '0')
+    const s = await box(stage)
+    near(s.x, 0)
+    near(s.y, 198.25)
+    near(s.width, 390)
+    near(s.height, 447.5)
+    const top = stage.locator('[data-testid="pt-sheet"][data-role="top"]')
+    const t = await box(top)
+    near(t.x, 16)
+    near(t.y, 198.25)
+    near(t.width, 358)
+    near(t.height, 447.5)
+    await expect(room.getByTestId('ss-label')).toHaveText('Page 1 of 22')
+
+    const sw = room.getByTestId('ss-reader-switch')
+    await expect(sw.getByRole('button', { name: 'Page turn' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    await expect(sw.getByRole('button', { name: 'Carousel' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    const b = await box(sw)
+    near(b.y + b.height, 832, 1)
+    const foot = await box(room.getByTestId('ss-next').locator('..'))
+    expect(foot.y + foot.height).toBeLessThanOrEqual(b.y - 8)
+
+    await room.getByTestId('ss-next').click()
+    await page.waitForTimeout(700)
+    await expect(room.getByTestId('ss-label')).toHaveText('Pages 2–3 of 22')
+    const t2 = await box(top)
+    near(t2.width, 358)
+    near(t2.height, 447.5)
+    near((await box(top.getByTestId('pt-art'))).y, 310.13)
+    await expect(stage).toHaveAttribute('data-xm', '')
+
+    // Home crossfades to the cover, then Next through every slide
+    await page.keyboard.press('Home')
+    await expect(room.getByTestId('ss-label')).toHaveText('Cover')
+    const seen = ['Cover']
+    const next = room.getByTestId('ss-next')
+    while (await next.isEnabled()) {
+      await next.click()
+      await expect(room.getByTestId('ss-label')).toHaveText(
+        LABELS[seen.length] ?? '',
+      )
+      seen.push(await room.getByTestId('ss-label').innerText())
+    }
+    expect(seen).toEqual(LABELS)
+    expect(errors).toEqual([])
+  })
+
+  test('drag: the fold follows, springs back, turns; flick, tap, vertical', async ({
+    page,
+  }) => {
+    await page.goto(TURN_URL)
+    const room = page.getByTestId('ss-reader-page')
+    const stage = room.getByTestId('pt-stage')
+    const lbl = room.getByTestId('ss-label')
+    await turnTo(room, 'Page 5 of 22')
+    const s = await box(stage)
+
+    // a held edge drag 370 → 200 at y 420: xm 222.4, the flap 102.8 + 135.6
+    const f = await touch(page, 370, 420)
+    await f.move(200, 420)
+    await expect
+      .poll(async () => Number(await stage.getAttribute('data-xm')))
+      .toBeCloseTo(222.4, 0)
+    near(Number(await stage.getAttribute('data-xm')), 222.4, 2)
+    const flap = await box(stage.getByTestId('pt-flap'))
+    near(flap.x, 102.8, 2)
+    near(flap.width, 135.6, 2)
+    await expect(stage).toHaveAttribute('data-dir', 'fwd')
+    // painted: the flap's middle is the paper back (rgb 244 243 241 under a ≤ 10 % shade and the 10 % show-through)
+    const [[r = 0, , b = 0] = []] = await pixelsAt(stage, [
+      { x: flap.x + flap.width / 2, y: 420 - s.y },
+    ])
+    for (const c of [r, b]) {
+      expect(c).toBeGreaterThanOrEqual(195)
+      expect(c).toBeLessThanOrEqual(250)
+    }
+    expect(Math.abs(r - b)).toBeLessThanOrEqual(25)
+    // held still, then released: under half way, no flick → it springs back
+    await page.waitForTimeout(200)
+    await f.up()
+    await expect(stage).toHaveAttribute('data-xm', '')
+    await expect(stage.getByTestId('pt-flap')).toHaveCount(0)
+    await expect(lbl).toHaveText('Page 5 of 22')
+
+    // past half way: the next slide
+    const g = await touch(page, 370, 420)
+    await g.move(30, 420)
+    await g.up()
+    await expect(lbl).toHaveText('Page 6 of 22')
+    await expect(stage).toHaveAttribute('data-xm', '')
+
+    // a quick 70 px flick: the next slide
+    const h = await touch(page, 300, 420)
+    await h.move(230, 420, 6, 8)
+    await h.up()
+    await expect(lbl).toHaveText('Page 7 of 22')
+    await expect(stage).toHaveAttribute('data-xm', '')
+
+    // a vertical swipe: nothing
+    await swipe(page, { x: 200, y: 250 }, { x: 200, y: 470 })
+    await page.waitForTimeout(300)
+    await expect(lbl).toHaveText('Page 7 of 22')
+    await expect(stage.getByTestId('pt-flap')).toHaveCount(0)
+
+    // a tap on the left half: the previous slide
+    await (await touch(page, 60, 420)).up()
+    await expect(lbl).toHaveText('Page 6 of 22')
+  })
+
+  test('slide 0: a rightward drag does nothing; a swipe above the stage closes', async ({
+    page,
+  }) => {
+    await page.goto(TURN_URL)
+    const room = page.getByTestId('ss-reader-page')
+    const stage = room.getByTestId('pt-stage')
+    await turnTo(room, 'Cover')
+    await swipe(page, { x: 60, y: 420 }, { x: 330, y: 420 })
+    await page.waitForTimeout(400)
+    await expect(room).toBeVisible()
+    await expect(room.getByTestId('ss-label')).toHaveText('Cover')
+    await expect(stage.getByTestId('pt-flap')).toHaveCount(0)
+    await expect(stage).toHaveAttribute('data-xm', '')
+
+    await swipe(page, { x: 40, y: 100 }, { x: 300, y: 100 })
+    await expect(room).toHaveCount(0)
+  })
+
+  test('the switch keeps the slide, edits the hash in place', async ({
+    page,
+  }) => {
+    await page.goto(TURN_URL)
+    const room = page.getByTestId('ss-reader-page')
+    const lbl = room.getByTestId('ss-label')
+    await turnTo(room, 'Page 5 of 22')
+    const n = await page.evaluate(() => history.length)
+    const sw = room.getByTestId('ss-reader-switch')
+
+    await sw.getByRole('button', { name: 'Carousel' }).click()
+    await expect(room.getByTestId('ps-strip')).toBeVisible()
+    await expect(room.getByTestId('pt-stage')).toHaveCount(0)
+    await rest(room, 'Page 5 of 22')
+    expect(page.url()).not.toContain('reader=')
+    expect(page.url()).toContain('book=lake-trip')
+    expect(await page.evaluate(() => history.length)).toBe(n)
+
+    await sw.getByRole('button', { name: 'Page turn' }).click()
+    await expect(room.getByTestId('pt-stage')).toBeVisible()
+    await expect(lbl).toHaveText('Page 5 of 22')
+    expect(page.url()).toContain('reader=turn')
+    expect(await page.evaluate(() => history.length)).toBe(n)
+  })
+
+  test('Play: 4000 + 600 ms turns one slide', async ({ page }) => {
+    await page.clock.install()
+    await page.goto(TURN_URL)
+    const room = page.getByTestId('ss-reader-page')
+    const lbl = room.getByTestId('ss-label')
+    await page.clock.runFor(500)
+    await expect(lbl).toHaveText('Page 1 of 22')
+    const play = room.getByTestId('sd-play')
+    await play.click()
+    await page.clock.runFor(3900)
+    await expect(lbl).toHaveText('Page 1 of 22')
+    await page.clock.runFor(100 + 600 + 100)
+    await expect(lbl).toHaveText('Pages 2–3 of 22')
+    await expect(play).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  test('reduced motion: Next crossfades, no fold', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto(TURN_URL)
+    const room = page.getByTestId('ss-reader-page')
+    await expect(room.getByTestId('ss-label')).toHaveText('Page 1 of 22')
+    await room.getByTestId('ss-next').click()
+    await expect(room.getByTestId('pt-flap')).toHaveCount(0)
+    await expect(room.getByTestId('ss-label')).toHaveText('Pages 2–3 of 22', {
+      timeout: 250,
+    })
+    await expect(room.getByTestId('pt-flap')).toHaveCount(0)
+  })
+
+  test.describe('360×560', () => {
+    test.use({ viewport: { width: 360, height: 560 } })
+
+    test('the group moves up: the foot ends 8 px above the switch', async ({
+      page,
+    }) => {
+      await page.goto(TURN_URL)
+      const room = page.getByTestId('ss-reader-page')
+      await expect(room.getByTestId('pt-stage')).toBeVisible()
+      near((await box(room.getByTestId('ss-all').locator('..'))).y, 7)
+      const foot = await box(room.getByTestId('ss-next').locator('..'))
+      near(foot.y + foot.height, 521)
+      const sw = await box(room.getByTestId('ss-reader-switch'))
+      expect(foot.y + foot.height).toBeLessThanOrEqual(sw.y - 8)
+    })
+  })
+})
+
 test.describe('phone 844×390', () => {
   test.use({
     viewport: { width: 844, height: 390 },

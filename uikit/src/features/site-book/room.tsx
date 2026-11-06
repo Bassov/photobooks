@@ -2,7 +2,8 @@
    Grid M 24 / 16, G 16 / 12, 12 / 4 columns. Desktop: top 72, foot 96, rw = max(200, min(span(10), (h − 168)·R))
    centred; the foot 32 px below: title + meta (cols 0–3), Previous · label · Next (centre), Play (cols 9–11). Phone
    portrait (w < 768, h > w, site-stand-v5 R / D23–D24): one page per slide (slides.tsx); a row above holds "‹ Title"
-   (back) and Play, a row below Previous · label · Next, the group centred. Landscape phone (h < 500, v5 L / D26): the
+   (back) and Play, a row below Previous · label · Next, the group centred; a demo switch at the bottom right picks
+   Carousel or Page turn (turn.tsx, site-stand-v6 D27, `&reader=turn`). Landscape phone (h < 500, v5 L / D26): the
    larger of side (W = min(w − 272, (h − 24)·R), centred; back + Play top, label + Previous / Next bottom, in 136 px bands)
    and foot (W = min(w − 32, (h − 64)·R) over one row at h − 52: back, Previous · label · Next, Play). Opens with a 240 ms fade, focuses the book; at view 0 the
    cover turns 120 ms after the fade (not in portrait: it opens on the cover slide); ← / → turn.
@@ -15,6 +16,7 @@ import { pagesOf, SPREAD_R, viewLabel, viewsOf, type SiteBook } from "../site-de
 import { metaOf, type Box } from "../site-demo-1/v2"
 import { BookReader, type ReaderApi } from "./reader"
 import { portGeo, Slides, slideOfView, slidesOf, type SlidesApi } from "./slides"
+import { PageTurn } from "./turn"
 import "./room.css"
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -43,14 +45,26 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
   // portrait: the live slide (label, Previous / Next) and the one the strip rests on (Play)
   const [si, setSi] = React.useState(() => slideOfView(slides, view))
   const [rest, setRest] = React.useState(si)
-  const go = (d: number) => (port ? sapi.current?.go(d) : api.current?.go(d))
+  // portrait reader mode (v6 D27): `&reader=turn` on the hash, replaced in place (no history entry)
+  const [rm, setRmState] = React.useState<"carousel" | "turn">(() => (/[?&]reader=turn(&|$)/.test(location.hash) ? "turn" : "carousel"))
+  const setRm = (m: "carousel" | "turn") => {
+    if (m === rm) return
+    const [path, q = ""] = location.hash.split("?")
+    const p = new URLSearchParams(q)
+    if (m === "turn") p.set("reader", "turn")
+    else p.delete("reader")
+    const s = p.toString()
+    history.replaceState(history.state, "", `${location.pathname}${location.search}${path}${s ? `?${s}` : ""}`)
+    setRmState(m)
+  }
+  const go =(d: number) => (port ? sapi.current?.go(d) : api.current?.go(d))
   const goRef = React.useRef(go)
   goRef.current = go
 
-  // open (and a new mode: the first render may come before the box is measured): focus the book, no ring
+  // open, a new mode (the first render may come before the box is measured) and a reader switch: focus the book, no ring
   React.useEffect(() => {
     root.current?.querySelector<HTMLElement>('[role="region"]')?.focus({ preventScroll: true, focusVisible: false } as FocusOptions)
-  }, [mode])
+  }, [mode, rm])
   // a closed cover turns once the fade is done (not in portrait)
   React.useEffect(() => {
     const t = view === 0 && !port ? setTimeout(() => goRef.current(1), reduced() ? 0 : FADE_MS + COVER_DELAY_MS) : 0
@@ -132,14 +146,24 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
 
   if (port) {
     const g = portGeo(b, box.w, box.h)
+    const stage = { ref: sapi, b, slides, w: box.w, top: g.stageTop, pw: g.pw, ph: g.ph, view, setView, si, onSi: setSi, onRest: setRest, start: rest }
+    const mb = (m: "carousel" | "turn", t: string) => (
+      <button type="button" className="ss-tx" aria-pressed={rm === m} onClick={() => setRm(m)}>{t}</button>
+    )
     return (
       <div {...roomProps}>
-        <div className="ss-abs" style={{ ...row, left: 16, right: 16, top: g.gt, justifyContent: "space-between", gap: 16 }}>
+        {/* the rows pass over a curl that overhangs the stage (≤ 24 px) */}
+        <div className="ss-abs" style={{ ...row, left: 16, right: 16, top: g.gt, justifyContent: "space-between", gap: 16, zIndex: 2 }}>
           {back()}
           {playBtn}
         </div>
-        <Slides ref={sapi} b={b} slides={slides} w={box.w} top={g.stageTop} pw={g.pw} ph={g.ph} view={view} setView={setView} si={si} onSi={setSi} onRest={setRest} />
-        {pager(g.footTop, { left: 16, right: 16 })}
+        {rm === "turn" ? <PageTurn key={rm} {...stage} /> : <Slides key={rm} {...stage} />}
+        {pager(g.footTop, { left: 16, right: 16, zIndex: 2 })}
+        <div className="ss-switch t13" role="group" aria-label="Reader" data-testid="ss-reader-switch" style={{ left: "auto", right: 16, translate: "none", bottom: 12 }}>
+          <span aria-hidden>Reader</span>
+          {mb("carousel", "Carousel")}
+          {mb("turn", "Page turn")}
+        </div>
       </div>
     )
   }
@@ -238,7 +262,7 @@ function useSwipeBack(root: React.RefObject<HTMLDivElement | null>, on: boolean,
     style: { touchAction: "none" } as React.CSSProperties,
     onPointerDown: (e: React.PointerEvent) => {
       if (e.pointerType === "mouse" || s.current) return
-      if ((e.target as Element).closest('[data-testid="ps-strip"],[data-testid="ss-reader"]')) return
+      if ((e.target as Element).closest('[data-testid="ps-strip"],[data-testid="pt-stage"],[data-testid="ss-reader"]')) return
       s.current = { id: e.pointerId, x0: e.clientX, y0: e.clientY, active: false, dx: 0, trail: [] }
     },
     onPointerMove: (e: React.PointerEvent) => {

@@ -176,7 +176,8 @@
   transition: color 200ms var(--ease);
 }
 .ss .ss-tx:hover,
-.ss .ss-tx[aria-current] {
+.ss .ss-tx[aria-current],
+.ss .ss-tx[aria-pressed="true"] {
   color: var(--ink);
 }
 .ss button:disabled {

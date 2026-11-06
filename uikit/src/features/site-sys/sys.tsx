@@ -135,11 +135,13 @@ function Head({ g, reading, onHome }: { g: Grid; reading: boolean; onHome: () =>
 
 /** "Books 1 · 3 · 6 · 12 · 30 · 100": the demo-only switch, top centre (phone: bottom right) */
 function Switch({ demo, count, g }: { demo: number; count: number; g: Grid }) {
+  // the phone reader mode (v6 D27) survives a books switch
+  const turn = /[?&]reader=turn(&|$)/.test(location.hash) ? '&reader=turn' : ''
   return (
     <div className="ss-switch t13" style={g.narrow ? { left: 'auto', right: g.M, translate: 'none', bottom: 12 } : { top: 22 }} data-testid="ss-switch">
       <span>Books</span>
       {COUNTS.map((c) => (
-        <a key={c} className="ss-tx" href={`#/full/site-demo-${demo}?books=${c}`} aria-current={c === count ? 'true' : undefined}>{c}</a>
+        <a key={c} className="ss-tx" href={`#/full/site-demo-${demo}?books=${c}${turn}`} aria-current={c === count ? 'true' : undefined}>{c}</a>
       ))}
     </div>
   )

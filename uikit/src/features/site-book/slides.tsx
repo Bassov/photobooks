@@ -1,7 +1,7 @@
 /* Phone portrait reader (Spec site-stand-v5 R, D23): one page per slide, an Instagram-like carousel on native scroll-snap.
    Slides: the cover, page 1, then per spread either the whole spread (a framed photo crosses the gutter: x < 49.5 and
    x + w > 50.5) or each side that holds a framed photo, read as a right page; blank pages and endpapers are skipped, no back
-   cover. Stage: pw = min(w − 32, (h − 112)·rp), pitch pw + 16, so at rest the next paper starts at the screen's right edge.
+   cover. Stage: pw = min(w − 32, (h − 147)·rp) (v6 S), pitch pw + 16, so at rest the next paper starts at the screen's right edge.
    The strip is the book: swipes scroll it, a tap on the left / right half turns one slide, ← / → turn, Home / End jump.
    The position (label) follows the scroll live; on scrollend the room's view follows the slide. */
 import * as React from "react"
@@ -34,11 +34,12 @@ export const slideOfView = (slides: Slide[], v: number) => {
   return i < 0 ? slides.length - 1 : i
 }
 
-/** page width / height and the header row top for a w × h portrait screen */
+/** page width / height and the header row top for a w × h portrait screen; the foot ends ≥ 8 px above the reader switch
+   (site-stand-v6 S, top h − 30.85) */
 export function portGeo(b: SiteBook, w: number, h: number) {
   const rp = SPREAD_R[b.fmt] / 2
-  const pw = Math.min(w - 32, (h - 112) * rp), ph = pw / rp
-  const gt = Math.max(4, (h - ph - 104) / 2)
+  const pw = Math.min(w - 32, (h - 147) * rp), ph = pw / rp
+  const gt = Math.max(4, Math.min((h - ph - 104) / 2, h - ph - 143))
   return { pw, ph, gt, stageTop: gt + 52, footTop: gt + 52 + ph + 8 }
 }
 
@@ -51,9 +52,11 @@ type Props = {
   si: number; onSi: (i: number) => void
   /** the slide the strip came to rest on */
   onRest: (i: number) => void
+  /** the slide to open on (a reader switch keeps the R page of a spread, which `slideOfView` would send back to L) */
+  start: number
 }
 
-export const Slides = React.forwardRef<SlidesApi, Props>(function Slides({ b, slides, w, top, pw, ph, view, setView, si, onSi, onRest }, ref) {
+export const Slides = React.forwardRef<SlidesApi, Props>(function Slides({ b, slides, w, top, pw, ph, view, setView, si, onSi, onRest, start }, ref) {
   const strip = React.useRef<HTMLDivElement>(null)
   const pitch = pw + 16, n = slides.length
   const clamp = (i: number) => Math.max(0, Math.min(n - 1, i))
@@ -75,11 +78,11 @@ export const Slides = React.forwardRef<SlidesApi, Props>(function Slides({ b, sl
   goRef.current = go
   React.useImperativeHandle(ref, () => ({ go: (d) => goRef.current(d), jump: (i) => to(clamp(i), false) }))
 
-  // mount and a new pitch: rest on the slide of the room's view (mount) or the current one (resize)
+  // mount and a new pitch: rest on `start` (mount) or the current slide (resize)
   const mounted = React.useRef(false)
   React.useLayoutEffect(() => {
     const L = live.current
-    const i = mounted.current ? L.si : slideOfView(slides, L.view)
+    const i = mounted.current ? L.si : clamp(start)
     mounted.current = true
     strip.current?.scrollTo({ left: i * pitch, behavior: "instant" })
     L.si = i
@@ -159,15 +162,17 @@ export const Slides = React.forwardRef<SlidesApi, Props>(function Slides({ b, sl
   )
 })
 
-function Paper({ b, s, pw, ph, on }: { b: SiteBook; s: Slide; pw: number; ph: number; on: boolean }) {
-  const h = s.kind === "spread" ? pw / SPREAD_R[b.fmt] : ph
+/** a slide's paper; `sheet` (page turn, v6 D29): always pw × ph at the sheet origin, a spread centred on it */
+export function Paper({ b, s, pw, ph, on, sheet }: { b: SiteBook; s: Slide; pw: number; ph: number; on: boolean; sheet?: boolean }) {
+  const h = s.kind === "spread" && !sheet ? pw / SPREAD_R[b.fmt] : ph
   const [grain, sheen] = paperLayers()
   const layers = <><div aria-hidden style={grain} /><div aria-hidden style={sheen} /></>
+  const spread = <SpreadArt b={b} k={s.k!} w={pw} />
   return (
-    <div className="ps-paper" style={{ top: (ph - h) / 2, width: pw, height: h, borderRadius: s.kind === "cover" ? 2 : undefined }} data-testid="ps-paper">
+    <div className="ps-paper" style={{ top: (ph - h) / 2, width: pw, height: h, borderRadius: s.kind === "cover" ? 2 : undefined, ...(sheet && { left: 0, boxShadow: "none" }) }} data-testid="ps-paper">
       {on && (s.kind === "cover" ? <CoverFace b={b} w={pw} h={ph} />
         : s.kind === "title" ? <><TitlePage b={b} h={ph} />{layers}</>
-        : s.kind === "spread" ? <><SpreadArt b={b} k={s.k!} w={pw} />{layers}</>
+        : s.kind === "spread" ? <>{sheet ? <div className="absolute left-0" style={{ top: (ph - pw / SPREAD_R[b.fmt]) / 2 }} data-testid="pt-art">{spread}</div> : spread}{layers}</>
         : <><div className="absolute top-0" style={{ left: s.side === "R" ? -pw : 0 }}><SpreadArt b={b} k={s.k!} w={2 * pw} fold={false} /></div>{layers}</>)}
     </div>
   )

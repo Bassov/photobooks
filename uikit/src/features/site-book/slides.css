@@ -2,6 +2,7 @@
    (no scrollbar: `.no-scrollbar`). */
 .ps-strip {
   position: absolute;
+  z-index: 1;
   left: 0;
   width: 100%;
   display: flex;
