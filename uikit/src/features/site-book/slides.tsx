@@ -35,11 +35,12 @@ export const slideOfView = (slides: Slide[], v: number) => {
 }
 
 /** page width / height and the header row top for a w × h portrait screen; the foot ends ≥ 8 px above the reader switch
-   (site-stand-v6 S, top h − 30.85) */
-export function portGeo(b: SiteBook, w: number, h: number) {
+   (site-stand-v6 S, top h − 30.85). `final` (site-stand-v7 P1, no switch): header 44 + 8 + page + 8 + label 24 centred
+   in [8, h − 64] */
+export function portGeo(b: SiteBook, w: number, h: number, final?: boolean) {
   const rp = SPREAD_R[b.fmt] / 2
-  const pw = Math.min(w - 32, (h - 147) * rp), ph = pw / rp
-  const gt = Math.max(4, Math.min((h - ph - 104) / 2, h - ph - 143))
+  const pw = Math.min(w - 32, (h - (final ? 172 : 147)) * rp), ph = pw / rp
+  const gt = final ? Math.max(8, 8 + (h - 72 - (ph + 84)) / 2) : Math.max(4, Math.min((h - ph - 104) / 2, h - ph - 143))
   return { pw, ph, gt, stageTop: gt + 52, footTop: gt + 52 + ph + 8 }
 }
 
@@ -54,9 +55,11 @@ type Props = {
   onRest: (i: number) => void
   /** the slide to open on (a reader switch keeps the R page of a spread, which `slideOfView` would send back to L) */
   start: number
+  /** a whole-spread slide shows the gutter fold (off in the final design, site-stand-v7 P2) */
+  fold?: boolean
 }
 
-export const Slides = React.forwardRef<SlidesApi, Props>(function Slides({ b, slides, w, top, pw, ph, view, setView, si, onSi, onRest, start }, ref) {
+export const Slides = React.forwardRef<SlidesApi, Props>(function Slides({ b, slides, w, top, pw, ph, view, setView, si, onSi, onRest, start, fold = true }, ref) {
   const strip = React.useRef<HTMLDivElement>(null)
   const pitch = pw + 16, n = slides.length
   const clamp = (i: number) => Math.max(0, Math.min(n - 1, i))
@@ -159,19 +162,20 @@ export const Slides = React.forwardRef<SlidesApi, Props>(function Slides({ b, sl
       onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={() => { down.current = null }}>
       {slides.map((s, i) => (
         <div key={i} className="ps-slide" style={{ width: pitch }} data-testid="ps-slide" data-kind={s.kind} role="group" aria-roledescription="slide" aria-label={s.label}>
-          <Paper b={b} s={s} pw={pw} ph={ph} on={Math.abs(i - si) <= 2} />
+          <Paper b={b} s={s} pw={pw} ph={ph} on={Math.abs(i - si) <= 2} fold={fold} />
         </div>
       ))}
     </div>
   )
 })
 
-/** a slide's paper; `sheet` (page turn, v6 D29): always pw × ph at the sheet origin, a spread centred on it */
-export function Paper({ b, s, pw, ph, on, sheet }: { b: SiteBook; s: Slide; pw: number; ph: number; on: boolean; sheet?: boolean }) {
+/** a slide's paper; `sheet` (page turn, v6 D29): always pw × ph at the sheet origin, a spread centred on it; `fold`
+   false: a whole spread without the gutter fold (single pages never have one) */
+export function Paper({ b, s, pw, ph, on, sheet, fold = true }: { b: SiteBook; s: Slide; pw: number; ph: number; on: boolean; sheet?: boolean; fold?: boolean }) {
   const h = s.kind === "spread" && !sheet ? pw / SPREAD_R[b.fmt] : ph
   const [grain, sheen] = paperLayers()
   const layers = <><div aria-hidden style={grain} /><div aria-hidden style={sheen} /></>
-  const spread = <SpreadArt b={b} k={s.k!} w={pw} />
+  const spread = <SpreadArt b={b} k={s.k!} w={pw} fold={fold} />
   return (
     <div className="ps-paper" style={{ top: (ph - h) / 2, width: pw, height: h, borderRadius: s.kind === "cover" ? 2 : undefined, ...(sheet && { left: 0, boxShadow: "none" }) }} data-testid="ps-paper">
       {on && (s.kind === "cover" ? <CoverFace b={b} w={pw} h={ph} />

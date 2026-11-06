@@ -741,4 +741,128 @@ test.describe('desktop 1440×900: the reading room', () => {
       page.getByTestId('ss6-book').locator('visible=true').first(),
     ).toBeFocused()
   })
+
+  // site-stand-v7 R (D31): demo 9 sizes the visible GL book, pins the foot at h − 54 and centres the pager. RISE is
+  // the measured cover-opening rise (room.tsx), not the Spec's 0.15, so W is 1446.0 / 1173.4 (Spec 1448.1 / 1216.6)
+  for (const [id, W, top] of [
+    ['coast', 1446.0, 288.5],
+    ['lake-trip', 1173.4, 155.4],
+  ] as const)
+    test(`demo 9 ${id}: W ${String(W)}, foot row top 846, pager centre 720`, async ({
+      page,
+    }) => {
+      const errors: string[] = []
+      page.on('pageerror', (e) => errors.push(e.message))
+      page.on('console', (m) => {
+        if (m.type() === 'error') errors.push(m.text())
+      })
+      await page.goto(`/uikit/#/full/site-demo-9?book=${id}&gl=0`)
+      const room = page.getByTestId('ss-reader-page')
+      await expect(room).toHaveAttribute('data-mode', 'desk')
+      const r = await box(room.getByTestId('ss-reader'))
+      near(r.width, W)
+      near(r.x, (1440 - W) / 2)
+      near(r.y, top)
+      const pager = await box(room.getByTestId('ss-label').locator('..'))
+      near(pager.y, 846)
+      near(pager.x + pager.width / 2, 720)
+      const play = await box(room.getByTestId('sd-play').locator('..'))
+      near(play.y, 846)
+      const about = await box(room.getByTestId('sd-about').locator('..'))
+      near(about.y, 846)
+      await page.screenshot({
+        path: test.info().outputPath(`demo9-1440-${id}.png`),
+      })
+      expect(errors).toEqual([])
+    })
+})
+
+/** the art.tsx FOLD gradients painted over the paper's centre (the gutter of a whole-spread slide); the fold is
+   pointer-events: none, so elementsFromPoint can't see it: the paper's visible descendants whose box covers the centre */
+async function foldsAtCentre(paper: Locator) {
+  return paper.evaluate((el) => {
+    const p = el.getBoundingClientRect()
+    const x = p.x + p.width / 2,
+      y = p.y + p.height / 2
+    return [...el.querySelectorAll('*')].filter((e) => {
+      const r = e.getBoundingClientRect(),
+        cs = getComputedStyle(e)
+      return (
+        cs.visibility === 'visible' &&
+        Number(cs.opacity) > 0 &&
+        r.left <= x &&
+        r.right >= x &&
+        r.top <= y &&
+        r.bottom >= y &&
+        cs.backgroundImage.includes('rgba(0, 0, 0, 0.06) 50%')
+      )
+    }).length
+  })
+}
+
+// site-stand-v7 P (D32): the demo 9 phone reader: the group centred in [8, h − 64], the label only, no switch, no fold
+test.describe('phone 390×844: demo 9 reader', () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  })
+
+  test('geometry; no Previous / Next / Reader switch; the gutter slide has no fold', async ({
+    page,
+  }) => {
+    const errors: string[] = []
+    page.on('pageerror', (e) => errors.push(e.message))
+    page.on('console', (m) => {
+      if (m.type() === 'error') errors.push(m.text())
+    })
+    await page.goto('/uikit/#/full/site-demo-9?book=lake-trip&gl=0')
+    const room = page.getByTestId('ss-reader-page')
+    await expect(room).toHaveAttribute('data-mode', 'port')
+    const strip = room.getByTestId('ps-strip')
+    await expect(strip).toBeFocused()
+    near((await box(room.getByTestId('ss-all'))).y, 128.25)
+    const s = await box(strip)
+    near(s.y, 180.25)
+    near(s.height, 447.5)
+    const label = await box(room.getByTestId('ss-label').locator('..'))
+    near(label.y, 635.75)
+    near(label.height, 24)
+    await expect(room.getByTestId('ss-prev')).toHaveCount(0)
+    await expect(room.getByTestId('ss-next')).toHaveCount(0)
+    await expect(page.getByTestId('ss-reader-switch')).toHaveCount(0)
+
+    // → from Page 1: the gutter slide
+    await rest(room, 'Page 1 of 22')
+    await page.keyboard.press('ArrowRight')
+    const spread = await rest(room, 'Pages 2–3 of 22')
+    await still(room)
+    expect(await foldsAtCentre(spread)).toBe(0)
+    await expect(
+      spread.locator('[style*="rgba(0, 0, 0, 0.06) 50%"]'),
+    ).toHaveCount(0)
+    await page.screenshot({
+      path: test.info().outputPath('demo9-390-spread.png'),
+    })
+
+    // the probe sees demo 6's fold at the same place
+    await page.goto('about:blank')
+    await page.goto('/uikit/#/full/site-demo-6?books=6&book=lake-trip&gl=0')
+    await rest(room, 'Page 1 of 22')
+    await page.keyboard.press('ArrowRight')
+    const spread6 = await rest(room, 'Pages 2–3 of 22')
+    await still(room)
+    expect(await foldsAtCentre(spread6)).toBe(1)
+    expect(errors).toEqual([])
+  })
+
+  test('&reader=turn still opens Page turn', async ({ page }) => {
+    await page.goto('/uikit/#/full/site-demo-9?book=lake-trip&gl=0&reader=turn')
+    const room = page.getByTestId('ss-reader-page')
+    await expect(room.getByTestId('pt-stage')).toBeVisible()
+    await expect(room.getByTestId('ps-strip')).toHaveCount(0)
+    await expect(page.getByTestId('ss-reader-switch')).toHaveCount(0)
+    await expect(room.getByTestId('ss-next')).toHaveCount(0)
+    near((await box(room.getByTestId('ss-all'))).y, 128.25)
+  })
 })

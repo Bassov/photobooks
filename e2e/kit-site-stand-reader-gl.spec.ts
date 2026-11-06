@@ -664,8 +664,10 @@ test.describe('desktop 1440×900: GL turn fixes (site-stand-v7 T)', () => {
     expect(errors).toEqual([])
   })
 
+  /** the leaf's lowest allowed viewport top: demo 9 (D31) 8; demo 6's portrait leaf may leave the viewport */
+  const VIEWPORT_TOP = { 6: Number.NEGATIVE_INFINITY, 9: 8 } as const
   for (const demo of [6, 9] as const)
-    for (const id of ['coast', 'lake-trip'])
+    for (const id of ['coast', 'lake-trip', 'summer-family'])
       test(`T2: demo ${String(demo)} ${id}: the leaf stays below the canvas top, opening and θ 45…135`, async ({
         page,
       }) => {
@@ -715,17 +717,15 @@ test.describe('desktop 1440×900: GL turn fixes (site-stand-v7 T)', () => {
         })
         const g = await geometry(page)
         const turn = await sweep(page, g)
+        // D31 (demo 9 only): the leaf also stays ≥ 8 px into the viewport; demo 6's portrait leaf may leave it
+        const cy = (await box(page.getByTestId('ps-reader-canvas'))).y
+        const floor = Math.max(2, VIEWPORT_TOP[demo] - cy)
         console.log(
-          `T2 demo ${String(demo)} ${id}: W ${(2 * g.pw).toFixed(1)}, opening ${String(opening.length)} frames min ${Math.min(...opening).toFixed(1)}, leaf ${turn.map((t) => t.toFixed(1)).join(' ')}`,
+          `T2 demo ${String(demo)} ${id}: W ${(2 * g.pw).toFixed(1)}, canvas y ${cy.toFixed(1)}, opening ${String(opening.length)} frames min ${Math.min(...opening).toFixed(1)}, leaf ${turn.map((t) => t.toFixed(1)).join(' ')}`,
         )
         expect(opening.length).toBeGreaterThanOrEqual(15)
-        expect(Math.min(...opening)).toBeGreaterThanOrEqual(2)
-        expect(Math.min(...turn)).toBeGreaterThanOrEqual(2)
+        expect(Math.min(...opening)).toBeGreaterThanOrEqual(floor)
+        expect(Math.min(...turn)).toBeGreaterThanOrEqual(floor)
         expect(errors).toEqual([])
       })
-
-  // D31 (the desktop reader's size and place) belongs to stand-v7-reader: on demo 9 the leaf also stays ≥ 8 px into the viewport
-  test.fixme('T2: demo 9: the leaf top stays ≥ 8 px into the viewport (stand-v7-reader)', () => {
-    // D31 moves and sizes the desktop reader; the ≥ 8 assert lands with it
-  })
 })

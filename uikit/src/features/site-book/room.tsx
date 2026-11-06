@@ -10,7 +10,10 @@
    Swipe back (D25, phones): a rightward swipe that starts outside the book pulls the room aside and closes it.
    Play (fresh C's auto page-turn, D4): after each turn ends wait 4000 ms and turn; stops at the back cover (portrait: the
    last slide); any key, click or drag (outside Play) and a hidden tab pause it; a 1 px line under the label grows over
-   the dwell. The autoplay lives here, not in reader.tsx: it drives the reader through its `go` API only. */
+   the dwell. The autoplay lives here, not in reader.tsx: it drives the reader through its `go` API only.
+   `final` (demo 9, site-stand-v7 R / P, D31–D32): desktop sizes the visible GL book (BODY) to ≤ w − 128 wide and ≥ 64 above
+   the bottom with room for a rising leaf, the foot pinned at h − 54, the pager on cols 4–7; phones have no Previous / Next
+   and no Reader switch (the mode stays on the hash), and whole-spread slides no gutter fold. */
 import * as React from "react"
 import { pagesOf, SPREAD_R, viewLabel, viewsOf, type SiteBook } from "../site-demo-1/data"
 import { metaOf, type Box } from "../site-demo-1/v2"
@@ -35,7 +38,15 @@ type RoomProps = {
   final?: boolean
 }
 
-export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: RoomProps) {
+/** final desktop reader (site-stand-v7 R): [kx, ky, ty] = the visible GL book's width / W, height / H and top offset / H */
+const BODY: Record<keyof typeof SPREAD_R, readonly [number, number, number]> = {
+  portrait: [0.874, 0.849, 0.079], landscape: [0.906, 0.894, 0.0525], square: [0.88, 0.859, 0.073],
+}
+/** a turning leaf rises ≤ RISE·W over the visible book. The rigid cover opening is the highest frame (T2 test at 1440,
+   alpha ≥ 200 over the body top): landscape 0.210·W, square 0.179·W, portrait 0.169·W (θ 45–135: 0.180 / 0.156 / 0.141) */
+const RISE: Record<keyof typeof SPREAD_R, number> = { portrait: 0.175, landscape: 0.215, square: 0.185 }
+
+export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek, final }: RoomProps) {
   const root = React.useRef<HTMLDivElement>(null)
   const api = React.useRef<ReaderApi>(null)
   const sapi = React.useRef<SlidesApi>(null)
@@ -147,8 +158,8 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
   const roomProps = { ref: root, className: "sb-room", "data-testid": "ss-reader-page", "data-mode": mode, ...swipe }
 
   if (port) {
-    const g = portGeo(b, box.w, box.h)
-    const stage = { ref: sapi, b, slides, w: box.w, top: g.stageTop, pw: g.pw, ph: g.ph, view, setView, si, onSi: setSi, onRest: setRest, start: rest }
+    const g = portGeo(b, box.w, box.h, final)
+    const stage = { ref: sapi, b, slides, w: box.w, top: g.stageTop, pw: g.pw, ph: g.ph, view, setView, si, onSi: setSi, onRest: setRest, start: rest, fold: !final }
     const mb = (m: "carousel" | "turn", t: string) => (
       <button type="button" className="ss-tx" aria-pressed={rm === m} onClick={() => setRm(m)}>{t}</button>
     )
@@ -160,12 +171,19 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
           {playBtn}
         </div>
         {rm === "turn" ? <PageTurn key={rm} {...stage} /> : <Slides key={rm} {...stage} />}
-        {pager(g.footTop, { left: 16, right: 16, zIndex: 2 })}
-        <div className="ss-switch t13" role="group" aria-label="Reader" data-testid="ss-reader-switch" style={{ left: "auto", right: 16, translate: "none", bottom: 12 }}>
-          <span aria-hidden>Reader</span>
-          {mb("carousel", "Carousel")}
-          {mb("turn", "Page turn")}
-        </div>
+        {final ? (
+          // site-stand-v7 P1: the label only; the mode comes from the hash (no Reader switch)
+          <div className="ss-abs" style={{ left: 16, right: 16, top: g.footTop, height: 24, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2 }}>{lbl}</div>
+        ) : (
+          <>
+            {pager(g.footTop, { left: 16, right: 16, zIndex: 2 })}
+            <div className="ss-switch t13" role="group" aria-label="Reader" data-testid="ss-reader-switch" style={{ left: "auto", right: 16, translate: "none", bottom: 12 }}>
+              <span aria-hidden>Reader</span>
+              {mb("carousel", "Carousel")}
+              {mb("turn", "Page turn")}
+            </div>
+          </>
+        )}
       </div>
     )
   }
@@ -188,13 +206,13 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
             {back({ position: "absolute", left: 16, top: 8, maxWidth: B - 24, whiteSpace: "normal", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", textAlign: "start" })}
             <div className="ss-abs" style={{ ...row, right: 16, top: 8 }}>{playBtn}</div>
             <div className="ss-abs" style={{ ...row, left: 16, top: bottom }}>{lbl}</div>
-            <div className="ss-abs" style={{ ...row, right: 16, top: bottom, gap: 12 }}>{btn(-1)}{btn(1)}</div>
+            {!final && <div className="ss-abs" style={{ ...row, right: 16, top: bottom, gap: 12 }}>{btn(-1)}{btn(1)}</div>}
           </>
         ) : (
           // 1fr auto 1fr keeps the pager centred; the 16 px gaps leave back its centre-left − 32
           <div className="ss-abs" style={{ ...row, display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)", columnGap: 16, left: 16, right: 16, top: bottom }}>
             {back({ justifySelf: "start", maxWidth: "100%" })}
-            <div style={{ ...row, gap: 24 }}>{btn(-1)}{lbl}{btn(1)}</div>
+            <div style={{ ...row, gap: 24 }}>{final ? lbl : <>{btn(-1)}{lbl}{btn(1)}</>}</div>
             <div style={{ justifySelf: "end" }}>{playBtn}</div>
           </div>
         )}
@@ -203,10 +221,17 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
   }
 
   const top = nar ? 64 : 72, foot = nar ? 104 : 96
-  const rw = Math.max(200, Math.min(span(nar ? 4 : 10), (box.h - top - foot) * R))
-  const rh = rw / R
-  const bookLeft = (box.w - rw) / 2, bookTop = top + (box.h - top - foot - rh) / 2, bookBottom = bookTop + rh
-  const footTop = bookBottom + (wide ? 32 : 24)
+  let rw = Math.max(200, Math.min(span(nar ? 4 : 10), (box.h - top - foot) * R))
+  let bookTop = top + (box.h - top - foot - rw / R) / 2, footTop = bookTop + rw / R + (wide ? 32 : 24)
+  if (final && wide) {
+    // site-stand-v7 R: the visible book ≤ w − 128 wide, ≥ 64 above the bottom, a turning leaf below y 8; the foot pinned
+    const [kx, ky, ty] = BODY[b.fmt], rise = RISE[b.fmt], B = box.h - 64
+    footTop = box.h - 54
+    rw = Math.max(200, Math.min((box.w - 128) / kx, (B - 8) / (rise + ky / R)))
+    const H = rw / R, bh = ky * H
+    bookTop = Math.min(Math.max((44 + footTop) / 2 - bh / 2, rise * rw + 8), B - bh) - ty * H
+  }
+  const bookLeft = (box.w - rw) / 2
   const about = (
     <p className="sb-about" data-testid="sd-about">
       <span className={wide ? "t16" : "m15"}>{b.title}</span>
@@ -217,7 +242,7 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
     <div {...roomProps}>
       {reader(rw, bookLeft, bookTop)}
       {wide && <div className="ss-abs" style={{ ...row, left: x(0), top: footTop, width: span(4) }}>{about}</div>}
-      {pager(footTop, wide ? { left: x(4), width: span(5) } : { left: M, right: M })}
+      {pager(footTop, wide ? { left: x(4), width: span(final ? 4 : 5) } : { left: M, right: M })}
       {wide
         ? <div className="ss-abs" style={{ ...row, left: x(9), width: span(3), top: footTop, justifyContent: "flex-end" }}>{playBtn}</div>
         : <div className="ss-abs" style={{ ...row, left: M, right: M, top: footTop + 44 + 16, gap: 16 }}>{about}{playBtn}</div>}

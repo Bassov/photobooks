@@ -51,13 +51,15 @@ type Props = {
   si: number; onSi: (i: number) => void; onRest: (i: number) => void
   /** the slide to open on */
   start: number
+  /** a whole-spread slide shows the gutter fold (off in the final design, site-stand-v7 P2) */
+  fold?: boolean
 }
 /** a turn in progress: `top` is the sheet that moves (fade: the one fading out), `under` the one it uncovers; `gl`: the
    canvas draws it (both textures were in at its start) */
 type Turn = { top: number; under: number; dir: "fwd" | "back" | "fade"; gl?: boolean }
 type Drag = { id: number; x0: number; y0: number; t0: number; py: number; active: boolean; dead: boolean; dx: number; trail: [number, number][] }
 
-export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b, slides, w, top, pw, ph, view, setView, onSi, onRest, start }, ref) {
+export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b, slides, w, top, pw, ph, view, setView, onSi, onRest, start, fold: gutter = true }, ref) {
   const n = slides.length
   const clamp = (i: number) => Math.max(0, Math.min(n - 1, i))
   const [si, setSi] = React.useState(() => clamp(start))
@@ -197,7 +199,7 @@ export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b
       try {
         const T = await loadThree()
         if (dead) return
-        pc = new PageCurl(T, b, slides, look, paper, pw, ph)
+        pc = new PageCurl(T, b, slides, look, paper, pw, ph, gutter)
         pc.onChange = () => repaint.current()
         curl.current = pc
         pc.keep(live.current.si)
@@ -207,7 +209,7 @@ export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b
     })()
     return () => { dead = true; curl.current = null; pc?.dispose(); live.current.drawn = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild the textures only for what they draw; helpers (new every render) read refs
-  }, [gl, b, slides, pw, ph])
+  }, [gl, b, slides, pw, ph, gutter])
 
   // a view change from outside (rotation, deep link): jump there without animation
   React.useEffect(() => {
@@ -320,7 +322,7 @@ export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b
     return (
       <div key={i} ref={role === "top" ? topEl : undefined} className="pt-sheet" style={{ width: pw, height: ph, zIndex: role === "top" ? 2 : 1 }}
         data-testid="pt-sheet" data-role={role} role="group" aria-roledescription="page" aria-label={s.label} aria-hidden={role === "under" || undefined}>
-        <Paper b={b} s={s} pw={pw} ph={ph} on sheet />
+        <Paper b={b} s={s} pw={pw} ph={ph} on sheet fold={gutter} />
       </div>
     )
   }
@@ -343,7 +345,7 @@ export const PageTurn = React.forwardRef<SlidesApi, Props>(function PageTurn({ b
         <>
           <div ref={shadow} className="pt-shadow" style={{ height: ph }} aria-hidden data-testid="pt-shadow" />
           <div ref={flap} className="pt-flap" style={{ height: ph, background: cover ? ENDPAPER : undefined }} aria-hidden data-testid="pt-flap">
-            {!cover && <div className="pt-mirror" style={{ width: pw, height: ph }}><Paper b={b} s={slides[topI]!} pw={pw} ph={ph} on sheet /></div>}
+            {!cover && <div className="pt-mirror" style={{ width: pw, height: ph }}><Paper b={b} s={slides[topI]!} pw={pw} ph={ph} on sheet fold={gutter} /></div>}
             <div className="pt-flap-shade" />
           </div>
         </>

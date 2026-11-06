@@ -61,8 +61,9 @@ function sheen(c: HTMLCanvasElement) {
   return c
 }
 
-/** a slide as one sheet texture (`look.pagePx` wide): the cover, the title page, a page, or a spread centred on paper */
-async function slideCanvas(b: SiteBook, s: Slide, look: FaceLook, paper: string) {
+/** a slide as one sheet texture (`look.pagePx` wide): the cover, the title page, a page, or a spread centred on paper;
+   `fold` false (site-stand-v7 P2): a whole-spread slide has no gutter fold */
+async function slideCanvas(b: SiteBook, s: Slide, look: FaceLook, paper: string, fold: boolean) {
   const PX = look.pagePx
   if (s.kind === "cover") return coverCanvas(b, PX, look.title)
   if (s.kind !== "spread") return sheen(await faceCanvas(b, look, s.kind === "title" ? { v: 1, side: 1 } : { v: s.k! + 1, side: s.side === "R" ? 1 : 0 }, paper))
@@ -73,6 +74,7 @@ async function slideCanvas(b: SiteBook, s: Slide, look: FaceLook, paper: string)
   x.fillRect(0, 0, PX, PH)
   x.drawImage(l!, 0, y, PX / 2, bh)
   x.drawImage(r!, PX / 2, y, PX / 2, bh)
+  if (!fold) return sheen(c)
   // the fold (art.tsx FOLD over 3 % of the spread)
   const f = x.createLinearGradient(PX * 0.485, 0, PX * 0.515, 0)
   f.addColorStop(0, "rgba(0,0,0,0)"); f.addColorStop(0.5, "rgba(0,0,0,.06)"); f.addColorStop(1, "rgba(0,0,0,0)")
@@ -89,7 +91,7 @@ export class PageCurl {
   private top: Any; private under: Any; private shadow: Any
   private dead = false
 
-  constructor(private T: Three, private b: SiteBook, private slides: Slide[], private look: FaceLook, private paper: string, private pw: number, private ph: number) {
+  constructor(private T: Three, private b: SiteBook, private slides: Slide[], private look: FaceLook, private paper: string, private pw: number, private ph: number, private fold = true) {
     const geo = (this.geo = new T.PlaneGeometry(1, 1, 96, 120))
     const base = () => ({ sheet: { value: new T.Vector2(pw, ph) }, org: { value: new T.Vector2(16, OV) }, cvs: { value: new T.Vector2(1, 1) }, xm: { value: pw }, beta: { value: 0 }, r: { value: 1 } })
     // all three in the transparent list, so renderOrder alone stacks them: under, its shadow, the turning sheet
@@ -118,7 +120,7 @@ export class PageCurl {
     for (let i = Math.max(0, si - 1); i <= Math.min(this.slides.length - 1, si + 2); i++) {
       if (this.texs.has(i)) continue
       this.texs.set(i, null)
-      void slideCanvas(this.b, this.slides[i]!, this.look, this.paper).then((c) => {
+      void slideCanvas(this.b, this.slides[i]!, this.look, this.paper, this.fold).then((c) => {
         if (this.dead || this.texs.get(i) !== null) return
         const t = tex(this.T, c)
         t.colorSpace = this.T.NoColorSpace
