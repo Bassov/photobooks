@@ -150,6 +150,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [user-templates-store](roadmap/P3/user-templates-store.md) — Bug: /next-roadmap-item user-templates-store
 - [ ] [feature] [user-templates-picker](roadmap/P3/user-templates-picker.md) — Bug: /next-roadmap-item user-templates-picker
 - [ ] [feature] [design-r20-kit-mod-arrows](roadmap/P3/design-r20-kit-mod-arrows.md) — Bug: /next-roadmap-item design-r20-kit-mod-arrows
+- [ ] [feature] [stand-v4-demo9](roadmap/P3/stand-v4-demo9.md) — Bug: /next-roadmap-item stand-v4-demo9
 - [ ] [feature] [user-templates-best-fit](roadmap/P3/user-templates-best-fit.md) — Bug: /next-roadmap-item user-templates-best-fit
 - [ ] [feature] [site-viewer](roadmap/P3/site-viewer.md) — viewer entry
 - [ ] [feature] [site-lightbox-kit](roadmap/P3/site-lightbox-kit.md) — Bug: /next-roadmap-item site-lightbox-kit
