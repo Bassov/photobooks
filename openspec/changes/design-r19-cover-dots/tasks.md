@@ -7,3 +7,5 @@
 
 1. Open a session book at 1440×900, select the cover: dots around the sheet, no jump against the spread view.
 2. Select the front endpaper, then Masters: dots around the sheet on both.
+
+- problem (harness): 1–2 — `pnpm agent manual-qa` timed out clicking `start-session` (welcome header intercepts pointer events); no product behavior observed. Evidence instead: `e2e/cover-stage-dots.spec.ts` paints the spread, cover, endpaper and masters at 1440×900 (green locally).
