@@ -6,7 +6,7 @@ Title: write `dist/`
 
 ## Scope
 
-- [ ] Prerender and file writes in a worker; progress (cancel: not in kit — not built until Designer adds it, D2)
+- [x] Prerender and file writes in a worker; progress (cancel: not in kit — not built until Designer adds it, D2)
 - **Perf:** scenario: edit with drag while the export writes — zero LoAF.
 - **Browser check:** export to a folder while continuing to edit without stutter, serve it locally, open on phone and desktop; drafts are absent.
 - **Kit components:** `uikit#/feature/in-app-publish` (`uikit/src/features/pages.tsx` page `in-app-publish`); parts: `uikit/src/demo-parts/dialogs.tsx` (`PublishDialog`); partial: kit shows export only as part of Publish
