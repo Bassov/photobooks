@@ -6,3 +6,4 @@
 ## Manual test scenarios
 
 1. Kit `#/demo` → create a book → Preview → → → (Pages 2–3) → Alt+→ / Ctrl+→ / Meta+→ keep Pages 2–3 → plain → shows Pages 4–5.
+   - OK (kit-only: agent manual-qa drives the prod editor, not the kit `#/demo`; the walk is `e2e/kit-preview-mod-arrows.spec.ts`, green locally, red before the fix).
