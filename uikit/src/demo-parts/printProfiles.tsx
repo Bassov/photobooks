@@ -4,7 +4,7 @@ import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { AppModal } from "@/components/app/ui"
 import { cn } from "@/lib/utils"
-import { fmtN } from "@/sandbox/v7"
+import { fmtN, PAGE_MAX, PAGE_MIN } from "@/sandbox/v7"
 
 export type SpineRule = { kind: "formula"; baseMm: number; perPageMm: number } | { kind: "table"; rows: { maxPages: number; widthMm: number }[] }
 export type KitProfile = {
@@ -40,6 +40,26 @@ export function profileSummary(p: KitProfile) {
   const bleed = p.bleedMinMm === p.bleedMaxMm ? fmtN(p.bleedMinMm) : `${fmtN(p.bleedMinMm)}–${fmtN(p.bleedMaxMm)}`
   return `${fmtN(p.trimMinMm / 10)}–${fmtN(p.trimMaxMm / 10)} cm · bleed ${bleed} mm · safe ${fmtN(p.safeMarginMm)} mm · ${p.pageCount.min}–${p.pageCount.max} pages · photos ≥ ${p.dpi.warn} ppi`
 }
+/** Book settings PRINT hint under the Printer select */
+export const profileHint = (p: KitProfile) => `${fmtN(p.trimMinMm / 10)}–${fmtN(p.trimMaxMm / 10)} cm · ${p.pageCount.min}–${p.pageCount.max} pages · photos ≥ ${p.dpi.warn} ppi`
+/** D5: the Pages field range, [PAGE_MIN, min(PAGE_MAX, profile max)] */
+export const pagesRange = (p: KitProfile): [number, number] => [PAGE_MIN, Math.min(PAGE_MAX, p.pageCount.max)]
+/** The book's custom profiles; #/demo provides the session's, feature pages get the sample. */
+export const PrintCustomsCtx = React.createContext<KitProfile[]>(SAMPLE_CUSTOMS)
+/** Book settings PRINT warnings: unknown profile, page side (cm) out of the trim range, page count out of the profile range. */
+export function printIssues(id: string | undefined, customs: KitProfile[], size: { w: number; h: number }, pages: number) {
+  const p = profileById(id, customs), out: string[] = []
+  if (id !== undefined && p.id !== id) out.push("This book’s printer isn’t in this library. Using Generic.")
+  const side = (v: number) => `This page is ${fmtN(v)} cm ${v === size.w ? "wide" : "high"}.`
+  const lo = Math.min(size.w, size.h), hi = Math.max(size.w, size.h)
+  if (lo * 10 < p.trimMinMm) out.push(`${p.name} takes pages from ${fmtN(p.trimMinMm / 10)} cm. ${side(lo)}`)
+  if (hi * 10 > p.trimMaxMm) out.push(`${p.name} takes pages up to ${fmtN(p.trimMaxMm / 10)} cm. ${side(hi)}`)
+  if (pages < p.pageCount.min) out.push(`${p.name} prints at least ${p.pageCount.min} pages; this book’s ${pages} print as ${p.pageCount.min}.`)
+  if (pages > p.pageCount.max) out.push(`${p.name} prints up to ${p.pageCount.max} pages. This book has ${pages}.`)
+  return out
+}
+/** D4: picking a profile keeps the bleed inside its range and takes its safe margin; trim and pages stay. */
+export const pickPrint = (p: KitProfile, bleed: number) => ({ profile: p.id, bleed: Math.min(Math.max(bleed, p.bleedMinMm), p.bleedMaxMm), safe: p.safeMarginMm })
 /** D9: "<name> (copy)", then "(copy 2)", "(copy 3)" … */
 export function copyName(name: string, taken: string[]) {
   const root = name.replace(/ \(copy(?: \d+)?\)$/, "")

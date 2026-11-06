@@ -15,7 +15,7 @@ import { useCoverPhoto, useCoverText, useMasters, setEditorExtras } from "@/sand
 import type { View } from "@/sandbox/store"
 import { FolderPicker } from "@/features/screens"
 import { useSession, blankDoc, blankExtras, type Extras } from "./session"
-import { profileById } from "./printProfiles"
+import { PrintCustomsCtx, profileById } from "./printProfiles"
 import { ExportSiteDialog, PrintDialog, PublishDialog, RelinkDialog, useExportRun, type ExportPhase, type ExportStep } from "./dialogs"
 import { DemoSitePreview } from "./site"
 import type { SiteState } from "@/features/site-viewer"
@@ -150,15 +150,15 @@ export function DemoEditor({ id, initialDialog = null, initialPreview = false }:
   const openExport = () => { setExStep(ex.phase === "idle" ? "opts" : ex.phase); ex.seen(); setDlg("export") }
   const others = S.books.filter((x) => x.published && x.id !== id).map((x) => x.title)
   return (
-    <div className="h-full" data-testid="demo-editor">
+    <div className="h-full" data-testid="demo-editor"><PrintCustomsCtx.Provider value={S.printProfiles}>
       <Std keep init={() => b.doc ?? blankDoc()} book={b.book} cur={0} features={DEMO_FEATURES} view={DEMO_VIEW} missing={b.missing} left={<SpreadsPanel reorder actions />}
         top={<EditorTopBar title={b.title} onLibrary={() => set({ stage: "library", open: null })} onPreview={() => setPreview(true)} onSettings={() => set({ stage: "settings", back: "editor" })} exportSite={{ phase: ex.phase, p: ex.p }} onExportSite={openExport} onPrint={() => setDlg("print")} onPublish={() => setDlg("publish")} />}
         dock={<PhotosDock />}
         overlay={<><DocSpy id={id} /><MissingSync id={id} />
           {preview && <DemoSitePreview id={id} onExit={() => setPreview(false)} initial={typeof initialPreview === "object" ? initialPreview : undefined} />}
-          {dlg === "publish" && <PublishDialog title={b.title} onClose={() => setDlg(null)} onOpenSite={openSite} />}{dlg === "print" && <PrintDialog book={b.book} spreads={b.doc?.spreads.length ?? 10} title={b.title} profile={profileById(b.printProfile, S.printProfiles)} onClose={() => setDlg(null)} />}
+          {dlg === "publish" && <PublishDialog title={b.title} onClose={() => setDlg(null)} onOpenSite={openSite} />}{dlg === "print" && <PrintDialog book={b.book} spreads={b.doc?.spreads.length ?? 10} title={b.title} profile={profileById(b.doc?.print?.profile ?? b.printProfile, S.printProfiles)} onClose={() => setDlg(null)} />}
           {dlg === "export" && <ExportSiteDialog title={b.title} otherBooks={others} initialStep={exStep} run={ex} onHide={() => setDlg(null)} />}</>} />
-    </div>
+    </PrintCustomsCtx.Provider></div>
   )
 }
 

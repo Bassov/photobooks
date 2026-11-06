@@ -6,6 +6,7 @@ import {
   DemoRoot, EditorView, PrintDialog, PublishDialog, SLOT, type RootInit,
 } from "@/demo-parts"
 import { LAKE_BOOK, LAKE_TITLE, docBlank, docAdded, docFilled, COVER_DONE, dbook, SHELF } from "@/demo-parts/fixtures"
+import { pickPrint, profileById } from "@/demo-parts/printProfiles"
 import { ExportSiteDialog, type ExportRun } from "@/demo-parts/dialogs"
 import type { PrintInit, SettingsSection } from "@/demo-parts/settings"
 import type { SessionState } from "@/demo-parts/session"
@@ -179,9 +180,11 @@ export const PAGES: Record<string, FeatureDef> = {
     ["frame", "Frame", ed({ doc: docFilled, cur: 1, pick: 0, slots: { left: false, dock: false } })],
     ["spread", "Spread", ed({ doc: docFilled, cur: 1, node: { k: "none" }, slots: { left: false, dock: false } })],
     ["book", "Book settings", ed({ doc: docFilled, cur: 1, node: { k: "book" }, slots: { left: false, dock: false } })],
+    /* printer-presets: Lulu picked on a 15 × 23 cm, 20-page book — page width and page count warnings */
+    ["book-lulu", "Lulu picked", ed({ doc: () => ({ ...docFilled(), print: pickPrint(profileById("lulu-photo-book", []), 3) }), book: { ...LAKE_BOOK, w: 15 }, cur: 1, node: { k: "book" }, slots: { left: false, dock: false } })],
     ["endpaper", "Endpaper", ed({ doc: docFilled, cur: 1, node: { k: "endpaper", w: "front" }, slots: { left: false, dock: false } })],
   ], {
-    what: "The inspector (right panel, 300 px) follows the selection: a frame (photo, crop, geometry, arrange), the spread (layout, background, grid), Book settings (title, size, endpapers) or an endpaper.",
+    what: "The inspector (right panel, 300 px) follows the selection: a frame (photo, crop, geometry, arrange), the spread (layout, background, grid), Book settings (size, endpapers, printer) or an endpaper.",
     where: "#/demo steps 16 (frame), 20 (spread), 24 (book title → Book settings), 25 (endpaper).",
     edge: ["Nothing selected → spread properties", "Book settings stays until another item is clicked"],
   }),

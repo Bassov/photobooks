@@ -2782,6 +2782,51 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("printer-presets: PrintDialog Printer · Generic row, 3 mm bleed from the profile", pd.row === "PrinterGeneric" && pd.cb === "Add 3 mm bleed and crop marks" && pd.sum.endsWith("· bleed 3 mm"), JSON.stringify(pd))
   ok("printer-presets: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
+{ // printer-presets-kit-book (Designer printer-presets §Book settings → PRINT): DOM measured at 1440 × 900, offsets from the PRINT title
+  const e0 = errs.length
+  const B = '[data-scenario] [data-testid="insp-book"]'
+  const read = () => page.evaluate((B) => {
+    const q = (s) => document.querySelector(`${B} ${s}`), top = (e) => e.getBoundingClientRect().top, h3 = (t) => [...document.querySelectorAll(`${B} h3`)].find((h) => h.textContent === t)
+    const p0 = top(h3("Print")), d = (e) => +(top(e) - p0).toFixed(2), sel = q('[data-testid="book-print-profile"]'), sr = sel.getBoundingClientRect(), cs = getComputedStyle(sel)
+    return { sel: { y: d(sel), w: +sr.width.toFixed(2), h: +sr.height.toFixed(2), bg: cs.backgroundColor, value: sel.value, groups: [...sel.querySelectorAll("optgroup")].map((g) => `${g.label}:${g.children.length}`).join() },
+      hint: { y: d(q('[data-testid="book-print-hint"]')), t: q('[data-testid="book-print-hint"]').textContent, font: ((s) => `${s.fontSize}/${s.lineHeight}`)(getComputedStyle(q('[data-testid="book-print-hint"]'))) },
+      /** the Page size select's width and the inspector scrollbar (qa shows scrollbars; prod measures 268 without one) */
+      sizeW: q('[data-testid="size-preset"]').getBoundingClientRect().width, sb: ((s) => s.offsetWidth - s.clientWidth)((() => { let e = sel; while (e && !(e.scrollHeight > e.clientHeight && /auto|scroll/.test(getComputedStyle(e).overflowY))) e = e.parentElement; return e })()),
+      issues: [...document.querySelectorAll(`${B} [data-testid="book-print-issue"]`)].map((e) => { const s = getComputedStyle(e), i = e.querySelector("svg").getBoundingClientRect(); return { y: d(e), h: +e.getBoundingClientRect().height.toFixed(2), t: e.textContent, c: `${s.fontSize}/${s.lineHeight} ${s.fontWeight} ${s.color}`, icon: `${i.width}×${i.height}` } }),
+      bs: d(q('[data-testid="book-bleed"]')), defaults: d(h3("Defaults")), b: q('[data-testid="book-bleed"]').textContent, s: q('[data-testid="book-safe"]').textContent, range: q('[data-testid="book-pages-range"]').textContent,
+      size: `${q('[data-testid="size-w"]').value}×${q('[data-testid="size-h"]').value}`, pages: q('[data-testid="book-pages"]').firstChild.textContent }
+  }, B)
+  const near = (a, b) => Math.abs(a - b) <= 0.5
+  await page.setViewportSize({ width: 1440, height: 900 }); await page.goto(url + feat("inspector")); await page.waitForTimeout(500)
+  const tab = async (t) => { await page.locator(`[data-testid="scenarios"] [role="tab"]:text-is("${t}")`).evaluate((e) => e.click()); await page.waitForTimeout(350) }
+  await tab("Book settings")
+  const g = await read()
+  ok("printer-presets-kit-book: Printer select 268 (+ scrollbar) × 32 = Page size select, bg #D7D7D7 under the PRINT title, optgroups Print shops (3) / Custom (1), Generic", g.sel.w + g.sb === 268 && g.sel.w === g.sizeW && g.sel.h === 32 && g.sel.bg === "rgb(215, 215, 215)" && near(g.sel.y, 26.84) && g.sel.groups === "Print shops:3,Custom:1" && g.sel.value === "generic", JSON.stringify({ ...g.sel, sizeW: g.sizeW, sb: g.sb }))
+  ok("printer-presets-kit-book: hint 2xs/16 under the select (+38), Generic text", near(g.hint.y, 64.84) && g.hint.t === "5–50 cm · 20–120 pages · photos ≥ 200 ppi" && g.hint.font === "11px/16px", JSON.stringify(g.hint))
+  ok("printer-presets-kit-book: no warnings → B/S and DEFAULTS 66 px lower (B/S +92.84, DEFAULTS +195.69 = 788.61 → 854.61 from 658.92), B 3 / S 8, Pages 20–120", !g.issues.length && near(g.bs, 92.84) && near(g.defaults, 195.69) && g.b === "B3mm" && g.s === "S8mm" && g.range === "20–120", JSON.stringify({ bs: g.bs, defaults: g.defaults, b: g.b, s: g.s, range: g.range }))
+  await page.locator(`${B} [data-testid="book-print-profile"]`).selectOption("lulu-photo-book"); await page.waitForTimeout(300)
+  const lu = await read()
+  const live = await page.locator(`${B} [aria-live="polite"]`).textContent()
+  await page.keyboard.press("Control+z"); await page.waitForTimeout(300)
+  const un = await read()
+  ok("printer-presets-kit-book: pick Lulu = one undo step: B 3.175 / S 12.7, size and pages unchanged, 1 warning (+8 + 2 × 16.8), live “Printer: Lulu · Photo book”; Ctrl+Z → Generic, B 3 / S 8",
+    lu.sel.value === "lulu-photo-book" && lu.b === "B3.175mm" && lu.s === "S12.7mm" && lu.size === g.size && lu.pages === g.pages && lu.issues.length === 1 && near(lu.defaults - g.defaults, 8 + 2 * 16.8) && live === "Printer: Lulu · Photo book" &&
+    un.sel.value === "generic" && un.b === "B3mm" && un.s === "S8mm" && !un.issues.length && near(un.defaults, g.defaults), JSON.stringify({ lu: [lu.b, lu.s, lu.size, lu.pages, lu.issues.length, lu.defaults], live, un: [un.sel.value, un.b, un.s, un.defaults] }))
+  await tab("Lulu picked")
+  const w = await read()
+  ok("printer-presets-kit-book: book-lulu shows 2 warnings 12/16.8 400 #8a5a12 with a 12 px icon, 8 px apart, each adding 8 + 16.8 per line",
+    w.issues.length === 2 && w.issues.every((i) => i.c === "12px/16.8px 400 rgb(138, 90, 18)" && i.icon === "12×12") && near(w.issues[0].y, 64.84 + 16 + 8) && near(w.issues[1].y, w.issues[0].y + w.issues[0].h + 8) &&
+    near(w.defaults - g.defaults, w.issues.reduce((s, i) => s + 8 + i.h, 0)) && w.issues.every((i) => near(i.h, 16.8 * Math.round(i.h / 16.8))) &&
+    w.issues[0].t === "Lulu · Photo book takes pages from 15.2 cm. This page is 15 cm wide." && w.issues[1].t === "Lulu · Photo book prints at least 24 pages; this book’s 20 print as 24.", JSON.stringify(w.issues))
+  // paint: scrolled into view, each warning's text and icon are the topmost elements at their centres
+  const paint = await page.evaluate((B) => [...document.querySelectorAll(`${B} [data-testid="book-print-issue"]`)].map((e) => {
+    e.scrollIntoView({ block: "center" })
+    const at = (el) => { const r = el.getBoundingClientRect(), x = el === e ? r.right - 24 : r.left + r.width / 2; return e.contains(document.elementFromPoint(x, r.top + r.height / 2)) }
+    return at(e) && at(e.querySelector("svg"))
+  }), B)
+  ok("printer-presets-kit-book: both warnings paint on top (elementFromPoint at text and icon)", paint.length === 2 && paint.every(Boolean), JSON.stringify(paint))
+  ok("printer-presets-kit-book: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
+}
 
 
 fs.writeFileSync(new URL("../qa-report.txt", import.meta.url), res.join("\n") + "\n\nCONSOLE:\n" + (errs.join("\n") || "none") + "\n")

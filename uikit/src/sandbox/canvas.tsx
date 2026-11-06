@@ -9,7 +9,7 @@ import { P } from "@/data"
 import {
   SW, SH, PAGE, type Doc, type Frame, type Spread, type Rect, type SnapLine, type Anchor, anchors, snapRect, resolveGrid, effectiveGrid,
   allGuides, clamp, round, effectiveDpi, orientedSize, photoOf, uid, framesFromTemplate,
-  parentOf, pageNumbersOf, foliosOf, type Guide,
+  parentOf, pageNumbersOf, foliosOf, printSafe, type Guide,
 } from "./model"
 import { useStudio, mapSpread, mapFrames, useKeys, type Studio } from "./store"
 import { anchorPhoto, fillTokens } from "./meta"
@@ -583,7 +583,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   })
   const showSel = active && selFrames.length > 0 && !st.cropId && !view.preview
   const single = selFrames.length === 1 ? selFrames[0] : null
-  const folios = view.pageNumbers || pageNumbersOf(par) ? foliosOf(doc, s, si, st.book.safe) : []
+  const folios = view.pageNumbers || pageNumbersOf(par) ? foliosOf(doc, s, si, printSafe(doc, st.book)) : []
   return (
     <div ref={ref} {...dropProps} onPointerDownCapture={onOverridePress} onPointerDown={onBgDown} onWheel={onWheel} data-testid="spread" data-spread={si} data-current={si === st.cur || undefined}
       className={cn("relative shrink-0 select-none", view.preview ? "" : "shadow-page", isDropTarget && "outline-2 outline-offset-4 outline-mark [outline-style:dashed]",
