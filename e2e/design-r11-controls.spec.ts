@@ -328,6 +328,11 @@ test.describe('design-r11-controls: editor inspectors match the kit', () => {
       weight: '400',
       color: INK,
     })
+    // The 4-page book's "Generic prints at least 20 pages" warning (mt-2 +
+    // its height, kit "Lulu picked") sits between the hint and B / S.
+    const issue = page.getByTestId('book-print-issue')
+    await expect(issue).toHaveCount(1)
+    const dy = 8 + (await box(issue)).height
     for (const [id, x] of [
       ['book-bleed', 1186],
       ['book-safe-margin', 1324],
@@ -337,7 +342,7 @@ test.describe('design-r11-controls: editor inspectors match the kit', () => {
       // Kit #/demo editor-inspector-book after page-numbers-kit: Page
       // numbers (194.21 px, two-line "No master prints…" note) sits above Print.
       // printer-presets: the Printer select, hint and mt-3 add 66 px.
-      await expectBox(value, { x, y: 848.34, width: 60, height: 18.84 })
+      await expectBox(value, { x, y: 848.34 + dy, width: 60, height: 18.84 })
     }
   })
 

@@ -338,12 +338,18 @@ test.describe('M59–M61: Cover, Book and Photo inspectors match the kit', () =>
     await near(page.getByTestId('book-pages-note'), b.pagesNote)
     await near(titles.nth(2), b.pageNumbers)
     await near(titles.nth(3), b.print)
-    await near(page.getByTestId('book-bleed'), b.printFields)
+    // The 4-page library book warns "Generic prints at least 20 pages"; the
+    // kit book has none. Each warning adds mt-2 + its height (kit "Lulu
+    // picked"), so everything under the hint moves down by that stack.
+    const issues = page.getByTestId('book-print-issue')
+    await expect(issues).toHaveCount(1)
+    const dy = 8 + (await box(issues.first())).height
+    await near(page.getByTestId('book-bleed'), b.printFields + dy)
     // Rows 3 / 4 are Start at and Skip first page.
-    await near(rows.nth(5), b.paperRow)
-    await near(titles.nth(4), b.defaults)
-    await near(rows.nth(6), b.defaultRows[0])
-    await near(rows.nth(7), b.defaultRows[1])
+    await near(rows.nth(5), b.paperRow + dy)
+    await near(titles.nth(4), b.defaults + dy)
+    await near(rows.nth(6), b.defaultRows[0] + dy)
+    await near(rows.nth(7), b.defaultRows[1] + dy)
   })
 
   test('M60: the Photo inspector opens on collapsible kit sections', async ({
