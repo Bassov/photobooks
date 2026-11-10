@@ -25,7 +25,7 @@ describe('AlertDialog icon tile', () => {
     expect(tile?.className).toContain('text-destructive')
   })
 
-  it('uses the gray tile for neutral tone and none without an icon', async () => {
+  it('uses the gray tile for neutral tone and the kit trash without an icon', async () => {
     const { rerender } = render(
       <AlertDialog
         isOpen
@@ -39,10 +39,10 @@ describe('AlertDialog icon tile', () => {
     expect(tile?.className).not.toContain('text-destructive')
     rerender(<AlertDialog isOpen tone="neutral" title="Change?" />)
     expect(
-      (await screen.findByRole('alertdialog')).querySelector(
-        '.pb-alert-dialog-head > span',
-      ),
-    ).toBeNull()
+      (await screen.findByRole('alertdialog'))
+        .querySelector('.pb-alert-dialog-head > span > svg')
+        ?.getAttribute('data-icon'),
+    ).toBe('delete')
   })
 })
 

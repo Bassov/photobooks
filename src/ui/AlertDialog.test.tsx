@@ -45,6 +45,33 @@ describe('AlertDialog', () => {
     )
   })
 
+  it('leads with the kit trash tile and md buttons unless given an icon', async () => {
+    render(<AlertDialog isOpen title="Delete?" />)
+    const dialog = await screen.findByRole('alertdialog')
+    expect(
+      dialog
+        .querySelector('svg[data-icon="delete"]')
+        ?.getAttribute('data-icon'),
+    ).toBe('delete')
+    for (const name of ['Cancel', 'Remove']) {
+      expect(screen.getByRole('button', { name }).className).toContain(
+        'pb-button--md',
+      )
+    }
+    cleanup()
+
+    render(
+      <AlertDialog
+        isOpen
+        title="Move?"
+        icon={<svg data-testid="custom-icon" />}
+      />,
+    )
+    await screen.findByRole('alertdialog')
+    expect(screen.getByTestId('custom-icon')).toBeTruthy()
+    expect(document.querySelector('svg[data-icon="delete"]')).toBeNull()
+  })
+
   it('uses default confirm styling for neutral tone', async () => {
     render(
       <AlertDialog isOpen title="Continue?" tone="neutral" confirmLabel="OK" />,

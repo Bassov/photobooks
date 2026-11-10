@@ -10,7 +10,7 @@
   letter-spacing: 0.01em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  box-shadow: inset 0 0 0 1px var(--badge-ring);
+  /* Kit index.css: badges lose their inset ring (P2-8), tone only. */
   background: var(--badge-bg);
   color: var(--badge-fg);
 }
@@ -93,34 +93,29 @@
 .pb-badge--gray {
   --badge-fg: var(--badge-gray-fg);
   --badge-bg: var(--badge-gray-bg);
-  --badge-ring: var(--badge-gray-ring);
   --badge-dot: var(--badge-gray-dot);
 }
 
 .pb-badge--brand {
   --badge-fg: var(--badge-brand-fg);
   --badge-bg: var(--badge-brand-bg);
-  --badge-ring: var(--badge-brand-ring);
   --badge-dot: var(--badge-brand-dot);
 }
 
 .pb-badge--success {
   --badge-fg: var(--badge-success-fg);
   --badge-bg: var(--badge-success-bg);
-  --badge-ring: var(--badge-success-ring);
   --badge-dot: var(--badge-success-dot);
 }
 
 .pb-badge--warning {
   --badge-fg: var(--badge-warning-fg);
   --badge-bg: var(--badge-warning-bg);
-  --badge-ring: var(--badge-warning-ring);
   --badge-dot: var(--badge-warning-dot);
 }
 
 .pb-badge--error {
   --badge-fg: var(--badge-error-fg);
   --badge-bg: var(--badge-error-bg);
-  --badge-ring: var(--badge-error-ring);
   --badge-dot: var(--badge-error-dot);
 }
