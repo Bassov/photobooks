@@ -451,6 +451,8 @@ test.describe('phone 390×844: page turn GL', () => {
 type Probe = Window & {
   /** css px from the canvas top to its first row with alpha ≥ 200; Infinity when empty */
   alphaTop: () => number
+  /** the viewport box of the canvas pixels with alpha ≥ 200 (the visible book); null when empty */
+  alphaBox: () => { x: number; y: number; r: number; b: number } | null
   /** mean RGB of the 3×3 backing pixels at a viewport point */
   rgbAt: (x: number, y: number) => number[]
   tops?: number[]
@@ -479,6 +481,33 @@ function installProbe() {
           return (y0 + Math.floor((i - 3) / 4 / c.width)) * k
     }
     return Number.POSITIVE_INFINITY
+  }
+  w.alphaBox = () => {
+    const g = canvas()
+    if (!g) return null
+    const { c, x } = g,
+      rc = c.getBoundingClientRect(),
+      k = rc.width / c.width
+    const d = x.getImageData(0, 0, c.width, c.height).data
+    let x0 = c.width,
+      y0 = c.height,
+      x1 = -1,
+      y1 = -1
+    for (let y = 0; y < c.height; y++)
+      for (let i = 0; i < c.width; i++)
+        if ((d[4 * (y * c.width + i) + 3] ?? 0) >= 200) {
+          if (i < x0) x0 = i
+          if (i > x1) x1 = i
+          if (y < y0) y0 = y
+          y1 = y
+        }
+    if (x1 < 0) return null
+    return {
+      x: rc.x + x0 * k,
+      y: rc.y + y0 * k,
+      r: rc.x + (x1 + 1) * k,
+      b: rc.y + (y1 + 1) * k,
+    }
   }
   w.rgbAt = (px, py) => {
     const g = canvas()
@@ -665,8 +694,6 @@ test.describe('desktop 1440×900: GL turn fixes (site-stand-v7 T)', () => {
     expect(errors).toEqual([])
   })
 
-  /** the leaf's lowest allowed viewport top: demo 9 (D31) 8; demo 6's portrait leaf may leave the viewport */
-  const VIEWPORT_TOP = { 6: Number.NEGATIVE_INFINITY, 9: 8 } as const
   for (const demo of [6, 9] as const)
     for (const id of ['coast', 'lake-trip', 'summer-family'])
       test(`T2: demo ${String(demo)} ${id}: the leaf stays below the canvas top, opening and θ 45…135`, async ({
@@ -718,9 +745,9 @@ test.describe('desktop 1440×900: GL turn fixes (site-stand-v7 T)', () => {
         })
         const g = await geometry(page)
         const turn = await sweep(page, g)
-        // D31 (demo 9 only): the leaf also stays ≥ 8 px into the viewport; demo 6's portrait leaf may leave it
+        // the leaf may rise over the head (stand-v8 drops D31's viewport floor): only the canvas must not cut it
         const cy = (await box(page.getByTestId('ps-reader-canvas'))).y
-        const floor = Math.max(2, VIEWPORT_TOP[demo] - cy)
+        const floor = 2
         console.log(
           `T2 demo ${String(demo)} ${id}: W ${(2 * g.pw).toFixed(1)}, canvas y ${cy.toFixed(1)}, opening ${String(opening.length)} frames min ${Math.min(...opening).toFixed(1)}, leaf ${turn.map((t) => t.toFixed(1)).join(' ')}`,
         )
@@ -729,4 +756,121 @@ test.describe('desktop 1440×900: GL turn fixes (site-stand-v7 T)', () => {
         expect(Math.min(...turn)).toBeGreaterThanOrEqual(floor)
         expect(errors).toEqual([])
       })
+})
+
+/** the viewport box of the reader canvas's painted pixels (alpha ≥ 200) */
+async function paintBox(page: Page) {
+  const bb = await page.evaluate(() => (window as unknown as Probe).alphaBox())
+  if (!bb) throw new Error('nothing painted')
+  return bb
+}
+
+/** the rows of `b` where no pixel moved more than 12 in any channel from `a` (same clip) */
+function stillRows(a: Img, b: Img) {
+  const out: number[] = []
+  for (let y = 0; y < b.h; y++) {
+    const row = 4 * y * b.w
+    const moved = b.a
+      .slice(row, row + 4 * b.w)
+      .some((v, i) => i % 4 < 3 && Math.abs(v - (a.a[row + i] ?? 0)) > 12)
+    if (!moved) out.push(y)
+  }
+  return out
+}
+
+// stand-v8 (Owner 2026-11-07): demo 9's open book (its painted GL pixels) sits in the exact centre of the area between
+// the head (bottom y 44) and the foot row (top h − 54), as large as fits ≥ 32 above / below and ≥ 64 each side
+for (const [vw, vh] of [
+  [1440, 900],
+  [1280, 800],
+  [1920, 1080],
+] as const)
+  test.describe(`desktop ${String(vw)}×${String(vh)}: demo 9 book centred (stand-v8)`, () => {
+    test.use({ viewport: { width: vw, height: vh } })
+    for (const id of ['coast', 'lake-trip', 'summer-family'])
+      test(`${id}: centred, equal margins, as large as fits`, async ({
+        page,
+      }) => {
+        const errors = collectErrors(page)
+        await page.addInitScript(installProbe)
+        await page.goto(`/uikit/#/full/site-demo-9?book=${id}`)
+        await needWebGl2(page)
+        await expect(page.getByTestId('ps-reader-gl')).toHaveAttribute(
+          'data-faces',
+          'done',
+          { timeout: 20_000 },
+        )
+        await settle(page, 1)
+        await page.mouse.move(0, 0)
+        await animationsSettled(page.getByTestId('ps-reader'))
+        const foot = (await box(page.getByTestId('ss-label').locator('..'))).y
+        expect(foot).toBeCloseTo(vh - 54, 0)
+        const bb = await paintBox(page)
+        const above = bb.y - 44,
+          below = foot - bb.b,
+          left = bb.x,
+          right = vw - bb.r
+        const rb = await box(page.getByTestId('ps-reader')),
+          W = rb.width
+        console.log(
+          `v8 ${String(vw)}×${String(vh)} ${id}: W ${W.toFixed(1)} kx ${((bb.r - bb.x) / W).toFixed(5)} ky ${((bb.b - bb.y) / rb.height).toFixed(5)} ty ${((bb.y - rb.y) / rb.height).toFixed(5)} cx ${((bb.x + bb.r) / 2 - rb.x - W / 2).toFixed(2)}, book ${(bb.r - bb.x).toFixed(1)} × ${(bb.b - bb.y).toFixed(1)}, margins ${above.toFixed(1)} / ${below.toFixed(1)}, sides ${left.toFixed(1)} / ${right.toFixed(1)}`,
+        )
+        expect(Math.abs((bb.x + bb.r) / 2 - vw / 2)).toBeLessThanOrEqual(1)
+        expect(
+          Math.abs((bb.y + bb.b) / 2 - (44 + foot) / 2),
+        ).toBeLessThanOrEqual(1)
+        expect(Math.abs(above - below)).toBeLessThanOrEqual(1)
+        expect(Math.min(above, below)).toBeGreaterThanOrEqual(31)
+        expect(Math.min(left, right)).toBeGreaterThanOrEqual(63)
+        // as large as fits: one of the two limits is reached
+        expect(Math.min(above - 32, left - 64)).toBeLessThanOrEqual(1)
+        expect(errors).toEqual([])
+      })
+  })
+
+// stand-v8: the centred book leaves its leaf room to rise over the head and past the window top; the canvas overhang
+// (0.21·W) never cuts it, so at θ 90 every row from the book's top edge up to y 0 shows the leaf over the spine
+test.describe('desktop 1440×900: demo 9 leaf at θ 90 (stand-v8)', () => {
+  test.use({ viewport: { width: 1440, height: 900 } })
+  for (const id of ['coast', 'lake-trip'])
+    test(`${id}: the leaf is painted from the book up to the window top`, async ({
+      page,
+    }) => {
+      const errors = collectErrors(page)
+      await page.addInitScript(installProbe)
+      await page.goto(`/uikit/#/full/site-demo-9?book=${id}`)
+      await needWebGl2(page)
+      await expect(page.getByTestId('ps-reader-gl')).toHaveAttribute(
+        'data-faces',
+        'done',
+        { timeout: 20_000 },
+      )
+      await settle(page, 1)
+      await page.mouse.move(0, 0)
+      await animationsSettled(page.getByTestId('ps-reader'))
+      const bb = await paintBox(page)
+      const g = await geometry(page)
+      const clip = {
+        x: Math.round(g.spine - g.pw / 4),
+        y: 0,
+        width: Math.round(g.pw / 2),
+        height: Math.floor(bb.y) - 4,
+      }
+      const rest = await shot(page, clip)
+      await page.mouse.move(g.spine + 0.8 * g.pw, g.y)
+      await page.mouse.down()
+      await holdAt(page, g, 90)
+      const held = await shot(page, clip)
+      await page.screenshot({
+        path: test.info().outputPath(`demo9-1440-${id}-leaf90.png`),
+      })
+      await page.mouse.move(g.spine + 0.8 * g.pw, g.y, { steps: 6 })
+      await page.mouse.up()
+      const bare = stillRows(rest, held)
+      console.log(
+        `v8 leaf90 ${id}: book top ${bb.y.toFixed(1)}, rows without leaf ${String(bare.length)} / ${String(held.h)}`,
+      )
+      expect(bare).toEqual([])
+      expect(errors).toEqual([])
+    })
 })

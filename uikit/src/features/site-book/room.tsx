@@ -11,12 +11,14 @@
    Play (fresh C's auto page-turn, D4): after each turn ends wait 4000 ms and turn; stops at the back cover (portrait: the
    last slide); any key, click or drag (outside Play) and a hidden tab pause it; a 1 px line under the label grows over
    the dwell. The autoplay lives here, not in reader.tsx: it drives the reader through its `go` API only.
-   `final` (demo 9, site-stand-v7 R / P, D31–D32): desktop sizes the visible GL book (BODY) to ≤ w − 128 wide and ≥ 64 above
-   the bottom with room for a rising leaf, the foot pinned at h − 54, the pager on cols 4–7; phones have no Previous / Next
-   and no Reader switch (the mode stays on the hash), and whole-spread slides no gutter fold. */
+   `final` (demo 9, site-stand-v7 R / P, D31–D32, stand-v8): desktop centres the visible GL book (BODY) between the head
+   (y 44) and the foot row (pinned at h − 54), as large as fits ≥ 32 above / below and ≥ 64 each side, the pager on cols
+   4–7; phones read in Page turn (`&reader=carousel` for the carousel), no Previous / Next, no Reader switch, and
+   whole-spread slides have no gutter fold. */
 import * as React from "react"
 import { pagesOf, SPREAD_R, viewLabel, viewsOf, type SiteBook } from "../site-demo-1/data"
 import { metaOf, type Box } from "../site-demo-1/v2"
+import { glWanted } from "./gl/three"
 import { BookReader, type ReaderApi } from "./reader"
 import { portGeo, Slides, slideOfView, slidesOf, type SlidesApi } from "./slides"
 import { PageTurn } from "./turn"
@@ -38,14 +40,13 @@ type RoomProps = {
   final?: boolean
 }
 
-/** final desktop reader (site-stand-v7 R): [kx, ky, ty] = the visible GL book's width / W, height / H and top offset / H */
-const BODY: Record<keyof typeof SPREAD_R, readonly [number, number, number]> = {
-  portrait: [0.874, 0.849, 0.079], landscape: [0.906, 0.894, 0.0525], square: [0.88, 0.859, 0.073],
+/** final desktop reader (site-stand-v7 R): [kx, ky, ty, dx] = the visible GL book's width / W, height / H, top offset / H
+   and centre right of the box centre / W, at view 1 (stand-v8: alpha ≥ 200 paint at 1280–1920 wide) */
+const BODY: Record<keyof typeof SPREAD_R, readonly [number, number, number, number]> = {
+  portrait: [0.8747, 0.8496, 0.0784, 0], landscape: [0.907, 0.894, 0.0533, 0.0006], square: [0.881, 0.8607, 0.0729, 0.0002],
 }
-/** a turning leaf rises ≤ RISE·W over the visible book. The rigid cover opening is the highest frame (T2 test at 1440,
-   alpha ≥ 200 over the body top, highest of all sampled frames): landscape 0.2144·W, square 0.1857·W, portrait 0.1707·W
-   (θ 45–135: 0.180 / 0.156 / 0.141); each plus ≈ 0.005 */
-const RISE: Record<keyof typeof SPREAD_R, number> = { portrait: 0.18, landscape: 0.22, square: 0.19 }
+/** the CSS reader (`gl=0`, no WebGL 2) paints its whole box */
+const CSS_BODY = [1, 1, 0, 0] as const
 
 export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek, final }: RoomProps) {
   const root = React.useRef<HTMLDivElement>(null)
@@ -60,7 +61,9 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek, fina
   const [si, setSi] = React.useState(() => slideOfView(slides, view))
   const [rest, setRest] = React.useState(si)
   // portrait reader mode (v6 D27): `&reader=turn` on the hash, replaced in place (no history entry)
-  const [rm, setRmState] = React.useState<"carousel" | "turn">(() => (/[?&]reader=turn(&|$)/.test(location.hash) ? "turn" : "carousel"))
+  // final (stand-v8): Page turn always, `&reader=carousel` keeps the carousel for comparison
+  const [rm, setRmState] = React.useState<"carousel" | "turn">(() =>
+    final ? (/[?&]reader=carousel(&|$)/.test(location.hash) ? "carousel" : "turn") : /[?&]reader=turn(&|$)/.test(location.hash) ? "turn" : "carousel")
   const setRm = (m: "carousel" | "turn") => {
     if (m === rm) return
     const [path, q = ""] = location.hash.split("?")
@@ -223,16 +226,18 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek, fina
 
   const top = nar ? 64 : 72, foot = nar ? 104 : 96
   let rw = Math.max(200, Math.min(span(nar ? 4 : 10), (box.h - top - foot) * R))
-  let bookTop = top + (box.h - top - foot - rw / R) / 2, footTop = bookTop + rw / R + (wide ? 32 : 24)
+  let bookTop = top + (box.h - top - foot - rw / R) / 2, footTop = bookTop + rw / R + (wide ? 32 : 24), shift = 0
   if (final && wide) {
-    // site-stand-v7 R: the visible book ≤ w − 128 wide, ≥ 64 above the bottom, a turning leaf below y 8; the foot pinned
-    const [kx, ky, ty] = BODY[b.fmt], rise = RISE[b.fmt], B = box.h - 64
+    // stand-v8: the visible book centred in [44 (the head's bottom), footTop], ≥ 32 above and below, ≥ 64 each side; a
+    // turning leaf may rise over the head (the GL canvas overhangs the box by 0.21·W, reader.tsx)
+    const [kx, ky, ty, dx] = glWanted() ? BODY[b.fmt] : CSS_BODY, A = 44
     footTop = box.h - 54
-    rw = Math.max(200, Math.min((box.w - 128) / kx, (B - 8) / (rise + ky / R)))
-    const H = rw / R, bh = ky * H
-    bookTop = Math.min(Math.max((44 + footTop) / 2 - bh / 2, rise * rw + 8), B - bh) - ty * H
+    rw = Math.max(200, Math.min((box.w - 128) / kx, ((footTop - A - 64) * R) / ky))
+    const H = rw / R
+    bookTop = (A + footTop) / 2 - (ky * H) / 2 - ty * H
+    shift = dx * rw
   }
-  const bookLeft = (box.w - rw) / 2
+  const bookLeft = (box.w - rw) / 2 - shift
   const about = (
     <p className="sb-about" data-testid="sd-about">
       <span className={wide ? "t16" : "m15"}>{b.title}</span>

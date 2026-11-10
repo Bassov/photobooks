@@ -742,11 +742,11 @@ test.describe('desktop 1440×900: the reading room', () => {
     ).toBeFocused()
   })
 
-  // site-stand-v7 R (D31): demo 9 sizes the visible GL book, pins the foot at h − 54 and centres the pager. RISE is
-  // the measured cover-opening rise (room.tsx), not the Spec's 0.15, so W is 1433.5 / 1165.2 (Spec 1448.1 / 1216.6)
-  for (const [id, W, top] of [
-    ['coast', 1433.5, 293.3],
-    ['lake-trip', 1165.2, 160.2],
+  // site-stand-v7 R (D31) + stand-v8: demo 9 centres the visible book in [44, 846], ≥ 32 above / below, ≥ 64 each side,
+  // pins the foot at h − 54 and centres the pager; the CSS reader (gl=0) is its whole box (the GL book: reader-gl)
+  for (const [id, W, left, top] of [
+    ['coast', 1312, 64, 182.6],
+    ['lake-trip', 1180.8, 129.6, 76],
   ] as const)
     test(`demo 9 ${id}: W ${String(W)}, foot row top 846, pager centre 720`, async ({
       page,
@@ -761,7 +761,7 @@ test.describe('desktop 1440×900: the reading room', () => {
       await expect(room).toHaveAttribute('data-mode', 'desk')
       const r = await box(room.getByTestId('ss-reader'))
       near(r.width, W)
-      near(r.x, (1440 - W) / 2)
+      near(r.x, left)
       near(r.y, top)
       const pager = await box(room.getByTestId('ss-label').locator('..'))
       near(pager.y, 846)
@@ -800,7 +800,8 @@ async function foldsAtCentre(paper: Locator) {
   })
 }
 
-// site-stand-v7 P (D32): the demo 9 phone reader: the group centred in [8, h − 64], the label only, no switch, no fold
+// site-stand-v7 P (D32): the demo 9 phone reader: the group centred in [8, h − 64], the label only, no switch, no fold.
+// stand-v8: Page turn is the mode; `&reader=carousel` keeps the carousel for comparison
 test.describe('phone 390×844: demo 9 reader', () => {
   test.use({
     viewport: { width: 390, height: 844 },
@@ -808,7 +809,7 @@ test.describe('phone 390×844: demo 9 reader', () => {
     hasTouch: true,
   })
 
-  test('geometry; no Previous / Next / Reader switch; the gutter slide has no fold', async ({
+  test('&reader=carousel: geometry; no Previous / Next / Reader switch; the gutter slide has no fold', async ({
     page,
   }) => {
     const errors: string[] = []
@@ -816,7 +817,9 @@ test.describe('phone 390×844: demo 9 reader', () => {
     page.on('console', (m) => {
       if (m.type() === 'error') errors.push(m.text())
     })
-    await page.goto('/uikit/#/full/site-demo-9?book=lake-trip&gl=0')
+    await page.goto(
+      '/uikit/#/full/site-demo-9?book=lake-trip&gl=0&reader=carousel',
+    )
     const room = page.getByTestId('ss-reader-page')
     await expect(room).toHaveAttribute('data-mode', 'port')
     const strip = room.getByTestId('ps-strip')
@@ -856,13 +859,51 @@ test.describe('phone 390×844: demo 9 reader', () => {
     expect(errors).toEqual([])
   })
 
-  test('&reader=turn still opens Page turn', async ({ page }) => {
-    await page.goto('/uikit/#/full/site-demo-9?book=lake-trip&gl=0&reader=turn')
+  test('opens in Page turn with no URL param; Next turns one page', async ({
+    page,
+  }) => {
+    const errors: string[] = []
+    page.on('pageerror', (e) => errors.push(e.message))
+    await page.goto('/uikit/#/full/site-demo-9?book=lake-trip&gl=0')
     const room = page.getByTestId('ss-reader-page')
-    await expect(room.getByTestId('pt-stage')).toBeVisible()
+    await expect(room).toHaveAttribute('data-mode', 'port')
+    const stage = room.getByTestId('pt-stage')
+    await expect(stage).toBeVisible()
+    await expect(stage).toBeFocused()
+    expect(page.url()).not.toContain('reader=')
     await expect(room.getByTestId('ps-strip')).toHaveCount(0)
     await expect(page.getByTestId('ss-reader-switch')).toHaveCount(0)
     await expect(room.getByTestId('ss-next')).toHaveCount(0)
     near((await box(room.getByTestId('ss-all'))).y, 128.25)
+    await expect(room.getByTestId('ss-label')).toHaveText('Page 1 of 22')
+    await page.keyboard.press('ArrowRight')
+    await expect(room.getByTestId('ss-label')).toHaveText('Pages 2–3 of 22')
+    await still(room)
+    await expect(room.getByTestId('ps-strip')).toHaveCount(0)
+    expect(errors).toEqual([])
+  })
+})
+
+// stand-v8: the landscape phone reads in the book (its leaves turn), never the carousel
+test.describe('phone 844×390: demo 9 reader', () => {
+  test.use({
+    viewport: { width: 844, height: 390 },
+    isMobile: true,
+    hasTouch: true,
+  })
+
+  test('opens the turning book, no carousel, with no URL param', async ({
+    page,
+  }) => {
+    await page.goto('/uikit/#/full/site-demo-9?book=coast&gl=0')
+    const room = page.getByTestId('ss-reader-page')
+    await expect(room).toHaveAttribute('data-mode', 'land')
+    await expect(room.getByTestId('ps-reader')).toBeVisible()
+    await expect(room.getByTestId('ps-strip')).toHaveCount(0)
+    await expect(page.getByTestId('ss-reader-switch')).toHaveCount(0)
+    const reader = room.getByTestId('ps-reader')
+    await expect(reader).toHaveAttribute('data-view', '1')
+    await page.keyboard.press('ArrowRight')
+    await expect(reader).toHaveAttribute('data-view', '2')
   })
 })
