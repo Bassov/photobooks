@@ -333,7 +333,7 @@ export class OpenBook {
       this.mat(f).top,
     )
     // fore-edge: from the top page edge down to the board, splayed out by 0.5 × the stack height so it faces up
-    const [xe, ye] = pts[N] ?? [0, 0]
+    const [xe, ye] = pts.reduce((_, p) => p)
     const sp = (ye - BD) * 0.5
     this.add(
       this.geo(
