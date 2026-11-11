@@ -25,5 +25,6 @@
   {"slug": "site-demos", "title": "Photographer site: demos", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"},
   {"slug": "site-demo-6", "title": "Site demo 6: gallery on the system", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"},
   {"slug": "site-demo-9", "title": "Site demo 9: bookcase on the system", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"},
-  {"slug": "site-fresh-a", "title": "Site fresh A: the stack, read by scrolling", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"}
+  {"slug": "site-fresh-a", "title": "Site fresh A: the stack, read by scrolling", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"},
+  {"slug": "site-fresh-b", "title": "Fresh site B: the row", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"}
 ]
