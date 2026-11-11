@@ -182,6 +182,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [preflight-core](roadmap/P4/preflight-core.md) — pure preflight
 - [ ] [prep] [pdf-painter](roadmap/P4/pdf-painter.md) — worker PDF painter (Security Review: dependency)
 - [ ] [feature] [roadmap-status-sync-2](roadmap/P4/roadmap-status-sync-2.md) — Bug: /next-roadmap-item roadmap-status-sync-2
+- [ ] [feature] [personal-site-kit-port](roadmap/P4/personal-site-kit-port.md) — Bug: /next-roadmap-item personal-site-kit-port
 - [ ] [feature] [design-r21-presets-actions](roadmap/P4/design-r21-presets-actions.md) — Bug: /next-roadmap-item design-r21-presets-actions
 - [ ] [feature] [library-leave-flake](roadmap/P4/library-leave-flake.md) — Bug: /next-roadmap-item library-leave-flake
 - [ ] [feature] [kit-preview-fold-strip](roadmap/P4/kit-preview-fold-strip.md) — Bug: /next-roadmap-item kit-preview-fold-strip
