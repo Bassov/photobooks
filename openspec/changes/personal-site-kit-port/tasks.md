@@ -11,3 +11,9 @@
 
 1. Kit `#/full/personal-site?books=6` 1440×900: bookcase home, click a book → room, Play turns pages, All books returns.
 2. 390×844: phone room opens in Page turn; swipe turns.
+
+Kit-only PR: `pnpm agent manual-qa` drives the prod editor-shell, not the kit. Evidence instead:
+
+- OK 1 — `e2e/kit-personal-site*.spec.ts` (home → room, foot row 846 / pager 720 / Play 1416, Pages 4–5 GL paint and θ 70° leaf; screenshot `gl-70.png` checked by eye)
+- OK 2 — `kit-personal-site-room.spec.ts` phone page turn (header 128.25, stage 180.25)
+- OK kit `uikit:qa` 431 passed / 0 failed, 0 console errors
