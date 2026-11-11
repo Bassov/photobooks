@@ -624,4 +624,14 @@ describe('lightbox pager details', () => {
     fireEvent.dblClick(root(), { clientX: 700, clientY: 450 })
     expect(zoom()).toBe('1.00')
   })
+
+  it('drops the pending zoom settle on unmount', () => {
+    vi.useFakeTimers()
+    const { unmount } = render(<Harness />)
+    wheel({ deltaY: -50, ctrlKey: true, clientX: 700, clientY: 400 })
+    expect(vi.getTimerCount()).toBe(1)
+    unmount()
+    // Left pending, the settle setState would run after the lightbox is gone.
+    expect(vi.getTimerCount()).toBe(0)
+  })
 })
