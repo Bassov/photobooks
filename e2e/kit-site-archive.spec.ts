@@ -85,7 +85,7 @@ for (const slug of DEMOS) {
     )
 
     await row.getByTestId('site-archive-desktop').click()
-    await expect(page).toHaveURL(new RegExp(`#/full/${slug}$`))
+    await expect(page).toHaveURL((u) => u.hash === `#/full/${slug}`)
     await expect(page.getByTestId('site-archive')).toHaveCount(0)
     await expect.poll(async () => (await centreTop(page)).inRoot).toBe(true)
 
@@ -93,7 +93,7 @@ for (const slug of DEMOS) {
     await row.getByTestId('site-archive-phone-link').click()
     await expect(page.frameLocator('iframe').locator('#root')).not.toBeEmpty()
     const child = await phoneFrame(page)
-    expect(child.url()).toMatch(new RegExp(`#/full/${slug}$`))
+    expect(new URL(child.url()).hash).toBe(`#/full/${slug}`)
     expect(await child.evaluate(() => [innerWidth, innerHeight])).toEqual([
       390, 844,
     ])
