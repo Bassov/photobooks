@@ -120,12 +120,16 @@ describe('SettingsScreen', () => {
     const print = screen.getByTestId('settings-nav-print')
     expect(print.getAttribute('aria-current')).toBeNull()
     expect(print.className).not.toMatch(/\bbg-accent\b/)
+    // r21 M97: no native button fill on the rest row; current swaps it out.
+    expect(print.className).toMatch(/\bbg-transparent\b/)
     fireEvent.click(print)
     expect(screen.getByTestId('settings-section-title').textContent).toBe(
       'Print presets',
     )
     expect(print.getAttribute('aria-current')).toBe('page')
     expect(print.className).toMatch(/\bbg-accent\b/)
+    expect(print.className).not.toMatch(/\bbg-transparent\b/)
+    expect(library.className).toMatch(/\bbg-transparent\b/)
     expect(library.getAttribute('aria-current')).toBeNull()
     expect(library.className).not.toMatch(/\bbg-accent\b/)
     expect(screen.getByTestId('print-shops')).toBeTruthy()
