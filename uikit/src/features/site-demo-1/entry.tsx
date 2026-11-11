@@ -21,6 +21,9 @@ export function SiteDemos() {
           </li>
         ))}
       </ol>
+      <p className="mt-8 text-sm">
+        <a href="#/full/site-archive" className="font-medium text-foreground underline underline-offset-4 outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#535152]" data-testid="site-archive-link">All demos: the archive</a>
+      </p>
     </div>
   )
 }

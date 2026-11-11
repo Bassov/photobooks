@@ -14,10 +14,19 @@ import type { Doc } from "@/sandbox/model"
 import { WithScenarios } from "./parts"
 import { PhotographerSite } from "./site-photographer"
 import { SiteDemos } from "./site-demo-1/entry"
+import { SiteArchive } from "./site-archive/index"
+import { SiteDemo1 } from "./site-demo-1/site"
+import { SiteDemo2 } from "./site-demo-2/site"
+import { SiteDemo3 } from "./site-demo-3/site"
+import { SiteDemo4 } from "./site-demo-4/site"
+import { SiteDemo5 } from "./site-demo-5/site"
 import { SiteDemo6 } from "./site-demo-6/site"
+import { SiteDemo7 } from "./site-demo-7/site"
+import { SiteDemo8 } from "./site-demo-8/site"
 import { SiteDemo9 } from "./site-demo-9/site"
 import { SiteFreshA } from "./site-fresh-a/site"
 import { SiteFreshB } from "./site-fresh-b/site"
+import { SiteFreshC } from "./site-fresh-c/site"
 import type { FeatureDef, Notes } from "./types"
 
 /** Stage height = the #/demo viewport height (+ the 40 px scenario strip), so every slot sits at its #/demo size. */
@@ -244,6 +253,76 @@ export const PAGES: Record<string, FeatureDef> = {
     Demo: SiteDemos, h: SLOT.app.h, notes: {
       what: "Entry for the photographer-site demo stand: demos 6 and 9; each takes ?books=1|3|6|12|30|100.",
       where: "DEMO branch only. Full window: #/full/site-demos.",
+    },
+  },
+  "site-archive": {
+    Demo: SiteArchive, h: SLOT.app.h, notes: {
+      what: "Archive of every personal-site demo in its latest version (awards demos 1–5, 7, 8; stand demos 6 and 9; fresh A, B, C), each with a desktop and a phone link.",
+      where: "DEMO archive branch only. Full window: #/full/site-archive (?phone=<slug> frames one demo at 390 × 844).",
+    },
+  },
+  "site-demo-1": {
+    Demo: SiteDemo1, h: SLOT.app.h, notes: {
+      what: "Site demo 1, the lit table: books on shelves as 3D objects; the book page is a reader that turns pages.",
+      where: "DEMO branch only. Full window: #/full/site-demo-1.",
+      keys: [["← / →", "turn"], ["Home / End", "cover / last spread"], ["Esc", "leave fullscreen"]],
+      edge: ["Drag a page; reduced motion = crossfade", "Narrow = one book per shelf"],
+    },
+  },
+  "site-demo-2": {
+    Demo: SiteDemo2, h: SLOT.app.h, notes: {
+      what: "Site demo 2 v2, the gallery: a warm black room, one book per wall under its spotlight, a museum label beside it.",
+      where: "DEMO branch only. Full window: #/full/site-demo-2?books=1|3|6|12.",
+      keys: [["← / →", "walk / turn"], ["Esc", "back to the wall"]],
+      edge: ["Wheel or drag walks the wall; 12 books: Books = All books", "Phone = one book per screen"],
+    },
+  },
+  "site-demo-3": {
+    Demo: SiteDemo3, h: SLOT.app.h, notes: {
+      what: "Site demo 3, the index: a typographic catalogue; the closed book floats after the pointer; the book page turns as you scroll.",
+      where: "DEMO branch only. Full window: #/full/site-demo-3.",
+      keys: [["← / → / Space", "turn (scrolls one view)"], ["Esc", "back to the index"]],
+      edge: ["Scroll settles on whole spreads; reduced motion = crossfade", "Narrow = Lora 46 rows, no floating book"],
+    },
+  },
+  "site-demo-4": {
+    Demo: SiteDemo4, h: SLOT.app.h, notes: {
+      what: "Site demo 4 v2, the desk: books lie top-down on a pale table in window light; drag and throw them; a click opens one in place.",
+      where: "DEMO branch only. Full window: #/full/site-demo-4?books=1|3|6|12.",
+      keys: [["← / →", "turn"], ["Esc", "put the book back"]],
+      edge: ["Hover changes only the caption text; reduced motion = crossfade, no physics", "Phone = the table scrolls, books zigzag, tap opens"],
+    },
+  },
+  "site-demo-5": {
+    Demo: SiteDemo5, h: SLOT.app.h, notes: {
+      what: "Site demo 5 v2, the shelf: one long shelf, the newest book face-out, the rest spine-out; hover slides one spine up.",
+      where: "DEMO branch only. Full window: #/full/site-demo-5 (?books=1|3|6|12).",
+      keys: [["← / →", "turn"], ["Enter", "open"], ["Esc", "back to the shelf"]],
+      edge: ["Reduced motion = opacity only", "Phone: tap pulls a spine, tap again opens"],
+    },
+  },
+  "site-demo-7": {
+    Demo: SiteDemo7, h: SLOT.app.h, notes: {
+      what: "Site demo 7, the index on the design system (spec-sys): a typographic list, the other rows dim on hover, a sticky preview.",
+      where: "DEMO branch only. Full window: #/full/site-demo-7?books=1|3|6|12|30|100 (&book=<id> opens a book).",
+      keys: [["Tab", "preview"], ["Esc / Back", "close the book"], ["Play", "turns a page every 4 s"]],
+      edge: ["Phone = rows with a small cover"],
+    },
+  },
+  "site-demo-8": {
+    Demo: SiteDemo8, h: SLOT.app.h, notes: {
+      what: "Site demo 8, the desk on the design system (spec-sys): books lie flat on a light page; drag and throw them, a click opens.",
+      where: "DEMO branch only. Full window: #/full/site-demo-8?books=1|3|6|12.",
+      keys: [["Esc", "close the book · back"]],
+      edge: ["Hover changes the caption at the bottom left", "Phone = zigzag column, tap opens"],
+    },
+  },
+  "site-fresh-c": {
+    Demo: SiteFreshC, h: SLOT.app.h, notes: {
+      what: "Site fresh C, the programme: the site runs on the clock; each book owns a minute and turns its own pages.",
+      where: "DEMO branch only. Full window: #/full/site-fresh-c (?books=1|3|6|12).",
+      keys: [["← / →", "turn (takes over)"], ["Esc", "book page → home"]],
+      edge: ["Touch the book = paused; Play = back to the clock", "Reduced motion starts paused"],
     },
   },
   "site-demo-6": {
