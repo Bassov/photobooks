@@ -153,6 +153,8 @@ export function useLightboxZoom({
     root?.addEventListener('wheel', listener, { passive: false })
     return () => {
       root?.removeEventListener('wheel', listener)
+      // A pending settle must not set state on an unmounted lightbox.
+      window.clearTimeout(timer.current)
     }
   }, [rootRef])
 
