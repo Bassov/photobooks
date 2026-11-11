@@ -1,11 +1,11 @@
 import {
-  getSpreadPageCount,
   pagesOf,
   resolveSpread,
   type Book,
   type ResolvedFolio,
   type ResolvedItem,
   type ResolvedText,
+  type Spread,
 } from '../core'
 import { frameBox, type PxBox } from './frameBox'
 import { adjustFilter, frameStyleCss } from './frameLookCss'
@@ -61,7 +61,7 @@ export function breakTextLines(
   const lines: string[] = []
   for (const paragraph of text.split('\n')) {
     let line = ''
-    for (const token of paragraph.match(/[^ ]+ *| +/g) ?? []) {
+    for (const token of paragraph.match(/[^ ]+ *| /g) ?? []) {
       if (measure((line + token).trimEnd()) <= maxWidth) {
         line += token
         continue
@@ -85,25 +85,20 @@ export function breakTextLines(
   return lines
 }
 
-/** Physical page `page` (1-based): its spread and left edge in spread mm. */
+/**
+ * Physical page `page` (1-based): its spread (none past the book) and left
+ * edge in spread mm.
+ */
 function pageSpread(
   book: Book,
   page: number,
-): { spreadId: string; offsetMm: number } {
-  const count = book.spreads.length
-  const spread = book.spreads[Math.floor(page / 2)]
-  if (
-    !Number.isInteger(page) ||
-    page < 1 ||
-    page > pagesOf(count) ||
-    spread === undefined
-  ) {
-    throw new RangeError(`no page ${String(page)} in the book`)
-  }
-  const twoPages = getSpreadPageCount(Math.floor(page / 2), count) === 2
+): { spread: Spread | undefined; offsetMm: number } {
+  const inBook =
+    Number.isInteger(page) && page >= 1 && page <= pagesOf(book.spreads.length)
   return {
-    spreadId: spread.id,
-    offsetMm: twoPages && page % 2 === 1 ? book.settings.trim.widthMm : 0,
+    spread: inBook ? book.spreads[Math.floor(page / 2)] : undefined,
+    // Odd pages after the first are the right pages of two-page spreads.
+    offsetMm: page % 2 === 1 && page > 1 ? book.settings.trim.widthMm : 0,
   }
 }
 
@@ -134,7 +129,7 @@ function shadowRings(boxShadow: unknown): { spread: number; color: string }[] {
   return [...boxShadow.matchAll(/0 0 0 ([\d.e+-]+)px ([^,]+)/g)].map(
     ([, spread = '0', color = PAPER]) => ({
       spread: parseFloat(spread),
-      color: color.trim(),
+      color,
     }),
   )
 }
@@ -200,7 +195,8 @@ function snapRect(
   height: number,
 ): PxBox {
   const m = ctx.getTransform()
-  if (m.b !== 0 || m.c !== 0 || m.a <= 0 || m.d <= 0) {
+  // Rotate / scale / translate only: a turn shows as `b ≠ 0`, a flip as a < 0.
+  if (m.b !== 0 || m.a <= 0 || m.d <= 0) {
     return { left, top, width, height }
   }
   const snap = (v: number, scale: number, offset: number) =>
@@ -223,7 +219,7 @@ function paintPhotoBody(
   pxPerMm: number,
 ): void {
   const look = frameStyleCss(item.style, pxPerMm)
-  const radius = typeof look.borderRadius === 'number' ? look.borderRadius : 0
+  const radius = Number(look.borderRadius ?? 0)
   // `.spread-frame` paper, the rings outside the body, then the clipped body.
   ctx.fillStyle = PAPER
   ctx.fillRect(0, 0, box.width, box.height)
@@ -378,18 +374,18 @@ export async function paintPage(
   images: ReadonlyMap<string, PageImage>,
   pxPerMm: number,
 ): Promise<void> {
-  const { spreadId, offsetMm } = pageSpread(book, page)
-  const resolved = resolveSpread(book, spreadId, {
-    getAspectRatio: (assetId) => {
-      const image = images.get(assetId)
-      const asset = book.assets[assetId]
-      const size =
-        image === undefined
-          ? { width: asset?.widthPx ?? 1, height: asset?.heightPx ?? 1 }
-          : imageSize(image)
-      return size.width / size.height
-    },
-  })
+  const { spread, offsetMm } = pageSpread(book, page)
+  const resolved =
+    spread &&
+    resolveSpread(book, spread.id, {
+      // Only frames with a loaded photo draw their crop.
+      getAspectRatio: (assetId) => {
+        const image = images.get(assetId)
+        if (image === undefined) return 1
+        const size = imageSize(image)
+        return size.width / size.height
+      },
+    })
   if (resolved === undefined) {
     throw new RangeError(`no page ${String(page)} in the book`)
   }
@@ -397,7 +393,7 @@ export async function paintPage(
   if (fonts !== undefined) {
     const sample = resolved.items
       .flatMap((item) => [item.text?.text ?? '', item.caption ?? ''])
-      .concat((resolved.folios ?? []).map((folio) => folio.text))
+      .concat(resolved.folios?.map((folio) => folio.text) ?? [])
       .join('')
     await Promise.all(
       textStyleFonts().map((font) => fonts.load(font, sample || ' ')),
