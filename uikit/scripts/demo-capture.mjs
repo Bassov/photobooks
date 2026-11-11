@@ -11,11 +11,12 @@ const FIXED = Date.UTC(2026, 9, 29, 12, 0, 0)
 const FRAME = '[data-testid="canvas"] [data-current] [data-testid="frame"]'
 
 // `probe(name, page)` runs after each shot (DOM measurements on the same walk); its result is kept in `probes[name]`.
-export async function capture(out, { log = console.log, probe } = {}) {
+// `dpr` (default 1, the baseline) sets the device scale factor: guide-shots.mjs captures at 2.
+export async function capture(out, { log = console.log, probe, dpr = 1 } = {}) {
   fs.mkdirSync(out, { recursive: true })
   for (const f of fs.readdirSync(out)) if (f.endsWith(".png")) fs.unlinkSync(`${out}/${f}`)
   const browser = await chromium.launch({ executablePath: chromePath(), args: ["--no-sandbox", "--font-render-hinting=none", "--disable-lcd-text", "--force-color-profile=srgb"] })
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, locale: "en-US", timezoneId: "UTC" })
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: dpr, locale: "en-US", timezoneId: "UTC" })
   await ctx.addInitScript(() => { const pn = performance.now.bind(performance); window.__pt = null; performance.now = () => (window.__pt ?? pn()) })
   await ctx.addInitScript((t) => { const D = Date; const off = t - D.now(); class FD extends D { constructor(...a) { super(...(a.length ? a : [D.now() + off])) } static now() { return D.now() + off } } window.Date = FD; Math.random = (() => { let s = 42; return () => ((s = (s * 16807) % 2147483647) / 2147483647) })() }, FIXED)
   const page = await ctx.newPage(); page.setDefaultTimeout(6000)
