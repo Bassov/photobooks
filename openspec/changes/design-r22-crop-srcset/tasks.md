@@ -8,3 +8,5 @@
 ## Manual test scenarios
 
 1. `site.html?book=crop` at 1440 × 900: the page 1 photo is sharp; its `currentSrc` width is at least its painted width.
+
+- problem (harness): `pnpm agent manual-qa` stops at the welcome screen (header intercepts the `start-session` click) before reaching `site.html`. Covered by `e2e/site-crop-srcset.spec.ts` (Chromium, DPR 1: picks 960w for the 600 px drawn photo; 480w without the fix).
