@@ -208,6 +208,24 @@ describe('PageCurl', () => {
     expect(contexts.get(target)?.calls.at(-1)?.[0]).toBe('drawImage')
   })
 
+  it('creases by the farthest sheet corner past the fold, either tilt', async () => {
+    const curl = new PageCurl(T, testBook(), sheets, 80, 200, 250)
+    curl.keep(1)
+    await settle()
+    const bent = (beta: number) => {
+      curl.draw(out(), 1, { ...frame, xm: 190, beta })
+      const { top, shadow } = layers(curl)
+      return [uniformsOf(top).crease, uniformsOf(shadow).dsil] as number[]
+    }
+
+    // corner 10 · cos 0.2 + 125 · sin 0.2 ≈ 34.6 past the fold: 1.15 rad of a 30 roll
+    for (const beta of [0.2, -0.2]) {
+      const [crease, dsil] = bent(beta)
+      expect(crease).toBeCloseTo(0.735, 2)
+      expect(dsil).toBeCloseTo(27.44, 1)
+    }
+  })
+
   it('turns the cover over the endpaper and hides the flat layers at rest', async () => {
     const curl = new PageCurl(T, testBook(), sheets, 80, 200, 250)
     curl.keep(0)

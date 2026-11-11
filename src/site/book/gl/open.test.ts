@@ -95,6 +95,31 @@ describe('OpenBook', () => {
     expect(light.block).toBeCloseTo(1.2)
   })
 
+  it('paints the paper bump and the blank page', () => {
+    new OpenBook(T, testBook(), look)
+
+    const painted = [...contexts].map(([c, { calls }]) => [
+      c.width,
+      c.height,
+      calls.length,
+      ...calls.slice(0, 2),
+    ])
+    expect(painted).toContainEqual([
+      256,
+      256,
+      4,
+      ['set fillStyle', '#808080'],
+      ['fillRect', 0, 0, 256, 256],
+    ])
+    expect(painted).toContainEqual([
+      64,
+      80,
+      2,
+      ['set fillStyle', '#FBFAF7'],
+      ['fillRect', 0, 0, 64, 80],
+    ])
+  })
+
   it.each([
     [0, 0],
     [0, 90],
@@ -173,6 +198,38 @@ describe('OpenBook', () => {
     expect(disposed).toHaveBeenCalledTimes(4)
     o.set(5, 0)
     expect(face.mock.calls.map(([p]) => p)).toEqual([5, 6, 7, 8, 9, 10, 11, 12])
+  })
+
+  it('asks again for faces it dropped on the way back', async () => {
+    const face = vi.fn((page: number) =>
+      Promise.resolve(panel(`page ${String(page)}`)),
+    )
+    const o = new OpenBook(T, testBook({ face }), look)
+    o.set(1, 0)
+    o.set(5, 0)
+    await settle()
+    const disposed = vi.spyOn(THREE.Texture.prototype, 'dispose')
+    face.mockClear()
+
+    o.set(2, 0)
+
+    expect(face.mock.calls.map(([p]) => p)).toEqual([0, 1, 2, 3, 4])
+    // views 5…7 go, view 4 stays
+    expect(disposed).toHaveBeenCalledTimes(6)
+  })
+
+  it('ignores a face that lands after its spread was dropped', async () => {
+    const o = new OpenBook(T, testBook(), look)
+    const changed = vi.fn()
+    o.onChange = changed
+
+    o.set(1, 0)
+    o.set(8, 0)
+    await settle()
+
+    expect(o.loading).toBe(false)
+    // views 7…10, two faces each
+    expect(changed).toHaveBeenCalledTimes(8)
   })
 
   it('stays loading on a failed face and drops faces after dispose', async () => {

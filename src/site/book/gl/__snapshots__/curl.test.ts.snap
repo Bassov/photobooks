@@ -103,6 +103,14 @@ exports[`PageCurl > stacks the under sheet, its shadow and the turning sheet 1`]
             0,
           ],
         ],
+        "index": [
+          69120,
+          1622372321,
+        ],
+        "normal": [
+          11737,
+          46945,
+        ],
         "params": {
           "height": 1,
           "heightSegments": 120,
@@ -110,11 +118,15 @@ exports[`PageCurl > stacks the under sheet, its shadow and the turning sheet 1`]
           "widthSegments": 96,
         },
         "type": "PlaneGeometry",
+        "uv": [
+          11737,
+          46946.013,
+        ],
         "vertices": 11737,
       },
       "light": undefined,
       "mat": {
-        "bumpScale": undefined,
+        "bump": undefined,
         "color": undefined,
         "depth": [
           false,
@@ -138,6 +150,7 @@ exports[`PageCurl > stacks the under sheet, its shadow and the turning sheet 1`]
         0,
         0,
       ],
+      "shadow": undefined,
       "type": "Mesh",
     },
     {
@@ -161,6 +174,14 @@ exports[`PageCurl > stacks the under sheet, its shadow and the turning sheet 1`]
             0,
           ],
         ],
+        "index": [
+          69120,
+          1622372321,
+        ],
+        "normal": [
+          11737,
+          46945,
+        ],
         "params": {
           "height": 1,
           "heightSegments": 120,
@@ -168,11 +189,15 @@ exports[`PageCurl > stacks the under sheet, its shadow and the turning sheet 1`]
           "widthSegments": 96,
         },
         "type": "PlaneGeometry",
+        "uv": [
+          11737,
+          46946.013,
+        ],
         "vertices": 11737,
       },
       "light": undefined,
       "mat": {
-        "bumpScale": undefined,
+        "bump": undefined,
         "color": undefined,
         "depth": [
           false,
@@ -196,6 +221,7 @@ exports[`PageCurl > stacks the under sheet, its shadow and the turning sheet 1`]
         0,
         0,
       ],
+      "shadow": undefined,
       "type": "Mesh",
     },
     {
@@ -219,6 +245,14 @@ exports[`PageCurl > stacks the under sheet, its shadow and the turning sheet 1`]
             0,
           ],
         ],
+        "index": [
+          69120,
+          1622372321,
+        ],
+        "normal": [
+          11737,
+          46945,
+        ],
         "params": {
           "height": 1,
           "heightSegments": 120,
@@ -226,11 +260,15 @@ exports[`PageCurl > stacks the under sheet, its shadow and the turning sheet 1`]
           "widthSegments": 96,
         },
         "type": "PlaneGeometry",
+        "uv": [
+          11737,
+          46946.013,
+        ],
         "vertices": 11737,
       },
       "light": undefined,
       "mat": {
-        "bumpScale": undefined,
+        "bump": undefined,
         "color": undefined,
         "depth": [
           true,
@@ -254,6 +292,7 @@ exports[`PageCurl > stacks the under sheet, its shadow and the turning sheet 1`]
         0,
         0,
       ],
+      "shadow": undefined,
       "type": "Mesh",
     },
   ],
@@ -276,6 +315,7 @@ exports[`PageCurl > stacks the under sheet, its shadow and the turning sheet 1`]
     0,
     0,
   ],
+  "shadow": undefined,
   "type": "Scene",
 }
 `;

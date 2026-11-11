@@ -173,13 +173,27 @@ interface Loose {
   intensity?: number
   color?: { getHexString(): string }
   groundColor?: { getHexString(): string }
+  shadow?: {
+    mapSize: { x: number; y: number }
+    bias: number
+    camera: { left: number; right: number; top: number; bottom: number }
+  }
   geometry?: LooseGeometry
   material?: LooseMaterial | LooseMaterial[]
+}
+interface LooseAttribute {
+  count: number
+  array: ArrayLike<number>
 }
 interface LooseGeometry {
   type: string
   parameters?: Record<string, number | boolean>
-  attributes: { position: { count: number } }
+  index: LooseAttribute | null
+  attributes: {
+    position: LooseAttribute
+    uv?: LooseAttribute
+    normal?: LooseAttribute
+  }
   boundingBox: { min: Loose['position']; max: Loose['position'] } | null
   computeBoundingBox(): void
 }
@@ -193,12 +207,22 @@ interface LooseMaterial {
   depthTest: boolean
   opacity: number
   map?: unknown
+  bumpMap?: { repeat: { x: number; y: number } } | null
   bumpScale?: number
   polygonOffset?: boolean
 }
 
 const r3 = (n: number) => Math.round(n * 1000) / 1000
 const xyz = (v: Loose['position']) => [r3(v.x), r3(v.y), r3(v.z)]
+
+/** an attribute as `[count, order-sensitive checksum]` */
+const sum = (a: LooseAttribute | null | undefined) =>
+  a
+    ? [
+        a.count,
+        r3(Array.from(a.array).reduce((s, v, i) => s + v * ((i % 7) + 1), 0)),
+      ]
+    : null
 
 function material(m: LooseMaterial) {
   return {
@@ -209,8 +233,10 @@ function material(m: LooseMaterial) {
     transparent: m.transparent,
     depth: [m.depthTest, m.depthWrite],
     opacity: m.opacity,
-    map: m.map ? 'map' : undefined,
-    bumpScale: m.bumpScale,
+    map: m.map ? arg((m.map as { image: unknown }).image) : undefined,
+    bump: m.bumpMap
+      ? [m.bumpMap.repeat.x, m.bumpMap.repeat.y, m.bumpScale]
+      : undefined,
     polygonOffset: m.polygonOffset,
   }
 }
@@ -229,6 +255,9 @@ function geometry(g: LooseGeometry) {
     params,
     vertices: g.attributes.position.count,
     box: box ? [xyz(box.min), xyz(box.max)] : null,
+    index: sum(g.index),
+    uv: sum(g.attributes.uv),
+    normal: sum(g.attributes.normal),
   }
 }
 
@@ -249,6 +278,15 @@ export function digest(object: Object3D): unknown {
             o.color?.getHexString(),
             o.groundColor?.getHexString(),
           ],
+    shadow: o.shadow && [
+      o.shadow.mapSize.x,
+      o.shadow.mapSize.y,
+      o.shadow.bias,
+      o.shadow.camera.left,
+      o.shadow.camera.right,
+      o.shadow.camera.top,
+      o.shadow.camera.bottom,
+    ],
     geo: o.geometry ? geometry(o.geometry) : undefined,
     mat:
       m === undefined

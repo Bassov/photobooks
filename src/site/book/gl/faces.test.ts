@@ -123,6 +123,20 @@ describe('createFaceSource', () => {
     )
   })
 
+  it('paints the new views ± 2 after the queue drained', async () => {
+    const s = source()
+    s.focus(1)
+    await settle()
+    const first = paints()
+
+    s.focus(5)
+    await settle()
+
+    const p = (pages: number[]) => pages.map((n) => `paint ${String(n + 1)}`)
+    expect(first).toEqual(p([0, 1, 2, 3, 4]))
+    expect(paints().slice(first.length)).toEqual(p([7, 8, 5, 6, 9]))
+  })
+
   it('keeps queued faces without a reader from rejecting unhandled', async () => {
     const unhandled = vi.fn()
     process.on('unhandledRejection', unhandled)

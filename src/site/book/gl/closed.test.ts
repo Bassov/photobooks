@@ -84,6 +84,21 @@ describe('textures', () => {
     ]).toEqual([512, 512])
   })
 
+  it('shades a leaf as a cosine with ±3 noise and runs v bottom up', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.75)
+
+    const along = callsOf(stripes(T, 4, true).image) ?? []
+    const across = callsOf(stripes(T, 4, false).image) ?? []
+
+    // a leaf is 128 px: light edge, mid, dark middle
+    expect([0, 32, 64].map((i) => along[2 * i])).toEqual([
+      ['set fillStyle', 'rgb(253,250,244)'],
+      ['set fillStyle', 'rgb(238,235,229)'],
+      ['set fillStyle', 'rgb(224,221,215)'],
+    ])
+    expect(across[3]).toEqual(['fillRect', 0, 510, 8, 1])
+  })
+
   it('paints the front panel on the cloth with the hinge shade', () => {
     const c = coverCanvas(testBook(), 100)
 
@@ -197,11 +212,30 @@ describe('ClosedBook', () => {
       ['set fillStyle', 'rgba(0,0,0,0.42)'],
     ])
     expect(named('fill')).toHaveLength(7)
+    expect(named('beginPath')).toHaveLength(7)
+    expect(named('closePath')).toHaveLength(7)
     expect(calls[0]).toEqual(['clearRect', 0, 0, 528, 528])
     expect(
       calls.filter((c) => c[0] === 'moveTo' || c[0] === 'lineTo'),
     ).toMatchSnapshot()
     expect((t as unknown as { version: number }).version).toBe(version + 1)
+  })
+
+  it('keeps the footprint on the floor and the top on the lifted, tilted book', () => {
+    const rest = new ClosedBook(T, testBook(), 10, opts)
+    const lifted = new ClosedBook(T, testBook(), 10, opts)
+    const path = (book: ClosedBook) =>
+      callsOf(book.shadow?.c)?.filter((c) => c[0] === 'moveTo')
+
+    rest.pose(REST)
+    lifted.pose({ ...REST, lift: 8, rz: 5 })
+
+    const [restBot, restTop] = path(rest) ?? []
+    const [liftBot, liftTop] = path(lifted) ?? []
+    expect(liftTop).not.toEqual(restTop)
+    expect(liftBot).toMatchSnapshot()
+    expect(restBot).toMatchSnapshot()
+    expect(meshes(lifted).piv?.rotation.z).toBeCloseTo((5 * Math.PI) / 180)
   })
 
   it('fades the contact shadow with the lift and darkens it in the dark', () => {
