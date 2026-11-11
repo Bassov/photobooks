@@ -80,7 +80,7 @@ describe('startSite', () => {
 
     expect(testId('site-catalog')).not.toBeNull()
     expect(document.querySelectorAll('[data-testid="site-book"]')).toHaveLength(
-      2,
+      3,
     )
   })
 

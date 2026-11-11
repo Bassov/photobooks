@@ -16,8 +16,11 @@ import {
 } from './siteExport.test-helpers'
 
 const PBT_RUNS = { numRuns: 1000 }
-/** 1000 async runs with Web Crypto hashing; parallel `check:fast` load needs headroom. */
-const PBT_TIMEOUT_MS = 60_000
+/**
+ * 1000 async runs with Web Crypto hashing and a `book.json` per book (~10 s
+ * alone); parallel `check:fast` load slows them sixfold, so leave headroom.
+ */
+const PBT_TIMEOUT_MS = 120_000
 const PHOTOS = [1, 2, 3, 4, 5, 6].map(photoHash)
 /** Only ever added to a draft after publishing. */
 const DRAFT_PHOTO = photoHash(0x99)
@@ -150,9 +153,14 @@ describe('buildSiteTree (PBT)', () => {
       )
       expect(text).not.toMatch(/«draft-/)
       expect(text).not.toContain(DRAFT_PHOTO)
-      expect(
-        tree.files.filter((file) => file.path.startsWith('books/')),
-      ).toHaveLength(publishedCases(generated.books).length)
+      for (const name of ['index.html', 'book.json']) {
+        expect(
+          tree.files.filter(
+            (file) =>
+              file.path.startsWith('books/') && file.path.endsWith(`/${name}`),
+          ),
+        ).toHaveLength(publishedCases(generated.books).length)
+      }
       expect(
         new Set(
           tree.files

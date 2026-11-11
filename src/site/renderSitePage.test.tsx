@@ -69,6 +69,23 @@ describe('renderSitePage', () => {
     ).toBe('../../viewer/site.js')
   })
 
+  it('preloads each font before the stylesheets, as anonymous CORS fonts', () => {
+    const html = renderSitePage(bookInput(), {
+      ...ASSETS,
+      css: ['../../viewer/fonts/fonts.css', ...ASSETS.css],
+      preload: ['../../viewer/fonts/a.woff2', '../../viewer/fonts/b.woff2'],
+    })
+
+    const head = html.slice(0, html.indexOf('</head>'))
+    const links = [...head.matchAll(/<link [^>]*>/g)].map(([link]) => link)
+    expect(links).toStrictEqual([
+      '<link rel="preload" href="../../viewer/fonts/a.woff2" as="font" type="font/woff2" crossorigin=""/>',
+      '<link rel="preload" href="../../viewer/fonts/b.woff2" as="font" type="font/woff2" crossorigin=""/>',
+      '<link rel="stylesheet" href="../../viewer/fonts/fonts.css"/>',
+      '<link rel="stylesheet" href="../../viewer/site.css"/>',
+    ])
+  })
+
   it('writes no canonical for an empty site URL and no og:image without one', () => {
     const empty = parse(
       renderSitePage(bookInput({ site: { title: 'A', url: '' } }), { css: [] }),
@@ -111,7 +128,7 @@ describe('renderSitePage', () => {
     ).toBe('website')
     expect(
       doc.querySelector('meta[name="description"]')?.getAttribute('content'),
-    ).toBe('A. Photographer · 2 photobooks')
+    ).toBe('A. Photographer · 3 photobooks')
   })
 
   it('escapes `<` in #site-data so a title never closes the script', () => {

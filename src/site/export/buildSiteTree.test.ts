@@ -49,17 +49,19 @@ function sampleInput(): SiteExportInput {
   }
 }
 
-/** Pages by size (renderSitePage.test.tsx pins their markup), JSON in full. */
+/** Pages and book data by size, the manifest in full. */
 function summary(tree: SiteTree): string[] {
   return tree.files.map((file) =>
-    file.path.endsWith('.json')
+    file.path === SITE_MANIFEST_PATH
       ? `${file.path}\n${new TextDecoder().decode(file.bytes)}`
       : `${file.path} (${String(file.bytes.byteLength)} B)`,
   )
 }
 
 function bookPageText(tree: SiteTree): string {
-  const page = tree.files.find((file) => file.path.startsWith('books/'))
+  const page = tree.files.find((file) =>
+    /^books\/[^/]+\/index\.html$/.test(file.path),
+  )
   return fileText(tree, page?.path ?? '') ?? ''
 }
 
@@ -94,9 +96,11 @@ describe('buildSiteTree', () => {
         "assets/bf621cdd1f3c1fc4758f4796dc7fa3206fb7c5f82b5e0a978432e1a1bace6d57.jpg (75 B)",
         "assets/ce0ca0b8db36493cf4fcc8b960bcdfcffb9ae80a7a375880105bfddbcd87880a.webp (75 B)",
         "assets/dbd5c370258b773cdbdd43046464945c6e37fd469d45f76dd6ee5704439420bf.webp (77 B)",
+        "books/4bd1c37bb40aa516/book.json (2712 B)",
         "books/4bd1c37bb40aa516/index.html (9894 B)",
+        "books/91f8c6c636f0b969/book.json (2149 B)",
         "books/91f8c6c636f0b969/index.html (9325 B)",
-        "index.html (4036 B)",
+        "index.html (4335 B)",
         "site.json
       {"version":1,"viewer":"viewer/main.js","books":[{"id":"book-sea","title":"Sea","path":"books/91f8c6c636f0b969/","assets":["0000000000000000000000000000000000000000000000000000000000000003","0000000000000000000000000000000000000000000000000000000000000004"],"spreads":[{"id":"book-sea-spread-0","images":["0000000000000000000000000000000000000000000000000000000000000003","0000000000000000000000000000000000000000000000000000000000000004"]}]},{"id":"book-alps","title":"Alps","path":"books/4bd1c37bb40aa516/","assets":["0000000000000000000000000000000000000000000000000000000000000001","0000000000000000000000000000000000000000000000000000000000000002","0000000000000000000000000000000000000000000000000000000000000003"],"spreads":[{"id":"book-alps-spread-0","images":["0000000000000000000000000000000000000000000000000000000000000001","0000000000000000000000000000000000000000000000000000000000000002"]},{"id":"book-alps-spread-1","images":["0000000000000000000000000000000000000000000000000000000000000003"]}]}],"assets":[{"hash":"0000000000000000000000000000000000000000000000000000000000000001","files":[{"preset":"site-thumb","path":"assets/a28c7bbdd1ab04137021db6f45e83440ee033428f97671d095984e4e8ee48ce5.webp","width":160,"height":120},{"preset":"site-display","path":"assets/1bb7fd15bc7f25afe356d3f8babc7fed6bb6126f657db6e2091b6c78ff061fdc.webp","width":160,"height":120},{"preset":"site-large","path":"assets/89c6d954b459d27e934a3e23f502c80ff6861b4af6c0e0467ea6f792118c7833.webp","width":160,"height":120},{"preset":"site-share","path":"assets/560cd55110945e7b6d126e9becab89709fa197a708dd82bb93d3bb6249a9154d.jpg","width":160,"height":120}]},{"hash":"0000000000000000000000000000000000000000000000000000000000000002","files":[{"preset":"site-thumb","path":"assets/218e3e3a0e1b57bd293262a65067fb9df352472e3a9ddac6116c34d4722540ef.webp","width":160,"height":120},{"preset":"site-display","path":"assets/be138880457e2a48dd3f527a186e11d58da43090fc2798ad02133b48d1f85067.webp","width":160,"height":120},{"preset":"site-large","path":"assets/9613e727e0a8e27b6d5d6137a9e09f9d067c229b40390bdf629cef9d515e757e.webp","width":160,"height":120},{"preset":"site-share","path":"assets/ad259fcd599c50c77dcc654336fafaa01324bd5c6916b5ce0a04e07d26cd82e4.jpg","width":160,"height":120}]},{"hash":"0000000000000000000000000000000000000000000000000000000000000003","files":[{"preset":"site-thumb","path":"assets/ce0ca0b8db36493cf4fcc8b960bcdfcffb9ae80a7a375880105bfddbcd87880a.webp","width":160,"height":120},{"preset":"site-display","path":"assets/dbd5c370258b773cdbdd43046464945c6e37fd469d45f76dd6ee5704439420bf.webp","width":160,"height":120},{"preset":"site-large","path":"assets/25d3da1664df0d17a8e37d935176b3f18c2d22c56728f689ca353c3ec57f95df.webp","width":160,"height":120},{"preset":"site-share","path":"assets/214cb6774dbb5222b2be5e02440b7cf9a3d362f636b576f2f9b83c17ee306751.jpg","width":160,"height":120}]},{"hash":"0000000000000000000000000000000000000000000000000000000000000004","files":[{"preset":"site-thumb","path":"assets/bc01d13df6ec8705ec67073a384672a7f906dc8f8594e4f58e8c4eecf6627777.webp","width":160,"height":120},{"preset":"site-display","path":"assets/4a4541838d7867e75286072761dfc473f7dbbc12d6dda003cb4ab815fa67c2db.webp","width":160,"height":120},{"preset":"site-large","path":"assets/3c424d013c99bcc2a9cdb09210ff5f3bb8f354ce1f9e8e59135de637730d12d8.webp","width":160,"height":120},{"preset":"site-share","path":"assets/bf621cdd1f3c1fc4758f4796dc7fa3206fb7c5f82b5e0a978432e1a1bace6d57.jpg","width":160,"height":120}]}]}
       ",
@@ -370,5 +374,142 @@ describe('buildSiteTree', () => {
     await expect(
       buildSiteTree({ ...input, derivatives: huge }),
     ).rejects.toThrow('Unknown derivative preset: site-huge')
+  })
+})
+
+describe('buildSiteTree book data (D38, D41)', () => {
+  /** Alps published 2023-12-31 23:59 UTC, Sea 2024; Sea's front is a photo. */
+  function datedInput(): SiteExportInput {
+    const input = sampleInput()
+    return {
+      ...input,
+      revisions: input.revisions.map((revision, index) =>
+        index === 0
+          ? { ...revision, publishedAtMs: Date.UTC(2023, 11, 31, 23, 59) }
+          : {
+              ...revision,
+              publishedAtMs: Date.UTC(2024, 0, 1),
+              book: {
+                ...revision.book,
+                cover: {
+                  ...revision.book.cover,
+                  front: {
+                    ...revision.book.cover.front,
+                    assetId: 'asset-000003',
+                  },
+                  spine: { text: 'Sea · 2024' },
+                  style: { ...revision.book.cover.style, backFill: '#e8e2d4' },
+                },
+                settings: { ...revision.book.settings, pageColor: '#f7f4ee' },
+              },
+            },
+      ),
+    }
+  }
+
+  function bookData(
+    tree: SiteTree,
+  ): Map<string, SitePageInput & { entry: Record<string, unknown> }> {
+    const site = JSON.parse(fileText(tree, SITE_MANIFEST_PATH) ?? '') as {
+      books: { title: string; path: string }[]
+    }
+    return new Map(
+      site.books.map(({ title, path }) => [
+        title,
+        JSON.parse(fileText(tree, `${path}book.json`) ?? 'null') as never,
+      ]),
+    )
+  }
+
+  it('writes book.json next to each book page: the page input plus its catalog entry', async () => {
+    const tree = await buildSiteTree(datedInput())
+    const data = bookData(tree)
+
+    const alps = data.get('Alps')
+    const sea = data.get('Sea')
+    expect(alps?.kind).toBe('book')
+    expect(alps?.entry).toMatchObject({
+      title: 'Alps',
+      year: 2023,
+      pageCount: 2,
+      trimMm: { w: 300, h: 300 },
+      spine: { cloth: '#3e3c3b', ink: '#F1F3F6', text: 'Alps' },
+      paper: '#FBFAF7',
+      endpaper: '#E9E4DA',
+      cover: null,
+    })
+    expect(sea?.entry).toMatchObject({
+      year: 2024,
+      pageCount: 1,
+      spine: { cloth: '#e8e2d4', ink: '#2E2C2D', text: 'Sea · 2024' },
+      paper: '#f7f4ee',
+    })
+    // Links in book.json resolve from its own directory, like the page's.
+    const seaPath = sea?.path ?? ''
+    expect(sea?.entry.href).toBe(`../../${seaPath}`)
+    expect(String((sea?.entry.cover as { src?: string }).src)).toMatch(
+      /^\.\.\/\.\.\/assets\/\w+\.webp$/,
+    )
+    expect(fileText(tree, `${seaPath}book.json`)).toMatch(/^\{"book":.*\}\n$/)
+  })
+
+  it('gives the catalog the same book data with root-relative links', async () => {
+    const pages: SitePageInput[] = []
+    const renderer = (input: SitePageInput) => {
+      pages.push(input)
+      return ''
+    }
+    await buildSiteTree({ ...datedInput(), renderer })
+
+    const catalog = pages.find((page) => page.kind === 'catalog')
+    expect(catalog?.kind === 'catalog' ? catalog.books : []).toMatchObject([
+      { title: 'Sea', year: 2024, href: expect.stringMatching(/^books\//) },
+      { title: 'Alps', year: 2023, spine: { ink: '#F1F3F6' } },
+    ])
+  })
+
+  it('exports the dated library byte-identically twice', async () => {
+    const first = await buildSiteTree(datedInput())
+    const second = await buildSiteTree(datedInput())
+
+    expect(second.files).toStrictEqual(first.files)
+    expect(
+      first.files.filter((file) => file.path.endsWith('/book.json')),
+    ).toHaveLength(2)
+  })
+
+  it('preloads the viewer fonts on every page, relative to its depth', async () => {
+    const pages: [SitePageInput, SitePageAssets][] = []
+    const renderer = (input: SitePageInput, assets: SitePageAssets) => {
+      pages.push([input, assets])
+      return ''
+    }
+    const font = { path: 'fonts/a.woff2', bytes: encoder.encode('A') }
+    await buildSiteTree({
+      ...sampleInput(),
+      viewer: {
+        ...VIEWER,
+        files: [...VIEWER.files, font],
+        preload: [font.path],
+      },
+      renderer,
+    })
+
+    expect(
+      pages.map(([input, assets]) => [input.kind, assets.preload]),
+    ).toStrictEqual([
+      ['book', ['../../viewer/fonts/a.woff2']],
+      ['book', ['../../viewer/fonts/a.woff2']],
+      ['catalog', ['viewer/fonts/a.woff2']],
+    ])
+  })
+
+  it('rejects a preload missing from the viewer bundle', async () => {
+    await expect(
+      buildSiteTree({
+        ...sampleInput(),
+        viewer: { ...VIEWER, preload: ['fonts/a.woff2'] },
+      }),
+    ).rejects.toThrow('Viewer entry not in bundle: fonts/a.woff2')
   })
 })

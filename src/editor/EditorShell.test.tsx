@@ -360,7 +360,10 @@ describe('EditorShell viewport containment', () => {
     const present = screen.getByTestId('present')
     fireEvent.click(present)
     expect(screen.getByTestId('site-preview-bar')).toBeTruthy()
-    const scroll = await screen.findByTestId('site-preview-scroll')
+    // The preview chunk is lazy: under a parallel suite its import outlasts 1 s.
+    const scroll = await screen.findByTestId('site-preview-scroll', undefined, {
+      timeout: 5_000,
+    })
     expect(scroll.className).toContain('site')
     expect(screen.getByTestId('site-page-indicator').textContent).toBe('Cover')
     expect(screen.queryByTestId('editor-status')).not.toBeNull()

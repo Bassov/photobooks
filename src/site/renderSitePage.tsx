@@ -83,6 +83,16 @@ export function renderSitePage(
           <meta property="og:image" content={ogImage} />
         )}
         {pageUrl === undefined ? null : <link rel="canonical" href={pageUrl} />}
+        {(assets.preload ?? []).map((href) => (
+          <link
+            key={href}
+            rel="preload"
+            href={href}
+            as="font"
+            type="font/woff2"
+            crossOrigin=""
+          />
+        ))}
         {assets.css.map((href) => (
           <link key={href} rel="stylesheet" href={href} />
         ))}

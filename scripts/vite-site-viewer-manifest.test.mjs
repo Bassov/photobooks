@@ -1,6 +1,9 @@
+import { readFile } from 'node:fs/promises'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  SITE_FONTS_CSS,
   SITE_VIEWER_MANIFEST,
+  siteFonts,
   siteViewerManifest,
   siteViewerManifestPlugin,
 } from './vite-site-viewer-manifest.mjs'
@@ -57,11 +60,39 @@ function bundle() {
   }
 }
 
+const FONTS = {
+  css: 'fonts/fonts.css',
+  files: ['fonts/a-latin-wght-normal.woff2', 'fonts/b.woff2'],
+  preload: ['fonts/a-latin-wght-normal.woff2'],
+}
+
+describe('siteFonts', () => {
+  it('lists the stylesheet, each face once and the Latin upright faces to preload', () => {
+    const css = [
+      "src: url('./inter-latin-wght-normal.woff2') format('woff2');",
+      'src: url("lora-latin-wght-italic.woff2");',
+      'src: url(./inter-cyrillic-wght-normal.woff2);',
+      "src: url('./inter-latin-wght-normal.woff2');",
+    ].join('\n')
+
+    expect(siteFonts(css)).toEqual({
+      css: SITE_FONTS_CSS,
+      files: [
+        'fonts/inter-cyrillic-wght-normal.woff2',
+        'fonts/inter-latin-wght-normal.woff2',
+        'fonts/lora-latin-wght-italic.woff2',
+      ],
+      preload: ['fonts/inter-latin-wght-normal.woff2'],
+    })
+  })
+})
+
 describe('siteViewerManifest', () => {
   it('lists the entry, its static imports, CSS and assets, not dynamic imports or main', () => {
-    expect(siteViewerManifest(bundle(), 'site')).toEqual({
+    expect(siteViewerManifest(bundle(), 'site', FONTS)).toEqual({
       entry: 'assets/site.js',
-      css: ['assets/view.css', 'assets/site.css'],
+      css: ['fonts/fonts.css', 'assets/view.css', 'assets/site.css'],
+      preload: ['fonts/a-latin-wght-normal.woff2'],
       files: [
         'assets/paper.png',
         'assets/shared.js',
@@ -69,29 +100,39 @@ describe('siteViewerManifest', () => {
         'assets/site.js',
         'assets/view.css',
         'assets/view.js',
+        'fonts/a-latin-wght-normal.woff2',
+        'fonts/b.woff2',
+        'fonts/fonts.css',
       ],
     })
   })
 
   it('throws when the entry is not in the bundle', () => {
-    expect(() => siteViewerManifest(bundle(), 'viewer')).toThrow(
+    expect(() => siteViewerManifest(bundle(), 'viewer', FONTS)).toThrow(
       'No "viewer" entry chunk in the bundle',
     )
   })
 })
 
 describe('siteViewerManifestPlugin', () => {
-  it('emits the manifest as a build asset', () => {
+  it('emits the manifest with the public UI fonts as a build asset', async () => {
     const plugin = siteViewerManifestPlugin('site')
     const emitFile = vi.fn()
 
-    plugin.generateBundle.call({ emitFile }, {}, bundle())
+    plugin.configResolved({ publicDir: 'public' })
+    await plugin.generateBundle.call({ emitFile }, {}, bundle())
 
     expect(plugin.apply).toBe('build')
+    const fonts = siteFonts(await readFile('public/fonts/fonts.css', 'utf8'))
+    expect(fonts.files).toHaveLength(9)
+    expect(fonts.preload).toEqual([
+      'fonts/inter-latin-wght-normal.woff2',
+      'fonts/lora-latin-wght-normal.woff2',
+    ])
     expect(emitFile).toHaveBeenCalledWith({
       type: 'asset',
       fileName: SITE_VIEWER_MANIFEST,
-      source: `${JSON.stringify(siteViewerManifest(bundle(), 'site'))}\n`,
+      source: `${JSON.stringify(siteViewerManifest(bundle(), 'site', fonts))}\n`,
     })
   })
 })
