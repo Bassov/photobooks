@@ -1,7 +1,7 @@
 import type { Locator, Page, TestInfo } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { dispatchCtrlWheel } from './fixtures/dispatchCtrlWheel'
-import { topAt } from './fixtures/paintProbe'
+import { pixelsAt, topAt } from './fixtures/paintProbe'
 import {
   browserAssertNoLoaf,
   browserBeginLoafScenarioWindow,
@@ -163,6 +163,66 @@ test('the profile editor matches the kit and paints its errors', async ({
     expect(top).toContain('pp-error')
     await expect(error).toHaveCSS('color', 'rgb(168, 64, 58)')
   }
+})
+
+const grey = (px: number[] | undefined) => px?.[0] ?? -1
+
+// Designer printer-presets round 21 (M99–M101), kit #/demo Settings → Print
+// presets: action hover #CFCFCF, the destructive AlertDialog, a ringless badge.
+test('row actions, the Default badge and the delete confirm paint like the kit', async ({
+  page,
+}) => {
+  await openEditor(page)
+  await openPrintPresets(page)
+
+  // M101: the kit badge has no inset ring, so its edge is the tint (211).
+  const badge = page.getByTestId('print-shops').getByText('Default')
+  const b = await box(badge)
+  const [edge, inner] = await pixelsAt(badge, [
+    { x: 0, y: b.height / 2 },
+    { x: 3, y: b.height / 2 },
+  ])
+  expect(Math.abs(grey(edge) - 211), `edge ${String(edge)}`).toBeLessThan(4)
+  expect(Math.abs(grey(edge) - grey(inner))).toBeLessThanOrEqual(1)
+
+  // M99: Duplicate / New profile / Edit… go from --field 215 to #CFCFCF.
+  for (const id of [
+    'print-duplicate-generic',
+    'print-new',
+    `print-edit-${SAMPLE}`,
+  ]) {
+    const button = page.getByTestId(id)
+    const h = (await box(button)).height
+    expect(grey((await pixelsAt(button, [{ x: 4, y: h / 2 }]))[0])).toBe(215)
+    await button.hover()
+    await expect(async () => {
+      const [px] = await pixelsAt(button, [{ x: 4, y: h / 2 }])
+      expect(grey(px), id).toBe(207)
+    }).toPass()
+  }
+  await page.mouse.move(0, 0)
+
+  // M100: the kit destructive AlertDialog — trash tile, Lora 21, md buttons.
+  await page.getByTestId(`print-more-${SAMPLE}`).click()
+  await page.getByRole('menuitem', { name: 'Delete…' }).click()
+  const confirm = page.getByRole('alertdialog')
+  await expect(confirm.locator('svg[data-icon="delete"]')).toHaveCount(1)
+  const tile = confirm.locator('.pb-alert-dialog-head > span')
+  near((await box(tile)).width, 40, 'tile')
+  const [tileBg, dialogBg] = await pixelsAt(confirm, [
+    { x: 24 + 4, y: 24 + 20 },
+    { x: 12, y: 12 },
+  ])
+  expect(grey(tileBg), 'tile paints over the dialog').toBeLessThan(
+    grey(dialogBg) - 4,
+  )
+  await expect(confirm.getByRole('heading')).toHaveCSS('font-size', '21px')
+  for (const name of ['Cancel', 'Delete']) {
+    const button = confirm.getByRole('button', { name })
+    near((await box(button)).height, 36, `${name} h`)
+    await expect(button).toHaveCSS('padding', '0px 16px')
+  }
+  near((await box(confirm)).width, 420, 'confirm w')
 })
 
 test('a custom profile drives Book settings; picking it is one undo step', async ({

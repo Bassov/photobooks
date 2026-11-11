@@ -3,6 +3,7 @@ import { alertConfirmVariant } from './alertConfirm'
 import { Button } from './Button'
 import { Dialog, DialogTitle } from './Dialog'
 import { FeaturedIcon } from './FeaturedIcon'
+import { Icon } from './Icon'
 import { cx } from './className'
 import './AlertDialog.css'
 
@@ -13,7 +14,7 @@ export interface AlertDialogProps {
   confirmLabel?: string
   cancelLabel?: string
   tone?: 'destructive' | 'neutral'
-  /** Leading soft tile (kit AlertDialog `icon`); omit for none. */
+  /** Leading soft tile (kit AlertDialog `icon`); defaults to the trash. */
   icon?: ReactNode
   onConfirm?: () => void
   onCancel?: () => void
@@ -31,7 +32,7 @@ export function AlertDialog({
   confirmLabel = 'Remove',
   cancelLabel = 'Cancel',
   tone = 'destructive',
-  icon,
+  icon = <Icon name="delete" size={16} />,
   onConfirm,
   onCancel,
   className,
@@ -46,15 +47,13 @@ export function AlertDialog({
       data-tone={tone}
     >
       <div className="pb-alert-dialog-head">
-        {icon ? (
-          <FeaturedIcon
-            theme="soft"
-            color={tone === 'destructive' ? 'error' : 'gray'}
-            size="md"
-          >
-            {icon}
-          </FeaturedIcon>
-        ) : null}
+        <FeaturedIcon
+          theme="soft"
+          color={tone === 'destructive' ? 'error' : 'gray'}
+          size="md"
+        >
+          {icon}
+        </FeaturedIcon>
         <div className="pb-alert-dialog-text">
           <DialogTitle>{title}</DialogTitle>
           {children ? (
@@ -65,7 +64,7 @@ export function AlertDialog({
       <div className="pb-alert-dialog-actions">
         <Button
           variant="ghost"
-          size="sm"
+          size="md"
           autoFocus
           onPress={() => {
             if (onCancel !== undefined) onCancel()
@@ -75,7 +74,7 @@ export function AlertDialog({
         </Button>
         <Button
           variant={variant}
-          size="sm"
+          size="md"
           onPress={() => {
             if (onConfirm !== undefined) onConfirm()
           }}
