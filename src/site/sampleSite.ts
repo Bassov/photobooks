@@ -93,9 +93,26 @@ const BOOKS = [
   sampleBook('sea', 'Sea', 4, { widthMm: 280, heightMm: 210 }),
 ]
 
+/** Unlisted (`?book=crop`): one page, the 3:2 photo filling a portrait frame. */
+function cropBook(): Book {
+  const trim = { widthMm: 190, heightMm: 230 }
+  const base = sampleBook('crop', 'Crop', 1, trim)
+  const frame: Frame = {
+    id: 'crop-f0',
+    rect: { x: 15, y: 15, width: 160, height: 200 },
+    z: 0,
+    assetId: 'photo-b',
+  }
+  return { ...base, spreads: [{ id: 'crop-s0', frames: [frame] }] }
+}
+
+const UNLISTED = [cropBook()]
+
 export function sampleSiteInput(search: string): SitePageInput {
   const params = new URLSearchParams(search)
-  const book = BOOKS.find((entry) => entry.id === params.get('book'))
+  const book = [...BOOKS, ...UNLISTED].find(
+    (entry) => entry.id === params.get('book'),
+  )
   if (book !== undefined) {
     return {
       kind: 'book',

@@ -49,6 +49,21 @@ export function imageCropBox(crop: NormalizedRect): ImageCropBox {
   }
 }
 
+/**
+ * Width in mm the image is painted at (what srcset `w` descriptors compare
+ * against): the frame over the crop window, as `imageCropBox` lays it out.
+ * Odd quarter turns lay the image out in source orientation across the frame
+ * height, as `turnedPhotoStyle` does.
+ */
+export function drawnWidthMm(
+  rect: RectMm,
+  crop: NormalizedRect,
+  quarterTurns: number,
+): number {
+  const across = quarterTurns % 2 === 1 ? rect.height : rect.width
+  return across / (crop.width > 0 ? crop.width : 1)
+}
+
 function percent(value: number): string {
   const rounded = Math.round(value * 1000) / 1000
   return `${String(rounded)}%`
