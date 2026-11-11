@@ -192,6 +192,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [static-export-viewer](roadmap/P4/static-export-viewer.md) — Bug: /next-roadmap-item static-export-viewer
 - [ ] [prep] [pdf-captions](roadmap/P4/pdf-captions.md) — text in the PDF
 - [ ] [feature] [site-final-painter](roadmap/P4/site-final-painter.md) — Bug: /next-roadmap-item site-final-painter
+- [ ] [feature] [site-final-gl](roadmap/P4/site-final-gl.md) — Bug: /next-roadmap-item site-final-gl
 - [ ] [contingency] [pdf-streaming](roadmap/P4/pdf-streaming.md) — only if `pdf-export` peak memory is too high
 - [ ] [feature] [booklet-imposition](roadmap/P4/booklet-imposition.md) — home printing
 - [ ] [feature] [cover-editor-core](roadmap/P4/cover-editor-core.md) — Bug: /next-roadmap-item cover-editor-core
