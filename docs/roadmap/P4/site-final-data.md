@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P4
 Title: Bug: /next-roadmap-item site-final-data
+Status: done
 
 Owner 2026-11-11: rework the prod personal site to the bookcase. Designer spec `personal-site` D37, D38, D40, D41, "Prod changes" P2, plus Designer parity M104 (tracker Round 22). The data layer the new home / room read; the current site UI keeps working on it unchanged.
 
