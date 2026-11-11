@@ -305,8 +305,10 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
       cancelAnimationFrame(raf.current)
       setTurn({ a, th: th0, kind }) // busy from now, so a press before the first frame is queued
       const t0 = performance.now()
-      const step = (now: number) => {
-        const p = Math.min(1, (now - t0) / ms)
+      // progress from the clock, not the rAF timestamp: that is the frame's start, stale after a slow GL frame (software
+      // GL: ~1 s each), so the turn would draw one more frame before it lands
+      const step = () => {
+        const p = Math.min(1, (performance.now() - t0) / ms)
         setTurn({ a, th: th0 + (th1 - th0) * ease(p), kind })
         if (p < 1) raf.current = requestAnimationFrame(step)
         else done?.()
