@@ -13,3 +13,10 @@
 2. Click TOC "Print at home and bind": the chapter lands under the bar and the link is current; URL is `#/guide/print-home`.
 3. In chapter 16 pick 22: the summary reads "22 pages + 2 blank → 6 sheets", the assembly row does not move.
 4. Open `#/guide/masters` directly: the page opens scrolled to chapter 11.
+
+Results (kit-only page: `pnpm agent manual-qa` drives the prod editor, so scenarios ran as headless Chrome via `guide:qa` on the built kit, 1440 × 900):
+
+- OK 1 — 18 sections, one h1, 17 images loaded, 93 links resolve, feature index 23/23, no console errors.
+- OK 2 — `#print-home` top 72.48, link `aria-current="location"` (only one), hash `#/guide/print-home`.
+- OK 3 — "22 pages + 2 blank → 6 sheets, printed on both sides", sheet 1 front-left paints blank, assembly top 12003.22 → 12003.22.
+- OK 4 — `#masters` top 72.08 and current.
