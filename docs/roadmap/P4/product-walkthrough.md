@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P4
 Title: Bug: /next-roadmap-item product-walkthrough
+Status: done
 
 ## Scope
 
