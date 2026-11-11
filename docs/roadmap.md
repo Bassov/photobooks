@@ -250,6 +250,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [parent-overrides-inspector](roadmap/P5/parent-overrides-inspector.md) — Bug: /next-roadmap-item parent-overrides-inspector
 - [ ] [feature] [site-lightbox-zoom-core](roadmap/P5/site-lightbox-zoom-core.md) — Bug: /next-roadmap-item site-lightbox-zoom-core
 - [ ] [feature] [cover-back-fill](roadmap/P5/cover-back-fill.md) — Bug: /next-roadmap-item cover-back-fill
+- [ ] [feature] [site-fresh-a](roadmap/P5/site-fresh-a.md) — Bug: /next-roadmap-item site-fresh-a
 
 ## Deferred (not scheduled)
 
