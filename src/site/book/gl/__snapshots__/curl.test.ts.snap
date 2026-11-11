@@ -1,0 +1,331 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`PageCurl > sets the curl uniforms and draws through the shared renderer 1`] = `
+{
+  "back": [
+    0.955,
+    0.952,
+    0.945,
+  ],
+  "beta": 0.2,
+  "crease": 1,
+  "cvs": [
+    232,
+    298,
+  ],
+  "org": [
+    16,
+    24,
+  ],
+  "r": 30,
+  "sheet": [
+    200,
+    250,
+  ],
+  "tex": "tex image page 0",
+  "through": 0.1,
+  "xm": 150,
+  "zc": 940.749,
+}
+`;
+
+exports[`PageCurl > sets the curl uniforms and draws through the shared renderer 2`] = `
+{
+  "back": [
+    0.955,
+    0.952,
+    0.945,
+  ],
+  "beta": 0,
+  "crease": 0,
+  "cvs": [
+    232,
+    298,
+  ],
+  "org": [
+    16,
+    24,
+  ],
+  "r": 30,
+  "sheet": [
+    200,
+    250,
+  ],
+  "tex": "tex image page 1",
+  "through": 0.1,
+  "xm": 100000,
+  "zc": 940.749,
+}
+`;
+
+exports[`PageCurl > sets the curl uniforms and draws through the shared renderer 3`] = `
+{
+  "beta": 0.2,
+  "cvs": [
+    232,
+    298,
+  ],
+  "dsil": 30,
+  "org": [
+    16,
+    24,
+  ],
+  "r": 30,
+  "sheet": [
+    200,
+    250,
+  ],
+  "xm": 150,
+}
+`;
+
+exports[`PageCurl > stacks the under sheet, its shadow and the turning sheet 1`] = `
+{
+  "children": [
+    {
+      "children": [],
+      "flags": [
+        true,
+        false,
+        false,
+        -2,
+      ],
+      "geo": {
+        "box": [
+          [
+            -0.5,
+            -0.5,
+            0,
+          ],
+          [
+            0.5,
+            0.5,
+            0,
+          ],
+        ],
+        "params": {
+          "height": 1,
+          "heightSegments": 120,
+          "width": 1,
+          "widthSegments": 96,
+        },
+        "type": "PlaneGeometry",
+        "vertices": 11737,
+      },
+      "light": undefined,
+      "mat": {
+        "bumpScale": undefined,
+        "color": undefined,
+        "depth": [
+          false,
+          false,
+        ],
+        "map": undefined,
+        "opacity": 1,
+        "polygonOffset": false,
+        "roughness": undefined,
+        "side": 2,
+        "transparent": true,
+        "type": "ShaderMaterial",
+      },
+      "pos": [
+        0,
+        0,
+        0,
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+      ],
+      "type": "Mesh",
+    },
+    {
+      "children": [],
+      "flags": [
+        true,
+        false,
+        false,
+        -1,
+      ],
+      "geo": {
+        "box": [
+          [
+            -0.5,
+            -0.5,
+            0,
+          ],
+          [
+            0.5,
+            0.5,
+            0,
+          ],
+        ],
+        "params": {
+          "height": 1,
+          "heightSegments": 120,
+          "width": 1,
+          "widthSegments": 96,
+        },
+        "type": "PlaneGeometry",
+        "vertices": 11737,
+      },
+      "light": undefined,
+      "mat": {
+        "bumpScale": undefined,
+        "color": undefined,
+        "depth": [
+          false,
+          false,
+        ],
+        "map": undefined,
+        "opacity": 1,
+        "polygonOffset": false,
+        "roughness": undefined,
+        "side": 0,
+        "transparent": true,
+        "type": "ShaderMaterial",
+      },
+      "pos": [
+        0,
+        0,
+        0,
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+      ],
+      "type": "Mesh",
+    },
+    {
+      "children": [],
+      "flags": [
+        true,
+        false,
+        false,
+        0,
+      ],
+      "geo": {
+        "box": [
+          [
+            -0.5,
+            -0.5,
+            0,
+          ],
+          [
+            0.5,
+            0.5,
+            0,
+          ],
+        ],
+        "params": {
+          "height": 1,
+          "heightSegments": 120,
+          "width": 1,
+          "widthSegments": 96,
+        },
+        "type": "PlaneGeometry",
+        "vertices": 11737,
+      },
+      "light": undefined,
+      "mat": {
+        "bumpScale": undefined,
+        "color": undefined,
+        "depth": [
+          true,
+          true,
+        ],
+        "map": undefined,
+        "opacity": 1,
+        "polygonOffset": false,
+        "roughness": undefined,
+        "side": 2,
+        "transparent": true,
+        "type": "ShaderMaterial",
+      },
+      "pos": [
+        0,
+        0,
+        0,
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+      ],
+      "type": "Mesh",
+    },
+  ],
+  "flags": [
+    true,
+    false,
+    false,
+    0,
+  ],
+  "geo": undefined,
+  "light": undefined,
+  "mat": undefined,
+  "pos": [
+    0,
+    0,
+    0,
+  ],
+  "rot": [
+    0,
+    0,
+    0,
+  ],
+  "type": "Scene",
+}
+`;
+
+exports[`PageCurl > stacks the under sheet, its shadow and the turning sheet 2`] = `
+{
+  "back": [
+    0.955,
+    0.952,
+    0.945,
+  ],
+  "beta": 0,
+  "crease": 0,
+  "cvs": [
+    1,
+    1,
+  ],
+  "org": [
+    16,
+    24,
+  ],
+  "r": 1,
+  "sheet": [
+    200,
+    250,
+  ],
+  "tex": null,
+  "through": 0.1,
+  "xm": 200,
+  "zc": 1,
+}
+`;
+
+exports[`PageCurl > stacks the under sheet, its shadow and the turning sheet 3`] = `
+{
+  "beta": 0,
+  "cvs": [
+    1,
+    1,
+  ],
+  "dsil": 0,
+  "org": [
+    16,
+    24,
+  ],
+  "r": 1,
+  "sheet": [
+    200,
+    250,
+  ],
+  "xm": 200,
+}
+`;
