@@ -83,7 +83,8 @@ export function PrintProfileDialog({
         onChange={(event) => {
           setDraft({ ...draft, [key]: event.target.value })
         }}
-        className={cx(INPUT, 'font-mono tabular-nums')}
+        // `!`: INPUT's `[font:inherit]` shorthand otherwise resets the family.
+        className={cx(INPUT, 'font-mono! tabular-nums')}
       />
       {unit === undefined ? null : (
         <span className="shrink-0 text-muted-foreground">{unit}</span>

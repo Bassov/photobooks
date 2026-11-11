@@ -185,6 +185,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [design-r21-presets-actions](roadmap/P4/design-r21-presets-actions.md) — Bug: /next-roadmap-item design-r21-presets-actions
 - [ ] [feature] [library-leave-flake](roadmap/P4/library-leave-flake.md) — Bug: /next-roadmap-item library-leave-flake
 - [ ] [feature] [kit-preview-fold-strip](roadmap/P4/kit-preview-fold-strip.md) — Bug: /next-roadmap-item kit-preview-fold-strip
+- [ ] [feature] [design-r21-profile-fields](roadmap/P4/design-r21-profile-fields.md) — Bug: /next-roadmap-item design-r21-profile-fields
 - [ ] [prep] [pdf-color-tagging](roadmap/P4/pdf-color-tagging.md) — keep photo colors
 - [ ] [feature] [pdf-export](roadmap/P4/pdf-export.md) — print PDF
 - [ ] [feature] [lightbox-timer-leak](roadmap/P4/lightbox-timer-leak.md) — Bug: /next-roadmap-item lightbox-timer-leak
