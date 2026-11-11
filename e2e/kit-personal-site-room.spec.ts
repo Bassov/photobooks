@@ -76,9 +76,6 @@ test.describe('desktop 1440×900: the reading room', () => {
       near(play.x + play.width, 1416)
       const about = await box(room.getByTestId('site-about').locator('..'))
       near(about.y, 846)
-      await page.screenshot({
-        path: test.info().outputPath(`site-1440-${id}.png`),
-      })
       expect(errors).toEqual([])
     })
 })
@@ -148,9 +145,6 @@ test.describe('phone 390×844: reader', () => {
     await expect(
       spread.locator('[style*="rgba(0, 0, 0, 0.06) 50%"]'),
     ).toHaveCount(0)
-    await page.screenshot({
-      path: test.info().outputPath('site-390-spread.png'),
-    })
     expect(errors).toEqual([])
   })
 

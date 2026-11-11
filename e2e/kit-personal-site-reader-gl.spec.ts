@@ -218,7 +218,6 @@ test.describe('desktop 1440×900', () => {
     expect(tail).toBeGreaterThanOrEqual(4)
     expect(eL).toBeGreaterThanOrEqual(4)
     expect(eR).toBeGreaterThanOrEqual(4)
-    await page.screenshot({ path: test.info().outputPath('gl-rest.png') })
 
     // drag the right page to θ 70° and hold: the top edge of the leaf's photo is a curve
     const spine = b.x + b.width / 2
@@ -244,7 +243,6 @@ test.describe('desktop 1440×900', () => {
       width: Math.round(0.45 * b.width),
       height: Math.round(b.y + 0.45 * b.height),
     })
-    await page.screenshot({ path: test.info().outputPath('gl-70.png') })
     await page.mouse.up()
     const { xs, ys, dev } = topEdge(top)
     console.log(
@@ -686,9 +684,6 @@ test.describe('desktop 1440×900: the leaf at θ 90 (stand-v8)', () => {
       await page.mouse.down()
       await holdAt(page, g, 90)
       const held = await shot(page, clip)
-      await page.screenshot({
-        path: test.info().outputPath(`site-1440-${id}-leaf90.png`),
-      })
       await page.mouse.move(g.spine + 0.8 * g.pw, g.y, { steps: 6 })
       await page.mouse.up()
       const bare = stillRows(rest, held)
