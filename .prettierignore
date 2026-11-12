@@ -9,3 +9,5 @@ playwright-report
 .lighthouseci
 .stryker-tmp
 uikit/**
+# Vendored three r170: byte-identical to the kit's copy.
+src/site/book/gl/vendor/three.module.min.js
