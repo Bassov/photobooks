@@ -108,7 +108,7 @@ function sizeOf(img: CanvasImageSource): { iw: number; ih: number } {
   return { iw: width || 1, ih: height || 1 }
 }
 
-async function photoOf(
+export async function photoOf(
   src: string | undefined,
 ): Promise<HTMLImageElement | null> {
   if (src === undefined) return null
