@@ -90,6 +90,7 @@ describe('hostingFieldError examples', () => {
       'https://books.example.com/site/..',
       HOSTING_MESSAGES.path,
     ],
+    ['publicBaseUrl', 'books.example.com/%2e', HOSTING_MESSAGES.path],
     ['publicBaseUrl', 'books.example.com\\site', HOSTING_MESSAGES.path],
     [
       'accountId',
