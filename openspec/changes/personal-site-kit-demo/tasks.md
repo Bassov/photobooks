@@ -13,3 +13,6 @@
 2. 390×844: Share left of Play in the header, no Fullscreen.
 3. Kit `#/demo` Publish → Open site: bookcase of the published book; click it → room.
 4. Kit `#/feature/site-viewer` with nothing published (empty): the open book alone on the case.
+
+manual-qa: harness problem — blocked at the prod welcome `start-session` click (header intercepts), kit routes unreachable; no product failure.
+Covered instead: 1–2 `e2e/kit-personal-site-share.spec.ts` + uikit qa (site-viewer smoke, focus rings, D36 Copied); 3 `e2e/kit-personal-site-demo.spec.ts` + uikit qa #/demo walk + demo baselines 60–63; 4 `e2e/kit-personal-site-demo.spec.ts` (nothing published) + uikit qa.
