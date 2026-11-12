@@ -1,11 +1,11 @@
 ## Implementation
 
-- [ ] 1. Room Share + Fullscreen (desktop group, phone rows, lightbox, key API) in `room.tsx` / `room.css`
-- [ ] 2. `SysSite` / `PersonalSite`: `books`, `start`, `roomRef`; `SiteBook.pages`, safe `src`
-- [ ] 3. `siteBooks.ts` adapter (D38) + Node unit test
-- [ ] 4. `DemoSite` / `DemoSitePreview` on the bookcase / room; kit page notes
-- [ ] 5. `demo-capture.mjs` site steps; kit qa smokes moved to the room
-- [ ] 6. e2e: D36 geometry / Copied / lightbox paint; `#/demo` titles; the two kit Preview specs on the room
+- [x] 1. Room Share + Fullscreen (desktop group, phone rows, lightbox, key API) in `room.tsx` / `room.css`
+- [x] 2. `SysSite` / `PersonalSite`: `books`, `start`, `roomRef`; `SiteBook.pages`, safe `src`; an edit to the open book keeps its room open (only a new set of book ids closes it); the home name is `aria-current="page"`
+- [x] 3. `siteBooks.ts` adapter (D38) + Node unit test
+- [x] 4. `DemoSite` / `DemoSitePreview` on the bookcase / room; kit page notes
+- [x] 5. `demo-capture.mjs` site steps; kit qa smokes moved to the room
+- [x] 6. e2e: D36 geometry / Copied / lightbox paint; `#/demo` titles; the two kit Preview specs on the room
 
 ## Manual test scenarios
 

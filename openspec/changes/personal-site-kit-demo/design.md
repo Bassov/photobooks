@@ -18,6 +18,7 @@
 | `uikit/src/features/site/sample.ts`     |
 | `uikit/src/demo-parts/siteBooks.ts`     |
 | `uikit/src/demo-parts/site.tsx`         |
+| `uikit/src/demo-parts/index.ts`         |
 | `uikit/src/features/pages.tsx`          |
 | `uikit/scripts/demo-capture.mjs`        |
 | `uikit/scripts/qa.mjs`                  |
