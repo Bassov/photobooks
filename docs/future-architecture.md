@@ -233,7 +233,7 @@ The app depends on domain-level interfaces only; file layout, format, `.bak` rot
 ## Publishing
 
 - First target: a manual path — export the site to a folder and upload it to the user's own host (see "Site host"; for R2 any S3 sync tool, e.g. `rclone sync`). The site is separate from the editor app.
-- In-app publishing calls R2's S3 API from the browser: SigV4 signed client-side (e.g. `aws4fetch`) with a token scoped to one bucket. Credentials must be stored only locally and paired with a strict CSP (`connect-src` limited to the account's R2 endpoint); that change needs a Security Review.
+- In-app publishing calls R2's S3 API from the browser: SigV4 signed client-side on WebCrypto (`src/publish/r2Sign.ts`, no dependency) with a token scoped to one bucket. Credentials must be stored only locally and paired with a strict CSP (`connect-src` limited to the account's R2 endpoint); that change needs a Security Review.
 
 ### Site host
 
@@ -250,11 +250,19 @@ Spike `hosting-decision`, docs checked 2026-11-04. Load per book: ~300 photos ×
 
 Other options, none clearly better: Cloudflare Pages (file caps like Workers, uploads through the same no-CORS API); GitHub Pages (1 GB per site, 100 GB per month soft bandwidth: fails at ~3 books); S3 or B2 behind a CDN (paid egress or a second provider). "HTML on Workers + images on R2" keeps two upload paths and the no-CORS problem for HTML.
 
-**Recommended (pending Owner confirmation): R2 public bucket + custom domain** for the whole site (HTML, viewer bundle, derivatives):
+**Decided (Owner, Q-10, 2026-11-12): R2 public bucket + custom domain** for the whole site (HTML, viewer bundle, derivatives). Owner: «По хостингу я бы хотел cloudflare использовать, сайт и картинки статикой. Чтобы картинки быстро грузились. Хочется чтобы настройка была минимальная, может записать токен cf в настройках библиотеки и все. Тут важно чтобы не было уязвимостей с утечкой токена в перс сайт или чтобы можно было как-то увести токен с редактора».
 
 - The only option with a browser upload path and no backend, which fits local-first and bring-your-own-hosting.
 - No file cap; ≈ $0 up to 10 books and under $1 per month at 100 books; free egress.
 - The stored credential reaches one bucket, not every Worker in the account.
+
+Token safety (`src/publish/`, tests in `src/publish/*.test.ts`):
+
+- Bucket-scoped `Object Read & Write` token only — never an account-wide or Workers token.
+- Stored only in the editor origin's IndexedDB (`photobooks-secrets`); never in the library folder, book files, localStorage or URLs.
+- Never in exported or published files (leak PBT over the site export); the site viewer never imports the store (import-boundary test).
+- Strict CSP: `connect-src` limited to the account's R2 endpoint, no third-party scripts in the editor (lands with `publish-credentials`).
+- Never logged; errors name fields only and pass through `redact()`.
 
 Owner actions before publish work starts (none done in the spike): Cloudflare account with R2 enabled, a domain on Cloudflare DNS, bucket + custom domain + CORS policy, a bucket-scoped token.
 
