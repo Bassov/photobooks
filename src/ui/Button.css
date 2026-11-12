@@ -74,14 +74,20 @@
   background: var(--accent);
 }
 
-/* Filled destructive — AlertDialog confirm only (docs/design.md). */
+/* Filled destructive — AlertDialog confirm only (docs/design.md); kit
+   shadow-xs at rest and hover, none while pressed. */
 .pb-button--destructive {
   color: var(--destructive-foreground);
   background: var(--destructive-solid);
+  box-shadow: var(--shadow-xs);
 }
 
 .pb-button--destructive[data-hovered] {
   background: var(--destructive-solid-hover);
+}
+
+.pb-button--destructive[data-pressed] {
+  box-shadow: none;
 }
 
 .pb-button[data-pressed] {
