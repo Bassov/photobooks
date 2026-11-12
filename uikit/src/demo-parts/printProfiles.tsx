@@ -114,10 +114,10 @@ export function fromDraft(base: KitProfile, d: Draft): KitProfile {
     coverWrapMm: v("wrap"), coverHingeMm: v("hinge"), dpi: { warn: v("dpiWarn"), min: v("dpiMin") } }
 }
 
-const ERR = "#a8403a"
-const BOX = "flex h-8 items-center rounded-md bg-field px-2.5 text-sm text-foreground"
+export const ERR = "#a8403a"
+export const BOX = "flex h-8 items-center rounded-md bg-field px-2.5 text-sm text-foreground"
 /* kit Field rule: shadow-xs at rest; focus-visible and error are a 1 px inset ring instead */
-const ring = (err: boolean) => err ? "shadow-none ring-1 ring-inset ring-[#a8403a]" : "shadow-xs has-[input:focus-visible]:shadow-none has-[input:focus-visible]:ring-1 has-[input:focus-visible]:ring-inset has-[input:focus-visible]:ring-[#535152]"
+export const ring = (err: boolean) => err ? "shadow-none ring-1 ring-inset ring-[#a8403a]" : "shadow-xs has-[input:focus-visible]:shadow-none has-[input:focus-visible]:ring-1 has-[input:focus-visible]:ring-inset has-[input:focus-visible]:ring-[#535152]"
 const input = "min-w-0 flex-1 border-0 bg-transparent p-0 outline-none"
 const GROUP = "col-span-2 mt-3 text-2xs font-semibold uppercase leading-[14.84px] tracking-[.12em] text-muted-foreground"
 

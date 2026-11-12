@@ -10,7 +10,7 @@ import { AppModal } from "@/components/app/ui"
 import { FolderPicker } from "@/features/screens"
 import type { Book } from "@/sandbox/store"
 import { PRESETS, pagesOf, fmtN } from "@/sandbox/v7"
-import { slug, useRun } from "./session"
+import { slug, useRun, useSession } from "./session"
 import { CATALOG, profileBleed, type KitProfile } from "./printProfiles"
 
 export type RunStep = "opts" | "run" | "done"
@@ -23,12 +23,14 @@ export function PublishDialog({ title, onClose, onOpenSite = () => {}, initialSt
   const [dl, setDl] = React.useState(initialDownload)
   const v = useRun(step === "run", 1400, () => setStep("done"))
   const link = `https://aleksandr.photos/${slug(title)}`
+  const stored = useSession().useDemo().hosting // publish-credentials D11: the host of the stored site address
+  const host = stored ? new URL(stored.publicBaseUrl).host : "your site"
   return (
     <AppModal isOpen width={480} onOpenChange={(o) => { if (!o && step !== "run") onClose() }} isDismissable={step !== "run"}>
       <div className="px-6 pb-5 pt-5" data-testid="publish-dialog" data-step={step}>
         {step === "opts" && <>
           <div className="heading text-xl leading-tight">Publish to your site</div>
-          <p className="mt-1 text-sm text-muted-foreground">“{title}” goes to aleksandr.photos with the other published books.</p>
+          <p className="mt-1 text-sm text-muted-foreground" data-testid="publish-host-line">“{title}” goes to {host} with the other published books.</p>
           <div className="mt-4 flex flex-col gap-3">
             <SelectRow label="Web image size" value={size} onChange={setSize} items={[["1600", "1600 px · smaller site"], ["2048", "2048 px · recommended"], ["3200", "3200 px · sharp on large screens"]]} />
             <Checkbox isSelected={dl} onChange={setDl}>Let visitors download a PDF</Checkbox>

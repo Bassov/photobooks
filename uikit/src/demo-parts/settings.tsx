@@ -9,13 +9,14 @@ import { Badge } from "@/components/uui/Badge"
 import { AlertDialog, IconButton } from "@/components/app/ui"
 import { FolderPicker, LIBRARY } from "@/features/screens"
 import { useSession } from "./session"
+import { HostingSection, type HostingInit } from "./hosting"
 import { CATALOG, GENERIC_ID, PrintProfileDialog, copyOf, newProfile, profileSummary, type Draft, type KitProfile } from "./printProfiles"
 
 export type SettingsSection = "library" | "hosting" | "site" | "print" | "interface"
 /* ---------------------------------------------------------------- settings */
 const SECTIONS = [["library", "Library", HardDrive], ["hosting", "Hosting", KeyRound], ["site", "Site", Globe], ["print", "Print presets", Printer], ["interface", "Interface", SlidersHorizontal]] as const
-export function SettingsScreen(props: { bookCount?: number; libraryPath?: string; initialSection?: SettingsSection; print?: PrintInit } = {}) {
-  const { bookCount, libraryPath, initialSection = "library", print } = props
+export function SettingsScreen(props: { bookCount?: number; libraryPath?: string; initialSection?: SettingsSection; print?: PrintInit; hosting?: HostingInit } = {}) {
+  const { bookCount, libraryPath, initialSection = "library", print, hosting } = props
   const [sec, setSec] = React.useState<string>(initialSection)
   const [path, setPath] = React.useState(libraryPath ?? LIBRARY.path)
   const [confirm, setConfirm] = React.useState(false)
@@ -53,10 +54,9 @@ export function SettingsScreen(props: { bookCount?: number; libraryPath?: string
             </div>
             {prev && <div className="mt-4 flex max-w-[640px] items-center gap-2 rounded-lg bg-chrome px-4 py-2 text-sm" role="status" data-testid="library-changed"><Info className="size-4 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1">Now using <b className="font-semibold">{path}</b>. Your books in <span className="font-mono text-xs">{prev}</span> were not moved.</span><Button variant="ghost" size="xs" className="px-3 text-xs" onPress={() => { setPath(prev); setPrev(null) }}>Switch back</Button></div>}
           </>
-        ) : sec === "print" ? <PrintPresets row={row} rule={rule} init={print} /> : (
+        ) : sec === "print" ? <PrintPresets row={row} rule={rule} init={print} /> : sec === "hosting" ? <HostingSection rule={rule} init={hosting} /> : (
           <div className="mt-5 max-w-[640px] overflow-hidden rounded-xl bg-chrome">
-            {(sec === "hosting" ? [["Provider", "Cloudflare R2 + Pages"], ["Account", "aleksandr.photos"], ["Token", "Scoped to one bucket · stored on this computer"]]
-              : sec === "site" ? [["Site title", "Aleksandr’s photobooks"], ["Author", "Aleksandr Basov"]]
+            {(sec === "site" ? [["Site title", "Aleksandr’s photobooks"], ["Author", "Aleksandr Basov"]]
               : [["Units", "Millimetres"], ["Thumbnail size", "96 px"], ["Density", "Comfortable"]]).map(([k, v], i) => (
               <React.Fragment key={k}>
                 {i > 0 && rule}
@@ -153,13 +153,13 @@ function PrintPresets({ row, rule, init }: { row: string; rule: React.ReactNode;
 }
 
 /** #/demo Settings stage with its back bar ("Back to the book" from the editor, "Library" from the library). State: session (back, books, path). */
-export function DemoSettings({ initialSection, print }: { initialSection?: SettingsSection; print?: PrintInit } = {}) {
+export function DemoSettings({ initialSection, print, hosting }: { initialSection?: SettingsSection; print?: PrintInit; hosting?: HostingInit } = {}) {
   const { set, useDemo } = useSession()
   const d = useDemo()
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-12 shrink-0 items-center gap-2 bg-chrome px-3"><Button variant="ghost" size="sm" className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4" onPress={() => set({ stage: d.back })} data-testid="demo-settings-back"><ChevronLeft />{d.back === "editor" ? "Back to the book" : "Library"}</Button><span className="text-sm font-medium">Settings</span></div>
-      <div className="min-h-0 flex-1"><SettingsScreen bookCount={d.books.length} libraryPath={d.path || undefined} initialSection={initialSection} print={print} /></div>
+      <div className="min-h-0 flex-1"><SettingsScreen bookCount={d.books.length} libraryPath={d.path || undefined} initialSection={initialSection} print={print} hosting={hosting} /></div>
     </div>
   )
 }

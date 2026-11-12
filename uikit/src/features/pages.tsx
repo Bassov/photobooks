@@ -9,7 +9,8 @@ import { LAKE_BOOK, LAKE_TITLE, docBlank, docAdded, docFilled, COVER_DONE, dbook
 import { pickPrint, profileById } from "@/demo-parts/printProfiles"
 import { ExportSiteDialog, type ExportRun } from "@/demo-parts/dialogs"
 import type { PrintInit, SettingsSection } from "@/demo-parts/settings"
-import type { SessionState } from "@/demo-parts/session"
+import { SAMPLE_HOSTING, type SessionState } from "@/demo-parts/session"
+import type { HostingDraft, HostingInit } from "@/demo-parts/hosting"
 import type { Doc } from "@/sandbox/model"
 import { WithScenarios } from "./parts"
 import { BooksCount, COUNTS } from "./site-book/many"
@@ -42,8 +43,11 @@ const onSite = (site: RootInit["site"], entry: "catalog" | "book" = "catalog"): 
   const books = SHELF().map((b) => ({ ...b, published: true }))
   return { session: { stage: "site", path: PATH, books, open: books[0].id, back: "editor", siteEntry: entry }, site }
 }
-const settingsAt = (section: SettingsSection, s: Partial<SessionState> = {}, print?: PrintInit) =>
-  root({ session: { stage: "settings", path: PATH, books: SHELF(), back: "library", ...s }, settings: { section, print } })
+const settingsAt = (section: SettingsSection, s: Partial<SessionState> = {}, print?: PrintInit, hosting?: HostingInit) =>
+  root({ session: { stage: "settings", path: PATH, books: SHELF(), back: "library", ...s }, settings: { section, print, hosting } })
+/* publish-credentials: a valid draft (key and secret are low-entropy fakes) and the hosting seeds */
+const DRAFT: HostingDraft = { account: SAMPLE_HOSTING.accountId, bucket: SAMPLE_HOSTING.bucket, key: `${"ab".repeat(14)}9f2c`, secret: "5e".repeat(32), url: SAMPLE_HOSTING.publicBaseUrl }
+const hostingAt = (s: Partial<SessionState>, h?: HostingInit) => settingsAt("hosting", s, undefined, h)
 /* editor seeds (EditorView = the #/demo editor with an explicit studio state) */
 const ed = (p: React.ComponentProps<typeof EditorView>) => () => <EditorView book={LAKE_BOOK} {...p} />
 /* cover-editor: 60 spreads = 120 pages, the widest generic spine (32 mm) */
@@ -214,10 +218,17 @@ export const PAGES: Record<string, FeatureDef> = {
     ["print-empty", "No custom profiles", settingsAt("print", { printProfiles: [] })],
     ["print-edit", "Edit profile", settingsAt("print", {}, { edit: "custom-lulu-copy" })],
     ["print-invalid", "Invalid values", settingsAt("print", {}, { edit: "new", draft: { name: "", trimMin: "300", trimMax: "200", pMax: "121" } })],
+    ["hosting-empty", "Not connected", hostingAt({ hosting: null })],
+    ["hosting-invalid", "Format errors", hostingAt({ hosting: null }, { draft: { ...DRAFT, account: "0f3a9c51e2b74d0a8c66f1e9d3b", bucket: "Aleksandr_Books", url: "https://pub-41c2a0.r2.dev" } })],
+    ["hosting-checking", "Checking", hostingAt({ hosting: null }, { draft: DRAFT, checking: true })],
+    ["hosting-cors", "Check failed", hostingAt({ hosting: null }, { draft: DRAFT, fail: "Cors" })],
+    ["hosting-recheck-failed", "Re-check failed", hostingAt({ hosting: { ...SAMPLE_HOSTING, checkedAtMs: SAMPLE_HOSTING.checkedAtMs + 11 * 60_000, ok: false, code: "InvalidAccessKeyId" } })],
+    ["hosting-replace", "Replace token", hostingAt({}, { replace: true })],
+    ["hosting-forget", "Forget token", hostingAt({}, { forget: true })],
   ], {
-    what: "App settings with a back bar: Library (folder, Change library folder…), Hosting, Site, Print presets (default for new books, print shops, custom profiles and their editor), Interface.",
+    what: "App settings with a back bar: Library (folder, Change library folder…), Hosting (Cloudflare R2 token: entry form, connected card, help), Site, Print presets (default for new books, print shops, custom profiles and their editor), Interface.",
     where: "#/demo steps 40 (editor → Settings, back bar “Back to the book”) and 49 (library → Settings, back bar “Library”); Print presets only here.",
-    edge: ["Change library folder… confirms first; books are not moved", "Profile editor: errors show as you type and disable Save", "Deleting the default profile makes Generic the default"],
+    edge: ["Change library folder… confirms first; books are not moved", "Profile editor: errors show as you type and disable Save", "Deleting the default profile makes Generic the default", "The secret is never shown again", "Connect checks a real write before saving"],
   }),
   /* ------------------------------------------------------------ site */
   "site-viewer": page([
