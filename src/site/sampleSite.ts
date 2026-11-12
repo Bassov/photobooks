@@ -137,16 +137,33 @@ const BOOKS: readonly { book: Book; publishedAtMs: number }[] = [
   { book: lakeBook(), publishedAtMs: Date.UTC(2025, 5, 20) },
 ]
 
+/** Unlisted (`?book=crop`): one page, the 3:2 photo filling a portrait frame. */
+function cropBook(): Book {
+  const trim = { widthMm: 190, heightMm: 230 }
+  const base = sampleBook('crop', 'Crop', 1, trim)
+  const frame: Frame = {
+    id: 'crop-f0',
+    rect: { x: 15, y: 15, width: 160, height: 200 },
+    z: 0,
+    assetId: 'photo-b',
+  }
+  return { ...base, spreads: [{ id: 'crop-s0', frames: [frame] }] }
+}
+
+const UNLISTED = [cropBook()]
+
 export function sampleSiteInput(search: string): SitePageInput {
   const params = new URLSearchParams(search)
-  const found = BOOKS.find(({ book }) => book.id === params.get('book'))
+  const found = [...BOOKS.map(({ book }) => book), ...UNLISTED].find(
+    (book) => book.id === params.get('book'),
+  )
   if (found !== undefined) {
     return {
       kind: 'book',
       site: SITE,
       path: '',
       catalogHref: 'site.html',
-      book: found.book,
+      book: found,
       images: IMAGES,
     }
   }

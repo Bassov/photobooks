@@ -215,10 +215,13 @@ describe('SiteBookPage details', () => {
       [...(slideEl(slide)?.querySelectorAll('img') ?? [])].map((img) =>
         img.getAttribute('sizes'),
       )
+    // Drawn width: the 1400 × 933 photo is a hair wider than its 3:2 frame.
+    const wider =
+      '(max-width: 767px) calc((100vw - 40px) * 0.4202), min(319px, calc((100vw - 64px) * 0.4202))'
     const half =
       '(max-width: 767px) calc((100vw - 40px) * 0.42), min(319px, calc((100vw - 64px) * 0.42))'
-    expect(sizes(1)).toStrictEqual([half])
-    expect(sizes(2)).toStrictEqual([half, half])
+    expect(sizes(1)).toStrictEqual([wider])
+    expect(sizes(2)).toStrictEqual([half, wider])
   })
 
   it('ignores a pointer-up without a pointer-down', () => {
@@ -481,7 +484,8 @@ describe('fullscreen lightbox', () => {
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1440)
     vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(900)
     fireEvent.keyDown(window, { key: 'ArrowRight' })
-    expect(lightboxSizes()).toStrictEqual(['547px'])
+    // The 1400 × 933 photo is drawn a hair wider than its frame.
+    expect(lightboxSizes()).toStrictEqual(['548px', '547px'])
     fireEvent.keyDown(window, { key: '+' })
     act(() => {
       vi.advanceTimersByTime(400)

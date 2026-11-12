@@ -12,6 +12,8 @@ import type { PrintInit, SettingsSection } from "@/demo-parts/settings"
 import type { SessionState } from "@/demo-parts/session"
 import type { Doc } from "@/sandbox/model"
 import { WithScenarios } from "./parts"
+import { BooksCount, COUNTS } from "./site-book/many"
+import { PersonalSite } from "./site/home"
 import { PhotographerSite } from "./site-photographer"
 import type { FeatureDef, Notes } from "./types"
 
@@ -50,6 +52,14 @@ const docThick = (): Doc => ({ ...docAdded(), spreads: Array.from({ length: 6 },
 const docThreeOneLocked = (): Doc => {
   const d = docFilled()
   return { ...d, spreads: d.spreads.map((s, i) => (i === 2 ? { ...s, frames: s.frames.map((f, j) => (j === 2 ? { ...f, locked: true } : f)) } : s)) }
+}
+
+/** personal-site (D35): the scenario is the book count (site-book/many `BooksCount`; the route hash is left alone);
+   #/full shows the site alone and takes `?books=` from the URL */
+function PersonalSitePage() {
+  if (location.hash.startsWith("#/full/")) return <PersonalSite />
+  return <WithScenarios items={COUNTS.map((c) => [`${c}`, `${c} book${c === 1 ? "" : "s"}`])} initial="6"
+    render={(v) => <div key={v} className="h-full" data-scenario={v}><BooksCount.Provider value={+v}><PersonalSite /></BooksCount.Provider></div>} />
 }
 
 export const PAGES: Record<string, FeatureDef> = {
@@ -233,6 +243,14 @@ export const PAGES: Record<string, FeatureDef> = {
       what: "Proposal for the published site as a photographer's site of books: home with the books on a shelf, one page per book with text, facts and all spreads, the kit Fullscreen viewer. Sample books and texts.",
       where: "Standalone demo; not in #/demo yet. Full window: #/full/site-photographer.",
       edge: ["Click a book, a spread or the closed book; Esc leaves fullscreen", "Narrow window (< 768) = one column"],
+    },
+  },
+  "personal-site": {
+    Demo: PersonalSitePage, h: SLOT.app.h, notes: {
+      what: "The personal site: a bookcase home (the newest book of each shelf face-out) and a reading room with the open book. Sample books.",
+      where: "Standalone; not in #/demo yet. Full window: #/full/personal-site?books=1|3|6|12|30|100 (&book=<id> opens a book).",
+      keys: [["← / →", "turn"], ["Esc / Back", "close the book"]],
+      edge: ["The page scrolls down the case", "Phone reads in Page turn; &reader=carousel gives the carousel"],
     },
   },
   "site-preview-mode": page([

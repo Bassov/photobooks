@@ -195,10 +195,11 @@ test.describe('site viewer', () => {
       .getByTestId('site-spread')
       .getByTestId('spread-frame-image')
     const drawn = await img.evaluate((el) => el.getBoundingClientRect().width)
-    expect(drawn).toBeCloseTo(760 * 0.42, 0)
+    // The 1400 × 933 photo is drawn a hair wider than its 0.42 frame.
+    expect(drawn).toBeCloseTo(760 * 0.4202, 0)
     await expect(img).toHaveAttribute(
       'sizes',
-      /min\(319px, calc\(\(100vw - 64px\) \* 0\.42\)\)$/,
+      /min\(319px, calc\(\(100vw - 64px\) \* 0\.4202\)\)$/,
     )
   })
 

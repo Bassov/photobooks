@@ -74,7 +74,7 @@ export function SettingsScreen({
                 setSectionId(section.id)
               }}
               className={cn(
-                'flex items-center gap-2 rounded-md border-0 px-2 py-2 text-left text-sm leading-[1.45] shadow-none outline-hidden hover:bg-[#D7D7D7] focus-visible:bg-[#D7D7D7]',
+                'flex items-center gap-2 rounded-md border-0 bg-transparent px-2 py-2 text-left text-sm leading-[1.45] shadow-none outline-hidden hover:bg-[#D7D7D7] focus-visible:bg-[#D7D7D7]',
                 settingsNavActiveClass(current),
               )}
             >
