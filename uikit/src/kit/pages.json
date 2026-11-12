@@ -18,6 +18,7 @@
   {"slug": "site-viewer", "title": "Site viewer", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "site"},
   {"slug": "site-lightbox", "title": "Lightbox and swipe", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "site"},
   {"slug": "site-photographer", "title": "Photographer site (demo)", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "site"},
+  {"slug": "personal-site", "title": "Personal site", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "publish"},
   {"slug": "site-preview-mode", "title": "Site preview from the editor", "group": "M5 — Showcase site with books", "kind": "interactive", "screen": "site"},
   {"slug": "pdf-export", "title": "Print dialog (PDF)", "group": "M6 — Print", "kind": "interactive", "screen": "print"},
   {"slug": "static-export", "title": "Export site (local folder)", "group": "M7 — Deploy as my site", "kind": "interactive", "screen": "publish"},
