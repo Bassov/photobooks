@@ -5,6 +5,7 @@
  * replaces the CSS faces in place. Any failure keeps the CSS book.
  */
 import type { SiteCatalogBook } from '../siteInput'
+import { imageSrc } from '../siteUrl'
 import { ctx, cv } from './gl/canvas'
 import { canvasBox, ClosedBook, type GlPose } from './gl/closed'
 import { drawInto, glWanted, loadThree, type Three } from './gl/three'
@@ -112,7 +113,7 @@ async function photoOf(
 ): Promise<HTMLImageElement | null> {
   if (src === undefined) return null
   const img = new Image()
-  img.src = src
+  img.src = imageSrc(src)
   await img.decode()
   return img
 }

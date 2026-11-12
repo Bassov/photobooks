@@ -1,5 +1,9 @@
 import { renderSitePage } from './renderSitePage'
 import { sampleSiteInput } from './sampleSite'
+import { keptQuery } from './siteUrl'
+
+/** The only query keys the sample page reads. */
+const SAMPLE_KEYS = ['book', 'empty'] as const
 
 /**
  * Puts the prerendered sample page into this document, exactly as an exported
@@ -8,7 +12,9 @@ import { sampleSiteInput } from './sampleSite'
  */
 export function prerenderSample(doc: Document, search: string): void {
   const page = new DOMParser().parseFromString(
-    renderSitePage(sampleSiteInput(search), { css: [] }),
+    renderSitePage(sampleSiteInput(keptQuery(search, SAMPLE_KEYS)), {
+      css: [],
+    }),
     'text/html',
   )
   const root = doc.getElementById('site-root')

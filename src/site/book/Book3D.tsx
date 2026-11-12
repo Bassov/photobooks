@@ -8,6 +8,7 @@
 import { useEffect, useRef, type CSSProperties, type RefObject } from 'react'
 import { shelfBook, thickCm } from '../shelf'
 import type { SiteCatalogBook } from '../siteInput'
+import { imageSrc } from '../siteUrl'
 import { afterLoadIdle } from './afterLoadIdle'
 
 /** the CSS tilt (kit `book3d.css` vars) */
@@ -143,7 +144,7 @@ export function Book3D({
         />
         <div className="sd-b3-cover" style={{ background: b.spine.cloth }}>
           {b.cover === null ? null : (
-            <img src={b.cover.src} alt="" decoding="async" />
+            <img src={imageSrc(b.cover.src)} alt="" decoding="async" />
           )}
           <div className="sd-b3-hinge" style={{ width: Math.max(8, H / 30) }} />
           <div
