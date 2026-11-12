@@ -28,7 +28,7 @@ function stubLayout(): void {
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1440)
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(
     function (this: HTMLElement) {
-      return this.dataset.testid === 'site-preview-scroll' ? 852 : 100
+      return this.dataset.testid === 'site-room' ? 852 : 100
     },
   )
 }
@@ -41,7 +41,7 @@ function press(key: string): void {
   })
 }
 
-const indicator = () => screen.getByTestId('site-page-indicator').textContent
+const indicator = () => screen.getByTestId('site-label').textContent
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -71,33 +71,35 @@ describe('SitePreview', () => {
     render(<SitePreview onExit={vi.fn()} />)
     const scroll = screen.getByTestId('site-preview-scroll')
     expect(scroll.style.minHeight).toBe('0')
-    const siteTitle = scroll.querySelector('.site-header .site-title')
-    expect(siteTitle?.tagName).toBe('SPAN')
-    expect(siteTitle?.textContent).toBe('Photobooks')
-    expect(screen.getByTestId('site-title').textContent).toBe('Lake trip')
+    const room = screen.getByTestId('site-room')
+    expect(room.hasAttribute('data-embedded')).toBe(true)
+    expect(screen.getByTestId('site-about').textContent).toMatch(/^Lake trip/)
+    expect(screen.queryByTestId('site-name')).toBeNull()
     expect(screen.queryByTestId('site-all-books')).toBeNull()
     expect(screen.queryByTestId('site-share')).toBeNull()
     expect(screen.getByTestId('site-fullscreen-btn')).toBeTruthy()
-    // Sized by the scroll box, not the window.
-    expect(screen.getByTestId('site-stage').style.width).toBe('760px')
+    // The live book's own renderers: the CSS reader, never GL.
+    expect(screen.queryByTestId('ps-reader-gl')).toBeNull()
     expect(indicator()).toBe('Cover')
   })
 
   it('steps with the keys and follows book edits', () => {
     render(<SitePreview onExit={vi.fn()} />)
     press('ArrowRight')
-    expect(indicator()).toMatch(/ · 1 \/ 3$/)
+    expect(indicator()).toBe('Page 1 of 4')
     press('End')
-    expect(indicator()).toMatch(/ · 3 \/ 3$/)
+    expect(indicator()).toBe('Back cover')
     act(() => {
       dispatchBookOp({ type: 'setTitle', title: 'Alps' })
     })
-    expect(screen.getByTestId('site-title').textContent).toBe('Alps')
-    // Removing the shown spread clamps to the new last slide.
+    expect(screen.getByTestId('site-about').textContent).toMatch(/^Alps/)
+    press('ArrowLeft')
+    expect(indicator()).toBe('Page 4 of 4')
+    // Removing the shown spread clamps to the new back cover.
     act(() => {
       dispatchBookOp({ type: 'removeSpread', spreadId: 's2' })
     })
-    expect(indicator()).toMatch(/ · 2 \/ 2$/)
+    expect(indicator()).toBe('Back cover')
   })
 
   it('closes on Escape', () => {

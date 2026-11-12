@@ -17,88 +17,24 @@ import {
   useState,
   type PointerEvent,
 } from 'react'
-import { slideOfView, type RoomSlide } from '../siteModel'
-import type { CurlSheet, PageCurl } from './gl/curl'
+import { slideOfView } from '../siteModel'
+import type { PageCurl } from './gl/curl'
 import type { FaceSource } from './gl/faces'
 import { glWanted } from './gl/three'
-import { EASE, TURN } from './reader'
 import {
-  Paper,
-  slideKey,
-  slideKind,
-  type SlidesApi,
-  type SlidesProps,
-} from './slides'
+  EASE,
+  fromDrag,
+  scripted,
+  sheetOf,
+  TURN,
+  xmEnd,
+  xmStart,
+} from './motion'
+import { slideKey, slideKind } from './roomLayout'
+import { Paper, type SlidesApi, type SlidesProps } from './slides'
 
 /** the curl canvas' overhang above and below the sheet (gl/curl.ts `OV`) */
 const OV = 24
-
-// the curl model (sheet coords: x right, y down, px). State { xm, beta, r }:
-// the curl axis passes (xm, ph/2) with normal (cos β, sin β) to the free edge.
-const rad = (d: number) => (d * Math.PI) / 180
-const B0 = rad(15)
-const BMAX = rad(25)
-export interface Curl {
-  xm: number
-  beta: number
-  r: number
-}
-/** the axis just touches the leading corner */
-const xmStart = (pw: number, ph: number, beta: number) =>
-  pw + (ph / 2) * Math.tan(beta)
-/** the curl is off the screen (sheet left = 16) */
-const xmEnd = (r: number) => -r - 18
-
-/** forward drag: grabbed point C (corner or edge), finger offset → state */
-export function fromDrag(
-  pw: number,
-  ph: number,
-  r: number,
-  C: { x: number; y: number },
-  corner: boolean,
-  dx: number,
-  dy: number,
-): Curl {
-  const P = { x: C.x + dx, y: C.y + dy }
-  const vx = C.x - P.x
-  const vy = corner ? C.y - P.y : 0
-  const L0 = Math.hypot(vx, vy)
-  const prog = Math.min(1, Math.max(0, vx / pw))
-  let beta = L0 < 1 ? 0 : Math.atan2(vy, vx)
-  // the grabbed corner leads, straightening as it turns
-  if (corner) beta += (C.y > ph / 2 ? 1 : -1) * B0 * (1 - prog)
-  beta = Math.max(-BMAX, Math.min(BMAX, beta))
-  const nx = Math.cos(beta)
-  const ny = Math.sin(beta)
-  const L = Math.max(0, vx * nx + vy * ny)
-  // past πr the folded corner sits under the finger
-  const D = L < Math.PI * r ? L : (L + Math.PI * r) / 2
-  const A = { x: C.x - nx * D, y: C.y - ny * D }
-  return { xm: A.x - (ph / 2 - A.y) * Math.tan(beta), beta, r }
-}
-
-/** the scripted turn (tap, keys, Play): e is the eased progress 0..1 */
-export const scripted = (
-  pw: number,
-  ph: number,
-  r: number,
-  e: number,
-): Curl => ({
-  xm: xmStart(pw, ph, B0) + (xmEnd(r) - xmStart(pw, ph, B0)) * e,
-  beta: B0 * (1 - e),
-  r,
-})
-
-/** The curl sheet of a slide (0-based printed pages). */
-export function sheetOf(s: RoomSlide): CurlSheet {
-  const p = s.page
-  if (p === undefined) return { kind: 'cover' }
-  if (p.side === 'both') {
-    return { kind: 'spread', left: 2 * p.spread - 1, right: 2 * p.spread }
-  }
-  if (p.spread === 0) return { kind: 'page', page: 0 }
-  return { kind: 'page', page: 2 * p.spread - 1 + (p.side === 'right' ? 1 : 0) }
-}
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 /** the GL canvas' backing pixels per CSS px */

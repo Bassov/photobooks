@@ -10,50 +10,60 @@
 
 ## Touch-set & Test Plan
 
-| File                                      | Why                 |
-| ----------------------------------------- | ------------------- |
-| `src/site/SiteRoom.tsx`                   | room                |
-| `src/site/SiteRoom.test.tsx`              | foot, Share, slides |
-| `src/site/SiteApp.tsx`                    | history             |
-| `src/site/SiteApp.test.tsx`               | history             |
-| `src/site/startSite.tsx`                  | loader              |
-| `src/site/startSite.test.tsx`             | loader              |
-| `src/site/ShareButton.tsx`                | D36                 |
-| `src/site/ShareButton.test.tsx`           | Copied              |
-| `src/site/SiteLightbox.tsx`               | spreads only        |
-| `src/site/SiteSlide.tsx`                  | slide paint         |
-| `src/site/SiteBookPage.tsx`               | deleted             |
-| `src/site/SiteStage.tsx`                  | deleted             |
-| `src/site/SiteBookPage.test.tsx`          | deleted             |
-| `src/site/SiteBookPage.embedded.test.tsx` | deleted             |
-| `src/site/site.css`                       | deleted             |
-| `src/site/siteViewer.css`                 | deleted             |
-| `src/site/siteSystem.css`                 | utilities           |
-| `src/site/main.tsx`                       | CSS entry           |
-| `src/site/siteInput.ts`                   | `entry`             |
-| `src/site/siteModel.ts`                   | labels, slides      |
-| `src/site/siteModel.test.ts`              | labels              |
-| `src/site/siteModel.book.test.ts`         | slides              |
-| `src/site/siteModel.pbt.test.ts`          | hash                |
-| `src/site/sampleSite.ts`                  | `entry`             |
-| `src/site/renderSitePage.tsx`             | prerender           |
-| `src/site/renderSitePage.test.tsx`        | prerender           |
-| `src/site/export/buildSiteTree.ts`        | `entry`             |
-| `src/site/export/buildSiteTree.test.ts`   | `entry`             |
-| `src/site/book/reader.tsx`                | reader              |
-| `src/site/book/slides.tsx`                | carousel            |
-| `src/site/book/turn.tsx`                  | page turn           |
-| `src/site/book/room.css`                  | room CSS            |
-| `src/site/book/roomGl.ts`                 | lazy GL             |
-| `src/site/book/roomGl.test.ts`            | lazy GL             |
-| `src/editor/SitePreview.tsx`              | swap                |
-| `src/editor/SitePreview.test.tsx`         | selectors           |
-| `styles/tokens.css`                       | tokens              |
-| `e2e/site-final.spec.ts`                  | checkpoints         |
-| `e2e/site-reader-gl.spec.ts`              | kit T1/T2           |
-| `e2e/site-viewer.spec.ts`                 | selectors           |
-| `e2e/site-lightbox.spec.ts`               | selectors           |
-| `e2e/site-preview-mode.spec.ts`           | selectors           |
-| `e2e/static-export.spec.ts`               | selectors           |
-| `e2e/static-export-viewer.spec.ts`        | selectors           |
-| `e2e/site-crop-srcset.spec.ts`            | selectors           |
+| File                                                  | Why                 |
+| ----------------------------------------------------- | ------------------- |
+| `src/site/SiteRoom.tsx`                               | room                |
+| `src/site/SiteRoom.test.tsx`                          | foot, Share, slides |
+| `src/site/SiteApp.tsx`                                | history             |
+| `src/site/SiteApp.test.tsx`                           | history             |
+| `src/site/startSite.tsx`                              | loader              |
+| `src/site/startSite.test.tsx`                         | loader              |
+| `src/site/ShareButton.tsx`                            | D36                 |
+| `src/site/ShareButton.test.tsx`                       | Copied              |
+| `src/site/SiteLightbox.tsx`                           | spreads only        |
+| `src/site/SiteSlide.tsx`                              | slide paint         |
+| `src/site/SiteBookPage.tsx`                           | deleted             |
+| `src/site/SiteStage.tsx`                              | deleted             |
+| `src/site/SiteBookPage.test.tsx`                      | deleted             |
+| `src/site/SiteBookPage.embedded.test.tsx`             | deleted             |
+| `src/site/site.css`                                   | deleted             |
+| `src/site/siteViewer.css`                             | deleted             |
+| `src/site/siteSystem.css`                             | utilities           |
+| `src/site/main.tsx`                                   | CSS entry           |
+| `src/site/siteInput.ts`                               | `entry`             |
+| `src/site/siteModel.ts`                               | labels, slides      |
+| `src/site/siteModel.test.ts`                          | labels              |
+| `src/site/siteModel.book.test.ts`                     | slides              |
+| `src/site/siteModel.pbt.test.ts`                      | hash                |
+| `src/site/sampleSite.ts`                              | `entry`             |
+| `src/site/renderSitePage.tsx`                         | prerender           |
+| `src/site/renderSitePage.test.tsx`                    | prerender           |
+| `src/site/export/buildSiteTree.ts`                    | `entry`             |
+| `src/site/export/buildSiteTree.test.ts`               | `entry`             |
+| `src/site/book/reader.tsx`                            | reader              |
+| `src/site/book/slides.tsx`                            | carousel            |
+| `src/site/book/turn.tsx`                              | page turn           |
+| `src/site/book/room.css`                              | room CSS            |
+| `src/site/book/roomGl.ts`                             | lazy GL             |
+| `src/site/book/roomGl.test.ts`                        | lazy GL             |
+| `src/site/book/motion.ts`                             | easings, curl       |
+| `src/site/book/roomLayout.ts`                         | mode, keys          |
+| `src/site/book/reader.test.tsx`                       | reader              |
+| `src/site/book/slides.test.tsx`                       | carousel            |
+| `src/site/book/turn.test.tsx`                         | page turn           |
+| `src/site/book/book3dGl.ts`                           | lazy GL             |
+| `src/site/loadBook.ts`                                | `book.json`         |
+| `src/editor/EditorShell.tsx`                          | comment             |
+| `src/editor/EditorShell.test.tsx`                     | selectors           |
+| `src/site/__snapshots__/renderSitePage.test.tsx.snap` | prerender           |
+| `src/editor/SitePreview.tsx`                          | swap                |
+| `src/editor/SitePreview.test.tsx`                     | selectors           |
+| `styles/tokens.css`                                   | tokens              |
+| `e2e/site-final.spec.ts`                              | checkpoints         |
+| `e2e/site-reader-gl.spec.ts`                          | kit T1/T2           |
+| `e2e/site-viewer.spec.ts`                             | selectors           |
+| `e2e/site-lightbox.spec.ts`                           | selectors           |
+| `e2e/site-preview-mode.spec.ts`                       | selectors           |
+| `e2e/static-export.spec.ts`                           | selectors           |
+| `e2e/static-export-viewer.spec.ts`                    | selectors           |
+| `e2e/site-crop-srcset.spec.ts`                        | selectors           |

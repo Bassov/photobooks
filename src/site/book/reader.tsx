@@ -24,6 +24,7 @@ import {
 import { spreadRatio, spreadSide, viewLabel } from '../siteModel'
 import { CoverFace, PageFace, type RoomBook } from '../SiteSlide'
 import { glWanted } from './gl/three'
+import { EASE, TURN } from './motion'
 import type { ReaderGlBook } from './roomGl'
 import { PaperGrain } from './slides'
 
@@ -38,29 +39,6 @@ interface Turn {
   kind: 'anim' | 'drag' | 'lift'
 }
 
-/** CSS cubic-bezier(x1, y1, x2, y2) as t → progress */
-const bezier = (x1: number, y1: number, x2: number, y2: number) => {
-  const cx = 3 * x1
-  const bx = 3 * (x2 - x1) - cx
-  const ax = 1 - cx - bx
-  const cy = 3 * y1
-  const by = 3 * (y2 - y1) - cy
-  const ay = 1 - cy - by
-  const X = (u: number) => ((ax * u + bx) * u + cx) * u
-  const dX = (u: number) => (3 * ax * u + 2 * bx) * u + cx
-  return (t: number) => {
-    let u = t
-    for (let i = 0; i < 8; i++) {
-      const e = X(u) - t
-      const d = dX(u)
-      if (Math.abs(e) < 1e-5 || Math.abs(d) < 1e-6) break
-      u = Math.min(1, Math.max(0, u - e / d))
-    }
-    return ((ay * u + by) * u + cy) * u
-  }
-}
-export const TURN = bezier(0.45, 0.05, 0.25, 1)
-export const EASE = bezier(0.2, 0.7, 0.2, 1)
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 const fine = () => matchMedia('(hover: hover) and (pointer: fine)').matches
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x))
@@ -115,7 +93,7 @@ interface Geo {
   eMax: number
   tE: number
 }
-export function geoOf(rb: RoomBook, W: number, H: number, n: number): Geo {
+function geoOf(rb: RoomBook, W: number, H: number, n: number): Geo {
   const sr = W / (2 * (rb.entry.trimMm.w / 10))
   const BD = clamp(0.3 * sr, 3, 8)
   // the closed book's thickness at sr px/cm (Book3D)

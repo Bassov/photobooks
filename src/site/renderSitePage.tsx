@@ -6,8 +6,8 @@ import type { SitePageAssets, SitePageInput } from './siteInput'
 import { bookMeta, homeHead, homeLead, siteTitle } from './siteModel'
 import { pageHref, sitePageUrl } from './siteUrl'
 
-/** the browser bars: the home's paper (v7 F), the book page's grey */
-const THEME = { catalog: '#f4f3f0', book: '#E1E1E1' } as const
+/** the browser bars: the paper of the home (v7 F) and of the room */
+const THEME = '#f4f3f0'
 
 /** Same value with object keys in code-unit order at every depth. */
 function sortKeys(value: unknown): unknown {
@@ -74,7 +74,7 @@ export function renderSitePage(
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content={THEME[input.kind]} />
+        <meta name="theme-color" content={THEME} />
         <title>{head.title}</title>
         <meta name="description" content={head.description} />
         <meta property="og:title" content={head.ogTitle} />

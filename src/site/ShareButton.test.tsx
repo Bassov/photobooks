@@ -4,26 +4,26 @@ import { COPIED_MS, ShareButton } from './ShareButton'
 
 const URL = 'https://alex.example/books/abc/'
 
-function labels() {
-  return [
-    ...screen.getByTestId('site-share').querySelectorAll('.site-share-label'),
-  ].map(
-    (label) =>
-      `${label.textContent}${label.hasAttribute('data-hidden') ? ' (hidden)' : ''}`,
-  )
-}
+const button = () => screen.getByTestId('site-share')
+const copied = () => button().hasAttribute('data-copied')
 
 async function press() {
   await act(async () => {
-    fireEvent.click(screen.getByTestId('site-share'))
+    fireEvent.click(button())
     await Promise.resolve()
   })
 }
 
-/** A navigator with only these members (no share sheet unless given). */
-function stubNavigator(value: Partial<Navigator>) {
+/** A navigator with only these members, on a fine or a coarse pointer. */
+function stubDevice(value: Partial<Navigator>, coarse = false) {
   vi.stubGlobal('navigator', value)
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: coarse && query === '(pointer: coarse)',
+  }))
 }
+
+const show = () =>
+  render(<ShareButton className="t16" title="Alps" url={() => URL} />)
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -36,32 +36,43 @@ afterEach(() => {
 })
 
 describe('ShareButton', () => {
-  it('copies the link, reads "Link copied" for 2 s in the same cell, then Share again', async () => {
-    const writeText = vi.fn(() => Promise.resolve())
-    stubNavigator({ clipboard: { writeText } as unknown as Clipboard })
-    render(<ShareButton title="Alps" url={() => URL} />)
+  it('is a text button holding both labels, Copied the polite live region', () => {
+    stubDevice({})
+    show()
 
-    expect(labels()).toStrictEqual(['Share', 'Link copied (hidden)'])
+    expect(button().className).toBe('t16 g ss-tx sb-share')
+    expect([...button().children].map((s) => s.textContent)).toStrictEqual([
+      'Share',
+      'Copied',
+    ])
+    expect(screen.getByText('Copied').getAttribute('aria-live')).toBe('polite')
+    expect(copied()).toBe(false)
+  })
+
+  it('copies the link and reads "Copied" for 2 s, then Share again', async () => {
+    const writeText = vi.fn(() => Promise.resolve())
+    stubDevice({ clipboard: { writeText } as unknown as Clipboard })
+    show()
+
     await press()
 
     expect(writeText).toHaveBeenCalledWith(URL)
-    expect(labels()).toStrictEqual(['Share (hidden)', 'Link copied'])
-    expect(screen.getByRole('status').textContent).toBe(`Link copied: ${URL}`)
+    expect(copied()).toBe(true)
     act(() => {
       vi.advanceTimersByTime(COPIED_MS - 1)
     })
-    expect(labels()[1]).toBe('Link copied')
+    expect(copied()).toBe(true)
     act(() => {
       vi.advanceTimersByTime(1)
     })
-    expect(labels()).toStrictEqual(['Share', 'Link copied (hidden)'])
+    expect(copied()).toBe(false)
   })
 
   it('restarts the 2 s on a second press', async () => {
-    stubNavigator({
+    stubDevice({
       clipboard: { writeText: () => Promise.resolve() } as unknown as Clipboard,
     })
-    render(<ShareButton title="Alps" url={() => URL} />)
+    show()
 
     await press()
     act(() => {
@@ -72,88 +83,62 @@ describe('ShareButton', () => {
       vi.advanceTimersByTime(1500)
     })
 
-    expect(labels()[1]).toBe('Link copied')
+    expect(copied()).toBe(true)
   })
 
-  it('still reads "Link copied" when the clipboard refuses', async () => {
-    stubNavigator({
-      clipboard: {
-        writeText: () => Promise.reject(new Error('denied')),
-      } as unknown as Clipboard,
-    })
-    render(<ShareButton title="Alps" url={() => URL} />)
+  it.each([
+    [
+      'the clipboard refuses',
+      {
+        clipboard: {
+          writeText: () => Promise.reject(new Error('denied')),
+        } as unknown as Clipboard,
+      },
+    ],
+    ['there is no clipboard', {}],
+    ['a fine pointer has a share sheet', { share: () => Promise.resolve() }],
+  ])('still reads "Copied" when %s', async (_name, members) => {
+    stubDevice(members)
+    show()
 
     await press()
 
-    expect(labels()[1]).toBe('Link copied')
-    expect(screen.getByRole('status').textContent).toBe(`Link copied: ${URL}`)
+    expect(copied()).toBe(true)
   })
 
-  it('opens the native share sheet when there is one, without a label change', async () => {
+  it('opens the share sheet on a coarse pointer, without "Copied"', async () => {
     const share = vi.fn(() =>
       Promise.reject(new DOMException('dismissed', 'AbortError')),
     )
     const writeText = vi.fn(() => Promise.resolve())
-    stubNavigator({
-      share,
-      canShare: () => true,
-      clipboard: { writeText } as unknown as Clipboard,
-    })
-    render(<ShareButton title="Alps" url={() => URL} />)
+    stubDevice(
+      { share, clipboard: { writeText } as unknown as Clipboard },
+      true,
+    )
+    show()
 
     await press()
 
     expect(share).toHaveBeenCalledWith({ title: 'Alps', url: URL })
     expect(writeText).not.toHaveBeenCalled()
-    expect(labels()[0]).toBe('Share')
-    expect(screen.getByRole('status').textContent).toBe('')
+    expect(copied()).toBe(false)
   })
 
-  it('copies when the share sheet cannot take the link', async () => {
-    const share = vi.fn(() => Promise.resolve())
+  it('copies on a coarse pointer without a share sheet', async () => {
     const writeText = vi.fn(() => Promise.resolve())
-    stubNavigator({
-      share,
-      canShare: () => false,
-      clipboard: { writeText } as unknown as Clipboard,
-    })
-    render(<ShareButton title="Alps" url={() => URL} />)
+    stubDevice({ clipboard: { writeText } as unknown as Clipboard }, true)
+    show()
 
     await press()
 
-    expect(share).not.toHaveBeenCalled()
     expect(writeText).toHaveBeenCalledWith(URL)
-  })
-
-  it('asks the share sheet about the link itself', async () => {
-    const canShare = vi.fn((data?: ShareData) => data?.url === URL)
-    const share = vi.fn(() => Promise.resolve())
-    stubNavigator({ share, canShare })
-    render(<ShareButton title="Alps" url={() => URL} />)
-
-    await press()
-
-    expect(canShare).toHaveBeenCalledWith({ url: URL })
-    expect(share).toHaveBeenCalledTimes(1)
-  })
-
-  it.each([
-    ['a share sheet without canShare', { share: () => Promise.resolve() }],
-    ['canShare without a share sheet', { canShare: () => true }],
-    ['no clipboard either', {}],
-  ])('reads "Link copied" with %s', async (_name, members) => {
-    stubNavigator(members)
-    render(<ShareButton title="Alps" url={() => URL} />)
-
-    await press()
-
-    expect(labels()[1]).toBe('Link copied')
+    expect(copied()).toBe(true)
   })
 
   it('drops the pending label reset on unmount', async () => {
-    stubNavigator({})
+    stubDevice({})
     const clear = vi.spyOn(window, 'clearTimeout')
-    const { unmount } = render(<ShareButton title="Alps" url={() => URL} />)
+    const { unmount } = show()
     await press()
     clear.mockClear()
 
