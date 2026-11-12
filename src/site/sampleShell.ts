@@ -18,4 +18,7 @@ export function prerenderSample(doc: Document, search: string): void {
   root.replaceChildren(...markup.childNodes)
   doc.body.append(data)
   doc.title = page.title
+  doc
+    .querySelector('meta[name="theme-color"]')
+    ?.replaceWith(...page.querySelectorAll('meta[name="theme-color"]'))
 }

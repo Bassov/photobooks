@@ -336,46 +336,6 @@ describe('measured layout', () => {
       document.querySelector<HTMLElement>('.cover-spread')?.style.width,
     ).toBe(w)
   })
-
-  it('sizes catalog book objects to the column', () => {
-    Object.assign(size, { width: 390, height: 844 })
-    render(<SiteApp input={sampleSiteInput('')} />)
-
-    expect(
-      screen.getAllByTestId('book-object').map((object) => object.style.height),
-    ).toStrictEqual(['200px', '132px', '165px'])
-  })
-})
-
-describe('SiteCatalog', () => {
-  it('lists the books with links, meta and page counts', () => {
-    render(<SiteApp input={sampleSiteInput('')} />)
-
-    const cards = screen.getAllByTestId('site-book')
-    expect(cards.map((card) => card.getAttribute('href'))).toStrictEqual([
-      './site.html?book=alps',
-      './site.html?book=sea',
-      './site.html?book=lake',
-    ])
-    expect(cards[1]?.textContent).toContain('6 pages')
-    expect(cards[2]?.textContent).toContain('8 pages')
-    expect(screen.getByText('A. Photographer · 3 photobooks')).toBeTruthy()
-    expect(document.querySelector('[aria-current="page"]')?.textContent).toBe(
-      'Sample photobooks',
-    )
-    expect(
-      screen
-        .getAllByTestId('book-object')
-        .map((object) => object.getAttribute('data-format')),
-    ).toStrictEqual(['portrait', 'landscape', 'square'])
-  })
-
-  it('says so when nothing is published', () => {
-    render(<SiteApp input={sampleSiteInput('?empty=1')} />)
-
-    expect(screen.getByText('No published books yet.')).toBeTruthy()
-    expect(document.querySelector('.site-grid')).toBeNull()
-  })
 })
 
 describe('fullscreen lightbox', () => {

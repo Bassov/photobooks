@@ -16,6 +16,7 @@ export const SITE_VIEWER_MANIFEST = 'site-viewer.json'
  *   name?: string
  *   isEntry?: boolean
  *   imports?: readonly string[]
+ *   dynamicImports?: readonly string[]
  *   viteMetadata?: { importedCss: Set<string>, importedAssets: Set<string> }
  * }} BundleItem
  */
@@ -25,6 +26,12 @@ export const SITE_FONTS_CSS = 'fonts/fonts.css'
 
 /** Faces every page preloads (as `site.html` does): Latin upright. */
 const PRELOAD_FACE = /-latin-wght-normal\.woff2$/
+
+/**
+ * The home's Site Inter Display Latin face (`src/site/siteSystem.css`, D43):
+ * copied and preloaded on every page, so the prerendered lead keeps its lines.
+ */
+export const SITE_SYSTEM_FACE = 'fonts/inter-latin-opsz-normal.woff2'
 
 /** `url('./x')` / `url(x)` in the fonts stylesheet. */
 const FONT_URL = /url\((['"]?)(?:\.\/)?([^'")/]+)\1\)/g
@@ -52,9 +59,15 @@ export function siteFonts(css) {
 }
 
 /**
+ * Dynamic imports an exported page never makes: it carries its data, so the
+ * sample shell and the perf hooks never load.
+ */
+const PAGE_NEVER_LOADS = new Set(['sampleShell', 'exposePerf'])
+
+/**
  * Viewer manifest from an output bundle: `entry` and `css` are among
- * `files`; files are sorted; dynamic imports are left out (the exported
- * pages carry their data, so the sample shell and perf hooks never load).
+ * `files`; files are sorted. Lazy chunks (the home's GL books) are copied
+ * with their CSS but not linked; `PAGE_NEVER_LOADS` chunks are left out.
  * The fonts stylesheet links first; its faces are copied as they are.
  * @param {Record<string, BundleItem>} bundle
  * @param {string} entryName
@@ -72,26 +85,40 @@ export function siteViewerManifest(bundle, entryName, fonts) {
   const files = new Set()
   /** @type {string[]} */
   const css = []
-  /** @param {string} fileName */
-  const visit = (fileName) => {
+  /** @type {string[]} */
+  const lazy = []
+  /**
+   * @param {string} fileName
+   * @param {boolean} linked the page links its CSS (static closure of the entry)
+   */
+  const visit = (fileName, linked) => {
     if (files.has(fileName)) return
     files.add(fileName)
     const chunk = bundle[fileName]
-    for (const imported of chunk?.imports ?? []) visit(imported)
+    for (const imported of chunk?.imports ?? []) visit(imported, linked)
+    for (const imported of chunk?.dynamicImports ?? []) {
+      const name = bundle[imported]?.name ?? ''
+      if (!PAGE_NEVER_LOADS.has(name)) lazy.push(imported)
+    }
     for (const sheet of chunk?.viteMetadata?.importedCss ?? []) {
-      if (!css.includes(sheet)) css.push(sheet)
+      if (linked && !css.includes(sheet)) css.push(sheet)
       files.add(sheet)
     }
     for (const asset of chunk?.viteMetadata?.importedAssets ?? []) {
       files.add(asset)
     }
   }
-  visit(entry.fileName)
-  for (const file of [fonts.css, ...fonts.files]) files.add(file)
+  visit(entry.fileName, true)
+  for (let next = lazy.shift(); next !== undefined; next = lazy.shift()) {
+    visit(next, false)
+  }
+  for (const file of [fonts.css, ...fonts.files, SITE_SYSTEM_FACE]) {
+    files.add(file)
+  }
   return {
     entry: entry.fileName,
     css: [fonts.css, ...css],
-    preload: fonts.preload,
+    preload: [...fonts.preload, SITE_SYSTEM_FACE],
     files: [...files].sort(),
   }
 }

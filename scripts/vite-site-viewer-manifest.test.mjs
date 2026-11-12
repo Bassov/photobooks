@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { describe, expect, it, vi } from 'vitest'
 import {
   SITE_FONTS_CSS,
+  SITE_SYSTEM_FACE,
   SITE_VIEWER_MANIFEST,
   siteFonts,
   siteViewerManifest,
@@ -29,8 +30,33 @@ function bundle() {
       name: 'site',
       isEntry: true,
       imports: ['assets/shared.js', 'assets/view.js'],
-      dynamicImports: ['assets/sample.js'],
+      dynamicImports: ['assets/sample.js', 'assets/gl.js'],
       viteMetadata: meta(['assets/site.css']),
+    },
+    'assets/gl.js': {
+      type: 'chunk',
+      fileName: 'assets/gl.js',
+      name: 'book3dGl',
+      isEntry: false,
+      imports: ['assets/shared.js', 'assets/glShared.js'],
+      dynamicImports: ['assets/three.js'],
+      viteMetadata: meta(['assets/glShared.css']),
+    },
+    'assets/glShared.js': {
+      type: 'chunk',
+      fileName: 'assets/glShared.js',
+      name: 'focusTrap',
+      isEntry: false,
+      imports: [],
+      viteMetadata: meta(),
+    },
+    'assets/three.js': {
+      type: 'chunk',
+      fileName: 'assets/three.js',
+      name: 'three.module.min',
+      isEntry: false,
+      imports: [],
+      viteMetadata: meta(),
     },
     'assets/view.js': {
       type: 'chunk',
@@ -51,7 +77,7 @@ function bundle() {
     'assets/sample.js': {
       type: 'chunk',
       fileName: 'assets/sample.js',
-      name: 'sample',
+      name: 'sampleShell',
       isEntry: false,
       imports: [],
       viteMetadata: meta(),
@@ -88,21 +114,26 @@ describe('siteFonts', () => {
 })
 
 describe('siteViewerManifest', () => {
-  it('lists the entry, its static imports, CSS and assets, not dynamic imports or main', () => {
+  it('lists the entry, its static imports, CSS and assets, the lazy GL chunks unlinked; not the sample shell or main', () => {
     expect(siteViewerManifest(bundle(), 'site', FONTS)).toEqual({
       entry: 'assets/site.js',
       css: ['fonts/fonts.css', 'assets/view.css', 'assets/site.css'],
-      preload: ['fonts/a-latin-wght-normal.woff2'],
+      preload: ['fonts/a-latin-wght-normal.woff2', SITE_SYSTEM_FACE],
       files: [
+        'assets/gl.js',
+        'assets/glShared.css',
+        'assets/glShared.js',
         'assets/paper.png',
         'assets/shared.js',
         'assets/site.css',
         'assets/site.js',
+        'assets/three.js',
         'assets/view.css',
         'assets/view.js',
         'fonts/a-latin-wght-normal.woff2',
         'fonts/b.woff2',
         'fonts/fonts.css',
+        'fonts/inter-latin-opsz-normal.woff2',
       ],
     })
   })

@@ -9,6 +9,8 @@ const perf = vi.hoisted(() => ({ enablePerfHooks: vi.fn() }))
 vi.mock('../perf/exposePerf', () => perf)
 
 function shell(withRoot = true): void {
+  // as site.html: the book page's grey until the sample says otherwise
+  document.head.innerHTML = '<meta name="theme-color" content="#E1E1E1">'
   document.body.innerHTML = withRoot
     ? '<div id="site-root" class="site"></div>'
     : ''
@@ -78,10 +80,25 @@ describe('startSite', () => {
 
     await start('')
 
-    expect(testId('site-catalog')).not.toBeNull()
-    expect(document.querySelectorAll('[data-testid="site-book"]')).toHaveLength(
+    expect(testId('site-home')).not.toBeNull()
+    expect(document.querySelectorAll('[data-testid="ss9-book"]')).toHaveLength(
       3,
     )
+    expect(
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.getAttribute('content'),
+    ).toBe('#f4f3f0')
+  })
+
+  it('prerenders the sample into a shell without a theme-color meta', async () => {
+    shell()
+    document.head.replaceChildren()
+
+    await start('')
+
+    expect(testId('site-home')).not.toBeNull()
+    expect(document.querySelector('meta[name="theme-color"]')).toBeNull()
   })
 
   it('loads the perf hooks on ?perf=1', async () => {

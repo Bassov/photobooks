@@ -85,18 +85,16 @@ async function horizontalOverflow(page: Page) {
 }
 
 test.describe('site viewer', () => {
-  test('catalog lists the published books and opens one; the title goes back', async ({
+  test('the home shelves the published books and opens one; the title goes back', async ({
     page,
   }) => {
     await page.goto('/site.html')
 
-    const catalog = page.getByTestId('site-catalog')
-    await expect(catalog.getByRole('heading', { name: 'Books' })).toBeVisible()
-    await expect(catalog).toContainText('A. Photographer · 3 photobooks')
-    await expect(page.getByTestId('site-book')).toHaveCount(3)
+    await expect(page.getByTestId('site-name')).toHaveText('A. Photographer')
+    await expect(page.getByTestId('ss9-book')).toHaveCount(3)
     await expect(page).toHaveTitle('Sample photobooks')
 
-    await page.getByTestId('site-book').first().click()
+    await page.getByTestId('ss9-book').first().click()
     await expect(page.getByTestId('site-book-page')).toBeVisible()
     await expect(page.getByTestId('site-title')).toHaveText('Alps')
     await expect(page.getByTestId('site-author')).toHaveText(
@@ -105,16 +103,16 @@ test.describe('site viewer', () => {
     await expect(page).toHaveTitle('Alps · Sample photobooks')
 
     await page.getByTestId('site-title-link').click()
-    await expect(page.getByTestId('site-catalog')).toBeVisible()
+    await expect(page.getByTestId('site-home')).toBeVisible()
   })
 
   test('an empty site says nothing is published yet', async ({ page }) => {
     await page.goto('/site.html?empty=1')
 
-    await expect(page.getByTestId('site-catalog')).toContainText(
+    await expect(page.getByTestId('site-empty')).toHaveText(
       'No published books yet.',
     )
-    await expect(page.getByTestId('site-book')).toHaveCount(0)
+    await expect(page.getByTestId('ss9-book')).toHaveCount(0)
   })
 
   test('slides read Cover, then every spread; stage and pager never move', async ({

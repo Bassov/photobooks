@@ -123,7 +123,8 @@ test('a served export ships the UI fonts and every page loads them', async ({
     path.startsWith('viewer/fonts/'),
   )
   expect(fonts).toContain('viewer/fonts/fonts.css')
-  expect(fonts.filter((path) => path.endsWith('.woff2'))).toHaveLength(9)
+  // 9 UI faces + the home's 3 Site Inter Display (opsz) subsets
+  expect(fonts.filter((path) => path.endsWith('.woff2'))).toHaveLength(12)
   const site = JSON.parse(
     Buffer.from(files['site.json'] ?? '', 'base64').toString(),
   ) as { books: { path: string }[] }
@@ -151,6 +152,12 @@ test('a served export ships the UI fonts and every page loads them', async ({
         ['Inter Variable:loaded'],
         ['Lora Variable:loaded'],
       ])
+      // the home's face (D43), Cyrillic subset included
+      const display = await viewer.evaluate(async () => {
+        await document.fonts.load('16px "Site Inter Display"', 'Озеро')
+        return document.fonts.check('16px "Site Inter Display"', 'Озеро')
+      })
+      expect(display, `Site Inter Display at /${path}`).toBe(true)
       expect(failed, `failed requests at /${path}`).toEqual([])
       await viewer.close()
     }
