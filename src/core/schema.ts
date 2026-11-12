@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from '../lib/zod'
 import { printProfileSchema } from './print/profileSchema'
 
 export const CURRENT_SCHEMA_VERSION = 11 as const

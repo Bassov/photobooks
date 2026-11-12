@@ -96,4 +96,23 @@ describe('publish credentials import boundary', () => {
     expect(unresolved).toEqual([])
     expect(chains.size).toBeGreaterThan(sourcesUnder(SITE_DIR).length)
   })
+
+  it('only src/publish modules open the raw credential store', () => {
+    const publishDir = resolve(ROOT, 'src/publish')
+    const sources = sourcesUnder(resolve(ROOT, 'src'))
+
+    const outside = sources
+      .filter((path) => !path.startsWith(`${publishDir}/`))
+      .filter((path) =>
+        readFileSync(path, 'utf8').includes('createCredentialStore'),
+      )
+      .map((path) => relative(ROOT, path))
+
+    expect(outside).toEqual([])
+    expect(
+      sources.filter((path) =>
+        readFileSync(path, 'utf8').includes('createCredentialStore('),
+      ).length,
+    ).toBeGreaterThan(1)
+  })
 })

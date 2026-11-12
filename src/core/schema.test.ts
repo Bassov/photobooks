@@ -201,14 +201,14 @@ describe('bookSchema', () => {
       expect(outcomes).toEqual([true, false, true])
     })
 
-    // Zod compiles each new object shape with `new Function` on first parse.
+    // Each fresh build schedules its end-of-task reset with `queueMicrotask`.
     const compilesOnParse = () => {
-      const compile = vi.spyOn(globalThis, 'Function')
+      const schedule = vi.spyOn(globalThis, 'queueMicrotask')
       try {
         expect(parse(populated()).success).toBe(true)
-        return compile.mock.calls.length > 0
+        return schedule.mock.calls.length > 0
       } finally {
-        compile.mockRestore()
+        schedule.mockRestore()
       }
     }
 

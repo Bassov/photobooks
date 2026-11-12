@@ -130,13 +130,61 @@ export function redact(
 export const SECRETS_DB_NAME = 'photobooks-secrets'
 const STORE = 'r2'
 const KEY = 'credentials'
+const STATUS_KEY = 'status'
+
+export type CheckCode =
+  'offline' | 'cors' | 'key' | 'denied' | 'bucket' | 'timeout' | 'other'
+
+const CHECK_CODES: readonly string[] = [
+  'offline',
+  'cors',
+  'key',
+  'denied',
+  'bucket',
+  'timeout',
+  'other',
+] satisfies readonly CheckCode[]
+
+/** Last connection check: when, whether it passed, and the redacted failure. */
+export type HostingStatus =
+  | { checkedAtMs: number; ok: true }
+  | { checkedAtMs: number; ok: false; code: CheckCode; message: string }
+
+/** What the UI may read: no secret, only the access key id's last 4. */
+export interface HostingSummary {
+  accountId: string
+  bucket: string
+  accessKeyTail: string
+  publicBaseUrl: string
+  status: HostingStatus | null
+}
+
+function parseStatus(input: unknown): HostingStatus | null {
+  if (typeof input !== 'object' || input === null) return null
+  const record = input as Record<string, unknown>
+  const { checkedAtMs, ok, code, message } = record
+  if (typeof checkedAtMs !== 'number' || !Number.isFinite(checkedAtMs)) {
+    return null
+  }
+  if (ok === true) return { checkedAtMs, ok }
+  return ok === false &&
+    typeof code === 'string' &&
+    CHECK_CODES.includes(code) &&
+    typeof message === 'string'
+    ? { checkedAtMs, ok, code: code as CheckCode, message }
+    : null
+}
 
 export interface CredentialStore {
   /** Stored credentials, or `undefined` when none or no longer valid. */
   load: () => Promise<R2Credentials | undefined>
   /** Validates first; throws an error naming the invalid fields only. */
   save: (credentials: R2Credentials) => Promise<void>
-  clear: () => Promise<void>
+  /** Last check result, or `null` when none or unreadable. */
+  loadStatus: () => Promise<HostingStatus | null>
+  saveStatus: (status: HostingStatus) => Promise<void>
+  /** Deletes the credentials and the status. */
+  forget: () => Promise<void>
 }
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
@@ -194,8 +242,42 @@ export function createCredentialStore(
       }
       await run(factory, 'readwrite', (store) => store.put(checked.value, KEY))
     },
-    clear: async () => {
-      await run(factory, 'readwrite', (store) => store.delete(KEY))
+    loadStatus: async () =>
+      parseStatus(
+        await run<unknown>(factory, 'readonly', (store) =>
+          store.get(STATUS_KEY),
+        ),
+      ),
+    saveStatus: async (status) => {
+      const checked = parseStatus(status)
+      if (checked === null) throw new Error('Invalid hosting status')
+      await run(factory, 'readwrite', (store) => store.put(checked, STATUS_KEY))
+    },
+    forget: async () => {
+      await run(factory, 'readwrite', (store) => store.clear())
     },
   }
+}
+
+/** Secret-free view of the stored hosting, or `null` when not connected. */
+export async function loadHostingSummary(
+  factory: IDBFactory = indexedDB,
+): Promise<HostingSummary | null> {
+  const store = createCredentialStore(factory)
+  const credentials = await store.load()
+  if (credentials === undefined) return null
+  return {
+    accountId: credentials.accountId,
+    bucket: credentials.bucket,
+    accessKeyTail: credentials.accessKeyId.slice(-4),
+    publicBaseUrl: credentials.publicBaseUrl,
+    status: await store.loadStatus(),
+  }
+}
+
+/** Forget: deletes all five values and the status. */
+export async function forgetCredentials(
+  factory: IDBFactory = indexedDB,
+): Promise<void> {
+  await createCredentialStore(factory).forget()
 }
