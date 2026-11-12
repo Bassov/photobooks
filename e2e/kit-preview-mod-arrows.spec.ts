@@ -4,9 +4,11 @@ import { expect, test } from './fixtures/coverage'
 // design-r20-kit-mod-arrows (Designer site-preview-mode M96, 2026-11-06): in
 // the kit `#/demo` Preview, Alt+→ stepped Pages 2–3 → Pages 4–5. Spec §4:
 // Alt / Ctrl / Meta + Arrow / Home / End must not step; plain keys still do.
+// Since personal-site K2 the Preview is the reading room: its key guard hands
+// the plain page keys to the room.
 
 const demo = (page: Page) => page.getByTestId('demo')
-const label = (page: Page) => page.getByTestId('site-page-indicator')
+const label = (page: Page) => page.getByTestId('site-label')
 
 async function openPreview(page: Page) {
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -26,11 +28,10 @@ async function openPreview(page: Page) {
 }
 
 test.describe('kit Preview modified page keys', () => {
-  test('Alt / Ctrl / Meta + Arrow / Home / End keep Pages 2–3; plain → steps to Pages 4–5', async ({
+  test('Alt / Ctrl / Meta + Arrow / Home / End keep Pages 2–3; plain → turns to Pages 4–5', async ({
     page,
   }) => {
     await openPreview(page)
-    await page.keyboard.press('ArrowRight')
     await expect(label(page)).toHaveText(/^Page 1 /)
     await page.keyboard.press('ArrowRight')
     await expect(label(page)).toHaveText(/^Pages 2–3 /)

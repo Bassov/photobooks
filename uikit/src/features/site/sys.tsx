@@ -2,12 +2,12 @@
    SysSite, the shell the home renders into. Two states (D3): home and the open book. A click opens the reading room
    (`&book=<id>` pushed, so browser Back closes it); Esc, "All books" and the site name close it and focus returns to the
    book. A deep link opens at view 1. Data and art come from ./sample, Book3D and the reader from site-book;
-   `?books=1|3|6|12|30|100` from site-book/many (the kit page's scenario switch sets it, D35). */
+   `?books=1|3|6|12|30|100` from site-book/many (the kit page's scenario switch sets it, D35), or `books` (#/demo, K2). */
 import * as React from 'react'
 import { AUTHOR, metaOf, pagesOf, type SiteBook } from './sample'
 import { reduced, useBox, type Box } from '../site-book/box'
 import { useBooks } from '../site-book/many'
-import { ReadingRoom, roomMode } from '../site-book/room'
+import { ReadingRoom, roomMode, type RoomKeys } from '../site-book/room'
 import './base.css'
 import './system.css'
 
@@ -63,10 +63,22 @@ const hashWith = (id: string | null) => {
 }
 
 type Open = { b: SiteBook; pushed: boolean }
+/** open this book at mount, at `view` (default 1, no cover turn); `full` = the lightbox open at that zoom */
+export type SiteStart = { book: string; view?: number; full?: number }
+export type SiteProps = {
+  dark?: boolean
+  /** the books (#/demo: the session's published books); default the `?books=` sample */
+  books?: SiteBook[]
+  start?: SiteStart
+  /** the open room's keys (the #/demo Preview routes ← / → here past its key guard) */
+  roomRef?: React.Ref<RoomKeys>
+  /** the editor Preview (D45): the start room only; no "All books", Share or home, the name is plain text */
+  preview?: boolean
+}
 
 /** The site shell: home (kept mounted under the room, so the place is kept), the reading room, Head. */
-export function SysSite({ dark, home }: { dark?: boolean; home: (h: HomeApi) => React.ReactNode }) {
-  const books = useBooks()
+export function SysSite({ dark, home, books: given, start, roomRef, preview }: SiteProps & { home: (h: HomeApi) => React.ReactNode }) {
+  const sample = useBooks(), books = given ?? sample
   const [root, box] = useBox<HTMLDivElement>()
   const g = gridOf(box)
   usePaperBars(root, dark)
@@ -74,13 +86,17 @@ export function SysSite({ dark, home }: { dark?: boolean; home: (h: HomeApi) => 
   const bare = g.narrow
   const find = (id: string | null) => books.find((b) => b.id === id) ?? null
   // a deep link opens at view 1, without the cover turn
-  const [cur, setCur] = React.useState<Open | null>(() => { const b = find(bookOfHash()); return b ? { b, pushed: false } : null })
-  const [view, setView] = React.useState(1)
+  const [cur, setCur] = React.useState<Open | null>(() => { const b = find(bookOfHash()) ?? find(start?.book ?? null); return b ? { b, pushed: false } : null })
+  const [view, setView] = React.useState(start?.view ?? 1)
+  // the start lightbox opens with the first room only
+  const [full, setFull] = React.useState(cur ? start?.full : undefined)
   const [list, setList] = React.useState(false)
   const trigger = React.useRef<HTMLElement | null>(null)
-  // a new count closes the book
-  const [seen, setSeen] = React.useState(books)
-  if (seen !== books) { setSeen(books); setCur(null); setList(false) }
+  // a new set of books closes the book; an edit to the open one (a fresh object) keeps it open
+  const ids = books.map((b) => b.id).join("\n")
+  const [seen, setSeen] = React.useState(ids)
+  if (seen !== ids) { setSeen(ids); setCur(null); setList(false) }
+  const curB = cur ? find(cur.b.id) ?? cur.b : null
 
   const refocus = (id: string) => requestAnimationFrame(() => {
     const el = trigger.current?.isConnected ? trigger.current : [...(root.current?.querySelectorAll<HTMLElement>(`button[data-id="${id}"]`) ?? [])].find((b) => b.offsetParent)
@@ -93,9 +109,9 @@ export function SysSite({ dark, home }: { dark?: boolean; home: (h: HomeApi) => 
     if (url) history.pushState(history.state, '', hashWith(b.id))
     setList(false); setView(reduced() ? 1 : 0); setCur({ b, pushed: url })
   }
-  const shut = (id: string) => { setCur(null); refocus(id) }
+  const shut = (id: string) => { setCur(null); setFull(undefined); refocus(id) }
   const close = () => {
-    if (!cur) return
+    if (!cur || preview) return
     if (cur.pushed) history.back()
     else {
       if (bookOfHash()) history.replaceState(history.state, '', hashWith(null))
@@ -134,18 +150,20 @@ export function SysSite({ dark, home }: { dark?: boolean; home: (h: HomeApi) => 
           <AllBooks books={books} g={g} onOpen={open} />
         </div>
       )}
-      {cur && <ReadingRoom key={cur.b.id} b={cur.b} view={view} setView={setView} dark={dark} box={box} onClose={close} onPeek={setPeek} />}
-      {!phoneRoom && !(bare && !cur) && <Head g={g} reading={!!cur} onHome={() => (cur ? close() : setList(false))} />}
+      {curB && <ReadingRoom key={curB.id} ref={roomRef} b={curB} view={view} setView={setView} dark={dark} box={box} onClose={close} onPeek={setPeek} full={full} share={!preview} />}
+      {!phoneRoom && !(bare && !cur) && <Head g={g} reading={!!cur} preview={preview} onHome={() => (cur ? close() : setList(false))} />}
     </div>
   )
 }
 
 /** the name left (home); right, in the reader only: "All books" */
-function Head({ g, reading, onHome }: { g: Grid; reading: boolean; onHome: () => void }) {
+function Head({ g, reading, preview, onHome }: { g: Grid; reading: boolean; preview?: boolean | undefined; onHome: () => void }) {
   return (
     <header className={`ss-head ${g.narrow ? 'm15' : 't16'}`} style={{ left: g.M, right: g.M, top: g.narrow ? 16 : 20 }}>
-      <button type="button" className="w5" style={{ minHeight: 24 }} onClick={onHome}>{AUTHOR}</button>
-      {reading && (
+      {preview
+        ? <span className="w5" style={{ lineHeight: '24px' }}>{AUTHOR}</span>
+        : <button type="button" className="w5" style={{ minHeight: 24 }} onClick={onHome} aria-current={reading ? undefined : 'page'}>{AUTHOR}</button>}
+      {reading && !preview && (
         <nav>
           <button type="button" className="ss-tx g" style={{ minHeight: g.narrow ? 44 : 24, marginTop: g.narrow ? -10 : 0 }} onClick={onHome} data-testid="site-all-books">All books</button>
         </nav>

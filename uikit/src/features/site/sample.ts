@@ -14,6 +14,8 @@ export type SiteBook = {
   /** `*…*` marks the italic phrase */
   statement: string
   spreads: { template: string; photos: string[] }[]
+  /** the page count when it isn't the sample's (cover + spreads) · 2: a #/demo book has 2(n − 1) (D38) */
+  pages?: number
 }
 /** "t-full p10 · t-pair p03 p18 · … · last hi/r7" → interior spreads (index 1…) */
 const sp = (s: string) => s.split(" · ").map((x) => { const [template, ...photos] = x.split(" "); return { template, photos } })
@@ -37,9 +39,14 @@ export const BOOKS: SiteBook[] = [
     statement: "Rooftops, cafés and streets of one old town, *over three short visits.*",
     spreads: sp("t-pano p04 · t-hero2 p07 p05 p14 · t-full p17 · t-offset p06 p13 · t-margin p16 · last p12") },
 ]
-export const src = (id: string) => (id.startsWith("hi/") ? hiPhoto(id.slice(3)) : P(id).src)
+/** a photo id's URL; "" for an empty frame or an unknown id (a #/demo book may have both) */
+export const src = (id: string): string => {
+  if (id.startsWith("hi/")) return hiPhoto(id.slice(3))
+  const p: { src: string } | undefined = P(id)
+  return p?.src ?? ""
+}
 /** cover + interior spreads, two pages each */
-export const pagesOf = (b: SiteBook) => (b.spreads.length + 1) * 2
+export const pagesOf = (b: SiteBook) => b.pages ?? (b.spreads.length + 1) * 2
 /** spread width / height: two pages of the format */
 export const SPREAD_R: Record<Fmt, number> = { portrait: 1.6, landscape: 2.5, square: 2 }
 export const sizeOf = (b: SiteBook) => `${b.w} × ${b.h} cm`

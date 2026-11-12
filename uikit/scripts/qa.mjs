@@ -374,7 +374,7 @@ await smoke("drag photo onto frame + undo", "drag-place-replace", async () => {
   return [/Placed|Replaced/.test(st ?? ""), `status="${st}"`]
 })
 await smoke("grid toggle", "layout-grids-render-snap", async () => { const g1 = await D('[data-testid="grid-overlay"]').first().isVisible(); await D('[data-testid="toggle-grid"]').click(); await page.waitForTimeout(150); return g1 && !(await D('[data-testid="grid-overlay"]').first().isVisible().catch(() => false)) })
-await smoke("site → book → lightbox", "site-viewer", async () => { await D('[data-testid="site-book"]').first().click(); await page.waitForTimeout(200); await D('[data-testid="site-spread"]').click(); await page.waitForTimeout(200); return D('[data-testid="lightbox"]').isVisible() })
+await smoke("bookcase → room → Fullscreen lightbox", "site-viewer", async () => { await D('[data-testid="ss9-book"]').first().click(); await page.waitForTimeout(1500); await D('[data-testid="site-fullscreen-btn"]').click(); await page.waitForTimeout(200); return D('[data-testid="lightbox"]').isVisible() })
 await smoke("home → book → spread fullscreen", "site-photographer", async () => {
   await D('[data-testid="ps-book"]').first().click(); await page.waitForTimeout(200)
   const title = await D('[data-testid="ps-title"]').textContent()
@@ -412,16 +412,16 @@ await smoke("home → book → spread fullscreen", "site-photographer", async ()
     return ringsOk(rings)
   })
   await smoke("focus-visible outline solid on every control; mouse click draws none", "site-viewer", async () => {
-    const rings = await tabRings(["site-book"])
-    await D('[data-testid="site-book"]').first().click(); await page.waitForTimeout(200)
-    rings.push(...(await tabRings(["site-title-link", "site-all-books", "site-share", "site-fullscreen-btn", "site-spread", "Next spread"])))
+    const rings = await tabRings(["ss9-book"])
+    await D('[data-testid="ss9-book"]').first().click(); await page.waitForTimeout(1500)
+    rings.push(...(await tabRings(["site-all-books", "ss-next", "site-share", "site-fullscreen-btn", "site-play"])))
     // blur first: the last Tab stopped on this button, and a click on the focused control keeps focus-visible
     await page.evaluate(() => document.activeElement.blur())
-    await D('[data-testid="site-pager"] [aria-label="Next spread"]').click(); await page.waitForTimeout(150)
-    const click = await page.evaluate(() => { const e = document.activeElement, cs = getComputedStyle(e); return `${e.getAttribute("aria-label")} ${cs.outlineStyle} ${cs.outlineWidth}` })
+    await D('[data-testid="ss-next"]').click(); await page.waitForTimeout(150)
+    const click = await page.evaluate(() => { const e = document.activeElement, cs = getComputedStyle(e); return `${e.textContent.trim()} ${cs.outlineStyle} ${cs.outlineWidth}` })
     await D('[data-testid="site-fullscreen-btn"]').click(); await page.waitForTimeout(200)
     rings.push(...(await tabRings(["Previous spread", "Next spread", "site-fullscreen-zoom", "site-fullscreen-close"], '[data-testid="lightbox"]')).map(([t, v]) => [`lightbox ${t}`, v]))
-    return ringsOk(rings, click.startsWith("Next spread none") ? [] : [["mouse click on Next spread", click]])
+    return ringsOk(rings, click.startsWith("Next none") ? [] : [["mouse click on Next", click]])
   })
   await smoke("library bar: focus-visible outline solid on search + sort", "recents-home", async () => ringsOk(await tabRings(["lib-search-input", "lib-sort"])))
   await smoke("last page Fullscreen chip sits top 12 / right 12 of the left page", "site-photographer", async () => {
@@ -1381,22 +1381,21 @@ await smokeS("layout-grids-parent-inherit GP5: link on writes only the margins �
     // publish → Open site lands on library home of published books (v0.9.3); then open the book
     await page.click('[data-testid="demo-publish"]'); await page.waitForTimeout(250); await page.click('[data-testid="publish-go"]'); await page.waitForTimeout(1900)
     await page.click('[data-testid="publish-open-site"]'); await page.waitForTimeout(600); W.stage = await stage()
-    W.catalog = await page.locator('[data-testid="site-catalog"]').count()
-    W.siteBooks = await page.locator('[data-testid="site-book"]').count()
-    await page.locator('[data-testid="site-book"]').first().click(); await page.waitForTimeout(500)
-    W.siteTitle = (await page.locator('[data-testid="site-title"]').textContent()).trim()
-    W.siteMeta = (await page.locator('[data-testid="site-author"]').textContent()).trim()
-    W.siteCover = await page.locator('[data-testid="site-cover"]').evaluate((e) => ({ txt: e.innerText, img: [...e.querySelectorAll("*")].map((x) => getComputedStyle(x).backgroundImage).find((b) => b !== "none") ?? "none", h: e.getBoundingClientRect().height })).catch(() => null)
-    W.siteInd = (await page.locator('[data-testid="site-page-indicator"]').textContent()).trim()
-    // Designer site-viewer D3: Share swaps its label in a width-locked button for 2000 ms; the link goes to a hidden role=status, no link line
-    const shareBox = () => page.locator('[data-testid="site-share"]').evaluate((e) => ({ w: e.getBoundingClientRect().width, txt: e.innerText.trim(), y: document.querySelector('[data-testid="site-stage"]')?.getBoundingClientRect().y }))
+    // personal-site K2: the bookcase of the published books; a book opens its reading room (the cover turns first)
+    W.catalog = await page.locator('[data-testid="site-case"]').count()
+    W.siteBooks = await page.locator('[data-testid="ss9-book"]').count()
+    W.caseLabel = await page.locator('[data-testid="ss9-book"]').first().getAttribute("aria-label")
+    await page.locator('[data-testid="ss9-book"]').first().click(); await page.waitForSelector('[data-testid="site-room"][data-view="1"]', { timeout: 5000 }); await page.waitForTimeout(1300)
+    W.siteAbout = (await page.locator('[data-testid="site-about"]').textContent()).trim()
+    W.siteInd = (await page.locator('[data-testid="site-label"]').textContent()).trim()
+    // personal-site D36: Share swaps to "Copied" in the same grid cell for 2000 ms (no width change)
+    const shareBox = () => page.locator('[data-testid="site-share"]').evaluate((e) => ({ w: e.getBoundingClientRect().width, txt: [...e.children].find((s) => getComputedStyle(s).visibility === "visible")?.textContent }))
     W.share0 = await shareBox()
     await page.click('[data-testid="site-share"]'); await page.waitForTimeout(200); W.share1 = await shareBox()
-    W.link = (await page.locator('[data-testid="site-book-page"] [role="status"]').textContent()).trim(); W.linkLine = await page.locator('[data-testid="site-share-link"]').count()
     await page.waitForTimeout(2000); W.share2 = await shareBox()
     // fullscreen: Esc returns focus to the Fullscreen button
-    await page.click('[data-testid="site-fullscreen-btn"]'); await page.waitForTimeout(300); W.fsCover = await page.locator('[data-testid="lightbox"] [data-testid="site-cover"]').count()
-    W.fsBox = await page.locator('[data-testid="lightbox"]').evaluate((v) => { const R = (e) => e.getBoundingClientRect(), d = R(v), b = R(v.querySelector('[data-testid="site-fullscreen-book"]')), c = R(v.querySelector('[data-testid="site-cover"]')), r = (n) => +n.toFixed(2); return { box: [b.left - d.left, b.top - d.top, b.width, b.height].map(r), cover: [c.left - d.left, c.top - d.top, c.width, c.height].map(r), area: [d.width - 128, d.height - 112].map(r) } }).catch(() => null)
+    await page.click('[data-testid="site-fullscreen-btn"]'); await page.waitForTimeout(300)
+    W.fsBox = await page.locator('[data-testid="lightbox"]').evaluate((v) => { const R = (e) => e.getBoundingClientRect(), d = R(v), b = R(v.querySelector('[data-testid="site-fullscreen-book"]').firstElementChild), r = (n) => +n.toFixed(2); return { box: [b.left - d.left, b.top - d.top, b.width, b.height].map(r), area: [d.width - 128, d.height - 112].map(r) } }).catch(() => null)
     await page.keyboard.press("Escape"); await page.waitForTimeout(300)
     W.focus = await page.evaluate(() => document.activeElement?.dataset.testid)
     // library "…" menu: Rename, Duplicate, Remove
@@ -1415,19 +1414,18 @@ await smokeS("layout-grids-parent-inherit GP5: link on writes only the margins �
   const J = (o) => String(JSON.stringify(o)).slice(0, 500)
   ok("v8.1 P1-1 per-book state: edit cover photo + title + master grid, leave, reopen → cover, text, masters, size and spreads kept; library card shows the current cover",
     !W.err && W.reCover === W.pick && W.reFront === "Lake trip 2026" && W.col0 === "5" && W.reCol === "5" && W.reSize === "19x23" && W.reSpreads === W.spreads && !!W.cardSrc && W.cardSrc === W.pickSrc, J({ err: W.err, pick: W.pick, reCover: W.reCover, reFront: W.reFront, col: [W.col0, W.reCol], size: W.reSize, card: W.cardSrc, pickSrc: W.pickSrc }))
-  ok("v8.1 P1-2 / v0.9.3: Open site → library home then book: catalog of published books; book title, cover, pages, slug; fullscreen on cover",
-    W.stage === "site" && W.catalog === 1 && W.siteBooks >= 1 && W.siteTitle === "Lake trip" && new RegExp(`\\b${pages - 2} pages`).test(W.siteMeta) && !!W.siteCover && W.siteCover.h > 100 && /Lake trip 2026/.test(W.siteCover.txt) && W.siteCover.img !== "none" && W.siteInd.startsWith("Cover") && /\/lake-trip$/.test(W.link) && W.fsCover === 1,
-    J({ stage: W.stage, catalog: W.catalog, books: W.siteBooks, t: W.siteTitle, meta: W.siteMeta, cover: W.siteCover, ind: W.siteInd, link: W.link, fs: W.fsCover }))
-  ok("site-viewer D3: Share → 'Link copied' for 2000 ms in a width-locked button; link in role=status, no link line, the stage does not move",
-    W.share0?.txt === "Share" && W.share1?.txt === "Link copied" && W.share2?.txt === "Share" && Math.abs(W.share1.w - W.share0.w) <= 0.5 && Math.abs(W.share2.w - W.share0.w) <= 0.5
-      && Math.abs(W.share1.y - W.share0.y) <= 0.5 && W.link === "Link copied: https://aleksandr.photos/lake-trip" && W.linkLine === 0, J({ s: [W.share0, W.share1, W.share2], link: W.link, line: W.linkLine }))
+  ok("personal-site K2: Open site → the bookcase of the published book (title, 2(n − 1) pages); the room opens it at Page 1",
+    W.stage === "site" && W.catalog === 1 && W.siteBooks === 1 && (W.caseLabel ?? "").startsWith("Lake trip, ") && new RegExp(`\\b${pages - 2} pages`).test(W.caseLabel ?? "") && (W.siteAbout ?? "").startsWith("Lake trip") && (W.siteInd ?? "").startsWith("Page 1"),
+    J({ stage: W.stage, catalog: W.catalog, books: W.siteBooks, label: W.caseLabel, about: W.siteAbout, ind: W.siteInd }))
+  ok("personal-site D36: Share → 'Copied' for 2000 ms with no width change",
+    W.share0?.txt === "Share" && W.share1?.txt === "Copied" && W.share2?.txt === "Share" && Math.abs(W.share1.w - W.share0.w) <= 0.5 && Math.abs(W.share2.w - W.share0.w) <= 0.5, J([W.share0, W.share1, W.share2]))
   ok("v8.1 P1-3 demo filmstrip: one plain label 'Photos · N · M used', no Photos/Templates capsule", /^Photos · \d+ · \d+ used$/.test(W.film ?? "") && /^Photos · \d+ · \d+ used$/.test(W.film2 ?? "") && W.tabs === 0, J([W.film, W.film2, W.tabs]))
   ok("v8.1 P1-4 library path is not doubled", W.path === "~/Pictures/Photobooks" || (/^~\/Pictures\/[^~/]+$/.test(W.path ?? "")), W.path)
   ok("v8.1 P2-1 demo library '…' menu: Rename, Duplicate, Remove work", J(W.items).includes("Rename") && J(W.items).includes("Duplicate") && J(W.items).includes("Remove") && W.afterDup?.length === 2 && W.afterDup.includes("Lake trip ’26") && W.afterDup.includes("Lake trip ’26 (copy)") && W.afterRm?.length === 1, J([W.items, W.afterDup, W.afterRm]))
-  // site-lightbox §2: the cover slide fits the area at its own ratio (not the spread box); the cover fills that box
-  const fb = W.fsBox, near = (p, q) => !!p && !!q && p.every((x, k) => Math.abs(x - q[k]) <= 0.5)
-  ok("site-lightbox §2 lightbox cover fits the 64/48/64 area at the cover ratio (1440×900: 1312 × 769.80 at 64, 73.10)",
-    !!fb && near(fb.box, fb.cover) && (Math.abs(fb.box[2] - fb.area[0]) <= 0.5 || Math.abs(fb.box[3] - fb.area[1]) <= 0.5) && fb.box[2] <= fb.area[0] + 0.5 && fb.box[3] <= fb.area[1] + 0.5 && Math.abs(fb.box[0] - 64 - (fb.area[0] - fb.box[2]) / 2) <= 0.5 && Math.abs(fb.box[1] - 64 - (fb.area[1] - fb.box[3]) / 2) <= 0.5, J(fb))
+  // site-lightbox §2: the room's slide (endpaper | page 1) fits the area at the spread ratio, centred
+  const fb = W.fsBox
+  ok("site-lightbox §2 room lightbox slide fits the 64/48/64 area, centred",
+    !!fb && (Math.abs(fb.box[2] - fb.area[0]) <= 0.5 || Math.abs(fb.box[3] - fb.area[1]) <= 0.5) && fb.box[2] <= fb.area[0] + 0.5 && fb.box[3] <= fb.area[1] + 0.5 && Math.abs(fb.box[0] - 64 - (fb.area[0] - fb.box[2]) / 2) <= 0.5 && Math.abs(fb.box[1] - 64 - (fb.area[1] - fb.box[3]) / 2) <= 0.5, J(fb))
   ok("v8.1 P2-2 Esc closes fullscreen and returns focus to site-fullscreen-btn", W.focus === "site-fullscreen-btn", W.focus)
   ok("v8.1 P2-5 print dialog uses the real page count and the book's size", (W.print ?? "").includes(`${pages} pages`) && /Custom · 19 × 23 cm/.test(W.print ?? ""), W.print)
   ok("v8.1 P2-6 Create book offers a Custom size (w × h) that the book gets", W.custom === 1 && W.size === "19x23", `${W.custom} ${W.size}`)
@@ -1617,12 +1615,12 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const stage = await page.locator('[data-testid="demo"]').getAttribute("data-demo-stage")
   const spv = () => page.evaluate(() => {
     const q = (s) => document.querySelector(`[data-testid="${s}"]`), r = (s) => { const b = q(s)?.getBoundingClientRect(); return b ? [b.x, b.y, b.width, b.height].map((v) => +v.toFixed(2)) : null }
-    const root = q("site-preview"), cs = root && getComputedStyle(root), bar = q("site-preview-bar"), stg = r("site-stage"), se = document.scrollingElement
+    const root = q("site-preview"), cs = root && getComputedStyle(root), bar = q("site-preview-bar"), stg = r("site-room"), se = document.scrollingElement
     const at = stg && document.elementFromPoint(stg[0] + stg[2] / 2, stg[1] + stg[3] / 2)
     return { root: root ? [cs.position, root.getAttribute("role"), root.getAttribute("aria-modal"), root.getAttribute("aria-label")] : null,
       bar: bar ? [r("site-preview-bar")[3], getComputedStyle(bar).backgroundColor, getComputedStyle(bar).boxShadow] : null, back: r("site-preview-back"), label: r("site-preview-label"),
       backTxt: q("site-preview-back")?.textContent, backTitle: q("site-preview-back")?.closest("[title]")?.getAttribute("title"), backKeys: q("site-preview-back")?.getAttribute("aria-keyshortcuts"),
-      lib: r("editor-library"), stage: stg, ind: q("site-page-indicator")?.textContent.trim(), share: !!q("site-share"), all: !!q("site-all-books"), fs: !!q("site-fullscreen-btn"),
+      lib: r("editor-library"), stage: stg, view: q("site-room")?.dataset.view, ind: q("site-label")?.textContent.trim(), share: !!q("site-share"), all: !!q("site-all-books"), fs: !!q("site-fullscreen-btn"),
       paint: !!at?.closest('[data-testid="site-preview"]'), docScroll: [se.scrollWidth - innerWidth, se.scrollHeight - innerHeight] }
   })
   const sp0 = await spv()
@@ -1631,16 +1629,15 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     prevOpen === 1 && stage === "editor" && JSON.stringify(sp0.root) === JSON.stringify(["fixed", "dialog", "true", "Site preview"]) && sp0.bar?.[0] === 48 && sp0.bar[1] === "rgb(225, 225, 225)" && /inset/.test(sp0.bar[2])
       && near(sp0.back?.[0], 12) && near(sp0.back?.[1], 8) && near(sp0.back?.[3], 32) && sp0.backTxt === "Back to the editor" && sp0.backTitle === "Back to the editor (Esc)" && sp0.backKeys === "Escape"
       && near(sp0.label?.[0], sp0.back[0] + sp0.back[2] + 8), JSON.stringify(sp0))
-  ok("site-preview-mode §3: stage 760 × 460 at x 340 y 218.84 (±0.5) painted on top, opens on 'Cover'; Share and All books hidden, Fullscreen kept; no document scroll at 1440 × 900",
-    near(sp0.stage?.[0], 340) && near(sp0.stage?.[1], 218.84) && near(sp0.stage?.[2], 760) && near(sp0.stage?.[3], 460) && sp0.paint && sp0.ind === "Cover" && !sp0.share && !sp0.all && sp0.fs
-      && sp0.docScroll.every((v) => v === 0), JSON.stringify(sp0))
+  ok("personal-site D45: the Preview shows the room under the bar (painted on top), at 'Page 1'; Share and All books hidden, Fullscreen kept; no document scroll at 1440 × 900",
+    !!sp0.stage && sp0.stage[1] >= 48 && sp0.paint && (sp0.ind ?? "").startsWith("Page 1") && !sp0.share && !sp0.all && sp0.fs && sp0.docScroll.every((v) => v === 0), JSON.stringify(sp0))
   await page.setViewportSize({ width: 1280, height: 720 }); await page.waitForTimeout(400)
   const spS = await spv()
   await page.setViewportSize({ width: 1440, height: 900 }); await page.waitForTimeout(400)
-  ok("site-preview-mode §3: 1280 × 720 stage 676 × 409.15 (±0.5), no document scroll", near(spS.stage?.[2], 676) && near(spS.stage?.[3], 409.15) && spS.docScroll.every((v) => v === 0), JSON.stringify([spS.stage, spS.docScroll]))
-  // keys: → steps, the editor sees nothing (Delete, ⌘Z, "[" panel toggle)
-  await page.keyboard.press("ArrowRight"); await page.waitForTimeout(200)
-  const ind1 = (await spv()).ind
+  ok("personal-site D45: 1280 × 720 room under the bar, no document scroll", !!spS.stage && spS.stage[1] >= 48 && spS.docScroll.every((v) => v === 0), JSON.stringify([spS.stage, spS.docScroll]))
+  // keys: → turns (the guard hands page keys to the room), the editor sees nothing (Delete, ⌘Z, "[" panel toggle)
+  await page.keyboard.press("ArrowRight"); await page.waitForTimeout(1200)
+  const ind1 = (await spv()).view
   for (const key of ["Delete", "Backspace", "ControlOrMeta+z", "["]) { await page.keyboard.press(key); await page.waitForTimeout(120) }
   // held Space must not arm the editor's pan (data-panning) under the preview
   await page.keyboard.down("Space"); await page.waitForTimeout(150)
@@ -1659,8 +1656,8 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const esc2 = await page.locator('[data-testid="site-preview"]').count()
   const escFocus = await page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? document.activeElement?.tagName)
   const ed1 = await edSnap(), stageEsc = await page.locator('[data-testid="demo"]').getAttribute("data-demo-stage")
-  ok("site-preview-mode §4: → gives slide 1; Delete / Backspace / ⌘Z / [ / Space change nothing in the editor (no data-panning); Tab ×10 and Shift+Tab ×10 stay inside",
-    /^Page 1 · 1 \/ \d+$/.test(ind1 ?? "") && JSON.stringify(ed1) === JSON.stringify(ed0) && spacePan === 0 && tabTrail.every(Boolean), JSON.stringify({ ind1, ed0, ed1, spacePan, tabTrail: tabTrail.map(Number).join("") }))
+  ok("site-preview-mode §4: → turns the room to view 2; Delete / Backspace / ⌘Z / [ / Space change nothing in the editor (no data-panning); Tab ×10 and Shift+Tab ×10 stay inside",
+    ind1 === "2" && JSON.stringify(ed1) === JSON.stringify(ed0) && spacePan === 0 && tabTrail.every(Boolean), JSON.stringify({ ind1, ed0, ed1, spacePan, tabTrail: tabTrail.map(Number).join("") }))
   ok("site-preview-mode §4: Fullscreen open → first Esc closes the lightbox only, second Esc closes the preview; focus back on Preview, still the editor stage",
     lb0 === 1 && JSON.stringify(esc1) === "[0,1]" && esc2 === 0 && escFocus === "demo-preview" && stageEsc === "editor", JSON.stringify({ lb0, esc1, esc2, escFocus, stageEsc }))
   // Space activates the focused Back button (the editor's Space-to-pan must not swallow it)
@@ -1686,55 +1683,43 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("v0.9.1 §2 Preview opens in-app book preview (not Site stage) — site-preview-mode: the site's book page", prevOpen === 1 && stage === "editor" && kitPrev === 1, `demoPrev=${prevOpen} stage=${stage} kit=${kitPrev}`)
   ok("site-preview-mode §4: a selected frame survives Delete / Backspace pressed in the preview; after Esc (selection kept) Delete removes it",
     fr0 > 0 && fr1 === fr0 && fr2 === fr0 - 1, JSON.stringify({ fr0, fr1, fr2 }))
-  // kit page #/feature/site-preview-mode: Preview (cover), Spread 2 (slide 2), Fullscreen (the lightbox over the preview)
+  // kit page #/feature/site-preview-mode: Preview (page 1), Spread 2 (slide 2 = view 3), Fullscreen (the lightbox over the preview)
   await go(feat("site-preview-mode"), 1000)
   const spStates = []
   for (const tab of ["Preview", "Spread 2", "Fullscreen"]) {
     await page.locator(`[data-testid="scenarios"] [role="tab"]:text-is("${tab}")`).evaluate((t) => t.click()); await page.waitForTimeout(500)
-    spStates.push(await page.evaluate(() => [document.querySelectorAll('[data-testid="site-preview"]').length, document.querySelector('[data-testid="site-page-indicator"]')?.textContent.trim(), document.querySelectorAll('[data-testid="lightbox"]').length]))
+    spStates.push(await page.evaluate(() => [document.querySelectorAll('[data-testid="site-preview"]').length, document.querySelector('[data-testid="site-room"]')?.dataset.view, document.querySelectorAll('[data-testid="lightbox"]').length]))
   }
-  ok("site-preview-mode kit page: states Preview ('Cover'), Spread 2 ('Pages 2–3 · 2 / n'), Fullscreen (lightbox over the preview)",
-    spStates[0][0] === 1 && spStates[0][1] === "Cover" && spStates[0][2] === 0 && spStates[1][0] === 1 && /^Pages 2–3 · 2 \/ \d+$/.test(spStates[1][1] ?? "") && spStates[1][2] === 0
-      && spStates[2][0] === 1 && spStates[2][2] === 1, JSON.stringify(spStates))
+  ok("site-preview-mode kit page: states Preview (room view 1), Spread 2 (view 3), Fullscreen (lightbox over the preview)",
+    JSON.stringify(spStates.map(([n, , lb]) => [n, lb])) === "[[1,0],[1,0],[1,1]]" && spStates[0][1] === "1" && spStates[1][1] === "3", JSON.stringify(spStates))
 
   // §3 page counts (Designer site-viewer D1/D2/D5): slides = cover + every spread; indicator = page label + spread counter (prod Preview), meta pages = last page number 2(n − 1) (Designer review); deep-link into the book (v0.9.3 catalog home)
   await go("#/demo", 400); await page.evaluate(() => { const d = window.__demo; d.reset(); d.state().path = "~/Pictures/Photobooks"; d.state().books = [{ id: "s1", title: "Pages", book: { endp: true, endpSame: true, w: 14.8, h: 21, preset: "A5" }, published: true }]; d.state().open = "s1"; d.openSite("book") })
-  await page.waitForTimeout(900)
-  const meta = (await page.locator('[data-testid="site-author"]').textContent()).trim()
+  await page.emulateMedia({ reducedMotion: "reduce" }); await page.waitForTimeout(900)
+  const meta = (await page.locator('[data-testid="site-about"]').textContent()).trim()
   const J = (o) => String(JSON.stringify(o)).slice(0, 600)
-  // blank book may have no doc — SiteViewer uses studio SAMPLE doc spreads; meta pages = 2(n − 1) → n = meta pages / 2 + 1
-  const pagesMeta = /(\d+)\s*pages/.exec(meta), nSp = pagesMeta ? +pagesMeta[1] / 2 + 1 : 0
-  const slideTxt = (s) => (s === 0 ? "Cover" : `${s === 1 ? "Page 1" : s === nSp ? `Page ${2 * (s - 1)}` : `Pages ${2 * (s - 1)}–${2 * s - 1}`} · ${s} / ${nSp}`)
-  const siteRects = () => page.evaluate(() => { const r = (s) => { const b = document.querySelector(`[data-testid="${s}"]`)?.getBoundingClientRect(); return b ? [b.x, b.y, b.width, b.height].map((v) => Math.round(v * 100) / 100) : null }; return { ind: document.querySelector('[data-testid="site-page-indicator"]')?.textContent.trim(), stage: r("site-stage"), pager: r("site-pager"), indW: r("site-page-indicator")?.[2], spreadH: r("site-spread")?.[3] } })
-  const slides = []
-  for (let i = 0; i <= nSp && i < 40; i++) { slides.push(await siteRects()); if (i < nSp) { await page.locator('[data-testid="site-pager"] [aria-label="Next spread"]').click(); await page.waitForTimeout(120) } }
-  await page.keyboard.press("Home"); await page.waitForTimeout(120); const home = await siteRects()
-  await page.keyboard.press("End"); await page.waitForTimeout(120); const end = await siteRects()
-  const drift = (k) => Math.max(...slides.flatMap((x) => x[k].map((v, j) => Math.abs(v - slides[0][k][j]))))
-  const badLabels = slides.map((x, i) => [i, x.ind]).filter(([i, t]) => t !== slideTxt(i))
-  ok("site-viewer D1/D5 §3: slides = cover + every spread; labels Cover, Page 1 · 1 / n … last page · n / n (denominator = spread count, meta pages = 2(n − 1)); Home / End",
-    nSp >= 2 && slides.length === nSp + 1 && badLabels.length === 0 && slides[1].ind === `Page 1 · 1 / ${nSp}` && home.ind === "Cover" && end.ind === slideTxt(nSp), J({ meta, nSp, badLabels, home: home.ind, end: end.ind }))
-  ok("site-viewer D2: stage and pager rects constant on every slide (≤ 0.5 px), slide never taller than the stage, indicator 176 wide",
-    slides.length > 2 && drift("stage") <= 0.5 && drift("pager") <= 0.5 && slides.every((x) => x.indW === 176 && x.spreadH <= x.stage[3] + 0.5), J({ stage: drift("stage"), pager: drift("pager"), s0: slides[0], s1: slides[1] }))
-  // Designer review §4 (M45): the last slide shows its left page only — clipped, page shadow over the left half
-  const last = await page.evaluate(() => { const sp = document.querySelector('[data-testid="site-spread"]'), b = sp.getBoundingClientRect(), sh = sp.querySelector(":scope > span[aria-hidden]").getBoundingClientRect(); return { clip: getComputedStyle(sp.firstElementChild).clipPath, dx: Math.round((sh.x - b.x) * 100) / 100, shW: Math.round(sh.width * 100) / 100, w: Math.round(b.width * 100) / 100 } })
-  ok("site-viewer §4: last slide paints the left page only (clip inset(0 50% 0 0), shadow left half)", last.clip === "inset(0px 50% 0px 0px)" && last.dx === 0 && Math.abs(last.shW - last.w / 2) <= 0.5, J(last))
+  // personal-site D38: meta pages = 2(n − 1) → n = pages / 2 + 1 doc spreads; room views = cover, page 1, spreads 2…n − 1, back
+  const pagesMeta = /(\d+)\s*pages/.exec(meta), P = pagesMeta ? +pagesMeta[1] : 0, nSp = P / 2 + 1
+  const viewTxt = (v) => (v === 0 ? "Cover" : v === nSp + 1 ? "Back cover" : `${v === 1 ? "Page 1" : v === nSp ? `Page ${P}` : `Pages ${2 * (v - 1)}–${2 * v - 1}`} of ${P}`)
+  const lbl = () => page.locator('[data-testid="site-label"]').textContent().then((t) => t.trim())
+  const labels = [await lbl()]
+  for (let v = 1; v <= nSp && v < 40; v++) { await page.click('[data-testid="ss-next"]'); await page.waitForTimeout(250); labels.push(await lbl()) }
+  await page.keyboard.press("Home"); await page.waitForTimeout(250); const home = await lbl()
+  await page.keyboard.press("End"); await page.waitForTimeout(250); const end = await lbl()
+  await page.emulateMedia({ reducedMotion: "no-preference" })
+  const badLabels = labels.map((t, i) => [i + 1, t]).filter(([v, t]) => t !== viewTxt(v))
+  ok("personal-site D38: a deep-linked session book opens at Page 1; labels Page 1 … last page, Back cover (pages = 2(n − 1)); Home / End",
+    nSp >= 3 && badLabels.length === 0 && home === "Cover" && end === viewTxt(nSp), J({ meta, nSp, badLabels, home, end }))
 
-  // catalog: a landscape book fits its column (h = min(200, col / ratio)); D4: 390 px root → no horizontal overflow on catalog and book page
+  // the case: a landscape book joins it; 390 px root → no horizontal overflow on the case, the room's Share 20 left of Play
   await page.evaluate(() => { const d = window.__demo; d.state().books = [...d.state().books, { id: "s2", title: "Wide", book: { endp: true, endpSame: true, w: 21, h: 14.8, preset: "A5" }, published: true }]; d.openSite("catalog") })
   await page.waitForTimeout(600)
-  const fit = await page.evaluate(() => [...document.querySelectorAll('[data-testid="site-book"]')].map((b) => [b.dataset.book, Math.round(b.querySelector(".site-card-obj").getBoundingClientRect().width * 100) / 100, Math.round(b.getBoundingClientRect().width * 100) / 100]))
-  const cardCur = await page.locator('[data-testid="site-catalog"] [data-testid="site-book"]').evaluateAll((els) => els.map((e) => getComputedStyle(e).cursor))
-  ok("site-viewer §3: catalog cards use the pointer cursor", cardCur.length > 0 && cardCur.every((c) => c === "pointer"), J(cardCur))
+  const caseIds = await page.locator('[data-testid="ss9-book"]').evaluateAll((els) => els.map((e) => e.dataset.id).sort())
   const narrow = async () => { await page.evaluate(() => { document.querySelector('[data-testid="site"]').parentElement.style.width = "390px" }); await page.waitForTimeout(300)
-    return page.evaluate(() => { const s = document.querySelector('[data-testid="site"]'), x0 = s.getBoundingClientRect().left; return { sw: s.scrollWidth, cw: s.clientWidth, right: Math.max(...[...s.querySelectorAll("*")].map((e) => e.getBoundingClientRect().right - x0)), cols: getComputedStyle(s.querySelector('[data-testid="site-catalog"] .grid') ?? s).gridTemplateColumns } }) }
+    return page.evaluate(() => { const s = document.querySelector('[data-testid="site"]'), x0 = s.getBoundingClientRect().left; return { sw: s.scrollWidth, cw: s.clientWidth, caseR: document.querySelector('[data-testid="site-case"]').getBoundingClientRect().right - x0 } }) }
   const nCat = await narrow()
-  await page.locator('[data-testid="site-book"]').first().click(); await page.waitForTimeout(600)
-  const nBook = await narrow()
-  const nShare = await page.evaluate(() => { const a = document.querySelector('[data-testid="site-author"]').getBoundingClientRect(), s = document.querySelector('[data-testid="site-share"]').getBoundingClientRect(); return { under: s.top >= a.bottom, stageW: document.querySelector('[data-testid="site-stage"]').getBoundingClientRect().width } })
-  ok("site-viewer §3 catalog: every book object fits its column (landscape h = col / ratio)", fit.length === 2 && fit.every(([, o, c]) => o <= c + 0.5) && fit.some(([id]) => id === "s2"), J(fit))
-  ok("site-viewer D4: 390 px root — scrollWidth === clientWidth on catalog and book page, 2 columns, Share under the meta, stage ≤ content",
-    nCat.sw === nCat.cw && nBook.sw === nBook.cw && nCat.right <= nCat.cw + 0.5 && nBook.right <= nBook.cw + 0.5 && nCat.cols.split(" ").length === 2 && nShare.under && nShare.stageW <= nBook.cw - 40 + 0.5, J({ nCat, nBook, nShare }))
+  ok("personal-site K2: both published books on the case; 390 px root — no horizontal overflow, the case inside the margins",
+    JSON.stringify(caseIds) === '["s1","s2"]' && nCat.sw === nCat.cw && nCat.caseR <= nCat.cw - 16 + 0.5, J({ caseIds, nCat }))
 
   // §4 no rename-dialog in demo; inline rename-input (Stage 2: the library moved to src/demo-parts/library.tsx)
   const renameDlgSrc = fs.readFileSync(new URL("../src/demo-parts/library.tsx", import.meta.url), "utf8")
@@ -1836,22 +1821,19 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     d.state().open = "s1"; d.state().siteEntry = "catalog"; d.go("site")
   })
   await page.waitForTimeout(600)
-  const catN = await page.locator('[data-testid="site-catalog"]').count()
-  const booksN = await page.locator('[data-testid="site-book"]').count()
-  const titles = await page.locator('[data-testid="site-book"]').allTextContents()
-  ok("v0.9.3 site lands on library home of published books only",
-    catN === 1 && booksN === 2 && titles.some((t) => /Lake trip/.test(t)) && titles.some((t) => /Fog/.test(t)) && !titles.some((t) => /Draft/.test(t)),
-    JSON.stringify({ catN, booksN, titles }))
-  await page.locator('[data-testid="site-book"]').filter({ hasText: "Lake trip" }).click(); await page.waitForTimeout(400)
-  ok("v0.9.3 opening a catalog book shows the book viewer",
-    await page.locator('[data-testid="site-title"]').count() === 1 && (await page.locator('[data-testid="site-title"]').textContent()).trim() === "Lake trip",
-    await page.locator('[data-testid="site-title"]').textContent())
-  // deep link opens that book (not catalog)
+  const catN = await page.locator('[data-testid="site-case"]').count()
+  const titles = (await page.locator('[data-testid="ss9-book"]').evaluateAll((els) => els.map((e) => e.getAttribute("aria-label").split(",")[0]))).sort()
+  ok("personal-site K2: the site lands on the bookcase of the published books only",
+    catN === 1 && JSON.stringify(titles) === JSON.stringify(["Fog", "Lake trip"]), JSON.stringify({ catN, titles }))
+  await page.locator('[data-testid="ss9-book"][aria-label^="Lake trip,"]').click(); await page.waitForTimeout(1500)
+  const opened = (await page.locator('[data-testid="site-about"]').textContent().catch(() => "")).trim()
+  ok("personal-site K2: a book on the case opens its reading room", opened.startsWith("Lake trip"), opened)
+  // deep link opens that book's room (not the case)
   await page.evaluate(() => { const d = window.__demo; d.state().open = "s2"; d.openSite("book") })
   await page.waitForTimeout(700)
-  const deepTitle = (await page.locator('[data-testid="site-title"]').textContent().catch(() => "")).trim()
-  const deepCat = await page.locator('[data-testid="site-catalog"]').count()
-  ok("v0.9.3 book deep link opens that book (not catalog)", deepCat === 0 && deepTitle === "Fog", JSON.stringify({ deepTitle, deepCat }))
+  const deepTitle = (await page.locator('[data-testid="site-about"]').textContent().catch(() => "")).trim()
+  const deepOpen = await page.locator('[data-testid="site"]').getAttribute("data-open")
+  ok("personal-site K2: a book deep link opens that book's room", deepOpen === "s2" && deepTitle.startsWith("Fog"), JSON.stringify({ deepTitle, deepOpen }))
 
   // Space held → panel hotkeys ignored
   await go(scr("canvas"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(200)
