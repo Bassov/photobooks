@@ -3,8 +3,11 @@ import { pagesOf } from '../core/pages'
 import { displayBookTitle } from '../project/bookTitle'
 import { SiteApp } from './SiteApp'
 import type { SitePageAssets, SitePageInput } from './siteInput'
-import { bookMeta, catalogMeta, siteTitle } from './siteModel'
-import { sitePageUrl } from './siteUrl'
+import { bookMeta, homeHead, homeLead, siteTitle } from './siteModel'
+import { pageHref, sitePageUrl } from './siteUrl'
+
+/** the browser bars: the home's paper (v7 F), the book page's grey */
+const THEME = { catalog: '#f4f3f0', book: '#E1E1E1' } as const
 
 /** Same value with object keys in code-unit order at every depth. */
 function sortKeys(value: unknown): unknown {
@@ -35,7 +38,7 @@ function pageHead(input: SitePageInput): {
     return {
       title: site,
       ogTitle: site,
-      description: catalogMeta(input.site.author, input.books.length),
+      description: homeLead(input.site) ?? homeHead(input.site),
     }
   }
   const book = displayBookTitle(input.book.title)
@@ -71,7 +74,7 @@ export function renderSitePage(
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#E1E1E1" />
+        <meta name="theme-color" content={THEME[input.kind]} />
         <title>{head.title}</title>
         <meta name="description" content={head.description} />
         <meta property="og:title" content={head.ogTitle} />
@@ -106,6 +109,18 @@ export function renderSitePage(
           className="site"
           dangerouslySetInnerHTML={{ __html: app }}
         />
+        {input.kind === 'catalog' && input.books.length > 0 ? (
+          // the case waits for the client layout (D42): without scripts, plain links
+          <noscript>
+            <ul className="ss-noscript" data-testid="site-noscript">
+              {input.books.map((b) => (
+                <li key={b.id}>
+                  <a href={pageHref(b.href)}>{b.title}</a>
+                </li>
+              ))}
+            </ul>
+          </noscript>
+        ) : null}
         <script
           type="application/json"
           id="site-data"

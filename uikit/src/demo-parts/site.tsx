@@ -1,38 +1,43 @@
 import * as React from "react"
 import { ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useStudio, StudioProvider } from "@/sandbox/store"
-import { setEditorExtras, CoverSpread, coverW, pagesOf, BAR, SUB } from "@/sandbox/v7"
-import { SiteViewer, type SiteState } from "@/features/site-viewer"
-import { BOOKS } from "@/features/screens"
-import { useSession, blankDoc, blankExtras, coverOf, fmtOf, slug, type DBook } from "./session"
+import { templates } from "@/data"
+import { BAR, SUB } from "@/sandbox/v7"
+import type { SiteState } from "@/features/site-viewer"
+import { PersonalSite } from "@/features/site/home"
+import type { SiteStart } from "@/features/site/sys"
+import type { RoomKeys } from "@/features/site-book/room"
+import { blankDoc, useSession, type DBook } from "./session"
+import { siteBookOf, siteBooksOf } from "./siteBooks"
 
-/** #/demo published site (catalog or one book), with the back-to-editor bar. State: the session (books, siteEntry). */
+const IDS = templates.map((t) => t.id)
+const opts = () => ({ year: new Date().getUTCFullYear(), templates: IDS })
+/** a book the editor hasn't touched yet has no doc: the editor shows the blank sample doc, so does the site */
+const withDoc = (x: DBook) => (x.doc ? x : { ...x, doc: blankDoc() })
+/** the site's books (D38): the session's published books; none published: the open book alone */
+const useSiteBooks = (open: DBook | undefined) => {
+  const all = useSession().useDemo().books
+  return React.useMemo(() => {
+    const pub = siteBooksOf(all.map(withDoc), opts())
+    return pub.length || !open ? pub : [siteBookOf(withDoc(open), opts())]
+  }, [all, open])
+}
+/** a kit page's `SiteState` (site-viewer / site-lightbox / site-preview-mode) → the room's start: slide s = view s + 1 */
+const startOf = (book: string, s?: Partial<SiteState>): SiteStart => ({ book, view: (s?.slide ?? 0) + 1, ...(s?.lb ? { full: s.lbZoom ?? 1 } : {}) })
+
+/** #/demo published site (personal-site K2): the bookcase of the published books, with the back-to-editor bar. A book
+ *  deep link (`siteEntry=book`, or a kit page's `page: "book"`) opens that book's room. */
 export function DemoSite({ id, initial }: { id: string; initial?: Partial<SiteState> }) {
   const { set, useDemo } = useSession()
   const d = useDemo()
-  // v0.9.3: Open site / share lands on library home of published books; deep link (siteEntry=book) opens that book
-  const published = d.books.filter((x) => x.published)
-  const [bookId, setBookId] = React.useState(id)
-  const entry = d.siteEntry ?? "catalog"
-  const b = d.books.find((x) => x.id === bookId) ?? d.books.find((x) => x.id === id) ?? published[0]
-  React.useLayoutEffect(() => { if (b) setEditorExtras(b.extras ?? blankExtras(b.title)) }, [b?.id])
-  const cards = (published.length ? published : b ? [b] : []).map(cardOf)
-  if (!b) return null
-  const crumb = (d.siteEntry ?? entry) === "book" ? `aleksandr.photos/${slug(b.title)}` : "aleksandr.photos"
+  const books = useSiteBooks(d.books.find((x) => x.id === id))
+  const deep = (initial?.page ?? d.siteEntry) === "book"
+  const [start] = React.useState(() => (deep ? startOf(id, initial) : undefined))
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-11 shrink-0 items-center gap-2 bg-chrome px-3 text-sm"><Button variant="ghost" size="sm" className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4" onPress={() => set({ stage: "editor", open: id })} data-testid="demo-site-back"><ChevronLeft />Back to the editor</Button><span className="text-muted-foreground" data-testid="demo-site-crumb">{crumb}</span></div>
-      <div className="min-h-0 flex-1">
-        <StudioProvider key={bookId} init={() => b.doc ?? blankDoc()} book={b.book}>
-          <SiteViewer
-            books={cards}
-            initial={{ page: entry, book: bookId, ...initial }}
-            cover={(w) => <SiteCover w={w} />}
-            onBookSelect={(bid) => { setBookId(bid); set({ siteEntry: "book", open: bid }) }}
-            onCatalog={() => set({ siteEntry: "catalog" })}
-          />
-        </StudioProvider>
+      <div className="flex h-11 shrink-0 items-center gap-2 bg-chrome px-3 text-sm"><Button variant="ghost" size="sm" className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4" onPress={() => set({ stage: "editor", open: id })} data-testid="demo-site-back"><ChevronLeft />Back to the editor</Button><span className="text-muted-foreground" data-testid="demo-site-crumb">aleksandr.photos</span></div>
+      <div className="relative min-h-0 flex-1">
+        <div className="absolute inset-0"><PersonalSite books={books} {...(start ? { start } : {})} /></div>
       </div>
     </div>
   )
@@ -46,13 +51,19 @@ function trapTab(root: HTMLElement, back: boolean) {
   next.focus()
 }
 
-/** #/demo Preview (Designer site-preview-mode §2 / §4 / §6): the site's book page of the open book under a 48 px app bar, over the
- *  still-mounted editor. Back sits exactly on the editor's "‹ Library" link; All books and Share hidden; Fullscreen = the site lightbox.
- *  Keys: one document-capture guard — Esc closes (the lightbox's own Esc runs first and closes only it), Tab stays inside, and no key
- *  reaches the editor's window handlers (the book page's arrows also listen on document capture). Alt+← / → stay the kit's page nav. */
+/** the page keys the Preview hands to the room (its guard stops every key before the room's window listeners) */
+const PAGE_KEYS = new Set(["ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End"])
+
+/** #/demo Preview (personal-site D45): the open book's reading room under a 48 px app bar, over the still-mounted editor.
+ *  Back sits exactly on the editor's "‹ Library" link; All books, Share and the home hidden; Fullscreen = the lightbox.
+ *  Keys: one document-capture guard — Esc closes (the lightbox's own Esc runs first and closes only it), Tab stays inside,
+ *  page keys go to the room, and no key reaches the editor's window handlers. Alt+← / → stay the kit's page nav. */
 export function DemoSitePreview({ id, onExit, initial }: { id: string; onExit: () => void; initial?: Partial<SiteState> }) {
   const b = useSession().useDemo().books.find((x) => x.id === id)
+  const one = React.useMemo(() => (b ? [siteBookOf(withDoc(b), opts())] : []), [b])
+  const [start] = React.useState(() => startOf(id, initial))
   const ref = React.useRef<HTMLDivElement>(null)
+  const room = React.useRef<RoomKeys>(null)
   const exit = React.useRef(onExit); exit.current = onExit
   const [opener] = React.useState(() => document.activeElement)
   React.useEffect(() => {
@@ -68,6 +79,7 @@ export function DemoSitePreview({ id, onExit, initial }: { id: string; onExit: (
       if (e.defaultPrevented) return // the lightbox handled it (Tab, steps, zoom)
       if (e.key === "Escape") { e.preventDefault(); exit.current() }
       else if (e.key === "Tab") { e.preventDefault(); if (ref.current) trapTab(ref.current, e.shiftKey) }
+      else if (!e.ctrlKey && !e.metaKey && !e.altKey && PAGE_KEYS.has(e.key) && room.current?.key(e.key)) e.preventDefault()
     }
     document.addEventListener("keydown", k, true); return () => document.removeEventListener("keydown", k, true)
   }, [])
@@ -78,19 +90,9 @@ export function DemoSitePreview({ id, onExit, initial }: { id: string; onExit: (
         <span className="contents" title="Back to the editor (Esc)"><Button variant="ghost" size="sm" className="h-8 shrink-0 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4" style={{ color: SUB }} onPress={onExit} data-testid="site-preview-back"><ChevronLeft />Back to the editor</Button></span>
         <span className="text-sm" style={{ color: SUB }} data-testid="site-preview-label">Site preview</span>
       </div>
-      <div className="site min-h-0 flex-1 overflow-y-auto overflow-x-hidden" data-testid="site-preview-scroll">
-        <StudioProvider init={() => b.doc ?? blankDoc()} book={b.book}>
-          <SiteViewer single share={false} books={[cardOf(b)]} initial={{ page: "book", book: id, slide: 0, ...initial }} cover={(w) => <SiteCover w={w} />} />
-        </StudioProvider>
+      <div className="relative min-h-0 flex-1" data-testid="site-preview-scroll">
+        <div className="absolute inset-0"><PersonalSite books={one} start={start} roomRef={room} preview /></div>
       </div>
     </div>
   )
-}
-
-/** a session book as a site catalog card */
-const cardOf = (x: DBook) => ({ ...BOOKS[0], id: x.id, title: x.title, cover: coverOf(x) ?? "", spreads: x.doc?.spreads.length ?? 10, format: fmtOf(x.book), status: "published" as const })
-
-export function SiteCover({ w }: { w: number }) {
-  const st = useStudio(), bk = st.book
-  return <div style={{ width: w, height: (w * bk.h) / coverW(bk, pagesOf(st.doc.spreads.length)) }} data-testid="site-cover"><CoverSpread /></div>
 }

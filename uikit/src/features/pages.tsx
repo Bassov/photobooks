@@ -224,16 +224,16 @@ export const PAGES: Record<string, FeatureDef> = {
     ["catalog", "Catalog", root(onSite({}))],
     ["book", "Book", root(onSite({ page: "book" }, "book"))],
   ], {
-    what: "The published site: a catalog of published books, then one book’s viewer with spreads, Share and Fullscreen. A bar above it returns to the editor.",
+    what: "The published site: the personal-site bookcase of the session's published books, then one book's reading room with Share and Fullscreen. A bar above it returns to the editor.",
     where: "#/demo steps 56–59 (Publish → Open site).",
-    edge: ["Share copies the book link", "Esc leaves fullscreen"],
+    edge: ["Nothing published: the open book alone on the case", "Share shows Copied for 2 s; Esc leaves fullscreen"],
   }),
   "site-lightbox": page([
     ["lightbox", "Fullscreen", root(onSite({ page: "book", lb: true }, "book"))],
     ["spread", "Spread 2", root(onSite({ page: "book", slide: 3, lb: true }, "book"))],
     ["zoomed", "Zoomed 2×", root(onSite({ page: "book", slide: 3, lb: true, lbZoom: 2 }, "book"))],
   ], {
-    what: "Fullscreen viewing of one book on the site; arrows step through spreads.",
+    what: "Fullscreen viewing of one book from the reading room (Fullscreen in the foot); arrows step through spreads.",
     where: "#/demo step 59.",
     keys: [["← / →, Space", "previous / next spread"], ["Esc", "close"]],
     edge: ["Double-click or pinch zooms; drag pans", "Arrows hide on touch screens"],
@@ -248,9 +248,9 @@ export const PAGES: Record<string, FeatureDef> = {
   "personal-site": {
     Demo: PersonalSitePage, h: SLOT.app.h, notes: {
       what: "The personal site: a bookcase home (the newest book of each shelf face-out) and a reading room with the open book. Sample books.",
-      where: "Standalone; not in #/demo yet. Full window: #/full/personal-site?books=1|3|6|12|30|100 (&book=<id> opens a book).",
+      where: "#/demo Open site and Preview (the session's published books). Full window: #/full/personal-site?books=1|3|6|12|30|100 (&book=<id> opens a book).",
       keys: [["← / →", "turn"], ["Esc / Back", "close the book"]],
-      edge: ["The page scrolls down the case", "Phone reads in Page turn; &reader=carousel gives the carousel"],
+      edge: ["The page scrolls down the case", "Phone reads in Page turn; &reader=carousel gives the carousel", "Room foot: Share · Fullscreen · Play; phones: Share only"],
     },
   },
   "site-preview-mode": page([
@@ -258,10 +258,10 @@ export const PAGES: Record<string, FeatureDef> = {
     ["spread", "Spread 2", root(inEditor({ editor: { preview: { slide: 2 } } }, lakePreview))],
     ["fullscreen", "Fullscreen", root(inEditor({ editor: { preview: { lb: true } } }, lakePreview))],
   ], {
-    what: "Preview from the editor: the site's book page of the current book under a 48 px bar, without publishing; Fullscreen = the site lightbox",
+    what: "Preview from the editor: the reading room of the current book under a 48 px bar, without publishing; Fullscreen = the site lightbox",
     where: "#/demo step editor-preview (top bar → Preview).",
-    keys: [["← / →", "previous / next spread"], ["Home / End", "cover / last spread"], ["Esc", "closes Fullscreen, then the preview"]],
-    edge: ["Share and All books hidden; opens on the cover; the editor is unchanged after Esc"],
+    keys: [["← / →", "turn"], ["Home / End", "cover / last spread"], ["Esc", "closes Fullscreen, then the preview"]],
+    edge: ["Share, All books and the home hidden; opens at page 1; the editor is unchanged after Esc"],
   }),
   /* ------------------------------------------------------------ print */
   "pdf-export": page([

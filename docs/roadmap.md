@@ -184,7 +184,9 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [preflight-core](roadmap/P4/preflight-core.md) — pure preflight
 - [ ] [prep] [pdf-painter](roadmap/P4/pdf-painter.md) — worker PDF painter (Security Review: dependency)
 - [ ] [feature] [roadmap-status-sync-2](roadmap/P4/roadmap-status-sync-2.md) — Bug: /next-roadmap-item roadmap-status-sync-2
+- [ ] [feature] [design-r23-delete-shadow](roadmap/P4/design-r23-delete-shadow.md) — Bug: /next-roadmap-item design-r23-delete-shadow
 - [ ] [feature] [personal-site-kit-port](roadmap/P4/personal-site-kit-port.md) — Bug: /next-roadmap-item personal-site-kit-port
+- [ ] [feature] [personal-site-kit-demo](roadmap/P4/personal-site-kit-demo.md) — Bug: /next-roadmap-item personal-site-kit-demo
 - [ ] [feature] [design-r21-presets-actions](roadmap/P4/design-r21-presets-actions.md) — Bug: /next-roadmap-item design-r21-presets-actions
 - [ ] [feature] [library-leave-flake](roadmap/P4/library-leave-flake.md) — Bug: /next-roadmap-item library-leave-flake
 - [ ] [feature] [design-r22-crop-srcset](roadmap/P4/design-r22-crop-srcset.md) — Bug: /next-roadmap-item design-r22-crop-srcset
@@ -203,6 +205,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [design-r21-kit-presets](roadmap/P4/design-r21-kit-presets.md) — Bug: /next-roadmap-item design-r21-kit-presets
 - [ ] [feature] [cover-editor-core](roadmap/P4/cover-editor-core.md) — Bug: /next-roadmap-item cover-editor-core
 - [ ] [feature] [cover-editor-kit](roadmap/P4/cover-editor-kit.md) — Bug: /next-roadmap-item cover-editor-kit
+- [ ] [feature] [site-final-home](roadmap/P4/site-final-home.md) — Bug: /next-roadmap-item site-final-home
 - [ ] [feature] [cover-editor](roadmap/P4/cover-editor.md) — cover in the editor
 
 ## P5 — Others make their own personal site
