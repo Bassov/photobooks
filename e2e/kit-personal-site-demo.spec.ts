@@ -61,6 +61,21 @@ test.describe('kit #/demo site', () => {
     expect(titles.sort()).toEqual(want)
   })
 
+  test('nothing published: the open book alone on the case', async ({
+    page,
+  }) => {
+    await seed(page)
+    expect(await published(page)).toEqual(['Fog'])
+    await page.evaluate(() => {
+      const d = (window as unknown as { __demo: Demo }).__demo
+      d.state().books.forEach((b) => (b.published = false))
+      d.go('site')
+    })
+    const books = page.getByTestId('ss9-book')
+    await expect(books).toHaveCount(1)
+    await expect(books).toHaveAttribute('aria-label', /^Lake trip,/)
+  })
+
   test('Preview is the open book in the reading room, at Page 1', async ({
     page,
   }) => {

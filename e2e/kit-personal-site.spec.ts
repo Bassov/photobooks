@@ -483,12 +483,10 @@ for (const vp of VIEWPORTS)
             .querySelector('meta[name="theme-color"]')
             ?.getAttribute('content') ?? null,
         ])
-      // the site viewer's root is `site` too: the personal site's root is the one with data-books
-      const viewer = page
-        .getByTestId('site')
-        .and(page.locator(':not([data-books])'))
-      await page.goto('/uikit/#/full/site-viewer')
-      await expect(viewer).toBeVisible()
+      // a kit page that is not the site (since personal-site K2 the site viewer is the personal site)
+      const kit = page.getByTestId('index-toolbar')
+      await page.goto('/uikit/#/')
+      await expect(kit).toBeVisible()
       await expect(page.locator('[data-books]')).toHaveCount(0)
       const before = await bars()
       await page.evaluate(() => {
@@ -498,9 +496,9 @@ for (const vp of VIEWPORTS)
       const paper = 'rgb(244, 243, 240)'
       expect(await bars()).toEqual([paper, paper, paper])
       await page.evaluate(() => {
-        location.hash = '#/full/site-viewer'
+        location.hash = '#/'
       })
-      await expect(viewer).toBeVisible()
+      await expect(kit).toBeVisible()
       await expect(page.locator('[data-books]')).toHaveCount(0)
       await expect.poll(bars).toEqual(before)
     })

@@ -26,6 +26,7 @@
 | `e2e/kit-personal-site-demo.spec.ts`    |
 | `e2e/kit-personal-site-books.spec.ts`   |
 | `e2e/kit-preview-fold-strip.spec.ts`    |
+| `e2e/kit-personal-site.spec.ts`         |
 | `e2e/kit-preview-mod-arrows.spec.ts`    |
 
 Reuse: `Fullscreen`, `SpreadArt` / `TitlePage` / `ENDPAPER`, `pixelsAt`.
