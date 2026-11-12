@@ -52,6 +52,7 @@ const errorOf = (f: Exclude<Field, "secret">, v: string) => !v ? undefined
 
 /* ---------------------------------------------------------------- check (simulated) and its messages */
 const ZERO_KEY = "0".repeat(32)
+/* Connect sees the full key; Check again sees only the stored tail, so "0000" is the rejected key there */
 const simulate = (bucket: string, key: string): HostingCode | undefined =>
   bucket === "missing" ? "NoSuchBucket" : key === ZERO_KEY || key === "0000" ? "InvalidAccessKeyId" : undefined
 const failMessage = (code: HostingCode, bucket: string, stored = false) => ({

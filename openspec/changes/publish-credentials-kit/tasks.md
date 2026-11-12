@@ -10,3 +10,9 @@
 
 1. Kit `#/full/site-settings` 1440×900, Hosting: connected card; Replace token… → form, key/secret empty, Cancel returns.
 2. Forget token… → confirm → empty form + help; type a bad account ID → red ring + text; fill valid values → Connect → Checking… → connected.
+
+Results (kit-only: agent manual-qa drives the prod editor, not the kit; walked through Playwright on the built kit at 1440×900):
+
+- OK 1: connected card matches mockup panel 6 (screenshot checked); Replace → key/secret empty, focus on key, Cancel keeps the record (`kit-hosting-settings` KM2 Replace).
+- OK 2: Forget → trash-tile confirm → empty form, focus Account ID, help shown; format errors red ring (paint probe); Connect → Checking… same width → connected; secret absent from outerHTML / URL (KM1, KM2 Forget).
+- OK ui-review: labelled fields, focus ring, reduced-motion loader, errors = text + icon + ring, one primary CTA; scenario strip fits 1440. `uikit:qa:quick` 425/425, 0 console errors.
