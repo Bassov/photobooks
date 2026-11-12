@@ -17,5 +17,6 @@ permissions:
 
 jobs:
   pr-policy:
-    uses: Bassov/ts-agent-rig/.github/workflows/pr-policy.yml@v0.2.21
+    # Rig PR #12 head (merge-base ratchet); swap to the release tag once tagged.
+    uses: Bassov/ts-agent-rig/.github/workflows/pr-policy.yml@d98239ccaf974295addd2cc596aeb2cb6ca00943
     secrets: inherit
