@@ -62,7 +62,8 @@ export type Studio = {
 export type Node = { k: "cover" } | { k: "endpaper"; w: "front" | "back" } | { k: "master"; id: "A" | "B" } | { k: "last" } | { k: "book" } | { k: "none" } | null
 /** `safe`: the safe margin in mm (Book settings Print · S; folios stay inside it) */
 export type Book = { endp: boolean; endpSame: boolean; w: number; h: number; preset: string; safe: number }
-export const BOOK0: Book = { endp: true, endpSame: true, w: 20, h: 20, preset: "sq20", safe: 8 }
+/** a new book takes the default profile's safe margin, like prod: Generic's 5 mm (printProfiles `CATALOG[0]`) */
+export const BOOK0: Book = { endp: true, endpSame: true, w: 20, h: 20, preset: "sq20", safe: 5 }
 const Ctx = React.createContext<Studio | null>(null)
 export const useStudio = () => React.useContext(Ctx)!
 

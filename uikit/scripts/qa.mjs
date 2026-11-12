@@ -2096,7 +2096,7 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     await page.locator(seg).nth(0).click(); await page.waitForTimeout(150)
     const k = got[0].w / (2 * P), near = (a, b) => Math.abs(a - b) <= 0.5, ymm = Math.min(H - g.b / 2 - 2.17, H - bk.safe - 4.34), y = ymm * k
     const [o, ce, inn] = got.map((x) => x.f)
-    const geo = bk.safe === 8 && got.every((x) => x.f.length === 2 && x.under && x.f.every((f) => near(f.t, y) && near(f.fz, 3.1 * k) && f.col === "rgb(35, 34, 32)"))
+    const geo = bk.safe === 5 && got.every((x) => x.f.length === 2 && x.under && x.f.every((f) => near(f.t, y) && near(f.fz, 3.1 * k) && f.col === "rgb(35, 34, 32)"))
       && near(o[0].l, g.o * k) && o[0].al === "left" && near(o[1].r, got[0].w - g.o * k) && o[1].al === "right" && got[0].al === "left,right"
       && near((ce[0].l + ce[0].r) / 2, (P / 2) * k) && near((ce[1].l + ce[1].r) / 2, (P * 1.5) * k) && ce.every((f) => f.al === "center") && got[1].al === "center,center"
       && near(inn[0].r, (P - g.i) * k) && inn[0].al === "right" && near(inn[1].l, (P + g.i) * k) && inn[1].al === "left" && got[2].al === "right,left"
@@ -2805,15 +2805,15 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const g = await read()
   ok("printer-presets-kit-book: Printer select 268 (+ scrollbar) × 32 = Page size select, bg #D7D7D7 under the PRINT title, optgroups Print shops (3) / Custom (1), Generic", g.sel.w + g.sb === 268 && g.sel.w === g.sizeW && g.sel.h === 32 && g.sel.bg === "rgb(215, 215, 215)" && near(g.sel.y, 26.84) && g.sel.groups === "Print shops:3,Custom:1" && g.sel.value === "generic", JSON.stringify({ ...g.sel, sizeW: g.sizeW, sb: g.sb }))
   ok("printer-presets-kit-book: hint 2xs/16 under the select (+38), Generic text", near(g.hint.y, 64.84) && g.hint.t === "5–50 cm · 20–120 pages · photos ≥ 200 ppi" && g.hint.font === "11px/16px", JSON.stringify(g.hint))
-  ok("printer-presets-kit-book: no warnings → B/S and DEFAULTS 66 px lower (B/S +92.84, DEFAULTS +195.69 = 788.61 → 854.61 from 658.92), B 3 / S 8, Pages 20–120", !g.issues.length && near(g.bs, 92.84) && near(g.defaults, 195.69) && g.b === "B3mm" && g.s === "S8mm" && g.range === "20–120", JSON.stringify({ bs: g.bs, defaults: g.defaults, b: g.b, s: g.s, range: g.range }))
+  ok("printer-presets-kit-book: no warnings → B/S and DEFAULTS 66 px lower (B/S +92.84, DEFAULTS +195.69 = 788.61 → 854.61 from 658.92), B 3 / S 5, Pages 20–120", !g.issues.length && near(g.bs, 92.84) && near(g.defaults, 195.69) && g.b === "B3mm" && g.s === "S5mm" && g.range === "20–120", JSON.stringify({ bs: g.bs, defaults: g.defaults, b: g.b, s: g.s, range: g.range }))
   await page.locator(`${B} [data-testid="book-print-profile"]`).selectOption("lulu-photo-book"); await page.waitForTimeout(300)
   const lu = await read()
   const live = await page.locator(`${B} [aria-live="polite"]`).textContent()
   await page.keyboard.press("Control+z"); await page.waitForTimeout(300)
   const un = await read()
-  ok("printer-presets-kit-book: pick Lulu = one undo step: B 3.175 / S 12.7, size and pages unchanged, 1 warning (+8 + 2 × 16.8), live “Printer: Lulu · Photo book”; Ctrl+Z → Generic, B 3 / S 8",
+  ok("printer-presets-kit-book: pick Lulu = one undo step: B 3.175 / S 12.7, size and pages unchanged, 1 warning (+8 + 2 × 16.8), live “Printer: Lulu · Photo book”; Ctrl+Z → Generic, B 3 / S 5",
     lu.sel.value === "lulu-photo-book" && lu.b === "B3.175mm" && lu.s === "S12.7mm" && lu.size === g.size && lu.pages === g.pages && lu.issues.length === 1 && near(lu.defaults - g.defaults, 8 + 2 * 16.8) && live === "Printer: Lulu · Photo book" &&
-    un.sel.value === "generic" && un.b === "B3mm" && un.s === "S8mm" && !un.issues.length && near(un.defaults, g.defaults), JSON.stringify({ lu: [lu.b, lu.s, lu.size, lu.pages, lu.issues.length, lu.defaults], live, un: [un.sel.value, un.b, un.s, un.defaults] }))
+    un.sel.value === "generic" && un.b === "B3mm" && un.s === "S5mm" && !un.issues.length && near(un.defaults, g.defaults), JSON.stringify({ lu: [lu.b, lu.s, lu.size, lu.pages, lu.issues.length, lu.defaults], live, un: [un.sel.value, un.b, un.s, un.defaults] }))
   await tab("Lulu picked")
   const w = await read()
   ok("printer-presets-kit-book: book-lulu shows 2 warnings 12/16.8 400 #8a5a12 with a 12 px icon, 8 px apart, each adding 8 + 16.8 per line",

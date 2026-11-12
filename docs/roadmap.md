@@ -164,6 +164,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [static-export](roadmap/P3/static-export.md) — write `dist/`
 - [ ] [prep] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
 - [x] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
+- [ ] [feature] [publish-core](roadmap/P3/publish-core.md) — Bug: /next-roadmap-item publish-core
 - [ ] [feature] [site-preview-mode-kit](roadmap/P3/site-preview-mode-kit.md) — kit Preview opens the site book page (Designer site-preview-mode item 1)
 - [ ] [feature] [kit-undo-fixes](roadmap/P3/kit-undo-fixes.md) — Bug: /next-roadmap-item kit-undo-fixes
 - [ ] [feature] [publish-credentials](roadmap/P3/publish-credentials.md) — connect the editor to your hosting (Security Review)
@@ -198,6 +199,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [site-final-gl](roadmap/P4/site-final-gl.md) — Bug: /next-roadmap-item site-final-gl
 - [ ] [contingency] [pdf-streaming](roadmap/P4/pdf-streaming.md) — only if `pdf-export` peak memory is too high
 - [ ] [feature] [booklet-imposition](roadmap/P4/booklet-imposition.md) — home printing
+- [ ] [feature] [design-r21-kit-presets](roadmap/P4/design-r21-kit-presets.md) — Bug: /next-roadmap-item design-r21-kit-presets
 - [ ] [feature] [cover-editor-core](roadmap/P4/cover-editor-core.md) — Bug: /next-roadmap-item cover-editor-core
 - [ ] [feature] [cover-editor-kit](roadmap/P4/cover-editor-kit.md) — Bug: /next-roadmap-item cover-editor-kit
 - [ ] [feature] [site-final-home](roadmap/P4/site-final-home.md) — Bug: /next-roadmap-item site-final-home

@@ -46,14 +46,15 @@ export const profileHint = (p: KitProfile) => `${fmtN(p.trimMinMm / 10)}–${fmt
 export const pagesRange = (p: KitProfile): [number, number] => [PAGE_MIN, Math.min(PAGE_MAX, p.pageCount.max)]
 /** The book's custom profiles; #/demo provides the session's, feature pages get the sample. */
 export const PrintCustomsCtx = React.createContext<KitProfile[]>(SAMPLE_CUSTOMS)
-/** Book settings PRINT warnings: unknown profile, page side (cm) out of the trim range, page count out of the profile range. */
+/** Book settings PRINT warnings: unknown profile, page width then height (cm) out of the trim range (one each, like prod's
+    `trim-width` / `trim-height` issues), page count out of the profile range. */
 export function printIssues(id: string | undefined, customs: KitProfile[], size: { w: number; h: number }, pages: number) {
   const p = profileById(id, customs), out: string[] = []
   if (id !== undefined && p.id !== id) out.push("This book’s printer isn’t in this library. Using Generic.")
-  const side = (v: number) => `This page is ${fmtN(v)} cm ${v === size.w ? "wide" : "high"}.`
-  const lo = Math.min(size.w, size.h), hi = Math.max(size.w, size.h)
-  if (lo * 10 < p.trimMinMm) out.push(`${p.name} takes pages from ${fmtN(p.trimMinMm / 10)} cm. ${side(lo)}`)
-  if (hi * 10 > p.trimMaxMm) out.push(`${p.name} takes pages up to ${fmtN(p.trimMaxMm / 10)} cm. ${side(hi)}`)
+  for (const [v, side] of [[size.w, "wide"], [size.h, "high"]] as const) {
+    const limit = v * 10 < p.trimMinMm ? `from ${fmtN(p.trimMinMm / 10)} cm` : v * 10 > p.trimMaxMm ? `up to ${fmtN(p.trimMaxMm / 10)} cm` : ""
+    if (limit) out.push(`${p.name} takes pages ${limit}. This page is ${fmtN(v)} cm ${side}.`)
+  }
   if (pages < p.pageCount.min) out.push(`${p.name} prints at least ${p.pageCount.min} pages; this book’s ${pages} print as ${p.pageCount.min}.`)
   if (pages > p.pageCount.max) out.push(`${p.name} prints up to ${p.pageCount.max} pages. This book has ${pages}.`)
   return out
