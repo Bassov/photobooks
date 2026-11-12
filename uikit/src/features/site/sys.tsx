@@ -4,7 +4,7 @@
    book. A deep link opens at view 1. Data and art come from ./sample, Book3D and the reader from site-book;
    `?books=1|3|6|12|30|100` from site-book/many (the kit page's scenario switch sets it, D35), or `books` (#/demo, K2). */
 import * as React from 'react'
-import { AUTHOR, metaOf, pagesOf, type SiteBook } from './sample'
+import { AUTHOR, SAMPLE_SITE_TEXTS, metaOf, pagesOf, siteLead, type SiteBook, type SiteTexts } from './sample'
 import { reduced, useBox, type Box } from '../site-book/box'
 import { useBooks } from '../site-book/many'
 import { ReadingRoom, roomMode, type RoomKeys } from '../site-book/room'
@@ -12,7 +12,6 @@ import './base.css'
 import './system.css'
 
 export { metaOf, reduced, useBooks, type Box }
-export const LEAD = 'Photographs of lakes, coasts and the people I travel with, made into books.'
 
 export type Grid = { narrow: boolean; M: number; G: number; C: number; cw: number; x: (n: number) => number; span: (n: number) => number }
 /** desktop 12 cols, margin 24, gutter 16; ≤ 640 px 4 cols, 16 / 12 */
@@ -30,7 +29,8 @@ export function Statement({ s }: { s: string }) {
   return <>{s.split('*').map((x, i) => (i % 2 ? <span key={i} className="g">{x}</span> : x))}</>
 }
 
-export type HomeApi = { books: SiteBook[]; box: Box; g: Grid; active: boolean; open: (b: SiteBook) => void; showAll: () => void }
+export type HomeApi = { books: SiteBook[]; box: Box; g: Grid; active: boolean; open: (b: SiteBook) => void; showAll: () => void
+  /** D37: the home lead; null = no lead */ lead: string | null }
 
 /** site-stand-v7 F: the browser bars (html, body, theme-color) take the site's paper colour; restored on leaving */
 function usePaperBars(root: React.RefObject<HTMLDivElement | null>, dark?: boolean) {
@@ -74,10 +74,12 @@ export type SiteProps = {
   roomRef?: React.Ref<RoomKeys>
   /** the editor Preview (D45): the start room only; no "All books", Share or home, the name is plain text */
   preview?: boolean
+  /** Settings → Site (#/demo: the session's); default the sample */
+  texts?: SiteTexts
 }
 
 /** The site shell: home (kept mounted under the room, so the place is kept), the reading room, Head. */
-export function SysSite({ dark, home, books: given, start, roomRef, preview }: SiteProps & { home: (h: HomeApi) => React.ReactNode }) {
+export function SysSite({ dark, home, books: given, start, roomRef, preview, texts = SAMPLE_SITE_TEXTS }: SiteProps & { home: (h: HomeApi) => React.ReactNode }) {
   const sample = useBooks(), books = given ?? sample
   const [root, box] = useBox<HTMLDivElement>()
   const g = gridOf(box)
@@ -143,7 +145,7 @@ export function SysSite({ dark, home, books: given, start, roomRef, preview }: S
   return (
     <div ref={root} className={`ss${dark ? ' ss-dark' : ''}`} data-testid="site" data-books={books.length} data-open={cur?.b.id}>
       <div className="ss-layer" data-off={covered && !peek ? '' : undefined} inert={covered}>
-        {home({ books, box, g, active: !covered, open, showAll: () => setList(true) })}
+        {home({ books, box, g, active: !covered, open, showAll: () => setList(true), lead: siteLead(texts) })}
       </div>
       {list && !cur && (
         <div className="ss-page ss-scroll" data-testid="site-list">

@@ -9,7 +9,7 @@ import * as React from 'react'
 import { Book3D, type Pose } from '../site-book/book3d'
 import { GRAIN } from '../site-book/paper'
 import { AUTHOR, metaOf, type SiteBook } from './sample'
-import { LEAD, SysSite, type HomeApi, type SiteProps } from './sys'
+import { SysSite, type HomeApi, type SiteProps } from './sys'
 import { faceW, rowOf, shelve, type Item } from './shelf'
 import './home.css'
 
@@ -24,7 +24,7 @@ const LEAD_H = 62.4
 /** face-out GL pose (ry 0, elev 6), also on hover: the CSS `.ss9-lean` lifts the book instead (D18) */
 const REST: Pose = { ry: 0, rx: 3.5 }
 
-function Home({ books, box, g, open }: HomeApi) {
+function Home({ books, box, g, open, lead }: HomeApi) {
   const phone = box.narrow
   const k = Math.min(1, box.h / 900)
   // desktop: the hovered / focused book
@@ -36,9 +36,10 @@ function Home({ books, box, g, open }: HomeApi) {
   const CW = phone ? box.w - 2 * g.M : Math.min(g.span(10), 1430)
   let s0 = 9 * k
   // desktop: one shelf (the stand's tallest book, 30 cm) fits under the lead (104 top, two t24 lines, 40 gap) and 72
-  // above the bottom, never below Z: the scale does not depend on the count
+  // above the bottom, never below Z: the scale does not depend on the count; no lead (D37) = the case moves up to 104
   const H1 = TOP + Math.max(30, ...books.map((b) => b.h)) * s0 + 40 + PLINTH
-  const z = phone ? 1 : Math.min(Math.max((box.h - 104 - LEAD_H - 40 - 72) / H1, Z), 14 / 9)
+  const leadH = lead ? LEAD_H + 40 : 0
+  const z = phone ? 1 : Math.min(Math.max((box.h - 104 - leadH - 72) / H1, Z), 14 / 9)
   const avail = CW / z - 2 * (SIDE + PAD)
   // phone: s fits the widest face-out and two spines on a shelf
   if (phone) while (s0 > 4 && Math.max(...books.map((b) => faceW(b, s0, 1))) + 50 > avail) s0 *= 0.96
@@ -52,7 +53,7 @@ function Home({ books, box, g, open }: HomeApi) {
   })
   const caseH = (TOP + (rows.length - 1) * SHELF + PLINTH) * z + rows.reduce((a, r) => a + r.height, 0)
   // phone placement (the desktop case flows under the lead instead); the last plinth stays above a floating browser bar
-  const top = 184
+  const top = lead ? 184 : 72
   const total = Math.max(box.h, top + caseH + 96)
   const leave = (b: SiteBook) => () => setSel((h) => (h === b ? null : h))
   // phone (D32): one tap opens the book
@@ -84,8 +85,8 @@ function Home({ books, box, g, open }: HomeApi) {
       <div className="ss-layer ss-scroll" data-testid="site-home">
         <div style={{ minHeight: box.h, padding: '104px 0 72px', boxSizing: 'border-box' }}>
           <div style={{ width: caseW, margin: '0 auto' }}>
-            <p className="t24" data-testid="site-lead" style={{ maxWidth: 640, margin: 0 }}>{LEAD}</p>
-            <div className="ss9-case" style={{ position: 'relative', marginTop: 40, width: caseW, height: caseH, '--z': z } as React.CSSProperties} data-testid="site-case">
+            {lead && <p className="t24" data-testid="site-lead" style={{ maxWidth: 640, margin: 0 }}>{lead}</p>}
+            <div className="ss9-case" style={{ position: 'relative', marginTop: lead ? 40 : 0, width: caseW, height: caseH, '--z': z } as React.CSSProperties} data-testid="site-case">
               {bays}
               {plinth}
             </div>
@@ -98,7 +99,7 @@ function Home({ books, box, g, open }: HomeApi) {
     <div className="ss-layer ss-scroll" data-testid="site-home">
       <div style={{ position: 'relative', height: total }}>
         <p className="ss-abs m15 w5" style={{ left: g.M, top: 16, margin: 0, lineHeight: '24px' }} data-testid="site-name">{AUTHOR}</p>
-        <p className="ss-abs m19" style={{ left: g.M, top: 72, width: g.span(4), maxWidth: 340 }}>{LEAD}</p>
+        {lead && <p className="ss-abs m19" style={{ left: g.M, top: 72, width: g.span(4), maxWidth: 340 }} data-testid="site-lead">{lead}</p>}
         <div className="ss-abs ss9-case" style={{ left: g.M, top, width: caseW, height: caseH, '--z': z } as React.CSSProperties} data-testid="site-case">
           {bays}
           {plinth}

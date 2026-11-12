@@ -1,5 +1,5 @@
 /* Book art shared by the shelf, the reader and the thumbs: the cover face (copied from library BookObject) and a spread
-   drawn from the kit layout templates (copied from site-photographer SiteSpread). */
+   drawn from the kit layout templates (from the retired photographer-site SiteSpread). */
 import * as React from "react"
 import { T, type Box } from "@/data"
 import { AUTHOR, src, SPREAD_R, type SiteBook } from "./sample"
