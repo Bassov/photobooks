@@ -17,6 +17,9 @@
     "e2e/**/*.{ts,mjs,js}",
     "scripts/**/*.{mjs,js,cjs}"
   ],
+  // The vendored three r170 types: knip resolves the `.js` import, not its
+  // hand-typed `.d.ts`. Drop when site-final-home wires the GL book in.
+  "ignore": ["src/site/book/gl/vendor/three.module.min.d.ts"],
   "ignoreWorkspaces": ["uikit"],
   "ignoreBinaries": ["apt-get", "dpkg-deb"],
   "ignoreDependencies": [
