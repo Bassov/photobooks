@@ -151,6 +151,8 @@ export async function checkConnection(
       headers: request.headers,
       ...(body === undefined ? {} : { body: body as BodyInit }),
       cache: 'no-store',
+      // A redirect would replay the signed request; never follow one.
+      redirect: 'error',
       signal: controller.signal,
     })
   }

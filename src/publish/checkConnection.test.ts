@@ -81,6 +81,7 @@ describe('checkConnection', () => {
     expect(headers['x-amz-date']).toBe('20261112T224000Z')
     expect(calls[1]?.[1]?.body).toBeUndefined()
     expect(calls.every(([, init]) => init?.cache === 'no-store')).toBe(true)
+    expect(calls.every(([, init]) => init?.redirect === 'error')).toBe(true)
     expect(calls.every(([, init]) => init?.signal instanceof AbortSignal)).toBe(
       true,
     )

@@ -21,6 +21,7 @@
 | `src/lib/zod.ts`                              | D6        |
 | `src/lib/zod.test.ts`                         | D6 test   |
 | `src/core/schema.ts`                          | D6 import |
+| `src/core/schema.test.ts`                     | D6 probe  |
 | `src/core/print/profileSchema.ts`             | D6 import |
 | `src/photo/exifSchema.ts`                     | D6 import |
 | `src/project/libraryDocument.ts`              | D6 import |
