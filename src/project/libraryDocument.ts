@@ -1,4 +1,4 @@
-import { z } from '../lib/zod'
+import { z } from 'zod'
 import {
   builtInPrintProfiles,
   DEFAULT_PRINT_PROFILE_ID,

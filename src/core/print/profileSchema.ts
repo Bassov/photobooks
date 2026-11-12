@@ -1,4 +1,4 @@
-import { z } from '../../lib/zod'
+import { z } from 'zod'
 
 export const PRINT_OUTPUTS = ['pages', 'spreads'] as const
 export const PRINT_COLOR_SPACES = ['srgb'] as const
