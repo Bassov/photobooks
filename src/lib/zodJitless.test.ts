@@ -13,6 +13,10 @@ describe('zod under the CSP', () => {
   it('the editor entry imports the config first', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/main.tsx'), 'utf8')
 
-    expect(/^import .*$/m.exec(source)?.[0]).toBe("import './lib/zodJitless'")
+    // Compare the module specifier only: quotes and semicolons vary when a tool
+    // (stryker's instrumenter) reprints the source.
+    const firstImport = /^import\s[^'"]*['"]([^'"]+)['"]/m.exec(source)
+
+    expect(firstImport?.[1]).toBe('./lib/zodJitless')
   })
 })
