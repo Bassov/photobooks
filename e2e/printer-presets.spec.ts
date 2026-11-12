@@ -223,6 +223,26 @@ test('row actions, the Default badge and the delete confirm paint like the kit',
     await expect(button).toHaveCSS('padding', '0px 16px')
   }
   near((await box(confirm)).width, 420, 'confirm w')
+
+  // Round 23: kit destructive = shadow-xs at rest and hover, none pressed;
+  // the ghost Cancel stays unboxed.
+  const del = confirm.getByRole('button', { name: 'Delete' })
+  const cancel = confirm.getByRole('button', { name: 'Cancel' })
+  const XS = 'rgba(20, 20, 19, 0.06) 0px 1px 2px 0px'
+  await expect(del).toHaveCSS('box-shadow', XS)
+  await expect(cancel).toHaveCSS('box-shadow', 'none')
+  const [d, c] = [await box(del), await box(confirm)]
+  const [under, below] = await pixelsAt(confirm, [
+    { x: d.x - c.x + d.width / 2, y: d.y - c.y + d.height + 1 },
+    { x: d.x - c.x + d.width / 2, y: d.y - c.y + d.height + 6 },
+  ])
+  expect(grey(under), 'shadow row under Delete').toBeLessThan(grey(below))
+  await del.hover()
+  await expect(del).toHaveCSS('box-shadow', XS)
+  await page.mouse.down()
+  await expect(del).toHaveAttribute('data-pressed', 'true')
+  await expect(del).toHaveCSS('box-shadow', 'none')
+  await page.mouse.up()
 })
 
 test('a custom profile drives Book settings; picking it is one undo step', async ({
