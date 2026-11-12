@@ -19,6 +19,31 @@
     animation: none;
   }
 }
+/* the lightbox (fixed) passes over the head */
+.sb-room[data-full] {
+  z-index: 40;
+}
+/* Share (D36): "Share" and "Copied" in one grid cell (no width change); Copied stays grey, not the hover ink */
+.sb-share {
+  display: inline-grid;
+  justify-items: end;
+  align-items: center;
+  flex: none;
+  min-height: 44px;
+}
+.sb-share > span {
+  grid-area: 1 / 1;
+}
+.sb-share > span:last-child,
+.sb-share[data-copied] > span:first-child {
+  visibility: hidden;
+}
+.sb-share[data-copied] > span:last-child {
+  visibility: visible;
+}
+.ss .ss-tx.sb-share[data-copied] {
+  color: var(--grey);
+}
 /* foot: title + meta on one line, ellipsis */
 .sb-about {
   flex: 1;

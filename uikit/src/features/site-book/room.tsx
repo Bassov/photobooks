@@ -11,8 +11,12 @@
    Swipe back (D25, phones): a rightward swipe that starts outside the book pulls the room aside and closes it.
    Play (fresh C's auto page-turn, D4): after each turn ends wait 4000 ms and turn; stops at the back cover (portrait: the
    last slide); any key, click or drag (outside Play) and a hidden tab pause it; a 1 px line under the label grows over
-   the dwell. The autoplay lives here, not in reader.tsx: it drives the reader through its `go` API only. */
+   the dwell. The autoplay lives here, not in reader.tsx: it drives the reader through its `go` API only.
+   Share and Fullscreen (personal-site D36): desktop foot right group Share · Fullscreen · Play, gap 24; phones: Share 20
+   left of Play, no Fullscreen. Fullscreen opens the kit lightbox on slide s = view s + 1; closing it rests the room there. */
 import * as React from "react"
+import { Fullscreen } from "../site-viewer"
+import { ENDPAPER, SpreadArt, TitlePage } from "../site/art"
 import { metaOf, pagesOf, SPREAD_R, viewLabel, viewsOf, type SiteBook } from "../site/sample"
 import type { Box } from "./box"
 import { glWanted } from "./gl/three"
@@ -33,7 +37,14 @@ type RoomProps = {
   onClose?: () => void
   /** a swipe back is pulling the room aside: the home layer shows under it */
   onPeek?: (on: boolean) => void
+  /** open with the lightbox at this zoom (kit `site-lightbox` page) */
+  full?: number
+  /** false: no Share (the editor Preview, D45) */
+  share?: boolean
+  ref?: React.Ref<RoomKeys>
 }
+/** the room's page keys for a host that swallows key events (the #/demo Preview); true = handled */
+export type RoomKeys = { key: (k: string) => boolean }
 
 /** desktop reader (site-stand-v7 R): [kx, ky, ty, dx] = the visible GL book's width / W, height / H, top offset / H
    and centre right of the box centre / W, at view 1 (stand-v8: alpha ≥ 200 paint at 1280–1920 wide) */
@@ -43,7 +54,7 @@ const BODY: Record<keyof typeof SPREAD_R, readonly [number, number, number, numb
 /** the CSS reader (`gl=0`, no WebGL 2) paints its whole box */
 const CSS_BODY = [1, 1, 0, 0] as const
 
-export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: RoomProps) {
+export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek, full, share = true, ref }: RoomProps) {
   const root = React.useRef<HTMLDivElement>(null)
   const api = React.useRef<ReaderApi>(null)
   const sapi = React.useRef<SlidesApi>(null)
@@ -61,8 +72,31 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
   const goRef = React.useRef(go)
   goRef.current = go
 
+  // the lightbox: slide s = view s + 1 (the cover opens slide 0, the back cover the last one)
+  const lbN = last - 1, slideAt = (v: number) => Math.min(Math.max(v - 1, 0), lbN - 1)
+  const [lb, setLb] = React.useState<{ i: number; zoom: number } | null>(() => (full === undefined ? null : { i: slideAt(view), zoom: full }))
+  const fsBtn = React.useRef<HTMLButtonElement>(null)
+  const shutLb = () => {
+    if (lb) setView(lb.i + 1)
+    setLb(null)
+    requestAnimationFrame(() => fsBtn.current?.focus())
+  }
+  React.useImperativeHandle(ref, () => ({
+    key: (k) => {
+      if (lb) return false
+      const d = ({ ArrowRight: 1, PageDown: 1, ArrowLeft: -1, PageUp: -1 } as Record<string, number>)[k]
+      if (d) goRef.current(d)
+      else if (k === "Home") { if (port) sapi.current?.jump(0); else setView(0) }
+      else if (k === "End") { if (port) sapi.current?.jump(slides.length - 1); else setView(last - 1) }
+      else return false
+      return true
+    },
+  }))
+
   // open, a new mode (the first render may come before the box is measured) and a reader switch: focus the book, no ring
+  // (not under a start lightbox: it holds the focus)
   React.useEffect(() => {
+    if (root.current?.querySelector('[data-testid="lightbox"]')) return
     root.current?.querySelector<HTMLElement>('[role="region"]')?.focus({ preventScroll: true, focusVisible: false } as FocusOptions)
   }, [mode, rm])
   // a closed cover turns once the fade is done (not in portrait)
@@ -142,7 +176,17 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
       <span className="g" aria-hidden>‹</span>&nbsp;{b.title}
     </button>
   )
-  const roomProps = { ref: root, className: "sb-room", "data-testid": "ss-reader-page", "data-mode": mode, ...swipe }
+  const shareBtn = share && <ShareBtn txt={txt} b={b} />
+  const fullBtn = mode === "desk" && (
+    <button type="button" ref={fsBtn} className={`${txt} g ss-tx`} style={{ minHeight: 44 }} onClick={() => setLb({ i: slideAt(view), zoom: 1 })} data-testid="site-fullscreen-btn">
+      Fullscreen
+    </button>
+  )
+  const lightbox = lb && (
+    <Fullscreen i={lb.i} n={lbN} title={b.title} ratio={R} initialZoom={lb.zoom} label={(i) => viewLabel(b, i + 1)} onClose={shutLb}
+      onGo={(d) => setLb((x) => x && { ...x, i: Math.min(Math.max(x.i + d, 0), lbN - 1) })} render={(i, w) => <LbSlide b={b} i={i} w={w} />} />
+  )
+  const roomProps = { ref: root, className: "sb-room", "data-testid": "ss-reader-page", "data-mode": mode, "data-full": lb ? "" : undefined, ...swipe }
 
   if (port) {
     const g = portGeo(b, box.w, box.h)
@@ -150,20 +194,21 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
     return (
       <div {...roomProps}>
         {/* the rows pass over a curl that overhangs the stage (≤ 24 px) */}
-        <div className="ss-abs" style={{ ...row, left: 16, right: 16, top: g.gt, justifyContent: "space-between", gap: 16, zIndex: 2 }}>
+        <div className="ss-abs" style={{ ...row, left: 16, right: 16, top: g.gt, justifyContent: "space-between", gap: 20, zIndex: 2 }}>
           {back()}
-          {playBtn}
+          <div style={{ ...row, gap: 20, flex: "none" }}>{shareBtn}{playBtn}</div>
         </div>
         {rm === "turn" ? <PageTurn key={rm} {...stage} /> : <Slides key={rm} {...stage} />}
         {/* site-stand-v7 P1: the label only; the mode comes from the hash (no Reader switch) */}
         <div className="ss-abs" style={{ left: 16, right: 16, top: g.footTop, height: 24, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2 }}>{lbl}</div>
+        {lightbox}
       </div>
     )
   }
 
   const reader = (rw: number, left: number, top: number) => (
     <div className="ss-abs" style={{ left, top }} data-testid="site-room" data-view={view}>
-      <BookReader ref={api} b={b} view={view} onView={setView} width={rw} dark={dark} />
+      <BookReader ref={api} b={b} view={view} onView={setView} width={rw} dark={dark} keys={!lb} />
     </div>
   )
 
@@ -177,7 +222,7 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
         {side ? (
           <>
             {back({ position: "absolute", left: 16, top: 8, maxWidth: B - 24, whiteSpace: "normal", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", textAlign: "start" })}
-            <div className="ss-abs" style={{ ...row, right: 16, top: 8 }}>{playBtn}</div>
+            <div className="ss-abs" style={{ ...row, right: 16, top: 8, gap: 20 }}>{shareBtn}{playBtn}</div>
             <div className="ss-abs" style={{ ...row, left: 16, top: bottom }}>{lbl}</div>
           </>
         ) : (
@@ -185,9 +230,10 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
           <div className="ss-abs" style={{ ...row, display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)", columnGap: 16, left: 16, right: 16, top: bottom }}>
             {back({ justifySelf: "start", maxWidth: "100%" })}
             <div style={{ ...row, gap: 24 }}>{lbl}</div>
-            <div style={{ justifySelf: "end" }}>{playBtn}</div>
+            <div style={{ ...row, justifySelf: "end", gap: 20 }}>{shareBtn}{playBtn}</div>
           </div>
         )}
+        {lightbox}
       </div>
     )
   }
@@ -218,8 +264,43 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek }: Ro
       {wide && <div className="ss-abs" style={{ ...row, left: x(0), top: footTop, width: span(4) }}>{about}</div>}
       {pager(footTop, wide ? { left: x(4), width: span(4) } : { left: M, right: M })}
       {wide
-        ? <div className="ss-abs" style={{ ...row, left: x(9), width: span(3), top: footTop, justifyContent: "flex-end" }}>{playBtn}</div>
-        : <div className="ss-abs" style={{ ...row, left: M, right: M, top: footTop + 44 + 16, gap: 16 }}>{about}{playBtn}</div>}
+        ? <div className="ss-abs" style={{ ...row, left: x(9), width: span(3), top: footTop, justifyContent: "flex-end", gap: 24 }}>{shareBtn}{fullBtn}{playBtn}</div>
+        : <div className="ss-abs" style={{ ...row, left: M, right: M, top: footTop + 44 + 16, gap: 16 }}>{about}<div style={{ ...row, gap: 24, flex: "none" }}>{shareBtn}{fullBtn}{playBtn}</div></div>}
+      {lightbox}
+    </div>
+  )
+}
+
+/** Share (D36): the book's link through the system sheet on touch, else the clipboard; "Copied" for 2000 ms in the same
+   grid cell as "Share", so the width never changes */
+function ShareBtn({ txt, b }: { txt: string; b: SiteBook }) {
+  const [copied, setCopied] = React.useState(false)
+  const timer = React.useRef(0)
+  React.useEffect(() => () => clearTimeout(timer.current), [])
+  const url = `https://aleksandr.photos/${b.id}`
+  const share = () => {
+    if (matchMedia("(pointer: coarse)").matches && "share" in navigator) { navigator.share({ title: b.title, url }).catch(() => {}); return }
+    try { navigator.clipboard?.writeText(url).catch(() => {}) } catch { /* no clipboard (file://) */ }
+    setCopied(true)
+    clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <button type="button" className={`${txt} g ss-tx sb-share`} onClick={share} data-copied={copied ? "" : undefined} data-testid="site-share">
+      <span>Share</span>
+      <span aria-live="polite">Copied</span>
+    </button>
+  )
+}
+
+/** lightbox slide i: 0 = endpaper | page 1, then the spreads (the last one: last page | endpaper) */
+function LbSlide({ b, i, w }: { b: SiteBook; i: number; w: number }) {
+  const h = w / SPREAD_R[b.fmt]
+  return (
+    <div className="relative" style={{ width: w, height: h, background: ENDPAPER }}>
+      {i === 0
+        ? <div className="absolute inset-y-0 right-0" style={{ width: w / 2 }}><TitlePage b={b} h={h} /></div>
+        : <SpreadArt b={b} k={i} w={w} />}
     </div>
   )
 }

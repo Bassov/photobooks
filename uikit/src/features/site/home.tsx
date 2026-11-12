@@ -9,12 +9,12 @@ import * as React from 'react'
 import { Book3D, type Pose } from '../site-book/book3d'
 import { GRAIN } from '../site-book/paper'
 import { AUTHOR, metaOf, type SiteBook } from './sample'
-import { LEAD, SysSite, type HomeApi } from './sys'
+import { LEAD, SysSite, type HomeApi, type SiteProps } from './sys'
 import { faceW, rowOf, shelve, type Item } from './shelf'
 import './home.css'
 
-export function PersonalSite() {
-  return <SysSite home={(h) => <Home {...h} />} />
+export function PersonalSite(p: SiteProps) {
+  return <SysSite {...p} home={(h) => <Home {...h} />} />
 }
 
 /** case frame (px at z = 1): sides, top, shelf, plinth; the row padding inside a bay */
