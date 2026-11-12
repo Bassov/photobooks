@@ -8,9 +8,11 @@ import {
   type PublishedRevision,
 } from '../../project'
 import { bookFormatFromTrim } from '../../render/bookObjectLayout'
-import { renderSitePage } from '../renderSitePage'
+import { renderSitePage, siteDataJson } from '../renderSitePage'
+import { siteBookFacts } from '../siteModel'
 import type {
   ImageRef,
+  SiteBookData,
   SiteCatalogBook,
   SiteMeta,
   SitePageAssets,
@@ -137,7 +139,11 @@ function viewerFiles(viewer: SiteViewerBundle): SiteFile[] {
     }
     paths.add(path)
   }
-  for (const path of [viewer.entry, ...(viewer.css ?? [])]) {
+  for (const path of [
+    viewer.entry,
+    ...(viewer.css ?? []),
+    ...(viewer.preload ?? []),
+  ]) {
     if (!paths.has(path)) {
       throw new Error(`Viewer entry not in bundle: ${path}`)
     }
@@ -333,9 +339,40 @@ export async function buildSiteTree(input: SiteExportInput): Promise<SiteTree> {
   const pageAssets = (prefix: string): SitePageAssets => ({
     css: (input.viewer?.css ?? []).map((path) => `${prefix}viewer/${path}`),
     ...(viewerSrc === undefined ? {} : { js: `${prefix}${viewerSrc}` }),
+    ...(input.viewer?.preload === undefined
+      ? {}
+      : {
+          preload: input.viewer.preload.map(
+            (path) => `${prefix}viewer/${path}`,
+          ),
+        }),
   })
 
-  const pages: SiteFile[] = books.map(({ revision, dir }) => {
+  /** Catalog entry with links relative to a page `prefix` away from the root. */
+  const catalogEntry = (
+    { revision, title, dir }: ExportedBook,
+    prefix: string,
+  ): SiteCatalogBook => {
+    const { book } = revision
+    const cover = coverSources(book, assets.sources)
+    return {
+      id: revision.bookId,
+      href: `${prefix}${dir}`,
+      title,
+      pages: pagesOf(book.spreads.length),
+      fmt: bookFormatFromTrim(
+        book.settings.trim.widthMm,
+        book.settings.trim.heightMm,
+      ),
+      cover: cover === undefined ? null : imageRef(cover, prefix, THUMB_PRESET),
+      ink: cover === undefined ? INK_ON_CLOTH : INK_ON_PHOTO,
+      place: 'top',
+      ...siteBookFacts(book, revision.publishedAtMs),
+    }
+  }
+
+  const pages: SiteFile[] = books.flatMap((exportedBook) => {
+    const { revision, dir } = exportedBook
     const { book } = revision
     const hashOf = assetHashes(book)
     const images: Record<string, ImageRef> = {}
@@ -346,42 +383,31 @@ export async function buildSiteTree(input: SiteExportInput): Promise<SiteTree> {
       }
     }
     const cover = coverSources(book, assets.sources)
-    return {
-      path: `${dir}index.html`,
-      bytes: encoder.encode(
-        renderer(
-          {
-            kind: 'book',
-            site,
-            path: dir,
-            catalogHref: BOOK_TO_ROOT,
-            book: siteBook(book),
-            images,
-            ...(cover === undefined
-              ? {}
-              : { ogImage: shareImage(cover, BOOK_TO_ROOT) }),
-          },
-          pageAssets(BOOK_TO_ROOT),
-        ),
-      ),
+    const page = {
+      kind: 'book',
+      site,
+      path: dir,
+      catalogHref: BOOK_TO_ROOT,
+      book: siteBook(book),
+      images,
+      ...(cover === undefined
+        ? {}
+        : { ogImage: shareImage(cover, BOOK_TO_ROOT) }),
+    } as const
+    const data: SiteBookData = {
+      ...page,
+      entry: catalogEntry(exportedBook, BOOK_TO_ROOT),
     }
-  })
-  const catalog: SiteCatalogBook[] = books.map(({ revision, title, dir }) => {
-    const { book } = revision
-    const cover = coverSources(book, assets.sources)
-    return {
-      id: revision.bookId,
-      href: dir,
-      title,
-      pages: pagesOf(book.spreads.length),
-      fmt: bookFormatFromTrim(
-        book.settings.trim.widthMm,
-        book.settings.trim.heightMm,
-      ),
-      cover: cover === undefined ? null : imageRef(cover, '', THUMB_PRESET),
-      ink: cover === undefined ? INK_ON_CLOTH : INK_ON_PHOTO,
-      place: 'top',
-    }
+    return [
+      {
+        path: `${dir}index.html`,
+        bytes: encoder.encode(renderer(page, pageAssets(BOOK_TO_ROOT))),
+      },
+      {
+        path: `${dir}book.json`,
+        bytes: encoder.encode(`${siteDataJson(data)}\n`),
+      },
+    ]
   })
   const firstCover = books
     .map(({ revision }) => coverSources(revision.book, assets.sources))
@@ -394,7 +420,7 @@ export async function buildSiteTree(input: SiteExportInput): Promise<SiteTree> {
           kind: 'catalog',
           site,
           path: '',
-          books: catalog,
+          books: books.map((book) => catalogEntry(book, '')),
           ...(firstCover === undefined
             ? {}
             : { ogImage: shareImage(firstCover, '') }),

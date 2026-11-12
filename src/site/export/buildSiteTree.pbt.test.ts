@@ -16,6 +16,8 @@ import {
 } from './siteExport.test-helpers'
 
 const PBT_RUNS = { numRuns: 1000 }
+/** Two builds per run (each with a `book.json` per book): fewer runs fit the timeout. */
+const ORDER_RUNS = { numRuns: 300 }
 /** 1000 async runs with Web Crypto hashing; parallel `check:fast` load needs headroom. */
 const PBT_TIMEOUT_MS = 60_000
 const PHOTOS = [1, 2, 3, 4, 5, 6].map(photoHash)
@@ -94,7 +96,7 @@ const publishedCases = (books: BookCase[]) =>
   books.filter((book) => book.status === 'published')
 
 describe('buildSiteTree (PBT)', () => {
-  test.prop([scenario, fc.gen()], PBT_RUNS)(
+  test.prop([scenario, fc.gen()], ORDER_RUNS)(
     'output is independent of the input order of books and photos',
     async (generated, g) => {
       // Everything a renderer sees, serialized: renderSitePage is a pure
@@ -150,9 +152,14 @@ describe('buildSiteTree (PBT)', () => {
       )
       expect(text).not.toMatch(/«draft-/)
       expect(text).not.toContain(DRAFT_PHOTO)
-      expect(
-        tree.files.filter((file) => file.path.startsWith('books/')),
-      ).toHaveLength(publishedCases(generated.books).length)
+      for (const name of ['index.html', 'book.json']) {
+        expect(
+          tree.files.filter(
+            (file) =>
+              file.path.startsWith('books/') && file.path.endsWith(`/${name}`),
+          ),
+        ).toHaveLength(publishedCases(generated.books).length)
+      }
       expect(
         new Set(
           tree.files

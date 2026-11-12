@@ -6,6 +6,7 @@ export const SITE_VIEWER_MANIFEST = 'site-viewer.json'
 interface SiteViewerManifest {
   entry: string
   css: string[]
+  preload: string[]
   files: string[]
 }
 
@@ -82,6 +83,7 @@ export async function loadSiteViewerBundle(
   return {
     entry: manifest.entry,
     css: manifest.css,
+    preload: manifest.preload,
     files: [...built, ...referenced],
   }
 }

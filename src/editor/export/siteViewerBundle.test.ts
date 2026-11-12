@@ -25,6 +25,7 @@ function serve(files: Record<string, string>) {
 const MANIFEST = JSON.stringify({
   entry: 'assets/site.js',
   css: ['assets/site.css'],
+  preload: ['fonts/a.woff2'],
   files: ['assets/chunk.js', 'assets/site.css', 'assets/site.js'],
 })
 
@@ -70,6 +71,7 @@ describe('loadSiteViewerBundle', () => {
 
     expect(bundle.entry).toBe('assets/site.js')
     expect(bundle.css).toEqual(['assets/site.css'])
+    expect(bundle.preload).toEqual(['fonts/a.woff2'])
     expect(
       bundle.files.map(({ path, bytes }) => [path, decoder.decode(bytes)]),
     ).toEqual([

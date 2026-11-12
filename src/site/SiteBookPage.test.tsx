@@ -343,7 +343,7 @@ describe('measured layout', () => {
 
     expect(
       screen.getAllByTestId('book-object').map((object) => object.style.height),
-    ).toStrictEqual(['200px', '132px'])
+    ).toStrictEqual(['200px', '132px', '165px'])
   })
 })
 
@@ -355,9 +355,11 @@ describe('SiteCatalog', () => {
     expect(cards.map((card) => card.getAttribute('href'))).toStrictEqual([
       './site.html?book=alps',
       './site.html?book=sea',
+      './site.html?book=lake',
     ])
     expect(cards[1]?.textContent).toContain('6 pages')
-    expect(screen.getByText('A. Photographer · 2 photobooks')).toBeTruthy()
+    expect(cards[2]?.textContent).toContain('8 pages')
+    expect(screen.getByText('A. Photographer · 3 photobooks')).toBeTruthy()
     expect(document.querySelector('[aria-current="page"]')?.textContent).toBe(
       'Sample photobooks',
     )
@@ -365,7 +367,7 @@ describe('SiteCatalog', () => {
       screen
         .getAllByTestId('book-object')
         .map((object) => object.getAttribute('data-format')),
-    ).toStrictEqual(['portrait', 'landscape'])
+    ).toStrictEqual(['portrait', 'landscape', 'square'])
   })
 
   it('says so when nothing is published', () => {

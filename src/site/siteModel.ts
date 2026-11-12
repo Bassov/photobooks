@@ -2,10 +2,13 @@ import type { Book } from '../core'
 // Not the barrel: it would pull the zod schemas into the viewer entry.
 import { getSpreadSizeMm } from '../core/geometry/spreadSize'
 import { pageLabel, pagesOf, pagesText } from '../core/pages'
+import { resolveParentFrames } from '../core/parentSpreads'
+import { displayBookTitle } from '../project/bookTitle'
 import {
   bookObjectWidthForHeight,
   type BookObjectFmt,
 } from '../render/bookObjectLayout'
+import type { SiteBookFacts } from './siteInput'
 
 /** Viewports below this width use the narrow site layout (spec §4). */
 const NARROW_BELOW = 768
@@ -153,4 +156,83 @@ export function bookMeta(author: string | undefined, pages: number): string {
   return author === undefined || author === ''
     ? count
     : `by ${author} · ${count}`
+}
+
+const INK_ON_DARK = '#F1F3F6'
+const INK_ON_LIGHT = '#2E2C2D'
+/** Below this cloth luminance the spine text is light (the stand rule). */
+const DARK_CLOTH_BELOW = 0.23
+const DEFAULT_PAPER = '#FBFAF7'
+/** The stand's `ENDPAPER`; books have no endpaper colour of their own. */
+const ENDPAPER = '#E9E4DA'
+
+/** WCAG relative luminance of an sRGB `#rrggbb`. */
+export function relativeLuminance(hex: string): number {
+  const [r = 0, g = 0, b = 0] = [1, 3, 5].map((at) => {
+    const c = Number.parseInt(hex.slice(at, at + 2), 16) / 255
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+/** D38: the physical book the site shows, from a published revision. */
+export function siteBookFacts(
+  book: Book,
+  publishedAtMs: number,
+): SiteBookFacts {
+  const cloth = book.cover.style.backFill
+  const spineText = book.cover.spine.text.trim()
+  return {
+    year: new Date(publishedAtMs).getUTCFullYear(),
+    trimMm: { w: book.settings.trim.widthMm, h: book.settings.trim.heightMm },
+    pageCount: pagesOf(book.spreads.length),
+    spine: {
+      cloth,
+      ink:
+        relativeLuminance(cloth) < DARK_CLOTH_BELOW
+          ? INK_ON_DARK
+          : INK_ON_LIGHT,
+      text: spineText === '' ? displayBookTitle(book.title) : spineText,
+    },
+    paper: book.settings.pageColor ?? DEFAULT_PAPER,
+    endpaper: ENDPAPER,
+  }
+}
+
+/** One phone slide (D40): a page of spread `spread`, or the whole spread. */
+export interface SiteSlide {
+  spread: number
+  side: 'left' | 'right' | 'both'
+}
+
+/**
+ * Phone slides (D40): a slide per page with a frame on it (parent frames
+ * included), blank pages skipped; a two-page spread is one `both` slide
+ * when a frame crosses the gutter. Endpapers are not spreads.
+ */
+export function siteSlides(book: Book): SiteSlide[] {
+  const { widthMm: pageW, heightMm: pageH } = book.settings.trim
+  return book.spreads.flatMap((spread, index): SiteSlide[] => {
+    const rects = resolveParentFrames(book, spread).map(
+      ({ frame }) => frame.rect,
+    )
+    const on = (x0: number, x1: number) =>
+      rects.some(
+        (r) =>
+          r.x < x1 && r.x + r.width > x0 && r.y < pageH && r.y + r.height > 0,
+      )
+    if (getSpreadSizeMm(book, index).pageCount === 1) {
+      const side = index === 0 ? 'right' : 'left'
+      return on(0, pageW) ? [{ spread: index, side }] : []
+    }
+    if (on(pageW, pageW)) {
+      return [{ spread: index, side: 'both' }]
+    }
+    return [
+      ...(on(0, pageW) ? [{ spread: index, side: 'left' as const }] : []),
+      ...(on(pageW, 2 * pageW)
+        ? [{ spread: index, side: 'right' as const }]
+        : []),
+    ]
+  })
 }

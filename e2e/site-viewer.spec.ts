@@ -92,8 +92,8 @@ test.describe('site viewer', () => {
 
     const catalog = page.getByTestId('site-catalog')
     await expect(catalog.getByRole('heading', { name: 'Books' })).toBeVisible()
-    await expect(catalog).toContainText('A. Photographer · 2 photobooks')
-    await expect(page.getByTestId('site-book')).toHaveCount(2)
+    await expect(catalog).toContainText('A. Photographer · 3 photobooks')
+    await expect(page.getByTestId('site-book')).toHaveCount(3)
     await expect(page).toHaveTitle('Sample photobooks')
 
     await page.getByTestId('site-book').first().click()
