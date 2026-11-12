@@ -38,11 +38,18 @@ function resolveImport(from: string, specifier: string): string | undefined {
   )
 }
 
+/** Relative or alias-looking specifiers the walk could not follow. */
+const unresolved: string[] = []
+
 function importsOf(path: string): string[] {
   if (!/\.tsx?$/.test(path)) return []
   const text = readFileSync(path, 'utf8')
   return [...text.matchAll(SPECIFIER)].flatMap((match) => {
-    const target = resolveImport(path, match[1] ?? '')
+    const specifier = match[1] ?? ''
+    const target = resolveImport(path, specifier)
+    if (target === undefined && /^(\.|\/|@\/|~|#|src\/)/.test(specifier)) {
+      unresolved.push(`${relative(ROOT, path)}: ${specifier}`)
+    }
     return target === undefined ? [] : [target]
   })
 }
@@ -85,6 +92,8 @@ describe('publish credentials import boundary', () => {
       relative(ROOT, path),
     )
     expect(chain).toEqual([])
+    // An alias or unresolved path would hide an edge from this walk.
+    expect(unresolved).toEqual([])
     expect(chains.size).toBeGreaterThan(sourcesUnder(SITE_DIR).length)
   })
 })

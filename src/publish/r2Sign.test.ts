@@ -196,6 +196,26 @@ describe('signRequest (AWS SigV4 test vectors)', () => {
     expect(await sign('?a=1&a=3&a-b=0&b=0')).not.toEqual(sorted)
   })
 
+  it.each(['bad:name', 'x\nx-amz-date', 'Host', 'authorization', ''])(
+    'refuses to sign header name %j',
+    async (name) => {
+      await expect(
+        signRequest(
+          {
+            method: 'GET',
+            url: new URL('https://example.amazonaws.com/'),
+            headers: { [name]: 'v' },
+            payloadHash: EMPTY_SHA256,
+            amzDate: SUITE.amzDate,
+            region: SUITE.region,
+            service: SUITE.service,
+          },
+          SUITE_KEYS,
+        ),
+      ).rejects.toThrow(/^Invalid header name to sign: /)
+    },
+  )
+
   it('folds header value whitespace and lowercases names', async () => {
     const base = {
       method: 'GET',
@@ -239,6 +259,34 @@ describe('r2ObjectUrl', () => {
   it('builds the path-style account endpoint, encoding each key segment', () => {
     expect(r2ObjectUrl(TARGET, 'books/a b/x$(1)*.avif').href).toBe(
       'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com/my-site/books/a%20b/x%24%281%29%2A.avif',
+    )
+  })
+
+  it.each(['', '/a', 'a/', 'a//b', '.', 'a/./b', '..', 'a/../../other/x'])(
+    'refuses key %j (would leave the bucket path)',
+    (key) => {
+      expect(() => r2ObjectUrl(TARGET, key)).toThrow(/^Invalid object key: /)
+    },
+  )
+
+  it.each(['evil.com/?', 'evil.com#', '0123456789ABCDEF0123456789ABCDEF', ''])(
+    'refuses account id %j (would change the host)',
+    (accountId) => {
+      expect(() => r2ObjectUrl({ ...TARGET, accountId }, 'k')).toThrow(
+        'Invalid R2 account ID',
+      )
+    },
+  )
+
+  it.each(['a/b', 'My-Site', 'x?', '..'])('refuses bucket %j', (bucket) => {
+    expect(() => r2ObjectUrl({ ...TARGET, bucket }, 'k')).toThrow(
+      'Invalid R2 bucket name',
+    )
+  })
+
+  it('keeps dotted names inside a segment', () => {
+    expect(r2ObjectUrl(TARGET, '.well-known/a..b').pathname).toBe(
+      '/my-site/.well-known/a..b',
     )
   })
 })

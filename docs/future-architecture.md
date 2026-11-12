@@ -262,7 +262,9 @@ Token safety (`src/publish/`, tests in `src/publish/*.test.ts`):
 - Stored only in the editor origin's IndexedDB (`photobooks-secrets`); never in the library folder, book files, localStorage or URLs.
 - Never in exported or published files (leak PBT over the site export); the site viewer never imports the store (import-boundary test).
 - Strict CSP: `connect-src` limited to the account's R2 endpoint, no third-party scripts in the editor (lands with `publish-credentials`).
-- Never logged; errors name fields only and pass through `redact()`.
+- Never logged; validation errors name fields only; `redact()` scrubs upload error text (wired in with `in-app-publish`).
+- Signed requests only reach `<accountId>.r2.cloudflarestorage.com/<bucket>/`: the account id, bucket and object key (no empty, `.` or `..` segment) are re-checked before signing.
+- The editor never serves the personal site from its own origin (an XSS there could read the store).
 
 Owner actions before publish work starts (none done in the spike): Cloudflare account with R2 enabled, a domain on Cloudflare DNS, bucket + custom domain + CORS policy, a bucket-scoped token.
 

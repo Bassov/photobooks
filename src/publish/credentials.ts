@@ -5,6 +5,8 @@
  * `accountId` and `bucket` may appear in messages.
  */
 
+import { ACCOUNT_ID_PATTERN, BUCKET_PATTERN } from './r2Sign'
+
 export interface R2Credentials {
   /** Cloudflare account id: 32 lowercase hex. */
   accountId: string
@@ -27,11 +29,11 @@ const FORMATS: Record<
   { pattern: RegExp; message: string }
 > = {
   accountId: {
-    pattern: /^[0-9a-f]{32}$/,
+    pattern: ACCOUNT_ID_PATTERN,
     message: 'Account ID must be 32 lowercase hex characters',
   },
   bucket: {
-    pattern: /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/,
+    pattern: BUCKET_PATTERN,
     message:
       'Bucket must be 3–63 lowercase letters, digits or hyphens, starting and ending with a letter or digit',
   },

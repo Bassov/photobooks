@@ -82,6 +82,10 @@ function canonicalQuery(url: URL): string {
     .join('&')
 }
 
+const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/
+/** Set by the signer from `url` / the signature itself. */
+const RESERVED_HEADERS = new Set(['host', 'authorization'])
+
 /**
  * Signed headers for `request`: its own headers, `host`, `x-amz-date` and
  * `Authorization`. `host` is signed but left out of the result (`fetch` sets it).
@@ -92,7 +96,12 @@ export async function signRequest(
 ): Promise<Record<string, string>> {
   const headers = new Map<string, string>()
   for (const [name, value] of Object.entries(request.headers)) {
-    headers.set(name.toLowerCase(), value.trim().replace(/\s+/g, ' '))
+    const lower = name.toLowerCase()
+    // An HTTP token only: `:` or a line break would forge canonical lines.
+    if (!HEADER_NAME.test(name) || RESERVED_HEADERS.has(lower)) {
+      throw new Error(`Invalid header name to sign: ${name}`)
+    }
+    headers.set(lower, value.trim().replace(/\s+/g, ' '))
   }
   headers.set('x-amz-date', request.amzDate)
   headers.set('host', request.url.host)
@@ -156,11 +165,29 @@ export interface R2SignedRequest {
   headers: Record<string, string>
 }
 
-/** Object URL on the account's R2 S3 endpoint (path style). */
+/** Cloudflare account id: 32 lowercase hex. */
+export const ACCOUNT_ID_PATTERN = /^[0-9a-f]{32}$/
+/** R2 bucket name: 3–63 of `a-z 0-9 -`, letter or digit at both ends. */
+export const BUCKET_PATTERN = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/
+
+/**
+ * Object URL on the account's R2 S3 endpoint (path style). Throws on an
+ * account id or bucket that could move the signed request to another host,
+ * and on a key with an empty, `.` or `..` segment (it would leave the bucket).
+ */
 export function r2ObjectUrl(target: R2Target, key: string): URL {
-  const path = key.split('/').map(uriEncode).join('/')
+  if (!ACCOUNT_ID_PATTERN.test(target.accountId)) {
+    throw new Error('Invalid R2 account ID')
+  }
+  if (!BUCKET_PATTERN.test(target.bucket)) {
+    throw new Error('Invalid R2 bucket name')
+  }
+  const segments = key.split('/')
+  if (segments.some((segment) => ['', '.', '..'].includes(segment))) {
+    throw new Error(`Invalid object key: ${key}`)
+  }
   return new URL(
-    `https://${target.accountId}.r2.cloudflarestorage.com/${uriEncode(target.bucket)}/${path}`,
+    `https://${target.accountId}.r2.cloudflarestorage.com/${target.bucket}/${segments.map(uriEncode).join('/')}`,
   )
 }
 
