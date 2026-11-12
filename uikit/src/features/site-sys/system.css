@@ -1,0 +1,270 @@
+/* site-sys (Designer system.md + spec-sys.md, demos 6–9): one family, Inter Display (Inter variable with the opsz axis, OFL,
+   ../../fonts/LICENSE-Inter-OFL.txt); type 13 / 16 / 24 / 44 / 110 (phone 15 / 19 / 28 / 52); two weights 400 / 500; three
+   interface colours (bg, ink, grey) + a line; 12-col grid 24 / 16 (phone 4 cols 16 / 12); two eases. No caps, mono, italic. */
+@font-face {
+  font-family: 'Sys Inter Display';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('../../fonts/inter-opsz.woff2') format('woff2-variations');
+}
+
+.ss {
+  --bg: #f4f3f0;
+  --ink: #141414;
+  --grey: #6f6f6b;
+  --line: rgb(20 20 20 / 0.12);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --sys-font: 'Sys Inter Display', system-ui, sans-serif;
+  /* the cover title (CoverFace .sd-it): 500, −0.025em, min(w, h) × .1 */
+  --cover-k: 0.1;
+  --cover-ls: -0.025em;
+  /* what the demo-1 reader, Book3D and art read */
+  --site-paper: #ffffff;
+  --site-ink: #1a1918;
+  --site-muted: #605b54;
+  --site-serif: var(--sys-font);
+  --site-serif-it: var(--sys-font);
+  --site-sans: var(--sys-font);
+  --site-ease: var(--ease-out);
+  --site-turn: cubic-bezier(0.45, 0.05, 0.25, 1);
+  /* the open book (Spec site-stand S2): contact, near and a long soft fall */
+  --site-shadow-book:
+    0 1px 2px rgb(0 0 0 / 0.18), 0 2px 6px rgb(0 0 0 / 0.08),
+    0 40px 70px -30px rgb(0 0 0 / 0.45);
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sys-font);
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  font-variation-settings: 'opsz' 14;
+  -webkit-font-smoothing: antialiased;
+  font-kerning: normal;
+}
+.ss.ss-dark {
+  --bg: #111110;
+  --ink: #eceae6;
+  --grey: #8f8d88;
+  --line: rgb(236 234 230 / 0.14);
+}
+.ss :where(button) {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: inherit;
+}
+.ss :where(a) {
+  color: inherit;
+  text-decoration: none;
+}
+.ss :where(button, a, [tabindex]):focus {
+  outline: none;
+}
+.ss :where(button, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+.ss .sd-reader:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 8px;
+}
+.ss em,
+.ss i {
+  font-style: normal;
+}
+.ss .sd-it {
+  font-family: var(--sys-font);
+  font-style: normal;
+  font-weight: 500;
+  font-variation-settings: 'opsz' 32;
+  text-align: left;
+}
+.ss .b3-spine-t {
+  font-weight: 500;
+  font-variation-settings: 'opsz' 14;
+  letter-spacing: -0.01em;
+}
+/* Book3D: 0.5 s ease-out; the pose comes from the demo (no default tilt) */
+.ss .sd-b3,
+.ss .sd-b3-cover,
+.ss .sd-floor {
+  transition-duration: 500ms;
+  transition-timing-function: var(--ease-out);
+}
+.ss .sd-pose {
+  --ry: 0;
+  --rx: 0;
+  --lift: 0;
+  --peek: 0;
+}
+
+/* type */
+.t13 {
+  font-size: 13px;
+  line-height: 1.45;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.t16 {
+  font-size: 16px;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+}
+.t24 {
+  font-size: 24px;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  font-variation-settings: 'opsz' 32;
+}
+.t44 {
+  font-size: 44px;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  font-variation-settings: 'opsz' 32;
+}
+.t110 {
+  font-size: 110px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variation-settings: 'opsz' 32;
+}
+.m15 {
+  font-size: 15px;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+}
+.m19 {
+  font-size: 19px;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  font-variation-settings: 'opsz' 32;
+}
+.m28 {
+  font-size: 28px;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  font-variation-settings: 'opsz' 32;
+}
+.m52 {
+  font-size: 52px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variation-settings: 'opsz' 32;
+}
+.ss .g {
+  color: var(--grey);
+}
+.ss .w5 {
+  font-weight: 500;
+}
+.ss .u {
+  text-decoration: underline 1px;
+  text-underline-offset: 4px;
+}
+/* text hover: grey → ink, 0.2 s */
+.ss .ss-tx {
+  transition: color 200ms var(--ease);
+}
+.ss .ss-tx:hover,
+.ss .ss-tx[aria-current],
+.ss .ss-tx[aria-pressed="true"] {
+  color: var(--ink);
+}
+.ss button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.ss-abs {
+  position: absolute;
+}
+
+/* head */
+.ss-head {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  align-items: baseline;
+}
+.ss-head nav {
+  margin-left: auto;
+  display: flex;
+  gap: 24px;
+}
+.ss-switch {
+  position: absolute;
+  z-index: 31;
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  gap: 8px;
+  color: var(--grey);
+}
+.ss-switch a[aria-current] {
+  color: var(--ink);
+}
+.ss-menu {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: var(--bg);
+  animation: ss-in 300ms var(--ease-out) both;
+}
+.ss-menu-list button {
+  display: block;
+  min-height: 44px;
+}
+
+/* pages */
+.ss-layer {
+  position: absolute;
+  inset: 0;
+}
+.ss-layer[data-off] {
+  visibility: hidden;
+}
+.ss-page {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: var(--bg);
+  animation: ss-in 500ms var(--ease-out) both;
+}
+.ss-scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.ss-fade {
+  transition: opacity 240ms var(--ease-out);
+}
+.ss-fade[data-off] {
+  opacity: 0;
+  pointer-events: none;
+}
+.ss-host {
+  display: block;
+}
+@keyframes ss-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ss .sd-b3,
+  .ss .sd-b3-cover,
+  .ss .sd-floor {
+    transition: none;
+  }
+}
