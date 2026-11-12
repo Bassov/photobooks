@@ -1,7 +1,12 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolveSpread } from '../core'
-import { makeBookWithAsset } from '../core/testing/fixtures'
+import {
+  makeBook,
+  makeBookWithAsset,
+  makeFrame,
+  makeSpread,
+} from '../core/testing/fixtures'
 import { SpreadView, type FrameImage } from './SpreadView'
 import assert from 'node:assert/strict'
 
@@ -39,7 +44,7 @@ describe('SpreadView imageFor', () => {
     cleanup()
   })
 
-  it('paints the srcset source with the frame width, on a single page too', () => {
+  it('paints the srcset source with an uncropped frame’s width, on a single page too', () => {
     const spread = resolved()
     const frame = spread.items[0]
     assert(frame !== undefined, 'expected one frame')
@@ -55,6 +60,43 @@ describe('SpreadView imageFor', () => {
     expect(img.getAttribute('srcset')).toBe('a-400.jpg 400w, a-2000.jpg 2000w')
     expect(img.getAttribute('sizes')).toBe('380px')
     expect(img.getAttribute('loading')).toBe('lazy')
+  })
+
+  it('asks for the drawn width of a landscape photo in a portrait frame', () => {
+    const book = makeBook({
+      assets: { 'asset-1': {} },
+      gallery: ['asset-1'],
+      spreads: [
+        makeSpread({
+          frames: [
+            makeFrame({
+              rect: { x: 10, y: 10, width: 100, height: 150 },
+              assetId: 'asset-1',
+            }),
+          ],
+        }),
+      ],
+    })
+    const spread = resolveSpread(book, 'spread-1', {
+      getAspectRatio: () => 3 / 2,
+    })
+    assert(spread !== undefined, 'expected resolved spread')
+    const imageFor = vi.fn<(assetId: string, widthMm: number) => FrameImage>(
+      () => SITE_IMAGE,
+    )
+
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={spread}
+        previewUrlFor={previewUrlFor}
+        imageFor={imageFor}
+      />,
+    )
+
+    // Filled 150 mm high, a 3:2 photo is drawn 225 mm wide, not 100.
+    const [, widthMm] = imageFor.mock.lastCall ?? []
+    expect(widthMm).toBeCloseTo(225, 6)
   })
 
   it('leaves loading to the browser when the source sets none', () => {
