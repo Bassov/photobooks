@@ -205,6 +205,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [cover-editor-core](roadmap/P4/cover-editor-core.md) — Bug: /next-roadmap-item cover-editor-core
 - [ ] [feature] [cover-editor-kit](roadmap/P4/cover-editor-kit.md) — Bug: /next-roadmap-item cover-editor-kit
 - [ ] [feature] [site-final-home](roadmap/P4/site-final-home.md) — Bug: /next-roadmap-item site-final-home
+- [ ] [feature] [site-final-room](roadmap/P4/site-final-room.md) — Bug: /next-roadmap-item site-final-room
 - [ ] [feature] [cover-editor](roadmap/P4/cover-editor.md) — cover in the editor
 
 ## P5 — Others make their own personal site
