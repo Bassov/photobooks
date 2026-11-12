@@ -4,10 +4,6 @@ import { getSpreadSizeMm } from '../core/geometry/spreadSize'
 import { pageLabel, pagesOf, pagesText } from '../core/pages'
 import { resolveParentFrames } from '../core/parentSpreads'
 import { displayBookTitle } from '../project/bookTitle'
-import {
-  bookObjectWidthForHeight,
-  type BookObjectFmt,
-} from '../render/bookObjectLayout'
 import type { SiteBookFacts } from './siteInput'
 
 /** Viewports below this width use the narrow site layout (spec §4). */
@@ -15,8 +11,6 @@ const NARROW_BELOW = 768
 /** Widest stage, and the stage width the server renders at. */
 export const STAGE_MAX = 760
 const STAGE_MIN = 280
-const CATALOG_MAX = 1100
-const BOOK_OBJECT_MAX_H = 200
 /**
  * Book page height around the stage: header + top pad + title block + stage
  * margin + pager margin + pager + bottom pad (wide 94.85 title block; narrow
@@ -79,26 +73,6 @@ function sidePad(vw: number): number {
   return isNarrow(vw) ? 20 : 32
 }
 
-/** Catalog columns by content width (spec §3). */
-export function catalogColumns(contentW: number): 2 | 3 | 4 {
-  if (contentW >= 940) return 4
-  if (contentW >= 680) return 3
-  return 2
-}
-
-/** Catalog column width at viewport width `vw`. */
-export function catalogColumnWidth(vw: number): number {
-  const content = Math.min(CATALOG_MAX, vw) - 2 * sidePad(vw)
-  const cols = catalogColumns(content)
-  const gap = isNarrow(vw) ? 20 : 32
-  return Math.max(0, (content - gap * (cols - 1)) / cols)
-}
-
-/** Book object height: as tall as fits the column, at most 200. */
-export function bookObjectHeight(colW: number, fmt: BookObjectFmt): number {
-  return Math.min(BOOK_OBJECT_MAX_H, colW / bookObjectWidthForHeight(1, fmt))
-}
-
 /**
  * Stage width: at most 760, the content width and the height left for the
  * spread; at least 280 unless the content is narrower. Without the "All
@@ -143,11 +117,21 @@ export function siteTitle(title: string): string {
   return title.trim() === '' ? 'Photobooks' : title
 }
 
-/** Catalog meta line under "Books". */
-export function catalogMeta(author: string | undefined, books: number): string {
-  if (books === 0) return 'No published books yet.'
-  const count = `${String(books)} photobook${books === 1 ? '' : 's'}`
-  return author === undefined || author === '' ? count : `${author} · ${count}`
+/** The home's head (D37): the author, else the site title. */
+export function homeHead(site: { title: string; author?: string }): string {
+  const author = site.author?.trim() ?? ''
+  return author === '' ? siteTitle(site.title) : author
+}
+
+/** The home's lead (D37): the intro, else `Photobooks by {author}.`, else none. */
+export function homeLead(site: {
+  author?: string
+  intro?: string
+}): string | undefined {
+  const intro = site.intro?.trim() ?? ''
+  if (intro !== '') return intro
+  const author = site.author?.trim() ?? ''
+  return author === '' ? undefined : `Photobooks by ${author}.`
 }
 
 /** Book meta line under the title. */

@@ -128,7 +128,44 @@ describe('renderSitePage', () => {
     ).toBe('website')
     expect(
       doc.querySelector('meta[name="description"]')?.getAttribute('content'),
-    ).toBe('A. Photographer · 3 photobooks')
+    ).toBe('Travel books from three summers, printed and bound by hand.')
+    expect(
+      doc.querySelector('meta[name="theme-color"]')?.getAttribute('content'),
+    ).toBe('#f4f3f0')
+    expect(
+      [...doc.querySelectorAll('noscript a')].map((a) =>
+        a.getAttribute('href'),
+      ),
+    ).toStrictEqual([
+      './site.html?book=alps',
+      './site.html?book=sea',
+      './site.html?book=lake',
+    ])
+  })
+
+  it('writes the home description from the author without an intro, and no noscript list when empty', () => {
+    const input = sampleSiteInput('?empty=1')
+    const doc = parse(
+      renderSitePage(
+        { ...input, site: { title: 'T', author: 'Alex' } },
+        { css: [] },
+      ),
+    )
+
+    expect(
+      doc.querySelector('meta[name="description"]')?.getAttribute('content'),
+    ).toBe('Photobooks by Alex.')
+    expect(doc.querySelector('noscript')).toBeNull()
+  })
+
+  it('keeps the grey bars on a book page', () => {
+    const doc = parse(
+      renderSitePage(sampleSiteInput('?book=alps'), { css: [] }),
+    )
+
+    expect(
+      doc.querySelector('meta[name="theme-color"]')?.getAttribute('content'),
+    ).toBe('#E1E1E1')
   })
 
   it('escapes `<` in #site-data so a title never closes the script', () => {

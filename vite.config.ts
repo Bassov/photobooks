@@ -91,6 +91,12 @@ export default defineConfig({
     },
     ...(withE2eCoverage ? { sourcemap: true as const } : {}),
   },
+  experimental: {
+    // Lazy chunks (the site home's GL books) and their preload deps resolve
+    // from the importing chunk, so an exported site finds them under viewer/.
+    renderBuiltUrl: (_file: string, { hostType }: { hostType: string }) =>
+      hostType === 'js' ? { relative: true } : undefined,
+  },
   server: {
     headers: { ...isolationHeaders },
   },

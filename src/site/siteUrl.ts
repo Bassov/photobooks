@@ -26,6 +26,28 @@ export function pageHref(href: string): string {
   return `./${keep(href, PATH_CHARS)}`
 }
 
+/**
+ * Image URL from page data (`#site-data`): a path on this site (relative or
+ * root-relative), never a scheme or another host, so a tampered page cannot
+ * load from elsewhere or reach a `javascript:` / `data:` URL.
+ */
+export function imageSrc(src: string): string {
+  const kept = keep(src, PATH_CHARS)
+  return kept.startsWith('//') ? `.${kept}` : kept
+}
+
+/** `search` reduced to the `keys` it may carry, values kept to path characters. */
+export function keptQuery(search: string, keys: readonly string[]): string {
+  const params = new URLSearchParams(search)
+  const kept = new URLSearchParams()
+  for (const key of keys) {
+    const value = params.get(key)
+    if (value !== null) kept.set(key, keep(value, PATH_CHARS))
+  }
+  const query = kept.toString()
+  return query === '' ? '' : `?${query}`
+}
+
 function parseUrl(text: string): URL | undefined {
   try {
     return new URL(text)

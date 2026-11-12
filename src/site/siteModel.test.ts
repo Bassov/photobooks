@@ -2,12 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { pagesOf } from '../core/pages'
 import {
   bookMeta,
-  bookObjectHeight,
-  catalogColumns,
-  catalogColumnWidth,
-  catalogMeta,
   frameSizes,
   hashForSlide,
+  homeHead,
+  homeLead,
   isNarrow,
   siteTitle,
   slideCount,
@@ -76,25 +74,6 @@ describe('hash', () => {
 describe('layout', () => {
   it('is narrow below 768', () => {
     expect([767, 768].map(isNarrow)).toStrictEqual([true, false])
-  })
-
-  it('picks catalog columns by content width', () => {
-    expect([939, 940, 679, 680].map(catalogColumns)).toStrictEqual([3, 4, 2, 3])
-  })
-
-  it.each([
-    [1440, 235],
-    [1024, 216],
-    [768, 640 / 3],
-    [390, 165],
-  ])('catalog column at %i is %d wide', (vw, col) => {
-    expect(catalogColumnWidth(vw)).toBeCloseTo(col, 6)
-  })
-
-  it('sizes the book object to the column, at most 200 tall', () => {
-    expect(bookObjectHeight(235, 'portrait')).toBe(200)
-    expect(bookObjectHeight(235, 'landscape')).toBe(188)
-    expect(bookObjectHeight(165, 'square')).toBe(165)
   })
 
   it.each([
@@ -166,11 +145,17 @@ describe('text', () => {
     expect(siteTitle('Alex')).toBe('Alex')
   })
 
-  it('writes the catalog meta line', () => {
-    expect(catalogMeta('Alex', 2)).toBe('Alex · 2 photobooks')
-    expect(catalogMeta(undefined, 1)).toBe('1 photobook')
-    expect(catalogMeta('', 2)).toBe('2 photobooks')
-    expect(catalogMeta('Alex', 0)).toBe('No published books yet.')
+  it('heads the home with the author, else the site title (D37)', () => {
+    expect(homeHead({ title: 'Site', author: ' Alex ' })).toBe('Alex')
+    expect(homeHead({ title: 'Site', author: '  ' })).toBe('Site')
+    expect(homeHead({ title: '' })).toBe('Photobooks')
+  })
+
+  it('leads with the intro, else Photobooks by the author, else none (D37)', () => {
+    expect(homeLead({ author: 'Alex', intro: ' Lakes. ' })).toBe('Lakes.')
+    expect(homeLead({ author: 'Alex', intro: ' ' })).toBe('Photobooks by Alex.')
+    expect(homeLead({ author: ' ' })).toBeUndefined()
+    expect(homeLead({})).toBeUndefined()
   })
 
   it('writes the book meta line', () => {
