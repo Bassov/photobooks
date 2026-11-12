@@ -492,7 +492,8 @@ await smoke("v6 Home: no New book tile; covers in a row share a baseline", "rece
 // ---------- v0.6.0 ----------
 const walk6 = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walk6(`${d}/${e.name}`) : /\.(tsx?|css)$/.test(e.name) ? [`${d}/${e.name}`] : [])
 { // no blue anywhere: hue scan of every hex / rgb literal in src css + tsx, blue Tailwind classes, retired accent
-  const all = walk6(new URL("../src", import.meta.url).pathname)
+  // features/site/sample*: book cloth colours of the personal-site sample books are content, like the photos (Spec site-awards)
+  const all = walk6(new URL("../src", import.meta.url).pathname).filter((f) => !/\/features\/site\/sample/.test(f))
   const hue = (r, g, b) => { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (d < 24) return null; let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; return h < 0 ? h + 360 : h }
   const bad = []
   for (const f of all) {
@@ -627,7 +628,8 @@ await page.goto(url + "#/"); await page.waitForTimeout(400)
         const paper = /bg-paper|bg-white|shadow-(thumb|stage|hairline)|\bspread\b/.test(cls) || e.closest('[data-testid="spread"],[data-testid="site"],.site,[class*="shadow-thumb"],[class*="bg-paper"],[class*="shadow-stage"]') || e.style.background || e.style.backgroundColor || /swatch|handle|cursor-/.test(cls + (e.getAttribute("data-testid") ?? ""))
         return paper ? [] : [["W", k, (e.getAttribute("data-testid") || cls).slice(0, 50)]]
       }
-      const tinted = !(r === g && g === b) && Math.max(r, g, b) - Math.min(r, g, b) <= 14 && Math.min(r, g, b) >= 112
+      // the personal site's paper (rgb 244 243 240, page stock) is site content (Spec personal-site D34)
+      const tinted = !(r === g && g === b) && Math.max(r, g, b) - Math.min(r, g, b) <= 14 && Math.min(r, g, b) >= 112 && !e.closest('[data-testid="site"]')
       return tinted ? [["T", k, (e.getAttribute("data-testid") || cls).slice(0, 50)]] : []
     }))
     for (const [w, k, s] of r) { if (w === "W") white.push(`${h} ${s}`); else if (!CONTENT.has(k)) tint.push(`${h} ${k} ${s}`) }

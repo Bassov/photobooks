@@ -182,14 +182,19 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [preflight-core](roadmap/P4/preflight-core.md) — pure preflight
 - [ ] [prep] [pdf-painter](roadmap/P4/pdf-painter.md) — worker PDF painter (Security Review: dependency)
 - [ ] [feature] [roadmap-status-sync-2](roadmap/P4/roadmap-status-sync-2.md) — Bug: /next-roadmap-item roadmap-status-sync-2
+- [ ] [feature] [personal-site-kit-port](roadmap/P4/personal-site-kit-port.md) — Bug: /next-roadmap-item personal-site-kit-port
 - [ ] [feature] [design-r21-presets-actions](roadmap/P4/design-r21-presets-actions.md) — Bug: /next-roadmap-item design-r21-presets-actions
 - [ ] [feature] [library-leave-flake](roadmap/P4/library-leave-flake.md) — Bug: /next-roadmap-item library-leave-flake
+- [ ] [feature] [design-r22-crop-srcset](roadmap/P4/design-r22-crop-srcset.md) — Bug: /next-roadmap-item design-r22-crop-srcset
 - [ ] [feature] [kit-preview-fold-strip](roadmap/P4/kit-preview-fold-strip.md) — Bug: /next-roadmap-item kit-preview-fold-strip
+- [ ] [feature] [design-r21-profile-fields](roadmap/P4/design-r21-profile-fields.md) — Bug: /next-roadmap-item design-r21-profile-fields
 - [ ] [prep] [pdf-color-tagging](roadmap/P4/pdf-color-tagging.md) — keep photo colors
 - [ ] [feature] [pdf-export](roadmap/P4/pdf-export.md) — print PDF
 - [ ] [feature] [lightbox-timer-leak](roadmap/P4/lightbox-timer-leak.md) — Bug: /next-roadmap-item lightbox-timer-leak
 - [ ] [feature] [static-export-viewer](roadmap/P4/static-export-viewer.md) — Bug: /next-roadmap-item static-export-viewer
 - [ ] [prep] [pdf-captions](roadmap/P4/pdf-captions.md) — text in the PDF
+- [ ] [feature] [site-final-painter](roadmap/P4/site-final-painter.md) — Bug: /next-roadmap-item site-final-painter
+- [ ] [feature] [site-final-gl](roadmap/P4/site-final-gl.md) — Bug: /next-roadmap-item site-final-gl
 - [ ] [contingency] [pdf-streaming](roadmap/P4/pdf-streaming.md) — only if `pdf-export` peak memory is too high
 - [ ] [feature] [booklet-imposition](roadmap/P4/booklet-imposition.md) — home printing
 - [ ] [feature] [design-r21-kit-presets](roadmap/P4/design-r21-kit-presets.md) — Bug: /next-roadmap-item design-r21-kit-presets
