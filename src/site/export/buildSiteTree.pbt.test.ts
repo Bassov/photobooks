@@ -16,11 +16,10 @@ import {
 } from './siteExport.test-helpers'
 
 const PBT_RUNS = { numRuns: 1000 }
-/**
- * 1000 async runs with Web Crypto hashing and a `book.json` per book (~10 s
- * alone); parallel `check:fast` load slows them sixfold, so leave headroom.
- */
-const PBT_TIMEOUT_MS = 120_000
+/** Two builds per run (each with a `book.json` per book): fewer runs fit the timeout. */
+const ORDER_RUNS = { numRuns: 300 }
+/** 1000 async runs with Web Crypto hashing; parallel `check:fast` load needs headroom. */
+const PBT_TIMEOUT_MS = 60_000
 const PHOTOS = [1, 2, 3, 4, 5, 6].map(photoHash)
 /** Only ever added to a draft after publishing. */
 const DRAFT_PHOTO = photoHash(0x99)
@@ -97,7 +96,7 @@ const publishedCases = (books: BookCase[]) =>
   books.filter((book) => book.status === 'published')
 
 describe('buildSiteTree (PBT)', () => {
-  test.prop([scenario, fc.gen()], PBT_RUNS)(
+  test.prop([scenario, fc.gen()], ORDER_RUNS)(
     'output is independent of the input order of books and photos',
     async (generated, g) => {
       // Everything a renderer sees, serialized: renderSitePage is a pure

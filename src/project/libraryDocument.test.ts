@@ -307,8 +307,6 @@ describe('library document', () => {
       const doc = { ...extra, schemaVersion: version }
       expect(parseLibrary(doc)).toEqual({ ok: true, meta: EMPTY })
     },
-    // 1000 arbitrary JSON documents: ~1 s alone, over 5 s in a full parallel run.
-    30_000,
   )
 
   test.prop(
