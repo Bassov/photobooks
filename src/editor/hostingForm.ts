@@ -49,6 +49,16 @@ const HOST_NAME =
   /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/
 const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i
 
+/**
+ * Path, query and fragment as typed (`\` read as `/`). `URL#pathname` drops
+ * dot segments, so `host/.` would otherwise pass as a bare host.
+ */
+function rawPath(value: string): string {
+  const rest = value.replace(HAS_SCHEME, '')
+  const at = rest.search(/[/\\?#]/)
+  return at === -1 ? '' : rest.slice(at).replace(/\\/g, '/')
+}
+
 function parseUrl(value: string): URL | undefined {
   try {
     return new URL(value)
@@ -77,7 +87,7 @@ function parseEndpoint(value: string): EndpointParse {
   ) {
     return { kind: 'none' }
   }
-  const path = url.pathname.replace(/^\//, '').replace(/\/$/, '')
+  const path = rawPath(value).replace(/^\//, '').replace(/\/$/, '')
   if (path === '') return { kind: 'endpoint', accountId: host[1] ?? '' }
   return BUCKET_PATTERN.test(path)
     ? { kind: 'endpoint', accountId: host[1] ?? '', bucket: path }
@@ -139,7 +149,7 @@ function siteAddressError(value: string): string | undefined {
   if (url.hostname === 'r2.dev' || url.hostname.endsWith('.r2.dev')) {
     return HOSTING_MESSAGES.r2dev
   }
-  if (url.pathname !== '/' || /[?#]/.test(value)) return HOSTING_MESSAGES.path
+  if (!['', '/'].includes(rawPath(value))) return HOSTING_MESSAGES.path
   return undefined
 }
 

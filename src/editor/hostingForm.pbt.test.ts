@@ -83,6 +83,24 @@ describe('hostingFieldError examples', () => {
     ['publicBaseUrl', 'https://books.example.com/?a=1', HOSTING_MESSAGES.path],
     ['publicBaseUrl', 'https://books.example.com/#top', HOSTING_MESSAGES.path],
     ['publicBaseUrl', 'https://books.example.com?', HOSTING_MESSAGES.path],
+    // PBT counterexample: URL#pathname drops dot segments.
+    ['publicBaseUrl', 'a.aa/.', HOSTING_MESSAGES.path],
+    [
+      'publicBaseUrl',
+      'https://books.example.com/site/..',
+      HOSTING_MESSAGES.path,
+    ],
+    ['publicBaseUrl', 'books.example.com\\site', HOSTING_MESSAGES.path],
+    [
+      'accountId',
+      `https://${ACCOUNT}.r2.cloudflarestorage.com/.`,
+      HOSTING_MESSAGES.accountId,
+    ],
+    [
+      'accountId',
+      `https://${ACCOUNT}.r2.cloudflarestorage.com/b-1/..`,
+      HOSTING_MESSAGES.accountId,
+    ],
     ['publicBaseUrl', 'https://pub-1a2b.r2.dev', HOSTING_MESSAGES.r2dev],
     ['publicBaseUrl', 'r2.dev', HOSTING_MESSAGES.r2dev],
     ['publicBaseUrl', 'ftp://books.example.com', HOSTING_MESSAGES.siteAddress],
@@ -138,6 +156,13 @@ describe('setHostingField examples', () => {
         `https://${ACCOUNT}.r2.cloudflarestorage.com`,
       ),
     ).toEqual({ ...EMPTY_HOSTING_INPUT, accountId: ACCOUNT })
+    expect(
+      setHostingField(
+        EMPTY_HOSTING_INPUT,
+        'accountId',
+        `https://${ACCOUNT}.r2.cloudflarestorage.com/./my-books`,
+      ).accountId,
+    ).toBe(`https://${ACCOUNT}.r2.cloudflarestorage.com/./my-books`)
   })
 
   it('leaves an unparsed account value trimmed only', () => {
