@@ -45,8 +45,8 @@ const onSite = (site: RootInit["site"], entry: "catalog" | "book" = "catalog"): 
 }
 const settingsAt = (section: SettingsSection, s: Partial<SessionState> = {}, print?: PrintInit, hosting?: HostingInit) =>
   root({ session: { stage: "settings", path: PATH, books: SHELF(), back: "library", ...s }, settings: { section, print, hosting } })
-/* publish-credentials: a valid draft (the secret is a made-up sample) and the hosting seeds */
-const DRAFT: HostingDraft = { account: SAMPLE_HOSTING.accountId, bucket: SAMPLE_HOSTING.bucket, key: "7c1e04b9a2f35d8e6b0c9a41f7e29f2c", secret: "5e".repeat(32), url: SAMPLE_HOSTING.publicBaseUrl }
+/* publish-credentials: a valid draft (key and secret are low-entropy fakes) and the hosting seeds */
+const DRAFT: HostingDraft = { account: SAMPLE_HOSTING.accountId, bucket: SAMPLE_HOSTING.bucket, key: `${"ab".repeat(14)}9f2c`, secret: "5e".repeat(32), url: SAMPLE_HOSTING.publicBaseUrl }
 const hostingAt = (s: Partial<SessionState>, h?: HostingInit) => settingsAt("hosting", s, undefined, h)
 /* editor seeds (EditorView = the #/demo editor with an explicit studio state) */
 const ed = (p: React.ComponentProps<typeof EditorView>) => () => <EditorView book={LAKE_BOOK} {...p} />

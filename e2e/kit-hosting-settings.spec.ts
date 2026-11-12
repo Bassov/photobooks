@@ -8,7 +8,8 @@ import { pixelsAt } from './fixtures/paintProbe'
 
 const KIT = '/uikit/#/full/site-settings'
 const ACCOUNT = '0f3a9c51e2b74d0a8c66f1e9d3b241c2'
-const KEY = '7c1e04b9a2f35d8e6b0c9a41f7e29a7b'
+// Low-entropy fakes (gitleaks): still 32 / 64 hex, the key ends in 9a7b.
+const KEY = `${'cd'.repeat(14)}9a7b`
 const SECRET = 'd4c3b2a1'.repeat(8)
 
 test.use({ viewport: { width: 1440, height: 900 } })
