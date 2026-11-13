@@ -8,3 +8,5 @@
 
 1. Editor → Preview: the room of the open book under the 48 px bar; no "All books", no Share; the title is plain text.
 2. Fullscreen opens the lightbox; Esc closes the lightbox, a second Esc closes the preview.
+
+manual-qa: 1. problem (harness): `start-session` click intercepted by the welcome header, never reached the editor. 2. problem (harness): same. Evidence instead: `e2e/site-preview-mode.spec.ts` 6/6 locally (room, D45 controls, paint, Fullscreen → lightbox, Esc order, inert editor keys).
