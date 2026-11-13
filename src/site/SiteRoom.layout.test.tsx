@@ -7,10 +7,7 @@ import { bookInput, id, px, stubBox } from './siteRoom.test-helpers'
 // alps 380 / 230, sea 560 / 210, lake 2).
 
 const gl = vi.hoisted(() => ({ wanted: false }))
-vi.mock('./book/gl/three', async (real) => ({
-  ...(await real<typeof import('./book/gl/three')>()),
-  glWanted: () => gl.wanted,
-}))
+vi.mock('./book/glWanted', () => ({ glWanted: () => gl.wanted }))
 vi.mock('./book/roomGl', () => ({
   openReaderGl: () => new Promise(() => undefined),
 }))

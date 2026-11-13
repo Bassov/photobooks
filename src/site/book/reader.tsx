@@ -24,7 +24,7 @@ import {
 } from 'react'
 import { spreadRatio, spreadSide, viewLabel } from '../siteModel'
 import { CoverFace, PageFace, type RoomBook } from '../SiteSlide'
-import { glWanted } from './gl/three'
+import { glWanted } from './glWanted'
 import { EASE, TURN } from './motion'
 import {
   backShell,

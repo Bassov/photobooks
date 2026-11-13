@@ -21,7 +21,7 @@ import {
 import { slideOfView } from '../siteModel'
 import type { PageCurl } from './gl/curl'
 import type { FaceSource } from './gl/faces'
-import { glWanted } from './gl/three'
+import { glWanted } from './glWanted'
 import { EASE, sheetOf, xmEnd } from './motion'
 import { slideKey } from './roomLayout'
 import { Paper, type SlidesApi, type SlidesProps } from './slides'

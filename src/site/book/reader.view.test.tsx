@@ -26,10 +26,7 @@ import { paperLayers } from './slidesGeo'
 // callbacks queue until `frame(t)` runs them at performance.now() = t.
 
 const gl = vi.hoisted(() => ({ wanted: false, open: vi.fn() }))
-vi.mock('./gl/three', async (real) => ({
-  ...(await real<typeof import('./gl/three')>()),
-  glWanted: () => gl.wanted,
-}))
+vi.mock('./glWanted', () => ({ glWanted: () => gl.wanted }))
 vi.mock('./roomGl', () => ({ openReaderGl: gl.open }))
 
 const RB: RoomBook = (() => {

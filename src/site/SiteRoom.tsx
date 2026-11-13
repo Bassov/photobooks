@@ -18,7 +18,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react'
-import { glWanted } from './book/gl/three'
+import { glWanted } from './book/glWanted'
 import { BookReader, type ReaderApi } from './book/reader'
 import { portGeo, roomMode } from './book/roomLayout'
 import { Slides, type SlidesApi } from './book/slides'

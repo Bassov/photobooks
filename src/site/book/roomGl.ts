@@ -1,18 +1,20 @@
 /*
  * The room's WebGL books (Designer D39–D41), loaded lazily with three: the
  * desktop reader's `OpenBook` and the phone page turn's `PageCurl`, both over
- * pages painted by `createFaceSource` from the site's photos.
+ * pages painted by `createFaceSource` from the site's photos. `OpenBook` and
+ * `PageCurl` load on demand: a static import would fold the shared
+ * `gl/closed` into a common chunk instead of its own lazy entry.
  */
 import type { Book } from '../../core'
 import { resolveParentFrames } from '../../core/parentSpreads'
 import type { PageImage } from '../../render/pagePainter'
 import type { ImageRef, SiteCatalogBook } from '../siteInput'
-import { glInput, photoOf } from './book3dGl'
-import { PageCurl, type CurlSheet } from './gl/curl'
+import type { CurlSheet, PageCurl } from './gl/curl'
 import { createFaceSource, type FaceSource } from './gl/faces'
-import { OpenBook } from './gl/open'
+import type { OpenBook } from './gl/open'
 import { drawInto, loadThree, type Three } from './gl/three'
 import { glBook, type GlBook } from './gl/types'
+import { glInput, photoOf } from './glCover'
 
 export interface RoomGlInput {
   entry: SiteCatalogBook
@@ -88,7 +90,10 @@ export interface ReaderGlBook {
 
 /** The desktop reader's open book (the leaf bends). */
 export async function openReaderGl(i: RoomGlInput): Promise<ReaderGlBook> {
-  const { T, b, faces } = await glOf(i)
+  const [{ T, b, faces }, { OpenBook }] = await Promise.all([
+    glOf(i),
+    import('./gl/open'),
+  ])
   const book = new OpenBook(T, b, { dark: false, bend: true, pagePx: i.pagePx })
   return {
     book,
@@ -106,6 +111,9 @@ export async function openCurlGl(
   pw: number,
   ph: number,
 ): Promise<{ curl: PageCurl; faces: FaceSource }> {
-  const { T, b, faces } = await glOf(i)
+  const [{ T, b, faces }, { PageCurl }] = await Promise.all([
+    glOf(i),
+    import('./gl/curl'),
+  ])
   return { curl: new PageCurl(T, b, sheets, i.pagePx, pw, ph), faces }
 }

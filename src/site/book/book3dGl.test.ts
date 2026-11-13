@@ -1,14 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sampleSiteInput } from '../sampleSite'
 import type { SiteCatalogBook } from '../siteInput'
-import {
-  backPanel,
-  drawHomeBook,
-  FACE_OUT,
-  frontPanel,
-  glInput,
-  spinePanel,
-} from './book3dGl'
+import { drawHomeBook, FACE_OUT } from './book3dGl'
+import { backPanel, frontPanel, glInput, spinePanel } from './glCover'
 import {
   fakeCanvas2d,
   fakeThree,

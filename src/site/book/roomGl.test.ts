@@ -14,8 +14,8 @@ const gl = vi.hoisted(() => ({
   made: [] as [string, unknown[]][],
 }))
 
-vi.mock('./book3dGl', async (real) => ({
-  ...(await real<typeof import('./book3dGl')>()),
+vi.mock('./glCover', async (real) => ({
+  ...(await real<typeof import('./glCover')>()),
   photoOf: gl.photo,
 }))
 vi.mock('./gl/three', async (real) => ({

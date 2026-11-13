@@ -9,10 +9,7 @@ const gl = vi.hoisted(() => ({
   wanted: false,
   open: vi.fn(),
 }))
-vi.mock('./gl/three', async (real) => ({
-  ...(await real<typeof import('./gl/three')>()),
-  glWanted: () => gl.wanted,
-}))
+vi.mock('./glWanted', () => ({ glWanted: () => gl.wanted }))
 vi.mock('./roomGl', () => ({ openCurlGl: gl.open }))
 
 const rad = (d: number) => (d * Math.PI) / 180
