@@ -192,7 +192,6 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [design-r18-kit-toggle](roadmap/P4/design-r18-kit-toggle.md) — Bug: /next-roadmap-item design-r18-kit-toggle
 - [ ] [prep] [preflight-core](roadmap/P4/preflight-core.md) — pure preflight
 - [ ] [prep] [pdf-painter](roadmap/P4/pdf-painter.md) — worker PDF painter (Security Review: dependency)
-- [ ] [prep] [pdf-frame-looks](roadmap/P4/pdf-frame-looks.md) — PDF frame looks (stroke, mat, radius)
 - [ ] [feature] [roadmap-status-sync-2](roadmap/P4/roadmap-status-sync-2.md) — Bug: /next-roadmap-item roadmap-status-sync-2
 - [ ] [feature] [design-r23-delete-shadow](roadmap/P4/design-r23-delete-shadow.md) — Bug: /next-roadmap-item design-r23-delete-shadow
 - [ ] [feature] [personal-site-kit-port](roadmap/P4/personal-site-kit-port.md) — Bug: /next-roadmap-item personal-site-kit-port
