@@ -55,8 +55,9 @@ export function PreviewSlide({
 }
 
 /**
- * Preview site: the site's book page of the current book (nothing published)
- * in the preview frame's scroll box, sized by that box. Opens on the cover.
+ * Preview site: the reading room of the current book (nothing published) in
+ * the preview frame's box, sized by that box: no home, "All books" or Share,
+ * the head name is plain text (D45). Opens on the cover.
  */
 export default function SitePreview({ onExit }: { onExit: () => void }) {
   const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)

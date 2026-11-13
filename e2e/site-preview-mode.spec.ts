@@ -3,7 +3,7 @@ import { expect, test } from './fixtures/coverage'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { addSpreads } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
-import { topAt } from './fixtures/paintProbe'
+import { pixelsAt, topAt } from './fixtures/paintProbe'
 import {
   browserAssertNoLoaf,
   browserBeginLoafScenarioWindow,
@@ -111,6 +111,8 @@ test('Preview opens the site book room of the current book on the cover (1440 ×
   await expect(site.getByTestId('site-name')).toHaveCount(0)
   await expect(site.getByTestId('site-all-books')).toHaveCount(0)
   await expect(site.getByTestId('site-share')).toHaveCount(0)
+  // The head name is plain text: nothing in the room links away.
+  await expect(site.getByTestId('site-room').locator('a')).toHaveCount(0)
   const play = await box(site.getByTestId('site-play'))
   near(play.y, 846, 'foot y')
   near(play.height, 44, 'foot h')
@@ -137,9 +139,33 @@ test('Preview opens the site book room of the current book on the cover (1440 ×
   ).toHaveCount(0)
   await next(page)
   await expect(site.getByTestId('site-label')).toHaveText(/^Page 1 of \d+$/)
-  await expect(
-    site.getByTestId('ps-reader').getByTestId('spread-view').first(),
-  ).toBeVisible()
+  const spread = site
+    .getByTestId('ps-reader')
+    .getByTestId('spread-view')
+    .first()
+  await expect(spread).toBeVisible()
+  // Paint: every probe on the page under the bar shows paper, not the room's
+  // background (light paper on a light room: ~20 RGB apart).
+  const sb = await box(spread)
+  const probe = [{ x: 8, y: 8 }].concat(
+    [0.25, 0.5, 0.75].flatMap((fx) =>
+      [0.3, 0.5, 0.7].map((fy) => ({
+        x: sb.x + sb.width * fx - room.x,
+        y: sb.y + sb.height * fy - room.y,
+      })),
+    ),
+  )
+  const [bg = [], ...pagePx] = await pixelsAt(
+    site.getByTestId('site-room'),
+    probe,
+  )
+  const off = pagePx.map((px) =>
+    px.slice(0, 3).reduce((s, v, i) => s + Math.abs(v - (bg[i] ?? 0)), 0),
+  )
+  expect(
+    Math.min(...off),
+    `page vs room ${JSON.stringify(off)}`,
+  ).toBeGreaterThan(10)
   await page.keyboard.press('End')
   await expect(site.getByTestId('site-label')).toHaveText('Back cover')
   await page.keyboard.press('Home')

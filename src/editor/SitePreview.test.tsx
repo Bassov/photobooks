@@ -23,12 +23,12 @@ function load(): void {
   })
 }
 
-/** Scroll box 1440 × 852 under a window too short for any stage. */
-function stubLayout(): void {
-  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1440)
+/** Scroll box `w` × `h` (1440 × 852) under a window too short for any stage. */
+function stubLayout(w = 1440, h = 852): void {
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(w)
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(
     function (this: HTMLElement) {
-      return this.dataset.testid === 'site-room' ? 852 : 100
+      return this.dataset.testid === 'site-room' ? h : 100
     },
   )
 }
@@ -66,7 +66,7 @@ afterEach(() => {
 })
 
 describe('SitePreview', () => {
-  it('renders the unpublished site book page of the live book', () => {
+  it('renders the unpublished reading room of the live book', () => {
     stubLayout()
     render(<SitePreview onExit={vi.fn()} />)
     const scroll = screen.getByTestId('site-preview-scroll')
@@ -77,10 +77,23 @@ describe('SitePreview', () => {
     expect(screen.queryByTestId('site-name')).toBeNull()
     expect(screen.queryByTestId('site-all-books')).toBeNull()
     expect(screen.queryByTestId('site-share')).toBeNull()
+    // Nothing in the room links away.
+    expect(room.querySelector('a')).toBeNull()
     expect(screen.getByTestId('site-fullscreen-btn')).toBeTruthy()
     // The live book's own renderers: the CSS reader, never GL.
     expect(screen.queryByTestId('ps-reader-gl')).toBeNull()
     expect(indicator()).toBe('Cover')
+  })
+
+  it.each([
+    ['portrait', 390, 796],
+    ['landscape', 844, 342],
+  ])('a %s box heads the room with the plain book name', (_, w, h) => {
+    stubLayout(w, h)
+    render(<SitePreview onExit={vi.fn()} />)
+    const head = screen.getByText('Lake trip', { selector: '.sb-back' })
+    expect(head.tagName).toBe('SPAN')
+    expect(screen.getByTestId('site-room').querySelector('a')).toBeNull()
   })
 
   it('steps with the keys and follows book edits', () => {
