@@ -7,12 +7,17 @@
 
 import {
   createCredentialStore,
-  redact,
   validateCredentials,
   type CheckCode,
   type HostingStatus,
   type R2Credentials,
 } from './credentials'
+import {
+  classifyR2Failure,
+  r2FailureMessage,
+  s3ErrorCode,
+  type R2FailureInput,
+} from './r2Errors'
 import { r2Request, type R2RequestInput } from './r2Sign'
 
 export const CHECK_TIMEOUT_MS = 15_000
@@ -42,17 +47,16 @@ export interface CheckDeps {
 
 export type CheckMode = 'connect' | 'recheck'
 
-const KEY_CODES = ['InvalidAccessKeyId', 'SignatureDoesNotMatch']
+/** Fields to ring red per failure code. */
+const FIELDS: Partial<Record<CheckCode, readonly CheckField[]>> = {
+  key: ['accessKeyId', 'secretAccessKey'],
+  bucket: ['accountId', 'bucket'],
+}
 
 function defaultRandomHex(): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(4)), (byte) =>
     byte.toString(16).padStart(2, '0'),
   ).join('')
-}
-
-/** The S3 error `Code`, only when it is a plain identifier. */
-function s3Code(body: string): string | undefined {
-  return /<Code>([A-Za-z0-9]{1,64})<\/Code>/.exec(body)?.[1]
 }
 
 function clock(deps: CheckDeps): () => Date {
@@ -62,12 +66,17 @@ function clock(deps: CheckDeps): () => Date {
 type Failure = Extract<CheckResult, { ok: false }>
 
 function failure(
-  code: CheckCode,
-  message: string,
+  input: R2FailureInput,
   credentials: R2Credentials,
-  fields: readonly CheckField[] = [],
+  mode: CheckMode,
 ): Failure {
-  return { ok: false, code, message: redact(message, credentials), fields }
+  const classified = classifyR2Failure(input)
+  return {
+    ok: false,
+    code: classified.code,
+    message: r2FailureMessage(classified, credentials, mode, CHECK_TIMEOUT_MS),
+    fields: FIELDS[classified.code] ?? [],
+  }
 }
 
 async function responseFailure(
@@ -75,40 +84,8 @@ async function responseFailure(
   credentials: R2Credentials,
   mode: CheckMode,
 ): Promise<Failure> {
-  const code = s3Code(await response.text().catch(() => ''))
-  const { status } = response
-  const { bucket } = credentials
-  if (status === 403 && code !== undefined && KEY_CODES.includes(code)) {
-    return failure(
-      'key',
-      mode === 'connect'
-        ? "Cloudflare doesn't recognise this key. Check the access key ID and secret."
-        : "Cloudflare doesn't recognise this key. It may have been deleted or rolled. Replace the token.",
-      credentials,
-      ['accessKeyId', 'secretAccessKey'],
-    )
-  }
-  if (status === 403 && code === 'AccessDenied') {
-    return failure(
-      'denied',
-      `This token can't write to “${bucket}”. Give it Object Read & Write on this bucket.`,
-      credentials,
-    )
-  }
-  if (status === 404 && code === 'NoSuchBucket') {
-    return failure(
-      'bucket',
-      `There's no bucket “${bucket}” in this account.`,
-      credentials,
-      ['accountId', 'bucket'],
-    )
-  }
-  const answer = [String(status), code].filter(Boolean).join(' ')
-  return failure(
-    'other',
-    `Cloudflare answered ${answer}. Check the values and try again.`,
-    credentials,
-  )
+  const s3Code = await response.text().then(s3ErrorCode, () => undefined)
+  return failure({ status: response.status, s3Code }, credentials, mode)
 }
 
 /**
@@ -169,24 +146,11 @@ export async function checkConnection(
     if (!remove.ok) return await responseFailure(remove, credentials, mode)
     return { ok: true }
   } catch {
-    if (controller.signal.aborted) {
-      return failure(
-        'timeout',
-        "Cloudflare didn't answer in 15 seconds. Try again.",
-        credentials,
-      )
-    }
-    return isOnline()
-      ? failure(
-          'cors',
-          'Cloudflare blocked the upload from this page. Add the CORS policy from step 3, then try again.',
-          credentials,
-        )
-      : failure(
-          'offline',
-          "You're offline. Connect to the internet and try again.",
-          credentials,
-        )
+    return failure(
+      { timedOut: controller.signal.aborted, online: isOnline() },
+      credentials,
+      mode,
+    )
   } finally {
     clearTimeout(timer)
   }

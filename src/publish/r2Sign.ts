@@ -150,12 +150,14 @@ export interface R2Target extends SigV4Keys {
 }
 
 export interface R2RequestInput {
-  method: 'PUT' | 'HEAD' | 'DELETE'
+  method: 'GET' | 'PUT' | 'HEAD' | 'DELETE'
   /** Object key, `/`-separated, no leading `/`. */
   key: string
   /** PUT only. */
   body?: Uint8Array
   contentType?: string
+  /** PUT only: stored as the object's `Cache-Control`, signed. */
+  cacheControl?: string
   now: Date
 }
 
@@ -203,6 +205,9 @@ export async function r2Request(
   }
   if (input.contentType !== undefined) {
     headers['content-type'] = input.contentType
+  }
+  if (input.cacheControl !== undefined) {
+    headers['cache-control'] = input.cacheControl
   }
   return {
     method: input.method,

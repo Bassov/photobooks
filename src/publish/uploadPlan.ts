@@ -16,7 +16,7 @@ export type UploadStep =
 type FileKind = 'asset' | 'json' | 'html'
 
 /** Upload order: pages go up only after everything they reference. */
-const KIND_ORDER: readonly FileKind[] = ['asset', 'json', 'html']
+export const KIND_ORDER: readonly FileKind[] = ['asset', 'json', 'html']
 
 export function fileKind(key: string): FileKind {
   if (key.endsWith('.html')) return 'html'
