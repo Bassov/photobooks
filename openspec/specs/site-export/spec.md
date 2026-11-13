@@ -95,7 +95,7 @@ The editor top bar SHALL show an "Export site" pill (after Settings, before Publ
 
 ### Requirement: Site settings in export and publish
 
-Export site and Publish SHALL build every page from the library's `site` settings (title, else "Photobooks"; author; intro; theme). Publish SHALL add the canonical `url` from Hosting's `publicBaseUrl` without a trailing slash; Export to a folder has no url. Without site settings the output SHALL equal the title-only default.
+Export site and Publish SHALL build every page from the library's `site` settings (title, else "Photobooks"; author; intro). Publish SHALL add the canonical `url` from Hosting's `publicBaseUrl` without a trailing slash; Export to a folder has no url. Without site settings the output SHALL equal the title-only default.
 
 #### Scenario: Exported home uses the site settings
 

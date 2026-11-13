@@ -380,7 +380,7 @@ describe('runExportSite', () => {
     const book = bookWithHash('open', HASH_A, 'Lake')
     await storage.createBook(book)
     await storage.updateLibrary({
-      site: { title: 'Alps', author: 'Ann', theme: 'dark' },
+      site: { title: 'Alps', author: 'Ann' },
     })
     const run = runDeps([{ done: { books: 1, files: 1, bytes: 1 } }], {
       book,
@@ -393,7 +393,6 @@ describe('runExportSite', () => {
     expect(post.request.input.site).toStrictEqual({
       title: 'Alps',
       author: 'Ann',
-      theme: 'dark',
     })
   })
 

@@ -125,9 +125,6 @@ export function parseSiteSettings(input: unknown): SiteSettings | undefined {
       site[key] = text
     }
   }
-  if (input.theme === 'light' || input.theme === 'dark') {
-    site.theme = input.theme
-  }
   return Object.keys(site).length === 0 ? undefined : site
 }
 

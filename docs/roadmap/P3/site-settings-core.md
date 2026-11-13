@@ -7,9 +7,9 @@ Status: done
 
 ## Scope
 
-The data core of Settings → Site (no UI) from the Designer Spec `site-settings` (S2–S7, § Prod changes Core + store + Export / publish). Item 2 of 4; the theme CSS / GL and the Settings UI are later items.
+The data core of Settings → Site (no UI) from the Designer Spec `site-settings` (S2–S7, § Prod changes Core + store + Export / publish). Item 2 of 4; the Settings UI is a later item. The site theme (S5, S6) was dropped by the Owner (2026-11-13): one light look, no `theme` field.
 
-- [x] C1 `src/project/types.ts` `LibraryMeta.site?: { title?, author?, intro?, theme?: 'light' | 'dark' }`, parsed in the `library.json` reader (unknown theme → absent; strings trimmed, inner whitespace collapsed, clipped to 80 / 80 / 160, empty → absent); `src/site/siteInput.ts` `SiteMeta.theme?`; `src/site/siteModel.ts` `siteMetaOf(meta, url?)` (S3: title "Photobooks", lead via `homeLead`); unit / PBT for clip, unknown theme, empty → absent and round trip
+- [x] C1 `src/project/types.ts` `LibraryMeta.site?: { title?, author?, intro? }`, parsed in the `library.json` reader (strings trimmed, inner whitespace collapsed, clipped to 80 / 80 / 160, empty → absent, other fields dropped); `src/site/siteModel.ts` `siteMetaOf(meta, url?)` (S3: title "Photobooks", lead via `homeLead`); unit / PBT for clip, empty → absent and round trip
 - [x] C2 `src/editor/siteSettingsStore.ts` (shape of `printProfilesStore.ts`): bind / get / subscribe / `setSiteSettings(patch)`, read-modify-write queue, no write when unchanged, the S2 failure status, `?siteSettings=` test seed gated like `seedPrintProfilesFromQuery`; `siteSettingsStore.test.ts` covers queue order, failure status and no write when unchanged
 - [x] C3 `exportSiteRun.ts` sends `site: siteMetaOf(frozen.meta)`, `startPublish.ts` `siteMetaOf(frozen.meta, publicBaseUrl)` (S7); an exported site from a library with site meta has its `<title>` and lead text, without site meta the output is unchanged ("Photobooks")
 - **Done when:** C1–C3 green

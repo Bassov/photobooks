@@ -71,12 +71,7 @@ function writeTo(target: LibraryStorage) {
 }
 
 function sameSettings(a: SiteSettings, b: SiteSettings): boolean {
-  return (
-    a.title === b.title &&
-    a.author === b.author &&
-    a.intro === b.intro &&
-    a.theme === b.theme
-  )
+  return a.title === b.title && a.author === b.author && a.intro === b.intro
 }
 
 /** Normalises `next` and commits it unless it equals the stored settings. */
@@ -150,7 +145,7 @@ export function setSiteSettings(patch: SiteSettingsPatch): void {
 }
 
 /**
- * Test / dev seam: `?siteSettings=<JSON>` (`{"title":"…","theme":"dark"}`)
+ * Test / dev seam: `?siteSettings=<JSON>` (`{"title":"…","author":"…"}`)
  * sets the site settings so e2e can start from them. The deploy build drops
  * it; JSON that does not parse is ignored.
  */

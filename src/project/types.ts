@@ -23,18 +23,15 @@ export interface LibraryMeta {
   site?: SiteSettings
 }
 
-export type SiteTheme = 'light' | 'dark'
-
 /**
- * Site settings (Designer spec site-settings S2–S5): trimmed, inner
+ * Site settings (Designer spec site-settings S2–S4): trimmed, inner
  * whitespace collapsed, title / author ≤ 80 and intro ≤ 160 characters;
- * an empty value is absent. Absent theme means Light.
+ * an empty value is absent.
  */
 export interface SiteSettings {
   title?: string
   author?: string
   intro?: string
-  theme?: SiteTheme
 }
 
 export interface BookSummary {

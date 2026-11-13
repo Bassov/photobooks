@@ -38,17 +38,17 @@ describe('site settings store', () => {
     const library = createMemoryLibraryStorage()
     await library.updateLibrary({ books: { b1: { status: 'published' } } })
     await bindSiteSettingsLibrary(library)
-    setSiteSettings({ title: '  Alps\n\n& Sea ', theme: 'dark' })
-    expect(getSiteSettings()).toEqual({ title: 'Alps & Sea', theme: 'dark' })
+    setSiteSettings({ title: '  Alps\n\n& Sea ', author: 'Ann' })
+    expect(getSiteSettings()).toEqual({ title: 'Alps & Sea', author: 'Ann' })
     expect(await storedSite(library)).toEqual({
       title: 'Alps & Sea',
-      theme: 'dark',
+      author: 'Ann',
     })
     const meta = await library.getLibrary()
     expect(meta.ok && meta.value.books).toEqual({ b1: { status: 'published' } })
     resetSiteSettingsForTests()
     await bindSiteSettingsLibrary(library)
-    expect(getSiteSettings()).toEqual({ title: 'Alps & Sea', theme: 'dark' })
+    expect(getSiteSettings()).toEqual({ title: 'Alps & Sea', author: 'Ann' })
   })
 
   it("clears a field with '' and drops site when nothing is left", async () => {
@@ -65,13 +65,13 @@ describe('site settings store', () => {
   it('writes nothing and notifies no one when the value is unchanged', async () => {
     const library = createMemoryLibraryStorage()
     await bindSiteSettingsLibrary(library)
-    setSiteSettings({ author: 'Ann', theme: 'light' })
+    setSiteSettings({ author: 'Ann', intro: 'Hi' })
     await siteSettingsSettled()
     const write = vi.spyOn(library, 'updateLibrary')
     const listener = vi.fn()
     subscribeSiteSettings(listener)
     setSiteSettings({ author: ' Ann ' })
-    setSiteSettings({ theme: 'light' })
+    setSiteSettings({ intro: ' Hi\n' })
     setSiteSettings({ title: '   ' })
     await siteSettingsSettled()
     expect(write).not.toHaveBeenCalled()
@@ -176,9 +176,9 @@ describe('site settings store', () => {
     seedSiteSettingsFromQuery('?other=1')
     expect(getSiteSettings()).toEqual({})
     seedSiteSettingsFromQuery(
-      `?siteSettings=${encodeURIComponent('{"author":" Ann ","theme":"dark","x":1}')}`,
+      `?siteSettings=${encodeURIComponent('{"author":" Ann ","intro":"Hi","x":1}')}`,
     )
-    expect(getSiteSettings()).toEqual({ author: 'Ann', theme: 'dark' })
+    expect(getSiteSettings()).toEqual({ author: 'Ann', intro: 'Hi' })
   })
 
   it('seeds only in dev or a fixtures build', () => {

@@ -103,17 +103,14 @@ describe('text', () => {
 describe('siteMetaOf (site-settings S3, S7)', () => {
   it('falls back to the title "Photobooks" and nothing else', () => {
     expect(siteMetaOf({})).toStrictEqual({ title: 'Photobooks' })
-    expect(siteMetaOf({ site: { theme: 'light' } })).toStrictEqual({
-      title: 'Photobooks',
-      theme: 'light',
-    })
+    expect(siteMetaOf({ site: {} })).toStrictEqual({ title: 'Photobooks' })
   })
 
   it('passes the stored settings through; the lead falls back via homeLead', () => {
     const site = siteMetaOf({
-      site: { title: 'Alps', author: 'Ann', theme: 'dark' },
+      site: { title: 'Alps', author: 'Ann' },
     })
-    expect(site).toStrictEqual({ title: 'Alps', author: 'Ann', theme: 'dark' })
+    expect(site).toStrictEqual({ title: 'Alps', author: 'Ann' })
     expect(homeLead(site)).toBe('Photobooks by Ann.')
     expect(
       homeLead(siteMetaOf({ site: { author: 'Ann', intro: 'Lakes.' } })),

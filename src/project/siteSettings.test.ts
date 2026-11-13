@@ -20,28 +20,25 @@ function readSite(raw: unknown) {
 }
 
 describe('library.json site settings', () => {
-  it('trims, collapses inner whitespace and keeps a light or dark theme', () => {
+  it('trims and collapses inner whitespace', () => {
     expect(
       readSite({
         title: '  My\n\n  books\t',
         author: ' Ann  Lee ',
         intro: 'Line one.\r\nLine two.',
-        theme: 'dark',
       }).site,
     ).toEqual({
       title: 'My books',
       author: 'Ann Lee',
       intro: 'Line one. Line two.',
-      theme: 'dark',
     })
-    expect(readSite({ theme: 'light' }).site).toEqual({ theme: 'light' })
   })
 
-  it('drops an unknown theme, empty and non-string values', () => {
+  it('drops empty, non-string and unknown values', () => {
     expect(
-      readSite({ title: '   ', author: 7, intro: '', theme: 'sepia' }),
+      readSite({ title: '   ', author: 7, intro: '', theme: 'dark' }),
     ).not.toHaveProperty('site')
-    expect(readSite({ author: 'Ann', theme: 'Dark' }).site).toEqual({
+    expect(readSite({ author: 'Ann', theme: 'dark' }).site).toEqual({
       author: 'Ann',
     })
     for (const raw of [undefined, null, 'dark', ['Ann'], {}]) {
@@ -79,7 +76,7 @@ describe('library.json site settings', () => {
   it('the memory adapter stores what library.json would read back', async () => {
     const library = createMemoryLibraryStorage()
     await library.updateLibrary({
-      site: { title: ' Mine ', theme: 'sepia' as never },
+      site: { title: ' Mine ', theme: 'dark' } as never,
     })
     const meta = await library.getLibrary()
     expect(meta.ok && meta.value.site).toEqual({ title: 'Mine' })
@@ -94,10 +91,7 @@ describe('library.json site settings', () => {
       title: fc.oneof(text, fc.constant(' \n '), fc.integer()),
       author: text,
       intro: fc.oneof(text, fc.string({ unit: 'binary', maxLength: 200 })),
-      theme: fc.oneof(
-        fc.constantFrom('light', 'dark', 'auto', ''),
-        fc.integer(),
-      ),
+      theme: fc.constantFrom('light', 'dark'),
     },
     { requiredKeys: [] },
   )
@@ -116,7 +110,7 @@ describe('library.json site settings', () => {
         expect(value).not.toMatch(/\s\s|[^\S ]/)
         expect(Array.from(value).length).toBeLessThanOrEqual(SITE_TEXT_MAX[key])
       }
-      expect([undefined, 'light', 'dark']).toContain(site.theme)
+      expect(site).not.toHaveProperty('theme')
       expect(Object.keys(site).length > 0).toBe(
         parseSiteSettings(raw) !== undefined,
       )
