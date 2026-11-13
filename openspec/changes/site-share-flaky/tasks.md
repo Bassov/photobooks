@@ -7,3 +7,5 @@
 
 1. 1440×900 `site.html?book=alps`: click Share → "Copied" at the same width, "Share" after about 2 s.
 2. Click Share, click again after 1 s → "Copied" stays until about 2 s after the second click.
+
+manual-qa 2026-11-13: problem (harness) — both scenarios blocked at the editor welcome screen (`start-session` click intercepted by the header) before reaching the site; covered instead by `e2e/site-viewer.spec.ts:152` (`--repeat-each=30`: 30/30; 4× CPU-throttled probe 20/20, 3/20 failed before the fix) and the `ShareButton.test.tsx` race tests.
