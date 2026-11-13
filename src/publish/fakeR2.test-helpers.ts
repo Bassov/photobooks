@@ -14,7 +14,7 @@ export interface StoredObject {
   headers: Record<string, string>
 }
 
-export interface R2Event {
+interface R2Event {
   type: 'start' | 'end'
   method: string
   key: string

@@ -19,9 +19,9 @@ import {
 export const PUBLISH_MANIFEST_KEY = '_photobooks/publish-manifest.json'
 export const REQUEST_TIMEOUT_MS = 30_000
 /** Waits before the 2nd and 3rd attempt; 3 attempts in total. */
-export const RETRY_WAITS_MS: readonly number[] = [1_000, 3_000]
-export const RETRY_AFTER_MAX_MS = 10_000
-export const PUT_CONCURRENCY = 4
+const RETRY_WAITS_MS: readonly number[] = [1_000, 3_000]
+const RETRY_AFTER_MAX_MS = 10_000
+const PUT_CONCURRENCY = 4
 export const CACHE_IMMUTABLE = 'public, max-age=31536000, immutable'
 export const CACHE_NO_CACHE = 'no-cache'
 export const CACHE_NO_STORE = 'no-store'
