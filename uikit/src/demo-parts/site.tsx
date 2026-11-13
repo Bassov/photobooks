@@ -22,8 +22,9 @@ const useSiteBooks = (open: DBook | undefined) => {
     return pub.length || !open ? pub : [siteBookOf(withDoc(open), opts())]
   }, [all, open])
 }
-/** a kit page's `SiteState` (site-lightbox / site-preview-mode) → the room's start: slide s = view s + 1 */
-const startOf = (book: string, s?: Partial<SiteState>): SiteStart => ({ book, view: (s?.slide ?? 0) + 1, ...(s?.lb ? { full: s.lbZoom ?? 1 } : {}) })
+/** a kit page's `SiteState` (site-lightbox / site-preview-mode) → the room's start: slide s = view s + 1; no slide = the
+ *  cover (Preview and a book deep link start there, Owner M53 / D41) */
+const startOf = (book: string, s?: Partial<SiteState>): SiteStart => ({ book, view: s?.slide === undefined ? 0 : s.slide + 1, ...(s?.lb ? { full: s.lbZoom ?? 1 } : {}) })
 
 /** #/demo published site (personal-site K2): the bookcase of the published books, with the back-to-editor bar. A book
  *  deep link (`siteEntry=book`, or a kit page's `page: "book"`) opens that book's room. */

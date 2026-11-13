@@ -32,6 +32,8 @@ test.describe('kit Preview modified page keys', () => {
     page,
   }) => {
     await openPreview(page)
+    await expect(label(page)).toHaveText('Cover')
+    await page.keyboard.press('ArrowRight')
     await expect(label(page)).toHaveText(/^Page 1 /)
     await page.keyboard.press('ArrowRight')
     await expect(label(page)).toHaveText(/^Pages 2–3 /)

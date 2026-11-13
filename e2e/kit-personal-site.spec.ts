@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test'
 import { animationsSettled } from './fixtures/animationsSettled'
 import { expect, test } from './fixtures/coverage'
-import { pixelsAt } from './fixtures/paintProbe'
+import { pixelsAt, topAt } from './fixtures/paintProbe'
 
 // personal-site (kit page, port of the site stand's demo 9): the bookcase home and the open book. Two states (D3): a
 // click opens the reading room, `&book=<id>` is pushed, Back / Esc / "All books" close it and focus returns to the
@@ -758,3 +758,42 @@ for (const vp of VIEWPORTS)
       expect(errors).toEqual([])
     })
   })
+
+// design-r24-site-kit M108 (spec D41 / D42, prod site-final): a book loaded
+// straight from its URL opens on the Cover and rests there (no cover turn).
+for (const vp of VIEWPORTS)
+  test.describe(`${vp.name}: direct book link`, () => {
+    test.use({
+      viewport: vp.viewport,
+      isMobile: vp.isMobile,
+      hasTouch: vp.hasTouch,
+    })
+
+    test('opens on the Cover and stays there', async ({ page }) => {
+      const errors = consoleErrors(page)
+      await page.goto(`${SITE}?book=lake-trip`)
+      const room = page.getByTestId('ss-reader-page')
+      const label = room.getByTestId('site-label')
+      await expect(label).toHaveText('Cover')
+      // past the fade + cover delay (360 ms) nothing turns the cover
+      await page.evaluate(() => new Promise((r) => setTimeout(r, 800)))
+      await expect(label).toHaveText('Cover')
+      // the label is the topmost paint at its centre
+      expect((await topAt(label))[0]).toContain('site-label')
+      expect(errors).toEqual([])
+    })
+  })
+
+test('a kit page state naming a page still opens that page (site-preview-mode Spread 2)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/uikit/#/feature/site-preview-mode')
+  await page
+    .getByTestId('scenarios')
+    .getByRole('tab', { name: 'Spread 2', exact: true })
+    .click()
+  const room = page.getByTestId('site-room')
+  await expect(room).toHaveAttribute('data-view', '3')
+  await expect(page.getByTestId('site-label')).not.toHaveText('Cover')
+})

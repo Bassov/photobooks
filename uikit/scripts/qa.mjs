@@ -1616,8 +1616,8 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     prevOpen === 1 && stage === "editor" && JSON.stringify(sp0.root) === JSON.stringify(["fixed", "dialog", "true", "Site preview"]) && sp0.bar?.[0] === 48 && sp0.bar[1] === "rgb(225, 225, 225)" && /inset/.test(sp0.bar[2])
       && near(sp0.back?.[0], 12) && near(sp0.back?.[1], 8) && near(sp0.back?.[3], 32) && sp0.backTxt === "Back to the editor" && sp0.backTitle === "Back to the editor (Esc)" && sp0.backKeys === "Escape"
       && near(sp0.label?.[0], sp0.back[0] + sp0.back[2] + 8), JSON.stringify(sp0))
-  ok("personal-site D45: the Preview shows the room under the bar (painted on top), at 'Page 1'; Share and All books hidden, Fullscreen kept; no document scroll at 1440 × 900",
-    !!sp0.stage && sp0.stage[1] >= 48 && sp0.paint && (sp0.ind ?? "").startsWith("Page 1") && !sp0.share && !sp0.all && sp0.fs && sp0.docScroll.every((v) => v === 0), JSON.stringify(sp0))
+  ok("personal-site D45: the Preview shows the room under the bar (painted on top), at 'Cover' (Owner M53); Share and All books hidden, Fullscreen kept; no document scroll at 1440 × 900",
+    !!sp0.stage && sp0.stage[1] >= 48 && sp0.paint && sp0.ind === "Cover" && !sp0.share && !sp0.all && sp0.fs && sp0.docScroll.every((v) => v === 0), JSON.stringify(sp0))
   await page.setViewportSize({ width: 1280, height: 720 }); await page.waitForTimeout(400)
   const spS = await spv()
   await page.setViewportSize({ width: 1440, height: 900 }); await page.waitForTimeout(400)
@@ -1643,8 +1643,8 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const esc2 = await page.locator('[data-testid="site-preview"]').count()
   const escFocus = await page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? document.activeElement?.tagName)
   const ed1 = await edSnap(), stageEsc = await page.locator('[data-testid="demo"]').getAttribute("data-demo-stage")
-  ok("site-preview-mode §4: → turns the room to view 2; Delete / Backspace / ⌘Z / [ / Space change nothing in the editor (no data-panning); Tab ×10 and Shift+Tab ×10 stay inside",
-    ind1 === "2" && JSON.stringify(ed1) === JSON.stringify(ed0) && spacePan === 0 && tabTrail.every(Boolean), JSON.stringify({ ind1, ed0, ed1, spacePan, tabTrail: tabTrail.map(Number).join("") }))
+  ok("site-preview-mode §4: → turns the room from the cover to view 1; Delete / Backspace / ⌘Z / [ / Space change nothing in the editor (no data-panning); Tab ×10 and Shift+Tab ×10 stay inside",
+    ind1 === "1" && JSON.stringify(ed1) === JSON.stringify(ed0) && spacePan === 0 && tabTrail.every(Boolean), JSON.stringify({ ind1, ed0, ed1, spacePan, tabTrail: tabTrail.map(Number).join("") }))
   ok("site-preview-mode §4: Fullscreen open → first Esc closes the lightbox only, second Esc closes the preview; focus back on Preview, still the editor stage",
     lb0 === 1 && JSON.stringify(esc1) === "[0,1]" && esc2 === 0 && escFocus === "demo-preview" && stageEsc === "editor", JSON.stringify({ lb0, esc1, esc2, escFocus, stageEsc }))
   // Space activates the focused Back button (the editor's Space-to-pan must not swallow it)
@@ -1670,15 +1670,15 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("v0.9.1 §2 Preview opens in-app book preview (not Site stage) — site-preview-mode: the site's book page", prevOpen === 1 && stage === "editor" && kitPrev === 1, `demoPrev=${prevOpen} stage=${stage} kit=${kitPrev}`)
   ok("site-preview-mode §4: a selected frame survives Delete / Backspace pressed in the preview; after Esc (selection kept) Delete removes it",
     fr0 > 0 && fr1 === fr0 && fr2 === fr0 - 1, JSON.stringify({ fr0, fr1, fr2 }))
-  // kit page #/feature/site-preview-mode: Preview (page 1), Spread 2 (slide 2 = view 3), Fullscreen (the lightbox over the preview)
+  // kit page #/feature/site-preview-mode: Preview (the cover, Owner M53), Spread 2 (slide 2 = view 3), Fullscreen (the lightbox over the preview)
   await go(feat("site-preview-mode"), 1000)
   const spStates = []
   for (const tab of ["Preview", "Spread 2", "Fullscreen"]) {
     await page.locator(`[data-testid="scenarios"] [role="tab"]:text-is("${tab}")`).evaluate((t) => t.click()); await page.waitForTimeout(500)
     spStates.push(await page.evaluate(() => [document.querySelectorAll('[data-testid="site-preview"]').length, document.querySelector('[data-testid="site-room"]')?.dataset.view, document.querySelectorAll('[data-testid="lightbox"]').length]))
   }
-  ok("site-preview-mode kit page: states Preview (room view 1), Spread 2 (view 3), Fullscreen (lightbox over the preview)",
-    JSON.stringify(spStates.map(([n, , lb]) => [n, lb])) === "[[1,0],[1,0],[1,1]]" && spStates[0][1] === "1" && spStates[1][1] === "3", JSON.stringify(spStates))
+  ok("site-preview-mode kit page: states Preview (room view 0), Spread 2 (view 3), Fullscreen (lightbox over the preview)",
+    JSON.stringify(spStates.map(([n, , lb]) => [n, lb])) === "[[1,0],[1,0],[1,1]]" && spStates[0][1] === "0" && spStates[1][1] === "3", JSON.stringify(spStates))
 
   // §3 page counts (Designer site D1/D2/D5): slides = cover + every spread; indicator = page label + spread counter (prod Preview), meta pages = last page number 2(n − 1) (Designer review); deep-link into the book (v0.9.3 catalog home)
   await go("#/demo", 400); await page.evaluate(() => { const d = window.__demo; d.reset(); d.state().path = "~/Pictures/Photobooks"; d.state().books = [{ id: "s1", title: "Pages", book: { endp: true, endpSame: true, w: 14.8, h: 21, preset: "A5" }, published: true }]; d.state().open = "s1"; d.openSite("book") })
@@ -1690,12 +1690,12 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const viewTxt = (v) => (v === 0 ? "Cover" : v === nSp + 1 ? "Back cover" : `${v === 1 ? "Page 1" : v === nSp ? `Page ${P}` : `Pages ${2 * (v - 1)}–${2 * v - 1}`} of ${P}`)
   const lbl = () => page.locator('[data-testid="site-label"]').textContent().then((t) => t.trim())
   const labels = [await lbl()]
-  for (let v = 1; v <= nSp && v < 40; v++) { await page.click('[data-testid="ss-next"]'); await page.waitForTimeout(250); labels.push(await lbl()) }
+  for (let v = 0; v <= nSp && v < 40; v++) { await page.click('[data-testid="ss-next"]'); await page.waitForTimeout(250); labels.push(await lbl()) }
   await page.keyboard.press("Home"); await page.waitForTimeout(250); const home = await lbl()
   await page.keyboard.press("End"); await page.waitForTimeout(250); const end = await lbl()
   await page.emulateMedia({ reducedMotion: "no-preference" })
-  const badLabels = labels.map((t, i) => [i + 1, t]).filter(([v, t]) => t !== viewTxt(v))
-  ok("personal-site D38: a deep-linked session book opens at Page 1; labels Page 1 … last page, Back cover (pages = 2(n − 1)); Home / End",
+  const badLabels = labels.map((t, i) => [i, t]).filter(([v, t]) => t !== viewTxt(v))
+  ok("personal-site D38 / D41: a deep-linked session book opens on the Cover; labels Cover, Page 1 … last page, Back cover (pages = 2(n − 1)); Home / End",
     nSp >= 3 && badLabels.length === 0 && home === "Cover" && end === viewTxt(nSp), J({ meta, nSp, badLabels, home, end }))
 
   // the case: a landscape book joins it; 390 px root → no horizontal overflow on the case, the room's Share 20 left of Play

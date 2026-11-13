@@ -1,7 +1,7 @@
 /* Personal site shell (stand site-sys, Designer spec-sys.md, site-stand-v2 S; personal-site K1): the 12-col grid, Head and
    SysSite, the shell the home renders into. Two states (D3): home and the open book. A click opens the reading room
    (`&book=<id>` pushed, so browser Back closes it); Esc, "All books" and the site name close it and focus returns to the
-   book. A deep link opens at view 1. Data and art come from ./sample, Book3D and the reader from site-book;
+   book. A deep link opens on the cover (D41 / D42); a tap turns it. Data and art come from ./sample, Book3D and the reader from site-book;
    `?books=1|3|6|12|30|100` from site-book/many (the kit page's scenario switch sets it, D35), or `books` (#/demo, K2). */
 import * as React from 'react'
 import { AUTHOR, SAMPLE_SITE_TEXTS, metaOf, pagesOf, siteLead, type SiteBook, type SiteTexts } from './sample'
@@ -62,8 +62,9 @@ const hashWith = (id: string | null) => {
   return `${path}${s ? `?${s}` : ''}`
 }
 
-type Open = { b: SiteBook; pushed: boolean }
-/** open this book at mount, at `view` (default 1, no cover turn); `full` = the lightbox open at that zoom */
+/** `turn`: a tap opened it, so the closed cover turns (D23); a deep link rests on the cover (D41 / D42) */
+type Open = { b: SiteBook; pushed: boolean; turn?: boolean }
+/** open this book at mount, at `view` (default 0 = the cover, no cover turn); `full` = the lightbox open at that zoom */
 export type SiteStart = { book: string; view?: number; full?: number }
 export type SiteProps = {
   dark?: boolean
@@ -87,9 +88,9 @@ export function SysSite({ dark, home, books: given, start, roomRef, preview, tex
   // the phone home draws the name itself (site-stand-v7 D32)
   const bare = g.narrow
   const find = (id: string | null) => books.find((b) => b.id === id) ?? null
-  // a deep link opens at view 1, without the cover turn
+  // a deep link opens on the cover, without the cover turn (prod D41 / D42)
   const [cur, setCur] = React.useState<Open | null>(() => { const b = find(bookOfHash()) ?? find(start?.book ?? null); return b ? { b, pushed: false } : null })
-  const [view, setView] = React.useState(start?.view ?? 1)
+  const [view, setView] = React.useState(start?.view ?? 0)
   // the start lightbox opens with the first room only
   const [full, setFull] = React.useState(cur ? start?.full : undefined)
   const [list, setList] = React.useState(false)
@@ -109,7 +110,7 @@ export function SysSite({ dark, home, books: given, start, roomRef, preview, tex
     trigger.current = document.activeElement as HTMLElement | null
     const url = /^#\/full\//.test(location.hash)
     if (url) history.pushState(history.state, '', hashWith(b.id))
-    setList(false); setView(reduced() ? 1 : 0); setCur({ b, pushed: url })
+    setList(false); setView(reduced() ? 1 : 0); setCur({ b, pushed: url, turn: true })
   }
   const shut = (id: string) => { setCur(null); setFull(undefined); refocus(id) }
   const close = () => {
@@ -127,7 +128,7 @@ export function SysSite({ dark, home, books: given, start, roomRef, preview, tex
     const pop = () => {
       const { cur: c, find: f, shut: s } = live.current, b = f(bookOfHash())
       if (!b && c) s(c.b.id)
-      else if (b && b !== c?.b) { setView(1); setCur({ b, pushed: false }) }
+      else if (b && b !== c?.b) { setView(0); setCur({ b, pushed: false }) }
     }
     addEventListener('popstate', pop); return () => removeEventListener('popstate', pop)
   }, [])
@@ -152,7 +153,7 @@ export function SysSite({ dark, home, books: given, start, roomRef, preview, tex
           <AllBooks books={books} g={g} onOpen={open} />
         </div>
       )}
-      {curB && <ReadingRoom key={curB.id} ref={roomRef} b={curB} view={view} setView={setView} dark={dark} box={box} onClose={close} onPeek={setPeek} full={full} share={!preview} />}
+      {curB && <ReadingRoom key={curB.id} ref={roomRef} b={curB} view={view} setView={setView} dark={dark} box={box} onClose={close} onPeek={setPeek} full={full} share={!preview} turn={!!cur?.turn} />}
       {!phoneRoom && !(bare && !cur) && <Head g={g} reading={!!cur} preview={preview} onHome={() => (cur ? close() : setList(false))} />}
     </div>
   )

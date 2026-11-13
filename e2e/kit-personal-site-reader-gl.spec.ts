@@ -623,6 +623,9 @@ for (const [vw, vh] of [
           'done',
           { timeout: 20_000 },
         )
+        // a direct link rests on the cover (D41); Next turns to view 1
+        await settle(page, 0)
+        await page.getByTestId('ss-next').click()
         await settle(page, 1)
         await page.mouse.move(0, 0)
         await animationsSettled(page.getByTestId('ps-reader'))
@@ -668,6 +671,9 @@ test.describe('desktop 1440×900: the leaf at θ 90 (stand-v8)', () => {
         'done',
         { timeout: 20_000 },
       )
+      // a direct link rests on the cover (D41); Next turns to view 1
+      await settle(page, 0)
+      await page.getByTestId('ss-next').click()
       await settle(page, 1)
       await page.mouse.move(0, 0)
       await animationsSettled(page.getByTestId('ps-reader'))
