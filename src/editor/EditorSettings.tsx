@@ -16,7 +16,7 @@ ensureLibraryScreenStyles()
 export function EditorSettings({
   libraryPath,
   changeDisabled,
-  initialSection,
+  initialSection = 'library',
   onClose,
 }: {
   libraryPath: string
