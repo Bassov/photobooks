@@ -213,6 +213,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [site-final-room](roadmap/P4/site-final-room.md) — Bug: /next-roadmap-item site-final-room
 - [ ] [feature] [site-final-preview](roadmap/P4/site-final-preview.md) — Bug: /next-roadmap-item site-final-preview
 - [ ] [feature] [design-r24-site-prod](roadmap/P4/design-r24-site-prod.md) — Bug: /next-roadmap-item design-r24-site-prod
+- [ ] [feature] [site-share-flaky](roadmap/P4/site-share-flaky.md) — Bug: /next-roadmap-item site-share-flaky
 - [ ] [feature] [cover-editor](roadmap/P4/cover-editor.md) — cover in the editor
 
 ## P5 — Others make their own personal site
