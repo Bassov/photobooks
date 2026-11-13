@@ -43,6 +43,8 @@ import { ExportSiteButton } from './export/ExportSiteButton'
 import { PanelToggles } from './EditorFrame'
 import { EditorSettings } from './EditorSettings'
 import { EditorToolGroup } from './EditorToolGroup'
+import { PublishButton } from './publish/PublishButton'
+import type { SettingsSectionId } from './settingsScreenModel'
 import { GridToggle } from './GridToggle'
 import { SnapToggle } from './SnapToggle'
 import {
@@ -302,7 +304,9 @@ export function EditorTopBar({
 
   useEffect(() => installEditorHistoryShortcut(), [])
 
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  // The section Settings opens on (Publish → Hosting), `null` while closed.
+  const [settingsSection, setSettingsSection] =
+    useState<SettingsSectionId | null>(null)
   const libraryReady = project.libraryOpen
   const writeBlocked = project.accessPhase === 'locked-elsewhere'
   const pickerBusy = chromeImport.pickerBusy
@@ -408,23 +412,30 @@ export function EditorTopBar({
             aria-label="Settings"
             title="Settings"
             onClick={() => {
-              setSettingsOpen(true)
+              setSettingsSection('library')
             }}
           >
             <Icon name="settings" size={16} />
           </ChromeButton>
           <ExportSiteButton disabled={spreadCount === 0 || writeBlocked} />
+          <PublishButton
+            disabled={spreadCount === 0 || writeBlocked}
+            onOpenHosting={() => {
+              setSettingsSection('hosting')
+            }}
+          />
         </div>
       </div>
-      {settingsOpen ? (
+      {settingsSection === null ? null : (
         <EditorSettings
           libraryPath={project.libraryLabel ?? 'Library'}
           changeDisabled={chromeBusy}
+          initialSection={settingsSection}
           onClose={() => {
-            setSettingsOpen(false)
+            setSettingsSection(null)
           }}
         />
-      ) : null}
+      )}
     </header>
   )
 }

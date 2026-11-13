@@ -36,13 +36,16 @@ export function SettingsScreen({
   libraryPath,
   bookCount,
   changeDisabled,
+  initialSection = 'library',
 }: {
   libraryPath: string
   /** `null` while the current library's list is pending or failed. */
   bookCount: number | null
   changeDisabled?: boolean
+  /** Section shown first (Publish → "Open Settings → Hosting"). */
+  initialSection?: SettingsSectionId
 }) {
-  const [sectionId, setSectionId] = useState<SettingsSectionId>('library')
+  const [sectionId, setSectionId] = useState<SettingsSectionId>(initialSection)
   const [confirm, setConfirm] = useState(false)
   const [cacheBytes, setCacheBytes] = useState<number | null>(null)
 

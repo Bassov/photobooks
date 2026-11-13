@@ -4,6 +4,7 @@ import { Icon } from '../ui/Icon'
 import { ensureLibraryScreenStyles } from './libraryScreenStyles'
 import { listLibraryBooks } from './projectSession'
 import { SettingsScreen } from './SettingsScreen'
+import type { SettingsSectionId } from './settingsScreenModel'
 
 // Back bar box and ink: `.pb-settings-back`, shared with the library Settings.
 ensureLibraryScreenStyles()
@@ -15,10 +16,12 @@ ensureLibraryScreenStyles()
 export function EditorSettings({
   libraryPath,
   changeDisabled,
+  initialSection = 'library',
   onClose,
 }: {
   libraryPath: string
   changeDisabled: boolean
+  initialSection?: SettingsSectionId
   onClose: () => void
 }) {
   // `null` (a dash) until the list lands: never a number it has not listed.
@@ -57,6 +60,7 @@ export function EditorSettings({
           libraryPath={libraryPath}
           bookCount={bookCount}
           changeDisabled={changeDisabled}
+          initialSection={initialSection}
         />
       </div>
     </div>

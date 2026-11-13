@@ -1,48 +1,60 @@
-/* Designer spec static-export §1: the pill keeps its rest width in every
-   state (a hidden rest-content sizer shares the grid cell); running shows
-   NN% over a --control fill that scales from the left. */
-.export-site-pill.pb-button {
+/* Site job pills (Export site, Publish; Designer static-export §1,
+   in-app-publish §1): the pill keeps its rest width in every state (a hidden
+   rest-content sizer shares the grid cell); running shows NN% over a
+   --control fill that scales from the left. */
+.site-job-pill.pb-button {
   position: relative;
   overflow: hidden;
 }
 
-.export-site-pill[data-state='running']::before {
+.site-job-pill[data-state='running']::before {
   content: '';
   position: absolute;
   inset: 0;
   background: var(--control);
   transform-origin: left;
-  transform: scaleX(var(--export-site-progress, 0));
+  transform: scaleX(var(--site-job-progress, 0));
   transition: transform 160ms linear;
 }
 
-.export-site-pill__cell {
+.site-job-pill__cell {
   position: relative;
   display: inline-grid;
   align-items: center;
   justify-items: center;
 }
 
-.export-site-pill__content {
+.site-job-pill__content {
   grid-area: 1 / 1;
   display: inline-flex;
   align-items: center;
   gap: calc(var(--spacing) * 1.5);
 }
 
-.export-site-pill__sizer {
+.site-job-pill__sizer {
   visibility: hidden;
 }
 
-.export-site-pill__percent {
+.site-job-pill__percent {
   font-variant-numeric: tabular-nums;
 }
 
-/* Icon-only below 1280 px: 12 + 16 + 12 = 40 wide, like Settings. */
-@media (max-width: 1279.98px) {
-  .export-site-pill__label {
+/* P11: Export site is icon-only below 1360 px (12 + 16 + 12 = 40 wide, like
+   Settings); Publish keeps its label. */
+@media (max-width: 1359.98px) {
+  .site-job-pill__label--narrow {
     display: none;
   }
+}
+
+/* in-app-publish §1: Publish has no icon at rest and a 14 px inset. */
+.editor-top-pill.publish-pill.pb-button {
+  padding: 0 calc(var(--spacing) * 3.5);
+}
+
+/* The P7 wait title sits on a wrapper that adds no box to the bar. */
+.site-job-pill-wait {
+  display: contents;
 }
 
 .export-site-spin {
@@ -56,7 +68,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .export-site-pill[data-state='running']::before {
+  .site-job-pill[data-state='running']::before {
     transition: none;
   }
 
