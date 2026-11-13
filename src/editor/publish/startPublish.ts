@@ -14,6 +14,7 @@ import type {
   PublishRequest,
 } from '../../publish/publish.worker'
 import type { SiteViewerBundle } from '../../site/export/types'
+import { siteMetaOf } from '../../site/siteModel'
 import { getBookStoreSnapshot } from '../bookStore'
 import {
   collectSiteDerivatives,
@@ -98,7 +99,13 @@ export async function runPublishBook(deps: PublishRunDeps): Promise<void> {
     )
     const viewer = await deps.loadViewer()
     const request: PublishRequest = {
-      input: { meta: frozen.meta, revisions, derivatives, viewer },
+      input: {
+        meta: frozen.meta,
+        site: siteMetaOf(frozen.meta, hosting.publicBaseUrl),
+        revisions,
+        derivatives,
+        viewer,
+      },
       bookId: deps.bookId,
     }
     const transfer = [...derivatives, ...viewer.files].map(

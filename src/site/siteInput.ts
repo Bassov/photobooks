@@ -9,6 +9,8 @@ export interface SiteMeta {
   url?: string
   /** Home lead (D37); absent → `Photobooks by {author}.`. */
   intro?: string
+  /** The whole site's look (site-settings S5, S6); absent → light. */
+  theme?: 'light' | 'dark'
 }
 
 /** One photo: page-relative `src` + `srcset` (`a.webp 480w, …`) and its size. */

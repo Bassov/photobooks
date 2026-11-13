@@ -375,6 +375,37 @@ describe('runExportSite', () => {
     ])
   })
 
+  it("sends the library's site settings without a url (S7)", async () => {
+    const storage = createMemoryLibraryStorage()
+    const book = bookWithHash('open', HASH_A, 'Lake')
+    await storage.createBook(book)
+    await storage.updateLibrary({
+      site: { title: 'Alps', author: 'Ann', theme: 'dark' },
+    })
+    const run = runDeps([{ done: { books: 1, files: 1, bytes: 1 } }], {
+      book,
+      storage,
+    })
+
+    await runExportSite(run.deps)
+
+    const [post] = run.posted as [{ request: { input: { site: unknown } } }]
+    expect(post.request.input.site).toStrictEqual({
+      title: 'Alps',
+      author: 'Ann',
+      theme: 'dark',
+    })
+  })
+
+  it('sends the title-only default without site settings', async () => {
+    const run = runDeps([{ done: { books: 1, files: 1, bytes: 1 } }])
+
+    await runExportSite(run.deps)
+
+    const [post] = run.posted as [{ request: { input: { site: unknown } } }]
+    expect(post.request.input.site).toStrictEqual({ title: 'Photobooks' })
+  })
+
   it('fails as unknown without starting the worker when the viewer cannot load', async () => {
     const runWorker = vi.fn()
     const run = runDeps([], {

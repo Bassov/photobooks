@@ -46,7 +46,7 @@ vi.mock('../export/exportSiteRun', () => ({
 }))
 
 const book = makeBook({ id: 'b1', title: 'Lake' })
-const meta = { books: {} } as unknown as LibraryMeta
+const meta: LibraryMeta = { books: {}, site: { author: 'Ann' } }
 const revision = { book, publishedAtMs: 1 } as unknown as PublishedRevision
 const viewer: SiteViewerBundle = {
   files: [{ path: 'viewer.js', bytes: new Uint8Array([1, 2]) }],
@@ -171,6 +171,12 @@ describe('runPublishBook', () => {
     expect(posted[0]?.request).toEqual({
       input: {
         meta,
+        // S7: the canonical url is Hosting's publicBaseUrl.
+        site: {
+          title: 'Photobooks',
+          author: 'Ann',
+          url: 'https://books.example.com',
+        },
         revisions: [revision],
         derivatives: [derivative],
         viewer,

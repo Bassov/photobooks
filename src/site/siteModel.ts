@@ -4,7 +4,8 @@ import { getSpreadSizeMm } from '../core/geometry/spreadSize'
 import { pageLabel, pagesOf, pagesText } from '../core/pages'
 import { resolveParentFrames } from '../core/parentSpreads'
 import { displayBookTitle } from '../project/bookTitle'
-import type { SiteBookFacts, SiteCatalogBook } from './siteInput'
+import type { LibraryMeta } from '../project/types'
+import type { SiteBookFacts, SiteCatalogBook, SiteMeta } from './siteInput'
 
 /**
  * Room view label (D40): view 0 `Cover`, view v the pages of spread v − 1
@@ -65,6 +66,19 @@ export function spreadRatio(trim: {
 
 export function siteTitle(title: string): string {
   return title.trim() === '' ? 'Photobooks' : title
+}
+
+/**
+ * The site's meta from `library.json` (site-settings S3, S7): the title
+ * falls back to "Photobooks"; `url` (Publish only) loses trailing slashes.
+ */
+export function siteMetaOf(meta: LibraryMeta, url?: string): SiteMeta {
+  const { title = '', ...rest } = meta.site ?? {}
+  return {
+    title: siteTitle(title),
+    ...rest,
+    ...(url === undefined ? {} : { url: url.replace(/\/+$/, '') }),
+  }
 }
 
 /** The home's head (D37): the author, else the site title. */

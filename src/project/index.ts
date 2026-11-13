@@ -4,6 +4,8 @@ export type {
   LibraryMeta,
   LibraryStorage,
   PublishStatus,
+  SiteSettings,
+  SiteTheme,
   StorageFailure,
   StorageFailureCode,
   StorageResult,

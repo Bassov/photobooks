@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { unpublishBook } from '../../project'
 import type { SitePageAssets, SitePageInput } from '../siteInput'
+import { siteMetaOf } from '../siteModel'
 import {
   buildSiteTree,
   SITE_MANIFEST_PATH,
@@ -337,6 +338,31 @@ describe('buildSiteTree', () => {
     await expect(buildSiteTree({ ...sampleInput(), viewer })).rejects.toThrow(
       `Invalid viewer path: ${path}`,
     )
+  })
+
+  it("titles the home and its lead from the library's site settings", async () => {
+    const input = sampleInput()
+    const meta = { ...input.meta, site: { title: 'Alps & Sea', author: 'Ann' } }
+    const home = fileText(
+      await buildSiteTree({ ...input, meta, site: siteMetaOf(meta) }),
+      'index.html',
+    )
+
+    expect(home).toContain('<title>Alps &amp; Sea</title>')
+    expect(home).toContain('Photobooks by Ann.')
+  })
+
+  it('is unchanged without site settings: "Photobooks", no lead', async () => {
+    const input = sampleInput()
+    const withMeta = await buildSiteTree({
+      ...input,
+      site: siteMetaOf(input.meta),
+    })
+
+    expect(withMeta).toEqual(await buildSiteTree(input))
+    const home = fileText(withMeta, 'index.html')
+    expect(home).toContain('<title>Photobooks</title>')
+    expect(home).not.toContain('Photobooks by')
   })
 
   it('rejects a duplicate viewer path', async () => {

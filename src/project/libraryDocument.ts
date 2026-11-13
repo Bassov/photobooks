@@ -6,7 +6,7 @@ import {
   type PrintProfile,
   type SavedTemplate,
 } from '../core'
-import type { LibraryMeta } from './types'
+import type { LibraryMeta, SiteSettings } from './types'
 
 export const LIBRARY_SCHEMA_VERSION = 4
 
@@ -92,6 +92,43 @@ export function parseDefaultPrintProfileId(input: unknown): string {
   return typeof input === 'string' && input !== ''
     ? input
     : DEFAULT_PRINT_PROFILE_ID
+}
+
+/** Designer spec site-settings S4: title and author ≤ 80, intro ≤ 160. */
+export const SITE_TEXT_MAX = { title: 80, author: 80, intro: 160 } as const
+
+/**
+ * One line of site text: trimmed, inner whitespace (newlines too) collapsed
+ * to one space and clipped to `max` characters; empty or not a string →
+ * absent.
+ */
+function siteText(input: unknown, max: number): string | undefined {
+  if (typeof input !== 'string') {
+    return undefined
+  }
+  const line = Array.from(input.replace(/\s+/g, ' ').trim())
+    .slice(0, max)
+    .join('')
+    .trimEnd()
+  return line === '' ? undefined : line
+}
+
+/** Site settings of `library.json`; no field left → absent. */
+export function parseSiteSettings(input: unknown): SiteSettings | undefined {
+  if (!isRecord(input)) {
+    return undefined
+  }
+  const site: SiteSettings = {}
+  for (const key of ['title', 'author', 'intro'] as const) {
+    const text = siteText(input[key], SITE_TEXT_MAX[key])
+    if (text !== undefined) {
+      site[key] = text
+    }
+  }
+  if (input.theme === 'light' || input.theme === 'dark') {
+    site.theme = input.theme
+  }
+  return Object.keys(site).length === 0 ? undefined : site
 }
 
 function parseEach<T>(input: unknown, schema: z.ZodType<T>): T[] {
@@ -193,8 +230,15 @@ export function parseLibrary(input: unknown): LibraryParseResult {
       defaultPrintProfileId: parseDefaultPrintProfileId(
         migrated.value.defaultPrintProfileId,
       ),
+      ...withSite(migrated.value.site),
     },
   }
+}
+
+/** `{ site }` when any site setting is set, else nothing (no `site` key). */
+export function withSite(input: unknown): { site?: SiteSettings } {
+  const site = parseSiteSettings(input)
+  return site === undefined ? {} : { site }
 }
 
 export function serializeLibrary(meta: LibraryMeta): Record<string, unknown> {
@@ -205,5 +249,6 @@ export function serializeLibrary(meta: LibraryMeta): Record<string, unknown> {
     printProfiles: meta.printProfiles ?? [],
     defaultPrintProfileId:
       meta.defaultPrintProfileId ?? DEFAULT_PRINT_PROFILE_ID,
+    ...withSite(meta.site),
   }
 }
