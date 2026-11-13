@@ -1,46 +1,8 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { sampleSiteInput } from './sampleSite'
 import { roomMode } from './book/roomLayout'
 import { COVER_DELAY_MS, DWELL_MS, FADE_MS, SiteRoom } from './SiteRoom'
-
-function bookInput(id = 'alps') {
-  const input = sampleSiteInput(`?book=${id}`)
-  if (input.kind !== 'book') throw new Error('sample book missing')
-  return input
-}
-
-/** The room box (it measures itself) and the media it reads. */
-function stubBox(w: number, h: number) {
-  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(w)
-  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(h)
-  // no GL in happy-dom (the CSS reader); motion on, a fine pointer
-  vi.stubGlobal('matchMedia', () => ({
-    matches: false,
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
-  }))
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {
-        return undefined
-      }
-      disconnect() {
-        return undefined
-      }
-    },
-  )
-}
-
-const id = (testId: string) => screen.queryByTestId(testId)
-const label = () => id('site-label')?.textContent
-
-function key(k: string) {
-  act(() => {
-    fireEvent.keyDown(window, { key: k })
-  })
-}
+import { bookInput, id, key, label, stubBox } from './siteRoom.test-helpers'
 
 beforeEach(() => {
   window.history.replaceState(null, '', '/site.html?book=alps')
@@ -321,36 +283,5 @@ describe('SiteRoom phone', () => {
     expect(id('ps-reader')).not.toBeNull()
     expect(id('site-fullscreen-btn')).toBeNull()
     expect(id('site-share')).not.toBeNull()
-  })
-
-  it('swipes back over the home past a quarter of the width', () => {
-    vi.useFakeTimers()
-    stubBox(390, 844)
-    const onClose = vi.fn()
-    render(<SiteRoom input={bookInput()} over onClose={onClose} />)
-    const room = screen.getByTestId('site-room')
-    room.setPointerCapture = () => undefined
-    const at = (type: string, x: number) => {
-      fireEvent(
-        room,
-        Object.assign(
-          new MouseEvent(type, { bubbles: true, clientX: x, clientY: 100 }),
-          {
-            pointerId: 1,
-            pointerType: 'touch',
-          },
-        ),
-      )
-    }
-
-    at('pointerdown', 10)
-    at('pointermove', 40)
-    at('pointermove', 200)
-    at('pointerup', 200)
-    act(() => {
-      vi.advanceTimersByTime(200)
-    })
-
-    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })

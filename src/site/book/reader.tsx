@@ -6,7 +6,8 @@
  * 240 ms; reduced motion crossfades every change in 160 ms. Click a half,
  * ← / →, or drag a page; the corner lifts under a fine pointer. With WebGL 2
  * (not `?gl=0`) three.js draws the open book (roomGl.ts, a lazy chunk) into
- * one canvas over the reader box; else the CSS book below.
+ * one canvas over the reader box; else the CSS book below. Geometry, styles
+ * and decisions: readerGeo.ts.
  */
 import {
   forwardRef,
@@ -25,6 +26,33 @@ import { spreadRatio, spreadSide, viewLabel } from '../siteModel'
 import { CoverFace, PageFace, type RoomBook } from '../SiteSlide'
 import { glWanted } from './gl/three'
 import { EASE, TURN } from './motion'
+import {
+  backShell,
+  backingSize,
+  canDrag,
+  clamp,
+  clickStep,
+  cursorOf,
+  followPlan,
+  frontShell,
+  geoOf,
+  glBox,
+  glPose,
+  liftAt,
+  moveIntent,
+  openShell,
+  pagePxOf,
+  paperStrips,
+  px,
+  readerKey,
+  releasePlan,
+  stepFrom,
+  thetaAt,
+  turnShell,
+  type Geo,
+  type Shell,
+  type Turn,
+} from './readerGeo'
 import type { ReaderGlBook } from './roomGl'
 import { PaperGrain } from './slides'
 
@@ -33,35 +61,23 @@ export interface ReaderApi {
   go: (d: number) => void
   jump: (v: number) => void
 }
-interface Turn {
-  a: number
-  th: number
-  kind: 'anim' | 'drag' | 'lift'
-}
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 const fine = () => matchMedia('(hover: hover) and (pointer: fine)').matches
-const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x))
-const px = (n: number) => `${String(n)}px`
-/** one interior leaf, ms (the boards: 1000) */
-const TURN_MS = 820
-/** the outer band of a page where the corner lifts under a fine pointer, px */
-const CORNER = 64
 
-/** One page face of view v: a half of its spread, or the endpaper. */
+/** One page face of spread view v (1 … n − 2): a half of its spread, or the endpaper. */
 function Face({
   rb,
   v,
   side,
-  W,
+  pw,
 }: {
   rb: RoomBook
   v: number
   side: 'L' | 'R'
-  W: number
+  pw: number
 }) {
   const k = v - 1
-  if (k < 0 || k >= rb.book.spreads.length) return null
   const s = side === 'L' ? 'left' : 'right'
   const single = spreadSide(rb.book, k)
   if (single !== undefined && single !== s) {
@@ -73,7 +89,7 @@ function Face({
       images={rb.images}
       spread={k}
       side={s}
-      pw={W / 2}
+      pw={pw}
       renderSlide={rb.renderSlide}
       eager
     />
@@ -81,316 +97,127 @@ function Face({
 }
 const FaceM = memo(Face)
 
-/** Board (cloth) BD, page-block side edge eMax and tail strip tE, px */
-interface Geo {
-  rb: RoomBook
-  W: number
-  H: number
-  pw: number
-  n: number
-  board: string
-  BD: number
-  eMax: number
-  tE: number
-}
-function geoOf(rb: RoomBook, W: number, H: number, n: number): Geo {
-  const sr = W / (2 * (rb.entry.trimMm.w / 10))
-  const BD = clamp(0.3 * sr, 3, 8)
-  // the closed book's thickness at sr px/cm (Book3D)
-  const thick = Math.max(12, (0.6 + (rb.entry.pageCount / 2) * 0.1) * sr)
-  const eMax = clamp(0.45 * (thick - 2 * 0.25 * sr), 3, 14)
-  return {
-    rb,
-    W,
-    H,
-    pw: W / 2,
-    n,
-    board: rb.entry.spine.cloth,
-    BD,
-    eMax,
-    tE: clamp(0.35 * eMax, 2, 5),
-  }
-}
-const readOf = (g: Geo, v: number) =>
-  clamp((v - 1) / Math.max(1, g.n - 3), 0, 1)
-/** the page-block side edges at read fraction r: the read pages pile up on the left */
-const edgesOf = (g: Geo, r: number) => [
-  1 + (g.eMax - 1) * r,
-  1 + (g.eMax - 1) * (1 - r),
-]
-
-/** A board: reaches tE below the page block, its bottom BD + 1 px darker. */
-function Board({
+/** The book's still parts: boards, edges, tail, pages, gutter, then `top`. */
+function ShellParts({
+  rb,
   g,
-  left,
-  x,
-  w,
+  shell,
+  children,
 }: {
+  rb: RoomBook
   g: Geo
-  left?: boolean
-  x: number
-  w: number
+  shell: Shell
+  children: ReactNode
 }) {
-  const { H, BD, tE, board } = g
-  const bottom = `linear-gradient(0deg, color-mix(in srgb, ${board} 85%, #000) 0 ${px(BD + 1)}, transparent ${px(BD + 1)})`
   return (
-    <div
-      className="sd-board"
-      style={{
-        left: x,
-        top: -BD,
-        width: w,
-        height: H + 2 * BD + tE,
-        background: `${bottom}, ${board}`,
-        borderRadius: left ? '3px 0 0 3px' : '0 3px 3px 0',
-      }}
-    />
+    <>
+      {shell.boards.map((style, i) => (
+        <div key={`b${String(i)}`} className="sd-board" style={style} />
+      ))}
+      {shell.edges.map((style, i) => (
+        <div key={`e${String(i)}`} className="sd-edge" style={style} />
+      ))}
+      {shell.tail && <div className="sd-tail" style={shell.tail} />}
+      {shell.pages.map((p) => (
+        <div key={p.side} className="sd-pg" style={p.style}>
+          <Face rb={rb} v={p.v} side={p.side} pw={g.pw} />
+          <PaperGrain />
+        </div>
+      ))}
+      {shell.gutter && <div className="sd-gutter" style={shell.gutter} />}
+      {children}
+    </>
   )
 }
-/** A page-block side edge e px wide, shaded darker outward */
-function Edge({ g, left, e }: { g: Geo; left: boolean; e: number }) {
-  return (
-    <div
-      className="sd-edge"
-      style={{
-        left: left ? -e : g.W,
-        top: 1,
-        width: e,
-        height: g.H - 1,
-        boxShadow: `inset ${px(left ? e : -e)} 0 ${px(e)} ${px(-e)} rgb(0 0 0/.12)`,
-      }}
-    />
-  )
-}
-/** The tail strip: the page block's thickness under the pages */
-function Tail({ g, eL, eR }: { g: Geo; eL: number; eR: number }) {
-  const { W, H, tE } = g
-  return (
-    <div
-      className="sd-tail"
-      style={{
-        left: -eL,
-        top: H,
-        width: W + eL + eR,
-        height: tE,
-        boxShadow: `inset 0 ${px(-tE)} ${px(tE)} ${px(-tE)} rgb(0 0 0/.15)`,
-      }}
-    />
-  )
-}
-/** The gutter: 8 % of W centred on the spine */
-const Gutter = ({ g, z }: { g: Geo; z?: boolean }) => (
-  <div
-    className="sd-gutter"
-    style={{
-      left: g.pw - g.W * 0.04,
-      top: 0,
-      width: g.W * 0.08,
-      height: g.H,
-      transform: z ? 'translateZ(.5px)' : undefined,
-    }}
-  />
-)
-
-const page = (g: Geo, v: number, side: 'L' | 'R') => (
-  <>
-    <Face rb={g.rb} v={v} side={side} W={g.W} />
-    <PaperGrain />
-  </>
-)
 
 /** The book at rest on view v (no leaf). */
-function StaticBook({ g, v }: { g: Geo; v: number }) {
-  const { rb, W, H, pw, n, BD, eMax } = g
-  const [eL = 1, eR = 1] = edgesOf(g, readOf(g, v))
-  if (v === 0) {
-    return (
-      <div
-        className="sd-rbook"
-        style={{ width: W, height: H, transform: `translateX(${px(-pw / 2)})` }}
-      >
-        <Board g={g} x={pw} w={pw + BD + eMax} />
-        <Edge g={g} left={false} e={eMax} />
-        <div
-          style={{
-            left: pw,
-            top: -BD,
-            width: pw + BD,
-            height: H + 2 * BD,
-            borderRadius: '1px 3px 3px 1px',
-            overflow: 'hidden',
-          }}
-        >
-          <CoverFace b={rb.entry} w={pw + BD} h={H + 2 * BD} />
-        </div>
-      </div>
-    )
-  }
-  if (v === n - 1) {
-    return (
-      <div
-        className="sd-rbook"
-        style={{ width: W, height: H, transform: `translateX(${px(pw / 2)})` }}
-      >
-        <Board g={g} left x={-BD - eMax} w={pw + BD + eMax} />
-        <Edge g={g} left e={eMax} />
-        <div
-          style={{
-            left: -BD,
-            top: -BD,
-            width: pw + BD,
-            height: H + 2 * BD,
-            background: `linear-gradient(270deg, rgb(0 0 0/.18), rgb(0 0 0/0) 6%), ${g.board}`,
-            borderRadius: '3px 1px 1px 3px',
-          }}
-        />
-      </div>
-    )
-  }
+function StaticBook({ rb, g, v }: { rb: RoomBook; g: Geo; v: number }) {
+  const front = v === 0 ? frontShell(g) : null
+  const back = v === g.n - 1 ? backShell(g) : null
+  const shell = front ?? back ?? openShell(g, v)
   return (
-    <div className="sd-rbook" style={{ width: W, height: H }}>
-      <Board g={g} left x={-BD - eL} w={pw + BD + eL} />
-      <Board g={g} x={pw} w={pw + BD + eR} />
-      <Edge g={g} left e={eL} />
-      <Edge g={g} left={false} e={eR} />
-      <Tail g={g} eL={eL} eR={eR} />
-      <div className="sd-pg" style={{ left: 0, top: 0, width: pw, height: H }}>
-        {page(g, v, 'L')}
-      </div>
-      <div className="sd-pg" style={{ left: pw, top: 0, width: pw, height: H }}>
-        {page(g, v, 'R')}
-      </div>
-      <Gutter g={g} />
+    <div
+      className="sd-rbook"
+      style={{ width: g.W, height: g.H, transform: shell.transform }}
+    >
+      <ShellParts rb={rb} g={g} shell={shell}>
+        {front && (
+          <div style={front.cover}>
+            <CoverFace b={rb.entry} w={g.pw + g.BD} h={g.H + 2 * g.BD} />
+          </div>
+        )}
+        {back && <div style={back.back} />}
+      </ShellParts>
     </div>
   )
 }
 
 /** The book between views a and a + 1 with the leaf at angle th (0 = view a, 180 = view a + 1). */
-function TurningBook({ g, a, th }: { g: Geo; a: number; th: number }) {
-  const { rb, W, H, pw, n, BD } = g
-  const opening = a === 0
-  const closing = a === n - 2
-  const s = Math.sin((th * Math.PI) / 180)
-  const f = th / 180
-  const [eL = 1, eR = 1] = edgesOf(
-    g,
-    readOf(g, a) + (readOf(g, a + 1) - readOf(g, a)) * f,
-  )
-  const tx = opening ? -(pw / 2) * (1 - f) : closing ? (pw / 2) * f : 0
-  const frontShade = `linear-gradient(90deg, rgb(0 0 0/${String(0.22 * s)}), rgb(0 0 0/${String(0.06 * s)}) 35%, rgb(0 0 0/0) 70%), rgb(0 0 0/${String(th < 90 ? (0.28 * th) / 90 : 0)})`
-  const backShade = `linear-gradient(270deg, rgb(0 0 0/${String(0.2 * s)}), rgb(0 0 0/0) 40%), rgb(0 0 0/${String(th > 90 ? (0.3 * (180 - th)) / 90 : 0)})`
-  const boardLeaf = opening || closing
-  const leafBox = boardLeaf
-    ? { left: pw, top: -BD, width: pw + BD, height: H + 2 * BD }
-    : { left: pw, top: 0, width: pw, height: H }
+function TurningBook({
+  rb,
+  g,
+  a,
+  th,
+}: {
+  rb: RoomBook
+  g: Geo
+  a: number
+  th: number
+}) {
+  const shell = turnShell(g, a, th)
+  const leaf = shell.board
   // the endpaper inside a board is paper too; the cover face is not
-  const endpaper = (inset: CSSProperties) => (
+  const endpaper = leaf && (
     <div
-      style={{ position: 'absolute', ...inset, background: rb.entry.endpaper }}
+      style={{
+        position: 'absolute',
+        ...leaf.endpaper,
+        background: rb.entry.endpaper,
+      }}
     >
       <PaperGrain />
     </div>
   )
-  const front = opening ? (
-    <CoverFace b={rb.entry} w={pw + BD} h={H + 2 * BD} />
-  ) : closing ? (
-    endpaper({ left: 0, top: BD, right: BD, bottom: BD })
-  ) : (
-    page(g, a, 'R')
-  )
-  const back = opening
-    ? endpaper({ left: BD, top: BD, right: 0, bottom: BD })
-    : closing
-      ? null
-      : page(g, a + 1, 'L')
-  const castR = pw * (0.12 + 0.55 * (1 - f))
-  const castL = (0.35 * pw * (th - 90)) / 90
-  const boardFace: CSSProperties | undefined = boardLeaf
-    ? { background: g.board, borderRadius: '0 3px 3px 0' }
-    : undefined
   return (
     <div
       className="sd-rbook"
-      style={{ width: W, height: H, transform: `translateX(${px(tx)})` }}
+      style={{ width: g.W, height: g.H, transform: shell.transform }}
     >
-      {!opening && <Board g={g} left x={-BD - eL} w={pw + BD + eL} />}
-      {!closing && <Board g={g} x={pw} w={pw + BD + eR} />}
-      {!opening && <Edge g={g} left e={eL} />}
-      {!closing && <Edge g={g} left={false} e={eR} />}
-      {!opening && !closing && <Tail g={g} eL={eL} eR={eR} />}
-      {!opening && (
-        <div
-          className="sd-pg"
-          style={{ left: 0, top: 0, width: pw, height: H }}
-        >
-          {page(g, a, 'L')}
-        </div>
-      )}
-      {!closing && (
-        <div
-          className="sd-pg"
-          style={{ left: pw, top: 0, width: pw, height: H }}
-        >
-          {page(g, a + 1, 'R')}
-        </div>
-      )}
-      {!opening && !closing && <Gutter g={g} z />}
-      {!closing && th > 0 && th < 178 && (
-        <div
-          className="sd-cast"
-          style={{
-            left: pw,
-            top: 0,
-            width: castR,
-            height: H,
-            background: `linear-gradient(90deg, rgb(0 0 0/${String(0.34 * s)}), rgb(0 0 0/0))`,
-          }}
-        />
-      )}
-      {!opening && th > 92 && (
-        <div
-          className="sd-cast"
-          style={{
-            left: pw - castL,
-            top: 0,
-            width: castL,
-            height: H,
-            background: `linear-gradient(270deg, rgb(0 0 0/${String(0.26 * s)}), rgb(0 0 0/0))`,
-          }}
-        />
-      )}
-      {!boardLeaf ? (
-        <PaperLeaf g={g} a={a} th={th} />
-      ) : (
-        <div
-          className="sd-leaf"
-          style={{
-            ...leafBox,
-            transform: `translateZ(1px) rotateY(${String(-th)}deg)`,
-            willChange: 'transform',
-          }}
-          data-testid="ps-leaf"
-          data-leaf="board"
-        >
-          <div className="sd-face" style={boardFace}>
-            {front}
-            <div className="sd-fill" style={{ background: frontShade }} />
+      <ShellParts rb={rb} g={g} shell={shell}>
+        {shell.casts.map((style, i) => (
+          <div key={`c${String(i)}`} className="sd-cast" style={style} />
+        ))}
+        {leaf ? (
+          <div
+            className="sd-leaf"
+            style={leaf.style}
+            data-testid="ps-leaf"
+            data-leaf="board"
+          >
+            <div className="sd-face" style={leaf.face}>
+              {shell.opening ? (
+                <CoverFace b={rb.entry} w={g.pw + g.BD} h={g.H + 2 * g.BD} />
+              ) : (
+                endpaper
+              )}
+              <div
+                className="sd-fill"
+                style={{ background: leaf.frontShade }}
+              />
+            </div>
+            <div className="sd-face sd-back" style={leaf.face}>
+              {shell.opening && endpaper}
+              <div className="sd-fill" style={{ background: leaf.backShade }} />
+            </div>
           </div>
-          <div className="sd-face sd-back" style={boardFace}>
-            {back}
-            <div className="sd-fill" style={{ background: backShade }} />
-          </div>
-        </div>
-      )}
+        ) : (
+          <PaperLeaf rb={rb} g={g} a={a} th={th} />
+        )}
+      </ShellParts>
     </div>
   )
 }
 
-/**
- * The paper leaf: 12 nested strips, each bent 10°·sin θ·i/12 past the one
- * before, so the free edge leads mid-turn and the leaf lies flat at 0 and 180.
- */
-const STRIPS = 12
 const STRIP_FACE: CSSProperties = {
   position: 'absolute',
   inset: 0,
@@ -398,37 +225,26 @@ const STRIP_FACE: CSSProperties = {
   overflow: 'hidden',
   background: 'var(--site-paper)',
 }
-function PaperLeaf({ g, a, th }: { g: Geo; a: number; th: number }) {
-  const { rb, W, H, pw } = g
-  const sw = pw / STRIPS
-  const s = Math.sin((th * Math.PI) / 180)
-  const bend = (i: number) => 10 * s * (i / STRIPS)
-  const angs: number[] = []
-  let tot = 0
-  for (let i = 1; i < STRIPS; i++) tot += bend(i)
-  for (let i = 0, x = th - tot / 2; i < STRIPS; i++) {
-    if (i) x += bend(i)
-    angs.push(x)
-  }
-  let inner: ReactNode = null
-  for (let i = STRIPS - 1; i >= 0; i--) {
-    const al = angs[i] ?? th
-    const fa = al < 90 ? (0.34 * al) / 90 : 0
-    const ba = al > 90 ? (0.3 * (180 - al)) / 90 : 0
-    const hi = 0.16 * s * Math.sin((Math.PI * i) / STRIPS)
-    inner = (
+/** The paper leaf (readerGeo `paperStrips`): each strip nests the next. */
+function PaperLeaf({
+  rb,
+  g,
+  a,
+  th,
+}: {
+  rb: RoomBook
+  g: Geo
+  a: number
+  th: number
+}) {
+  const { pw, H } = g
+  const strips = paperStrips(g, th)
+  const last = strips.length - 1
+  return strips.reduceRight<ReactNode>(
+    (inner, st, i) => (
       <div
-        style={{
-          position: 'absolute',
-          left: i === 0 ? pw : sw,
-          top: 0,
-          width: sw + 1.5,
-          height: H,
-          transformStyle: 'preserve-3d',
-          transformOrigin: 'left center',
-          transform: `${i === 0 ? 'translateZ(1px) ' : ''}rotateY(${String(-(i === 0 ? al : bend(i)))}deg)`,
-        }}
-        data-testid={i === 0 || i === STRIPS - 1 ? 'ps-leaf' : undefined}
+        style={st.style}
+        data-testid={i === 0 || i === last ? 'ps-leaf' : undefined}
         data-leaf={i === 0 ? 'paper' : undefined}
       >
         <div style={STRIP_FACE}>
@@ -436,19 +252,19 @@ function PaperLeaf({ g, a, th }: { g: Geo; a: number; th: number }) {
             style={{
               position: 'absolute',
               top: 0,
-              left: -i * sw,
+              left: st.frontX,
               width: pw,
               height: H,
             }}
           >
-            <FaceM rb={rb} v={a} side="R" W={W} />
+            <FaceM rb={rb} v={a} side="R" pw={pw} />
           </div>
-          <PaperGrain x={-i * sw} w={pw} />
+          <PaperGrain x={st.frontX} w={pw} />
           <div
             className="sd-fill"
             style={{
-              background: `rgb(255 255 255/${String(hi)})`,
-              boxShadow: `inset 0 0 0 999px rgb(0 0 0/${String(fa)})`,
+              background: `rgb(255 255 255/${String(st.hi)})`,
+              boxShadow: `inset 0 0 0 999px rgb(0 0 0/${String(st.front)})`,
             }}
           />
         </div>
@@ -457,24 +273,24 @@ function PaperLeaf({ g, a, th }: { g: Geo; a: number; th: number }) {
             style={{
               position: 'absolute',
               top: 0,
-              left: (i + 1) * sw - pw,
+              left: st.backX,
               width: pw,
               height: H,
             }}
           >
-            <FaceM rb={rb} v={a + 1} side="L" W={W} />
+            <FaceM rb={rb} v={a + 1} side="L" pw={pw} />
           </div>
-          <PaperGrain x={(i + 1) * sw - pw} w={pw} />
+          <PaperGrain x={st.backX} w={pw} />
           <div
             className="sd-fill"
-            style={{ background: `rgb(0 0 0/${String(ba)})` }}
+            style={{ background: `rgb(0 0 0/${String(st.back)})` }}
           />
         </div>
         {inner}
       </div>
-    )
-  }
-  return inner
+    ),
+    null,
+  )
 }
 
 /** the GL canvas within the reader box (css px) */
@@ -527,7 +343,7 @@ function ReaderGl({
   useLayoutEffect(() => {
     cb.current = { onFail, onFade }
   })
-  const pagePx = W >= 1600 ? 2048 : 1024
+  const pagePx = pagePxOf(W)
   useEffect(() => {
     let dead = false
     // read through a call so each await re-reads it
@@ -585,16 +401,10 @@ function ReaderGl({
         cb.current.onFade()
       }
     }
-    // capped so a wide reader's backing store stays within 4096 px
-    const k = Math.min(
-      Math.max(2, window.devicePixelRatio || 1),
-      4096 / Math.max(box.w, box.h),
-    )
-    const cw = Math.round(box.w * k)
-    const ch = Math.round(box.h * k)
-    if (c.width !== cw || c.height !== ch) {
-      c.width = cw
-      c.height = ch
+    const size = backingSize(box, window.devicePixelRatio)
+    if (c.width !== size.w || c.height !== size.h) {
+      c.width = size.w
+      c.height = size.h
     }
     gl.book.set(a, th)
     gl.book.frame(W, H, s, box)
@@ -639,20 +449,13 @@ export interface ReaderProps {
   keys?: boolean
 }
 
-const KEY_STEP: Readonly<Record<string, number>> = {
-  ArrowRight: 1,
-  PageDown: 1,
-  ArrowLeft: -1,
-  PageUp: -1,
-}
-
 export const BookReader = forwardRef<ReaderApi, ReaderProps>(
   function BookReader({ rb, view, onView, width: W, keys = true }, apiRef) {
     const nSpreads = rb.book.spreads.length
     const n = nSpreads + 2
     const H = W / spreadRatio(rb.book.settings.trim)
     const pw = W / 2
-    const g = geoOf(rb, W, H, n)
+    const g = geoOf(rb.entry, W, H, n)
     const [gl, setGl] = useState(
       () => rb.renderSlide === undefined && glWanted(),
     )
@@ -686,7 +489,7 @@ export const BookReader = forwardRef<ReaderApi, ReaderProps>(
       ms: number,
       ease: (t: number) => number,
       kind: Turn['kind'],
-      done?: () => void,
+      done: () => void,
     ) => {
       cancelAnimationFrame(raf.current)
       setTurn({ a, th: th0, kind }) // busy from now, so a press before the first frame is queued
@@ -696,7 +499,7 @@ export const BookReader = forwardRef<ReaderApi, ReaderProps>(
         const p = Math.min(1, (performance.now() - t0) / ms)
         setTurn({ a, th: th0 + (th1 - th0) * ease(p), kind })
         if (p < 1) raf.current = requestAnimationFrame(step)
-        else done?.()
+        else done()
       }
       raf.current = requestAnimationFrame(step)
     }
@@ -713,8 +516,8 @@ export const BookReader = forwardRef<ReaderApi, ReaderProps>(
       const d = pending.current
       pending.current = null
       if (live.current.view !== v || d === null) return
-      const t = clamp(v + d, 0, n - 1)
-      if (t !== v) live.current.onView(t)
+      const t = stepFrom(v, d, n)
+      if (t !== null) live.current.onView(t)
     }
     const stop = () => {
       cancelAnimationFrame(raf.current)
@@ -727,8 +530,8 @@ export const BookReader = forwardRef<ReaderApi, ReaderProps>(
           pending.current ??= d
           return
         }
-        const t = clamp(v + d, 0, n - 1)
-        if (t !== v) go(t)
+        const t = stepFrom(v, d, n)
+        if (t !== null) go(t)
       },
       [n],
     )
@@ -752,36 +555,16 @@ export const BookReader = forwardRef<ReaderApi, ReaderProps>(
         setShown(view)
         return
       }
-      if (reduced()) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- `view` is the outside input; the shown view follows it once per change
+      const plan = followPlan(view, shown, n, reduced(), turnRef.current)
+      if ('fade' in plan) {
         stop()
-        setFade({ from: shown, ms: 160, id: performance.now() })
+        setFade({ from: shown, ms: plan.fade, id: performance.now() })
         setShown(view)
         return
       }
-      if (Math.abs(view - shown) > 1) {
-        stop()
-        setFade({ from: shown, ms: 240, id: performance.now() })
-        setShown(view)
-        return
-      }
-      const fwd = view > shown
-      const a = Math.min(view, shown)
-      const lift = turnRef.current
-      const th0 = lift?.a === a ? lift.th : fwd ? 0 : 180
-      const th1 = fwd ? 180 : 0
-      const full = a === 0 || a === n - 2 ? 1000 : TURN_MS
-      run(
-        a,
-        th0,
-        th1,
-        Math.max(200, (full * Math.abs(th1 - th0)) / 180),
-        TURN,
-        'anim',
-        () => {
-          land(view)
-        },
-      )
+      run(plan.a, plan.th0, plan.th1, plan.ms, TURN, 'anim', () => {
+        land(view)
+      })
       // eslint-disable-next-line react-hooks/exhaustive-deps -- a new view or the end of a turn only; run / land are read at that moment
     }, [view, shown, busy])
 
@@ -804,23 +587,12 @@ export const BookReader = forwardRef<ReaderApi, ReaderProps>(
     useEffect(() => {
       if (!keys) return
       const k = (e: KeyboardEvent) => {
-        if (!inView.current || e.altKey || e.ctrlKey || e.metaKey) return
-        const t = e.target as Partial<Element> | null
-        if (t?.closest?.('input,textarea,select,[contenteditable]')) return
-        const d = KEY_STEP[e.key]
-        if (d !== undefined) {
-          e.preventDefault()
-          request(d)
-          return
-        }
-        if (e.key === 'Home') {
-          e.preventDefault()
-          live.current.onView(0)
-        }
-        if (e.key === 'End') {
-          e.preventDefault()
-          live.current.onView(n - 2)
-        }
+        const d = inView.current ? readerKey(e) : null
+        if (d === null) return
+        e.preventDefault()
+        if (d === 'home') live.current.onView(0)
+        else if (d === 'end') live.current.onView(n - 2)
+        else request(d)
       }
       window.addEventListener('keydown', k)
       return () => {
@@ -839,41 +611,27 @@ export const BookReader = forwardRef<ReaderApi, ReaderProps>(
       lx: number
       lt: number
       vx: number
+      /** the dragged leaf's angle */
+      th: number
     } | null>(null)
-    const geo = () => {
-      const r = el.current?.getBoundingClientRect() ?? new DOMRect()
-      const k = r.width / W || 1
+    /** the reader's client box, its scale k (client px per book px) and the spine's client x */
+    const geo = (e: PointerEvent) => {
+      const r = e.currentTarget.getBoundingClientRect()
+      const k = r.width / W
       return { r, k, spine: r.left + pw * k }
     }
-    const canDrag = (side: 'L' | 'R') =>
-      !reduced() &&
-      (side === 'R'
-        ? shown >= 1 && shown <= n - 3
-        : shown >= 2 && shown <= n - 2)
-    const thAt = (x: number) => {
-      const { k, spine } = geo()
-      return (Math.acos(clamp((x - spine) / (pw * k), -1, 1)) * 180) / Math.PI
-    }
-    const sideAt = (x: number): 'L' | 'R' => (x < geo().spine ? 'L' : 'R')
-    const cursorAt = (x: number) =>
-      shown === 0
-        ? 'Open'
-        : shown === n - 1
-          ? '←'
-          : sideAt(x) === 'R'
-            ? '→'
-            : '←'
+    const sideAt = (e: PointerEvent): 'L' | 'R' =>
+      e.clientX < geo(e).spine ? 'L' : 'R'
     const unlift = () => {
       const cur = turnRef.current
       if (cur?.kind !== 'lift') return
-      const to = cur.a === shown ? 0 : 180
-      run(cur.a, cur.th, to, 240, EASE, 'lift', () => {
+      run(cur.a, cur.th, cur.a === shown ? 0 : 180, 240, EASE, 'lift', () => {
         setTurn(null)
       })
     }
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return
-      const side = sideAt(e.clientX)
+      const side = sideAt(e)
       ptr.current = {
         id: e.pointerId,
         x0: e.clientX,
@@ -884,119 +642,100 @@ export const BookReader = forwardRef<ReaderApi, ReaderProps>(
         lx: e.clientX,
         lt: e.timeStamp,
         vx: 0,
+        th: 0,
       }
     }
     const onPointerMove = (e: PointerEvent) => {
-      el.current?.setAttribute('data-cursor', cursorAt(e.clientX))
+      e.currentTarget.setAttribute('data-cursor', cursorOf(shown, n, sideAt(e)))
       const p = ptr.current
       if (p?.id === e.pointerId) {
-        const dx = Math.abs(e.clientX - p.x0)
-        const dy = Math.abs(e.clientY - p.y0)
-        // touch / pen: only a horizontal move turns; a vertical one is the page scroll
-        if (!p.drag && e.pointerType !== 'mouse' && dy > 6 && dy > dx) {
-          ptr.current = null
-          return
-        }
-        const moved =
-          e.pointerType === 'mouse'
-            ? Math.hypot(dx, dy) > 6
-            : dx > 6 && dx >= dy
-        if (!p.drag && moved && canDrag(p.side) && !busy) {
-          p.drag = true
-          cancelAnimationFrame(raf.current)
-          el.current?.setPointerCapture(e.pointerId)
+        if (!p.drag) {
+          const intent = moveIntent(
+            e.pointerType,
+            Math.abs(e.clientX - p.x0),
+            Math.abs(e.clientY - p.y0),
+          )
+          // touch / pen: a vertical move is the page scroll
+          if (intent === 'scroll') {
+            ptr.current = null
+            return
+          }
+          if (
+            intent === 'drag' &&
+            !reduced() &&
+            canDrag(p.side, shown, n) &&
+            !busy
+          ) {
+            p.drag = true
+            cancelAnimationFrame(raf.current)
+            e.currentTarget.setPointerCapture(e.pointerId)
+          }
         }
         if (p.drag) {
           const dt = e.timeStamp - p.lt
           if (dt > 0) p.vx = (e.clientX - p.lx) / dt
           p.lx = e.clientX
           p.lt = e.timeStamp
-          setTurn({ a: p.a, th: thAt(e.clientX), kind: 'drag' })
+          const { k, spine } = geo(e)
+          p.th = thetaAt(e.clientX, spine, pw * k)
+          setTurn({ a: p.a, th: p.th, kind: 'drag' })
         }
         return
       }
       // corner lift: the outer CORNER px of a page
       if (e.pointerType !== 'mouse' || !fine() || reduced() || busy) return
-      const { r, k } = geo()
-      const x = (e.clientX - r.left) / k
-      const y = (e.clientY - r.top) / k
-      const inY = y >= 0 && y <= H
-      const want =
-        inY && x > W - CORNER && x <= W + 8 && canDrag('R')
-          ? { a: shown, th: 10 }
-          : inY && x < CORNER && x >= -8 && canDrag('L')
-            ? { a: shown - 1, th: 170 }
-            : null
+      const { r, k } = geo(e)
+      const want = liftAt(
+        (e.clientX - r.left) / k,
+        (e.clientY - r.top) / k,
+        W,
+        H,
+        shown,
+        n,
+      )
       const cur = turnRef.current
       if (want && cur?.a !== want.a) {
-        run(want.a, want.th === 10 ? 0 : 180, want.th, 240, EASE, 'lift')
+        run(want.a, want.th0, want.th, 240, EASE, 'lift', () => undefined)
       }
-      if (!want && cur?.kind === 'lift') unlift()
+      if (!want) unlift()
     }
     const onPointerUp = (e: PointerEvent) => {
       const p = ptr.current
       ptr.current = null
       if (p?.id !== e.pointerId) return
       if (!p.drag) {
-        // closed: only the book itself (centred, one page wide) opens it
-        const { r, k } = geo()
-        const x = (e.clientX - r.left) / k
-        const onBook = x >= pw / 2 - g.BD && x <= (3 * pw) / 2 + g.BD
-        if (shown === 0) {
-          if (onBook) request(1)
-        } else if (shown === n - 1) {
-          if (onBook) request(-1)
-        } else request(p.side === 'R' ? 1 : -1)
+        const { r, k } = geo(e)
+        const d = clickStep((e.clientX - r.left) / k, p.side, g, shown)
+        if (d !== 0) request(d)
         return
       }
-      const th = turnRef.current?.th ?? 0
-      const fwd = p.side === 'R'
-      if (e.timeStamp - p.lt > 100) p.vx = 0 // the pointer rested before release: no fling
-      const done = fwd ? th > 90 || p.vx < -0.5 : th < 90 || p.vx > 0.5
-      const to = fwd === done ? 180 : 0
-      const target = done ? (fwd ? shown + 1 : shown - 1) : shown
-      run(
-        p.a,
+      const th = p.th
+      const plan = releasePlan(
+        p.side === 'R',
         th,
-        to,
-        Math.max(200, (TURN_MS * Math.abs(to - th)) / 180),
-        EASE,
-        'anim',
-        () => {
-          if (target !== shown) {
-            onView(target)
-            live.current = { ...live.current, view: target }
-          }
-          land(target)
-        },
+        p.vx,
+        e.timeStamp - p.lt,
+        shown,
       )
+      run(p.a, th, plan.to, plan.ms, EASE, 'anim', () => {
+        if (plan.target !== shown) {
+          onView(plan.target)
+          live.current = { ...live.current, view: plan.target }
+        }
+        land(plan.target)
+      })
     }
     const onPointerLeave = () => {
       if (!ptr.current) unlift()
     }
     // the cursor label reads data-cursor; set only here and on pointer moves
     useEffect(() => {
-      el.current?.setAttribute(
-        'data-cursor',
-        shown === 0 ? 'Open' : shown === n - 1 ? '←' : '→',
-      )
+      el.current?.setAttribute('data-cursor', cursorOf(shown, n, 'R'))
     }, [shown, n])
 
     const label = viewLabel(shown, nSpreads)
-    // GL: the same state drawn as (a, θ); the closed back = the back board turned to 180
-    const [ga, gth] = turn
-      ? [turn.a, turn.th]
-      : shown === n - 1
-        ? [n - 2, 180]
-        : [shown, 0]
-    // the canvas overhangs the reader box: the leaf rises toward the eye past the head mid-turn
-    const RISE = 0.21
-    const box = {
-      x: -0.04 * W,
-      y: -RISE * W,
-      w: 1.08 * W,
-      h: H + RISE * W + 0.05 * H,
-    }
+    // GL: the same state drawn as (a, θ)
+    const [ga, gth] = glPose(turn, shown, n)
     const glLayer = gl && (
       <>
         <ReaderGl
@@ -1006,7 +745,7 @@ export const BookReader = forwardRef<ReaderApi, ReaderProps>(
           view={shown}
           W={W}
           H={H}
-          box={box}
+          box={glBox(W, H)}
           s={W / (2 * (rb.entry.trimMm.w / 10) + 10)}
           label={label}
           fade={fade}
@@ -1059,9 +798,9 @@ export const BookReader = forwardRef<ReaderApi, ReaderProps>(
       >
         {glLayer ||
           (turn ? (
-            <TurningBook g={g} a={turn.a} th={turn.th} />
+            <TurningBook rb={rb} g={g} a={turn.a} th={turn.th} />
           ) : (
-            <StaticBook g={g} v={shown} />
+            <StaticBook rb={rb} g={g} v={shown} />
           ))}
         {fade && !gl && (
           <div
@@ -1072,7 +811,7 @@ export const BookReader = forwardRef<ReaderApi, ReaderProps>(
               setFade(null)
             }}
           >
-            <StaticBook g={g} v={fade.from} />
+            <StaticBook rb={rb} g={g} v={fade.from} />
           </div>
         )}
         <div

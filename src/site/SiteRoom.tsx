@@ -7,7 +7,7 @@
  * (w < 768, h > w): the page turn (`?reader=carousel`: the carousel) under a
  * "‹ Title" row with Share and Play, the label below; no Previous / Next, no
  * Fullscreen. Phone landscape (h < 500): the larger of the side and foot
- * layouts. Views: 0 cover, v spread v − 1, n + 1 back cover.
+ * layouts (`roomModel`). Views: 0 cover, v spread v − 1, n + 1 back cover.
  */
 import {
   useEffect,
@@ -16,15 +16,25 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type PointerEvent,
   type ReactNode,
-  type RefObject,
 } from 'react'
 import { glWanted } from './book/gl/three'
 import { BookReader, type ReaderApi } from './book/reader'
 import { portGeo, roomMode } from './book/roomLayout'
 import { Slides, type SlidesApi } from './book/slides'
 import { PageTurn } from './book/turn'
+import {
+  CSS_BODY,
+  deskGeo,
+  GL_BODY,
+  LAND_SIDE,
+  landGeo,
+  lightboxSlide,
+  pausesPlay,
+  SERVER_BOX,
+  turnMs,
+  wideDesk,
+} from './roomModel'
 import { ShareButton } from './ShareButton'
 import type { SiteBookData, SiteCatalogBook } from './siteInput'
 import { SiteLightbox } from './SiteLightbox'
@@ -40,6 +50,7 @@ import {
 } from './siteModel'
 import { CoverFace, type RenderSlide, type RoomBook } from './SiteSlide'
 import { pageHref, sitePageUrl } from './siteUrl'
+import { useSwipeBack } from './useSwipeBack'
 import { useViewport } from './useViewport'
 import './book/room.css'
 
@@ -59,21 +70,6 @@ export const COVER_DELAY_MS = 120
 /** Play: the dwell after each turn */
 export const DWELL_MS = 4000
 
-/** the box the server lays the room out for */
-const SERVER = { vw: 1440, vh: 900 }
-
-/**
- * Desktop reader (site-stand-v7 R): [kx, ky, ty, dx] = the visible GL book's
- * width / W, height / H, top offset / H and centre right of the box centre / W.
- */
-const BODY: Record<SiteCatalogBook['fmt'], readonly number[]> = {
-  portrait: [0.8747, 0.8496, 0.0784, 0],
-  landscape: [0.907, 0.894, 0.0533, 0.0006],
-  square: [0.881, 0.8607, 0.0729, 0.0002],
-}
-/** the CSS reader (`?gl=0`, no WebGL2, the prerender) paints its whole box */
-const CSS_BODY = [1, 1, 0, 0] as const
-
 const ROW: CSSProperties = { display: 'flex', alignItems: 'center', height: 44 }
 
 /**
@@ -87,6 +83,7 @@ function bookUrl(input: BookInput): string {
   return `${origin}${pathname}${search}`
 }
 
+/** `?reader=carousel` (none on the server) */
 const carousel = () =>
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('reader') === 'carousel'
@@ -115,7 +112,7 @@ export function SiteRoom({
   const last = n + 1
   const root = useRef<HTMLDivElement>(null)
   const viewport = useViewport(root, { height: 'element' })
-  const box = viewport ?? SERVER
+  const box = viewport ?? SERVER_BOX
   const rb = useMemo<RoomBook>(
     () => ({ entry, book, images, renderSlide }),
     [entry, book, images, renderSlide],
@@ -124,8 +121,7 @@ export function SiteRoom({
   const sapi = useRef<SlidesApi>(null)
   const mode = roomMode(box.vw, box.vh)
   const port = mode === 'port'
-  const narrow = mode === 'desk' && box.vw <= 640
-  const wide = mode === 'desk' && !narrow
+  const wide = mode === 'desk' && wideDesk(box.vw)
 
   const [ownView, setOwnView] = useState(0)
   const view = embedded === undefined ? ownView : embedded.slide
@@ -170,12 +166,16 @@ export function SiteRoom({
     else api.current?.go(d)
   }
   const goRef = useRef(go)
+  // the latest view and close for timers and window keys
+  const viewNow = useRef(view)
+  const closeNow = useRef(onClose)
   useLayoutEffect(() => {
     goRef.current = go
+    viewNow.current = view
+    closeNow.current = onClose
   })
 
-  // the lightbox: spread i; the cover opens spread 0, the back cover the last
-  const slideAt = (v: number) => Math.min(Math.max(v - 1, 0), n - 1)
+  // the lightbox: spread i (`lightboxSlide`); closing it rests the reader on spread i
   const [lb, setLb] = useState<number | null>(null)
   const fsBtn = useRef<HTMLButtonElement>(null)
   const shutLb = (i: number) => {
@@ -191,7 +191,7 @@ export function SiteRoom({
     if (!over || port) return
     const t = window.setTimeout(
       () => {
-        if (live.current.view === 0) goRef.current(1)
+        if (viewNow.current === 0) goRef.current(1)
       },
       reduced() ? 0 : FADE_MS + COVER_DELAY_MS,
     )
@@ -200,16 +200,12 @@ export function SiteRoom({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- on open only: a later return to the cover must not turn it again
   }, [])
-  const live = useRef({ view, lb, onClose })
-  useLayoutEffect(() => {
-    live.current = { view, lb, onClose }
-  })
-  // Esc closes the room (the lightbox takes its own Esc)
+  // Esc closes the room (the lightbox takes its own Esc before it gets here)
   useEffect(() => {
     if (isEmbedded) return
     const k = (e: KeyboardEvent) => {
-      const { lb: open, onClose: close } = live.current
-      if (e.key !== 'Escape' || open !== null || close === undefined) return
+      const close = closeNow.current
+      if (e.key !== 'Escape' || close === undefined) return
       e.preventDefault()
       close()
     }
@@ -219,15 +215,10 @@ export function SiteRoom({
     }
   }, [isEmbedded])
 
-  // autoplay: `delay` = the turn still running when the dwell starts; `n` restarts the line
+  // autoplay: `play` = the turn still running when the dwell starts (ms)
   const pos = port ? rest : view
   const end = port ? slides.length - 1 : last
-  const [play, setPlay] = useState<{ delay: number; n: number } | null>(null)
-  const turnMs = (a: number, z: number) => {
-    if (port) return 0
-    if (reduced() || Math.abs(z - a) !== 1) return 240
-    return Math.min(a, z) === 0 || Math.max(a, z) === last ? 1000 : 820
-  }
+  const [play, setPlay] = useState<number | null>(null)
   const prevPos = useRef(pos)
   useEffect(() => {
     const a = prevPos.current
@@ -235,15 +226,19 @@ export function SiteRoom({
     if (a === pos) return
     // a turn landed: the next dwell starts from it
     setPlay((p) =>
-      !p || pos >= end ? null : { delay: turnMs(a, pos), n: p.n + 1 },
+      p === null || pos >= end
+        ? null
+        : port
+          ? 0
+          : turnMs(a, pos, last, reduced()),
     )
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- a position change only; end / turnMs are read at that moment
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a position change only; end / port are read at that moment
   }, [pos])
   useEffect(() => {
-    if (!play) return
+    if (play === null) return
     const t = window.setTimeout(() => {
       goRef.current(1)
-    }, play.delay + DWELL_MS)
+    }, play + DWELL_MS)
     return () => {
       window.clearTimeout(t)
     }
@@ -251,16 +246,8 @@ export function SiteRoom({
   const playing = play !== null
   useEffect(() => {
     if (!playing) return
-    // Play itself toggles (its click, Enter, Space); everything else pauses
     const stop = (e: Event) => {
-      const t = e.target as Partial<Element> | null
-      const own = t?.closest?.('[data-testid="site-play"]') != null
-      if (
-        !own ||
-        (e instanceof KeyboardEvent && e.key !== 'Enter' && e.key !== ' ')
-      ) {
-        setPlay(null)
-      }
+      if (pausesPlay(e)) setPlay(null)
     }
     const vis = () => {
       if (document.hidden) setPlay(null)
@@ -275,11 +262,11 @@ export function SiteRoom({
     }
   }, [playing])
   const toggle = () => {
-    if (play) {
+    if (playing) {
       setPlay(null)
       return
     }
-    setPlay({ delay: 0, n: 0 })
+    setPlay(0)
     // at the end: page 1 first (portrait: at once)
     if (pos >= end) {
       if (port) sapi.current?.jump(1)
@@ -287,12 +274,14 @@ export function SiteRoom({
     }
   }
 
-  const swipe = useSwipeBack(root, mode !== 'desk', box.vw, onClose)
+  const swipe = useSwipeBack(
+    mode === 'desk' ? undefined : onClose,
+    box.vw,
+    reduced,
+  )
 
   const txt = wide ? 't16' : 'm15'
   const label = port ? (slides[si]?.label ?? '') : viewLabel(view, n)
-  const prev = port ? si <= 0 : view <= 0
-  const next = port ? si >= end : view >= last
   const homeHref = pageHref(input.catalogHref)
   const closeClick = (e: { preventDefault: () => void }) => {
     if (onClose === undefined) return
@@ -309,12 +298,12 @@ export function SiteRoom({
       data-testid="site-play"
     >
       {playing ? 'Pause' : 'Play'}
-      {play && (
+      {playing && (
         <span
-          key={play.n}
+          key={pos}
           className="sb-prog"
           style={{
-            animationDelay: `${String(play.delay)}ms`,
+            animationDelay: `${String(play)}ms`,
             animationDuration: `${String(DWELL_MS)}ms`,
           }}
           data-testid="site-progress"
@@ -322,18 +311,18 @@ export function SiteRoom({
       )}
     </button>
   )
-  const btn = (d: -1 | 1) => (
+  const step = (testId: string, text: string, d: number, off: boolean) => (
     <button
       type="button"
       className={`${txt} g ss-tx`}
       style={{ minHeight: 44 }}
-      disabled={d < 0 ? prev : next}
+      disabled={off}
       onClick={() => {
         go(d)
       }}
-      data-testid={d < 0 ? 'site-prev' : 'site-next'}
+      data-testid={testId}
     >
-      {d < 0 ? 'Previous' : 'Next'}
+      {text}
     </button>
   )
   const lbl = (
@@ -368,23 +357,6 @@ export function SiteRoom({
       url={() => bookUrl(input)}
     />
   )
-  const fullBtn = mode === 'desk' && (
-    <button
-      type="button"
-      ref={fsBtn}
-      className={`${txt} g ss-tx`}
-      style={{ minHeight: 44 }}
-      onClick={() => {
-        setLb(slideAt(view))
-      }}
-      data-testid="site-fullscreen-btn"
-    >
-      Fullscreen
-    </button>
-  )
-  const lightbox = lb !== null && (
-    <SiteLightbox rb={rb} start={lb} onClose={shutLb} />
-  )
   const roomProps = {
     ref: root,
     className: 'ss sb-room',
@@ -397,8 +369,11 @@ export function SiteRoom({
     ...swipe,
   }
   const keys = !isEmbedded && lb === null
+  const lightbox = lb !== null && (
+    <SiteLightbox rb={rb} start={lb} onClose={shutLb} />
+  )
 
-  if (port && viewport !== null) {
+  if (port) {
     const g = portGeo(rb, box.vw, box.vh)
     const stage = {
       ref: sapi,
@@ -477,27 +452,17 @@ export function SiteRoom({
   )
 
   if (mode === 'land') {
-    const B = 136
-    const W1 = Math.min(box.vw - 2 * B, (box.vh - 24) * R)
-    const W3 = Math.min(box.vw - 32, (box.vh - 64) * R)
-    const side = W1 >= W3
-    const rw = side ? W1 : W3
-    const rh = rw / R
-    const bottom = box.vh - 52
+    const g = landGeo(box.vw, box.vh, R)
     return (
-      <div {...roomProps} data-layout={side ? 'side' : 'foot'}>
-        {reader(
-          rw,
-          (box.vw - rw) / 2,
-          side ? (box.vh - rh) / 2 : 8 + (box.vh - 64 - rh) / 2,
-        )}
-        {side ? (
+      <div {...roomProps} data-layout={g.side ? 'side' : 'foot'}>
+        {reader(g.reader.w, g.reader.left, g.reader.top)}
+        {g.side ? (
           <>
             {back({
               position: 'absolute',
               left: 16,
               top: 8,
-              maxWidth: B - 24,
+              maxWidth: LAND_SIDE - 24,
             })}
             <div
               className="ss-abs"
@@ -506,7 +471,7 @@ export function SiteRoom({
               {shareBtn}
               {playBtn}
             </div>
-            <div className="ss-abs" style={{ ...ROW, left: 16, top: bottom }}>
+            <div className="ss-abs" style={{ ...ROW, left: 16, top: g.rowTop }}>
               {lbl}
             </div>
           </>
@@ -521,7 +486,7 @@ export function SiteRoom({
               columnGap: 16,
               left: 16,
               right: 16,
-              top: bottom,
+              top: g.rowTop,
             }}
           >
             {back({ justifySelf: 'start', maxWidth: '100%' })}
@@ -537,62 +502,34 @@ export function SiteRoom({
     )
   }
 
-  // desktop: grid M 24 / 16, G 16 / 12, 12 / 4 columns
-  const M = narrow ? 16 : 24
-  const G = narrow ? 12 : 16
-  const C = narrow ? 4 : 12
-  const col = (box.vw - 2 * M - (C - 1) * G) / C
-  const span = (k: number) => k * col + (k - 1) * G
-  const x = (k: number) => M + k * (col + G)
-  const top = narrow ? 64 : 72
-  const foot = narrow ? 104 : 96
-  let rw = Math.max(
-    200,
-    Math.min(span(narrow ? 4 : 10), (box.vh - top - foot) * R),
-  )
-  let bookTop = top + (box.vh - top - foot - rw / R) / 2
-  let footTop = bookTop + rw / R + 24
-  let shift = 0
-  if (wide) {
-    // stand-v8: the visible book centred in [44 (the head's bottom), footTop],
-    // ≥ 32 above and below, ≥ 64 each side
-    const gl = viewport !== null && renderSlide === undefined && glWanted()
-    const [kx = 1, ky = 1, ty = 0, dx = 0] = gl ? BODY[entry.fmt] : CSS_BODY
-    const A = 44
-    footTop = box.vh - 54
-    rw = Math.max(
-      200,
-      Math.min((box.vw - 128) / kx, ((footTop - A - 64) * R) / ky),
-    )
-    const H = rw / R
-    bookTop = (A + footTop) / 2 - (ky * H) / 2 - ty * H
-    shift = dx * rw
-  }
-  const bookLeft = (box.vw - rw) / 2 - shift
+  // the GL reader paints a smaller book in its box (wide desktop centres that)
+  const gl = viewport !== null && renderSlide === undefined && glWanted()
+  const g = deskGeo(box.vw, box.vh, R, gl ? GL_BODY[entry.fmt] : CSS_BODY)
   const about = (
     <p className="sb-about" data-testid="site-about">
-      <span className={wide ? 't16' : 'm15'}>{entry.title}</span>
+      <span className={txt}>{entry.title}</span>
       <span className="t13 g" style={{ marginLeft: 8 }}>
         {roomMeta(entry)}
       </span>
     </p>
   )
-  const pager = (
-    <div
-      className="ss-abs"
-      style={{
-        ...ROW,
-        top: footTop,
-        justifyContent: 'center',
-        gap: wide ? 40 : 24,
-        ...(wide ? { left: x(4), width: span(4) } : { left: M, right: M }),
-      }}
-      data-testid="site-pager"
-    >
-      {btn(-1)}
-      {lbl}
-      {btn(1)}
-    </div>
+  const buttons = (
+    <>
+      {shareBtn}
+      <button
+        type="button"
+        ref={fsBtn}
+        className={`${txt} g ss-tx`}
+        style={{ minHeight: 44 }}
+        onClick={() => {
+          setLb(lightboxSlide(view, n))
+        }}
+        data-testid="site-fullscreen-btn"
+      >
+        Fullscreen
+      </button>
+      {playBtn}
+    </>
   )
   return (
     <div {...roomProps}>
@@ -611,45 +548,57 @@ export function SiteRoom({
           All books
         </a>
       )}
-      {reader(rw, bookLeft, bookTop)}
-      {wide && (
+      {reader(g.reader.w, g.reader.left, g.reader.top)}
+      {g.about !== null && (
         <div
           className="ss-abs"
-          style={{ ...ROW, left: x(0), top: footTop, width: span(4) }}
+          style={{
+            ...ROW,
+            left: g.about.left,
+            top: g.footTop,
+            width: g.about.width,
+          }}
         >
           {about}
         </div>
       )}
-      {pager}
+      <div
+        className="ss-abs"
+        style={{
+          ...ROW,
+          top: g.footTop,
+          justifyContent: 'center',
+          gap: wide ? 40 : 24,
+          ...g.pager,
+        }}
+        data-testid="site-pager"
+      >
+        {step('site-prev', 'Previous', -1, view <= 0)}
+        {lbl}
+        {step('site-next', 'Next', 1, view >= last)}
+      </div>
       {wide ? (
         <div
           className="ss-abs"
           style={{
             ...ROW,
-            left: x(9),
-            width: span(3),
-            top: footTop,
+            ...g.actions,
+            top: g.actionsTop,
             justifyContent: 'flex-end',
             gap: 24,
           }}
           data-testid="site-actions"
         >
-          {shareBtn}
-          {fullBtn}
-          {playBtn}
+          {buttons}
         </div>
       ) : (
         <div
           className="ss-abs"
-          style={{ ...ROW, left: M, right: M, top: footTop + 44 + 16, gap: 16 }}
+          style={{ ...ROW, ...g.actions, top: g.actionsTop, gap: 16 }}
           data-testid="site-actions"
         >
           {about}
-          <div style={{ ...ROW, gap: 24, flex: 'none' }}>
-            {shareBtn}
-            {fullBtn}
-            {playBtn}
-          </div>
+          <div style={{ ...ROW, gap: 24, flex: 'none' }}>{buttons}</div>
         </div>
       )}
       {lightbox}
@@ -681,133 +630,4 @@ function ClosedCover({
       <CoverFace b={entry} w={w / 2} h={h} />
     </div>
   )
-}
-
-/** The room following the finger by `dx`, or sliding there in `ms`. */
-function paintSwipe(el: HTMLElement | null, dx: number, ms: number) {
-  if (el === null) return
-  // data-swipe: "move" while the room follows the finger or slides (tests wait on it)
-  el.dataset.swipe = dx || ms ? 'move' : ''
-  el.style.transition = ms
-    ? `transform ${String(ms)}ms var(--ease-out), box-shadow ${String(ms)}ms var(--ease-out)`
-    : 'none'
-  el.style.transform = dx ? `translate3d(${String(dx)}px,0,0)` : ''
-  el.style.boxShadow = dx ? '-16px 0 32px rgb(0 0 0 / .5)' : ''
-}
-
-/**
- * Swipe back (D25; touch and pen on phones): a rightward swipe that starts
- * outside the book follows the finger once dx > 10 and dx > 1.5·|dy|
- * (abandoned if |dy| > 10 or dx < −10 comes first); a release past 0.25·w or
- * faster than 0.5 px/ms (over the last 80 ms) slides the room out in 200 ms
- * and closes it, else it springs back. Reduced motion: no follow.
- */
-function useSwipeBack(
-  root: RefObject<HTMLDivElement | null>,
-  on: boolean,
-  w: number,
-  onClose: (() => void) | undefined,
-) {
-  const s = useRef<{
-    id: number
-    x0: number
-    y0: number
-    active: boolean
-    dx: number
-    trail: [number, number][]
-  } | null>(null)
-  const timer = useRef(0)
-  // the click that may follow an active swipe's release is swallowed
-  const swallow = useRef(false)
-  useEffect(
-    () => () => {
-      window.clearTimeout(timer.current)
-    },
-    [],
-  )
-  if (!on || onClose === undefined) return {}
-  const paint = (dx: number, ms: number) => {
-    paintSwipe(root.current, dx, ms)
-  }
-  const end = (e: PointerEvent, cancel: boolean) => {
-    const g = s.current
-    if (g?.id !== e.pointerId) return
-    s.current = null
-    if (!g.active) return
-    window.setTimeout(() => {
-      swallow.current = false
-    }, 0)
-    const t = e.timeStamp
-    const was = g.trail.find(([tt]) => t - tt <= 80) ?? [t, g.dx]
-    const v = t > was[0] ? (g.dx - was[1]) / (t - was[0]) : 0
-    const shut = !cancel && (g.dx > 0.25 * w || v > 0.5)
-    if (reduced()) {
-      if (shut) onClose()
-      return
-    }
-    paint(shut ? w : 0, 200)
-    timer.current = window.setTimeout(() => {
-      if (shut) onClose()
-      else paint(0, 0)
-    }, 200)
-  }
-  return {
-    style: { touchAction: 'none' } as CSSProperties,
-    onPointerDown: (e: PointerEvent) => {
-      if (e.pointerType === 'mouse' || s.current) return
-      const t = e.target as Element
-      if (
-        t.closest(
-          '[data-testid="ps-strip"],[data-testid="pt-stage"],[data-testid="site-reader"]',
-        )
-      ) {
-        return
-      }
-      s.current = {
-        id: e.pointerId,
-        x0: e.clientX,
-        y0: e.clientY,
-        active: false,
-        dx: 0,
-        trail: [],
-      }
-    },
-    onPointerMove: (e: PointerEvent) => {
-      const g = s.current
-      if (g?.id !== e.pointerId) return
-      const dx = e.clientX - g.x0
-      const dy = e.clientY - g.y0
-      if (!g.active) {
-        if (Math.abs(dy) > 10 || dx < -10) {
-          s.current = null
-          return
-        }
-        if (!(dx > 10 && dx > 1.5 * Math.abs(dy))) return
-        g.active = true
-        root.current?.setPointerCapture(e.pointerId)
-        swallow.current = true
-      }
-      g.dx = Math.max(0, dx)
-      g.trail = [
-        ...g.trail.filter(([t]) => e.timeStamp - t <= 80),
-        [e.timeStamp, g.dx],
-      ]
-      if (!reduced()) paint(g.dx, 0)
-    },
-    onClickCapture: (e: {
-      stopPropagation: () => void
-      preventDefault: () => void
-    }) => {
-      if (swallow.current) {
-        e.stopPropagation()
-        e.preventDefault()
-      }
-    },
-    onPointerUp: (e: PointerEvent) => {
-      end(e, false)
-    },
-    onPointerCancel: (e: PointerEvent) => {
-      end(e, true)
-    },
-  }
 }
