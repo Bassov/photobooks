@@ -1,8 +1,8 @@
 ## Implementation
 
-- [x] 1. Deep link and Forward open on the cover without a turn; only a home tap turns it (`sys.tsx`, `room.tsx`) — `e2e/kit-personal-site.spec.ts` "direct book link" (1440, 390), `expectOpened` still green.
-- [x] 2. Preview and `siteEntry=book` start on the cover; kit states naming a slide keep it (`demo-parts/site.tsx`, demo-capture comment) — `e2e/kit-personal-site-demo.spec.ts`, `e2e/kit-personal-site.spec.ts` "Spread 2".
-- [x] 3. Kit qa checks and existing kit specs follow the cover start — `uikit:qa:quick` 422 passed; room / reader-gl / fold-strip / mod-arrows specs green.
+- [x] 1. Deep link and Forward rest on the cover; only a home tap turns it (`sys.tsx`, `room.tsx`) — `e2e/kit-personal-site.spec.ts`.
+- [x] 2. Preview and `siteEntry=book` start on the cover; a named slide is kept (`demo-parts/site.tsx`) — `e2e/kit-personal-site-demo.spec.ts`.
+- [x] 3. Kit qa checks and existing kit specs follow the cover start — `uikit/scripts/qa.mjs`.
 
 ## Manual test scenarios
 
