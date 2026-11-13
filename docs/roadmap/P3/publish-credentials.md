@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-- [ ] Locally stored, narrowly scoped credentials, entered in Settings → Hosting; strict CSP
+- [x] Locally stored, narrowly scoped credentials, entered in Settings → Hosting; strict CSP
 - **Browser check:** enter credentials once; they survive a reload and are never sent anywhere except the hosting API.
 - **Perf:** credential save is off the main thread path of editing; zero LoAF while saving.
 - **Kit components:** `uikit#/feature/site-settings` scenario `hosting` (`uikit/src/demo-parts/settings.tsx` `SettingsScreen`); partial: kit shows read-only rows, entry form missing (Designer)
