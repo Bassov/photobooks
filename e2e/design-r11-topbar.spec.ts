@@ -264,3 +264,36 @@ test.describe('design-r11-topbar M69', () => {
     await assertDocumentFitsViewport(page)
   })
 })
+
+// in-app-publish P11: Export site goes icon-only below 1360 px; Publish
+// keeps its label at every width.
+test.describe('design-r11-topbar P11 site pills', () => {
+  for (const [w, label] of [
+    [1360, true],
+    [1359, false],
+  ] as const) {
+    test(`${String(w)} px: Export site label ${label ? 'shown' : 'hidden'}, Publish labelled`, async ({
+      page,
+    }) => {
+      await openSpreadOne(page)
+      await page.setViewportSize({ width: w, height: 900 })
+      const exportSite = page.getByTestId('export-site')
+      const exportLabel = exportSite.locator(
+        '.site-job-pill__content:not(.site-job-pill__sizer) .site-job-pill__label',
+      )
+      await expect(exportLabel).toBeVisible({ visible: label })
+      const exportWidth = (await box(exportSite)).width
+      // Icon-only is 40 px (±0.5); labelled is wider.
+      expect(exportWidth).toBeGreaterThan(39.5)
+      expect(exportWidth > 40.5).toBe(label)
+      const publishLabel = page
+        .getByTestId('publish')
+        .locator(
+          '.site-job-pill__content:not(.site-job-pill__sizer) .site-job-pill__label',
+        )
+      await expect(publishLabel).toBeVisible()
+      await expect(publishLabel).toHaveText('Publish')
+      await assertDocumentFitsViewport(page)
+    })
+  }
+})
