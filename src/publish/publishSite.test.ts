@@ -17,10 +17,8 @@ import {
   parseManifest,
   PUBLISH_MANIFEST_KEY,
   publishSite,
-  type PublishDeps,
-  type PublishProgress,
-  type PublishSiteFile,
 } from './publishSite'
+import type { PublishDeps, PublishProgress, PublishSiteFile } from './publisher'
 import { sha256Hex } from './r2Sign'
 import { fileKind } from './uploadPlan'
 

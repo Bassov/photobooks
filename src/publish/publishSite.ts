@@ -5,7 +5,14 @@
  * a result (messages go through `redact`).
  */
 
-import type { CheckCode, R2Credentials } from './credentials'
+import type { R2Credentials } from './credentials'
+import type {
+  PublishDeps,
+  PublisherCapabilities,
+  PublishInput,
+  PublishResult,
+  PublishSiteFile,
+} from './publisher'
 import {
   classifyR2Failure,
   r2FailureMessage,
@@ -17,7 +24,6 @@ import {
   fileKind,
   KIND_ORDER,
   planUpload,
-  type PublishFile,
   type RemoteManifest,
   type UploadStep,
 } from './uploadPlan'
@@ -27,57 +33,18 @@ export const REQUEST_TIMEOUT_MS = 30_000
 /** Waits before the 2nd and 3rd attempt; 3 attempts in total. */
 const RETRY_WAITS_MS: readonly number[] = [1_000, 3_000]
 const RETRY_AFTER_MAX_MS = 10_000
-const PUT_CONCURRENCY = 4
+export const R2_CAPABILITIES: PublisherCapabilities = {
+  immutableCache: true,
+  maxParallelUploads: 4,
+  deletes: true,
+}
 export const CACHE_IMMUTABLE = 'public, max-age=31536000, immutable'
 export const CACHE_NO_CACHE = 'no-cache'
 export const CACHE_NO_STORE = 'no-store'
 
-export interface PublishSiteFile extends PublishFile {
-  bytes: Uint8Array
-}
-
-export interface PublishProgress {
-  /** `upload`: bytes put; `finish`: deletes and the manifest, by request. */
-  phase: 'upload' | 'finish'
-  done: number
-  total: number
-}
-
-export interface PublishSiteInput {
-  files: readonly PublishSiteFile[]
+export interface PublishSiteInput extends PublishInput {
   credentials: R2Credentials
-  /** Site-root-relative page to link; `''` is the site home. */
-  bookPath: string
-  onProgress?: (progress: PublishProgress) => void
 }
-
-export interface PublishDeps {
-  fetch?: typeof fetch
-  now?: () => Date
-  sleep?: (ms: number) => Promise<void>
-  /** `navigator.onLine` by default. */
-  isOnline?: () => boolean
-}
-
-export type PublishResult =
-  | {
-      ok: true
-      uploaded: number
-      bytes: number
-      removed: number
-      unchanged: number
-      bookUrl: string
-    }
-  | {
-      ok: false
-      code: CheckCode
-      status?: number
-      /** Redacted. */
-      message: string
-      /** Files put before the run stopped, of `total` to put. */
-      sent: number
-      total: number
-    }
 
 const CONTENT_TYPES: readonly (readonly [string, string])[] = [
   ['html', 'text/html; charset=utf-8'],
@@ -239,7 +206,7 @@ function kindGroups(files: readonly PublishSiteFile[]): PublishSiteFile[][] {
 }
 
 /**
- * GET the manifest (404 → empty), put the new or changed files 4 at a time
+ * GET the manifest (404 → empty), put the new or changed files `maxParallelUploads` at a time
  * with each kind group finished before the next, delete keys only the old
  * manifest has, then PUT the manifest. A failed run writes, best effort, the
  * manifest of what is on R2 now, so the next run sends only the rest.
@@ -382,34 +349,44 @@ export async function publishSite(
           cacheControl: cacheControlOf(file.key),
         })),
       })
-      await inPool(group, PUT_CONCURRENCY, signPut, async (put) => {
-        const { file } = put
-        await sendSigned(put.request, put.signed, false)
-        live.set(file.key, file.sha256)
-        sent += 1
-        sentBytes += file.bytes.byteLength
-        input.onProgress?.({
-          phase: 'upload',
-          done: sentBytes,
-          total: totalBytes,
-        })
-      })
+      await inPool(
+        group,
+        R2_CAPABILITIES.maxParallelUploads,
+        signPut,
+        async (put) => {
+          const { file } = put
+          await sendSigned(put.request, put.signed, false)
+          live.set(file.key, file.sha256)
+          sent += 1
+          sentBytes += file.bytes.byteLength
+          input.onProgress?.({
+            phase: 'upload',
+            done: sentBytes,
+            total: totalBytes,
+          })
+        },
+      )
     }
     const finishTotal = deletes.length + 1
     let finished = 0
     input.onProgress?.({ phase: 'finish', done: 0, total: finishTotal })
     const signDelete = (step: (typeof deletes)[number]) =>
       signAhead({ method: 'DELETE', key: step.key })
-    await inPool(deletes, PUT_CONCURRENCY, signDelete, async (del) => {
-      await sendSigned(del.request, del.signed, true)
-      live.delete(del.request.key)
-      finished += 1
-      input.onProgress?.({
-        phase: 'finish',
-        done: finished,
-        total: finishTotal,
-      })
-    })
+    await inPool(
+      deletes,
+      R2_CAPABILITIES.maxParallelUploads,
+      signDelete,
+      async (del) => {
+        await sendSigned(del.request, del.signed, true)
+        live.delete(del.request.key)
+        finished += 1
+        input.onProgress?.({
+          phase: 'finish',
+          done: finished,
+          total: finishTotal,
+        })
+      },
+    )
     // The manifest itself failing leaves the old one: no second write.
     writePartial = false
     await putManifest(live)
