@@ -168,6 +168,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [in-app-publish-kit](roadmap/P3/in-app-publish-kit.md) — Bug: /next-roadmap-item in-app-publish-kit
 - [ ] [feature] [in-app-publish-core](roadmap/P3/in-app-publish-core.md) — Bug: /next-roadmap-item in-app-publish-core
 - [ ] [feature] [publish-site-flaky](roadmap/P3/publish-site-flaky.md) — Bug: /next-roadmap-item publish-site-flaky
+- [ ] [feature] [site-settings-core](roadmap/P3/site-settings-core.md) — Bug: /next-roadmap-item site-settings-core
 - [ ] [feature] [publish-credentials-core](roadmap/P3/publish-credentials-core.md) — Bug: /next-roadmap-item publish-credentials-core
 - [ ] [feature] [publish-credentials-kit](roadmap/P3/publish-credentials-kit.md) — Bug: /next-roadmap-item publish-credentials-kit
 - [ ] [feature] [site-preview-mode-kit](roadmap/P3/site-preview-mode-kit.md) — kit Preview opens the site book page (Designer site-preview-mode item 1)

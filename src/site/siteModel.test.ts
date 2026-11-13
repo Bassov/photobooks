@@ -6,6 +6,7 @@ import {
   homeHead,
   homeLead,
   roomMeta,
+  siteMetaOf,
   siteTitle,
   slideForHash,
   spreadRatio,
@@ -96,5 +97,34 @@ describe('text', () => {
   it('writes the book meta line', () => {
     expect(bookMeta('Alex', 20)).toBe('by Alex · 20 pages')
     expect(bookMeta('', 20)).toBe('20 pages')
+  })
+})
+
+describe('siteMetaOf (site-settings S3, S7)', () => {
+  it('falls back to the title "Photobooks" and nothing else', () => {
+    expect(siteMetaOf({})).toStrictEqual({ title: 'Photobooks' })
+    expect(siteMetaOf({ site: {} })).toStrictEqual({ title: 'Photobooks' })
+  })
+
+  it('passes the stored settings through; the lead falls back via homeLead', () => {
+    const site = siteMetaOf({
+      site: { title: 'Alps', author: 'Ann' },
+    })
+    expect(site).toStrictEqual({ title: 'Alps', author: 'Ann' })
+    expect(homeLead(site)).toBe('Photobooks by Ann.')
+    expect(
+      homeLead(siteMetaOf({ site: { author: 'Ann', intro: 'Lakes.' } })),
+    ).toBe('Lakes.')
+  })
+
+  it('adds the publish url without trailing slashes; export has none', () => {
+    expect(siteMetaOf({}, 'https://books.example.com//')).toStrictEqual({
+      title: 'Photobooks',
+      url: 'https://books.example.com',
+    })
+    expect(siteMetaOf({}, 'https://books.example.com/a')).toHaveProperty(
+      'url',
+      'https://books.example.com/a',
+    )
   })
 })

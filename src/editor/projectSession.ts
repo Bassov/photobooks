@@ -92,6 +92,7 @@ import {
   bindPrintProfilesLibrary,
   printProfilesSettled,
 } from './printProfilesStore'
+import { bindSiteSettingsLibrary } from './siteSettingsStore'
 import { exposeDerivativesTestApi } from '../derivatives/pool'
 
 const DEFAULT_AUTOSAVE_DEBOUNCE_MS = 1000
@@ -160,11 +161,15 @@ let nowId: () => string = () => crypto.randomUUID()
 
 let storage: LibraryStorage | null = null
 
-/** Every library switch goes here: My templates and print profiles follow `library.json`. */
+/**
+ * Every library switch goes here: My templates, print profiles and site
+ * settings follow `library.json`.
+ */
 function setLibraryStorage(next: LibraryStorage | null): void {
   storage = next
   void bindSavedTemplatesLibrary(next)
   void bindPrintProfilesLibrary(next)
+  void bindSiteSettingsLibrary(next)
 }
 
 let libraryId: string | null = null
