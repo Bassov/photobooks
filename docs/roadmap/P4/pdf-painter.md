@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-- [ ] Worker PDF painter (maintained `pdf-lib` fork): original JPEG bytes, clip + transform crop, bleed; crop marks only when the profile asks
+- [x] Worker PDF painter (maintained `pdf-lib` fork): original JPEG bytes, clip + transform crop, bleed; crop marks only when the profile asks
 - **Done when:** worker painter renders the fixture book to PDF; Security Review of the dependency passed
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
