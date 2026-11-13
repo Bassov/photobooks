@@ -938,6 +938,9 @@ describe('BookReader with WebGL', () => {
     HTMLCanvasElement.prototype.animate = animate
     const { made } = await glMount()
     key('End')
+    // a jump: the view changes at θ 0, drawn in its task
+    expect(made.book.set).toHaveBeenLastCalledWith(11, 0)
+    expect(made.draws.draw.mock.calls.at(-1)?.slice(4)).toEqual([true])
     expect(animate).toHaveBeenCalledExactlyOnceWith(
       [{ opacity: 1 }, { opacity: 0 }],
       { duration: 240, easing: 'linear', fill: 'forwards' },

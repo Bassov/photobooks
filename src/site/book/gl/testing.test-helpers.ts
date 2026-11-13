@@ -91,16 +91,17 @@ export function fakeCanvas2d(): Map<HTMLCanvasElement, FakeContext> {
 /** the fake renderer's calls, across instances */
 export const rendererCalls: Call[] = []
 
-/** the fake renderer's WebGL2 fences: `done` says whether the GPU has caught up */
+/** the fake renderer's WebGL2 fences: `done` says whether the GPU has caught up; `lost`: no fences */
 export const fakeGpu = {
   done: true,
+  lost: false,
   SYNC_GPU_COMMANDS_COMPLETE: 0x9117,
   SYNC_STATUS: 0x9114,
   SIGNALED: 0x9119,
   UNSIGNALED: 0x9118,
   fenceSync() {
     rendererCalls.push(['fenceSync'])
-    return {}
+    return this.lost ? null : {}
   },
   flush() {
     rendererCalls.push(['flush'])

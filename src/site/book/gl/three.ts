@@ -17,9 +17,9 @@ let three: Promise<Three> | undefined
 export const loadThree = (): Promise<Three> =>
   (three ??= import('./vendor/three.module.min.js'))
 
-/** `frame`: bumped by each render, so a late copy knows its pixels are still there */
+/** `drawn`: a fresh token per render, so a late copy knows its pixels are still there */
 let shared:
-  { r: WebGLRenderer; w: number; h: number; frame: number } | undefined
+  { r: WebGLRenderer; w: number; h: number; drawn: object } | undefined
 /**
  * The page's one renderer: MSAA, transparent, sRGB out, no tone mapping; its
  * drawing buffer only grows and outlives the task (`fencedDraws` copies later).
@@ -36,7 +36,7 @@ function renderer(T: Three, w: number, h: number) {
     r.outputColorSpace = T.SRGBColorSpace
     r.toneMapping = T.NoToneMapping
     r.setClearColor(0x000000, 0)
-    shared = { r, w: 0, h: 0, frame: 0 }
+    shared = { r, w: 0, h: 0, drawn: {} }
   }
   if (w > shared.w || h > shared.h) {
     shared.w = Math.max(w, shared.w)
@@ -67,7 +67,7 @@ function render(
   r.setScissorTest(true)
   r.clear()
   r.render(scene, cam)
-  s.frame += 1
+  s.drawn = {}
   return s
 }
 
@@ -153,46 +153,47 @@ export function fencedDraws(
     prep: () => unknown
     done: ((v: unknown) => void)[]
   }
+  /** the next draw to fence, and the one whose fence is pending */
   let ask: Ask | undefined
   let flight: Ask | undefined
-  let busy = false
   let stopped = false
   const run = () => {
-    busy = ask !== undefined && !stopped
-    if (!busy || !ask) return
     const a = ask
     ask = undefined
     flight = a
+    if (!a) return
     const v = a.prep()
     const s = render(T, scene, cam, a.w, a.h, shadows)
-    const frame = s.frame
+    const mine = s.drawn
     const gl = s.r.getContext()
+    // null: a lost context, nothing to wait for
     const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0)
     gl.flush()
     const poll = () => {
-      if (
-        !stopped &&
-        sync !== null &&
-        gl.getSyncParameter(sync, gl.SYNC_STATUS) !== gl.SIGNALED
-      ) {
-        next(poll)
-        return
-      }
       gl.deleteSync(sync)
       if (stopped) return
-      flight = undefined
-      if (s.frame === frame) {
+      if (s.drawn === mine) {
         copy(a.out, a.w, a.h)
         for (const f of a.done) f(v)
         // a draw `now` took the waiters over: nothing left to re-render
       } else if (a.done.length > 0) ask ??= a
       run()
     }
-    next(poll)
+    const wait = () => {
+      if (
+        !stopped &&
+        sync !== null &&
+        gl.getSyncParameter(sync, gl.SYNC_STATUS) !== gl.SIGNALED
+      )
+        next(wait)
+      else poll()
+    }
+    next(wait)
   }
   return {
     draw: (out, w, h, prep, now = false) =>
       new Promise((resolve) => {
+        if (stopped) return
         const a: Ask = {
           out,
           w,
@@ -202,10 +203,9 @@ export function fencedDraws(
         }
         if (!now) {
           ask = a
-          if (!busy) run()
+          if (!flight) run()
           return
         }
-        if (stopped) return
         ask = undefined
         const v = prep()
         render(T, scene, cam, w, h, shadows)

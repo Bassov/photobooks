@@ -14,6 +14,7 @@ const fresh = async () => {
 beforeEach(() => {
   rendererCalls.length = 0
   fakeGpu.done = true
+  fakeGpu.lost = false
 })
 
 afterEach(() => {
@@ -248,6 +249,55 @@ describe('fencedDraws', () => {
     expect(late).not.toHaveBeenCalled()
   })
 
+  it('draws now when nothing is in flight', async () => {
+    const { d, out, copies } = await setup()
+
+    expect(await d.draw(out, 10, 10, () => 'a', true)).toBe('a')
+    expect(copies()).toHaveLength(1)
+  })
+
+  it('resizes the canvas only when the draw size changes', async () => {
+    const { d, out, tick } = await setup()
+    const setW = vi.spyOn(HTMLCanvasElement.prototype, 'width', 'set')
+    const setH = vi.spyOn(HTMLCanvasElement.prototype, 'height', 'set')
+
+    await d.draw(out, 40, 30, () => 'a', true)
+    await d.draw(out, 40, 30, () => 'b', true)
+    const late = d.draw(out, 40, 30, () => 'c')
+    tick()
+    await late
+
+    expect(setW.mock.calls).toEqual([[40]])
+    expect(setH.mock.calls).toEqual([[30]])
+  })
+
+  it('copies at the next frame when the context has no fences (lost)', async () => {
+    const { d, out, tick, copies } = await setup()
+    fakeGpu.lost = true
+    fakeGpu.done = false
+
+    const a = d.draw(out, 10, 10, () => 'a')
+    tick()
+
+    expect(await a).toBe('a')
+    expect(copies()).toHaveLength(1)
+  })
+
+  it('polls on animation frames by default', async () => {
+    const { fencedDraws, T, scene, cam, out } = await setup()
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (f: FrameRequestCallback) =>
+      frames.push(f),
+    )
+    const d = fencedDraws(T, scene, cam, false)
+
+    const a = d.draw(out, 10, 10, () => 'a')
+    expect(frames).toHaveLength(1)
+    frames[0]?.(0)
+
+    expect(await a).toBe('a')
+  })
+
   it('drops the draw in flight and those asked after a stop', async () => {
     const { d, out, tick, copies, renders } = await setup()
     fakeGpu.done = false
@@ -256,9 +306,12 @@ describe('fencedDraws', () => {
     void d.draw(out, 10, 10, () => 'a').then(landed)
     void d.draw(out, 10, 10, () => 'b').then(landed)
     d.stop()
-    fakeGpu.done = true
     tick()
+    // the fence goes on the first frame after the stop, signalled or not
+    expect(rendererCalls.at(-1)).toEqual(['deleteSync'])
+    fakeGpu.done = true
     void d.draw(out, 10, 10, () => 'c').then(landed)
+    void d.draw(out, 10, 10, () => 'd', true).then(landed)
     tick()
     await Promise.resolve()
 
