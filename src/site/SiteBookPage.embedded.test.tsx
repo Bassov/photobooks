@@ -60,12 +60,13 @@ afterEach(() => {
 })
 
 describe('SiteRoom embedded', () => {
-  it('the host owns the view; no URL, no name, no Share', () => {
+  it('the host owns the view; no URL, a plain name, no Share', () => {
     const onSlide = vi.fn()
     render(room(2, onSlide))
 
     expect(label()).toBe('Pages 2–3 of 20')
-    expect(id('site-name')).toBeNull()
+    expect(id('site-name')?.tagName).toBe('SPAN')
+    expect(id('site-room')?.querySelector('a')).toBeNull()
     expect(id('site-share')).toBeNull()
     expect(id('site-all-books')).toBeNull()
     expect(id('site-room')?.hasAttribute('data-embedded')).toBe(true)

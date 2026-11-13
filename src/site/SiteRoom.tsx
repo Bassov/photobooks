@@ -537,7 +537,12 @@ export function SiteRoom({
   )
   return (
     <div {...roomProps}>
-      {!isEmbedded && (
+      {isEmbedded ? (
+        // Nothing in an embedded room links away (kit Head `preview`).
+        <span className="ss-name" data-testid="site-name">
+          {homeHead(input.site)}
+        </span>
+      ) : (
         <a
           className="ss-name"
           href={homeHref}

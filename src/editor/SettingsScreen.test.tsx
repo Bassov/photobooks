@@ -102,16 +102,15 @@ describe('SettingsScreen', () => {
     expect(screen.queryByRole('alertdialog')).toBeNull()
   })
 
-  it('hides sections without backing behavior (no stubs, no inputs)', () => {
+  it('hides Interface, which has no backing behavior (no stub, no inputs)', () => {
     render(<SettingsScreen libraryPath="Lib" bookCount={0} />)
-    for (const id of ['site', 'interface']) {
-      expect(screen.queryByTestId(`settings-nav-${id}`)).toBeNull()
-      expect(screen.queryByTestId(`settings-deferred-${id}`)).toBeNull()
-    }
+    expect(screen.queryByTestId('settings-nav-interface')).toBeNull()
+    expect(screen.queryByTestId('settings-deferred-interface')).toBeNull()
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
       'Library',
       'Hosting',
+      'Site',
       'Print presets',
       'Change library folder…',
     ])
@@ -150,6 +149,22 @@ describe('SettingsScreen', () => {
     ).toBe('password')
     fireEvent.click(screen.getByTestId('settings-nav-library'))
     expect(screen.queryByRole('textbox')).toBeNull()
+  })
+
+  it('opens Site: title and the three site fields only there', () => {
+    render(<SettingsScreen libraryPath="Lib" bookCount={0} />)
+    fireEvent.click(screen.getByTestId('settings-nav-site'))
+    expect(screen.getByTestId('settings-section-title').textContent).toBe(
+      'Site',
+    )
+    expect(
+      screen.getByTestId('settings-nav-site').getAttribute('aria-current'),
+    ).toBe('page')
+    expect(screen.getByTestId('site-settings')).toBeTruthy()
+    expect(screen.getAllByRole('textbox')).toHaveLength(3)
+    expect(screen.getAllByTestId('settings-rule')).toHaveLength(2)
+    fireEvent.click(screen.getByTestId('settings-nav-library'))
+    expect(screen.queryByTestId('site-settings')).toBeNull()
   })
 
   it('switches to Print presets: title, aria-current and active row follow', () => {

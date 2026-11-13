@@ -4,12 +4,13 @@ import { pagesOf } from '../core/pages'
 import { displayBookTitle } from '../project/bookTitle'
 import { bookFormatFromTrim } from '../render/bookObjectLayout'
 import { CoverView } from '../render/CoverView'
-import { siteBookFacts } from '../site/siteModel'
+import { siteBookFacts, siteMetaOf } from '../site/siteModel'
 import { SiteRoom, type BookInput } from '../site/SiteRoom'
 import '../site/siteSystem.css'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
 import { SitePreviewFrame } from './SitePreviewBar'
+import { getSiteSettings, subscribeSiteSettings } from './siteSettingsStore'
 import { useTierPreviewUrl } from './useTierPreviewUrl'
 
 const readBook = (): Book => getBookStoreSnapshot().book
@@ -61,6 +62,11 @@ export function PreviewSlide({
  */
 export default function SitePreview({ onExit }: { onExit: () => void }) {
   const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
+  const site = useSyncExternalStore(
+    subscribeSiteSettings,
+    getSiteSettings,
+    getSiteSettings,
+  )
   const n = book.spreads.length
   const [ownSlide, setSlide] = useState(0)
   const slide = Math.min(ownSlide, n + 1)
@@ -68,7 +74,7 @@ export default function SitePreview({ onExit }: { onExit: () => void }) {
   const input = useMemo(
     (): BookInput => ({
       kind: 'book',
-      site: { title: '' },
+      site: siteMetaOf({ site }),
       path: '',
       catalogHref: '',
       book,
@@ -88,7 +94,7 @@ export default function SitePreview({ onExit }: { onExit: () => void }) {
         ...siteBookFacts(book, OPENED_AT),
       },
     }),
-    [book, n],
+    [book, n, site],
   )
   const renderSlide = useCallback(
     (s: number, widthPx: number) => (
