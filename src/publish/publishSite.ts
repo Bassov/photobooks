@@ -6,10 +6,16 @@
  */
 
 import type { CheckCode, R2Credentials } from './credentials'
-import { classifyR2Failure, r2FailureMessage, type R2Failure } from './r2Errors'
+import {
+  classifyR2Failure,
+  r2FailureMessage,
+  s3ErrorCode,
+  type R2Failure,
+} from './r2Errors'
 import { r2Request, type R2RequestInput } from './r2Sign'
 import {
   fileKind,
+  KIND_ORDER,
   planUpload,
   type PublishFile,
   type RemoteManifest,
@@ -40,16 +46,15 @@ export interface PublishProgress {
 export interface PublishSiteInput {
   files: readonly PublishSiteFile[]
   credentials: R2Credentials
-  /** Site-root-relative page to link; `''` (default) is the site home. */
-  bookPath?: string
+  /** Site-root-relative page to link; `''` is the site home. */
+  bookPath: string
   onProgress?: (progress: PublishProgress) => void
 }
 
 export interface PublishDeps {
   fetch?: typeof fetch
   now?: () => Date
-  /** Resolves after `ms`, or early once `signal` aborts. */
-  sleep?: (ms: number, signal?: AbortSignal) => Promise<void>
+  sleep?: (ms: number) => Promise<void>
   /** `navigator.onLine` by default. */
   isOnline?: () => boolean
 }
@@ -74,7 +79,7 @@ export type PublishResult =
       total: number
     }
 
-const CONTENT_TYPES = new Map([
+const CONTENT_TYPES: readonly (readonly [string, string])[] = [
   ['html', 'text/html; charset=utf-8'],
   ['json', 'application/json'],
   ['css', 'text/css; charset=utf-8'],
@@ -93,21 +98,20 @@ const CONTENT_TYPES = new Map([
   ['woff2', 'font/woff2'],
   ['woff', 'font/woff'],
   ['webmanifest', 'application/manifest+json'],
-])
+]
 
 export function contentTypeOf(key: string): string {
-  const name = key.slice(key.lastIndexOf('/') + 1)
-  const dot = name.lastIndexOf('.')
-  const ext = dot < 0 ? '' : name.slice(dot + 1).toLowerCase()
-  return CONTENT_TYPES.get(ext) ?? 'application/octet-stream'
+  const lower = key.toLowerCase()
+  const known = CONTENT_TYPES.find(([ext]) => lower.endsWith(`.${ext}`))
+  return known?.[1] ?? 'application/octet-stream'
 }
 
 /** P6: content-hashed assets are immutable; pages, data and the rest revalidate. */
 export function cacheControlOf(key: string): string {
   if (key === PUBLISH_MANIFEST_KEY) return CACHE_NO_STORE
   if (fileKind(key) !== 'asset') return CACHE_NO_CACHE
-  const name = key.slice(key.lastIndexOf('/') + 1)
-  return /[0-9a-f]{16}/.test(name) ? CACHE_IMMUTABLE : CACHE_NO_CACHE
+  // ≥ 16 hex in the last path segment.
+  return /[0-9a-f]{16}[^/]*$/.test(key) ? CACHE_IMMUTABLE : CACHE_NO_CACHE
 }
 
 /** A key the manifest may name: inside the bucket and outside `_photobooks/`. */
@@ -142,10 +146,9 @@ export function parseManifest(text: string): RemoteManifest {
 }
 
 function manifestBytes(files: ReadonlyMap<string, string>): Uint8Array {
-  const sorted = Object.fromEntries(
-    [...files].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+  return new TextEncoder().encode(
+    JSON.stringify({ v: 1, files: Object.fromEntries(files) }),
   )
-  return new TextEncoder().encode(JSON.stringify({ v: 1, files: sorted }))
 }
 
 class R2Error extends Error {
@@ -156,31 +159,22 @@ class R2Error extends Error {
 
 type Attempt =
   | { response: Response }
-  | { failure: R2Failure; transient: boolean; waitMs?: number }
+  | { failure: R2Failure; transient: boolean; waitMs: number | undefined }
 
 function isTransientStatus(status: number): boolean {
   return status === 408 || status === 429 || status >= 500
 }
 
+/** A 429's `Retry-After` in whole seconds, capped at 10 s. */
 function retryAfterMs(response: Response): number | undefined {
-  const seconds = Number(response.headers.get('retry-after') ?? '')
-  return response.status === 429 && Number.isFinite(seconds) && seconds >= 0
-    ? Math.min(seconds * 1000, RETRY_AFTER_MAX_MS)
+  const header = response.headers.get('retry-after') ?? ''
+  return response.status === 429 && /^\d+$/.test(header)
+    ? Math.min(Number(header) * 1000, RETRY_AFTER_MAX_MS)
     : undefined
 }
 
-function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms)
-    signal?.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer)
-        resolve()
-      },
-      { once: true },
-    )
-  })
+function defaultSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 /** Runs `task` over `items`, `limit` at a time in order; the first failure stops new tasks and is rethrown once all settle. */
@@ -206,21 +200,11 @@ async function inPool<T>(
   if (errors.length > 0) throw errors[0]
 }
 
-/** Consecutive steps of one kind (plan order is assets → json → html). */
-function kindGroups(steps: readonly UploadStep[]): UploadStep[][] {
-  const groups: UploadStep[][] = []
-  for (const step of steps) {
-    const last = groups.at(-1)
-    if (
-      last?.[0] !== undefined &&
-      fileKind(last[0].key) === fileKind(step.key)
-    ) {
-      last.push(step)
-    } else {
-      groups.push([step])
-    }
-  }
-  return groups
+/** Files by kind group in upload order, input order within each. */
+function kindGroups(files: readonly PublishSiteFile[]): PublishSiteFile[][] {
+  return KIND_ORDER.map((kind) =>
+    files.filter((file) => fileKind(file.key) === kind),
+  )
 }
 
 /**
@@ -244,35 +228,33 @@ export async function publishSite(
     missingIsOk: boolean,
   ): Promise<Attempt> => {
     const signed = await r2Request(credentials, { ...request, now: now() })
-    // Aborted only by the 30 s timeout: `aborted` means timed out.
+    // Aborted only by the 30 s timeout (a late abort of a settled request is a no-op).
     const timeout = new AbortController()
-    const settled = new AbortController()
-    void sleep(REQUEST_TIMEOUT_MS, settled.signal).then(() => {
-      if (!settled.signal.aborted) timeout.abort()
+    void sleep(REQUEST_TIMEOUT_MS).then(() => {
+      timeout.abort()
     })
     try {
       const response = await doFetch(signed.url, {
         method: signed.method,
         headers: signed.headers,
-        ...(request.body === undefined
-          ? {}
-          : { body: request.body as BodyInit }),
+        body: (request.body ?? null) as BodyInit | null,
         cache: 'no-store',
         // A redirect would replay the signed request; never follow one.
         redirect: 'error',
         signal: timeout.signal,
       })
       if (response.ok) return { response }
-      const body = await response.text().catch(() => '')
-      const failure = classifyR2Failure({ status: response.status, body })
+      const failure = classifyR2Failure({
+        status: response.status,
+        s3Code: await response.text().then(s3ErrorCode, () => undefined),
+      })
       if (missingIsOk && response.status === 404 && failure.code !== 'bucket') {
         return { response }
       }
-      const waitMs = retryAfterMs(response)
       return {
         failure,
         transient: isTransientStatus(response.status),
-        ...(waitMs === undefined ? {} : { waitMs }),
+        waitMs: retryAfterMs(response),
       }
     } catch {
       const timedOut = timeout.signal.aborted
@@ -280,16 +262,15 @@ export async function publishSite(
       return {
         failure: classifyR2Failure({ timedOut, online }),
         transient: timedOut || online,
+        waitMs: undefined,
       }
-    } finally {
-      settled.abort()
     }
   }
 
   /** One request with P4 retries; throws `R2Error` on the final failure. */
   const send = async (
     request: Omit<R2RequestInput, 'now'>,
-    missingIsOk = false,
+    missingIsOk: boolean,
   ): Promise<Response> => {
     for (let tries = 0; ; tries += 1) {
       const result = await attempt(request, missingIsOk)
@@ -303,17 +284,19 @@ export async function publishSite(
   }
 
   const putManifest = (files: ReadonlyMap<string, string>) =>
-    send({
-      method: 'PUT',
-      key: PUBLISH_MANIFEST_KEY,
-      body: manifestBytes(files),
-      contentType: contentTypeOf(PUBLISH_MANIFEST_KEY),
-      cacheControl: CACHE_NO_STORE,
-    })
+    send(
+      {
+        method: 'PUT',
+        key: PUBLISH_MANIFEST_KEY,
+        body: manifestBytes(files),
+        contentType: contentTypeOf(PUBLISH_MANIFEST_KEY),
+        cacheControl: CACHE_NO_STORE,
+      },
+      false,
+    )
 
-  const bytesOf = new Map(input.files.map((file) => [file.key, file.bytes]))
   let live = new Map<string, string>()
-  let puts: UploadStep[] = []
+  let puts: PublishSiteFile[] = []
   let sent = 0
   let writePartial = false
   try {
@@ -322,27 +305,35 @@ export async function publishSite(
     writePartial = true
     live = new Map(Object.entries(remote))
     const plan = planUpload(input.files, remote)
-    puts = plan.filter((step) => step.op === 'put')
-    const deletes = plan.filter((step) => step.op === 'delete')
+    const putKeys = new Set(
+      plan.filter((step) => step.op === 'put').map((step) => step.key),
+    )
+    puts = input.files.filter((file) => putKeys.has(file.key))
+    const deletes = plan.filter(
+      (step): step is Extract<UploadStep, { op: 'delete' }> =>
+        step.op === 'delete',
+    )
     const totalBytes = puts.reduce(
-      (sum, step) => sum + (bytesOf.get(step.key)?.byteLength ?? 0),
+      (sum, file) => sum + file.bytes.byteLength,
       0,
     )
     let sentBytes = 0
     input.onProgress?.({ phase: 'upload', done: 0, total: totalBytes })
     for (const group of kindGroups(puts)) {
-      await inPool(group, PUT_CONCURRENCY, async (step) => {
-        const body = bytesOf.get(step.key) ?? new Uint8Array()
-        await send({
-          method: 'PUT',
-          key: step.key,
-          body,
-          contentType: contentTypeOf(step.key),
-          cacheControl: cacheControlOf(step.key),
-        })
-        if (step.op === 'put') live.set(step.key, step.sha256)
+      await inPool(group, PUT_CONCURRENCY, async (file) => {
+        await send(
+          {
+            method: 'PUT',
+            key: file.key,
+            body: file.bytes,
+            contentType: contentTypeOf(file.key),
+            cacheControl: cacheControlOf(file.key),
+          },
+          false,
+        )
+        live.set(file.key, file.sha256)
         sent += 1
-        sentBytes += body.byteLength
+        sentBytes += file.bytes.byteLength
         input.onProgress?.({
           phase: 'upload',
           done: sentBytes,
@@ -378,7 +369,7 @@ export async function publishSite(
       removed: deletes.length,
       unchanged: input.files.length - puts.length,
       bookUrl: new URL(
-        input.bookPath ?? '',
+        input.bookPath,
         credentials.publicBaseUrl.replace(/\/*$/, '/'),
       ).href,
     }

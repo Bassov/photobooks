@@ -10,7 +10,7 @@ import { buildSiteTree } from '../site/export/buildSiteTree'
 import type { SiteExportInput } from '../site/export/types'
 import { createCredentialStore, type CheckCode } from './credentials'
 import { publishSite, type PublishDeps } from './publishSite'
-import { hashSiteFiles } from './uploadPlan'
+import { sha256Hex } from './r2Sign'
 
 /** Progress posts are at least this far apart. */
 export const PUBLISH_PROGRESS_MS = 250
@@ -20,8 +20,8 @@ type PublishPhase = 'render' | 'upload' | 'finish'
 export interface PublishRequest {
   /** Without `renderer`: functions are not cloneable, the default one is used. */
   input: Omit<SiteExportInput, 'renderer'>
-  /** The book whose page the result links; absent → the site home. */
-  bookId?: string
+  /** The open book: the result links its page, or the home when it is not on the site. */
+  bookId: string
 }
 
 export type PublishFailureCode = CheckCode | 'unconnected' | 'render'
@@ -51,6 +51,8 @@ export type PublishMessage =
 export interface PublishWorkerDeps {
   /** Progress clock in ms (`performance.now` in the worker). */
   clock: () => number
+  /** Hosting status time. */
+  now: () => Date
   indexedDB?: IDBFactory
   publish?: PublishDeps
 }
@@ -63,8 +65,7 @@ const failed = (code: PublishFailureCode, message: string): PublishMessage => ({
 })
 
 /** Site-root path of `bookId`'s page when the tree has it, else the home. */
-function bookPathIn(paths: ReadonlySet<string>, bookId?: string): string {
-  if (bookId === undefined) return ''
+function bookPathIn(paths: ReadonlySet<string>, bookId: string): string {
   const dir = `books/${sha256HexSync(bookId).slice(0, 16)}/`
   return paths.has(`${dir}index.html`) ? dir : ''
 }
@@ -88,12 +89,17 @@ export async function runPublish(
     post({ phase, done, total })
   }
   const store = createCredentialStore(deps.indexedDB)
-  let tree
-  let hashes
+  let files
   try {
     progress('render', 0, 1)
-    tree = await buildSiteTree(request.input)
-    hashes = await hashSiteFiles(tree.files)
+    const tree = await buildSiteTree(request.input)
+    files = await Promise.all(
+      tree.files.map(async (file) => ({
+        key: file.path,
+        bytes: file.bytes,
+        sha256: await sha256Hex(file.bytes),
+      })),
+    )
   } catch {
     post(failed('render', "Couldn't build the site. Try again."))
     return
@@ -106,22 +112,21 @@ export async function runPublish(
       )
       return
     }
-    const bytes = new Map(tree.files.map((file) => [file.path, file.bytes]))
     const result = await publishSite(
       {
-        files: hashes.map((file) => ({
-          ...file,
-          bytes: bytes.get(file.key) ?? new Uint8Array(),
-        })),
+        files,
         credentials,
-        bookPath: bookPathIn(new Set(bytes.keys()), request.bookId),
+        bookPath: bookPathIn(
+          new Set(files.map((file) => file.key)),
+          request.bookId,
+        ),
         onProgress: (step) => {
           progress(step.phase, step.done, step.total)
         },
       },
       deps.publish,
     )
-    const checkedAtMs = (deps.publish?.now ?? (() => new Date()))().getTime()
+    const checkedAtMs = deps.now().getTime()
     if (result.ok) {
       await store.saveStatus({ checkedAtMs, ok: true }).catch(() => undefined)
       const { uploaded, bytes: sentBytes, removed, unchanged, bookUrl } = result
@@ -166,6 +171,6 @@ workerScope.onmessage = (event: MessageEvent<PublishRequest>) => {
     (message) => {
       workerScope.postMessage(message)
     },
-    { clock: () => performance.now() },
+    { clock: () => performance.now(), now: () => new Date() },
   )
 }

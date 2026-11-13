@@ -99,14 +99,9 @@ export function createFakeR2(initial: Record<string, StoredObject> = {}) {
 /** Retry waits resolve at once and are recorded; the 30 s timeout fires only when `timeOut`. */
 export function createFakeSleep(timeOut = false) {
   const waits: number[] = []
-  const sleep = (ms: number, signal?: AbortSignal): Promise<void> => {
-    if (ms === REQUEST_TIMEOUT_MS && !timeOut) {
-      return new Promise((resolve) => {
-        signal?.addEventListener('abort', () => {
-          resolve()
-        })
-      })
-    }
+  const sleep = (ms: number): Promise<void> => {
+    if (ms === REQUEST_TIMEOUT_MS && !timeOut)
+      return new Promise(() => undefined)
     if (ms !== REQUEST_TIMEOUT_MS) waits.push(ms)
     return Promise.resolve()
   }

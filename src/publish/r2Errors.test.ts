@@ -38,7 +38,7 @@ describe('classifyR2Failure', () => {
     [400, 'InvalidAccessKeyId', 'other'],
     [503, 'SlowDown', 'other'],
   ] as const)('%i %s → %s', (status, code, expected) => {
-    expect(classifyR2Failure({ status, body: xml(code) })).toEqual({
+    expect(classifyR2Failure({ status, s3Code: code })).toEqual({
       code: expected,
       status,
       s3Code: code,
@@ -46,10 +46,12 @@ describe('classifyR2Failure', () => {
   })
 
   it('a response without an S3 code is other with its status', () => {
-    expect(classifyR2Failure({ status: 403, body: 'nope' })).toEqual({
-      code: 'other',
-      status: 403,
-    })
+    expect(classifyR2Failure({ status: 403, s3Code: undefined })).toStrictEqual(
+      {
+        code: 'other',
+        status: 403,
+      },
+    )
   })
 
   it('a thrown fetch: timeout first, then online → cors, offline', () => {

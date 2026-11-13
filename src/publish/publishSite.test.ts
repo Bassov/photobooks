@@ -1,5 +1,5 @@
 import fc from 'fast-check'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   CREDENTIALS,
   createFakeR2,
@@ -95,13 +95,14 @@ describe('publishSite: plan and order', () => {
     expect(decodeText(r2.objects.get('index.html')?.bytes)).toBe('<p>home')
   })
 
-  it('links the site home by default', async () => {
+  it('an empty book path links the site home', async () => {
     const r2 = createFakeR2()
 
     const result = await publishSite(
       {
         files: await siteFiles(),
         credentials: { ...CREDENTIALS, publicBaseUrl: 'https://x.example///' },
+        bookPath: '',
       },
       deps(r2),
     )
@@ -118,7 +119,10 @@ describe('publishSite: plan and order', () => {
       'keep/mine.txt': { bytes: new Uint8Array(), headers: {} },
     })
     const first = await siteFiles()
-    await publishSite({ files: first, credentials: CREDENTIALS }, deps(r2))
+    await publishSite(
+      { files: first, credentials: CREDENTIALS, bookPath: '' },
+      deps(r2),
+    )
     r2.events.length = 0
     const second = await siteFiles([
       ...SITE.filter(([key]) => !key.endsWith('2'.repeat(64) + '.webp')),
@@ -129,7 +133,7 @@ describe('publishSite: plan and order', () => {
     )
 
     const result = await publishSite(
-      { files, credentials: CREDENTIALS },
+      { files, credentials: CREDENTIALS, bookPath: '' },
       deps(r2),
     )
 
@@ -176,7 +180,7 @@ describe('publishSite: plan and order', () => {
           const r2 = createFakeR2(initial)
 
           const result = await publishSite(
-            { files, credentials: CREDENTIALS },
+            { files, credentials: CREDENTIALS, bookPath: '' },
             deps(r2),
           )
 
@@ -231,6 +235,7 @@ describe('publishSite: plan and order', () => {
       {
         files,
         credentials: CREDENTIALS,
+        bookPath: '',
         onProgress: (step) => progress.push(step),
       },
       deps(r2),
@@ -261,7 +266,7 @@ describe('publishSite: P4 retry', () => {
       })
 
       const result = await publishSite(
-        { files: await siteFiles(), credentials: CREDENTIALS },
+        { files: await siteFiles(), credentials: CREDENTIALS, bookPath: '' },
         deps(r2, fake.sleep),
       )
 
@@ -274,26 +279,127 @@ describe('publishSite: P4 retry', () => {
   )
 
   it.each([
-    ['2', 2_000],
-    ['60', 10_000],
-    ['soon', 1_000],
-  ])('honours 429 Retry-After %s capped at 10 s', async (retryAfter, wait) => {
+    [429, '2', 2_000],
+    [429, '60', 10_000],
+    [429, '0', 0],
+    [429, 'soon', 1_000],
+    [429, '-1', 1_000],
+    [429, '1.5', 1_000],
+    [503, '2', 1_000],
+  ])(
+    'a %i with Retry-After %s waits %i ms (429 only, capped at 10 s)',
+    async (status, retryAfter, wait) => {
+      const r2 = createFakeR2()
+      const fake = createFakeSleep()
+      let sent = false
+      r2.setOverride((method) => {
+        if (method !== 'GET' || sent) return
+        sent = true
+        return s3Error(status, 'SlowDown', { 'retry-after': retryAfter })
+      })
+
+      const result = await publishSite(
+        { files: await siteFiles(), credentials: CREDENTIALS, bookPath: '' },
+        deps(r2, fake.sleep),
+      )
+
+      expect(result.ok).toBe(true)
+      expect(fake.waits).toEqual([wait])
+    },
+  )
+
+  it('puts at most 4 at a time and starts no new put after a failure', async () => {
+    const assets = Array.from(
+      { length: 6 },
+      (_, i) =>
+        [`assets/${String(i).repeat(64)}.webp`, `photo-${String(i)}`] as const,
+    )
+    const healthy = createFakeR2()
+
+    await publishSite(
+      {
+        files: await siteFiles(assets),
+        credentials: CREDENTIALS,
+        bookPath: '',
+      },
+      deps(healthy),
+    )
+
+    expect(healthy.maxInFlight).toBe(4)
+
+    const r2 = createFakeR2()
+    r2.setOverride((method, key) =>
+      method === 'PUT' && key === assets[0]?.[0]
+        ? s3Error(403, 'AccessDenied')
+        : undefined,
+    )
+
+    const result = await publishSite(
+      {
+        files: await siteFiles(assets),
+        credentials: CREDENTIALS,
+        bookPath: '',
+      },
+      deps(r2),
+    )
+
+    expect(result).toMatchObject({ ok: false, code: 'denied', sent: 3 })
+    const puts = r2.requests().filter((r) => r.startsWith('PUT assets/'))
+    expect(puts).toHaveLength(4)
+  })
+
+  it('a put answered 404 NoSuchKey fails as other', async () => {
+    const r2 = createFakeR2()
+    r2.setOverride((method, key) =>
+      method === 'PUT' && key === 'index.html'
+        ? s3Error(404, 'NoSuchKey')
+        : undefined,
+    )
+
+    const result = await publishSite(
+      { files: await siteFiles(), credentials: CREDENTIALS, bookPath: '' },
+      deps(r2),
+    )
+
+    expect(result).toMatchObject({ ok: false, code: 'other', status: 404 })
+  })
+
+  it('reads navigator.onLine by default', async () => {
+    vi.stubGlobal('navigator', { onLine: true })
+    const fake = createFakeSleep()
+    try {
+      const result = await publishSite(
+        { files: await siteFiles(), credentials: CREDENTIALS, bookPath: '' },
+        {
+          fetch: () => Promise.reject(new TypeError('Failed to fetch')),
+          now: () => NOW,
+          sleep: fake.sleep,
+        },
+      )
+
+      expect(result).toMatchObject({ ok: false, code: 'cors' })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('honours 429 Retry-After on a put', async () => {
     const r2 = createFakeR2()
     const fake = createFakeSleep()
     let sent = false
     r2.setOverride((method) => {
-      if (method !== 'GET' || sent) return
+      if (method !== 'PUT' || sent) return
       sent = true
-      return s3Error(429, 'SlowDown', { 'retry-after': retryAfter })
+      return s3Error(429, 'SlowDown', { 'retry-after': '2' })
     })
 
     const result = await publishSite(
-      { files: await siteFiles(), credentials: CREDENTIALS },
+      { files: await siteFiles(), credentials: CREDENTIALS, bookPath: '' },
       deps(r2, fake.sleep),
     )
 
     expect(result.ok).toBe(true)
-    expect(fake.waits).toEqual([wait])
+    expect(fake.waits).toEqual([2_000])
   })
 
   it('503 ×3 fails with x of y, writes the partial manifest, and a retry sends only the rest', async () => {
@@ -308,7 +414,7 @@ describe('publishSite: P4 retry', () => {
     const files = await siteFiles()
 
     const failed = await publishSite(
-      { files, credentials: CREDENTIALS },
+      { files, credentials: CREDENTIALS, bookPath: '' },
       deps(r2, fake.sleep),
     )
 
@@ -335,7 +441,7 @@ describe('publishSite: P4 retry', () => {
     r2.setOverride(undefined)
     r2.events.length = 0
     const retried = await publishSite(
-      { files, credentials: CREDENTIALS },
+      { files, credentials: CREDENTIALS, bookPath: '' },
       deps(r2, fake.sleep),
     )
 
@@ -354,7 +460,7 @@ describe('publishSite: P4 retry', () => {
     r2.setOverride(() => s3Error(status, s3))
 
     const result = await publishSite(
-      { files: await siteFiles(), credentials: CREDENTIALS },
+      { files: await siteFiles(), credentials: CREDENTIALS, bookPath: '' },
       deps(r2, fake.sleep),
     )
 
@@ -372,7 +478,7 @@ describe('publishSite: P4 retry', () => {
     )
 
     const result = await publishSite(
-      { files: await siteFiles(), credentials: CREDENTIALS },
+      { files: await siteFiles(), credentials: CREDENTIALS, bookPath: '' },
       deps(r2, fake.sleep),
     )
 
@@ -394,7 +500,7 @@ describe('publishSite: P4 retry', () => {
     )
 
     const result = await publishSite(
-      { files: await siteFiles(), credentials: CREDENTIALS },
+      { files: await siteFiles(), credentials: CREDENTIALS, bookPath: '' },
       deps(r2),
     )
 
@@ -412,7 +518,7 @@ describe('publishSite: P4 retry', () => {
     })
 
     const result = await publishSite(
-      { files: await siteFiles(), credentials: CREDENTIALS },
+      { files: await siteFiles(), credentials: CREDENTIALS, bookPath: '' },
       deps(r2, fake.sleep, true),
     )
 
@@ -428,7 +534,7 @@ describe('publishSite: P4 retry', () => {
     })
 
     const result = await publishSite(
-      { files: await siteFiles(), credentials: CREDENTIALS },
+      { files: await siteFiles(), credentials: CREDENTIALS, bookPath: '' },
       deps(r2, fake.sleep, false),
     )
 
@@ -451,7 +557,7 @@ describe('publishSite: P4 retry', () => {
     )
 
     const result = await publishSite(
-      { files: await siteFiles(), credentials: CREDENTIALS },
+      { files: await siteFiles(), credentials: CREDENTIALS, bookPath: '' },
       deps(r2, fake.sleep, false),
     )
 
@@ -472,7 +578,7 @@ describe('publishSite: P4 retry', () => {
     )
 
     const result = await publishSite(
-      { files: await siteFiles(), credentials: CREDENTIALS },
+      { files: await siteFiles(), credentials: CREDENTIALS, bookPath: '' },
       deps(r2),
     )
 
@@ -486,6 +592,7 @@ describe('publishSite: P4 retry', () => {
       {
         files: await siteFiles(),
         credentials: { ...CREDENTIALS, accountId: 'not-an-account' },
+        bookPath: '',
       },
       deps(r2),
     )
@@ -503,7 +610,7 @@ describe('publishSite: P4 retry', () => {
     const r2 = createFakeR2()
 
     const result = await publishSite(
-      { files: await siteFiles(), credentials: CREDENTIALS },
+      { files: await siteFiles(), credentials: CREDENTIALS, bookPath: '' },
       { fetch: r2.fetch },
     )
 
@@ -532,6 +639,9 @@ describe('publishSite: P6 headers', () => {
       'application/json',
     ],
     ['viewer/font.WOFF2', CACHE_NO_CACHE, 'font/woff2'],
+    ['viewer/app.js.map', CACHE_NO_CACHE, 'application/json'],
+    ['data/0123456789abcdef.json', CACHE_NO_CACHE, 'application/json'],
+    ['books/0123456789abcdef/cover.webp', CACHE_NO_CACHE, 'image/webp'],
     ['README', CACHE_NO_CACHE, 'application/octet-stream'],
     [PUBLISH_MANIFEST_KEY, CACHE_NO_STORE, 'application/json'],
   ])('%s → %s, %s', (key, cache, type) => {
@@ -543,7 +653,7 @@ describe('publishSite: P6 headers', () => {
     const r2 = createFakeR2()
 
     await publishSite(
-      { files: await siteFiles(), credentials: CREDENTIALS },
+      { files: await siteFiles(), credentials: CREDENTIALS, bookPath: '' },
       deps(r2),
     )
 
@@ -567,6 +677,10 @@ describe('parseManifest', () => {
             'a/../b.html': HASH,
             'a//b.html': HASH,
             'short.html': 'abc',
+            'long.html': `${HASH}a`,
+            'lead.html': `a${HASH}`,
+            'upper.html': HASH.toUpperCase(),
+            'list.html': [HASH],
             'n.json': 7,
           },
         }),
@@ -574,10 +688,16 @@ describe('parseManifest', () => {
     ).toEqual({ 'index.html': HASH })
   })
 
-  it.each(['', 'not json', '[]', 'null', '{"v":2,"files":{}}', '{"v":1}'])(
-    '%j reads as empty',
-    (text) => {
-      expect(parseManifest(text)).toEqual({})
-    },
-  )
+  it.each([
+    '',
+    'not json',
+    '[]',
+    'null',
+    `{"v":2,"files":{"index.html":"${HASH}"}}`,
+    '{"v":1}',
+    '{"v":1,"files":null}',
+    `{"v":1,"files":["${HASH}"]}`,
+  ])('%j reads as empty', (text) => {
+    expect(parseManifest(text)).toEqual({})
+  })
 })

@@ -26,7 +26,7 @@ const PHOTOS = [1, 2, 3, 4].map(photoHash)
 const NOW = new Date('2026-11-13T10:00:00Z')
 
 /** Two published books, cloned as `postMessage` would carry them. */
-function request(bookId?: string): PublishRequest {
+function request(bookId = 'book-a'): PublishRequest {
   const { meta, revisions } = publishAll([
     makePhotoBook('book-a', 'A', [PHOTOS.slice(0, 2)]),
     makePhotoBook('book-b', 'B', [PHOTOS.slice(2)]),
@@ -37,7 +37,7 @@ function request(bookId?: string): PublishRequest {
       revisions,
       derivatives: PHOTOS.flatMap((hash) => derivativesFor(hash)),
     },
-    ...(bookId === undefined ? {} : { bookId }),
+    bookId,
   })
 }
 
@@ -62,6 +62,7 @@ async function run(
     (message) => posts.push({ at: clock, message }),
     {
       clock: () => (clock += 50),
+      now: () => NOW,
       indexedDB,
       publish: {
         fetch: r2.fetch,
@@ -93,13 +94,19 @@ describe('runPublish', () => {
         ),
       },
     })
-    const bookUrl =
+    const done =
       final !== undefined && 'done' in final && typeof final.done === 'object'
-        ? final.done.bookUrl
-        : ''
-    const bookKey = `${new URL(bookUrl).pathname.slice(1)}index.html`
+        ? final.done
+        : undefined
+    const bookKey = `${new URL(done?.bookUrl ?? '').pathname.slice(1)}index.html`
     expect(r2.objects.has(bookKey)).toBe(true)
     expect(r2.objects.has(PUBLISH_MANIFEST_KEY)).toBe(true)
+    const sent = [...r2.objects]
+      .filter(([key]) => key !== PUBLISH_MANIFEST_KEY)
+      .map(([, object]) => object.bytes.byteLength)
+    expect(done?.uploaded).toBe(sent.length)
+    expect(done?.bytes).toBe(sent.reduce((sum, size) => sum + size, 0))
+    expect(sent.every((size) => size > 0)).toBe(true)
 
     const progress = posts.slice(0, -1)
     expect(progress[0]?.message).toEqual({ phase: 'render', done: 0, total: 1 })
@@ -116,22 +123,19 @@ describe('runPublish', () => {
     const times = progress.map(({ at }) => at)
     const gaps = times.slice(1).map((at, i) => at - Number(times[i]))
     expect(gaps.every((gap) => gap >= PUBLISH_PROGRESS_MS)).toBe(true)
+    expect(gaps).toContain(PUBLISH_PROGRESS_MS)
     expect(await createCredentialStore(factory).loadStatus()).toEqual({
       checkedAtMs: NOW.getTime(),
       ok: true,
     })
   })
 
-  it('links the site home without a book id or for an unpublished one', async () => {
-    const factory = await connected()
+  it('links the site home for a book not on the site', async () => {
+    const posts = await run(request('book-x'), await connected())
 
-    for (const bookId of [undefined, 'book-x']) {
-      const posts = await run(request(bookId), factory)
-
-      expect(posts.at(-1)?.message).toMatchObject({
-        done: { bookUrl: 'https://books.example.com/' },
-      })
-    }
+    expect(posts.at(-1)?.message).toMatchObject({
+      done: { bookUrl: 'https://books.example.com/' },
+    })
   })
 
   it('a bad key fails, marks hosting failed, and no post carries a credential', async () => {
@@ -211,7 +215,7 @@ describe('runPublish', () => {
   it('fails as render when the site cannot be built', async () => {
     const broken = request()
     const posts = await run(
-      { input: { ...broken.input, revisions: null as never } },
+      { ...broken, input: { ...broken.input, revisions: null as never } },
       await connected(),
     )
 
@@ -279,5 +283,40 @@ describe('publish worker scope', () => {
       total: 1,
     })
     expect(postMessage).toHaveBeenCalledTimes(2)
+  })
+
+  it('a posted publish reads the global store and fetch and stamps the status now', async () => {
+    vi.spyOn(performance, 'now').mockReturnValue(0)
+    const factory = await connected()
+    vi.stubGlobal('indexedDB', factory)
+    const r2 = createFakeR2()
+    r2.setOverride((method) =>
+      method === 'PUT' ? s3Error(403, 'InvalidAccessKeyId') : undefined,
+    )
+    vi.stubGlobal('fetch', r2.fetch)
+    const postMessage = vi.fn()
+    Object.defineProperty(globalThis, 'postMessage', {
+      configurable: true,
+      value: postMessage,
+    })
+    const handler = (
+      globalThis as typeof globalThis & {
+        onmessage: ((event: MessageEvent) => void) | null
+      }
+    ).onmessage
+    const before = Date.now()
+
+    handler?.({ data: request() } as MessageEvent)
+
+    await vi.waitFor(() => {
+      expect(postMessage).toHaveBeenLastCalledWith({
+        failed: expect.objectContaining({ code: 'key' }),
+      })
+    })
+    expect(postMessage).toHaveBeenCalledTimes(2)
+    const status = await createCredentialStore(factory).loadStatus()
+    expect(status).toMatchObject({ ok: false, code: 'key' })
+    expect(status?.checkedAtMs).toBeGreaterThanOrEqual(before)
+    expect(status?.checkedAtMs).toBeLessThanOrEqual(Date.now())
   })
 })

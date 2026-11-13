@@ -15,6 +15,7 @@ import {
 import {
   classifyR2Failure,
   r2FailureMessage,
+  s3ErrorCode,
   type R2FailureInput,
 } from './r2Errors'
 import { r2Request, type R2RequestInput } from './r2Sign'
@@ -83,8 +84,8 @@ async function responseFailure(
   credentials: R2Credentials,
   mode: CheckMode,
 ): Promise<Failure> {
-  const body = await response.text().catch(() => '')
-  return failure({ status: response.status, body }, credentials, mode)
+  const s3Code = await response.text().then(s3ErrorCode, () => undefined)
+  return failure({ status: response.status, s3Code }, credentials, mode)
 }
 
 /**

@@ -12,10 +12,15 @@ export interface R2Failure {
   s3Code?: string
 }
 
+/** A response by status and its body's S3 `Code` (see `s3ErrorCode`), or a thrown fetch. */
 export type R2FailureInput =
-  { status: number; body: string } | { timedOut: boolean; online: boolean }
+  | { status: number; s3Code: string | undefined }
+  | { timedOut: boolean; online: boolean }
 
-const KEY_CODES = ['InvalidAccessKeyId', 'SignatureDoesNotMatch']
+const KEY_CODES: readonly (string | undefined)[] = [
+  'InvalidAccessKeyId',
+  'SignatureDoesNotMatch',
+]
 
 /** The S3 error `Code`, only when it is a plain identifier. */
 export function s3ErrorCode(body: string): string | undefined {
@@ -23,9 +28,7 @@ export function s3ErrorCode(body: string): string | undefined {
 }
 
 function responseCode(status: number, s3Code: string | undefined): CheckCode {
-  if (status === 403 && s3Code !== undefined && KEY_CODES.includes(s3Code)) {
-    return 'key'
-  }
+  if (status === 403 && KEY_CODES.includes(s3Code)) return 'key'
   if (status === 403 && s3Code === 'AccessDenied') return 'denied'
   if (status === 404 && s3Code === 'NoSuchBucket') return 'bucket'
   return 'other'
@@ -33,10 +36,10 @@ function responseCode(status: number, s3Code: string | undefined): CheckCode {
 
 export function classifyR2Failure(input: R2FailureInput): R2Failure {
   if ('status' in input) {
-    const s3Code = s3ErrorCode(input.body)
+    const { status, s3Code } = input
     return {
-      code: responseCode(input.status, s3Code),
-      status: input.status,
+      code: responseCode(status, s3Code),
+      status,
       ...(s3Code === undefined ? {} : { s3Code }),
     }
   }
