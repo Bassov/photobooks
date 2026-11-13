@@ -22,6 +22,6 @@
 | `src/publish/createPublishWorker.ts`      |
 | `src/publish/createPublishWorker.test.ts` |
 | `src/publish/importBoundary.test.ts`      |
-| `src/publish/index.ts`                    |
+| `src/publish/fakeR2.test-helpers.ts`      |
 
 - Tests: unit + PBT with a Map-backed fake R2 and a virtual sleep; `checkConnection.test.ts` unchanged. No e2e (no UI).

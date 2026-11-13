@@ -97,6 +97,28 @@ describe('publish credentials import boundary', () => {
     expect(chains.size).toBeGreaterThan(sourcesUnder(SITE_DIR).length)
   })
 
+  it('of all workers only publish.worker.ts reaches credentials, and only through its own URL from the page', () => {
+    const workers = sourcesUnder(resolve(ROOT, 'src')).filter((path) =>
+      path.endsWith('.worker.ts'),
+    )
+
+    const reaching = workers
+      .filter((worker) => closure([worker]).has(CREDENTIALS))
+      .map((path) => relative(ROOT, path))
+
+    expect(workers.length).toBeGreaterThan(3)
+    expect(reaching).toEqual(['src/publish/publish.worker.ts'])
+    expect(
+      closure([resolve(ROOT, 'src/publish/createPublishWorker.ts')]).get(
+        CREDENTIALS,
+      ),
+    ).toEqual(
+      ['createPublishWorker.ts', 'publish.worker.ts', 'credentials.ts'].map(
+        (name) => resolve(ROOT, 'src/publish', name),
+      ),
+    )
+  })
+
   it('only src/publish modules open the raw credential store', () => {
     const publishDir = resolve(ROOT, 'src/publish')
     const sources = sourcesUnder(resolve(ROOT, 'src'))
