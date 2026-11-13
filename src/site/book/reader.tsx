@@ -62,7 +62,9 @@ export interface ReaderApi {
   jump: (v: number) => void
 }
 
-const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
+function reduced(): boolean {
+  return matchMedia('(prefers-reduced-motion: reduce)').matches
+}
 const fine = () => matchMedia('(hover: hover) and (pointer: fine)').matches
 
 /** One page face of spread view v (1 … n − 2): a half of its spread, or the endpaper. */

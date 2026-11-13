@@ -298,6 +298,102 @@ describe('Slides', () => {
 })
 
 // `lake` (210 mm square): spread 2 is a panorama, one slide 360 × 180.
+describe('Slides across updates', () => {
+  it('lays carousel paper as a slide, not a turn sheet', () => {
+    mount()
+    const paper = screen.getAllByTestId('ps-paper')[1]
+    expect(paper?.style.left).toBe('')
+    expect(paper?.style.boxShadow).toBe('')
+  })
+
+  it('opens a start past the end at the last slide at once', () => {
+    mount({ start: 99 })
+    expect(scrolls[0]).toStrictEqual({
+      left: (N - 1) * PITCH,
+      behavior: 'instant',
+    })
+  })
+
+  it('keeps the slide it moved to across a resize', () => {
+    const { rerender } = mount({ start: 3 })
+    act(() => {
+      fireEvent.keyDown(window, { key: 'ArrowRight' })
+    })
+    scrollTo(4 * PITCH)
+    rerender({ pw: 300, si: 4 })
+    expect(last()).toStrictEqual({ left: 4 * 316, behavior: 'instant' })
+  })
+
+  it('steps and tracks at the new pitch after a resize', () => {
+    const { p, rerender } = mount()
+    rerender({ pw: 300 })
+    key('ArrowRight')
+    expect(last()).toStrictEqual({ left: 316, behavior: 'smooth' })
+    vi.mocked(p.onSi).mockClear()
+    scrollTo(4 * 316)
+    expect(p.onSi).toHaveBeenCalledExactlyOnceWith(4)
+  })
+
+  it('reports to the latest callbacks', () => {
+    vi.useFakeTimers()
+    const { p, rerender } = mount()
+    const onSi = vi.fn()
+    const onRest = vi.fn()
+    const setView = vi.fn()
+    rerender({ onSi, onRest, setView })
+    scrollTo(2 * PITCH)
+    act(() => {
+      vi.advanceTimersByTime(150)
+    })
+    expect(onSi).toHaveBeenCalledExactlyOnceWith(2)
+    expect(onRest).toHaveBeenCalledExactlyOnceWith(2)
+    expect(setView).toHaveBeenCalledExactlyOnceWith(SLIDES[2]?.view)
+    expect(p.onRest).toHaveBeenCalledTimes(1)
+  })
+
+  it('waits for 150 ms without a scroll before it rests', () => {
+    vi.useFakeTimers()
+    const { p } = mount()
+    scrollTo(PITCH)
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+    scrollTo(PITCH + 10)
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+    expect(p.onRest).toHaveBeenCalledTimes(1)
+    act(() => {
+      vi.advanceTimersByTime(50)
+    })
+    expect(p.onRest).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops listening when it unmounts', () => {
+    vi.useFakeTimers()
+    const { p } = mount()
+    const el = strip()
+    scrollTo(PITCH)
+    vi.mocked(p.onSi).mockClear()
+    cleanup()
+    act(() => {
+      vi.advanceTimersByTime(150)
+    })
+    el.scrollLeft = 3 * PITCH
+    fireEvent.scroll(el)
+    fireEvent(el, new Event('scrollend'))
+    expect(p.onSi).not.toHaveBeenCalled()
+    expect(p.onRest).toHaveBeenCalledTimes(1)
+  })
+
+  it('lets go of the keys when they are turned off', () => {
+    const { rerender } = mount()
+    rerender({ keys: false })
+    key('ArrowRight')
+    expect(scrolls).toHaveLength(1)
+  })
+})
+
 describe('Paper', () => {
   const LAKE = roomBook(undefined, 'lake')
   const pano = {
@@ -342,7 +438,7 @@ describe('Paper', () => {
     expect(el.style.top).toBe('135px')
     expect(el.style.height).toBe('180px')
     expect(el.querySelector('[data-testid="pt-art"]')).toBeNull()
-    expect(el.querySelector('.spread-frame')).not.toBeNull()
+    expect(el.querySelector('[data-frame-id="lake-pano"]')).not.toBeNull()
   })
 
   it('paints with the host renderer: a spread at the page width, a page at two', () => {

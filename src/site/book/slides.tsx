@@ -74,9 +74,11 @@ export function Paper({
       rb.renderSlide(page.spread + 1, pw)
     )
   let content = null
-  if (on && page === undefined) {
+  if (!on) {
+    // off: blank paper
+  } else if (page === undefined) {
     content = <CoverFace b={rb.entry} w={pw} h={ph} />
-  } else if (on && page !== undefined) {
+  } else {
     content = (
       <>
         {page.side !== 'both' ? (
@@ -117,7 +119,9 @@ export function Paper({
   )
 }
 
-const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
+function reduced(): boolean {
+  return matchMedia('(prefers-reduced-motion: reduce)').matches
+}
 
 export interface SlidesProps {
   rb: RoomBook
