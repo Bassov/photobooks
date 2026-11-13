@@ -75,6 +75,7 @@ function rawMessage(
       ]
         .filter(Boolean)
         .join(' ')
+      if (answer === '') return 'Something went wrong. Try again.'
       return `Cloudflare answered ${answer}. Check the values and try again.`
     }
   }

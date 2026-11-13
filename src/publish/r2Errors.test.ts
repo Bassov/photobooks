@@ -104,6 +104,7 @@ describe('r2FailureMessage', () => {
     expect(message({ code: 'other', status: 502 })).toBe(
       'Cloudflare answered 502. Check the values and try again.',
     )
+    expect(message({ code: 'other' })).toBe('Something went wrong. Try again.')
   })
 
   it('never carries the secret, even in a bucket name', () => {
