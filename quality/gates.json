@@ -297,6 +297,11 @@
         "maxChars": 2500
       },
       {
+        "path": ".claude/agents/code-scout.md",
+        "maxLines": 30,
+        "maxChars": 1200
+      },
+      {
         "path": ".claude/commands/next-roadmap-item.md",
         "maxLines": 77,
         "maxChars": 5186

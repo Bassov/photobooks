@@ -9,8 +9,8 @@ Process item P-20261114-0153-1 (Owner 2026-11-14: route code reading through a c
 
 ## Scope
 
-- [ ] `.claude/agents/code-scout.md` (new): `name: code-scout`, `model: haiku`, read-only `tools: Read, Grep, Glob, Bash` (frontmatter copied from the existing agents). Bash only for `git grep`, `grep`, `sed -n`, `ls`, `git log`, `git show`. Output: one line per hit `path:line — what is there`, ≤10-line excerpts only where needed; no opinions, no fixes.
-- [ ] `AGENTS.md` and `docs/agent-loop.md`, next to the hygiene rules: map the code with ONE `code-scout` call before editing; own grep/sed only for pinpoint checks; batch the rest in one Bash call. 2–4 lines each.
+- [x] `.claude/agents/code-scout.md` (new): `name: code-scout`, `model: haiku`, read-only `tools: Read, Grep, Glob, Bash` (frontmatter copied from the existing agents). Bash only for `git grep`, `grep`, `sed -n`, `ls`, `git log`, `git show`. Output: one line per hit `path:line — what is there`, ≤10-line excerpts only where needed; no opinions, no fixes.
+- [x] `AGENTS.md` and `docs/agent-loop.md`, next to the hygiene rules: map the code with ONE `code-scout` call before editing; own grep/sed only for pinpoint checks; batch the rest in one Bash call. 2–4 lines each.
 - Removes: nothing. If the `AGENTS.md` rules budget would be exceeded, shorten other lines instead of raising it.
 - Hard nos: no product code (`src/**`, `e2e/**`, `uikit/**`), no other `.claude/` files, no CI workflows.
 - **Done when:** the agent file exists with `model: haiku` and read-only tools; a smoke Agent call (subagent_type `code-scout`) returns a map, and the PR body shows the call and its output length in lines; `AGENTS.md` + `docs/agent-loop.md` mention it next to hygiene; `pnpm check:integrity` green.
