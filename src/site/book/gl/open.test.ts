@@ -17,7 +17,7 @@ import type {
 } from './vendor/three.module.min.js'
 
 const T = fakeThree()
-const look = { dark: false, bend: true, pagePx: 100 }
+const look = { bend: true, pagePx: 100 }
 let contexts: Map<HTMLCanvasElement, FakeContext>
 
 beforeEach(() => {
@@ -85,12 +85,8 @@ describe('readAt', () => {
 describe('OpenBook', () => {
   it('lights the scene and frames its floor', () => {
     const light = new OpenBook(T, testBook(), look)
-    const dark = new OpenBook(T, testBook(), { ...look, dark: true })
 
     expect(light.scene.children.map((c) => digest(c))).toMatchSnapshot()
-    expect(
-      dark.scene.children.slice(0, 3).map((c) => digest(c)),
-    ).toMatchSnapshot()
     expect([light.n, light.W, light.H]).toEqual([13, 20, 25])
     expect(light.block).toBeCloseTo(1.2)
   })

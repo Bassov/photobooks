@@ -202,7 +202,7 @@ describe('drawHomeBook', () => {
     expect(calls(front as never).map(([name]) => name)).not.toContain(
       'drawImage',
     )
-    // the light (not the dark) stage's sky / ground
+    // the stage's sky / ground
     expect(hemi).toStrictEqual([[0xffffff, 0xd8d1c4, 1.35]])
     undo()
     expect(host.querySelector('canvas')).toBeNull()

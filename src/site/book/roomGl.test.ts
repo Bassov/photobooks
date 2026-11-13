@@ -140,7 +140,6 @@ describe('room GL books', () => {
     expect(gl.photo).toHaveBeenCalledWith(entry.cover?.src)
     expect(gl.made.map(([k]) => k)).toStrictEqual(['faces', 'open'])
     expect(gl.made[1]?.[1][2]).toStrictEqual({
-      dark: false,
       bend: true,
       pagePx: 400,
     })
