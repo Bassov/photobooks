@@ -7,6 +7,7 @@ import { Button } from '../ui/Button'
 import { cn } from '../ui/cn'
 import { FeaturedIcon } from '../ui/FeaturedIcon'
 import { Icon } from '../ui/Icon'
+import { HostingSection } from './HostingSection'
 import { ensureKitTypeStyles } from './kitTypeStyles'
 import { changeLibraryFolder } from './projectSession'
 import { PrintPresetsSection } from './PrintPresetsSection'
@@ -102,6 +103,8 @@ export function SettingsScreen({
         </h1>
         {sectionId === 'print' ? (
           <PrintPresetsSection row={ROW} rule={settingsRule} />
+        ) : sectionId === 'hosting' ? (
+          <HostingSection row={ROW} rule={settingsRule} />
         ) : (
           <>
             <p className="mt-1 max-w-[560px] text-sm leading-relaxed text-muted-foreground">
