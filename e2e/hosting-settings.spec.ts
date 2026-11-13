@@ -236,6 +236,36 @@ test('Replace → Cancel changes nothing', async ({ page }) => {
   await expect(page.getByTestId('hosting-stored-bucket')).toHaveText('my-books')
 })
 
+test('Check again stores a failure that survives a reload without a new check', async ({
+  page,
+}) => {
+  let answer: Answer = 'ok'
+  const r2 = await routeR2(page, () => answer)
+  await openHosting(page)
+  await connect(page)
+  await expect(page.getByTestId('hosting-badge')).toHaveText('Connected')
+
+  answer = 'cors'
+  await page.getByTestId('hosting-recheck').click()
+  const failed = async () => {
+    await expect(page.getByTestId('hosting-badge')).toHaveText("Can't connect")
+    await expect(page.getByTestId('hosting-checked')).toHaveText(
+      /^Last check failed .+ at \d{2}:\d{2}$/,
+    )
+    await expect(page.getByTestId('hosting-error')).toHaveText(
+      'Cloudflare blocked the upload from this page. Add the CORS policy from step 3, then try again.',
+    )
+  }
+  await failed()
+
+  const before = r2.seen.length
+  await openHosting(page)
+  await expect(page.getByTestId('hosting-connected')).toBeVisible()
+  await failed()
+  // D9: opening Settings sends nothing.
+  expect(r2.seen.length).toBe(before)
+})
+
 test('Forget → confirm → empty form and an empty IndexedDB store', async ({
   page,
 }) => {
