@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  hostingCheckedWhen,
   SETTINGS_SECTIONS,
   settingsNavActiveClass,
 } from './settingsScreenModel'
 
 describe('settingsScreenModel', () => {
-  it('offers the Library and Print presets sections', () => {
+  it('offers Library, Hosting and Print presets, Hosting at index 1', () => {
     expect(SETTINGS_SECTIONS.map((x) => [x.id, x.label, x.icon])).toEqual([
       ['library', 'Library', 'hardDrive'],
+      ['hosting', 'Hosting', 'keyRound'],
       ['print', 'Print presets', 'printer'],
     ])
   })
@@ -16,5 +18,18 @@ describe('settingsScreenModel', () => {
   it('marks only the current section', () => {
     expect(settingsNavActiveClass(true)).toBe('bg-accent font-medium')
     expect(settingsNavActiveClass(false)).toBe('')
+  })
+
+  it('words the check time: today, another day, another year', () => {
+    const now = new Date(2026, 10, 13, 23, 5)
+    expect(
+      hostingCheckedWhen(new Date(2026, 10, 13, 22, 40).getTime(), now),
+    ).toBe('today at 22:40')
+    expect(
+      hostingCheckedWhen(new Date(2026, 10, 11, 9, 7).getTime(), now),
+    ).toBe('11 Nov at 09:07')
+    expect(
+      hostingCheckedWhen(new Date(2025, 0, 2, 22, 40).getTime(), now),
+    ).toBe('2 Jan 2025 at 22:40')
   })
 })

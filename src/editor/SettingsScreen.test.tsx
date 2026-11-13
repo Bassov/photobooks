@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
+import { IDBFactory } from 'fake-indexeddb'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import * as assets from '../assets'
@@ -22,6 +23,7 @@ describe('SettingsScreen', () => {
     cleanup()
     resetPrintProfilesForTests()
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
   it('shows the measured preview cache size, a dash when unavailable', async () => {
@@ -102,16 +104,37 @@ describe('SettingsScreen', () => {
 
   it('hides sections without backing behavior (no stubs, no inputs)', () => {
     render(<SettingsScreen libraryPath="Lib" bookCount={0} />)
-    for (const id of ['hosting', 'site', 'interface']) {
+    for (const id of ['site', 'interface']) {
       expect(screen.queryByTestId(`settings-nav-${id}`)).toBeNull()
       expect(screen.queryByTestId(`settings-deferred-${id}`)).toBeNull()
     }
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
       'Library',
+      'Hosting',
       'Print presets',
       'Change library folder…',
     ])
+  })
+
+  it('opens Hosting: title, intro and the form inputs only there', async () => {
+    vi.stubGlobal('indexedDB', new IDBFactory())
+    render(<SettingsScreen libraryPath="Lib" bookCount={0} />)
+    fireEvent.click(screen.getByTestId('settings-nav-hosting'))
+    expect(screen.getByTestId('settings-section-title').textContent).toBe(
+      'Hosting',
+    )
+    expect(
+      screen.getByTestId('settings-nav-hosting').getAttribute('aria-current'),
+    ).toBe('page')
+    await screen.findByTestId('hosting-form')
+    expect(screen.queryByTestId('library-settings-panel')).toBeNull()
+    expect(screen.getAllByRole('textbox')).toHaveLength(4)
+    expect(
+      screen.getByLabelText('Secret access key').getAttribute('type'),
+    ).toBe('password')
+    fireEvent.click(screen.getByTestId('settings-nav-library'))
+    expect(screen.queryByRole('textbox')).toBeNull()
   })
 
   it('switches to Print presets: title, aria-current and active row follow', () => {

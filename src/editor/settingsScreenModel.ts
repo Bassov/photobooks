@@ -1,18 +1,38 @@
 import type { IconName } from '../ui/icons/glyphs'
 
-export type SettingsSectionId = 'library' | 'print'
+export type SettingsSectionId = 'library' | 'hosting' | 'print'
 
-/** Hosting / Site / Interface have no backing behavior yet (D2): hidden, not stubbed. */
+/** Site / Interface have no backing behavior yet (D2): hidden, not stubbed. */
 export const SETTINGS_SECTIONS: readonly {
   id: SettingsSectionId
   label: string
   icon: IconName
 }[] = [
   { id: 'library', label: 'Library', icon: 'hardDrive' },
+  { id: 'hosting', label: 'Hosting', icon: 'keyRound' },
   { id: 'print', label: 'Print presets', icon: 'printer' },
 ]
 
 /** Kit `bg-accent font-medium` on the current section only (r11 M71). */
 export function settingsNavActiveClass(current: boolean): string {
   return current ? 'bg-accent font-medium' : ''
+}
+
+/**
+ * Hosting check time: `today at 22:40`, `11 Nov at 22:40`, and the year when
+ * it is not the current one (local time).
+ */
+export function hostingCheckedWhen(checkedAtMs: number, now: Date): string {
+  const at = new Date(checkedAtMs)
+  const time = at.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  if (at.toDateString() === now.toDateString()) return `today at ${time}`
+  const date = at.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    ...(at.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
+  })
+  return `${date} at ${time}`
 }
