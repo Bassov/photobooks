@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P3
 Title: Bug: /next-roadmap-item code-scout-agent
+Status: done
 
 Process item P-20261114-0153-1 (Owner 2026-11-14: route code reading through a cheap explore-style subagent). Why: workers spend ~half of their main-thread calls reading code (grep / `git grep` / `sed -n` / `cat` + Read); each call re-reads the whole ~84K context on Opus.
 
