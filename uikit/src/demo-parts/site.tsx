@@ -38,7 +38,7 @@ export function DemoSite({ id, initial }: { id: string; initial?: Partial<SiteSt
     <div className="flex h-full flex-col">
       <div className="flex h-11 shrink-0 items-center gap-2 bg-chrome px-3 text-sm"><Button variant="ghost" size="sm" className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4" onPress={() => set({ stage: "editor", open: id })} data-testid="demo-site-back"><ChevronLeft />Back to the editor</Button><span className="text-muted-foreground" data-testid="demo-site-crumb">aleksandr.photos</span></div>
       <div className="relative min-h-0 flex-1">
-        <div className="absolute inset-0"><PersonalSite books={books} texts={d.site} {...(start ? { start } : {})} /></div>
+        <div className="absolute inset-0"><PersonalSite books={books} texts={d.site} dark={d.site.theme === "dark"} {...(start ? { start } : {})} /></div>
       </div>
     </div>
   )
@@ -60,7 +60,8 @@ const PAGE_KEYS = new Set(["ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Hom
  *  Keys: one document-capture guard — Esc closes (the lightbox's own Esc runs first and closes only it), Tab stays inside,
  *  page keys go to the room, and no key reaches the editor's window handlers. Alt+← / → stay the kit's page nav. */
 export function DemoSitePreview({ id, onExit, initial }: { id: string; onExit: () => void; initial?: Partial<SiteState> }) {
-  const b = useSession().useDemo().books.find((x) => x.id === id)
+  const { books, site } = useSession().useDemo()
+  const b = books.find((x) => x.id === id)
   const one = React.useMemo(() => (b ? [siteBookOf(withDoc(b), opts())] : []), [b])
   const [start] = React.useState(() => startOf(id, initial))
   const ref = React.useRef<HTMLDivElement>(null)
@@ -92,7 +93,7 @@ export function DemoSitePreview({ id, onExit, initial }: { id: string; onExit: (
         <span className="text-sm" style={{ color: SUB }} data-testid="site-preview-label">Site preview</span>
       </div>
       <div className="relative min-h-0 flex-1" data-testid="site-preview-scroll">
-        <div className="absolute inset-0"><PersonalSite books={one} start={start} roomRef={room} preview /></div>
+        <div className="absolute inset-0"><PersonalSite books={one} start={start} roomRef={room} preview texts={site} dark={site.theme === "dark"} /></div>
       </div>
     </div>
   )

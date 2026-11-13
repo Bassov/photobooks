@@ -11,13 +11,18 @@ import { FolderPicker, LIBRARY } from "@/features/screens"
 import { SAMPLE_SITE_TEXTS, type SiteTexts } from "@/features/site/sample"
 import { useSession } from "./session"
 import { HostingSection, type HostingInit } from "./hosting"
+import { SiteSection } from "./siteSettings"
 import { CATALOG, GENERIC_ID, PrintProfileDialog, copyOf, newProfile, profileSummary, type Draft, type KitProfile } from "./printProfiles"
 
 export type SettingsSection = "library" | "hosting" | "site" | "print" | "interface"
 /* ---------------------------------------------------------------- settings */
 const SECTIONS = [["library", "Library", HardDrive], ["hosting", "Hosting", KeyRound], ["site", "Site", Globe], ["print", "Print presets", Printer], ["interface", "Interface", SlidersHorizontal]] as const
-export function SettingsScreen(props: { bookCount?: number; libraryPath?: string; initialSection?: SettingsSection; print?: PrintInit; hosting?: HostingInit; site?: SiteTexts } = {}) {
-  const { bookCount, libraryPath, initialSection = "library", print, hosting, site = SAMPLE_SITE_TEXTS } = props
+/** `site` + `onSite`: the stored Site values and their commit (the #/demo session); without `onSite` the screen keeps them */
+export function SettingsScreen(props: { bookCount?: number; libraryPath?: string; initialSection?: SettingsSection; print?: PrintInit; hosting?: HostingInit; site?: SiteTexts; onSite?: (s: SiteTexts) => void } = {}) {
+  const { bookCount, libraryPath, initialSection = "library", print, hosting, site = SAMPLE_SITE_TEXTS, onSite } = props
+  const [ownSite, setOwnSite] = React.useState(site)
+  const siteNow = onSite ? site : ownSite
+  const commitSite = onSite ?? setOwnSite
   const [sec, setSec] = React.useState<string>(initialSection)
   const [path, setPath] = React.useState(libraryPath ?? LIBRARY.path)
   const [confirm, setConfirm] = React.useState(false)
@@ -56,17 +61,7 @@ export function SettingsScreen(props: { bookCount?: number; libraryPath?: string
             {prev && <div className="mt-4 flex max-w-[640px] items-center gap-2 rounded-lg bg-chrome px-4 py-2 text-sm" role="status" data-testid="library-changed"><Info className="size-4 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1">Now using <b className="font-semibold">{path}</b>. Your books in <span className="font-mono text-xs">{prev}</span> were not moved.</span><Button variant="ghost" size="xs" className="px-3 text-xs" onPress={() => { setPath(prev); setPrev(null) }}>Switch back</Button></div>}
           </>
         ) : sec === "print" ? <PrintPresets row={row} rule={rule} init={print} /> : sec === "hosting" ? <HostingSection rule={rule} init={hosting} /> : sec === "site" ? (
-          // personal-site K3 / D37: Site title, Author, Intro (the home lead; 2-line clamp, or "Not set")
-          <div className="mt-5 max-w-[640px] overflow-hidden rounded-xl bg-chrome" data-testid="site-texts">
-            <div className={row}><div className="min-w-0 flex-1 text-sm">Site title</div><span className="text-sm text-muted-foreground">{site.title}</span></div>
-            {rule}
-            <div className={row}><div className="min-w-0 flex-1 text-sm">Author</div><span className="text-sm text-muted-foreground">{site.author}</span></div>
-            {rule}
-            <div className={row} data-testid="site-intro-row">
-              <div className="min-w-0 flex-1"><div className="text-sm">Intro</div><div className="text-xs text-muted-foreground">The first lines of your site</div></div>
-              <span className="line-clamp-2 max-w-[320px] text-right text-sm text-muted-foreground" data-testid="site-intro">{site.intro.trim() || "Not set"}</span>
-            </div>
-          </div>
+          <SiteSection rule={rule} site={siteNow} onSite={commitSite} />
         ) : (
           <div className="mt-5 max-w-[640px] overflow-hidden rounded-xl bg-chrome">
             {([["Units", "Millimetres"], ["Thumbnail size", "96 px"], ["Density", "Comfortable"]]).map(([k, v], i) => (
@@ -171,7 +166,7 @@ export function DemoSettings({ initialSection, print, hosting }: { initialSectio
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-12 shrink-0 items-center gap-2 bg-chrome px-3"><Button variant="ghost" size="sm" className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4" onPress={() => set({ stage: d.back, settingsSection: undefined })} data-testid="demo-settings-back"><ChevronLeft />{d.back === "editor" ? "Back to the book" : "Library"}</Button><span className="text-sm font-medium">Settings</span></div>
-      <div className="min-h-0 flex-1"><SettingsScreen bookCount={d.books.length} libraryPath={d.path || undefined} initialSection={initialSection ?? d.settingsSection} print={print} hosting={hosting} site={d.site} /></div>
+      <div className="min-h-0 flex-1"><SettingsScreen bookCount={d.books.length} libraryPath={d.path || undefined} initialSection={initialSection ?? d.settingsSection} print={print} hosting={hosting} site={d.site} onSite={(site) => set({ site })} /></div>
     </div>
   )
 }

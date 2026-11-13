@@ -15,6 +15,7 @@ import type { Doc } from "@/sandbox/model"
 import { WithScenarios } from "./parts"
 import { BooksCount, COUNTS } from "./site-book/many"
 import { PersonalSite } from "./site/home"
+import { SAMPLE_SITE_TEXTS } from "./site/sample"
 import type { FeatureDef, Notes } from "./types"
 
 /** Stage height = the #/demo viewport height (+ the 40 px scenario strip), so every slot sits at its #/demo size. */
@@ -49,6 +50,9 @@ const settingsAt = (section: SettingsSection, s: Partial<SessionState> = {}, pri
 /* publish-credentials: a valid draft (key and secret are low-entropy fakes) and the hosting seeds */
 const DRAFT: HostingDraft = { account: SAMPLE_HOSTING.accountId, bucket: SAMPLE_HOSTING.bucket, key: `${"ab".repeat(14)}9f2c`, secret: "5e".repeat(32), url: SAMPLE_HOSTING.publicBaseUrl }
 const hostingAt = (s: Partial<SessionState>, h?: HostingInit) => settingsAt("hosting", s, undefined, h)
+/* site-settings: no values (the placeholders are the fallbacks, S3); Dark with a 152-character intro (counter ≥ 150) */
+const SITE_EMPTY: SessionState["site"] = { title: "", author: "", intro: "", theme: "light" }
+const INTRO_152 = "Photographs of lakes, coasts and the people I travel with, made into books. Most were taken on slow trips north, by train and on foot, over eight years."
 /* editor seeds (EditorView = the #/demo editor with an explicit studio state) */
 const ed = (p: React.ComponentProps<typeof EditorView>) => () => <EditorView book={LAKE_BOOK} {...p} />
 /* cover-editor: 60 spreads = 120 pages, the widest generic spine (32 mm) */
@@ -59,12 +63,12 @@ const docThreeOneLocked = (): Doc => {
   return { ...d, spreads: d.spreads.map((s, i) => (i === 2 ? { ...s, frames: s.frames.map((f, j) => (j === 2 ? { ...f, locked: true } : f)) } : s)) }
 }
 
-/** personal-site (D35): the scenario is the book count (site-book/many `BooksCount`; the route hash is left alone);
-   #/full shows the site alone and takes `?books=` from the URL */
+/** personal-site (D35): the scenario is the book count (site-book/many `BooksCount`; the route hash is left alone), or
+   `dark` (six books, the site-settings Dark theme); #/full shows the site alone and takes `?books=` from the URL */
 function PersonalSitePage() {
   if (location.hash.startsWith("#/full/")) return <PersonalSite />
-  return <WithScenarios items={COUNTS.map((c) => [`${c}`, `${c} book${c === 1 ? "" : "s"}`])} initial="6"
-    render={(v) => <div key={v} className="h-full" data-scenario={v}><BooksCount.Provider value={+v}><PersonalSite /></BooksCount.Provider></div>} />
+  return <WithScenarios items={[...COUNTS.map((c) => [`${c}`, `${c} book${c === 1 ? "" : "s"}`] as [string, string]), ["dark", "Dark"]]} initial="6"
+    render={(v) => <div key={v} className="h-full" data-scenario={v}><BooksCount.Provider value={v === "dark" ? 6 : +v}><PersonalSite dark={v === "dark"} /></BooksCount.Provider></div>} />
 }
 
 export const PAGES: Record<string, FeatureDef> = {
@@ -216,6 +220,8 @@ export const PAGES: Record<string, FeatureDef> = {
   "site-settings": page([
     ...(([["library", "Library"], ["hosting", "Hosting"], ["site", "Site"], ["print", "Print presets"], ["interface", "Interface"]] as const).map(([id, l]) =>
       [id, l, settingsAt(id, id === "print" ? { defaultPrintProfileId: "lulu-photo-book" } : {})] as Sc)),
+    ["site-empty", "No values", settingsAt("site", { site: SITE_EMPTY })],
+    ["site-dark", "Dark", settingsAt("site", { site: { ...SAMPLE_SITE_TEXTS, intro: INTRO_152, theme: "dark" } })],
     ["print-empty", "No custom profiles", settingsAt("print", { printProfiles: [] })],
     ["print-edit", "Edit profile", settingsAt("print", {}, { edit: "custom-lulu-copy" })],
     ["print-invalid", "Invalid values", settingsAt("print", {}, { edit: "new", draft: { name: "", trimMin: "300", trimMax: "200", pMax: "121" } })],
@@ -227,9 +233,9 @@ export const PAGES: Record<string, FeatureDef> = {
     ["hosting-replace", "Replace token", hostingAt({}, { replace: true })],
     ["hosting-forget", "Forget token", hostingAt({}, { forget: true })],
   ], {
-    what: "App settings with a back bar: Library (folder, Change library folder…), Hosting (Cloudflare R2 token: entry form, connected card, help), Site (title, author, intro = the site's home lead), Print presets (default for new books, print shops, custom profiles and their editor), Interface.",
+    what: "App settings with a back bar: Library (folder, Change library folder…), Hosting (Cloudflare R2 token: entry form, connected card, help), Site (title, author, intro = the home lead, Light / Dark theme), Print presets (default for new books, print shops, custom profiles and their editor), Interface.",
     where: "#/demo steps 40 (editor → Settings, back bar “Back to the book”) and 49 (library → Settings, back bar “Library”); Print presets only here.",
-    edge: ["Change library folder… confirms first; books are not moved", "Profile editor: errors show as you type and disable Save", "Deleting the default profile makes Generic the default", "The secret is never shown again", "Connect checks a real write before saving"],
+    edge: ["Change library folder… confirms first; books are not moved", "Profile editor: errors show as you type and disable Save", "Deleting the default profile makes Generic the default", "The secret is never shown again", "Connect checks a real write before saving", "Saved on commit (blur / Enter); Esc reverts", "Intro ≤ 160 = ≤ 3 lines on the 1440 home"],
   }),
   /* ------------------------------------------------------------ site */
   "site-lightbox": page([
