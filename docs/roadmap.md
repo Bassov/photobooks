@@ -219,6 +219,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 **Review cut:** someone else gets their own library and site. **Kit-first:** Designer drafts the P5 kit pages (onboarding / account, own library + site, hosting / connect) before items are sliced (call D6); `printer-presets` and `connect-own-hosting` have a partial kit (Settings → Print presets / Hosting rows). `onboarding-others` is held in `docs/backlog/` until then.
 
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
+- [ ] [feature] [design-r24-site-kit](roadmap/P5/design-r24-site-kit.md) — Bug: /next-roadmap-item design-r24-site-kit
 - [ ] [lite] [a5-fit-parity](roadmap/P5/a5-fit-parity.md) — Bug: /next-roadmap-item a5-fit-parity
 - [ ] [feature] [connect-own-hosting](roadmap/P5/connect-own-hosting.md) — bring your own hosting (Security Review)
 - [ ] [feature] [prepush-scoped-units](roadmap/P5/prepush-scoped-units.md) — Bug: /next-roadmap-item prepush-scoped-units
