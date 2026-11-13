@@ -6,12 +6,11 @@
  */
 
 import {
-  createCredentialStore,
   validateCredentials,
   type CheckCode,
-  type HostingStatus,
   type R2Credentials,
 } from './credentials'
+import type { CheckMode, CheckResult, PublishDeps } from './publisher'
 import {
   classifyR2Failure,
   r2FailureMessage,
@@ -25,27 +24,10 @@ const CHECK_PREFIX = '_photobooks/check-'
 
 type CheckField = keyof R2Credentials
 
-export type CheckResult =
-  | { ok: true }
-  | {
-      ok: false
-      code: CheckCode
-      /** Footer message, redacted. */
-      message: string
-      /** Fields to ring red. */
-      fields: readonly CheckField[]
-    }
-
-export interface CheckDeps {
-  fetch?: typeof fetch
-  now?: () => Date
-  /** `navigator.onLine` by default. */
-  isOnline?: () => boolean
-  /** 4 random bytes by default. */
-  randomHex?: () => string
-}
-
-export type CheckMode = 'connect' | 'recheck'
+export type CheckDeps = Pick<
+  PublishDeps,
+  'fetch' | 'now' | 'isOnline' | 'randomHex'
+>
 
 /** Fields to ring red per failure code. */
 const FIELDS: Partial<Record<CheckCode, readonly CheckField[]>> = {
@@ -154,43 +136,4 @@ export async function checkConnection(
   } finally {
     clearTimeout(timer)
   }
-}
-
-export interface HostingDeps extends CheckDeps {
-  indexedDB?: IDBFactory
-}
-
-/** Connect: check first; save the credentials and an `ok` status only on a pass. */
-export async function connectHosting(
-  credentials: R2Credentials,
-  deps: HostingDeps = {},
-): Promise<CheckResult> {
-  const result = await checkConnection(credentials, 'connect', deps)
-  if (!result.ok) return result
-  const store = createCredentialStore(deps.indexedDB)
-  await store.save(credentials)
-  await store.saveStatus({
-    checkedAtMs: clock(deps)().getTime(),
-    ok: true,
-  })
-  return result
-}
-
-/**
- * Check again: re-checks the stored credentials and stores the result.
- * `null` when nothing is stored.
- */
-export async function recheckHosting(
-  deps: HostingDeps = {},
-): Promise<HostingStatus | null> {
-  const store = createCredentialStore(deps.indexedDB)
-  const credentials = await store.load()
-  if (credentials === undefined) return null
-  const result = await checkConnection(credentials, 'recheck', deps)
-  const checkedAtMs = clock(deps)().getTime()
-  const status: HostingStatus = result.ok
-    ? { checkedAtMs, ok: true }
-    : { checkedAtMs, ok: false, code: result.code, message: result.message }
-  await store.saveStatus(status)
-  return status
 }

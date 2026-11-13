@@ -166,6 +166,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
 - [ ] [feature] [publish-core](roadmap/P3/publish-core.md) — Bug: /next-roadmap-item publish-core
 - [ ] [feature] [publish-site-flaky-2](roadmap/P3/publish-site-flaky-2.md) — Bug: /next-roadmap-item publish-site-flaky-2
+- [ ] [feature] [startpublish-raf-flaky](roadmap/P3/startpublish-raf-flaky.md) — Bug: /next-roadmap-item startpublish-raf-flaky
 - [ ] [feature] [design-r25-publish-cache](roadmap/P3/design-r25-publish-cache.md) — Bug: /next-roadmap-item design-r25-publish-cache
 - [ ] [feature] [in-app-publish-kit](roadmap/P3/in-app-publish-kit.md) — Bug: /next-roadmap-item in-app-publish-kit
 - [ ] [feature] [in-app-publish-core](roadmap/P3/in-app-publish-core.md) — Bug: /next-roadmap-item in-app-publish-core

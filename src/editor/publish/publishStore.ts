@@ -133,8 +133,16 @@ export const publishStore = createPublishStore({
   now: () => performance.now(),
   setTimer: (run, ms) => setTimeout(run, ms),
   clearTimer: globalThis.clearTimeout.bind(globalThis),
+  // Looked up per flush: node (and a test env after teardown) has no
+  // `requestAnimationFrame`, so the flush runs at once there.
   requestFrame: (run) => {
-    requestAnimationFrame(() => {
+    const frame = globalThis.requestAnimationFrame as
+      typeof requestAnimationFrame | undefined
+    if (typeof frame !== 'function') {
+      run()
+      return
+    }
+    frame(() => {
       run()
     })
   },
