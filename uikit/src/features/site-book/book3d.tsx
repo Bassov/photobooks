@@ -94,7 +94,7 @@ const Book3DGl = React.forwardRef<HTMLDivElement, Book3DProps & { onFail: () => 
     const start = async () => {
       try {
         T = await loadThree()
-        const v = await ClosedBook.create(T, b, s, { dark: !!el.closest(".ss-dark"), floor, font: titleFont(probe.current ?? el, el), k })
+        const v = await ClosedBook.create(T, b, s, { floor, font: titleFont(probe.current ?? el, el), k })
         if (dead) { v.dispose(); return }
         view = v
         draw()

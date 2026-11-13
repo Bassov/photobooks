@@ -49,6 +49,8 @@ const settingsAt = (section: SettingsSection, s: Partial<SessionState> = {}, pri
 /* publish-credentials: a valid draft (key and secret are low-entropy fakes) and the hosting seeds */
 const DRAFT: HostingDraft = { account: SAMPLE_HOSTING.accountId, bucket: SAMPLE_HOSTING.bucket, key: `${"ab".repeat(14)}9f2c`, secret: "5e".repeat(32), url: SAMPLE_HOSTING.publicBaseUrl }
 const hostingAt = (s: Partial<SessionState>, h?: HostingInit) => settingsAt("hosting", s, undefined, h)
+/* site-settings: no values (the placeholders are the fallbacks, S3) */
+const SITE_EMPTY: SessionState["site"] = { title: "", author: "", intro: "" }
 /* editor seeds (EditorView = the #/demo editor with an explicit studio state) */
 const ed = (p: React.ComponentProps<typeof EditorView>) => () => <EditorView book={LAKE_BOOK} {...p} />
 /* cover-editor: 60 spreads = 120 pages, the widest generic spine (32 mm) */
@@ -216,6 +218,7 @@ export const PAGES: Record<string, FeatureDef> = {
   "site-settings": page([
     ...(([["library", "Library"], ["hosting", "Hosting"], ["site", "Site"], ["print", "Print presets"], ["interface", "Interface"]] as const).map(([id, l]) =>
       [id, l, settingsAt(id, id === "print" ? { defaultPrintProfileId: "lulu-photo-book" } : {})] as Sc)),
+    ["site-empty", "No values", settingsAt("site", { site: SITE_EMPTY })],
     ["print-empty", "No custom profiles", settingsAt("print", { printProfiles: [] })],
     ["print-edit", "Edit profile", settingsAt("print", {}, { edit: "custom-lulu-copy" })],
     ["print-invalid", "Invalid values", settingsAt("print", {}, { edit: "new", draft: { name: "", trimMin: "300", trimMax: "200", pMax: "121" } })],
@@ -227,9 +230,9 @@ export const PAGES: Record<string, FeatureDef> = {
     ["hosting-replace", "Replace token", hostingAt({}, { replace: true })],
     ["hosting-forget", "Forget token", hostingAt({}, { forget: true })],
   ], {
-    what: "App settings with a back bar: Library (folder, Change library folder…), Hosting (Cloudflare R2 token: entry form, connected card, help), Site (title, author, intro = the site's home lead), Print presets (default for new books, print shops, custom profiles and their editor), Interface.",
+    what: "App settings with a back bar: Library (folder, Change library folder…), Hosting (Cloudflare R2 token: entry form, connected card, help), Site (title, author, intro = the home lead, edited in place), Print presets (default for new books, print shops, custom profiles and their editor), Interface.",
     where: "#/demo steps 40 (editor → Settings, back bar “Back to the book”) and 49 (library → Settings, back bar “Library”); Print presets only here.",
-    edge: ["Change library folder… confirms first; books are not moved", "Profile editor: errors show as you type and disable Save", "Deleting the default profile makes Generic the default", "The secret is never shown again", "Connect checks a real write before saving"],
+    edge: ["Change library folder… confirms first; books are not moved", "Profile editor: errors show as you type and disable Save", "Deleting the default profile makes Generic the default", "The secret is never shown again", "Connect checks a real write before saving", "Saved on commit (blur / Enter); Esc reverts", "Intro ≤ 160 = ≤ 3 lines on the 1440 home"],
   }),
   /* ------------------------------------------------------------ site */
   "site-lightbox": page([

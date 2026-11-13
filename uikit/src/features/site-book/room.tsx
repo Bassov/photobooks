@@ -32,7 +32,7 @@ export const roomMode = (box: Box): Mode => (box.w < 768 && box.h > box.w ? "por
 export const FADE_MS = 240, COVER_DELAY_MS = 120
 
 type RoomProps = {
-  b: SiteBook; view: number; setView: (v: number) => void; dark?: boolean; box: Box
+  b: SiteBook; view: number; setView: (v: number) => void; box: Box
   /** back to the list (the room's back button, swipe back) */
   onClose?: () => void
   /** a swipe back is pulling the room aside: the home layer shows under it */
@@ -56,7 +56,7 @@ const BODY: Record<keyof typeof SPREAD_R, readonly [number, number, number, numb
 /** the CSS reader (`gl=0`, no WebGL 2) paints its whole box */
 const CSS_BODY = [1, 1, 0, 0] as const
 
-export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek, full, share = true, turn = false, ref }: RoomProps) {
+export function ReadingRoom({ b, view, setView, box, onClose, onPeek, full, share = true, turn = false, ref }: RoomProps) {
   const root = React.useRef<HTMLDivElement>(null)
   const api = React.useRef<ReaderApi>(null)
   const sapi = React.useRef<SlidesApi>(null)
@@ -210,7 +210,7 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek, full
 
   const reader = (rw: number, left: number, top: number) => (
     <div className="ss-abs" style={{ left, top }} data-testid="site-room" data-view={view}>
-      <BookReader ref={api} b={b} view={view} onView={setView} width={rw} dark={dark} keys={!lb} />
+      <BookReader ref={api} b={b} view={view} onView={setView} width={rw} keys={!lb} />
     </div>
   )
 

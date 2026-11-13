@@ -41,9 +41,6 @@
   color: var(--site-ink); transition: background-color 160ms, color 160ms, border-color 160ms }
 .sd-ctl svg { width: 18px; height: 18px }
 .sd-ctl:not(:disabled):hover { background: var(--site-ink); color: var(--site-bg); border-color: var(--site-ink) }
-.sd-dark .sd-ctl { border-color: rgb(236 232 225 / .25); color: var(--site-on-band) }
-.sd-dark .sd-ctl:not(:disabled):hover { background: var(--site-on-band); color: var(--site-band); border-color: var(--site-on-band) }
-[data-surface="site"] .sd-dark .sd-ctl:focus-visible { outline-color: var(--site-on-band) }
 [data-surface="site"] .sd-ctl:focus-visible { outline: 2px solid var(--site-ink); outline-offset: 3px }
 .sd-ctl:disabled { opacity: .3; cursor: default }
 
@@ -76,14 +73,12 @@
 .sd-cursor { position: absolute; left: 0; top: 0; z-index: 70; pointer-events: none; border-radius: 50%; background: var(--site-ink); color: var(--site-bg-lit);
   display: grid; place-items: center; font: 500 13px/1 var(--site-sans); transition: scale 200ms var(--site-ease), width 200ms, height 200ms; scale: 0 }
 .sd-cursor[data-on] { scale: 1 }
-.sd-cursor[data-dark] { background: var(--site-on-band); color: var(--site-band) }
 @media (hover: hover) and (pointer: fine) { [data-surface="site"] [data-cursor] { cursor: none } }
 @media (hover: none), (pointer: coarse) { .sd-cursor { display: none } .sd-hover-only { display: none } }
 
 /* reader */
 .sd-reader { position: relative; touch-action: pan-y; user-select: none; -webkit-user-select: none }
 [data-surface="site"] .sd-reader:focus-visible { outline: 2px solid var(--site-ink); outline-offset: 8px; border-radius: 4px }
-.sd-dark .sd-reader:focus-visible { outline-color: var(--site-on-band) }
 .sd-rbook { position: absolute; left: 0; top: 0; transform-style: preserve-3d }
 .sd-rbook > div { position: absolute }
 .sd-pg { overflow: hidden; background: var(--site-paper) }

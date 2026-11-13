@@ -33,7 +33,7 @@ export type HomeApi = { books: SiteBook[]; box: Box; g: Grid; active: boolean; o
   /** D37: the home lead; null = no lead */ lead: string | null }
 
 /** site-stand-v7 F: the browser bars (html, body, theme-color) take the site's paper colour; restored on leaving */
-function usePaperBars(root: React.RefObject<HTMLDivElement | null>, dark?: boolean) {
+function usePaperBars(root: React.RefObject<HTMLDivElement | null>) {
   React.useLayoutEffect(() => {
     if (!root.current) return
     const bg = getComputedStyle(root.current).backgroundColor
@@ -48,7 +48,7 @@ function usePaperBars(root: React.RefObject<HTMLDivElement | null>, dark?: boole
       if (made) meta.remove()
       else meta.content = content
     }
-  }, [root, dark])
+  }, [root])
 }
 
 /** `#/full/<id>?books=6&book=<id>`: the book id on the hash (full-window routes only) */
@@ -67,7 +67,6 @@ type Open = { b: SiteBook; pushed: boolean; turn?: boolean }
 /** open this book at mount, at `view` (default 0 = the cover, no cover turn); `full` = the lightbox open at that zoom */
 export type SiteStart = { book: string; view?: number; full?: number }
 export type SiteProps = {
-  dark?: boolean
   /** the books (#/demo: the session's published books); default the `?books=` sample */
   books?: SiteBook[]
   start?: SiteStart
@@ -80,11 +79,11 @@ export type SiteProps = {
 }
 
 /** The site shell: home (kept mounted under the room, so the place is kept), the reading room, Head. */
-export function SysSite({ dark, home, books: given, start, roomRef, preview, texts = SAMPLE_SITE_TEXTS }: SiteProps & { home: (h: HomeApi) => React.ReactNode }) {
+export function SysSite({ home, books: given, start, roomRef, preview, texts = SAMPLE_SITE_TEXTS }: SiteProps & { home: (h: HomeApi) => React.ReactNode }) {
   const sample = useBooks(), books = given ?? sample
   const [root, box] = useBox<HTMLDivElement>()
   const g = gridOf(box)
-  usePaperBars(root, dark)
+  usePaperBars(root)
   // the phone home draws the name itself (site-stand-v7 D32)
   const bare = g.narrow
   const find = (id: string | null) => books.find((b) => b.id === id) ?? null
@@ -144,7 +143,7 @@ export function SysSite({ dark, home, books: given, start, roomRef, preview, tex
   const [peek, setPeek] = React.useState(false)
   if (peek && !cur) setPeek(false)
   return (
-    <div ref={root} className={`ss${dark ? ' ss-dark' : ''}`} data-testid="site" data-books={books.length} data-open={cur?.b.id}>
+    <div ref={root} className="ss" data-testid="site" data-books={books.length} data-open={cur?.b.id}>
       <div className="ss-layer" data-off={covered && !peek ? '' : undefined} inert={covered}>
         {home({ books, box, g, active: !covered, open, showAll: () => setList(true), lead: siteLead(texts) })}
       </div>
@@ -153,7 +152,7 @@ export function SysSite({ dark, home, books: given, start, roomRef, preview, tex
           <AllBooks books={books} g={g} onOpen={open} />
         </div>
       )}
-      {curB && <ReadingRoom key={curB.id} ref={roomRef} b={curB} view={view} setView={setView} dark={dark} box={box} onClose={close} onPeek={setPeek} full={full} share={!preview} turn={!!cur?.turn} />}
+      {curB && <ReadingRoom key={curB.id} ref={roomRef} b={curB} view={view} setView={setView} box={box} onClose={close} onPeek={setPeek} full={full} share={!preview} turn={!!cur?.turn} />}
       {!phoneRoom && !(bare && !cur) && <Head g={g} reading={!!cur} preview={preview} onHome={() => (cur ? close() : setList(false))} />}
     </div>
   )

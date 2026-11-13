@@ -99,10 +99,10 @@ const KEY = [-25, 80, 30].map((v, _, a) => v / Math.hypot(...a))
 export class ClosedBook {
   scene: Any; cam: Any; piv: Any; hinge: Any; shadow?: { c: HTMLCanvasElement; t: Any; R: number; S: number }
   private disposables: Any[] = []
-  private constructor(private T: Three, readonly b: SiteBook, readonly s: number, readonly dark: boolean) {}
+  private constructor(private T: Three, readonly b: SiteBook, readonly s: number) {}
 
-  static async create(T: Three, b: SiteBook, s: number, o: { dark: boolean; floor: boolean; font: TitleFont; k: number }) {
-    const g = new ClosedBook(T, b, s, o.dark)
+  static async create(T: Three, b: SiteBook, s: number, o: { floor: boolean; font: TitleFont; k: number }) {
+    const g = new ClosedBook(T, b, s)
     await g.build(o.font, o.k, o.floor)
     return g
   }
@@ -142,11 +142,10 @@ export class ClosedBook {
     this.piv.add(book)
     scene.add(this.piv)
     // light: sky/ground, the key from the upper left, a front fill; no shadow maps
-    const d = this.dark
-    scene.add(new T.HemisphereLight(0xffffff, d ? 0x1a1a19 : 0xd8d1c4, d ? 1.25 : 1.35))
-    const key = new T.DirectionalLight(0xffffff, d ? 1.1 : 1.0)
+    scene.add(new T.HemisphereLight(0xffffff, 0xd8d1c4, 1.35))
+    const key = new T.DirectionalLight(0xffffff, 1.0)
     key.position.set(KEY[0] * 100, KEY[1] * 100, KEY[2] * 100)
-    const fill = new T.DirectionalLight(0xffffff, d ? 0.75 : 0.7)
+    const fill = new T.DirectionalLight(0xffffff, 0.7)
     fill.position.set(10, 25, 90)
     scene.add(key, fill)
     if (floor) {
@@ -179,13 +178,13 @@ export class ClosedBook {
     const poly = (pts: [number, number][]) => { x.beginPath(); pts.forEach(([a, z], i) => (i ? x.lineTo(a, z) : x.moveTo(a, z))); x.closePath(); x.fill() }
     x.clearRect(0, 0, c.width, c.height)
     x.filter = `blur(${3 * S}px)`
-    x.fillStyle = `rgba(0,0,0,${this.dark ? 0.55 : 0.26})`
+    x.fillStyle = "rgba(0,0,0,0.26)"
     poly(bot); poly(top)
     for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; poly([bot[i], bot[j], top[j], top[i]]) }
     const contact = Math.max(0, 1 - p.lift / 12)
     if (contact > 0) {
       x.filter = `blur(${0.4 * S}px)`
-      x.fillStyle = `rgba(0,0,0,${(this.dark ? 0.7 : 0.42) * contact})`
+      x.fillStyle = `rgba(0,0,0,${0.42 * contact})`
       poly(bot)
     }
     x.filter = "none"
