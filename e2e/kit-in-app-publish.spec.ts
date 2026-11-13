@@ -265,6 +265,28 @@ test.describe('K2 the Publish pill', () => {
     expect(b).toBe(215)
   })
 
+  test('#/demo: Publish hovers like Preview, idle box unchanged', async ({
+    page,
+  }) => {
+    await seed(page)
+    const p = pill(page)
+    near(await width(p), 73.58)
+    expect(
+      await p.evaluate((el) => {
+        const s = getComputedStyle(el)
+        return [el.getBoundingClientRect().height, s.padding]
+      }),
+    ).toEqual([32, '0px 14px'])
+    const hovered = async (l: Locator) => {
+      await l.hover()
+      const [[r = 0, g = 0, b = 0] = []] = await pixelsAt(l, [{ x: 6, y: 16 }])
+      return [r, g, b]
+    }
+    const preview = await hovered(page.getByTestId('demo-preview'))
+    expect(preview).toEqual([215, 215, 215])
+    expect(await hovered(p)).toEqual(preview)
+  })
+
   test('#/demo: Hide / Esc / outside click keep the run in the pill; P7; done opens Published', async ({
     page,
   }) => {
