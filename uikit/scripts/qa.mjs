@@ -374,14 +374,15 @@ await smoke("drag photo onto frame + undo", "drag-place-replace", async () => {
   return [/Placed|Replaced/.test(st ?? ""), `status="${st}"`]
 })
 await smoke("grid toggle", "layout-grids-render-snap", async () => { const g1 = await D('[data-testid="grid-overlay"]').first().isVisible(); await D('[data-testid="toggle-grid"]').click(); await page.waitForTimeout(150); return g1 && !(await D('[data-testid="grid-overlay"]').first().isVisible().catch(() => false)) })
-await smoke("bookcase → room → Fullscreen lightbox", "site-viewer", async () => { await D('[data-testid="ss9-book"]').first().click(); await page.waitForTimeout(1500); await D('[data-testid="site-fullscreen-btn"]').click(); await page.waitForTimeout(200); return D('[data-testid="lightbox"]').isVisible() })
-await smoke("home → book → spread fullscreen", "site-photographer", async () => {
-  await D('[data-testid="ps-book"]').first().click(); await page.waitForTimeout(200)
-  const title = await D('[data-testid="ps-title"]').textContent()
-  await D('[data-testid="ps-spread"]').first().click(); await page.waitForTimeout(200)
+// personal-site K3: the old site viewer and photographer pages are gone; the site is the room → Fullscreen → lightbox
+await smoke("bookcase → room → Fullscreen lightbox; Esc back to the room", "personal-site", async () => {
+  await D('[data-testid="ss9-book"]').first().click(); await page.waitForTimeout(1500)
+  await D('[data-testid="site-fullscreen-btn"]').click(); await page.waitForTimeout(200)
   const lb = await D('[data-testid="lightbox"]').isVisible()
-  const ind = (await D('[data-testid="site-fullscreen-indicator"]').textContent()) ?? ""
-  return [title === "Lake trip" && lb && ind.startsWith("Pages 2–3"), `title ${title} · lightbox ${lb} · ${ind}`]
+  const ind = ((await D('[data-testid="site-fullscreen-indicator"]').textContent()) ?? "").trim()
+  await page.keyboard.press("Escape"); await page.waitForTimeout(200)
+  const back = (await D('[data-testid="lightbox"]').count()) === 0 && (await D('[data-testid="site-fullscreen-btn"]').isVisible())
+  return [lb && ind !== "" && back, `lightbox ${lb} · "${ind}" · back in the room ${back}`]
 })
 {
   // Tab through the page; every listed control must draw a solid 2 px focus-visible outline.
@@ -405,13 +406,7 @@ await smoke("home → book → spread fullscreen", "site-photographer", async ()
     const bad = rings.filter((x) => x[1] !== "solid 2px").concat(extra)
     return [bad.length === 0, bad.length ? bad.map((x) => x.join(": ")).join("; ") : `${rings.length} solid 2px`]
   }
-  await smoke("focus-visible outline solid on every control", "site-photographer", async () => {
-    const rings = await tabRings(["ps-home-link", "ps-nav-books", "ps-nav-about", "mailto"])
-    await D('[data-testid="ps-book"]').first().click(); await page.waitForTimeout(200)
-    rings.push(...(await tabRings(["ps-all-books", "ps-read", "ps-share", "ps-spread"])))
-    return ringsOk(rings)
-  })
-  await smoke("focus-visible outline solid on every control; mouse click draws none", "site-viewer", async () => {
+  await smoke("focus-visible outline solid on every control; mouse click draws none", "personal-site", async () => {
     const rings = await tabRings(["ss9-book"])
     await D('[data-testid="ss9-book"]').first().click(); await page.waitForTimeout(1500)
     rings.push(...(await tabRings(["site-all-books", "ss-next", "site-share", "site-fullscreen-btn", "site-play"])))
@@ -424,14 +419,6 @@ await smoke("home → book → spread fullscreen", "site-photographer", async ()
     return ringsOk(rings, click.startsWith("Next none") ? [] : [["mouse click on Next", click]])
   })
   await smoke("library bar: focus-visible outline solid on search + sort", "recents-home", async () => ringsOk(await tabRings(["lib-search-input", "lib-sort"])))
-  await smoke("last page Fullscreen chip sits top 12 / right 12 of the left page", "site-photographer", async () => {
-    await D('[data-testid="ps-book"]').first().click(); await page.waitForTimeout(200)
-    const r = await D('[data-testid="ps-spread"]').last().evaluate((b) => {
-      const a = b.getBoundingClientRect(), c = b.querySelector('[data-testid="ps-chip"]').getBoundingClientRect()
-      return { top: c.top - a.top, right: a.right - c.right, pw: a.width / 2 }
-    })
-    return [Math.abs(r.top - 12) <= 1 && Math.abs(r.right - (r.pw + 12)) <= 1, `top ${r.top} right ${r.right} (pw ${r.pw})`]
-  })
 }
 // ---------------------------------------------------------------- v5 checks
 const fitAir = async () => page.evaluate(() => {
@@ -1693,7 +1680,7 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("site-preview-mode kit page: states Preview (room view 1), Spread 2 (view 3), Fullscreen (lightbox over the preview)",
     JSON.stringify(spStates.map(([n, , lb]) => [n, lb])) === "[[1,0],[1,0],[1,1]]" && spStates[0][1] === "1" && spStates[1][1] === "3", JSON.stringify(spStates))
 
-  // §3 page counts (Designer site-viewer D1/D2/D5): slides = cover + every spread; indicator = page label + spread counter (prod Preview), meta pages = last page number 2(n − 1) (Designer review); deep-link into the book (v0.9.3 catalog home)
+  // §3 page counts (Designer site D1/D2/D5): slides = cover + every spread; indicator = page label + spread counter (prod Preview), meta pages = last page number 2(n − 1) (Designer review); deep-link into the book (v0.9.3 catalog home)
   await go("#/demo", 400); await page.evaluate(() => { const d = window.__demo; d.reset(); d.state().path = "~/Pictures/Photobooks"; d.state().books = [{ id: "s1", title: "Pages", book: { endp: true, endpSame: true, w: 14.8, h: 21, preset: "A5" }, published: true }]; d.state().open = "s1"; d.openSite("book") })
   await page.emulateMedia({ reducedMotion: "reduce" }); await page.waitForTimeout(900)
   const meta = (await page.locator('[data-testid="site-about"]').textContent()).trim()

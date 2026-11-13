@@ -22,7 +22,7 @@ const useSiteBooks = (open: DBook | undefined) => {
     return pub.length || !open ? pub : [siteBookOf(withDoc(open), opts())]
   }, [all, open])
 }
-/** a kit page's `SiteState` (site-viewer / site-lightbox / site-preview-mode) → the room's start: slide s = view s + 1 */
+/** a kit page's `SiteState` (site-lightbox / site-preview-mode) → the room's start: slide s = view s + 1 */
 const startOf = (book: string, s?: Partial<SiteState>): SiteStart => ({ book, view: (s?.slide ?? 0) + 1, ...(s?.lb ? { full: s.lbZoom ?? 1 } : {}) })
 
 /** #/demo published site (personal-site K2): the bookcase of the published books, with the back-to-editor bar. A book
@@ -37,7 +37,7 @@ export function DemoSite({ id, initial }: { id: string; initial?: Partial<SiteSt
     <div className="flex h-full flex-col">
       <div className="flex h-11 shrink-0 items-center gap-2 bg-chrome px-3 text-sm"><Button variant="ghost" size="sm" className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4" onPress={() => set({ stage: "editor", open: id })} data-testid="demo-site-back"><ChevronLeft />Back to the editor</Button><span className="text-muted-foreground" data-testid="demo-site-crumb">aleksandr.photos</span></div>
       <div className="relative min-h-0 flex-1">
-        <div className="absolute inset-0"><PersonalSite books={books} {...(start ? { start } : {})} /></div>
+        <div className="absolute inset-0"><PersonalSite books={books} texts={d.site} {...(start ? { start } : {})} /></div>
       </div>
     </div>
   )
