@@ -105,7 +105,7 @@ export const PAGES: Record<string, FeatureDef> = {
     ["preview", "Preview", root(inEditor({ editor: { preview: true } }))],
   ], {
     what: "The editor chrome: top bar with Library, tools, undo / redo, snap and grid toggles, zoom, save status and the book title (opens Book settings), then Preview · Settings · Export site · Print · Publish. Spread list left, inspector right, photos dock below.",
-    where: "#/demo steps 8–26 and 39–40 (the whole editor); Export site in steps 52–55.",
+    where: "#/demo steps 8–26 and 39–40 (the whole editor); Export site in steps 57–60.",
     edge: ["Preview opens the book as the site shows it, full screen; Esc or Close returns", "Settings opens app settings with “Back to the book”"],
   }),
   /* ------------------------------------------------------------ filmstrip */
@@ -238,7 +238,7 @@ export const PAGES: Record<string, FeatureDef> = {
     ["zoomed", "Zoomed 2×", root(onSite({ page: "book", slide: 3, lb: true, lbZoom: 2 }, "book"))],
   ], {
     what: "Fullscreen viewing of one book from the reading room (Fullscreen in the foot); arrows step through spreads.",
-    where: "#/demo step 59.",
+    where: "#/demo step 64.",
     keys: [["← / →, Space", "previous / next spread"], ["Esc", "close"]],
     edge: ["Double-click or pinch zooms; drag pans", "Arrows hide on touch screens"],
   }),
@@ -282,7 +282,7 @@ export const PAGES: Record<string, FeatureDef> = {
     ["failed-key", "Failed, key", ed({ doc: docFilled, cur: 1, publish: { phase: "failed", p: 0 }, overlay: <PublishDialog title={LAKE_TITLE} otherBooks={EXPORTED} initialStep="failed" fail="key" run={PUB_FAILED} onHide={() => {}} /> })],
   ], {
     what: "Publish dialog over the editor: options, then progress that can be hidden (the pill shows NN%), then Published with Open site; without hosting it points to Settings → Hosting; failures retry.",
-    where: "#/demo steps 49–52 (top bar → Publish → Publish → Esc → the pill).",
+    where: "#/demo steps 53–56 (top bar → Publish → Publish → Esc → the pill).",
     keys: [["Esc", "closes the dialog (Hide while running); the upload keeps running in the pill"]],
     edge: ["Only changed files upload", "Try again sends only the rest", "The pill keeps its width in every state: NN% over a fill while running, a check for 4 s, a warning until opened", "Publish and Export site wait for each other", "Below a 1360 px window Export site is icon-only; Publish keeps its label"],
   }),
@@ -296,7 +296,7 @@ export const PAGES: Record<string, FeatureDef> = {
     ["failed", "Failed", ed({ doc: docFilled, cur: 1, exportSite: { phase: "failed", p: 0 }, overlay: <ExportSiteDialog title={LAKE_TITLE} otherBooks={EXPORTED} folder="Sites" initialStep="failed" fail="access" onHide={() => {}} /> })],
   ], {
     what: "Export site: the top-bar pill after Settings opens a dialog that writes the site of your books to a folder on this computer (Folder, Books, Export), shows progress, then Site exported with how to serve it. Nothing is uploaded.",
-    where: "#/demo steps 52–55 (top bar → Export site → Choose folder… → Export → Hide → Exported).",
+    where: "#/demo steps 57–60 (top bar → Export site → Choose folder… → Export → Hide → Exported).",
     keys: [["Esc", "closes the dialog (Hide while running); the export keeps running in the pill"]],
     edge: ["The pill keeps its width in every state: NN% over a fill while running, “Exported” for 4 s, “Failed” until opened", "Below a 1360 px window the pill is icon-only, 40 × 32", "Picker folder “Family” holds a foreign dist: “isn’t a Photobooks export”, Choose folder… goes back to Options"],
   }),

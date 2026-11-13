@@ -361,6 +361,13 @@ test('KM3 PublishDialog names the host of the stored site address', async ({
   page,
 }) => {
   await page.goto('/uikit/#/full/in-app-publish')
+  // the first state (no hosting) is modal: its scrim covers the tab strip
+  await page
+    .getByTestId('scenarios')
+    .getByRole('tab', { name: 'Options', exact: true })
+    .evaluate((t: HTMLElement) => {
+      t.click()
+    })
   await expect(page.getByTestId('publish-host-line')).toHaveText(
     '“Lake trip” goes to books.basov.photo with the other published books.',
   )
