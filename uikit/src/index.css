@@ -265,7 +265,7 @@ html[data-density="compact"], .density-compact {
 }
 
 /* Published site (Designer site-viewer §1): the site's own token layer, today's kit values; a later site direction changes only these.
-   Classes in features/site-viewer.tsx read them through [color:var(--site-*)] utilities. */
+   The personal-site files (features/site, features/site-book) read them. */
 .site {
   --site-bg: #E1E1E1; --site-text: #393738; --site-muted: #535152; --site-control: #D7D7D7; --site-control-hover: #CFCFCF; --site-focus: #535152;
   --site-font: "Inter Variable", Inter, system-ui, sans-serif; --site-heading: "Lora Variable", Lora, serif;

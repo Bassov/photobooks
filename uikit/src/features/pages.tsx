@@ -15,7 +15,6 @@ import type { Doc } from "@/sandbox/model"
 import { WithScenarios } from "./parts"
 import { BooksCount, COUNTS } from "./site-book/many"
 import { PersonalSite } from "./site/home"
-import { PhotographerSite } from "./site-photographer"
 import type { FeatureDef, Notes } from "./types"
 
 /** Stage height = the #/demo viewport height (+ the 40 px scenario strip), so every slot sits at its #/demo size. */
@@ -226,19 +225,11 @@ export const PAGES: Record<string, FeatureDef> = {
     ["hosting-replace", "Replace token", hostingAt({}, { replace: true })],
     ["hosting-forget", "Forget token", hostingAt({}, { forget: true })],
   ], {
-    what: "App settings with a back bar: Library (folder, Change library folder…), Hosting (Cloudflare R2 token: entry form, connected card, help), Site, Print presets (default for new books, print shops, custom profiles and their editor), Interface.",
+    what: "App settings with a back bar: Library (folder, Change library folder…), Hosting (Cloudflare R2 token: entry form, connected card, help), Site (title, author, intro = the site's home lead), Print presets (default for new books, print shops, custom profiles and their editor), Interface.",
     where: "#/demo steps 40 (editor → Settings, back bar “Back to the book”) and 49 (library → Settings, back bar “Library”); Print presets only here.",
     edge: ["Change library folder… confirms first; books are not moved", "Profile editor: errors show as you type and disable Save", "Deleting the default profile makes Generic the default", "The secret is never shown again", "Connect checks a real write before saving"],
   }),
   /* ------------------------------------------------------------ site */
-  "site-viewer": page([
-    ["catalog", "Catalog", root(onSite({}))],
-    ["book", "Book", root(onSite({ page: "book" }, "book"))],
-  ], {
-    what: "The published site: the personal-site bookcase of the session's published books, then one book's reading room with Share and Fullscreen. A bar above it returns to the editor.",
-    where: "#/demo steps 56–59 (Publish → Open site).",
-    edge: ["Nothing published: the open book alone on the case", "Share shows Copied for 2 s; Esc leaves fullscreen"],
-  }),
   "site-lightbox": page([
     ["lightbox", "Fullscreen", root(onSite({ page: "book", lb: true }, "book"))],
     ["spread", "Spread 2", root(onSite({ page: "book", slide: 3, lb: true }, "book"))],
@@ -249,13 +240,6 @@ export const PAGES: Record<string, FeatureDef> = {
     keys: [["← / →, Space", "previous / next spread"], ["Esc", "close"]],
     edge: ["Double-click or pinch zooms; drag pans", "Arrows hide on touch screens"],
   }),
-  "site-photographer": {
-    Demo: PhotographerSite, h: SLOT.app.h, notes: {
-      what: "Proposal for the published site as a photographer's site of books: home with the books on a shelf, one page per book with text, facts and all spreads, the kit Fullscreen viewer. Sample books and texts.",
-      where: "Standalone demo; not in #/demo yet. Full window: #/full/site-photographer.",
-      edge: ["Click a book, a spread or the closed book; Esc leaves fullscreen", "Narrow window (< 768) = one column"],
-    },
-  },
   "personal-site": {
     Demo: PersonalSitePage, h: SLOT.app.h, notes: {
       what: "The personal site: a bookcase home (the newest book of each shelf face-out) and a reading room with the open book. Sample books.",

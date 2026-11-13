@@ -65,7 +65,7 @@ Every feature page now mounts only `src/demo-parts` at real editor slot sizes, g
 
 **P1**
 - **Per-book editor state.** In #/demo each book keeps its full editor state for the session: spreads, size, cover photo, cover text (front, spine, back) and masters, including the grid. Reopening a book restores it (Std `keep`, `getEditorExtras` / `setEditorExtras`). Library cards show the current cover.
-- **The published site shows the user's own book.** It uses the book's title, page count and slug (`aleksandr.photos/<title>`). Page 1 is the real cover spread (photo and cover text), also in Fullscreen. `SiteViewer` resolves the book from its `books` prop first.
+- **The published site shows the user's own book.** It uses the book's title, page count and slug (`aleksandr.photos/<title>`). Page 1 is the real cover spread (photo and cover text), also in Fullscreen. The home lead is Settings → Site → Intro, else "Photobooks by {author}.", else none.
 - **Demo filmstrip.** One plain label, "Photos · N · M used", with no Photos/Templates capsule. Templates stay in the spread inspector's Layout section.
 - **Library path fixed.** It no longer shows "~/Pictures/~/Pictures/…".
 

@@ -7,6 +7,7 @@ import { getEditorExtras, defaultMasters, type CoverText } from "@/sandbox/v7"
 import type { LibBook } from "@/features/library"
 import type { UnsupportedVariant } from "@/features/unsupported"
 import { GENERIC_ID, SAMPLE_CUSTOMS, type KitProfile } from "./printProfiles"
+import { SAMPLE_SITE_TEXTS, type SiteTexts } from "@/features/site/sample"
 
 export type Extras = ReturnType<typeof getEditorExtras>
 export type Stage = "welcome" | "library" | "editor" | "settings" | "site" | "unsupported"
@@ -21,10 +22,11 @@ export const SAMPLE_HOSTING: HostingRecord = { accountId: "0f3a9c51e2b74d0a8c66f
 export type SessionState = { stage: Stage; path: string; books: DBook[]; open: string | null; back: Stage; nonce: number; siteEntry: "catalog" | "book"
   /** the "unsupported" stage: which variant, and the browser named in its copy */ unsupported?: { variant: UnsupportedVariant; browserName?: string }
   /** printer-presets D6: the library's custom print profiles and the default for new books */ printProfiles: KitProfile[]; defaultPrintProfileId: string
-  /** publish-credentials: the stored hosting connection; null = not connected */ hosting: HostingRecord | null }
+  /** publish-credentials: the stored hosting connection; null = not connected */ hosting: HostingRecord | null
+  /** personal-site D37: Settings → Site; the site lead reads `intro` */ site: SiteTexts }
 export type Session = { S: SessionState; set: (p: Partial<SessionState>) => void; useDemo: () => SessionState }
 
-export const INITIAL_SESSION: SessionState = { stage: "welcome", path: "", books: [], open: null, back: "library", nonce: 0, siteEntry: "catalog", printProfiles: SAMPLE_CUSTOMS, defaultPrintProfileId: GENERIC_ID, hosting: SAMPLE_HOSTING }
+export const INITIAL_SESSION: SessionState = { stage: "welcome", path: "", books: [], open: null, back: "library", nonce: 0, siteEntry: "catalog", printProfiles: SAMPLE_CUSTOMS, defaultPrintProfileId: GENERIC_ID, hosting: SAMPLE_HOSTING, site: SAMPLE_SITE_TEXTS }
 export function createSession(initial: Partial<SessionState> = {}): Session {
   const S: SessionState = { ...INITIAL_SESSION, ...initial }
   const subs = new Set<() => void>()
