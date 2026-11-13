@@ -14,8 +14,8 @@ import { PERF_BUDGETS } from './perf/budgets'
 // endpoint is answered here (`page.route`); nothing reaches Cloudflare.
 
 const ACCOUNT = '0f3a9c0f3a9c0f3a9c0f3a9c0f3a9c0f'
-const KEY = 'a1b2c3d4e5f6a7b8c9d0a1b2c3d49f2c'
-const SECRET = 'c0ffee'.repeat(10) + 'beef'
+const KEY = '0000000000000000000000000000' + '9f2c'
+const SECRET = '0'.repeat(60) + 'beef'
 const R2 = 'https://*.r2.cloudflarestorage.com/**'
 
 type Answer = 'ok' | 'cors' | 'hold'
