@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P3
 Title: connect the editor to your hosting (Security Review)
+Status: done
 
 ## Scope
 
