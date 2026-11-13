@@ -846,6 +846,7 @@ describe('BookReader with WebGL', () => {
       size.w,
       size.h,
       expect.any(Function),
+      false,
     )
     expect(made.book.set).toHaveBeenLastCalledWith(4, 0)
     expect(made.faces.focus).toHaveBeenLastCalledWith(4)
@@ -892,6 +893,24 @@ describe('BookReader with WebGL', () => {
     frame(plan.ms / 2)
     const th = TURN(0.5) * 180
     expect(made.book.set).toHaveBeenLastCalledWith(4, th)
+    // a turn draws in its task; a texture landing is fenced
+    expect(made.draws.draw).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      true,
+    )
+    act(() => {
+      made.book.onChange()
+    })
+    expect(made.draws.draw).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      false,
+    )
     const leaf = screen.getByTestId('ps-leaf')
     expect(leaf.dataset.leaf).toBe('paper')
     expect(leaf.dataset.theta).toBe(th.toFixed(1))

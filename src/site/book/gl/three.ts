@@ -116,24 +116,26 @@ export interface FencedDraws {
   /**
    * Draw the scene into `out` at `w`×`h` backing px; `prep` runs right
    * before the render it describes. Resolves with `prep`'s value once those
-   * pixels are in `out`.
+   * pixels are in `out`. `now`: render and copy in this task (a turn the
+   * user is watching), taking over the draws in flight.
    */
   draw: <R>(
     out: HTMLCanvasElement,
     w: number,
     h: number,
     prep: () => R,
+    now?: boolean,
   ) => Promise<R>
   stop: () => void
 }
 
 /**
- * Draws that never wait for the GPU on the main thread: a fence after each
- * render, polled once per `next` (animation frame), and the copy only once it
- * signals, where `drawImage` would block until the frame is done (hundreds of
- * ms a draw on software GL). Draws asked for while one is in flight coalesce
- * into one render of the latest scene; a render of another book over the
- * shared buffer meanwhile costs a re-render.
+ * Draws that do not wait for the GPU on the main thread (except `now`): a
+ * fence after each render, polled once per `next` (animation frame), and the
+ * copy only once it signals, where `drawImage` would block until the frame is
+ * done (hundreds of ms a draw on software GL). Draws asked for while one is in
+ * flight coalesce into one render of the latest scene; a render of another
+ * book over the shared buffer meanwhile costs a re-render.
  */
 export function fencedDraws(
   T: Three,
@@ -152,6 +154,7 @@ export function fencedDraws(
     done: ((v: unknown) => void)[]
   }
   let ask: Ask | undefined
+  let flight: Ask | undefined
   let busy = false
   let stopped = false
   const run = () => {
@@ -159,6 +162,7 @@ export function fencedDraws(
     if (!busy || !ask) return
     const a = ask
     ask = undefined
+    flight = a
     const v = a.prep()
     const s = render(T, scene, cam, a.w, a.h, shadows)
     const frame = s.frame
@@ -176,25 +180,39 @@ export function fencedDraws(
       }
       gl.deleteSync(sync)
       if (stopped) return
+      flight = undefined
       if (s.frame === frame) {
         copy(a.out, a.w, a.h)
         for (const f of a.done) f(v)
-      } else ask ??= a
+        // a draw `now` took the waiters over: nothing left to re-render
+      } else if (a.done.length > 0) ask ??= a
       run()
     }
     next(poll)
   }
   return {
-    draw: (out, w, h, prep) =>
+    draw: (out, w, h, prep, now = false) =>
       new Promise((resolve) => {
-        ask = {
+        const a: Ask = {
           out,
           w,
           h,
           prep,
           done: [...(ask?.done ?? []), resolve as (v: unknown) => void],
         }
-        if (!busy) run()
+        if (!now) {
+          ask = a
+          if (!busy) run()
+          return
+        }
+        if (stopped) return
+        ask = undefined
+        const v = prep()
+        render(T, scene, cam, w, h, shadows)
+        copy(out, w, h)
+        const done = [...(flight?.done ?? []), ...a.done]
+        if (flight) flight.done = []
+        for (const f of done) f(v)
       }),
     stop: () => {
       stopped = true

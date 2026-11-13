@@ -388,6 +388,9 @@ function ReaderGl({
   }, [gl, view])
 
   const lastFade = useRef<number | null>(null)
+  const lastPose = useRef<{ gl: ReaderGlBook; a: number; th: number } | null>(
+    null,
+  )
   useLayoutEffect(() => {
     const c = canvas.current
     const o = over.current
@@ -409,9 +412,13 @@ function ReaderGl({
     const size = backingSize(box, window.devicePixelRatio)
     gl.book.set(a, th)
     gl.book.frame(W, H, s, box)
-    // the canvas takes the size with the pixels, a frame or more later
+    // a turn draws in this task; the boot and texture landings are fenced
+    // (the pixels and the size land a frame or more later, no GPU wait)
+    const was = lastPose.current
+    const turned = was?.gl === gl && (was.a !== a || was.th !== th)
+    lastPose.current = { gl, a, th }
     void gl.draws
-      .draw(c, size.w, size.h, () => gl.book.loading)
+      .draw(c, size.w, size.h, () => gl.book.loading, turned)
       .then((loading) => {
         root.current?.setAttribute('data-gl', 'ready')
         // data-faces: "done" once every face drawn so far has its canvas (tests wait on it)

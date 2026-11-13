@@ -221,6 +221,33 @@ describe('fencedDraws', () => {
     expect(copies()).toHaveLength(1)
   })
 
+  it('draws now in the task, taking over the draws in flight and asked', async () => {
+    const { d, out, tick, copies, renders } = await setup()
+    fakeGpu.done = false
+    const prep = vi.fn((v: string) => v)
+
+    const a = d.draw(out, 10, 10, () => prep('a'))
+    const b = d.draw(out, 10, 10, () => prep('b'))
+    const c = d.draw(out, 30, 20, () => prep('c'), true)
+
+    expect(copies()).toHaveLength(1)
+    expect([out.width, out.height]).toEqual([30, 20])
+    expect(await Promise.all([a, b, c])).toEqual(['c', 'c', 'c'])
+    fakeGpu.done = true
+    tick()
+    tick()
+
+    expect(prep.mock.calls).toEqual([['a'], ['c']])
+    expect(renders()).toHaveLength(2)
+    expect(copies()).toHaveLength(1)
+    d.stop()
+    const late = vi.fn()
+    void d.draw(out, 10, 10, () => prep('d'), true).then(late)
+    await Promise.resolve()
+    expect(renders()).toHaveLength(2)
+    expect(late).not.toHaveBeenCalled()
+  })
+
   it('drops the draw in flight and those asked after a stop', async () => {
     const { d, out, tick, copies, renders } = await setup()
     fakeGpu.done = false
