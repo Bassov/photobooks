@@ -330,7 +330,23 @@ describe('r2Request', () => {
     )
   })
 
-  it.each(['HEAD', 'DELETE'] as const)(
+  it('signs the Cache-Control of a PUT', async () => {
+    const request = await r2Request(TARGET, {
+      method: 'PUT',
+      key: 'index.html',
+      body,
+      contentType: 'text/html',
+      cacheControl: 'no-cache',
+      now: NOW,
+    })
+
+    expect(request.headers['cache-control']).toBe('no-cache')
+    expect(request.headers.authorization).toContain(
+      'SignedHeaders=cache-control;content-type;host;x-amz-content-sha256;x-amz-date,',
+    )
+  })
+
+  it.each(['GET', 'HEAD', 'DELETE'] as const)(
     'signs %s with the empty-body hash and no content type',
     async (method) => {
       const request = await r2Request(TARGET, {

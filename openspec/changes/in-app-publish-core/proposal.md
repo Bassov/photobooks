@@ -1,6 +1,6 @@
 ## Proposal
 
-Roadmap: [`docs/roadmap/P3/in-app-publish-core.md`](../../../docs/roadmap/P3/in-app-publish-core.md) (scope / Done when); Designer Spec `shared/design/in-app-publish/spec.md` §3, P4–P9.
+Roadmap: [`docs/roadmap/P3/in-app-publish-core.md`](../../../docs/roadmap/P3/in-app-publish-core.md) (scope / Done when).
 
 ### Scope out
 
@@ -10,5 +10,4 @@ Roadmap: [`docs/roadmap/P3/in-app-publish-core.md`](../../../docs/roadmap/P3/in-
 
 ### Delta / Risk
 
-- Security: the worker reads the R2 credentials from IndexedDB itself; requests and results crossing `postMessage` carry no credential, and failure messages go through `redact`.
-- `r2Request` gains `GET` and a signed `cache-control` header.
+- Security: the worker reads credentials from IndexedDB itself; no credential crosses `postMessage`; failure messages are redacted.
