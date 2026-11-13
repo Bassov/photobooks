@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fakeCanvas2d, fakeThree, rendererCalls } from './testing.test-helpers'
+import {
+  fakeCanvas2d,
+  fakeGpu,
+  fakeThree,
+  rendererCalls,
+} from './testing.test-helpers'
 
 const fresh = async () => {
   vi.resetModules()
@@ -8,6 +13,8 @@ const fresh = async () => {
 
 beforeEach(() => {
   rendererCalls.length = 0
+  fakeGpu.done = true
+  fakeGpu.lost = false
 })
 
 afterEach(() => {
@@ -48,7 +55,12 @@ describe('drawInto', () => {
     expect(rendererCalls).toEqual([
       [
         'new',
-        { antialias: true, alpha: true, powerPreference: 'high-performance' },
+        {
+          antialias: true,
+          alpha: true,
+          powerPreference: 'high-performance',
+          preserveDrawingBuffer: true,
+        },
       ],
       ['setPixelRatio', 1],
       ['setClearColor', 0, 0],
@@ -108,5 +120,204 @@ describe('drawInto', () => {
     drawInto(T, new T.Scene(), new T.PerspectiveCamera(), out)
 
     expect(rendererCalls.at(-1)).toEqual(['render', 0, false])
+  })
+})
+
+describe('compileScene', () => {
+  it('compiles the scene with the shadow setting of its draws', async () => {
+    const { compileScene } = await fresh()
+    const T = fakeThree()
+
+    await compileScene(T, new T.Scene(), new T.PerspectiveCamera(), true)
+
+    expect(rendererCalls.at(-1)).toEqual(['compileAsync', 0, true])
+  })
+})
+
+describe('fencedDraws', () => {
+  const setup = async () => {
+    const three = await fresh()
+    const T = fakeThree()
+    const contexts = fakeCanvas2d()
+    const frames: (() => void)[] = []
+    const tick = () => {
+      for (const f of frames.splice(0)) f()
+    }
+    const scene = new T.Scene()
+    const cam = new T.PerspectiveCamera()
+    const d = three.fencedDraws(T, scene, cam, true, (f) => frames.push(f))
+    const out = document.createElement('canvas')
+    const copies = () =>
+      (contexts.get(out)?.calls ?? []).filter(([k]) => k === 'drawImage')
+    const renders = () => rendererCalls.filter(([k]) => k === 'render')
+    return { ...three, T, scene, cam, d, out, tick, copies, renders }
+  }
+
+  it('copies only once the GPU has signalled the fence, sized to the draw', async () => {
+    const { d, out, tick, copies, renders } = await setup()
+    fakeGpu.done = false
+    const landed = vi.fn()
+
+    void d.draw(out, 40, 30, () => 'v').then(landed)
+    tick()
+    tick()
+    await Promise.resolve()
+
+    expect(renders()).toEqual([['render', 0, true]])
+    expect(rendererCalls.slice(-2)).toEqual([['fenceSync'], ['flush']])
+    expect(copies()).toEqual([])
+    expect(landed).not.toHaveBeenCalled()
+
+    fakeGpu.done = true
+    tick()
+    await Promise.resolve()
+
+    expect(rendererCalls.at(-1)).toEqual(['deleteSync'])
+    expect([out.width, out.height]).toEqual([40, 30])
+    expect(copies()).toEqual([
+      ['drawImage', 'canvas 300×150', 0, 0, 40, 30, 0, 0, 40, 30],
+    ])
+    expect(landed).toHaveBeenCalledExactlyOnceWith('v')
+  })
+
+  it('folds the draws asked in flight into one render of the latest', async () => {
+    const { d, out, tick, copies, renders } = await setup()
+    fakeGpu.done = false
+    const prep = vi.fn((v: string) => v)
+
+    const a = d.draw(out, 10, 10, () => prep('a'))
+    const b = d.draw(out, 10, 10, () => prep('b'))
+    const c = d.draw(out, 20, 10, () => prep('c'))
+    tick()
+
+    expect(renders()).toHaveLength(1)
+    expect(prep.mock.calls).toEqual([['a']])
+
+    fakeGpu.done = true
+    tick()
+    expect(await a).toBe('a')
+    expect(renders()).toHaveLength(2)
+    expect(prep.mock.calls).toEqual([['a'], ['c']])
+    tick()
+
+    expect(await Promise.all([b, c])).toEqual(['c', 'c'])
+    expect(copies()).toHaveLength(2)
+    expect([out.width, out.height]).toEqual([20, 10])
+    tick()
+    expect(renders()).toHaveLength(2)
+  })
+
+  it('renders again when another book drew over the shared buffer meanwhile', async () => {
+    const { d, out, tick, copies, renders, drawInto, T, scene, cam } =
+      await setup()
+
+    const a = d.draw(out, 10, 10, () => 'a')
+    drawInto(T, scene, cam, document.createElement('canvas'))
+    tick()
+
+    expect(copies()).toEqual([])
+    expect(renders()).toHaveLength(3)
+    tick()
+    expect(await a).toBe('a')
+    expect(copies()).toHaveLength(1)
+  })
+
+  it('draws now in the task, taking over the draws in flight and asked', async () => {
+    const { d, out, tick, copies, renders } = await setup()
+    fakeGpu.done = false
+    const prep = vi.fn((v: string) => v)
+
+    const a = d.draw(out, 10, 10, () => prep('a'))
+    const b = d.draw(out, 10, 10, () => prep('b'))
+    const c = d.draw(out, 30, 20, () => prep('c'), true)
+
+    expect(copies()).toHaveLength(1)
+    expect([out.width, out.height]).toEqual([30, 20])
+    expect(await Promise.all([a, b, c])).toEqual(['c', 'c', 'c'])
+    fakeGpu.done = true
+    tick()
+    tick()
+
+    expect(prep.mock.calls).toEqual([['a'], ['c']])
+    expect(renders()).toHaveLength(2)
+    expect(copies()).toHaveLength(1)
+    d.stop()
+    const late = vi.fn()
+    void d.draw(out, 10, 10, () => prep('d'), true).then(late)
+    await Promise.resolve()
+    expect(renders()).toHaveLength(2)
+    expect(late).not.toHaveBeenCalled()
+  })
+
+  it('draws now when nothing is in flight', async () => {
+    const { d, out, copies } = await setup()
+
+    expect(await d.draw(out, 10, 10, () => 'a', true)).toBe('a')
+    expect(copies()).toHaveLength(1)
+  })
+
+  it('resizes the canvas only when the draw size changes', async () => {
+    const { d, out, tick } = await setup()
+    const setW = vi.spyOn(HTMLCanvasElement.prototype, 'width', 'set')
+    const setH = vi.spyOn(HTMLCanvasElement.prototype, 'height', 'set')
+
+    await d.draw(out, 40, 30, () => 'a', true)
+    await d.draw(out, 40, 30, () => 'b', true)
+    const late = d.draw(out, 40, 30, () => 'c')
+    tick()
+    await late
+
+    expect(setW.mock.calls).toEqual([[40]])
+    expect(setH.mock.calls).toEqual([[30]])
+  })
+
+  it('copies at the next frame when the context has no fences (lost)', async () => {
+    const { d, out, tick, copies } = await setup()
+    fakeGpu.lost = true
+    fakeGpu.done = false
+
+    const a = d.draw(out, 10, 10, () => 'a')
+    tick()
+
+    expect(await a).toBe('a')
+    expect(copies()).toHaveLength(1)
+  })
+
+  it('polls on animation frames by default', async () => {
+    const { fencedDraws, T, scene, cam, out } = await setup()
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (f: FrameRequestCallback) =>
+      frames.push(f),
+    )
+    const d = fencedDraws(T, scene, cam, false)
+
+    const a = d.draw(out, 10, 10, () => 'a')
+    expect(frames).toHaveLength(1)
+    frames[0]?.(0)
+
+    expect(await a).toBe('a')
+  })
+
+  it('drops the draw in flight and those asked after a stop', async () => {
+    const { d, out, tick, copies, renders } = await setup()
+    fakeGpu.done = false
+    const landed = vi.fn()
+
+    void d.draw(out, 10, 10, () => 'a').then(landed)
+    void d.draw(out, 10, 10, () => 'b').then(landed)
+    d.stop()
+    tick()
+    // the fence goes on the first frame after the stop, signalled or not
+    expect(rendererCalls.at(-1)).toEqual(['deleteSync'])
+    fakeGpu.done = true
+    void d.draw(out, 10, 10, () => 'c').then(landed)
+    void d.draw(out, 10, 10, () => 'd', true).then(landed)
+    tick()
+    await Promise.resolve()
+
+    expect(rendererCalls.at(-1)).toEqual(['deleteSync'])
+    expect(renders()).toHaveLength(1)
+    expect(copies()).toEqual([])
+    expect(landed).not.toHaveBeenCalled()
   })
 })

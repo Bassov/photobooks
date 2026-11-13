@@ -376,6 +376,7 @@ function ReaderGl({
     })()
     return () => {
       dead = true
+      made?.draws.stop()
       made?.book.dispose()
       made?.faces.dispose()
       setGl(null)
@@ -387,6 +388,9 @@ function ReaderGl({
   }, [gl, view])
 
   const lastFade = useRef<number | null>(null)
+  const lastPose = useRef<{ gl: ReaderGlBook; a: number; th: number } | null>(
+    null,
+  )
   useLayoutEffect(() => {
     const c = canvas.current
     const o = over.current
@@ -406,19 +410,20 @@ function ReaderGl({
       }
     }
     const size = backingSize(box, window.devicePixelRatio)
-    if (c.width !== size.w || c.height !== size.h) {
-      c.width = size.w
-      c.height = size.h
-    }
     gl.book.set(a, th)
     gl.book.frame(W, H, s, box)
-    gl.draw(c)
-    root.current?.setAttribute('data-gl', 'ready')
-    // data-faces: "done" once every face drawn so far has its canvas (tests wait on it)
-    root.current?.setAttribute(
-      'data-faces',
-      gl.book.loading ? 'loading' : 'done',
-    )
+    // a turn draws in this task; the boot and texture landings are fenced
+    // (the pixels and the size land a frame or more later, no GPU wait)
+    const was = lastPose.current
+    const turned = was?.gl === gl && (was.a !== a || was.th !== th)
+    lastPose.current = { gl, a, th }
+    void gl.draws
+      .draw(c, size.w, size.h, () => gl.book.loading, turned)
+      .then((loading) => {
+        root.current?.setAttribute('data-gl', 'ready')
+        // data-faces: "done" once every face drawn so far has its canvas (tests wait on it)
+        root.current?.setAttribute('data-faces', loading ? 'loading' : 'done')
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the box by value; tick is a texture landing
   }, [gl, tick, a, th, W, H, s, box.x, box.y, box.w, box.h, fade])
 

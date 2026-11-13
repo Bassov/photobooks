@@ -108,6 +108,18 @@ afterEach(() => {
   gl.open.mockReset()
 })
 
+/** a fenced draw whose copy lands at once: the canvas takes the size */
+const drawNow = (
+  out: HTMLCanvasElement,
+  w: number,
+  h: number,
+  prep: () => unknown,
+) => {
+  out.width = w
+  out.height = h
+  return Promise.resolve(prep())
+}
+
 describe('BookReader keys', () => {
   it('turns a leaf per arrow, queues a press made mid-turn, and lands on the back cover', () => {
     mount('#p20')
@@ -269,7 +281,7 @@ describe('BookReader with WebGL', () => {
         loading: false,
       },
       faces: { focus: vi.fn(), dispose: vi.fn() },
-      draw: vi.fn(),
+      draws: { draw: vi.fn(drawNow), stop: vi.fn() },
     }
   }
   const flush = async () => {

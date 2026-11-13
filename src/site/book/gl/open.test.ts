@@ -8,7 +8,7 @@ import {
   testBook,
   type FakeContext,
 } from './testing.test-helpers'
-import type { GlBook } from './types'
+import { viewsOf, type GlBook } from './types'
 import * as THREE from './vendor/three.module.min.js'
 import type {
   Group,
@@ -180,6 +180,19 @@ describe('OpenBook', () => {
       ['fillRect', 0, 0, 100, 125],
     ])
     expect(contexts.get(endpaper)?.put).toBeDefined()
+  })
+
+  it('grains the endpaper once for both ends of the book', async () => {
+    const b = testBook()
+    const o = new OpenBook(T, b, look)
+
+    for (let v = 0; v < viewsOf(b); v++) o.set(v, 0)
+    await settle()
+
+    const endpapers = [...contexts.values()].filter(
+      (x) => x.calls[0]?.[1] === b.endpaper && x.put !== undefined,
+    )
+    expect(endpapers).toHaveLength(1)
   })
 
   it('keeps the faces of the spreads around the view only', async () => {

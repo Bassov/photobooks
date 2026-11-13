@@ -1,6 +1,13 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { COPIED_MS, ShareButton } from './ShareButton'
+
+const roomCss = readFileSync(
+  resolve(process.cwd(), 'src/site/book/room.css'),
+  'utf8',
+)
 
 const URL = 'https://alex.example/books/abc/'
 
@@ -21,6 +28,64 @@ function stubDevice(value: Partial<Navigator>, coarse = false) {
     matches: coarse && query === '(pointer: coarse)',
   }))
 }
+
+/** The next animation frame: the one that paints "Copied". */
+function paint() {
+  act(() => {
+    vi.advanceTimersToNextFrame()
+  })
+}
+
+/** Animation frames the test runs itself, at the times it names (ms from now). */
+function heldFrames() {
+  const base = performance.now()
+  const queue = new Map<number, FrameRequestCallback>()
+  let id = 0
+  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+    queue.set(++id, cb)
+    return id
+  })
+  vi.stubGlobal('cancelAnimationFrame', (i: number) => {
+    queue.delete(i)
+  })
+  /** Runs the frames from `from` to `to` ms, one every 16 ms. */
+  return (from: number, to = from) => {
+    for (let t = from; t <= to; t += 16) {
+      act(() => {
+        const due = [...queue.values()]
+        queue.clear()
+        due.forEach((cb) => {
+          cb(base + t)
+        })
+      })
+    }
+  }
+}
+
+/** A clipboard whose write settles when the test says so. */
+function lateClipboard() {
+  const writes: (() => void)[] = []
+  stubDevice({
+    clipboard: {
+      writeText: () =>
+        new Promise<void>((resolve) => {
+          writes.push(resolve)
+        }),
+    } as unknown as Clipboard,
+  })
+  return async (i: number) => {
+    await act(async () => {
+      writes[i]?.()
+      await Promise.resolve()
+    })
+  }
+}
+
+/** The labels the room's CSS leaves visible (both sit in one grid cell). */
+const visible = () =>
+  [...button().children]
+    .filter((s) => getComputedStyle(s).visibility !== 'hidden')
+    .map((s) => s.textContent)
 
 const show = () =>
   render(<ShareButton className="t16" title="Alps" url={() => URL} />)
@@ -47,6 +112,7 @@ describe('ShareButton', () => {
     ])
     expect(screen.getByText('Copied').getAttribute('aria-live')).toBe('polite')
     expect(copied()).toBe(false)
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('copies the link and reads "Copied" for 2 s, then Share again', async () => {
@@ -58,6 +124,7 @@ describe('ShareButton', () => {
 
     expect(writeText).toHaveBeenCalledWith(URL)
     expect(copied()).toBe(true)
+    paint()
     act(() => {
       vi.advanceTimersByTime(COPIED_MS - 1)
     })
@@ -135,15 +202,148 @@ describe('ShareButton', () => {
     expect(copied()).toBe(true)
   })
 
-  it('drops the pending label reset on unmount', async () => {
+  describe('with the room CSS', () => {
+    beforeEach(() => {
+      const style = document.createElement('style')
+      style.textContent = roomCss
+      document.head.append(style)
+      return () => {
+        style.remove()
+      }
+    })
+
+    it('shows Share until a late clipboard write settles, then Copied for 2 s from its frame', async () => {
+      const settle = lateClipboard()
+      show()
+
+      await press()
+      act(() => {
+        vi.advanceTimersByTime(5000)
+      })
+      expect(visible()).toStrictEqual(['Share'])
+
+      // a long task holds the frame that paints Copied for 1.5 s
+      const frames = heldFrames()
+      await settle(0)
+      expect(visible()).toStrictEqual(['Copied'])
+      act(() => {
+        vi.advanceTimersByTime(1500)
+      })
+      expect(visible()).toStrictEqual(['Copied'])
+
+      frames(1500, 1500 + COPIED_MS - 16)
+      expect(visible()).toStrictEqual(['Copied'])
+      frames(1500 + COPIED_MS)
+      expect(visible()).toStrictEqual(['Share'])
+    })
+
+    it('keeps Copied for 2 s of painted frames when a long task stalls the page', async () => {
+      stubDevice({})
+      const frames = heldFrames()
+      show()
+
+      await press()
+      // the paint, ~0.5 s of frames, then a 1 s long task (CI run 43438706376)
+      frames(0, 496)
+      frames(1496)
+      expect(visible()).toStrictEqual(['Copied'])
+
+      // seen: 496 + 100 (the stall's one frame) + 16 a frame after it
+      frames(1512, 2888)
+      expect(visible()).toStrictEqual(['Copied'])
+      frames(2904)
+      expect(visible()).toStrictEqual(['Share'])
+    })
+
+    it('ends Copied 3 s after the click on a page that paints every 200 ms', async () => {
+      stubDevice({})
+      const frames = heldFrames()
+      show()
+
+      await press()
+      for (let t = 0; t < 3000; t += 200) frames(t)
+      expect(visible()).toStrictEqual(['Copied'])
+      frames(3000)
+      expect(visible()).toStrictEqual(['Share'])
+    })
+
+    it('still shows Copied 2 s when its paint comes 1.5 s after the click', async () => {
+      stubDevice({})
+      const frames = heldFrames()
+      show()
+
+      await press()
+      for (let t = 1500; t < 3500; t += 200) frames(t)
+      expect(visible()).toStrictEqual(['Copied'])
+      frames(3500)
+      expect(visible()).toStrictEqual(['Share'])
+    })
+
+    it('restarts the 2 s on a second click during Copied, whichever write settles last', async () => {
+      const settle = lateClipboard()
+      show()
+
+      await press()
+      await press()
+      await settle(1)
+      paint()
+      act(() => {
+        vi.advanceTimersByTime(1500)
+      })
+      expect(visible()).toStrictEqual(['Copied'])
+
+      // the first click's write settles late: the window restarts, never ends early
+      await settle(0)
+      paint()
+      act(() => {
+        vi.advanceTimersByTime(COPIED_MS - 1)
+      })
+      expect(visible()).toStrictEqual(['Copied'])
+      act(() => {
+        vi.advanceTimersByTime(1)
+      })
+      expect(visible()).toStrictEqual(['Share'])
+      act(() => {
+        vi.advanceTimersByTime(COPIED_MS)
+      })
+      expect(visible()).toStrictEqual(['Share'])
+    })
+  })
+
+  it('drops the frame that would start the window on unmount', async () => {
     stubDevice({})
-    const clear = vi.spyOn(window, 'clearTimeout')
     const { unmount } = show()
     await press()
-    clear.mockClear()
+    expect(copied()).toBe(true)
 
     unmount()
 
-    expect(clear).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('arms no timer when the write settles after unmount', async () => {
+    const settle = lateClipboard()
+    const { unmount } = show()
+    await press()
+    unmount()
+
+    await settle(0)
+
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('drops the pending label reset on unmount', async () => {
+    stubDevice({})
+    const { unmount } = show()
+    await press()
+    paint()
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(vi.getTimerCount()).toBe(1)
+
+    unmount()
+
+    expect(vi.getTimerCount()).toBe(0)
   })
 })

@@ -12,7 +12,13 @@ import type { ImageRef, SiteCatalogBook } from '../siteInput'
 import type { CurlSheet, PageCurl } from './gl/curl'
 import { createFaceSource, type FaceSource } from './gl/faces'
 import type { OpenBook } from './gl/open'
-import { drawInto, loadThree, type Three } from './gl/three'
+import {
+  compileScene,
+  fencedDraws,
+  loadThree,
+  type FencedDraws,
+  type Three,
+} from './gl/three'
 import { glBook, type GlBook } from './gl/types'
 import { glInput, photoOf } from './glCover'
 
@@ -85,22 +91,22 @@ async function glOf(
 export interface ReaderGlBook {
   book: OpenBook
   faces: FaceSource
-  draw: (canvas: HTMLCanvasElement) => void
+  /** fenced: the main thread never waits for the GPU (see `fencedDraws`) */
+  draws: FencedDraws
 }
 
-/** The desktop reader's open book (the leaf bends). */
+/** The desktop reader's open book (the leaf bends), its shaders compiled. */
 export async function openReaderGl(i: RoomGlInput): Promise<ReaderGlBook> {
   const [{ T, b, faces }, { OpenBook }] = await Promise.all([
     glOf(i),
     import('./gl/open'),
   ])
   const book = new OpenBook(T, b, { dark: false, bend: true, pagePx: i.pagePx })
+  await compileScene(T, book.scene, book.cam, true)
   return {
     book,
     faces,
-    draw: (canvas) => {
-      drawInto(T, book.scene, book.cam, canvas, true)
-    },
+    draws: fencedDraws(T, book.scene, book.cam, true),
   }
 }
 
