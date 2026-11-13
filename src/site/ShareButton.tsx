@@ -43,12 +43,12 @@ export function ShareButton({
   // the copy that reads "Copied" (0: "Share"); a new copy restarts the window
   const [shown, setShown] = useState(0)
   const copies = useRef(0)
-  const copied = shown !== 0
+  const copied = shown > 0
   // The 2 s count from the frame that paints "Copied": a long task between
   // the commit and the paint would otherwise eat into what the reader sees.
   // The cleanup drops the window on a new copy and on unmount.
   useEffect(() => {
-    if (shown === 0) return
+    if (!copied) return
     let timer: number | undefined
     const frame = requestAnimationFrame(() => {
       timer = window.setTimeout(() => {
@@ -59,7 +59,7 @@ export function ShareButton({
       cancelAnimationFrame(frame)
       window.clearTimeout(timer)
     }
-  }, [shown])
+  }, [copied, shown])
   const press = () => {
     void shareOrCopy(title, url()).then((showCopied) => {
       if (showCopied) setShown(++copies.current)

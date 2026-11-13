@@ -86,6 +86,7 @@ describe('ShareButton', () => {
     ])
     expect(screen.getByText('Copied').getAttribute('aria-live')).toBe('polite')
     expect(copied()).toBe(false)
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('copies the link and reads "Copied" for 2 s, then Share again', async () => {
@@ -252,6 +253,17 @@ describe('ShareButton', () => {
       })
       expect(visible()).toStrictEqual(['Share'])
     })
+  })
+
+  it('drops the frame that would start the window on unmount', async () => {
+    stubDevice({})
+    const { unmount } = show()
+    await press()
+    expect(copied()).toBe(true)
+
+    unmount()
+
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('arms no timer when the write settles after unmount', async () => {
