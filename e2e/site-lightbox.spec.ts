@@ -308,6 +308,10 @@ test.describe('site lightbox sharp photos', () => {
     for (let i = 0; i < 3; i += 1) await page.keyboard.press('+')
     await expect(lightbox(page)).toHaveAttribute('data-zoom', '3.00')
     await expect.poll(currentSrc).toContain('?w=3200')
+    await expect(book(page).locator('img[sizes]').first()).toHaveAttribute(
+      'sizes',
+      '1641px',
+    )
     await page.keyboard.press('0')
     await expect(lightbox(page)).toHaveAttribute('data-zoom', '1.00')
     await expect(book(page).locator('img[sizes]').first()).toHaveAttribute(
