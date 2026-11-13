@@ -17,5 +17,5 @@
 | `src/editor/HostingSection.tsx`                                         | new UI                                            |
 | `src/editor/HostingSection.test.tsx`                                    | form, connect, failures, recheck, replace, forget |
 | `e2e/library-screens.spec.ts`                                           | nav count 3                                       |
-| `e2e/hosting-settings.spec.ts`                                          | 7 Spec cases, ring paint, LoAF                    |
+| `e2e/hosting-settings.spec.ts`                                          | Spec cases (6 tests), ring paint, LoAF            |
 | `openspec/specs/publish/spec.md`, `openspec/specs/editor-shell/spec.md` | archive sync                                      |
