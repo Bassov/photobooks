@@ -64,12 +64,12 @@ export type SitePageInput =
       book: Book
       images: Record<string, ImageRef>
       ogImage?: string
+      /** The book as the home shows it (title, year, size, cloth). */
+      entry: SiteCatalogBook
     }
 
-/** `books/<key>/book.json` (D41): the book page input plus its catalog entry. */
-export type SiteBookData = Extract<SitePageInput, { kind: 'book' }> & {
-  entry: SiteCatalogBook
-}
+/** `books/<key>/book.json` (D41): the book page input, read by the home. */
+export type SiteBookData = Extract<SitePageInput, { kind: 'book' }>
 
 /** Page-relative stylesheet, viewer entry and font preload URLs. */
 export interface SitePageAssets {

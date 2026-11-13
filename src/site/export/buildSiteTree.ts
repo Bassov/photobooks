@@ -393,11 +393,8 @@ export async function buildSiteTree(input: SiteExportInput): Promise<SiteTree> {
       ...(cover === undefined
         ? {}
         : { ogImage: shareImage(cover, BOOK_TO_ROOT) }),
-    } as const
-    const data: SiteBookData = {
-      ...page,
       entry: catalogEntry(exportedBook, BOOK_TO_ROOT),
-    }
+    } satisfies SiteBookData
     return [
       {
         path: `${dir}index.html`,
@@ -405,7 +402,7 @@ export async function buildSiteTree(input: SiteExportInput): Promise<SiteTree> {
       },
       {
         path: `${dir}book.json`,
-        bytes: encoder.encode(`${siteDataJson(data)}\n`),
+        bytes: encoder.encode(`${siteDataJson(page)}\n`),
       },
     ]
   })

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderSitePage } from './renderSitePage'
 import { prerenderSample } from './sampleShell'
 import { sampleSiteInput } from './sampleSite'
-import { startSite } from './startSite'
+import { sampleLoad, startSite } from './startSite'
 
 const perf = vi.hoisted(() => ({ enablePerfHooks: vi.fn() }))
 vi.mock('../perf/exposePerf', () => perf)
@@ -36,7 +36,8 @@ describe('prerenderSample', () => {
 
     prerenderSample(document, '?book=sea')
 
-    expect(testId('site-title')?.textContent).toBe('Sea')
+    expect(testId('site-room')).not.toBeNull()
+    expect(testId('site-about')?.textContent).toMatch(/^Sea/)
     expect(document.getElementById('site-data')?.textContent).toContain(
       '"kind":"book"',
     )
@@ -63,14 +64,16 @@ describe('startSite', () => {
 
     await start('?book=sea')
 
-    expect(testId('site-title')?.textContent).toBe('Alps')
+    expect(testId('site-about')?.textContent).toMatch(/^Alps/)
     // Hydrated: the pager answers.
     act(() => {
       document
-        .querySelector<HTMLButtonElement>('[aria-label="Next spread"]')
+        .querySelector<HTMLButtonElement>('[data-testid="site-next"]')
         ?.click()
     })
-    expect(testId('site-page-indicator')?.textContent).toBe('Page 1 · 1 / 11')
+    await vi.waitFor(() => {
+      expect(testId('site-label')?.textContent).toBe('Page 1 of 20')
+    })
     expect(document.querySelectorAll('#site-data')).toHaveLength(1)
     expect(perf.enablePerfHooks).not.toHaveBeenCalled()
   })
@@ -107,7 +110,46 @@ describe('startSite', () => {
     await start('?book=sea&perf=1')
 
     expect(perf.enablePerfHooks).toHaveBeenCalledTimes(1)
-    expect(testId('site-book-page')).not.toBeNull()
+    expect(testId('site-room')).not.toBeNull()
+  })
+
+  it('opens a sample book over the home from its link, built on the client', async () => {
+    shell()
+    await start('')
+
+    act(() => {
+      document
+        .querySelector<HTMLAnchorElement>(
+          '[data-testid="ss9-book"][data-book="sea"]',
+        )
+        ?.click()
+    })
+    await vi.waitFor(() => {
+      expect(testId('site-room')).not.toBeNull()
+    })
+
+    expect(testId('site-home')).not.toBeNull()
+    expect(testId('site-room')?.hasAttribute('data-over')).toBe(true)
+    expect(testId('site-about')?.textContent).toMatch(/^Sea/)
+    expect(window.location.search).toBe('?book=sea')
+    window.history.replaceState(null, '', '/')
+  })
+
+  it('builds sample books from links relative to the page, and nothing else', async () => {
+    window.history.replaceState(null, '', '/x/site.html')
+    const book = await sampleLoad(document)('site.html?book=lake')
+    expect(book.entry.id).toBe('lake')
+    await expect(sampleLoad(document)('site.html')).rejects.toThrow(
+      'no sample book: site.html',
+    )
+    // a document without a window: its base URI resolves the link
+    const detached = {
+      defaultView: null,
+      baseURI: 'https://example.test/site.html?book=alps',
+    } as unknown as Document
+    const sea = await sampleLoad(detached)('?book=sea')
+    expect(sea.entry.id).toBe('sea')
+    window.history.replaceState(null, '', '/')
   })
 
   it('does nothing without #site-root', async () => {

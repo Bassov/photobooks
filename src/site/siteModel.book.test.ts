@@ -3,7 +3,13 @@ import { describe, expect, it } from 'vitest'
 import type { Book, Frame } from '../core'
 import { defaultCover } from '../core/cover'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
-import { relativeLuminance, siteBookFacts, siteSlides } from './siteModel'
+import {
+  relativeLuminance,
+  roomSlides,
+  siteBookFacts,
+  siteSlides,
+  slideOfView,
+} from './siteModel'
 
 /** Default fixture trim: 300 × 300 mm pages. */
 const PAGE = 300
@@ -197,5 +203,37 @@ describe('siteSlides (D40)', () => {
         true,
       )
     }
+  })
+})
+
+describe('roomSlides (D40)', () => {
+  const book = spreadsBook([
+    [at(10)],
+    [at(PAGE - 1, 2)],
+    [at(10), at(PAGE + 10)],
+    [],
+    [at(10)],
+  ])
+
+  it('opens on the cover, then labels pages and whole spreads of the book', () => {
+    expect(
+      roomSlides(book).map(({ view, label }) => [view, label]),
+    ).toStrictEqual([
+      [0, 'Cover'],
+      [1, 'Page 1 of 8'],
+      [2, 'Pages 2–3 of 8'],
+      [3, 'Page 4 of 8'],
+      [3, 'Page 5 of 8'],
+      [5, 'Page 8 of 8'],
+    ])
+    expect(roomSlides(book)[3]?.page).toStrictEqual({ spread: 2, side: 'left' })
+  })
+
+  it('finds the first slide of a view; a blank spread opens the next one', () => {
+    const slides = roomSlides(book)
+
+    expect([0, 1, 3, 4, 5, 6].map((v) => slideOfView(slides, v))).toStrictEqual(
+      [0, 1, 3, 5, 5, 5],
+    )
   })
 })

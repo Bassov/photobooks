@@ -12,12 +12,10 @@ import {
   enablePerfScenario,
 } from './perf/perfFixture'
 
-// Designer spec site-preview-mode: Preview opens the site's book page of the
+// Designer spec site-preview-mode: Preview opens the site's book room of the
 // live book under a 48 px bar; the editor stays mounted, inert, unchanged.
 
 const ACTIVE_SPREAD = '[data-active="true"] [data-testid="spread-view"]'
-/** Site chrome above the stage without the "All books" link (wide). */
-const CHROME_H = 262.85
 
 interface Box {
   x: number
@@ -43,8 +41,17 @@ function near(actual: number, expected: number, label: string): void {
 async function openPreview(page: Page): Promise<Locator> {
   await page.getByTestId('present').click()
   const preview = page.getByTestId('site-preview')
-  await expect(preview.getByTestId('site-stage')).toBeVisible()
+  await expect(preview.getByTestId('ps-reader')).toBeVisible()
   return preview
+}
+
+/** One view on in the room's reader, at rest. */
+async function next(page: Page): Promise<void> {
+  const reader = page.getByTestId('site-preview').getByTestId('ps-reader')
+  const view = Number(await reader.getAttribute('data-view'))
+  await page.keyboard.press('ArrowRight')
+  await expect(reader).toHaveAttribute('data-view', String(view + 1))
+  await expect(reader).toHaveAttribute('data-turn', 'rest')
 }
 
 async function noDocumentScroll(page: Page): Promise<void> {
@@ -66,7 +73,7 @@ async function paint(spread: Locator): Promise<string> {
   return `${String(frames)} frames / ${String(photos)} photos`
 }
 
-test('Preview opens the site book page of the current book on the cover (1440 × 900)', async ({
+test('Preview opens the site book room of the current book on the cover (1440 × 900)', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -94,82 +101,70 @@ test('Preview opens the site book page of the current book on the cover (1440 ×
   await expect(label).toHaveText('Site preview')
   near((await box(label)).x, backBox.x + backBox.width + 8, 'label x')
 
+  // The room fills the box under the bar; its foot row sits 54 px off the bottom.
   const site = preview.getByTestId('site-preview-scroll')
-  const title = site.locator('.site-title')
-  await expect(title).toHaveText('Photobooks')
-  expect(await title.evaluate((el) => el.tagName)).toBe('SPAN')
-  const titleBox = await box(title)
-  near(titleBox.x, 32, 'site title x')
-  near(titleBox.y, 60, 'site title y')
-  const h1 = await box(site.getByTestId('site-title'))
-  near(h1.x, 240, 'h1 x')
-  near(h1.y, 128, 'h1 y')
-  await expect(site.getByTestId('site-author')).toHaveText(/^\d+ pages$/)
-  near((await box(site.getByTestId('site-author'))).y, 168, 'meta y')
-  // Nothing published: no catalog link, no Share.
+  const room = await box(site.getByTestId('site-room'))
+  near(room.y, 48, 'room y')
+  near(room.height, 852, 'room h')
+  await expect(site.getByTestId('site-about')).toContainText(/\d+ pages/)
+  // Nothing published: no site name, no "All books", no Share.
+  await expect(site.getByTestId('site-name')).toHaveCount(0)
   await expect(site.getByTestId('site-all-books')).toHaveCount(0)
   await expect(site.getByTestId('site-share')).toHaveCount(0)
+  const play = await box(site.getByTestId('site-play'))
+  near(play.y, 846, 'foot y')
+  near(play.height, 44, 'foot h')
+  near(play.x + play.width, 1416, 'play right')
   const fullscreen = await box(site.getByTestId('site-fullscreen-btn'))
-  near(fullscreen.x + fullscreen.width, 1200, 'fullscreen right')
-  near(fullscreen.y, 150.84, 'fullscreen y')
-
-  const stage = await box(site.getByTestId('site-stage'))
-  near(stage.x, 340, 'stage x')
-  near(stage.y, 218.84, 'stage y')
-  near(stage.width, 760, 'stage w')
+  near(fullscreen.x + fullscreen.width, play.x - 24, 'fullscreen right')
   const pager = await box(site.getByTestId('site-pager'))
-  near(pager.y, stage.y + stage.height + 24, 'pager y')
+  near(pager.y, 846, 'pager y')
   near(pager.x + pager.width / 2, 720, 'pager centre')
-  // Painted on top: the stage and the editor's Library link under Back.
-  expect((await topAt(site.getByTestId('site-stage')))[0]).toContain(
+  const reader = await box(site.getByTestId('ps-reader'))
+  expect(reader.y).toBeGreaterThan(48)
+  expect(reader.y + reader.height).toBeLessThan(846)
+  // Painted on top: the reader and the editor's Library link under Back.
+  expect((await topAt(site.getByTestId('ps-reader')))[0]).toContain(
     'site-preview',
   )
   expect((await topAt(page.getByTestId('go-library')))[0]).toContain(
     'site-preview-back',
   )
 
-  await expect(site.getByTestId('site-page-indicator')).toHaveText('Cover')
+  await expect(site.getByTestId('site-label')).toHaveText('Cover')
   await expect(
-    site.getByTestId('site-spread').locator('.cover-spread'),
+    site.getByTestId('ps-reader').getByTestId('spread-view'),
+  ).toHaveCount(0)
+  await next(page)
+  await expect(site.getByTestId('site-label')).toHaveText(/^Page 1 of \d+$/)
+  await expect(
+    site.getByTestId('ps-reader').getByTestId('spread-view').first(),
   ).toBeVisible()
-  await page.keyboard.press('ArrowRight')
-  await expect(site.getByTestId('site-page-indicator')).toHaveText(/ · 1 \/ 3$/)
-  await expect(
-    site.getByTestId('site-spread').getByTestId('spread-view'),
-  ).toBeVisible()
-  // Stage ±1 only: the cover, spread 1 and spread 2.
-  await expect(
-    site.getByTestId('site-stage').getByTestId('spread-view'),
-  ).toHaveCount(2)
   await page.keyboard.press('End')
-  await expect(site.getByTestId('site-page-indicator')).toHaveText(/ · 3 \/ 3$/)
+  await expect(site.getByTestId('site-label')).toHaveText('Back cover')
   await page.keyboard.press('Home')
-  await expect(site.getByTestId('site-page-indicator')).toHaveText('Cover')
+  await expect(site.getByTestId('site-label')).toHaveText('Cover')
   await noDocumentScroll(page)
   // The preview never writes the URL.
   expect(new URL(page.url()).hash).toBe('')
 })
 
-test('at 1280 × 720 the stage fits under the bar without any scroll', async ({
+test('at 1280 × 720 the room fits under the bar without any scroll', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openSessionEditor(page)
   const preview = await openPreview(page)
-  const wide = await box(preview.getByTestId('site-stage'))
-  const ratio = wide.width / wide.height
 
   await page.setViewportSize({ width: 1280, height: 720 })
   const scroll = preview.getByTestId('site-preview-scroll')
-  const expected = Math.min(760, (720 - 48 - CHROME_H) * ratio)
   await expect
-    .poll(async () => (await box(preview.getByTestId('site-stage'))).width)
-    .toBeCloseTo(expected, 0)
-  near(
-    (await box(preview.getByTestId('site-stage'))).width,
-    expected,
-    'stage w',
-  )
+    .poll(async () => (await box(preview.getByTestId('site-play'))).y)
+    .toBeCloseTo(720 - 54, 0)
+  const room = await box(preview.getByTestId('site-room'))
+  near(room.height, 672, 'room h')
+  const reader = await box(preview.getByTestId('ps-reader'))
+  expect(reader.y + reader.height).toBeLessThan(720 - 54)
   const over = await scroll.evaluate((el) => el.scrollHeight - el.clientHeight)
   expect(over).toBeLessThanOrEqual(0)
   await noDocumentScroll(page)
@@ -184,8 +179,9 @@ test('Preview shows unsaved edits: a removed photo / frame and a new title', asy
   const frame = editorSpread.getByTestId('spread-frame').first()
 
   await openPreview(page)
-  await page.keyboard.press('ArrowRight')
-  const before = await paint(preview.getByTestId('site-spread'))
+  await next(page)
+  // Page 1 is one right page: one face paints the spread.
+  const before = await paint(preview.getByTestId('ps-reader'))
   expect(before).toBe(await paint(editorSpread))
   await page.keyboard.press('Escape')
   await expect(preview).toHaveCount(0)
@@ -203,10 +199,10 @@ test('Preview shows unsaved edits: a removed photo / frame and a new title', asy
   })
 
   await openPreview(page)
-  await expect(preview.getByTestId('site-title')).toHaveText('Lake trip')
-  await page.keyboard.press('ArrowRight')
+  await expect(preview.getByTestId('site-about')).toContainText('Lake trip')
+  await next(page)
   await expect
-    .poll(() => paint(preview.getByTestId('site-spread')))
+    .poll(() => paint(preview.getByTestId('ps-reader')))
     .toBe(await paint(editorSpread))
 })
 
@@ -256,9 +252,9 @@ test('editor keys are inert in the preview; Esc returns the editor unchanged', a
   // A held Space never arms the editor's pan.
   await page.keyboard.down('Space')
   await page.keyboard.up('Space')
-  // Modifiers never step the slides.
+  // Modifiers never step the views.
   await page.keyboard.press('Alt+ArrowRight')
-  await expect(preview.getByTestId('site-page-indicator')).toHaveText('Cover')
+  await expect(preview.getByTestId('site-label')).toHaveText('Cover')
 
   await page.keyboard.press('Escape')
   await expect(preview).toHaveCount(0)
@@ -298,24 +294,25 @@ test('Back closes the preview; Fullscreen closes first on Esc; Tab stays inside'
   await preview.getByTestId('site-fullscreen-btn').click()
   const lightbox = page.getByTestId('lightbox')
   await expect(lightbox).toBeVisible()
+  const indicator = page.getByTestId('site-fullscreen-indicator')
+  await expect(indicator).toHaveText(/^Page 1 of \d+$/)
   await page.keyboard.press('ArrowRight')
-  await expect(page.getByTestId('site-fullscreen-indicator')).not.toHaveText(
-    'Cover',
-  )
+  await expect(indicator).toHaveText(/^Pages 2–3 of \d+$/)
   await page.keyboard.press('Escape')
   await expect(lightbox).toHaveCount(0)
   await expect(preview).toBeVisible()
-  // The lightbox's slide comes back to the book page.
-  await expect(preview.getByTestId('site-page-indicator')).toHaveText(
-    / · 1 \/ 3$/,
+  // The lightbox's spread comes back to the room.
+  await expect(preview.getByTestId('site-label')).toHaveText(
+    /^Pages 2–3 of \d+$/,
   )
+  await expect(preview.getByTestId('site-fullscreen-btn')).toBeFocused()
   await page.keyboard.press('Escape')
   await expect(preview).toHaveCount(0)
   await expect(page.getByTestId('present')).toBeFocused()
 })
 
 test.describe('frame-budget gates', () => {
-  test('opening the preview and stepping slides and Fullscreen stays within frame-budget gates', async ({
+  test('opening the preview and stepping views and Fullscreen stays within frame-budget gates', async ({
     page,
   }, testInfo) => {
     test.setTimeout(180_000)
@@ -357,9 +354,9 @@ test.describe('frame-budget gates', () => {
     await page.evaluate(browserBeginLoafScenarioWindow)
 
     await openPreview(page)
-    for (let i = 0; i < 10; i += 1) await step('ArrowRight')
-    await expect(page.getByTestId('site-page-indicator')).toHaveText(
-      / · 10 \/ 12$/,
+    for (let i = 0; i < 10; i += 1) await next(page)
+    await expect(page.getByTestId('site-label')).toHaveText(
+      /^Pages 18–19 of \d+$/,
     )
     await page.getByTestId('site-fullscreen-btn').click()
     await expect(page.getByTestId('lightbox')).toBeVisible()

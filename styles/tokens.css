@@ -436,6 +436,18 @@ html[data-density='compact'] {
   --ss-light-14: rgb(255 255 255 / 0.14);
   --ss-light-16: rgb(255 255 255 / 0.16);
   --ss-light-26: rgb(255 255 255 / 0.26);
+  /* the room (personal-site P5; kit site-book/{room,reader,turn}.css) */
+  --ss-t13: 13px;
+  --ss-paper: #ffffff;
+  --ss-edge-light: #fbfaf7;
+  --ss-tail-light: #f6f3ec;
+  --ss-tail-dark: #dcd6cb;
+  --ss-flap: #f4f3f1;
+  --ss-shade-4: rgb(0 0 0 / 0.04);
+  --ss-shade-14: rgb(0 0 0 / 0.14);
+  --ss-shade-45: rgb(0 0 0 / 0.45);
+  --ss-shade-50: rgb(0 0 0 / 0.5);
+  --ss-light-5: rgb(255 255 255 / 0.05);
 }
 
 @media (prefers-reduced-motion: reduce) {

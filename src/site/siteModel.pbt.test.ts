@@ -1,13 +1,7 @@
 import { fc, test } from '@fast-check/vitest'
 import { describe, expect } from 'vitest'
 import { pagesOf } from '../core/pages'
-import {
-  hashForSlide,
-  slideCount,
-  slideForHash,
-  slideLabel,
-  stageWidth,
-} from './siteModel'
+import { hashForSlide, slideForHash, viewLabel } from './siteModel'
 
 const RUNS = { numRuns: 1000 }
 
@@ -15,9 +9,9 @@ const spreads = fc.integer({ min: 1, max: 60 })
 
 describe('siteModel properties', () => {
   test.prop([spreads.chain((n) => fc.tuple(fc.constant(n), fc.nat(n)))], RUNS)(
-    'every slide survives the hash round trip',
-    ([n, slide]) => {
-      expect(slideForHash(hashForSlide(slide, n), n)).toBe(slide)
+    'every spread view and the cover survive the hash round trip',
+    ([n, view]) => {
+      expect(slideForHash(hashForSlide(view, n), n)).toBe(view)
     },
   )
 
@@ -31,53 +25,14 @@ describe('siteModel properties', () => {
       ),
     ],
     RUNS,
-  )('any page opens the spread whose label holds it', ([n, page]) => {
-    const slide = slideForHash(`#p${String(page)}`, n)
+  )('any page opens the view whose label holds it', ([n, page]) => {
+    const view = slideForHash(`#p${String(page)}`, n)
 
-    expect(slide).toBeGreaterThanOrEqual(1)
-    expect(slide).toBeLessThan(slideCount(n))
-    const label = slideLabel(slide, n).split(' · ')[0] ?? ''
+    expect(view).toBeGreaterThanOrEqual(1)
+    expect(view).toBeLessThanOrEqual(n)
+    const label = viewLabel(view, n).replace(/ of \d+$/, '')
     const [first, last = first] = label.replace(/^Pages? /, '').split('–')
     expect(page).toBeGreaterThanOrEqual(Number(first))
     expect(page).toBeLessThanOrEqual(Number(last))
   })
-
-  test.prop(
-    [
-      fc.integer({ min: 200, max: 4000 }),
-      fc.integer({ min: 300, max: 3000 }),
-      fc.double({ min: 0.5, max: 4, noNaN: true }),
-    ],
-    RUNS,
-  )(
-    'the stage fits the content; it is 280 or more when the content is',
-    (vw, vh, ratio) => {
-      const content = vw - 2 * (vw < 768 ? 20 : 32)
-      const w = stageWidth({ vw, vh, ratio })
-
-      expect(w).toBeLessThanOrEqual(Math.min(760, content))
-      expect(w).toBeGreaterThanOrEqual(Math.min(280, content))
-    },
-  )
-
-  test.prop(
-    [
-      fc.integer({ min: 200, max: 4000 }),
-      fc.integer({ min: 300, max: 3000 }),
-      fc.double({ min: 0.5, max: 4, noNaN: true }),
-    ],
-    RUNS,
-  )(
-    'without All books the stage is never narrower, still fits and grows with vh',
-    (vw, vh, ratio) => {
-      const content = vw - 2 * (vw < 768 ? 20 : 32)
-      const w = stageWidth({ vw, vh, ratio, allBooks: false })
-
-      expect(w).toBeGreaterThanOrEqual(stageWidth({ vw, vh, ratio }))
-      expect(w).toBeLessThanOrEqual(Math.min(760, content))
-      expect(
-        stageWidth({ vw, vh: vh + 1, ratio, allBooks: false }),
-      ).toBeGreaterThanOrEqual(w)
-    },
-  )
 })

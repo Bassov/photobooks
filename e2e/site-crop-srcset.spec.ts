@@ -1,7 +1,7 @@
 import { expect, test } from './fixtures/coverage'
 
 /** Unlisted sample (`src/site/sampleSite.ts`): a 3:2 photo filling a portrait frame. */
-const CROP = '/site.html?book=crop#p1'
+const CROP = '/site.html?book=crop&gl=0#p1'
 const WIDTHS = [480, 960, 1600, 2400]
 
 test.describe('site srcset of a cropped photo', () => {
@@ -11,9 +11,11 @@ test.describe('site srcset of a cropped photo', () => {
     page,
   }) => {
     await page.goto(CROP)
+    // The CSS reader paints page 1 in the DOM (the GL reader in a canvas).
     const img = page
-      .getByTestId('site-spread')
+      .getByTestId('ps-reader')
       .getByTestId('spread-frame-image')
+      .first()
     await expect(img).toBeVisible()
     // The sample has one file per photo: offer the export's widths (same
     // bytes) so the browser's pick shows which width `sizes` asks for.

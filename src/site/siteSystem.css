@@ -2,8 +2,7 @@
    kit's features/site/{system,home}.css and site-book/book3d.css): one
    family, Site Inter Display (Inter variable with the opsz axis, OFL,
    /fonts/LICENSE-Inter-OFL.txt); three interface colours + a line; the
-   bookcase. The book page keeps site.css / siteViewer.css until
-   site-final-room. */
+   bookcase. The reading room: book/room.css. */
 
 /* D43: @fontsource-variable/inter 5.x wght + opsz subsets, ranges of fonts.css */
 @font-face {

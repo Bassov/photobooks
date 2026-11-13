@@ -3,7 +3,12 @@ import { defaultCover } from '../core/cover'
 import { pagesOf } from '../core/pages'
 import { makeBook } from '../core/testing/fixtures'
 import { bookFormatFromTrim } from '../render/bookObjectLayout'
-import type { ImageRef, SiteMeta, SitePageInput } from './siteInput'
+import type {
+  ImageRef,
+  SiteCatalogBook,
+  SiteMeta,
+  SitePageInput,
+} from './siteInput'
 import { siteBookFacts } from './siteModel'
 
 /**
@@ -152,19 +157,39 @@ function cropBook(): Book {
 
 const UNLISTED = [cropBook()]
 
+const entryOf = (book: Book, publishedAtMs: number): SiteCatalogBook => ({
+  id: book.id,
+  href: `site.html?book=${book.id}`,
+  title: book.title ?? '',
+  pages: pagesOf(book.spreads.length),
+  fmt: bookFormatFromTrim(
+    book.settings.trim.widthMm,
+    book.settings.trim.heightMm,
+  ),
+  cover: IMAGES['photo-a'] ?? null,
+  ink: '#F5F5F5',
+  place: 'top',
+  ...siteBookFacts(book, publishedAtMs),
+})
+
+/** The publish time of the unlisted books. */
+const UNLISTED_AT = Date.UTC(2025, 0, 1)
+
 export function sampleSiteInput(search: string): SitePageInput {
   const params = new URLSearchParams(search)
-  const found = [...BOOKS.map(({ book }) => book), ...UNLISTED].find(
-    (book) => book.id === params.get('book'),
-  )
+  const found = [
+    ...BOOKS,
+    ...UNLISTED.map((book) => ({ book, publishedAtMs: UNLISTED_AT })),
+  ].find(({ book }) => book.id === params.get('book'))
   if (found !== undefined) {
     return {
       kind: 'book',
       site: SITE,
       path: '',
       catalogHref: 'site.html',
-      book: found,
+      book: found.book,
       images: IMAGES,
+      entry: entryOf(found.book, found.publishedAtMs),
     }
   }
   const shown = params.get('empty') === '1' ? [] : BOOKS
@@ -172,19 +197,6 @@ export function sampleSiteInput(search: string): SitePageInput {
     kind: 'catalog',
     site: SITE,
     path: '',
-    books: shown.map(({ book, publishedAtMs }) => ({
-      id: book.id,
-      href: `site.html?book=${book.id}`,
-      title: book.title ?? '',
-      pages: pagesOf(book.spreads.length),
-      fmt: bookFormatFromTrim(
-        book.settings.trim.widthMm,
-        book.settings.trim.heightMm,
-      ),
-      cover: IMAGES['photo-a'] ?? null,
-      ink: '#F5F5F5',
-      place: 'top',
-      ...siteBookFacts(book, publishedAtMs),
-    })),
+    books: shown.map(({ book, publishedAtMs }) => entryOf(book, publishedAtMs)),
   }
 }

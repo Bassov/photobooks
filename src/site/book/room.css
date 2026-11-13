@@ -1,0 +1,406 @@
+/* The reading room (Designer personal-site P5; port of the kit's
+   site-book/{room,reader,slides,turn}.css and the room's share of
+   site/{system,base}.css). Lives under the site's `.ss` root. */
+
+.ss {
+  --site-paper: var(--ss-paper);
+  --site-shadow-book:
+    0 1px 2px var(--ss-shade-18), 0 2px 6px var(--ss-shade-8),
+    0 40px 70px -30px var(--ss-shade-45);
+}
+.ss :where(button) {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: inherit;
+}
+.ss :where(button):focus {
+  outline: none;
+}
+.ss :where(button):focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+.ss button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* type */
+.ss .t13 {
+  font-size: var(--ss-t13);
+  line-height: 1.45;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.ss .t16 {
+  font-size: var(--ss-text);
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+}
+.ss .m15 {
+  font-size: var(--ss-text-phone);
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+}
+/* text hover: grey → ink, 0.2 s */
+.ss .ss-tx {
+  transition: color 200ms var(--ease);
+}
+.ss .ss-tx:enabled:hover,
+.ss .ss-tx[aria-pressed='true'] {
+  color: var(--ink);
+}
+.ss-abs {
+  position: absolute;
+}
+.site-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* the room: a fixed layer over the page; opened over the home it fades in */
+html:has(.sb-room) {
+  overflow: hidden;
+}
+.ss.sb-room {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  background: var(--bg);
+}
+/* the editor preview: the room fills its pane */
+.ss.sb-room[data-embedded] {
+  position: absolute;
+  /* the host's box, not the window's (`.ss` asks for 100dvh) */
+  min-height: 0;
+}
+.sb-room .ss-name {
+  margin: 0;
+}
+.sb-room[data-over] {
+  animation: sb-room-in 240ms var(--ease-out) both;
+}
+@keyframes sb-room-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* the lightbox (fixed) passes over everything */
+.sb-room[data-full] {
+  z-index: 40;
+}
+/* "All books" (desktop): top right */
+.sb-all {
+  display: flex;
+  align-items: center;
+  top: 20px;
+  right: 24px;
+  line-height: 24px;
+  /* over the GL reader's canvas, which overhangs the book (it comes later in the DOM) */
+  z-index: 2;
+}
+/* Share (D36): "Share" and "Copied" in one grid cell (no width change); Copied stays grey */
+.sb-share {
+  display: inline-grid;
+  justify-items: end;
+  align-items: center;
+  flex: none;
+  min-height: 44px;
+}
+.sb-share > span {
+  grid-area: 1 / 1;
+}
+.sb-share > span:last-child,
+.sb-share[data-copied] > span:first-child {
+  visibility: hidden;
+}
+.sb-share[data-copied] > span:last-child {
+  visibility: visible;
+}
+.ss .ss-tx.sb-share[data-copied] {
+  color: var(--grey);
+}
+/* foot: title + meta on one line, ellipsis */
+.sb-about {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* phone header: "‹ Title" back to the home, ink, one line, ellipsis */
+.sb-back {
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+  color: var(--ink);
+}
+/* Play / Pause (D4): ink text; the 1 px progress line grows over the dwell */
+.sb-play {
+  position: relative;
+  flex: none;
+  min-height: 44px;
+  color: var(--ink);
+}
+.sb-prog {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 5px;
+  height: 1px;
+  background: var(--ink);
+  transform-origin: left center;
+  animation-name: sb-prog;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+@keyframes sb-prog {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+/* the closed cover (CSS reader, slides, prerender) */
+.sb-cover {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: var(--ss-cover-radius);
+}
+.sb-cover img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Fullscreen: spreads on the dark stage */
+.site-lb-slide .spread-view {
+  box-shadow: var(--shadow-stage-dark);
+}
+
+/* BookReader (Spec site-stand S2): boards, page-block edges, tail, gutter */
+.sd-fill {
+  position: absolute;
+  inset: 0;
+}
+.sd-cast {
+  position: absolute;
+  pointer-events: none;
+}
+.sd-reader {
+  position: relative;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.ss .sd-reader:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 8px;
+}
+.sd-rbook {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-style: preserve-3d;
+}
+.sd-rbook > div {
+  position: absolute;
+}
+.sd-pg {
+  overflow: hidden;
+  background: var(--site-paper);
+}
+.sd-leaf {
+  transform-style: preserve-3d;
+  transform-origin: left center;
+}
+.sd-leaf > .sd-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  overflow: hidden;
+  background: var(--site-paper);
+}
+.sd-leaf > .sd-face.sd-back {
+  transform: rotateY(180deg);
+}
+.sd-fade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: sd-fade var(--fd, 160ms) linear both;
+}
+@keyframes sd-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.sd-reader .sd-rbook > .sd-board {
+  box-shadow:
+    var(--site-shadow-book),
+    inset 0 1px 0 var(--ss-light-12);
+}
+.sd-reader .sd-rbook > .sd-edge {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--ss-edge-light) 0 1px,
+    var(--ss-page-line) 1px 2px
+  );
+}
+.sd-reader .sd-rbook > .sd-tail {
+  background: repeating-linear-gradient(
+    0deg,
+    var(--ss-tail-light) 0 1px,
+    var(--ss-tail-dark) 1px 2px
+  );
+}
+.sd-reader .sd-rbook > .sd-gutter {
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0,
+    var(--ss-light-5) 12%,
+    var(--ss-shade-4) 25%,
+    var(--ss-shade-14) 48%,
+    var(--ss-shade-18) 50%,
+    var(--ss-shade-14) 52%,
+    var(--ss-shade-4) 75%,
+    var(--ss-light-5) 88%,
+    transparent
+  );
+}
+
+/* phone carousel (`?reader=carousel`): a native scroll-snap strip */
+.ps-strip {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  width: 100%;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pinch-zoom;
+  outline: none;
+  scrollbar-width: none;
+}
+.ps-strip::-webkit-scrollbar {
+  display: none;
+}
+.ps-strip:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+.ps-slide {
+  flex: none;
+  height: 100%;
+  position: relative;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+.ps-paper {
+  position: absolute;
+  left: 8px;
+  overflow: hidden;
+  background: var(--site-paper);
+  box-shadow: var(--site-shadow-book);
+}
+
+/* phone page turn (Spec site-stand-v6 T / F): a bed under page-sized sheets */
+.pt-stage {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  touch-action: pinch-zoom;
+  outline: none;
+}
+.pt-stage:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+.pt-bed,
+.pt-sheet {
+  position: absolute;
+  left: 16px;
+  top: 0;
+}
+.pt-bed {
+  background: var(--site-paper);
+  box-shadow: var(--site-shadow-book);
+}
+.pt-sheet {
+  overflow: hidden;
+}
+/* the GL sheet canvas: shown only while a turn runs */
+.pt-gl {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+.pt-shadow,
+.pt-flap {
+  position: absolute;
+  top: 0;
+  pointer-events: none;
+}
+.pt-shadow {
+  z-index: 3;
+  background: linear-gradient(90deg, var(--ss-shade-25), var(--ss-shade-0));
+}
+.pt-flap {
+  z-index: 4;
+  overflow: hidden;
+  background: var(--ss-flap);
+  box-shadow: -4px 0 12px var(--ss-shade-18);
+}
+.pt-mirror {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: scaleX(-1);
+  opacity: 0.1;
+}
+.pt-flap-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    270deg,
+    var(--ss-shade-10),
+    var(--ss-shade-0) 60%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-room[data-over] {
+    animation: none;
+  }
+}

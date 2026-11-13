@@ -227,10 +227,10 @@ test('guides never appear in the site preview', async ({ page }) => {
   await expect(page.getByTestId('guide-line')).toHaveCount(1)
   await page.getByTestId('present').click()
   const preview = page.getByTestId('site-preview')
-  await expect(preview.getByTestId('site-page-indicator')).toHaveText('Cover')
+  await expect(preview.getByTestId('site-label')).toHaveText('Cover')
   await page.keyboard.press('ArrowRight')
   await expect(
-    preview.getByTestId('site-spread').getByTestId('spread-view'),
+    preview.getByTestId('ps-reader').getByTestId('spread-view').first(),
   ).toBeVisible()
   await expect(preview.getByTestId('guide-line')).toHaveCount(0)
   // The editor stays mounted (inert) under the preview, its guide with it.
