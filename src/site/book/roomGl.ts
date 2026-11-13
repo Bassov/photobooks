@@ -101,7 +101,7 @@ export async function openReaderGl(i: RoomGlInput): Promise<ReaderGlBook> {
     glOf(i),
     import('./gl/open'),
   ])
-  const book = new OpenBook(T, b, { dark: false, bend: true, pagePx: i.pagePx })
+  const book = new OpenBook(T, b, { bend: true, pagePx: i.pagePx })
   await compileScene(T, book.scene, book.cam, true)
   return {
     book,

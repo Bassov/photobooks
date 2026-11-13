@@ -112,7 +112,6 @@ interface Shadow {
 }
 
 export interface ClosedOptions {
-  dark: boolean
   floor: boolean
   /** device px per css px of the drawn book (texture sizes) */
   k: number
@@ -131,7 +130,7 @@ export class ClosedBook {
     private readonly T: Three,
     readonly b: GlBook,
     readonly s: number,
-    private readonly o: ClosedOptions,
+    o: ClosedOptions,
   ) {
     const W = b.w
     const H = b.h
@@ -203,13 +202,10 @@ export class ClosedBook {
     this.piv.add(book)
     scene.add(this.piv)
     // light: sky/ground, the key from the upper left, a front fill; no shadow maps
-    const d = o.dark
-    scene.add(
-      new T.HemisphereLight(0xffffff, d ? 0x1a1a19 : 0xd8d1c4, d ? 1.25 : 1.35),
-    )
-    const key = new T.DirectionalLight(0xffffff, d ? 1.1 : 1.0)
+    scene.add(new T.HemisphereLight(0xffffff, 0xd8d1c4, 1.35))
+    const key = new T.DirectionalLight(0xffffff, 1.0)
     key.position.set(KEY[0] * 100, KEY[1] * 100, KEY[2] * 100)
-    const fill = new T.DirectionalLight(0xffffff, d ? 0.75 : 0.7)
+    const fill = new T.DirectionalLight(0xffffff, 0.7)
     fill.position.set(10, 25, 90)
     scene.add(key, fill)
     if (o.floor) {
@@ -274,7 +270,7 @@ export class ClosedBook {
     }
     x.clearRect(0, 0, c.width, c.height)
     x.filter = `blur(${String(3 * S)}px)`
-    x.fillStyle = `rgba(0,0,0,${String(this.o.dark ? 0.55 : 0.26)})`
+    x.fillStyle = 'rgba(0,0,0,0.26)'
     poly(bot)
     poly(top)
     for (let i = 0; i < 4; i++) {
@@ -284,7 +280,7 @@ export class ClosedBook {
     const contact = Math.max(0, 1 - p.lift / 12)
     if (contact > 0) {
       x.filter = `blur(${String(0.4 * S)}px)`
-      x.fillStyle = `rgba(0,0,0,${String((this.o.dark ? 0.7 : 0.42) * contact)})`
+      x.fillStyle = `rgba(0,0,0,${String(0.42 * contact)})`
       poly(bot)
     }
     x.filter = 'none'

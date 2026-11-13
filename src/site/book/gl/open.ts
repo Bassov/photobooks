@@ -61,7 +61,6 @@ export function curve(
 }
 
 export interface OpenLook {
-  dark: boolean
   /** the turning leaf bends (the desktop reader) */
   bend: boolean
   /** endpaper face texture width */
@@ -123,7 +122,6 @@ export class OpenBook {
     this.W = b.w
     this.H = b.h
     this.block = thickCm(b, 1e9) - 2 * BT
-    const d = look.dark
     const scene = new T.Scene()
     const leaves = facesOf(b) / 2
     const bc = cv(256, 256)
@@ -172,10 +170,8 @@ export class OpenBook {
     )
     // light: sky/ground, one key with a soft VSM shadow (the leaf shades the page under it), a shadow-only floor; the sky
     // is 1.9 (1.75 leaves flat paper at lum 234, the paper check wants ≥ 236)
-    scene.add(
-      new T.HemisphereLight(0xffffff, d ? 0x222220 : 0xd8d1c4, d ? 1.2 : 1.9),
-    )
-    const key = new T.DirectionalLight(0xffffff, d ? 1.6 : 1.4)
+    scene.add(new T.HemisphereLight(0xffffff, 0xd8d1c4, 1.9))
+    const key = new T.DirectionalLight(0xffffff, 1.4)
     key.position.set(-12, 50, 55)
     key.castShadow = true
     key.shadow.mapSize.set(256, 256)
@@ -193,7 +189,7 @@ export class OpenBook {
     scene.add(key)
     const floor = new T.Mesh(
       this.k(new T.PlaneGeometry(400, 400)),
-      this.k(new T.ShadowMaterial({ opacity: d ? 0.5 : 0.22 })),
+      this.k(new T.ShadowMaterial({ opacity: 0.22 })),
     )
     floor.rotation.x = -Math.PI / 2
     floor.receiveShadow = true

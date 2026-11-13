@@ -119,7 +119,7 @@ describe('textures', () => {
 })
 
 describe('ClosedBook', () => {
-  const opts = { dark: false, floor: true, k: 2 }
+  const opts = { floor: true, k: 2 }
 
   it('builds the boards, spine and page block like the kit', () => {
     const book = new ClosedBook(T, testBook(), 10, opts)
@@ -152,17 +152,6 @@ describe('ClosedBook', () => {
 
     expect(size(small)).toEqual([600, 750, 75, 750])
     expect(size(big)).toEqual([1024, 1280, 128, 1280])
-  })
-
-  it('lights the dark room brighter and leaves the floor out on request', () => {
-    const book = new ClosedBook(T, testBook(), 10, {
-      dark: true,
-      floor: false,
-      k: 1,
-    })
-
-    expect(book.shadow).toBeUndefined()
-    expect(book.scene.children.map((c) => digest(c))).toMatchSnapshot()
   })
 
   it('poses the book and centres it in the canvas at s px per cm', () => {
@@ -238,19 +227,19 @@ describe('ClosedBook', () => {
     expect(meshes(lifted).piv?.rotation.z).toBeCloseTo((5 * Math.PI) / 180)
   })
 
-  it('fades the contact shadow with the lift and darkens it in the dark', () => {
+  it('fades the contact shadow with the lift', () => {
     const lifted = new ClosedBook(T, testBook(), 10, opts)
-    const dark = new ClosedBook(T, testBook(), 10, { ...opts, dark: true })
+    const half = new ClosedBook(T, testBook(), 10, opts)
 
     lifted.pose({ ...ACTIVE, lift: 12 })
-    dark.pose({ ...REST, lift: 6 })
+    half.pose({ ...REST, lift: 6 })
 
     const fills = (book: ClosedBook) =>
       callsOf(book.shadow?.c)?.filter((c) => c[0] === 'set fillStyle')
     expect(fills(lifted)).toEqual([['set fillStyle', 'rgba(0,0,0,0.26)']])
-    expect(fills(dark)).toEqual([
-      ['set fillStyle', 'rgba(0,0,0,0.55)'],
-      ['set fillStyle', 'rgba(0,0,0,0.35)'],
+    expect(fills(half)).toEqual([
+      ['set fillStyle', 'rgba(0,0,0,0.26)'],
+      ['set fillStyle', 'rgba(0,0,0,0.21)'],
     ])
   })
 
@@ -267,6 +256,7 @@ describe('ClosedBook', () => {
     book.dispose()
     book.dispose()
 
+    expect(bare.shadow).toBeUndefined()
     expect(spies.map((s) => s.mock.calls.length)).toEqual([9, 6, 5])
   })
 })

@@ -41,7 +41,6 @@ export async function drawHomeBook(
   ])
   const px = Math.min(1024, Math.ceil((b.trimMm.w / 10) * s * k * 1.5))
   const book = new ClosedBook(T, glBook(glInput(b, photo, px)), s, {
-    dark: false,
     floor: false,
     k,
   })
