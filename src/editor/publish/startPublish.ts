@@ -26,7 +26,7 @@ import { getOpenLibrary } from '../projectSession'
 import { publishStore, type PublishEvent } from './publishStore'
 import { publishPercent, type PublishFailure } from './publishText'
 
-export interface PublishFreeze {
+interface PublishFreeze {
   meta: LibraryMeta
   revisions: PublishedRevision[]
 }
