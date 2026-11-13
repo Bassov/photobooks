@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P4
 Title: worker PDF painter (Security Review: dependency)
+Status: done
 
 ## Scope
 
