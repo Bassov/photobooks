@@ -117,6 +117,21 @@ describe('SettingsScreen', () => {
     ])
   })
 
+  it('opens on the section it is given', async () => {
+    vi.stubGlobal('indexedDB', new IDBFactory())
+    render(
+      <SettingsScreen
+        libraryPath="Lib"
+        bookCount={0}
+        initialSection="hosting"
+      />,
+    )
+    expect(
+      screen.getByTestId('settings-nav-hosting').getAttribute('aria-current'),
+    ).toBe('page')
+    await screen.findByTestId('hosting-form')
+  })
+
   it('opens Hosting: title, intro and the form inputs only there', async () => {
     vi.stubGlobal('indexedDB', new IDBFactory())
     render(<SettingsScreen libraryPath="Lib" bookCount={0} />)

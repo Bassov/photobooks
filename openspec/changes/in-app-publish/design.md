@@ -27,6 +27,9 @@
 | `src/editor/EditorTopBar.test.tsx`            |
 | `src/editor/EditorSettings.tsx`               |
 | `src/editor/SettingsScreen.tsx`               |
+| `src/editor/SettingsScreen.test.tsx`          |
+| `src/editor/export/SiteJobPill.tsx`           |
+| `src/editor/export/startExportSite.ts`        |
 | `src/editor/export/ExportSiteButton.tsx`      |
 | `src/editor/export/ExportSiteButton.css`      |
 | `src/editor/export/ExportSiteButton.test.tsx` |

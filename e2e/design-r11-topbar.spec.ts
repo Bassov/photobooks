@@ -20,10 +20,10 @@ import { openLibraryBook } from './fixtures/openLibraryBook'
 //     3.35544e+07px), padding 0 12, bg rgb(215, 215, 215), rgb(57, 55, 56),
 //     no shadow, the same on hover.
 // Settings (Preview right + 6), 40 × 32, the same pill and colours.
-// Export site (Settings right + 6), the same pill (static-export §1). The
-// kit's Print and Publish follow (out of scope: no Print / Publish in the
-// product), so the product's right cluster ends at the bar's right inset,
-// 1428, where the kit's last item ends.
+// Export site (Settings right + 6), the same pill (static-export §1), then
+// Publish (Export site right + 6, padding 0 14; in-app-publish §1). The
+// kit's Print is out of scope, so Publish ends the right cluster at the
+// bar's right inset, 1428, where the kit's last item ends.
 
 const INK = 'rgb(57, 55, 56)'
 const MUTED = 'rgb(83, 81, 82)'
@@ -198,7 +198,16 @@ test.describe('design-r11-topbar M69', () => {
     near(settings.height, KIT.height, 'settings height')
     const exportSite = await box(page.getByTestId('export-site'))
     near(exportSite.x, settings.right + KIT.previewToSettings, 'export site x')
-    near(exportSite.right, KIT.barEnd, 'right cluster end')
+    const publish = await box(page.getByTestId('publish'))
+    near(publish.x, exportSite.right + KIT.previewToSettings, 'publish x')
+    near(publish.right, KIT.barEnd, 'right cluster end')
+    expect(await look(page.getByTestId('publish'))).toEqual({
+      bg: FIELD,
+      color: INK,
+      radius: PILL,
+      padding: '0px 14px',
+      shadow: 'none',
+    })
     for (const id of ['present', 'editor-settings-open', 'export-site']) {
       expect(await look(page.getByTestId(id))).toEqual({
         bg: FIELD,
@@ -243,7 +252,7 @@ test.describe('design-r11-topbar M69', () => {
     const zoomIn = await box(page.getByTestId('zoom-in'))
     near(toggles.x, zoomIn.right + KIT.zoomToToggles + KIT.togglePitch, 'x')
     near(
-      (await box(page.getByTestId('export-site'))).right,
+      (await box(page.getByTestId('publish'))).right,
       KIT.barEnd,
       'right cluster end',
     )

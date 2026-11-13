@@ -87,7 +87,7 @@ describe('ExportSiteButton', () => {
     expect((pill() as HTMLButtonElement).disabled).toBe(false)
     expect(pill().getAttribute('aria-label')).toBe('Export site')
     expect(pill().getAttribute('title')).toBe('Exporting site · 42%')
-    expect(pill().style.getPropertyValue('--export-site-progress')).toBe('0.42')
+    expect(pill().style.getPropertyValue('--site-job-progress')).toBe('0.42')
     expect(screen.getByTestId('export-site-sizer').textContent).toBe(
       'Export site',
     )
