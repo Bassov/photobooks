@@ -30,7 +30,11 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-async function open(load = vi.fn(() => Promise.resolve(sea))) {
+async function open(
+  load = vi.fn<(href: string) => Promise<BookInput>>(() =>
+    Promise.resolve(sea),
+  ),
+) {
   render(<SiteApp input={home} load={load} />)
   act(() => {
     link('sea')?.click()
