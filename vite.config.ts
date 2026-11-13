@@ -88,6 +88,21 @@ export default defineConfig({
         site: 'site.html',
         ...(withTestFixtures ? { lab: 'dev/derivative-lab.html' } : {}),
       },
+      output: {
+        // zod builds each object schema with an eval probe unless it is
+        // jitless (the CSP forbids eval). Schemas are built at module load,
+        // so the config shares zod's chunk: any chunk with a schema imports
+        // it and runs the config first.
+        codeSplitting: {
+          groups: [
+            {
+              name: 'zod',
+              test: /[\\/]node_modules[\\/]zod[\\/]|[\\/]src[\\/]lib[\\/]zodJitless\.ts$/,
+              priority: 100,
+            },
+          ],
+        },
+      },
     },
     ...(withE2eCoverage ? { sourcemap: true as const } : {}),
   },

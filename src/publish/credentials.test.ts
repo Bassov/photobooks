@@ -2,9 +2,12 @@ import { IDBFactory } from 'fake-indexeddb'
 import { describe, expect, it } from 'vitest'
 import {
   createCredentialStore,
+  forgetCredentials,
+  loadHostingSummary,
   redact,
   SECRETS_DB_NAME,
   validateCredentials,
+  type HostingStatus,
   type R2Credentials,
 } from './credentials'
 
@@ -188,13 +191,58 @@ describe('createCredentialStore', () => {
     )
   })
 
-  it('clears stored credentials', async () => {
+  it('round-trips the last check status', async () => {
     const store = createCredentialStore(new IDBFactory())
-    await store.save(VALID)
+    const failed: HostingStatus = {
+      checkedAtMs: 1_000,
+      ok: false,
+      code: 'key',
+      message: 'Replace the token.',
+    }
 
-    await store.clear()
+    expect(await store.loadStatus()).toBeNull()
+    await store.saveStatus({ checkedAtMs: 5, ok: true })
+    expect(await store.loadStatus()).toEqual({ checkedAtMs: 5, ok: true })
+    await store.saveStatus(failed)
+    expect(await store.loadStatus()).toEqual(failed)
+  })
+
+  it.each([
+    ['not an object', 'ok'],
+    ['no time', { ok: true }],
+    ['infinite time', { checkedAtMs: Infinity, ok: true }],
+    ['unknown code', { checkedAtMs: 1, ok: false, code: 'x', message: 'm' }],
+    ['no message', { checkedAtMs: 1, ok: false, code: 'key' }],
+    ['no ok flag', { checkedAtMs: 1, code: 'key', message: 'm' }],
+  ])('refuses a status with %s', async (_, status) => {
+    const store = createCredentialStore(new IDBFactory())
+
+    await expect(store.saveStatus(status as HostingStatus)).rejects.toThrow(
+      /^Invalid hosting status$/,
+    )
+    expect(await store.loadStatus()).toBeNull()
+  })
+
+  it('keeps only the status fields of a passing check', async () => {
+    const store = createCredentialStore(new IDBFactory())
+    const extra = { checkedAtMs: 7, ok: true, message: 'x' } as HostingStatus
+
+    await store.saveStatus(extra)
+
+    expect(await store.loadStatus()).toEqual({ checkedAtMs: 7, ok: true })
+  })
+
+  it('forget deletes the credentials and the status', async () => {
+    const factory = new IDBFactory()
+    const store = createCredentialStore(factory)
+    await store.save(VALID)
+    await store.saveStatus({ checkedAtMs: 1, ok: true })
+
+    await forgetCredentials(factory)
 
     expect(await store.load()).toBeUndefined()
+    expect(await store.loadStatus()).toBeNull()
+    expect(await loadHostingSummary(factory)).toBeNull()
   })
 
   it('refuses invalid credentials naming fields, never values', async () => {
@@ -232,5 +280,32 @@ describe('createCredentialStore', () => {
     db.close()
 
     expect(await createCredentialStore(factory).load()).toBeUndefined()
+  })
+})
+
+describe('loadHostingSummary', () => {
+  it('is null when nothing is stored', async () => {
+    expect(await loadHostingSummary(new IDBFactory())).toBeNull()
+  })
+
+  it('shows the access key tail and the status, never the secret', async () => {
+    const factory = new IDBFactory()
+    const store = createCredentialStore(factory)
+    await store.save(VALID)
+
+    expect(await loadHostingSummary(factory)).toEqual({
+      accountId: VALID.accountId,
+      bucket: VALID.bucket,
+      accessKeyTail: 'c5d6',
+      publicBaseUrl: VALID.publicBaseUrl,
+      status: null,
+    })
+
+    await store.saveStatus({ checkedAtMs: 9, ok: true })
+    const summary = await loadHostingSummary(factory)
+    expect(summary?.status).toEqual({ checkedAtMs: 9, ok: true })
+    const text = JSON.stringify(summary)
+    expect(text).not.toContain(VALID.secretAccessKey)
+    expect(text).not.toContain(VALID.accessKeyId)
   })
 })
