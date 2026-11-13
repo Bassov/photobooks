@@ -18,6 +18,7 @@ Reviewer briefs: `pnpm agent review-brief --out <file> --base origin/main`; pass
 
 **Output caps** (every byte a tool prints stays in context for the rest of the run):
 
+- Code reading: before editing, map the code with ONE `code-scout` call (all questions in one prompt). Own grep/sed only for pinpoint checks; batch the remaining reads in one Bash call.
 - Files: `Grep -n` first (≤30 hits), then `Read` with offset/limit ≤60 lines. Never Read a whole file over ~100 lines, never `cat` a directory or several files, no `sed -n` sweeps, no re-read of the item, a rule file or a file you just edited.
 - Specs and JSON reports (Stryker, Playwright, coverage): Grep the field you need; never dump them.
 - Commands: `pnpm -s`, the `:quiet` scripts, vitest `--reporter=dot`; pipe long output through `| tail -40` or redirect to `.cache/agent/<name>.log` and Grep it.
