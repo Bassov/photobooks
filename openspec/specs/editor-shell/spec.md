@@ -222,7 +222,7 @@ With a granted library handle and no in-tab active book, the system SHALL show t
 
 ### Requirement: Settings shell (library section live)
 
-The Settings shell SHALL match kit settings chrome: a section nav (Library, Hosting, Print presets) and a content pane. The Library section MUST show the current library folder name/path, a live book count from the library list (session `listLibraryBooks` / storage `listBooks()`), and **Change library folder…** that uses the same confirm dialog and FSA `changeLibraryFolder` path as the library bar. Cancel on confirm MUST leave the library unchanged. Hosting is the R2 credentials form (publish spec). Site and Interface have no behavior yet and MUST be hidden, not stubbed. Settings content overflow scrolls only in a named settings scrollport (`settings-scroll` / `data-scrollport="settings"`); there MUST be no page-level H/V scroll. Settings MUST NOT introduce card borders on the Library panel (chrome surface + rules only).
+The Settings shell SHALL match kit settings chrome: a section nav (Library, Hosting, Site, Print presets) and a content pane. The Library section MUST show the current library folder name/path, a live book count from the library list (session `listLibraryBooks` / storage `listBooks()`), and **Change library folder…** that uses the same confirm dialog and FSA `changeLibraryFolder` path as the library bar. Cancel on confirm MUST leave the library unchanged. Hosting is the R2 credentials form (publish spec); Site is the site settings card (site-export spec). Interface has no behavior yet and MUST be hidden, not stubbed. Settings content overflow scrolls only in a named settings scrollport (`settings-scroll` / `data-scrollport="settings"`); there MUST be no page-level H/V scroll. Settings MUST NOT introduce card borders on the Library panel (chrome surface + rules only).
 
 #### Scenario: Live book count
 
@@ -237,7 +237,7 @@ The Settings shell SHALL match kit settings chrome: a section nav (Library, Host
 #### Scenario: Deferred sections are read-only
 
 - **WHEN** Settings opens
-- **THEN** the nav lists Library, Hosting and Print presets, and no Site or Interface control (hidden, not a read-only stub)
+- **THEN** the nav lists Library, Hosting, Site and Print presets, and no Interface control (hidden, not a read-only stub)
 
 ### Requirement: Empty editor and first placement guidance
 
