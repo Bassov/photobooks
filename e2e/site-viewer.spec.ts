@@ -158,8 +158,27 @@ test.describe('site viewer', () => {
     const before = await rect(page, 'site-share')
     const book = await rect(page, 'ps-reader')
 
+    // Stamp the press and the hide in the page: a Node clock read after
+    // click() resolves runs late under load and shortens the gap.
+    await share.evaluate((el) => {
+      const times: { pressed?: number; hidden?: number } = {}
+      Object.assign(window, { shareTimes: times })
+      el.addEventListener(
+        'click',
+        () => {
+          times.pressed = performance.now()
+        },
+        { capture: true, once: true },
+      )
+      const watch = new MutationObserver(() => {
+        if (el.hasAttribute('data-copied') || times.pressed === undefined)
+          return
+        times.hidden = performance.now()
+        watch.disconnect()
+      })
+      watch.observe(el, { attributeFilter: ['data-copied'] })
+    })
     await share.click()
-    const pressed = Date.now()
 
     const copied = share.locator('span').nth(1)
     await expect(share).toHaveAttribute('data-copied', '')
@@ -169,7 +188,14 @@ test.describe('site viewer', () => {
     expectSameRect(await rect(page, 'site-share'), before)
     expectSameRect(await rect(page, 'ps-reader'), book)
     await expect(copied).toBeHidden({ timeout: 4000 })
-    const elapsed = Date.now() - pressed
+    const elapsed = await page.evaluate(() => {
+      const { shareTimes } = window as unknown as {
+        shareTimes: { pressed?: number; hidden?: number }
+      }
+      if (shareTimes.pressed === undefined || shareTimes.hidden === undefined)
+        throw new Error('no Share press or hide recorded')
+      return shareTimes.hidden - shareTimes.pressed
+    })
     expect(elapsed).toBeGreaterThanOrEqual(1900)
     expect(elapsed).toBeLessThan(3500)
     expectSameRect(await rect(page, 'site-share'), before)
