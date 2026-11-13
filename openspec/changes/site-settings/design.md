@@ -22,6 +22,8 @@ Tokens: `bg-chrome`, `bg-field`, `text-muted-foreground` (`docs/design.md`). e2e
 | `src/editor/SitePreview.test.tsx`         |
 | `src/site/SiteRoom.tsx`                   |
 | `src/site/SiteBookPage.embedded.test.tsx` |
+| `src/testFixtures/loadPainterFixture.ts`  |
+| `src/testFixtures/painterFixture.test.ts` |
 | `src/editor/export/exportSiteRun.ts`      |
 | `src/editor/export/exportSiteRun.test.ts` |
 | `e2e/site-settings.spec.ts`               |

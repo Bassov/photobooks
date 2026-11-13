@@ -8,6 +8,10 @@ import {
   resetPrintProfilesForTests,
 } from '../editor/printProfilesStore'
 import {
+  getSiteSettings,
+  resetSiteSettingsForTests,
+} from '../editor/siteSettingsStore'
+import {
   assetSourceCovers,
   getAssetSource,
   resetAssetSources,
@@ -23,6 +27,7 @@ afterEach(() => {
   resetAssetSources()
   resetBookStore()
   resetPrintProfilesForTests()
+  resetSiteSettingsForTests()
 })
 
 interface PngChunk {
@@ -231,5 +236,14 @@ describe('loadPainterFixture', () => {
     expect(getPrintProfiles()).toEqual([])
     loadPainterFixture('?fixture=painter&printProfiles=kit')
     expect(getPrintProfiles()).toEqual([kitSampleProfile()])
+  })
+
+  it('seeds the site settings from siteSettings=<JSON>', () => {
+    loadPainterFixture('?fixture=painter')
+    expect(getSiteSettings()).toEqual({})
+    loadPainterFixture(
+      `?fixture=painter&siteSettings=${encodeURIComponent('{"author":"Ann"}')}`,
+    )
+    expect(getSiteSettings()).toEqual({ author: 'Ann' })
   })
 })

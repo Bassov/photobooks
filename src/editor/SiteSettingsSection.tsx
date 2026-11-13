@@ -25,8 +25,11 @@ type Text = keyof SiteSettings
 /* BOX / ring: the Hosting field (private there). */
 const BOX =
   'flex h-8 items-center rounded-md bg-field px-2.5 text-sm text-foreground'
-const RING =
-  'shadow-xs has-[:focus-visible]:shadow-none has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-[#535152]'
+/** Focus-visible: no shadow, a 1 px inset `#535152` ring. */
+const FOCUS =
+  'has-[:focus-visible]:shadow-none has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-[#535152]'
+/** Inputs rest on `shadow-xs`; the kit Intro box has none. */
+const RING = `shadow-xs ${FOCUS}`
 const TOP = 'items-start py-3'
 const LABEL = 'w-[160px] shrink-0 text-sm'
 const INPUT =
@@ -145,7 +148,7 @@ function Intro({
       </label>
       <div className="min-w-0 flex-1">
         <div
-          className={cn(BOX, 'h-auto min-h-[70.5px] items-start py-1.5', RING)}
+          className={cn(BOX, 'h-auto min-h-[70.5px] items-start py-1.5', FOCUS)}
         >
           <textarea
             id="site-intro"

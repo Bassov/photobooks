@@ -12,3 +12,5 @@
 2. Esc in Author after typing reverts and keeps focus; Settings stays open.
 3. Clear all: placeholders "Photobooks", "Your name", "A line or two about your books"; counter `0 / 160`.
 4. Preview site shows the author name in the room head.
+
+manual-qa (`pnpm agent manual-qa`): problem (harness) 1–4: the `start-session` click is intercepted by the welcome header, so no scenario was reached. Covered by `e2e/site-settings.spec.ts` (1: reload keeps; 2: Esc revert + focus; 3: placeholders + `0 / 160`; 4: Preview `site-name` = author), green locally. A kit-vs-prod DOM dump of `site` / `site-empty` at 1440 matched within 0.5 px.
