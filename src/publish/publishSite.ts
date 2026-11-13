@@ -106,12 +106,23 @@ export function contentTypeOf(key: string): string {
   return known?.[1] ?? 'application/octet-stream'
 }
 
+/** A Vite build file of the viewer: `viewer/assets/<name>-<8-char hash>.<ext>`. */
+const VITE_BUILD_FILE = /^viewer\/assets\/[^/]+-([\w-]{8})(?:\.[A-Za-z0-9]+)+$/
+
+/** True when a Vite-style name carries a hash, not a word (`my-settings.js`). */
+function isViteHashed(key: string): boolean {
+  const hash = VITE_BUILD_FILE.exec(key)?.[1]
+  return hash !== undefined && /[A-Z0-9]/.test(hash)
+}
+
 /** P6: content-hashed assets are immutable; pages, data and the rest revalidate. */
 export function cacheControlOf(key: string): string {
   if (key === PUBLISH_MANIFEST_KEY) return CACHE_NO_STORE
   if (fileKind(key) !== 'asset') return CACHE_NO_CACHE
-  // ≥ 16 hex in the last path segment.
-  return /[0-9a-f]{16}[^/]*$/.test(key) ? CACHE_IMMUTABLE : CACHE_NO_CACHE
+  // ≥ 16 hex in the last path segment (content-hash keys), or a Vite build hash.
+  return /[0-9a-f]{16}[^/]*$/.test(key) || isViteHashed(key)
+    ? CACHE_IMMUTABLE
+    : CACHE_NO_CACHE
 }
 
 /** A key the manifest may name: inside the bucket and outside `_photobooks/`. */

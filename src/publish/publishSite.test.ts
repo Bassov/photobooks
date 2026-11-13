@@ -814,6 +814,85 @@ describe('publishSite: P6 headers', () => {
     expect(contentTypeOf(key)).toBe(type)
   })
 
+  it.each([
+    ['viewer/assets/SiteRoom-BYCUx3i0.js', CACHE_IMMUTABLE],
+    ['viewer/assets/three.module.min-DZQsI4wM.js', CACHE_IMMUTABLE],
+    ['viewer/assets/site-CM6DMatH.css', CACHE_IMMUTABLE],
+    ['viewer/assets/curl-ysPz2-FY.js', CACHE_IMMUTABLE],
+    ['viewer/assets/normalizeOrientation-1-l9tejE.js', CACHE_IMMUTABLE],
+    ['viewer/assets/focusTrap-Bjn_HJWR.js', CACHE_IMMUTABLE],
+    ['viewer/assets/icon-Ab12_xYz.svg', CACHE_IMMUTABLE],
+    ['viewer/assets/open-piArjzg0.js.map', CACHE_IMMUTABLE],
+    ['index.html', CACHE_NO_CACHE],
+    ['books/0123456789abcdef/index.html', CACHE_NO_CACHE],
+    ['viewer/x.js', CACHE_NO_CACHE],
+    ['viewer/assets/my-settings.js', CACHE_NO_CACHE],
+    ['viewer/assets/site-settings.css', CACHE_NO_CACHE],
+    ['viewer/assets/-BYCUx3i0.js', CACHE_NO_CACHE],
+    ['viewer/assets/SiteRoom-BYCUx3i.js', CACHE_NO_CACHE],
+    ['viewer/assets/SiteRoom-BYCUx3i0', CACHE_NO_CACHE],
+    ['viewer/assets/SiteRoom-BYCUx3i0.json', CACHE_NO_CACHE],
+    ['viewer/assets/nested/SiteRoom-BYCUx3i0.js', CACHE_NO_CACHE],
+    ['viewer/SiteRoom-BYCUx3i0.js', CACHE_NO_CACHE],
+    ['assets/SiteRoom-BYCUx3i0.js', CACHE_NO_CACHE],
+    ['books/viewer/assets/SiteRoom-BYCUx3i0.js', CACHE_NO_CACHE],
+    ['viewer/fonts/inter-latin-wght-normal.woff2', CACHE_NO_CACHE],
+    [PUBLISH_MANIFEST_KEY, CACHE_NO_STORE],
+  ])('Vite build name %s → %s', (key, cache) => {
+    expect(cacheControlOf(key)).toBe(cache)
+  })
+
+  it('a published built viewer stores every viewer/assets/ file immutable', async () => {
+    // The viewer keys of the Designer p4 publish (pub.json fake1.keys).
+    const viewer = [
+      'SiteRoom-BYCUx3i0.js',
+      'SiteRoom-DsFa62xP.css',
+      'book3dGl-BT7LTJZP.js',
+      'bookObjectLayout-Dn2EljGm.js',
+      'closed-DEmQqsWR.js',
+      'core-IiQ3pRpk.js',
+      'curl-ysPz2-FY.js',
+      'focusTrap-Bjn_HJWR.js',
+      'focusTrap-CFK6qeGx.css',
+      'gallery-26YDuH4X.js',
+      'glCover-D70EYAoK.js',
+      'open-piArjzg0.js',
+      'parentSpreads-DAaO1ou5.js',
+      'rolldown-runtime-COiEfhsA.js',
+      'roomGl-b88Vd38o.js',
+      'sampleSite-D2TTJZRe.js',
+      'site-CM6DMatH.css',
+      'site-DDBRUHFl.js',
+      'three.module.min-DZQsI4wM.js',
+      'zod-CH9qlhjk.js',
+    ].map((name): [string, string] => [`viewer/assets/${name}`, name])
+    const fonts = [
+      'fonts.css',
+      'inter-latin-wght-normal.woff2',
+      'lora-latin-wght-italic.woff2',
+    ].map((name): [string, string] => [`viewer/fonts/${name}`, name])
+    const r2 = createFakeR2()
+
+    const result = await publishSite(
+      {
+        files: await siteFiles([...SITE, ...viewer, ...fonts]),
+        credentials: CREDENTIALS,
+        bookPath: '',
+      },
+      deps(r2),
+    )
+
+    expect(result.ok).toBe(true)
+    for (const [key] of viewer) {
+      expect(r2.objects.get(key)?.headers['cache-control']).toBe(
+        CACHE_IMMUTABLE,
+      )
+    }
+    for (const [key] of fonts) {
+      expect(r2.objects.get(key)?.headers['cache-control']).toBe(CACHE_NO_CACHE)
+    }
+  })
+
   it('stores each object with its signed Cache-Control and Content-Type', async () => {
     const r2 = createFakeR2()
 
