@@ -5,6 +5,7 @@ import {
   parseDefaultPrintProfileId,
   parsePrintProfiles,
   parseSavedTemplates,
+  withSite,
 } from './libraryDocument'
 import {
   parsePublished,
@@ -103,6 +104,7 @@ export function createMemoryLibraryStorage(): MemoryLibraryStorage {
             defaultPrintProfileId: parseDefaultPrintProfileId(
               meta.defaultPrintProfileId,
             ),
+            ...withSite(meta.site),
           }
           return success(libraryMeta)
         }),
