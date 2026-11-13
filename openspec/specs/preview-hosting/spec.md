@@ -64,3 +64,12 @@ Cloudflare Workers Builds SHALL pin the Node major via `.nvmrc` (or `.node-versi
 
 - **WHEN** an agent or operator configures Node for Cloudflare Workers Builds
 - **THEN** the pin is expressed with `.nvmrc` (major 22 is enough) and not via asdf / `.tool-versions`
+
+### Requirement: Content Security Policy limits outbound connections
+
+Production and preview hosts SHALL send a `Content-Security-Policy` with `connect-src 'self' https://*.r2.cloudflarestorage.com`, `script-src 'self'`, `object-src 'none'`, `base-uri 'self'` and `frame-ancestors 'none'`, so a page script can talk only to its own origin and R2.
+
+#### Scenario: Other origins are blocked
+
+- **WHEN** the app is served with the `public/_headers` policy and a script fetches another origin
+- **THEN** the fetch fails with a CSP violation, an R2 endpoint fetch is allowed, and loading the app raises no violation
