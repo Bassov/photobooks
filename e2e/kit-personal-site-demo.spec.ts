@@ -76,7 +76,7 @@ test.describe('kit #/demo site', () => {
     await expect(books).toHaveAttribute('aria-label', /^Lake trip,/)
   })
 
-  test('Preview is the open book in the reading room, at Page 1', async ({
+  test('Preview is the open book in the reading room, resting on the Cover (Owner M53)', async ({
     page,
   }) => {
     await seed(page)
@@ -84,12 +84,13 @@ test.describe('kit #/demo site', () => {
     const preview = page.getByTestId('site-preview')
     await expect(preview).toBeVisible()
     await expect(preview.getByTestId('ss-reader-page')).toBeVisible()
-    await expect(preview.getByTestId('site-room')).toHaveAttribute(
-      'data-view',
-      '1',
-    )
+    const room = preview.getByTestId('site-room')
+    await expect(room).toHaveAttribute('data-view', '0')
+    // past the fade + cover delay (360 ms): the cover does not turn by itself
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 800)))
+    await expect(room).toHaveAttribute('data-view', '0')
     await expect(preview.getByTestId('site-about')).toContainText('Lake trip')
-    await expect(preview.getByTestId('site-label')).toHaveText(/^Page 1 of /)
+    await expect(preview.getByTestId('site-label')).toHaveText('Cover')
     await expect(preview.getByTestId('site-share')).toHaveCount(0)
     await expect(preview.getByTestId('site-all-books')).toHaveCount(0)
   })

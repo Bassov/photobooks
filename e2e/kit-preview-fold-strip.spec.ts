@@ -87,6 +87,9 @@ test.describe('kit Preview single-page slides', () => {
   }) => {
     await openPreview(page)
     const room = page.getByTestId('site-room')
+    // the Preview opens on the cover (Owner M53); → turns to Page 1
+    await expect(room).toHaveAttribute('data-view', '0')
+    await page.keyboard.press('ArrowRight')
     await expect(room).toHaveAttribute('data-view', '1')
     const bar = await page.getByTestId('site-preview-bar').boundingBox()
     const b = await room.boundingBox()

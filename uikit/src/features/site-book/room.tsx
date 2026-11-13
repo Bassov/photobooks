@@ -7,7 +7,7 @@
    Reader switch, whole-spread slides have no gutter fold. Landscape phone (h < 500, v5 L / D26): the larger of side
    (W = min(w − 272, (h − 24)·R), centred; back + Play top, the label bottom, in 136 px bands) and foot
    (W = min(w − 32, (h − 64)·R) over one row at h − 52: back, label, Play). Opens with a 240 ms fade, focuses the book; at
-   view 0 the cover turns 120 ms after the fade (not in portrait: it opens on the cover slide); ← / → turn.
+   view 0 a tapped (`turn`) cover turns 120 ms after the fade (not in portrait: it opens on the cover slide); ← / → turn.
    Swipe back (D25, phones): a rightward swipe that starts outside the book pulls the room aside and closes it.
    Play (fresh C's auto page-turn, D4): after each turn ends wait 4000 ms and turn; stops at the back cover (portrait: the
    last slide); any key, click or drag (outside Play) and a hidden tab pause it; a 1 px line under the label grows over
@@ -41,6 +41,8 @@ type RoomProps = {
   full?: number
   /** false: no Share (the editor Preview, D45) */
   share?: boolean
+  /** opened by a tap: a closed cover turns after the fade; a deep link and the Preview rest on it (D41 / D42, M53) */
+  turn?: boolean
   ref?: React.Ref<RoomKeys>
 }
 /** the room's page keys for a host that swallows key events (the #/demo Preview); true = handled */
@@ -54,7 +56,7 @@ const BODY: Record<keyof typeof SPREAD_R, readonly [number, number, number, numb
 /** the CSS reader (`gl=0`, no WebGL 2) paints its whole box */
 const CSS_BODY = [1, 1, 0, 0] as const
 
-export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek, full, share = true, ref }: RoomProps) {
+export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek, full, share = true, turn = false, ref }: RoomProps) {
   const root = React.useRef<HTMLDivElement>(null)
   const api = React.useRef<ReaderApi>(null)
   const sapi = React.useRef<SlidesApi>(null)
@@ -99,9 +101,9 @@ export function ReadingRoom({ b, view, setView, dark, box, onClose, onPeek, full
     if (root.current?.querySelector('[data-testid="lightbox"]')) return
     root.current?.querySelector<HTMLElement>('[role="region"]')?.focus({ preventScroll: true, focusVisible: false } as FocusOptions)
   }, [mode, rm])
-  // a closed cover turns once the fade is done (not in portrait)
+  // a tapped closed cover turns once the fade is done (not in portrait)
   React.useEffect(() => {
-    const t = view === 0 && !port ? setTimeout(() => goRef.current(1), reduced() ? 0 : FADE_MS + COVER_DELAY_MS) : 0
+    const t = view === 0 && turn && !port ? setTimeout(() => goRef.current(1), reduced() ? 0 : FADE_MS + COVER_DELAY_MS) : 0
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- on open only: a later return to the cover must not turn it again
   }, [])
