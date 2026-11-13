@@ -3,10 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   CHECK_TIMEOUT_MS,
   checkConnection,
-  connectHosting,
-  recheckHosting,
   type CheckDeps,
 } from './checkConnection'
+import { connectHosting, recheckHosting } from './hosting'
 import {
   createCredentialStore,
   loadHostingSummary,
