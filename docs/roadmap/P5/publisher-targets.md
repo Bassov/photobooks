@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P5
 Title: generalize publishing
+Status: done
 
 ## Scope
 
