@@ -17,7 +17,8 @@ export function portGeo(rb: RoomBook, w: number, h: number) {
   const rp = spreadRatio(rb.book.settings.trim) / 2
   const pw = Math.min(w - 32, (h - 172) * rp)
   const ph = pw / rp
-  const gt = Math.max(8, 8 + (h - 72 - (ph + 84)) / 2)
+  // ph ≤ h − 172, so gt ≥ 16
+  const gt = 8 + (h - 72 - (ph + 84)) / 2
   return { pw, ph, gt, stageTop: gt + 52, footTop: gt + 52 + ph + 8 }
 }
 
@@ -25,10 +26,10 @@ export function portGeo(rb: RoomBook, w: number, h: number) {
 export const slideKind = (s: RoomSlide): 'cover' | 'spread' | 'page' =>
   s.page === undefined ? 'cover' : s.page.side === 'both' ? 'spread' : 'page'
 
-const KEY_STEP: Readonly<Record<string, number>> = {
-  ArrowRight: 1,
-  ArrowLeft: -1,
-}
+const KEY_STEP: ReadonlyMap<string, number> = new Map([
+  ['ArrowRight', 1],
+  ['ArrowLeft', -1],
+])
 
 /** Slide steps for a key event, or null when the event is not ours. */
 export function slideKey(e: KeyboardEvent): number | 'home' | 'end' | null {
@@ -37,5 +38,5 @@ export function slideKey(e: KeyboardEvent): number | 'home' | 'end' | null {
   if (t?.closest?.('input,textarea,select,[contenteditable]')) return null
   if (e.key === 'Home') return 'home'
   if (e.key === 'End') return 'end'
-  return KEY_STEP[e.key] ?? null
+  return KEY_STEP.get(e.key) ?? null
 }

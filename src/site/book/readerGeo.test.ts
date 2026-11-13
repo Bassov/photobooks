@@ -520,6 +520,7 @@ describe('readerKey', () => {
         (x) => k(x),
       ),
     ).toEqual([1, 1, -1, -1, 'home', 'end', null])
+    expect(k('toString')).toBeNull()
   })
 
   it('leaves modified keys and text fields alone, but not Shift', () => {

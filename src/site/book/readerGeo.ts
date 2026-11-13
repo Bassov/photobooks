@@ -367,12 +367,12 @@ export function stepFrom(v: number, d: number, n: number): number | null {
   return t === v ? null : t
 }
 
-const KEY_STEP: Readonly<Record<string, number>> = {
-  ArrowRight: 1,
-  PageDown: 1,
-  ArrowLeft: -1,
-  PageUp: -1,
-}
+const KEY_STEP: ReadonlyMap<string, number> = new Map([
+  ['ArrowRight', 1],
+  ['PageDown', 1],
+  ['ArrowLeft', -1],
+  ['PageUp', -1],
+])
 /** The reader's step for a key event, or null when the event is not ours. */
 export function readerKey(e: KeyboardEvent): number | 'home' | 'end' | null {
   if (e.altKey || e.ctrlKey || e.metaKey) return null
@@ -380,7 +380,7 @@ export function readerKey(e: KeyboardEvent): number | 'home' | 'end' | null {
   if (t?.closest?.('input,textarea,select,[contenteditable]')) return null
   if (e.key === 'Home') return 'home'
   if (e.key === 'End') return 'end'
-  return KEY_STEP[e.key] ?? null
+  return KEY_STEP.get(e.key) ?? null
 }
 
 /** May a page on `side` be dragged (or its corner lifted) while view `shown` rests? */
