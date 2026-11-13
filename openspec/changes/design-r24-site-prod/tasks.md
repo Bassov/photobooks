@@ -9,3 +9,6 @@
 
 1. 390×844: tap a home book → "Cover", the cover photo painted; turn to page 1, page 2 — photos painted.
 2. 1440×900: open a book, click the site name → home; browser Forward reopens the book.
+
+- problem (harness): `pnpm agent manual-qa` timed out on the editor welcome `start-session` click (header intercepts pointer events) before reaching `/site.html`; both scenarios are locked by `e2e/site-room-parity.spec.ts` (5/5 pass locally, M106/M107 fail with the fixes reverted).
+- ui-review: OK — name link has an accessible name, `.ss :where(a)` focus-visible outline, same look, on top of the GL canvas (`topAt`); paint checked in Playwright.
