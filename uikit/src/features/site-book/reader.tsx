@@ -198,13 +198,13 @@ function PaperLeaf({ g, a, th }: { g: Geo; a: number; th: number }) {
 /** the GL canvas within the reader box (css px) */
 export type GlBox = { x: number; y: number; w: number; h: number }
 type GlProps = {
-  b: SiteBook; a: number; th: number; W: number; H: number; box: GlBox; s: number; dark?: boolean; board: string; bend: boolean
+  b: SiteBook; a: number; th: number; W: number; H: number; box: GlBox; s: number; board: string; bend: boolean
   label: string; fade: { ms: number; id: number } | null; onFade: () => void; onFail: () => void
 }
 
 /** The render layer of the reader in WebGL (Spec site-stand-v2 R): one canvas, drawn on demand when (a, θ), the box or a
    page texture changes; a crossfade snapshots the last frame into an overlay canvas and fades it out. */
-function ReaderGl({ b, a, th, W, H, box, s, dark, board, bend, label, fade, onFade, onFail }: GlProps) {
+function ReaderGl({ b, a, th, W, H, box, s, board, bend, label, fade, onFade, onFail }: GlProps) {
   const root = React.useRef<HTMLDivElement>(null), canvas = React.useRef<HTMLCanvasElement>(null), over = React.useRef<HTMLCanvasElement>(null)
   const probe = React.useRef<HTMLSpanElement>(null)
   const [gl, setGl] = React.useState<{ T: Three; book: OpenBook } | null>(null)
@@ -218,7 +218,7 @@ function ReaderGl({ b, a, th, W, H, box, s, dark, board, bend, label, fade, onFa
     void (async () => {
       try {
         const T = await loadThree()
-        book = await OpenBook.create(T, b, { dark: !!dark, board, bend, pagePx, ...look })
+        book = await OpenBook.create(T, b, { board, bend, pagePx, ...look })
         if (dead) { book.dispose(); return }
         book.onChange = () => setTick((t) => t + 1)
         setGl({ T, book })
@@ -227,7 +227,7 @@ function ReaderGl({ b, a, th, W, H, box, s, dark, board, bend, label, fade, onFa
       }
     })()
     return () => { dead = true; book?.dispose(); setGl(null) }
-  }, [b, dark, board, bend, pagePx])
+  }, [b, board, bend, pagePx])
 
   const lastFade = React.useRef<number | null>(null)
   React.useLayoutEffect(() => {
@@ -262,7 +262,7 @@ function ReaderGl({ b, a, th, W, H, box, s, dark, board, bend, label, fade, onFa
 }
 
 type ReaderProps = {
-  b: SiteBook; view: number; onView: (v: number) => void; width: number; dark?: boolean; keys?: boolean; vt?: boolean
+  b: SiteBook; view: number; onView: (v: number) => void; width: number; keys?: boolean; vt?: boolean
   /** "paper" (default, Spec site-stand S4): interior leaves curl as 12 strips; "board": rigid layflat leaves (demo 1). The
      cover and back board stay rigid either way */
   leaf?: "board" | "paper"
@@ -278,7 +278,7 @@ type ReaderProps = {
 }
 
 export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
-  function BookReader({ b, view, onView, width: W, dark, keys = true, vt, leaf = "paper", turnMs = 820, board = b.spine, scrub, corner = 64 }, apiRef) {
+  function BookReader({ b, view, onView, width: W, keys = true, vt, leaf = "paper", turnMs = 820, board = b.spine, scrub, corner = 64 }, apiRef) {
     const n = viewsOf(b)
     const sc = scrub === undefined ? null : clamp(scrub, 0, n - 1)
     const sa = sc === null ? 0 : Math.min(Math.floor(sc), n - 2), sf = sc === null ? 0 : sc - sa
@@ -467,14 +467,14 @@ export const BookReader = React.forwardRef<ReaderApi, ReaderProps>(
     const box = { x: -0.04 * W, y: -RISE * W, w: 1.08 * W, h: H + RISE * W + 0.05 * H }
     const glLayer = gl && (
       <>
-        <ReaderGl b={b} a={ga} th={gth} W={W} H={H} box={box} s={W / (2 * b.w + 10)} dark={dark} board={board} bend={leaf === "paper"}
+        <ReaderGl b={b} a={ga} th={gth} W={W} H={H} box={box} s={W / (2 * b.w + 10)} board={board} bend={leaf === "paper"}
           label={label} fade={fade} onFade={() => setFade(null)} onFail={() => setGl(false)} />
         {lt && <div aria-hidden data-testid="ps-leaf" data-leaf={lt.a === 0 || lt.a === n - 2 ? "board" : leaf} data-theta={lt.th.toFixed(1)} />}
       </>
     )
     const handlers = scrubbing ? {} : { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: () => { ptr.current = null; setTurn(null) }, onPointerLeave }
     return (
-      <div ref={el} className={dark ? "sd-reader sd-dark" : "sd-reader"} style={{ width: W, height: H, touchAction: "pan-y", perspective: `${Math.round(W * 2)}px`, perspectiveOrigin: "50% 50%" }}
+      <div ref={el} className="sd-reader" style={{ width: W, height: H, touchAction: "pan-y", perspective: `${Math.round(W * 2)}px`, perspectiveOrigin: "50% 50%" }}
         role="region" aria-roledescription="book" aria-label={b.title} tabIndex={0} data-testid="ps-reader" data-view={at} data-views={n} data-turn={turn ? turn.kind : fade ? "fade" : "rest"} {...handlers}>
         {glLayer || (scrubbing ? sth > 0 && sth < 180 ? <TurningBook g={g} a={sa} th={sth} /> : <StaticBook g={g} v={at} vt={vt} />
           : turn ? <TurningBook g={g} a={turn.a} th={turn.th} /> : <StaticBook g={g} v={shown} vt={vt} />)}

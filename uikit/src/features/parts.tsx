@@ -48,8 +48,9 @@ export function Scenarios({ items, value, onChange, note }: { items: [string, st
   return (
     <div className="flex h-10 shrink-0 items-center gap-3 bg-chrome px-3" data-testid="scenarios">
       <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">Scenario</span>
-      <KTabs selectedKey={value} onSelectionChange={(k) => onChange(String(k))}>
-        <KTabList aria-label="Scenario" size="sm" className="bg-field">
+      {/* a long list scrolls inside the strip instead of widening the page */}
+      <KTabs selectedKey={value} onSelectionChange={(k) => onChange(String(k))} className="no-scrollbar min-w-0 overflow-x-auto">
+        <KTabList aria-label="Scenario" size="sm" className="w-max bg-field">
           {items.map(([id, l]) => <KTab key={id} id={id}>{l}</KTab>)}
         </KTabList>
       </KTabs>

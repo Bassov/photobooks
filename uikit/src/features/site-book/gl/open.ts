@@ -37,7 +37,7 @@ function curve(W: number, y0: number, angle: (t: number) => number) {
 }
 
 /** the page faces' look: fonts and colours read from the page (TitlePage), texture width per page */
-export type OpenLook = { dark: boolean; board: string; bend: boolean } & FaceLook
+export type OpenLook = { board: string; bend: boolean } & FaceLook
 export type FaceLook = { pagePx: number; title: TitleFont; body: string; ink: string; muted: string }
 export type Face = { v: number; side: 0 | 1 }
 
@@ -111,7 +111,7 @@ export class OpenBook {
   private k<V>(v: V): V { this.keep.push(v); return v }
 
   private async build() {
-    const T = this.T, b = this.b, d = this.look.dark, scene = new T.Scene(), n = pagesOf(b) / 2
+    const T = this.T, b = this.b, scene = new T.Scene(), n = pagesOf(b) / 2
     const bc = cv(256, 256), bx = ctx(bc)
     bx.fillStyle = "#808080"; bx.fillRect(0, 0, 256, 256); grain(bx, 256, 256, 90)
     this.bump = this.k(new T.CanvasTexture(bc))
@@ -127,8 +127,8 @@ export class OpenBook {
     this.cover = this.k(new T.MeshStandardMaterial({ map: this.k(tex(T, await coverCanvas(b, 1024, this.look.title))), roughness: 0.45 }))
     // light: sky/ground, one key with a soft VSM shadow (the leaf shades the page under it), a shadow-only floor; the sky
     // is 1.9 (gl.js 1.75 leaves flat paper at lum 234, the Spec's paper check wants ≥ 236)
-    scene.add(new T.HemisphereLight(0xffffff, d ? 0x222220 : 0xd8d1c4, d ? 1.2 : 1.9))
-    const key = new T.DirectionalLight(0xffffff, d ? 1.6 : 1.4)
+    scene.add(new T.HemisphereLight(0xffffff, 0xd8d1c4, 1.9))
+    const key = new T.DirectionalLight(0xffffff, 1.4)
     key.position.set(-12, 50, 55)
     key.castShadow = true
     key.shadow.mapSize.set(256, 256)
@@ -137,7 +137,7 @@ export class OpenBook {
     key.shadow.bias = -0.0004
     Object.assign(key.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 200 })
     scene.add(key)
-    const floor = new T.Mesh(this.k(new T.PlaneGeometry(400, 400)), this.k(new T.ShadowMaterial({ opacity: d ? 0.5 : 0.22 })))
+    const floor = new T.Mesh(this.k(new T.PlaneGeometry(400, 400)), this.k(new T.ShadowMaterial({ opacity: 0.22 })))
     floor.rotation.x = -Math.PI / 2
     floor.receiveShadow = true
     scene.add(floor)

@@ -69,12 +69,6 @@
   -webkit-font-smoothing: antialiased;
   font-kerning: normal;
 }
-.ss.ss-dark {
-  --bg: #111110;
-  --ink: #eceae6;
-  --grey: #8f8d88;
-  --line: rgb(236 234 230 / 0.14);
-}
 .ss :where(button) {
   font: inherit;
   letter-spacing: inherit;

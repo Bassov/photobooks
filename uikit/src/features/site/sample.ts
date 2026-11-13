@@ -6,14 +6,12 @@ import { hiPhoto, type Fmt } from "../library"
 export const AUTHOR = "Aleksandr Basov"
 export const EMAIL = "hello@aleksandr.photos"
 
-/** Settings → Site (personal-site D37, site-settings S1/S5): the site title, the author, the intro (the home lead) and
- *  the whole site's look */
-export type SiteTexts = { title: string; author: string; intro: string; theme: "light" | "dark" }
+/** Settings → Site (personal-site D37): the site title, the author and the intro (the home lead) */
+export type SiteTexts = { title: string; author: string; intro: string }
 export const SAMPLE_SITE_TEXTS: SiteTexts = {
   title: "Aleksandr’s photobooks",
   author: AUTHOR,
   intro: "Photographs of lakes, coasts and the people I travel with, made into books.",
-  theme: "light",
 }
 /** D37: the lead is the intro, else "Photobooks by {author}.", else none */
 export const siteLead = ({ intro, author }: Pick<SiteTexts, "intro" | "author">): string | null =>

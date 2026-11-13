@@ -3,7 +3,6 @@
 .sd-b3wrap { position: relative; perspective: 1400px;
   --b85: color-mix(in srgb, var(--board) 85%, #000); --b55: color-mix(in srgb, var(--board) 55%, #000);
   --b3-ease: var(--site-ease, cubic-bezier(.2, .7, .2, 1)); --floor-o: .34 }
-.ss-dark .sd-b3wrap { --floor-o: .6 }
 .sd-pose.sd-b3wrap[data-book] .sd-b3 { position: absolute; left: 0; top: 0; transform-style: preserve-3d;
   transform: translateY(calc(-1px * var(--lift))) rotateZ(calc(1deg * var(--rz, 0))) rotateX(calc(1deg * var(--rx))) rotateY(calc(1deg * var(--ry)));
   transition: transform 600ms var(--b3-ease) }

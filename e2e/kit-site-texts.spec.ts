@@ -3,20 +3,18 @@ import { expect, test } from './fixtures/coverage'
 import { pixelsAt } from './fixtures/paintProbe'
 
 // site-settings (kit): Settings → Site is the editable card (Site title, Author,
-// Intro ≤ 160, Theme Light · Dark); the site home lead reads it per D37 and the
-// Dark theme paints the kit site (home, room, editor Preview).
+// Intro ≤ 160); the site home lead (also in the editor Preview) reads it per
+// D37. The site has one look (Owner 2026-11-13: no Theme).
 
 const KIT = '/uikit/#/full/site-settings'
 const INTRO =
   'Photographs of lakes, coasts and the people I travel with, made into books.'
-const DARK_BG = [17, 17, 16]
 const LIGHT_BG = [244, 243, 240]
 
 interface Texts {
   title: string
   author: string
   intro: string
-  theme: 'light' | 'dark'
 }
 interface Demo {
   reset: () => void
@@ -105,14 +103,11 @@ test.describe('kit Settings → Site card (K1)', () => {
   }) => {
     await scenario(page, 'Site')
     const heights = await Promise.all(
-      [
-        'site-title-row',
-        'site-author-row',
-        'site-intro-row',
-        'site-theme-row',
-      ].map(async (id) => (await box(page.getByTestId(id))).height),
+      ['site-title-row', 'site-author-row', 'site-intro-row'].map(
+        async (id) => (await box(page.getByTestId(id))).height,
+      ),
     )
-    const want = [68.8, 68.8, 115.3, 124.5]
+    const want = [68.8, 68.8, 115.3]
     for (const [i, h] of want.entries())
       expect(Math.abs((heights[i] ?? 0) - h)).toBeLessThanOrEqual(0.5)
     const title = page.getByTestId('site-title')
@@ -127,6 +122,8 @@ test.describe('kit Settings → Site card (K1)', () => {
       'maxlength',
       '80',
     )
+    await expect(page.getByTestId('site-theme-row')).toHaveCount(0)
+    await expect(page.getByRole('radiogroup')).toHaveCount(0)
   })
 
   test('no values: the placeholders are the fallbacks, counter 0 / 160', async ({
@@ -157,18 +154,22 @@ test.describe('kit Settings → Site card (K1)', () => {
     )
   })
 
-  test('Dark: a 152-character intro turns the counter ink 500', async ({
+  test('from 150 characters the counter turns ink 500; 160 is the cap', async ({
     page,
   }) => {
-    await scenario(page, 'Dark')
+    await scenario(page, 'Site')
+    const intro = page.getByTestId('site-intro')
     const count = page.getByTestId('site-intro-count')
-    await expect(count).toHaveText('152 / 160')
+    await intro.fill('x'.repeat(149))
+    await expect(count).toHaveText('149 / 160')
+    await expect(count).toHaveCSS('font-weight', '400')
+    await intro.fill('x'.repeat(150))
+    await expect(count).toHaveText('150 / 160')
     await expect(count).toHaveCSS('color', 'rgb(57, 55, 56)')
     await expect(count).toHaveCSS('font-weight', '500')
-    await expect(page.getByTestId('site-theme-dark')).toHaveAttribute(
-      'aria-checked',
-      'true',
-    )
+    await intro.fill('')
+    await page.keyboard.insertText('x'.repeat(170))
+    await expect(count).toHaveText('160 / 160')
   })
 })
 
@@ -212,95 +213,27 @@ test.describe('kit Settings → Site commit (K3)', () => {
   })
 })
 
-test.describe('kit Settings → Site theme (K2)', () => {
-  test('a radiogroup: arrows move and select; roving tabindex', async ({
+test.describe('kit site look (one look)', () => {
+  test('the site paper and the bars are #f4f3f0, home and room', async ({
     page,
   }) => {
-    const stored = await settings(page)
-    const group = page.getByRole('radiogroup', { name: 'Theme' })
-    const light = group.getByRole('radio', { name: 'Light' })
-    const dark = group.getByRole('radio', { name: 'Dark' })
-    await expect(light).toHaveAttribute('aria-checked', 'true')
-    await expect(light).toHaveAttribute('tabindex', '0')
-    await expect(dark).toHaveAttribute('tabindex', '-1')
-    await light.focus()
-    await page.keyboard.press('ArrowRight')
-    await expect(dark).toBeFocused()
-    await expect(dark).toHaveAttribute('aria-checked', 'true')
-    expect((await stored()).theme).toBe('dark')
-    await page.keyboard.press('ArrowLeft')
-    await expect(light).toBeFocused()
-    expect((await stored()).theme).toBe('light')
-    // focus-visible: 2 px outline at offset 3 on the tile
-    const tile = page.getByTestId('site-theme-tile-light')
-    await expect(tile).toHaveCSS('outline-width', '2px')
-    await expect(tile).toHaveCSS('outline-offset', '3px')
-  })
-
-  test('selected tile paints the 2 px #232223 ring; the other is the hairline', async ({
-    page,
-  }) => {
-    await scenario(page, 'Dark')
-    const row = page.getByTestId('site-theme-row')
-    const r = await box(row)
-    const at = async (id: string) => {
-      const t = await box(page.getByTestId(id))
-      return { x: t.x - r.x - 1, y: t.y - r.y + t.height / 2 }
-    }
-    const [sel, rest] = await pixelsAt(row, [
-      await at('site-theme-tile-dark'),
-      await at('site-theme-tile-light'),
-    ])
-    expect(sel?.slice(0, 3)).toEqual([35, 34, 35])
-    // the rest ring is a .10 black hairline over the card: darker than the card, far from the ink ring
-    expect(rest?.[0] ?? 0).toBeGreaterThan(150)
-  })
-
-  test('miniature geometry: 120 × 75 tile, case 92 × 37 at (14, 31), theme paper', async ({
-    page,
-  }) => {
-    await scenario(page, 'Site')
-    const mini = page.getByTestId('site-theme-mini-dark')
-    const m = await box(mini)
-    expect([m.width, m.height]).toEqual([120, 75])
-    const [paper, kase] = await pixelsAt(mini, [
-      { x: 110, y: 10 },
-      { x: 16, y: 32 },
-    ])
-    expect(paper?.slice(0, 3)).toEqual(DARK_BG)
-    expect(kase?.slice(0, 3)).toEqual([0xe4, 0xdd, 0xd1])
-  })
-})
-
-test.describe('kit site theme (S6)', () => {
-  test('Light: the site paper and the bars stay #f4f3f0', async ({ page }) => {
-    await site(page, { theme: 'light' })
+    await site(page, {})
     const root = page.getByTestId('site')
-    await expect(root).not.toHaveClass(/ss-dark/)
     const p = await sitePaint(page, root)
     expect(p.px).toEqual(LIGHT_BG)
     expect(p.bars).toEqual(['rgb(244, 243, 240)', 'rgb(244, 243, 240)'])
-  })
-
-  test('Dark: home and room paint #111110, html / body too', async ({
-    page,
-  }) => {
-    await site(page, { theme: 'dark' })
-    const root = page.getByTestId('site')
-    await expect(root).toHaveClass(/ss-dark/)
-    const p = await sitePaint(page, root)
-    expect(p.px).toEqual(DARK_BG)
-    expect(p.bars).toEqual(['rgb(17, 17, 16)', 'rgb(17, 17, 16)'])
     await page.getByTestId('ss9-book').first().click()
     await expect(page.getByTestId('site-room')).toBeVisible()
-    expect((await sitePaint(page, root)).px).toEqual(DARK_BG)
+    expect((await sitePaint(page, root)).px).toEqual(LIGHT_BG)
   })
 
-  test('Settings → Dark, then the editor Preview paints dark below its bar', async ({
+  test('a Settings intro commit reaches the editor Preview', async ({
     page,
   }) => {
     await settings(page)
-    await page.getByTestId('site-theme-dark').click()
+    const intro = page.getByTestId('site-intro')
+    await intro.fill('Lakes and coasts.')
+    await intro.press('Enter')
     await page.getByTestId('demo-settings-back').click()
     await page.evaluate(() => {
       const d = (window as unknown as { __demo: Demo }).__demo
@@ -318,22 +251,10 @@ test.describe('kit site theme (S6)', () => {
     await page.getByTestId('demo-preview').click()
     const preview = page.getByTestId('site-preview')
     await expect(preview).toBeVisible()
-    const root = preview.getByTestId('site')
-    await expect(root).toHaveClass(/ss-dark/)
-    expect((await sitePaint(page, root)).px).toEqual(DARK_BG)
-  })
-
-  test('personal-site Dark scenario: six books on the dark site', async ({
-    page,
-  }) => {
-    await page.goto('/uikit/#/feature/personal-site')
-    await page
-      .getByTestId('scenarios')
-      .getByRole('tab', { name: 'Dark', exact: true })
-      .click()
-    const root = page.getByTestId('site')
-    await expect(root).toHaveClass(/ss-dark/)
-    await expect(root).toHaveAttribute('data-books', '6')
+    // the home stays mounted under the start room and leads with the session's intro
+    await expect(preview.getByTestId('site-lead')).toHaveText(
+      'Lakes and coasts.',
+    )
   })
 })
 
