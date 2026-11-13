@@ -5,49 +5,101 @@ import { P } from "@/data"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Segmented, SelectRow } from "@/components/app/controls"
+import { Segmented } from "@/components/app/controls"
 import { AppModal } from "@/components/app/ui"
 import { FolderPicker } from "@/features/screens"
 import type { Book } from "@/sandbox/store"
 import { PRESETS, pagesOf, fmtN } from "@/sandbox/v7"
-import { slug, useRun, useSession } from "./session"
+import { SAMPLE_HOSTING, slug, useRun, useSession, type HostingRecord } from "./session"
 import { CATALOG, profileBleed, type KitProfile } from "./printProfiles"
 
 export type RunStep = "opts" | "run" | "done"
-/** #/demo Publish dialog: options → progress → link. */
-export function PublishDialog({ title, onClose, onOpenSite = () => {}, initialStep = "opts", initialSize = "2048", initialDownload = false }: {
-  title: string; onClose: () => void; onOpenSite?: () => void; initialStep?: RunStep; initialSize?: "1600" | "2048" | "3200"; initialDownload?: boolean
+export type PublishStep = "connect" | "opts" | "run" | "done" | "failed"
+export type PublishFail = "offline" | "timeout" | "other" | "cors" | "key" | "denied" | "bucket" | "build"
+export type PublishRun = { phase: ExportPhase; p: number; fail: PublishFail; sent: number; total: number; start: (fail?: PublishFail) => void; seen: () => void }
+/** Kit stand-in for the publish worker (in-app-publish §3), shaped like `useExportRun`: the run outlives the dialog, "done" shows
+ *  for 4 s, "failed" stays until `seen()`. `start(fail)` fails at once (a stored hosting record that can't connect). */
+export function usePublishRun(ms = 1400): PublishRun {
+  const [phase, setPhase] = React.useState<ExportPhase>("idle")
+  const [fail, setFail] = React.useState<PublishFail>("timeout")
+  const p = useRun(phase === "run", ms, () => setPhase("done"))
+  React.useEffect(() => { if (phase !== "done") return; const t = setTimeout(() => setPhase("idle"), 4000); return () => clearTimeout(t) }, [phase])
+  return {
+    phase, p: phase === "run" ? p : 0, fail, sent: 0, total: 40,
+    start: (f) => { if (f) { setFail(f); setPhase("failed") } else setPhase("run") },
+    seen: () => setPhase((x) => (x === "failed" ? "idle" : x)),
+  }
+}
+/** The failure a stored, not-connecting hosting record gives a publish (publish-credentials codes → in-app-publish §2 codes). */
+export function publishFailOf(h: HostingRecord | null): PublishFail | undefined {
+  if (!h || h.ok) return undefined
+  return ({ InvalidAccessKeyId: "key", AccessDenied: "denied", NoSuchBucket: "bucket", Cors: "cors", Offline: "offline", Timeout: "timeout" } as const)[h.code ?? "Timeout"]
+}
+const RETRYABLE: ReadonlySet<PublishFail> = new Set(["offline", "timeout", "other", "build"])
+const publishFailText = (f: PublishFail, bucket: string) => ({
+  offline: "You're offline. Connect to the internet and try again.",
+  timeout: "Cloudflare didn't answer in 30 seconds.",
+  other: "Cloudflare answered 503 SlowDown.",
+  cors: "Cloudflare blocked the upload from this page. Check the CORS policy in Settings → Hosting.",
+  key: "Cloudflare doesn't recognise this key. It may have been deleted or rolled. Replace the token in Settings → Hosting.",
+  denied: `This token can't write to “${bucket}”. Give it Object Read & Write on this bucket.`,
+  bucket: `There's no bucket “${bucket}” in this account.`,
+  build: "Something went wrong while preparing the site. Try again.",
+})[f]
+const publishPhase = (v: number) => (v < 50 ? "Rendering web images" : v < 95 ? "Uploading changed files" : "Finishing")
+/** #/demo Publish dialog (Designer in-app-publish §2): connect (no stored hosting) | options → running (Hide keeps it
+ *  running in the pill) → done (book link) / failed. Every step closes on Esc / outside click; the run step hides. */
+export function PublishDialog({ title, otherBooks, initialStep, fail, run, onHide, onOpenSite = () => {}, onOpenHosting = () => {} }: {
+  title: string; otherBooks: string[]; initialStep?: PublishStep; fail?: PublishFail; run?: PublishRun; onHide: () => void; onOpenSite?: () => void; onOpenHosting?: () => void
 }) {
-  const [step, setStep] = React.useState<RunStep>(initialStep)
-  const [size, setSize] = React.useState<string>(initialSize)
-  const [dl, setDl] = React.useState(initialDownload)
-  const v = useRun(step === "run", 1400, () => setStep("done"))
-  const link = `https://aleksandr.photos/${slug(title)}`
+  const own = usePublishRun()
+  const r = run ?? own
   const stored = useSession().useDemo().hosting // publish-credentials D11: the host of the stored site address
-  const host = stored ? new URL(stored.publicBaseUrl).host : "your site"
+  const [step, setStep] = React.useState<PublishStep>(initialStep ?? (stored ? "opts" : "connect"))
+  // the run ends while the dialog is open: move to Done / Failed in place
+  React.useEffect(() => { if (step === "run" && (r.phase === "done" || r.phase === "failed")) setStep(r.phase) }, [step, r.phase])
+  const go = () => { const f = publishFailOf(stored); r.start(f); setStep(f ? "failed" : "run") }
+  const site = (stored ?? SAMPLE_HOSTING).publicBaseUrl
+  const why = fail ?? r.fail
+  const retry = RETRYABLE.has(why)
+  const sent = retry && r.sent > 0 ? ` ${r.sent} of ${r.total} files went up. Try again to send the rest.` : ""
+  const heading = "heading flex items-center gap-2 text-xl leading-tight [&_svg]:size-5"
+  const text = "mt-1 text-sm text-muted-foreground"
+  const btns = "mt-5 flex justify-end gap-2"
+  const hosting = <Button size="md" className="px-4" onPress={onOpenHosting} data-testid="publish-open-hosting">Open Settings → Hosting</Button>
   return (
-    <AppModal isOpen width={480} onOpenChange={(o) => { if (!o && step !== "run") onClose() }} isDismissable={step !== "run"}>
+    <AppModal isOpen width={480} onOpenChange={(o) => { if (!o) onHide() }}>
       <div className="px-6 pb-5 pt-5" data-testid="publish-dialog" data-step={step}>
+        {step === "connect" && <>
+          <div className="heading text-xl leading-tight">Publish to your site</div>
+          <p className={text}>Connect your hosting first. Publish uploads your books to your own Cloudflare R2 bucket, which you connect once in Settings.</p>
+          <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onHide}>Cancel</Button>{hosting}</div>
+        </>}
         {step === "opts" && <>
           <div className="heading text-xl leading-tight">Publish to your site</div>
-          <p className="mt-1 text-sm text-muted-foreground" data-testid="publish-host-line">“{title}” goes to {host} with the other published books.</p>
-          <div className="mt-4 flex flex-col gap-3">
-            <SelectRow label="Web image size" value={size} onChange={setSize} items={[["1600", "1600 px · smaller site"], ["2048", "2048 px · recommended"], ["3200", "3200 px · sharp on large screens"]]} />
-            <Checkbox isSelected={dl} onChange={setDl}>Let visitors download a PDF</Checkbox>
-          </div>
-          <div className="mt-5 flex justify-end gap-2"><Button variant="ghost" size="md" className="px-4" onPress={onClose}>Cancel</Button><Button size="md" className="gap-1.5 px-4 [&_svg]:size-4" onPress={() => setStep("run")} data-testid="publish-go">Publish</Button></div>
+          <p className={text} data-testid="publish-host-line">“{title}” goes to <span className="font-medium text-foreground">{new URL(site).host}</span>{otherBooks.length ? " with the other published books." : "."}</p>
+          <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onHide}>Cancel</Button><Button size="md" className="px-4" onPress={go} data-testid="publish-go">Publish</Button></div>
         </>}
         {step === "run" && <>
-          <div className="heading flex items-center gap-2 text-xl leading-tight"><Loader2 className="size-5 animate-spin" />Publishing…</div>
-          <p className="mt-1 text-sm text-muted-foreground">{v < 50 ? "Rendering web images" : v < 90 ? "Uploading changed files" : "Finishing"} · {v}%</p>
-          <Progress aria-label="Publishing" value={v} className="mt-4" barClassName="h-1.5 bg-secondary" data-testid="publish-progress" />
+          <div className={heading}><Loader2 className="animate-spin motion-reduce:animate-none" />Publishing…</div>
+          <p className={text}>{publishPhase(r.p)} · {r.p}%</p>
+          <Progress aria-label="Publishing" value={r.p} className="mt-4" barClassName="h-1.5 bg-secondary" data-testid="publish-progress" />
+          <p className="mt-3 text-xs text-muted-foreground">You can keep editing. Changes from now on go into the next publish.</p>
+          <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onHide} data-testid="publish-hide">Hide</Button></div>
         </>}
         {step === "done" && <>
-          <div className="heading flex items-center gap-2 text-xl leading-tight"><CircleCheck className="size-5" />Published</div>
-          <p className="mt-1 text-sm text-muted-foreground">The book is live. Anyone with the link can see it.</p>
-          <div className="mt-4 truncate rounded-md bg-field px-3 py-2 font-mono text-sm" data-testid="publish-link">{link}</div>
-          <div className="mt-5 flex justify-end gap-2"><Button variant="ghost" size="md" className="px-4" onPress={onClose}>Done</Button>
-            <Button size="md" className="gap-1.5 px-4 [&_svg]:size-4" onPress={onOpenSite} data-testid="publish-open-site">Open site</Button></div>
+          <div className={heading}><CircleCheck />Published</div>
+          <p className={text}>The book is live. Anyone with the link can see it.</p>
+          <div className="mt-4 select-all truncate rounded-md bg-field px-3 py-2 font-mono text-sm" data-testid="publish-link">{`${site}/books/${slug(title)}/`}</div>
+          <p className="mt-2 text-xs text-muted-foreground" data-testid="publish-summary">14 changed files uploaded · 3.2 MB. 186 were already up to date.</p>
+          <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onHide}>Done</Button>
+            <Button size="md" className="px-4" onPress={onOpenSite} data-testid="publish-open-site">Open site</Button></div>
+        </>}
+        {step === "failed" && <>
+          <div className={heading}><TriangleAlert />Publish didn't finish</div>
+          <p className={text} data-testid="publish-error">{publishFailText(why, stored?.bucket ?? SAMPLE_HOSTING.bucket)}{sent}</p>
+          <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onHide}>Close</Button>
+            {retry ? <Button size="md" className="px-4" onPress={go} data-testid="publish-retry">Try again</Button> : hosting}</div>
         </>}
       </div>
     </AppModal>

@@ -7,7 +7,7 @@ import {
 } from "@/demo-parts"
 import { LAKE_BOOK, LAKE_TITLE, docBlank, docAdded, docFilled, COVER_DONE, dbook, SHELF } from "@/demo-parts/fixtures"
 import { pickPrint, profileById } from "@/demo-parts/printProfiles"
-import { ExportSiteDialog, type ExportRun } from "@/demo-parts/dialogs"
+import { ExportSiteDialog, type ExportRun, type PublishRun } from "@/demo-parts/dialogs"
 import type { PrintInit, SettingsSection } from "@/demo-parts/settings"
 import { SAMPLE_HOSTING, type SessionState } from "@/demo-parts/session"
 import type { HostingDraft, HostingInit } from "@/demo-parts/hosting"
@@ -23,6 +23,8 @@ const PATH = "~/Pictures/Photobooks"
 /* static-export: books from earlier exports (newest first) and a run frozen at 42 % */
 const EXPORTED = ["Fog", "Summer ’25"]
 const RUN_42: ExportRun = { phase: "run", p: 42, fail: "unknown", folder: "Sites", start: () => {}, seen: () => {} }
+const PUB_42: PublishRun = { phase: "run", p: 42, fail: "timeout", sent: 0, total: 40, start: () => {}, seen: () => {} }
+const PUB_FAILED: PublishRun = { phase: "failed", p: 0, fail: "timeout", sent: 12, total: 40, start: () => {}, seen: () => {} }
 
 type Sc = [id: string, label: string, render: () => React.ReactNode]
 function page(items: Sc[], notes: Notes, h = H): FeatureDef {
@@ -271,13 +273,18 @@ export const PAGES: Record<string, FeatureDef> = {
   }),
   /* ------------------------------------------------------------ publish */
   "in-app-publish": page([
-    ["opts", "Options", ed({ doc: docFilled, cur: 1, overlay: <PublishDialog title={LAKE_TITLE} onClose={() => {}} /> })],
-    ["run", "Publishing", ed({ doc: docFilled, cur: 1, overlay: <PublishDialog title={LAKE_TITLE} onClose={() => {}} initialStep="run" /> })],
-    ["done", "Published", ed({ doc: docFilled, cur: 1, overlay: <PublishDialog title={LAKE_TITLE} onClose={() => {}} initialStep="done" /> })],
+    ["connect", "No hosting", root({ ...inEditor({ editor: { dialog: "publish" } }), session: { ...inEditor().session, hosting: null } })],
+    ["opts", "Options", ed({ doc: docFilled, cur: 1, overlay: <PublishDialog title={LAKE_TITLE} otherBooks={EXPORTED} onHide={() => {}} /> })],
+    ["run", "Publishing", ed({ doc: docFilled, cur: 1, publish: { phase: "run", p: 42 }, overlay: <PublishDialog title={LAKE_TITLE} otherBooks={EXPORTED} initialStep="run" run={PUB_42} onHide={() => {}} /> })],
+    ["run-hidden", "Hidden, 42 %", ed({ doc: docFilled, cur: 1, publish: { phase: "run", p: 42 } })],
+    ["done", "Published", ed({ doc: docFilled, cur: 1, publish: { phase: "done", p: 0 }, overlay: <PublishDialog title={LAKE_TITLE} otherBooks={EXPORTED} initialStep="done" onHide={() => {}} /> })],
+    ["failed-timeout", "Failed, timeout", ed({ doc: docFilled, cur: 1, publish: { phase: "failed", p: 0 }, overlay: <PublishDialog title={LAKE_TITLE} otherBooks={EXPORTED} initialStep="failed" run={PUB_FAILED} onHide={() => {}} /> })],
+    ["failed-key", "Failed, key", ed({ doc: docFilled, cur: 1, publish: { phase: "failed", p: 0 }, overlay: <PublishDialog title={LAKE_TITLE} otherBooks={EXPORTED} initialStep="failed" fail="key" run={PUB_FAILED} onHide={() => {}} /> })],
   ], {
-    what: "Publish dialog over the editor: web image size (1600 / 2048 / 3200 px) and “Let visitors download a PDF”; Publish shows progress, then Published with Open site.",
-    where: "#/demo steps 49–51 (top bar → Publish).",
-    edge: ["Open site goes to the site catalog (#/demo step 56)"],
+    what: "Publish dialog over the editor: options, then progress that can be hidden (the pill shows NN%), then Published with Open site; without hosting it points to Settings → Hosting; failures retry.",
+    where: "#/demo steps 49–52 (top bar → Publish → Publish → Esc → the pill).",
+    keys: [["Esc", "closes the dialog (Hide while running); the upload keeps running in the pill"]],
+    edge: ["Only changed files upload", "Try again sends only the rest", "The pill keeps its width in every state: NN% over a fill while running, a check for 4 s, a warning until opened", "Publish and Export site wait for each other", "Below a 1360 px window Export site is icon-only; Publish keeps its label"],
   }),
   /* ------------------------------------------------------------ static export */
   "static-export": page([
@@ -291,6 +298,6 @@ export const PAGES: Record<string, FeatureDef> = {
     what: "Export site: the top-bar pill after Settings opens a dialog that writes the site of your books to a folder on this computer (Folder, Books, Export), shows progress, then Site exported with how to serve it. Nothing is uploaded.",
     where: "#/demo steps 52–55 (top bar → Export site → Choose folder… → Export → Hide → Exported).",
     keys: [["Esc", "closes the dialog (Hide while running); the export keeps running in the pill"]],
-    edge: ["The pill keeps its width in every state: NN% over a fill while running, “Exported” for 4 s, “Failed” until opened", "Below a 1280 px window the pill is icon-only, 40 × 32", "Picker folder “Family” holds a foreign dist: “isn’t a Photobooks export”, Choose folder… goes back to Options"],
+    edge: ["The pill keeps its width in every state: NN% over a fill while running, “Exported” for 4 s, “Failed” until opened", "Below a 1360 px window the pill is icon-only, 40 × 32", "Picker folder “Family” holds a foreign dist: “isn’t a Photobooks export”, Choose folder… goes back to Options"],
   }),
 }
