@@ -17,7 +17,13 @@ import {
   freezeForExport,
 } from '../export/exportSiteRun'
 import { loadSiteViewerBundle } from '../export/siteViewerBundle'
-import { publishStore, type PublishEvent } from './publishStore'
+import { getDerivative, requestDerivatives } from '../../derivatives/pool'
+import { readSource } from '../export/startExportSite'
+import {
+  isPublishRunning,
+  publishStore,
+  type PublishEvent,
+} from './publishStore'
 import {
   runPublishBook,
   siteHomeUrl,
@@ -262,20 +268,62 @@ function unloadAsks(): boolean {
   return event.defaultPrevented
 }
 
+/** Run one publish to the worker, then fail it. */
+async function publishAndFail(retry: boolean): Promise<void> {
+  const worker = nextWorker()
+  startPublish(retry)
+  await vi.waitFor(() => {
+    expect(worker.postMessage).toHaveBeenCalled()
+  })
+  worker.send({ failed: { code: 'timeout', message: '', sent: 0, total: 1 } })
+  await vi.waitFor(() => {
+    expect(publishStore.getSnapshot().kind).toBe('failed')
+  })
+  publishStore.dispatch({ type: 'seen' })
+}
+
 describe('startPublish', () => {
+  // First: the page has frozen nothing yet.
+  it('Try again with nothing frozen yet freezes the open book', async () => {
+    await publishAndFail(true)
+
+    expect(freezeForExport).toHaveBeenCalledTimes(1)
+  })
+
+  it('freezes again when the last freeze has no revision', async () => {
+    vi.mocked(freezeForExport).mockResolvedValueOnce({ meta, revisions: [] })
+    await publishAndFail(false)
+
+    await publishAndFail(true)
+
+    expect(freezeForExport).toHaveBeenCalledTimes(2)
+  })
+
   it('publishes the open book through the publish worker, guarding unload', async () => {
     const worker = nextWorker()
+    const fetchSpy = vi.fn(() => Promise.resolve(new Response('{}')))
+    vi.stubGlobal('fetch', fetchSpy)
 
     startPublish()
     await vi.waitFor(() => {
       expect(worker.postMessage).toHaveBeenCalledTimes(1)
     })
 
+    expect(isPublishRunning()).toBe(true)
     expect(freezeForExport).toHaveBeenCalledWith(book, null, expect.any(Number))
+    expect(collectSiteDerivatives).toHaveBeenCalledWith(
+      [revision],
+      { request: requestDerivatives, get: getDerivative, readSource },
+      expect.any(Function),
+    )
     expect(loadSiteViewerBundle).toHaveBeenCalledWith(
       expect.any(Function),
       import.meta.env.BASE_URL,
     )
+    const [viewerFetch] = vi.mocked(loadSiteViewerBundle).mock.calls[0] ?? []
+    await viewerFetch?.('/site-viewer.json')
+    expect(fetchSpy).toHaveBeenCalledWith('/site-viewer.json')
+    vi.unstubAllGlobals()
     expect(unloadAsks()).toBe(true)
     worker.send({ phase: 'render', done: 0, total: 1 })
     expect(worker.terminate).not.toHaveBeenCalled()
@@ -285,6 +333,7 @@ describe('startPublish', () => {
     })
     expect(worker.terminate).toHaveBeenCalledTimes(1)
     expect(unloadAsks()).toBe(false)
+    expect(isPublishRunning()).toBe(false)
   })
 
   it('Try again reuses the failed run’s freeze for the same book', async () => {

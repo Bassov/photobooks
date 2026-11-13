@@ -21,9 +21,10 @@ import {
 import { startPublish } from './startPublish'
 import '../export/ExportSiteButton.css'
 
-export type PublishStep = 'connect' | 'opts' | 'run' | 'done' | 'failed'
-
 type Outcome = Extract<PublishState, { kind: 'done' | 'failed' }>
+
+/** The dialog step; Done / Failed carry the run they show. */
+export type PublishView = { kind: 'connect' | 'opts' | 'run' } | Outcome
 
 // Kit 13 px body lines: 18.85 px (1.45), not the text-sm default.
 const BODY = 'text-sm leading-[1.45]'
@@ -94,15 +95,12 @@ function PrimaryButton({
  * closes on Esc / outside click; the run step only hides.
  */
 export function PublishDialog({
-  initialStep,
-  opened,
+  initial,
   hosting,
   onClose,
   onOpenHosting,
 }: {
-  initialStep: PublishStep
-  /** Run state when the pill was clicked (Done / Failed show it). */
-  opened: PublishState
+  initial: PublishView
   /** The stored hosting (no secret), `null` when none. */
   hosting: HostingSummary | null
   onClose: () => void
@@ -114,10 +112,7 @@ export function PublishDialog({
     publishStore.getSnapshot,
     publishStore.getSnapshot,
   )
-  const [step, setStep] = useState(initialStep)
-  const [outcome, setOutcome] = useState<Outcome | null>(
-    isOutcome(opened) ? opened : null,
-  )
+  const [view, setView] = useState(initial)
   const [hasOthers, setHasOthers] = useState(false)
   const [{ title, bookId }] = useState(() => {
     const { book } = getBookStoreSnapshot()
@@ -139,15 +134,13 @@ export function PublishDialog({
   }, [bookId])
 
   // The run ends while the dialog shows it: move to Done / Failed in place.
-  if (step === 'run' && isOutcome(run)) {
-    setOutcome(run)
-    setStep(run.kind)
+  if (view.kind === 'run' && isOutcome(run)) {
+    setView(run)
   }
 
+  // A shown failure is seen (the pill rests); other states ignore `seen`.
   const close = () => {
-    if (step === 'failed') {
-      publishStore.dispatch({ type: 'seen' })
-    }
+    publishStore.dispatch({ type: 'seen' })
     onClose()
   }
 
@@ -159,7 +152,7 @@ export function PublishDialog({
   const publishNow = (retry: boolean) => {
     publishStore.dispatch({ type: 'seen' })
     startPublish(retry)
-    setStep('run')
+    setView({ kind: 'run' })
   }
 
   const percent = run.kind === 'running' ? run.percent : 100
@@ -183,8 +176,8 @@ export function PublishDialog({
       className="export-site-dialog"
       aria-label="Publish"
     >
-      <div data-testid="publish-dialog" data-step={step}>
-        {step === 'connect' ? (
+      <div data-testid="publish-dialog" data-step={view.kind}>
+        {view.kind === 'connect' ? (
           <>
             <DialogTitle>Publish to your site</DialogTitle>
             <p className={TEXT}>
@@ -197,7 +190,7 @@ export function PublishDialog({
             </div>
           </>
         ) : null}
-        {step === 'opts' ? (
+        {view.kind === 'opts' ? (
           <>
             <DialogTitle>Publish to your site</DialogTitle>
             <p className={TEXT} data-testid="publish-host-line">
@@ -217,7 +210,7 @@ export function PublishDialog({
             </div>
           </>
         ) : null}
-        {step === 'run' ? (
+        {view.kind === 'run' ? (
           <>
             <DialogTitle>
               <LoaderGlyph size={20} />
@@ -244,7 +237,7 @@ export function PublishDialog({
             </div>
           </>
         ) : null}
-        {step === 'done' && outcome?.kind === 'done' ? (
+        {view.kind === 'done' ? (
           <>
             <DialogTitle>
               <CircleCheckGlyph size={20} />
@@ -257,35 +250,35 @@ export function PublishDialog({
               className={`mt-4 truncate rounded-md bg-field px-3 py-2 font-mono select-all ${BODY}`}
               data-testid="publish-link"
             >
-              {outcome.bookUrl}
+              {view.bookUrl}
             </div>
             <p className={`mt-2 mb-0 ${HINT}`} data-testid="publish-summary">
-              {publishSummaryText(outcome.summary)}
+              {publishSummaryText(view.summary)}
             </p>
             <div className={FOOTER}>
               <SecondaryButton label="Done" onPress={close} />
               <PrimaryButton
                 label="Open site"
                 onPress={() => {
-                  window.open(outcome.homeUrl, '_blank', 'noopener,noreferrer')
+                  window.open(view.homeUrl, '_blank', 'noopener,noreferrer')
                 }}
                 testId="publish-open-site"
               />
             </div>
           </>
         ) : null}
-        {step === 'failed' && outcome?.kind === 'failed' ? (
+        {view.kind === 'failed' ? (
           <>
             <DialogTitle>
               <Icon name="warning" size={20} />
               {PUBLISH_FAILED_STATUS}
             </DialogTitle>
             <p className={TEXT} data-testid="publish-error">
-              {publishFailText(outcome.failure, hosting?.bucket ?? '')}
+              {publishFailText(view.failure, hosting?.bucket ?? '')}
             </p>
             <div className={FOOTER}>
               <SecondaryButton label="Close" onPress={close} />
-              {publishFailAction(outcome.failure.code) === 'retry' ? (
+              {publishFailAction(view.failure.code) === 'retry' ? (
                 <PrimaryButton
                   label="Try again"
                   onPress={() => {

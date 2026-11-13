@@ -76,6 +76,15 @@ describe('reducePublish', () => {
     },
   )
 
+  it('keeps the same state for a percent that does not grow', () => {
+    expect(reducePublish(running, { type: 'progress', percent: 40 })).toBe(
+      running,
+    )
+    expect(reducePublish(running, { type: 'progress', percent: 12 })).toBe(
+      running,
+    )
+  })
+
   it('ignores progress when not running', () => {
     expect(reducePublish(PUBLISH_IDLE, { type: 'progress', percent: 5 })).toBe(
       PUBLISH_IDLE,
@@ -189,6 +198,48 @@ describe('createPublishStore', () => {
     fake.advance(PUBLISH_DONE_MS * 2)
     expect(store.getSnapshot()).toEqual({ kind: 'failed', failure })
     expect(store.dispatch({ type: 'seen' })).toBe(true)
+    expect(store.getSnapshot()).toBe(PUBLISH_IDLE)
+  })
+
+  it('schedules one flush for a burst of progress', () => {
+    const fake = fakeClock()
+    const store = createPublishStore(fake.clock)
+    store.dispatch({ type: 'start' })
+
+    expect(store.dispatch({ type: 'progress', percent: 5 })).toBe(true)
+    store.dispatch({ type: 'progress', percent: 9 })
+    store.dispatch({ type: 'progress', percent: 12 })
+
+    expect(fake.timers).toHaveLength(1)
+  })
+
+  it('an end before the progress flush notifies once', () => {
+    const fake = fakeClock()
+    const store = createPublishStore(fake.clock)
+    store.dispatch({ type: 'start' })
+    const listener = vi.fn()
+    store.subscribe(listener)
+
+    store.dispatch({ type: 'progress', percent: 30 })
+    store.dispatch({ type: 'failed', failure })
+    fake.advance(PUBLISH_PROGRESS_MS)
+    fake.frame()
+
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('a second done keeps the check its full time', () => {
+    const fake = fakeClock()
+    const store = createPublishStore(fake.clock)
+    store.dispatch({ type: 'start' })
+    store.dispatch(done)
+    fake.advance(1000)
+    store.dispatch({ type: 'start' })
+    store.dispatch(done)
+
+    fake.advance(PUBLISH_DONE_MS - 1000)
+    expect(store.getSnapshot().kind).toBe('done')
+    fake.advance(1000)
     expect(store.getSnapshot()).toBe(PUBLISH_IDLE)
   })
 

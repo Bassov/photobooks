@@ -11,8 +11,8 @@ import { makeBook } from '../../core/testing/fixtures'
 import type { HostingSummary } from '../../publish/credentials'
 import { resetBookStore } from '../bookStore'
 import { otherPublishedTitles } from '../export/exportSiteRun'
-import { PublishDialog, type PublishStep } from './PublishDialog'
-import { PUBLISH_IDLE, publishStore, type PublishState } from './publishStore'
+import { PublishDialog, type PublishView } from './PublishDialog'
+import { PUBLISH_IDLE, publishStore } from './publishStore'
 import type { PublishFailure } from './publishText'
 import { startPublish } from './startPublish'
 
@@ -47,24 +47,19 @@ function settle(): void {
   publishStore.dispatch({ type: 'expire' })
 }
 
-function failed(failure: Partial<PublishFailure>): PublishState {
+function failed(failure: Partial<PublishFailure>): PublishView {
   return {
     kind: 'failed',
     failure: { code: 'timeout', message: '', sent: 0, total: 0, ...failure },
   }
 }
 
-function show(
-  initialStep: PublishStep,
-  opened: PublishState = PUBLISH_IDLE,
-  summary: HostingSummary | null = hosting,
-) {
+function show(initial: PublishView, summary: HostingSummary | null = hosting) {
   const onClose = vi.fn()
   const onOpenHosting = vi.fn()
   render(
     <PublishDialog
-      initialStep={initialStep}
-      opened={opened}
+      initial={initial}
       hosting={summary}
       onClose={onClose}
       onOpenHosting={onOpenHosting}
@@ -95,7 +90,7 @@ afterEach(() => {
 
 describe('PublishDialog', () => {
   it('connect: Cancel closes, the primary opens Settings → Hosting', () => {
-    const { onClose, onOpenHosting } = show('connect', PUBLISH_IDLE, null)
+    const { onClose, onOpenHosting } = show({ kind: 'connect' }, null)
 
     expect(screen.getByRole('heading').textContent).toBe('Publish to your site')
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -106,7 +101,7 @@ describe('PublishDialog', () => {
 
   it('options: names the book and the host, with the other books once listed', async () => {
     vi.mocked(otherPublishedTitles).mockResolvedValueOnce(['Fog'])
-    show('opts')
+    show({ kind: 'opts' })
 
     const line = screen.getByTestId('publish-host-line')
     expect(line.textContent).toBe('“Lake” goes to books.example.com.')
@@ -118,7 +113,7 @@ describe('PublishDialog', () => {
   })
 
   it('options: shows a public URL it cannot parse as is', () => {
-    show('opts', PUBLISH_IDLE, { ...hosting, publicBaseUrl: 'not a url' })
+    show({ kind: 'opts' }, { ...hosting, publicBaseUrl: 'not a url' })
 
     expect(screen.getByTestId('publish-host-line').textContent).toBe(
       '“Lake” goes to not a url.',
@@ -127,7 +122,7 @@ describe('PublishDialog', () => {
 
   it('Publish starts a run and follows it to Done in place', async () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null)
-    show('opts')
+    show({ kind: 'opts' })
 
     fireEvent.click(screen.getByTestId('publish-go'))
     expect(startPublish).toHaveBeenCalledWith(false)
@@ -159,7 +154,7 @@ describe('PublishDialog', () => {
     act(() => {
       publishStore.dispatch({ type: 'start' })
     })
-    const { onClose } = show('run', { kind: 'running', percent: 0 })
+    const { onClose } = show({ kind: 'run' })
 
     fireEvent.click(screen.getByTestId('publish-hide'))
 
@@ -168,7 +163,7 @@ describe('PublishDialog', () => {
   })
 
   it('failed: says how much went up and Try again sends the rest', () => {
-    show('failed', failed({ sent: 12, total: 40 }))
+    show(failed({ sent: 12, total: 40 }))
 
     expect(screen.getByTestId('publish-error').textContent).toBe(
       "Cloudflare didn't answer in 30 seconds. 12 of 40 files went up. Try again to send the rest.",
@@ -180,7 +175,7 @@ describe('PublishDialog', () => {
   })
 
   it('failed key: names the bucket-free cause and sends to Hosting', () => {
-    const { onOpenHosting } = show('failed', failed({ code: 'key' }))
+    const { onOpenHosting } = show(failed({ code: 'key' }))
 
     expect(screen.queryByTestId('publish-retry')).toBeNull()
     fireEvent.click(screen.getByTestId('publish-open-hosting'))
@@ -188,7 +183,7 @@ describe('PublishDialog', () => {
   })
 
   it('failed denied: names the stored bucket', () => {
-    show('failed', failed({ code: 'denied' }))
+    show(failed({ code: 'denied' }))
 
     expect(screen.getByTestId('publish-error').textContent).toContain(
       '“my-books”',
@@ -203,11 +198,47 @@ describe('PublishDialog', () => {
         failure: { code: 'timeout', message: '', sent: 0, total: 0 },
       })
     })
-    const { onClose } = show('failed', publishStore.getSnapshot())
+    const { onClose } = show(failed({}))
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
 
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(publishStore.getSnapshot()).toBe(PUBLISH_IDLE)
+  })
+
+  it('Esc closes like Cancel', () => {
+    const { onClose } = show({ kind: 'opts' })
+
+    fireEvent.keyDown(screen.getByTestId('publish-go'), { key: 'Escape' })
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('failed without stored hosting still words the cause', () => {
+    show(failed({ code: 'unconnected' }), null)
+
+    expect(screen.getByTestId('publish-error').textContent).toBe(
+      'Connect your hosting in Settings → Hosting first.',
+    )
+  })
+
+  it('run: a run that is not going shows the end of the bar', () => {
+    show({ kind: 'run' })
+
+    expect(screen.getByTestId('publish-phase').textContent).toBe(
+      'Finishing · 100%',
+    )
+  })
+
+  it('options: no other published books leaves the plain line', async () => {
+    show({ kind: 'opts' })
+
+    await waitFor(() => {
+      expect(otherPublishedTitles).toHaveBeenCalledTimes(1)
+    })
+    await Promise.resolve()
+    expect(screen.getByTestId('publish-host-line').textContent).toBe(
+      '“Lake” goes to books.example.com.',
+    )
   })
 })

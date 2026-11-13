@@ -7,7 +7,7 @@ import { Icon } from '../../ui/Icon'
 import { CircleCheckGlyph } from '../export/exportSiteGlyphs'
 import { exportSiteStore } from '../export/exportSiteStore'
 import { SiteJobPill, type SiteJobContent } from '../export/SiteJobPill'
-import { PublishDialog, type PublishStep } from './PublishDialog'
+import { PublishDialog, type PublishView } from './PublishDialog'
 import { publishStore, type PublishState } from './publishStore'
 import {
   EXPORT_WAIT_TITLE,
@@ -53,14 +53,18 @@ function pillContent(state: PublishState): SiteJobContent & { title: string } {
   }
 }
 
-function stepFor(
+function viewFor(
   state: PublishState,
   hosting: HostingSummary | null,
-): PublishStep {
-  if (state.kind === 'idle') {
-    return hosting === null ? 'connect' : 'opts'
+): PublishView {
+  switch (state.kind) {
+    case 'idle':
+      return { kind: hosting === null ? 'connect' : 'opts' }
+    case 'running':
+      return { kind: 'run' }
+    default:
+      return state
   }
-  return state.kind === 'running' ? 'run' : state.kind
 }
 
 /** Designer spec in-app-publish §1: top bar "Publish" pill + its dialog. */
@@ -83,8 +87,7 @@ export function PublishButton({
     isExportRunning,
   )
   const [dialog, setDialog] = useState<{
-    step: PublishStep
-    opened: PublishState
+    view: PublishView
     hosting: HostingSummary | null
   } | null>(null)
   const { title, ...content } = pillContent(state)
@@ -94,7 +97,7 @@ export function PublishButton({
     // A failure is seen once opened: the pill goes back to idle.
     publishStore.dispatch({ type: 'seen' })
     const hosting = await loadHostingSummary()
-    setDialog({ step: stepFor(opened, hosting), opened, hosting })
+    setDialog({ view: viewFor(opened, hosting), hosting })
   }
 
   return (
@@ -117,8 +120,7 @@ export function PublishButton({
       />
       {dialog === null ? null : (
         <PublishDialog
-          initialStep={dialog.step}
-          opened={dialog.opened}
+          initial={dialog.view}
           hosting={dialog.hosting}
           onClose={() => {
             setDialog(null)

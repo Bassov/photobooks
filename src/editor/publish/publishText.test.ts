@@ -170,6 +170,15 @@ describe('failed step', () => {
         'b',
       ),
     ).toBe('Cloudflare answered 503 SlowDown.')
+    expect(
+      publishFailText(
+        fail('other', {
+          status: 502,
+          message: 'Proxy said: Cloudflare answered 502 X. Check.',
+        }),
+        'b',
+      ),
+    ).toBe('Cloudflare answered 502.')
     expect(publishFailText(fail('other', { status: 500 }), 'b')).toBe(
       'Cloudflare answered 500.',
     )

@@ -77,6 +77,10 @@ describe('PublishButton', () => {
     expect(pill().getAttribute('title')).toBe('Publish')
     expect(pill().textContent).toBe('PublishPublish')
     expect(screen.getByTestId('publish-sizer').textContent).toBe('Publish')
+    expect(screen.getByRole('status').textContent).toBe('')
+    expect(pill().style.getPropertyValue('--site-job-progress')).toBe('')
+    // P11: Publish keeps its label at every width.
+    expect(pill().querySelector('.site-job-pill__label--narrow')).toBeNull()
   })
 
   it('is disabled at rest only when the editor says so', () => {
@@ -169,6 +173,7 @@ describe('PublishButton', () => {
     expect(pill().getAttribute('data-state')).toBe('done')
     expect(pill().getAttribute('title')).toBe('Published')
     expect(pill().textContent).toBe('Publish')
+    expect(pill().querySelectorAll('.site-job-pill__label')).toHaveLength(1)
     expect(screen.getByRole('status').textContent).toBe('Published')
     fireEvent.click(pill())
     expect(
@@ -190,6 +195,7 @@ describe('PublishButton', () => {
     })
     expect(pill().getAttribute('data-state')).toBe('failed')
     expect(screen.getByRole('status').textContent).toBe("Publish didn't finish")
+    expect(pill().querySelector('svg')).not.toBeNull()
 
     fireEvent.click(pill())
 
