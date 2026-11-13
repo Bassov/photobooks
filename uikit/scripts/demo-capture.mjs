@@ -121,7 +121,9 @@ export async function capture(out, { log = console.log, probe } = {}) {
     ["print-done-shown-in-folder", () => c('[data-testid="print-show"]')],
     ["publish-options", async () => { await c('[data-testid="print-close"]'); await settle(); await c('[data-testid="demo-publish"]') }],
     ["publish-running-50pct", () => midRun('[data-testid="publish-go"]')],
-    ["publish-done", async () => { await release(); await page.waitForSelector('[data-testid="publish-dialog"][data-step="done"]', { timeout: 8000 }) }],
+    // Designer in-app-publish P3: Esc hides the run, the pill shows NN%; the pill's check opens Published
+    ["publish-running-hidden", () => page.keyboard.press("Escape")],
+    ["publish-done", async () => { await release(); await page.waitForSelector('[data-testid="demo-publish"][data-state="done"]', { timeout: 8000 }); await c('[data-testid="demo-publish"]') }],
     // Designer static-export: Export site writes the site to a local folder; Hide keeps the run in the pill, which then shows Exported
     ["export-site-options", async () => { await dlgBtn(/^Done$/).click(); await settle(); await c('[data-testid="demo-export-site"]') }],
     ["export-site-running-50pct", async () => {
@@ -130,7 +132,7 @@ export async function capture(out, { log = console.log, probe } = {}) {
     ["export-site-running-hidden", () => c('[data-testid="export-site-hide"]')],
     ["export-site-done", async () => { await release(); await page.waitForSelector('[data-testid="demo-export-site"][data-state="done"]', { timeout: 8000 }); await c('[data-testid="demo-export-site"]') }],
     ["site-catalog", async () => {
-      await c('[data-testid="export-site-close"]'); await settle(); await c('[data-testid="demo-publish"]'); await settle(); await c('[data-testid="publish-go"]')
+      await c('[data-testid="export-site-close"]'); await settle(); await page.waitForSelector('[data-testid="demo-publish"][data-state="idle"]', { timeout: 8000 }); await c('[data-testid="demo-publish"]'); await settle(); await c('[data-testid="publish-go"]')
       await page.waitForSelector('[data-testid="publish-dialog"][data-step="done"]', { timeout: 8000 }); await c('[data-testid="publish-open-site"]') }],
     // personal-site K2: the bookcase of the published books; a book opens the reading room (the cover turns, JS-timed: wait it out)
     ["site-book", async () => { await c('[data-testid="book3d"]'); await page.waitForSelector('[data-testid="site-room"][data-view="1"]', { timeout: 8000 }); await settle(1400) }],

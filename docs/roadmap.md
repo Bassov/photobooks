@@ -165,6 +165,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
 - [x] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
 - [ ] [feature] [publish-core](roadmap/P3/publish-core.md) — Bug: /next-roadmap-item publish-core
+- [ ] [feature] [in-app-publish-kit](roadmap/P3/in-app-publish-kit.md) — Bug: /next-roadmap-item in-app-publish-kit
 - [ ] [feature] [in-app-publish-core](roadmap/P3/in-app-publish-core.md) — Bug: /next-roadmap-item in-app-publish-core
 - [ ] [feature] [publish-credentials-core](roadmap/P3/publish-credentials-core.md) — Bug: /next-roadmap-item publish-credentials-core
 - [ ] [feature] [publish-credentials-kit](roadmap/P3/publish-credentials-kit.md) — Bug: /next-roadmap-item publish-credentials-kit

@@ -170,8 +170,8 @@ export function DemoSettings({ initialSection, print, hosting }: { initialSectio
   const d = useDemo()
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-12 shrink-0 items-center gap-2 bg-chrome px-3"><Button variant="ghost" size="sm" className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4" onPress={() => set({ stage: d.back })} data-testid="demo-settings-back"><ChevronLeft />{d.back === "editor" ? "Back to the book" : "Library"}</Button><span className="text-sm font-medium">Settings</span></div>
-      <div className="min-h-0 flex-1"><SettingsScreen bookCount={d.books.length} libraryPath={d.path || undefined} initialSection={initialSection} print={print} hosting={hosting} site={d.site} /></div>
+      <div className="flex h-12 shrink-0 items-center gap-2 bg-chrome px-3"><Button variant="ghost" size="sm" className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4" onPress={() => set({ stage: d.back, settingsSection: undefined })} data-testid="demo-settings-back"><ChevronLeft />{d.back === "editor" ? "Back to the book" : "Library"}</Button><span className="text-sm font-medium">Settings</span></div>
+      <div className="min-h-0 flex-1"><SettingsScreen bookCount={d.books.length} libraryPath={d.path || undefined} initialSection={initialSection ?? d.settingsSection} print={print} hosting={hosting} site={d.site} /></div>
     </div>
   )
 }
