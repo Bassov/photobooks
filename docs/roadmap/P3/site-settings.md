@@ -3,7 +3,7 @@
 Tag: feature
 Milestone: P3
 Title: personalize the showcase
-Status: done
+Status: in-progress
 
 ## Scope
 
