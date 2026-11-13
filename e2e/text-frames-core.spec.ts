@@ -303,6 +303,7 @@ test('an empty text frame shows Empty text in the editor only', async ({
   await expect(text).toHaveCSS('opacity', '0.4')
   await page.getByTestId('present').click()
   const stage = page.getByTestId('site-preview')
-  await expect(stage).toBeVisible()
+  await expect(stage.getByTestId('site-label')).toHaveText('Cover')
+  await page.keyboard.press('ArrowRight')
   await expect(stage.getByTestId('frame-text').first()).toHaveText('')
 })

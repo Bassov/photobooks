@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test'
+import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { expect, test } from './fixtures/coverage'
 import { pixelsAt, topAt } from './fixtures/paintProbe'
 import {
@@ -272,6 +273,7 @@ test.describe('site room (P5)', () => {
         'data-mode',
         'desk',
       )
+      await assertDocumentFitsViewport(page)
 
       const name = await box(page, 'site-name')
       near(name.x, 24)
@@ -333,11 +335,7 @@ test.describe('site room (P5)', () => {
       ]) {
         await expect(page.getByTestId(id)).toHaveCount(0)
       }
-      expect(
-        await page.evaluate(
-          () => document.documentElement.scrollWidth <= window.innerWidth,
-        ),
-      ).toBe(true)
+      await assertDocumentFitsViewport(page)
       expect((await topAt(page.getByTestId('site-play')))[0]).toContain(
         'site-play',
       )
@@ -380,6 +378,7 @@ test.describe('site room (P5)', () => {
       near(share.x + share.width, play.x - 20)
       near(reader.x + reader.width / 2, 422)
       near(reader.x, 136)
+      await assertDocumentFitsViewport(page)
       for (const id of ['site-fullscreen-btn', 'site-prev', 'site-next']) {
         await expect(page.getByTestId(id)).toHaveCount(0)
       }
