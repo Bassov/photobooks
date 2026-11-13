@@ -301,12 +301,24 @@ describe('lightbox gestures', () => {
     render(<Harness onZoomSettle={onZoomSettle} />)
     expect(onZoomSettle).toHaveBeenLastCalledWith(1, expect.any(Number))
     expect(onZoomSettle.mock.lastCall?.[1]).toBeCloseTo(1301.91, 2)
-    fireEvent.keyDown(window, { key: '+' })
+    wheel({ deltaY: -50, ctrlKey: true, clientX: 700, clientY: 400 })
     expect(onZoomSettle).toHaveBeenCalledTimes(1)
     act(() => {
       vi.advanceTimersByTime(400)
     })
-    expect(onZoomSettle).toHaveBeenLastCalledWith(1.5, expect.any(Number))
+    expect(onZoomSettle).toHaveBeenCalledTimes(2)
+    expect(onZoomSettle.mock.lastCall?.[0]).toBeGreaterThan(1)
+  })
+
+  it('reports a key zoom at once, before a reset inside its animation', () => {
+    vi.useFakeTimers()
+    const onZoomSettle = vi.fn<(z: number, width: number) => void>()
+    render(<Harness onZoomSettle={onZoomSettle} />)
+    for (let i = 0; i < 3; i += 1) fireEvent.keyDown(window, { key: '+' })
+    fireEvent.keyDown(window, { key: '0' })
+    expect(onZoomSettle.mock.calls.map(([z]) => z)).toEqual([
+      1, 1.5, 2.25, 3, 1,
+    ])
   })
 })
 
