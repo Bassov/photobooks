@@ -266,28 +266,6 @@ describe('SiteRoom desktop', () => {
 
     expect(label()).toBe('Page 1 of 6')
   })
-
-  it('embedded: the host owns the view; no URL, no name, no Esc', () => {
-    const onSlide = vi.fn()
-    render(
-      <SiteRoom
-        input={bookInput()}
-        embedded={{ slide: 2, onSlide }}
-        allBooks={false}
-        share={false}
-        onClose={vi.fn()}
-      />,
-    )
-
-    expect(label()).toBe('Pages 2–3 of 20')
-    expect(id('site-name')).toBeNull()
-    expect(id('site-share')).toBeNull()
-    act(() => {
-      id('site-next')?.click()
-    })
-    expect(onSlide).toHaveBeenCalledWith(3)
-    expect(window.location.hash).toBe('')
-  })
 })
 
 describe('SiteRoom narrow desktop', () => {

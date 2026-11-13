@@ -142,9 +142,9 @@ test.describe('low-resolution badge on frames', () => {
     // The editor stays mounted under the preview; only the preview is Preview.
     const stage = page.getByTestId('site-preview')
     // Keys step once the lazy page has loaded.
-    await expect(stage.getByTestId('site-page-indicator')).toHaveText('Cover')
+    await expect(stage.getByTestId('site-label')).toHaveText('Cover')
     await page.keyboard.press('ArrowRight')
-    const slide = stage.getByTestId('site-spread')
+    const slide = stage.getByTestId('ps-reader')
     await expect(slide.getByTestId('spread-frame-image').first()).toBeVisible()
     await expect(stage.getByTestId('dpi-badge')).toHaveCount(0)
   })

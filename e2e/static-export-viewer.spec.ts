@@ -201,19 +201,17 @@ test('a served export opens a styled book page whose pages turn, at phone and de
 
       await viewer.goto(`${url}${site.books[0]?.path ?? ''}`)
 
-      const book = viewer.getByTestId('site-book-page')
+      const book = viewer.getByTestId('site-room')
       await expect(book).toBeVisible()
-      // Viewer CSS: the `.site` field paints --site-bg, not the default white.
+      // Viewer CSS: the room paints the site paper (--ss-bg), not white.
       const [field] = await pixelsAt(book, [{ x: 2, y: 2 }])
-      expect(field?.slice(0, 3)).toEqual([0xe1, 0xe1, 0xe1])
-      const next = viewer.getByRole('button', { name: 'Next spread' })
-      await expect(next).toHaveCSS('background-color', 'rgb(215, 215, 215)')
-      // Viewer JS: the hydrated pager turns to the next slide.
-      const indicator = viewer.getByTestId('site-page-indicator')
-      const first = await indicator.textContent()
+      expect(field?.slice(0, 3)).toEqual([244, 243, 240])
+      // Viewer JS: the hydrated room turns to the next view.
+      const label = viewer.getByTestId('site-label')
+      await expect(label).toHaveText('Cover')
       await expect(async () => {
-        await next.click()
-        await expect(indicator).not.toHaveText(first ?? '', { timeout: 500 })
+        await viewer.keyboard.press('ArrowRight')
+        await expect(label).not.toHaveText('Cover', { timeout: 500 })
       }).toPass({ timeout: 10_000 })
       await viewer.waitForLoadState('networkidle')
 

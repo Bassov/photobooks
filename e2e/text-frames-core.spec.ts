@@ -113,7 +113,9 @@ test('text frames paint on the canvas, list thumbnail and Preview; layouts keep 
   // Preview paints the text, never the editor-only placeholder.
   await page.getByTestId('present').click()
   const stage = page.getByTestId('site-preview')
-  await expect(stage).toBeVisible()
+  await expect(stage.getByTestId('site-label')).toHaveText('Cover')
+  // The room mounts the current view only: step from the cover to page 1.
+  await page.keyboard.press('ArrowRight')
   await expect(stage.getByTestId('frame-text').first()).toHaveText(TEXT)
 })
 
@@ -238,30 +240,35 @@ test('text frames are transparent, and Preview sets lines at screen size like th
   }
 
   await page.getByTestId('present').click()
-  await expect(page.getByTestId('site-page-indicator')).toHaveText('Cover')
+  await expect(page.getByTestId('site-label')).toHaveText('Cover')
   await page.keyboard.press('ArrowRight')
-  const slide = '[data-testid="site-spread"]'
-  const previewFrame = page.locator(`${slide} [data-frame-id="e2e-body"]`)
+  await expect(page.getByTestId('ps-reader')).toHaveAttribute(
+    'data-turn',
+    'rest',
+  )
+  const slide = '[data-testid="ps-reader"]'
+  const previewFrame = page
+    .locator(`${slide} [data-frame-id="e2e-body"]`)
+    .first()
   await expect(previewFrame).toBeVisible()
   await expect(previewFrame).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
-  // The spread paints at the site stage scale (px / mm = width / 2 trims).
+  // The spread paints at the reader's book scale (px / mm = book width / 2 trims).
   const fit = await page.locator(slide).evaluate((el) => {
+    const book = el.querySelector('.sd-rbook')
     const spreadView = el.querySelector('[data-testid="spread-view"]')
-    if (spreadView === null) {
-      throw new Error('no spread in the active slide')
+    if (book === null || spreadView === null) {
+      throw new Error('no spread in the reader')
     }
-    const s = el.getBoundingClientRect()
+    const s = book.getBoundingClientRect()
     const v = spreadView.getBoundingClientRect()
     return {
-      side: el.getAttribute('data-side'),
-      slide: { width: s.width, right: s.right },
+      book: { width: s.width, right: s.right },
       spread: { width: v.width, right: v.right },
     }
   })
-  // Page 1 is a single right page: half the stage, on its right side.
-  expect(fit.side).toBe('right')
-  expect(Math.abs(fit.spread.width - fit.slide.width / 2)).toBeLessThan(1)
-  expect(Math.abs(fit.spread.right - fit.slide.right)).toBeLessThan(1)
+  // Page 1 is a single right page: half the book, on its right side.
+  expect(Math.abs(fit.spread.width - fit.book.width / 2)).toBeLessThan(1)
+  expect(Math.abs(fit.spread.right - fit.book.right)).toBeLessThan(1)
 
   // A scaled tree set text at ~0.5 px / mm and rounded each baseline there
   // (Body gaps 15 / 23 px); Preview now lays it out at its on-screen size.

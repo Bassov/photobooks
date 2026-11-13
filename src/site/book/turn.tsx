@@ -200,8 +200,8 @@ export const PageTurn = forwardRef<SlidesApi, SlidesProps>(function PageTurn(
     L.turn = t
     L.xm = xm
     L.beta = beta
+    // the re-render's layout effect paints (one GL draw per turn start)
     setTurn(t)
-    paint()
   }
   const keep = (i: number) => {
     curl.current?.curl.keep(i)

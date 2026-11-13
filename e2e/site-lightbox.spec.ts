@@ -92,13 +92,14 @@ test.describe('site lightbox', () => {
     await page.goto(`${ALPS}#p2`)
     const share = await rect(page, 'site-share')
     const button = await rect(page, 'site-fullscreen-btn')
-    expect(button.x - (share.x + share.width)).toBeCloseTo(8, 1)
-    expect(button.x + button.width).toBeCloseTo(1200, 1)
+    const play = await rect(page, 'site-play')
+    // Foot row (D36): Share · Fullscreen · Play, 24 px apart.
+    expect(button.x - (share.x + share.width)).toBeCloseTo(24, 0)
+    expect(play.x - (button.x + button.width)).toBeCloseTo(24, 0)
     expect(button.y).toBeCloseTo(share.y, 1)
-    await expect(page.getByTestId('site-open')).toHaveCSS('cursor', 'zoom-in')
 
     await page.getByTestId('site-fullscreen-btn').click()
-    await expect(indicator(page)).toHaveText('Pages 2–3 · 2 / 11')
+    await expect(indicator(page)).toHaveText('Pages 2–3 of 20')
     await expect(lightbox(page)).toHaveAttribute(
       'aria-label',
       'Alps — fullscreen',
@@ -126,57 +127,61 @@ test.describe('site lightbox', () => {
   test('keys step, Esc closes on the lightbox slide and focus returns to the opener', async ({
     page,
   }) => {
+    // Fullscreen is spreads only: from the cover it opens on page 1.
     await openLightbox(page, ALPS)
-    await expect(indicator(page)).toHaveText('Cover')
-    await page.keyboard.press('ArrowRight')
-    await expect(indicator(page)).toHaveText('Page 1 · 1 / 11')
+    await expect(indicator(page)).toHaveText('Page 1 of 20')
     await page.keyboard.press('Space')
-    await expect(indicator(page)).toHaveText('Pages 2–3 · 2 / 11')
+    await expect(indicator(page)).toHaveText('Pages 2–3 of 20')
     await page.keyboard.press('End')
-    await expect(indicator(page)).toHaveText('Page 20 · 11 / 11')
+    await expect(indicator(page)).toHaveText('Page 20 of 20')
     await page.keyboard.press('ArrowLeft')
-    await expect(indicator(page)).toHaveText('Pages 18–19 · 10 / 11')
+    await expect(indicator(page)).toHaveText('Pages 18–19 of 20')
     await page.keyboard.press('Home')
-    await expect(indicator(page)).toHaveText('Cover')
+    await expect(indicator(page)).toHaveText('Page 1 of 20')
     await lightbox(page).getByRole('button', { name: 'Next spread' }).click()
-    await expect(indicator(page)).toHaveText('Page 1 · 1 / 11')
+    await expect(indicator(page)).toHaveText('Pages 2–3 of 20')
 
     await page.keyboard.press('Escape')
     await expect(lightbox(page)).toHaveCount(0)
-    await expect(page.getByTestId('site-page-indicator')).toHaveText(
-      'Page 1 · 1 / 11',
-    )
+    await expect(page.getByTestId('site-label')).toHaveText('Pages 2–3 of 20')
     await expect(page.getByTestId('site-fullscreen-btn')).toBeFocused()
   })
 
-  test('a stage click opens, a stage swipe steps; a 120 px swipe steps the lightbox', async ({
+  test('a 120 px swipe steps the lightbox; Close returns to that view without a turn', async ({
     page,
   }) => {
-    await page.goto(ALPS)
-    const stage = await rect(page, 'site-stage')
-    const cy = stage.y + stage.height / 2
-    await page.mouse.move(stage.x + 500, cy)
-    await page.mouse.down()
-    await page.mouse.move(stage.x + 380, cy, { steps: 4 })
-    await page.mouse.up()
-    await expect(page.getByTestId('site-page-indicator')).toHaveText(
-      'Page 1 · 1 / 11',
-    )
-    await expect(lightbox(page)).toHaveCount(0)
-
-    await page.getByTestId('site-open').click()
-    await expect(indicator(page)).toHaveText('Page 1 · 1 / 11')
+    await page.goto(`${ALPS}&gl=0`)
+    await page.getByTestId('site-fullscreen-btn').click()
+    await expect(indicator(page)).toHaveText('Page 1 of 20')
     await page.mouse.move(800, 450)
     await page.mouse.down()
     await page.mouse.move(680, 450, { steps: 4 })
     await page.mouse.up()
-    await expect(indicator(page)).toHaveText('Pages 2–3 · 2 / 11')
+    await expect(indicator(page)).toHaveText('Pages 2–3 of 20')
     await expect(lightbox(page)).toHaveAttribute('data-zoom', '1.00')
+    // Watch the reader from the close on: it never runs a turn or a fade.
+    await page.evaluate(() => {
+      const w = window as unknown as { __turns: string[] }
+      w.__turns = []
+      const el = document.querySelector('[data-testid="ps-reader"]')
+      if (el === null) throw new Error('no reader')
+      new MutationObserver(() => {
+        w.__turns.push(el.getAttribute('data-turn') ?? '')
+      }).observe(el, { attributes: true, attributeFilter: ['data-turn'] })
+    })
     await page.getByTestId('site-fullscreen-close').click()
-    await expect(page.getByTestId('site-page-indicator')).toHaveText(
-      'Pages 2–3 · 2 / 11',
+    await expect(lightbox(page)).toHaveCount(0)
+    await expect(page.getByTestId('ps-reader')).toHaveAttribute(
+      'data-view',
+      '2',
     )
-    await expect(page.getByTestId('site-open')).toBeFocused()
+    await expect(page.getByTestId('site-label')).toHaveText('Pages 2–3 of 20')
+    await expect(page.getByTestId('site-fullscreen-btn')).toBeFocused()
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { __turns: string[] }).__turns,
+      ),
+    ).toStrictEqual([])
   })
 
   test('double-click zooms about the point, a drag pans to the clamp, Esc closes zoomed', async ({
@@ -206,7 +211,7 @@ test.describe('site lightbox', () => {
     // Clamped: the painted spread covers the fit area, left / top edges on it.
     expect(panned.x).toBeCloseTo(64, 0)
     expect(panned.y).toBeCloseTo(64, 0)
-    await expect(indicator(page)).toHaveText('Pages 2–3 · 2 / 11')
+    await expect(indicator(page)).toHaveText('Pages 2–3 of 20')
 
     await page.keyboard.press('ArrowRight')
     await expect(lightbox(page)).toHaveAttribute('data-zoom', '1.00')
@@ -259,32 +264,19 @@ test.describe('site lightbox', () => {
 test.describe('site lightbox on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true })
 
-  test('390 × 844 touch: a tap opens, no arrows, 8 px sides', async ({
+  test('390 × 844 touch: no Fullscreen; a tap turns the page instead', async ({
     page,
   }) => {
     await page.goto(ALPS)
-    await page.getByTestId('site-open').tap()
-    await expect(lightbox(page)).toBeVisible()
-    await expect(
-      lightbox(page).getByRole('button', { name: 'Next spread' }),
-    ).toHaveCount(0)
-    await page.keyboard.press('ArrowRight')
-    await expect(indicator(page)).toHaveText('Page 1 · 1 / 11')
-    await page.keyboard.press('ArrowRight')
-    await expect(indicator(page)).toHaveText('Pages 2–3 · 2 / 11')
-    // The step slides for 200 ms; the settled rect is the fitted one.
-    await expect
-      .poll(async () => (await rect(page, 'site-fullscreen-book')).x)
-      .toBeCloseTo(8, 1)
-    expectRect(await rect(page, 'site-fullscreen-book'), {
-      x: 8,
-      y: 316.82,
-      width: 374,
-      height: 226.36,
-    })
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth),
-    ).toBe(390)
+    await expect(page.getByTestId('pt-stage')).toBeVisible()
+    await expect(page.getByTestId('site-fullscreen-btn')).toHaveCount(0)
+    const stage = await rect(page, 'pt-stage')
+    await page.touchscreen.tap(
+      stage.x + stage.width * 0.8,
+      stage.y + stage.height / 2,
+    )
+    await expect(page.getByTestId('site-label')).toHaveText('Page 1 of 20')
+    await expect(lightbox(page)).toHaveCount(0)
   })
 })
 
@@ -328,14 +320,14 @@ test.describe('site lightbox sharp photos', () => {
 test.describe('frame-budget gates', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
 
-  test('lightbox zoom and 11 steps stay within frame-budget gates, transform only', async ({
+  test('lightbox zoom and 10 steps stay within frame-budget gates, transform only', async ({
     page,
   }, testInfo) => {
     test.setTimeout(120_000)
-    await page.goto(`${ALPS}&perf=1`)
+    await page.goto(`${ALPS}&gl=0&perf=1`)
     await page.waitForFunction(() => window.__photobooksPerf !== undefined)
     await page.getByTestId('site-fullscreen-btn').click()
-    await expect(indicator(page)).toHaveText('Cover')
+    await expect(indicator(page)).toHaveText('Page 1 of 20')
     await applyCpuThrottling(page)
     await lightboxDecoded(page)
     await clearPerfScenario(page)
@@ -400,7 +392,7 @@ test.describe('frame-budget gates', () => {
     ).toBe(0)
     await page.keyboard.press('0')
 
-    for (let slide = 1; slide <= SPREADS; slide += 1) {
+    for (let slide = 1; slide < SPREADS; slide += 1) {
       // The neighbour was requested eagerly with the last step: loaded now.
       await expect
         .poll(() =>
@@ -415,11 +407,9 @@ test.describe('frame-budget gates', () => {
         .toBe(true)
       await page.keyboard.press('ArrowRight')
       await expect(indicator(page)).toHaveText(
-        slide === SPREADS
-          ? 'Page 20 · 11 / 11'
-          : slide === 1
-            ? 'Page 1 · 1 / 11'
-            : `Pages ${String(2 * slide - 2)}–${String(2 * slide - 1)} · ${String(slide)} / 11`,
+        slide === SPREADS - 1
+          ? 'Page 20 of 20'
+          : `Pages ${String(2 * slide)}–${String(2 * slide + 1)} of 20`,
       )
       await lightboxDecoded(page)
     }

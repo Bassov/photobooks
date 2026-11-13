@@ -82,6 +82,8 @@ html:has(.sb-room) {
 /* the editor preview: the room fills its pane */
 .ss.sb-room[data-embedded] {
   position: absolute;
+  /* the host's box, not the window's (`.ss` asks for 100dvh) */
+  min-height: 0;
 }
 .sb-room .ss-name {
   margin: 0;
@@ -108,6 +110,8 @@ html:has(.sb-room) {
   top: 20px;
   right: 24px;
   line-height: 24px;
+  /* over the GL reader's canvas, which overhangs the book (it comes later in the DOM) */
+  z-index: 2;
 }
 /* Share (D36): "Share" and "Copied" in one grid cell (no width change); Copied stays grey */
 .sb-share {

@@ -25,7 +25,7 @@
 | `src/site/SiteBookPage.tsx`                           | deleted             |
 | `src/site/SiteStage.tsx`                              | deleted             |
 | `src/site/SiteBookPage.test.tsx`                      | deleted             |
-| `src/site/SiteBookPage.embedded.test.tsx`             | deleted             |
+| `src/site/SiteBookPage.embedded.test.tsx`             | embedded room       |
 | `src/site/site.css`                                   | deleted             |
 | `src/site/siteViewer.css`                             | deleted             |
 | `src/site/siteSystem.css`                             | utilities           |
@@ -67,3 +67,10 @@
 | `e2e/static-export.spec.ts`                           | selectors           |
 | `e2e/static-export-viewer.spec.ts`                    | selectors           |
 | `e2e/site-crop-srcset.spec.ts`                        | selectors           |
+| `e2e/design-r7-panels.spec.ts`                        | selectors           |
+| `e2e/dpi-badge.spec.ts`                               | selectors           |
+| `e2e/guides.spec.ts`                                  | selectors           |
+| `e2e/presentation-mode.spec.ts`                       | selectors           |
+| `e2e/preview-no-overlays.spec.ts`                     | selectors           |
+| `e2e/text-frames-core.spec.ts`                        | selectors           |
+| `e2e/text-frames.spec.ts`                             | selectors           |
