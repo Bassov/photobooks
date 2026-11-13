@@ -279,8 +279,11 @@ export class WebGLRenderer {
     antialias?: boolean
     alpha?: boolean
     powerPreference?: string
+    preserveDrawingBuffer?: boolean
   })
   domElement: HTMLCanvasElement
+  getContext(): WebGL2RenderingContext
+  compileAsync(scene: Object3D, camera: Camera): Promise<Object3D>
   outputColorSpace: string
   toneMapping: number
   shadowMap: { enabled: boolean; type: number }

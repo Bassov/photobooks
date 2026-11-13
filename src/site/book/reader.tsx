@@ -376,6 +376,7 @@ function ReaderGl({
     })()
     return () => {
       dead = true
+      made?.draws.stop()
       made?.book.dispose()
       made?.faces.dispose()
       setGl(null)
@@ -406,19 +407,16 @@ function ReaderGl({
       }
     }
     const size = backingSize(box, window.devicePixelRatio)
-    if (c.width !== size.w || c.height !== size.h) {
-      c.width = size.w
-      c.height = size.h
-    }
     gl.book.set(a, th)
     gl.book.frame(W, H, s, box)
-    gl.draw(c)
-    root.current?.setAttribute('data-gl', 'ready')
-    // data-faces: "done" once every face drawn so far has its canvas (tests wait on it)
-    root.current?.setAttribute(
-      'data-faces',
-      gl.book.loading ? 'loading' : 'done',
-    )
+    // the canvas takes the size with the pixels, a frame or more later
+    void gl.draws
+      .draw(c, size.w, size.h, () => gl.book.loading)
+      .then((loading) => {
+        root.current?.setAttribute('data-gl', 'ready')
+        // data-faces: "done" once every face drawn so far has its canvas (tests wait on it)
+        root.current?.setAttribute('data-faces', loading ? 'loading' : 'done')
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the box by value; tick is a texture landing
   }, [gl, tick, a, th, W, H, s, box.x, box.y, box.w, box.h, fade])
 

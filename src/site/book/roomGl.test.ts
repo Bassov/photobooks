@@ -10,7 +10,8 @@ const gl = vi.hoisted(() => ({
       ? Promise.resolve(null)
       : Promise.resolve({ src } as unknown as HTMLImageElement),
   ),
-  drawInto: vi.fn(),
+  compile: vi.fn(() => Promise.resolve()),
+  fenced: vi.fn(() => ({ fenced: true })),
   made: [] as [string, unknown[]][],
 }))
 
@@ -21,7 +22,8 @@ vi.mock('./glCover', async (real) => ({
 vi.mock('./gl/three', async (real) => ({
   ...(await real<typeof import('./gl/three')>()),
   loadThree: () => Promise.resolve({ three: true }),
-  drawInto: gl.drawInto,
+  compileScene: gl.compile,
+  fencedDraws: gl.fenced,
 }))
 vi.mock('./gl/faces', () => ({
   createFaceSource: (o: unknown) => {
@@ -80,7 +82,8 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks()
   gl.photo.mockClear()
-  gl.drawInto.mockClear()
+  gl.compile.mockClear()
+  gl.fenced.mockClear()
   gl.made.length = 0
 })
 
@@ -129,12 +132,10 @@ describe('pageImages', () => {
 })
 
 describe('room GL books', () => {
-  it('opens the reader book over the cover photo and draws it', async () => {
+  it('opens the reader book over the cover photo, compiled, with fenced shadowed draws', async () => {
     const { entry, book, images } = alps()
 
     const r = await openReaderGl({ entry, book, images, pagePx: 400 })
-    const canvas = document.createElement('canvas')
-    r.draw(canvas)
 
     expect(gl.photo).toHaveBeenCalledWith(entry.cover?.src)
     expect(gl.made.map(([k]) => k)).toStrictEqual(['faces', 'open'])
@@ -143,13 +144,10 @@ describe('room GL books', () => {
       bend: true,
       pagePx: 400,
     })
-    expect(gl.drawInto).toHaveBeenCalledWith(
-      { three: true },
-      'scene',
-      'cam',
-      canvas,
-      true,
-    )
+    const args = [{ three: true }, 'scene', 'cam', true]
+    expect(gl.compile).toHaveBeenCalledWith(...args)
+    expect(gl.fenced).toHaveBeenCalledWith(...args)
+    expect(r.draws).toStrictEqual({ fenced: true })
   })
 
   it('opens the page curl over the sheets, with no photo when the cover fails', async () => {

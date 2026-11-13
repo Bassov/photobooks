@@ -155,6 +155,16 @@ test.describe('site viewer', () => {
     await page.goto(ALPS)
     const share = page.getByTestId('site-share')
     await expect(share).toContainText('Share')
+    // Precondition: the GL reader has booted (three's evaluation and the
+    // first render are single main-thread tasks a 2 s window cannot absorb on
+    // a loaded runner), or there is no WebGL2 and it never will.
+    await page.waitForFunction(() => {
+      const gl = document.querySelector('[data-testid="ps-reader-gl"]')
+      return gl === null
+        ? document.createElement('canvas').getContext('webgl2') === null
+        : gl.getAttribute('data-gl') === 'ready' &&
+            gl.getAttribute('data-faces') === 'done'
+    })
     const before = await rect(page, 'site-share')
     const book = await rect(page, 'ps-reader')
 

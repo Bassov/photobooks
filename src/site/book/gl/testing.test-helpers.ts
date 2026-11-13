@@ -91,6 +91,28 @@ export function fakeCanvas2d(): Map<HTMLCanvasElement, FakeContext> {
 /** the fake renderer's calls, across instances */
 export const rendererCalls: Call[] = []
 
+/** the fake renderer's WebGL2 fences: `done` says whether the GPU has caught up */
+export const fakeGpu = {
+  done: true,
+  SYNC_GPU_COMMANDS_COMPLETE: 0x9117,
+  SYNC_STATUS: 0x9114,
+  SIGNALED: 0x9119,
+  UNSIGNALED: 0x9118,
+  fenceSync() {
+    rendererCalls.push(['fenceSync'])
+    return {}
+  },
+  flush() {
+    rendererCalls.push(['flush'])
+  },
+  getSyncParameter() {
+    return this.done ? this.SIGNALED : this.UNSIGNALED
+  },
+  deleteSync() {
+    rendererCalls.push(['deleteSync'])
+  },
+}
+
 class FakeRenderer {
   domElement = document.createElement('canvas')
   outputColorSpace = ''
@@ -120,6 +142,17 @@ class FakeRenderer {
   }
   clear() {
     rendererCalls.push(['clear'])
+  }
+  getContext() {
+    return fakeGpu as unknown as WebGL2RenderingContext
+  }
+  compileAsync(scene: Object3D) {
+    rendererCalls.push([
+      'compileAsync',
+      scene.children.length,
+      this.shadowMap.enabled,
+    ])
+    return Promise.resolve(scene)
   }
   render(scene: Object3D) {
     rendererCalls.push([

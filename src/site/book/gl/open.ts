@@ -101,6 +101,8 @@ export class OpenBook {
   private readonly book: Group
   private dyn: BufferGeometry[] = []
   private readonly mats = new Map<string, Mats | null>()
+  /** the endpaper face, grained once for every face that shows it */
+  private endpaperFace: Promise<CanvasImageSource> | undefined
   private readonly keep: { dispose(): void }[] = []
   private readonly bump: CanvasTexture
   private readonly paper: Mats
@@ -230,6 +232,10 @@ export class OpenBook {
   private face(f: Face): Promise<CanvasImageSource> {
     const page = pageOfFace(this.b, f)
     if (page !== null) return this.b.face(page)
+    return (this.endpaperFace ??= Promise.resolve(this.endpaperCanvas()))
+  }
+
+  private endpaperCanvas(): HTMLCanvasElement {
     const PW = this.look.pagePx
     const PH = Math.round((PW * this.b.h) / this.b.w)
     const c = cv(PW, PH)
@@ -237,7 +243,7 @@ export class OpenBook {
     x.fillStyle = this.b.endpaper
     x.fillRect(0, 0, PW, PH)
     grain(x, PW, PH, 5, 2)
-    return Promise.resolve(c)
+    return c
   }
 
   /** the materials of a face; the paper placeholder until its face lands */

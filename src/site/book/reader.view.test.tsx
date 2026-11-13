@@ -200,6 +200,18 @@ function ptr(
   fireEvent(reader(), e)
 }
 
+/** a fenced draw whose copy lands at once: the canvas takes the size */
+const drawNow = (
+  out: HTMLCanvasElement,
+  w: number,
+  h: number,
+  prep: () => unknown,
+) => {
+  out.width = w
+  out.height = h
+  return Promise.resolve(prep())
+}
+
 describe('BookReader at rest', () => {
   it('is a labelled book region sized to its width', () => {
     mount()
@@ -766,7 +778,7 @@ describe('BookReader with WebGL', () => {
         loading,
       },
       faces: { focus: vi.fn(), dispose: vi.fn() },
-      draw: vi.fn(),
+      draws: { draw: vi.fn(drawNow), stop: vi.fn() },
     }
   }
   const flush = async () => {
@@ -829,19 +841,48 @@ describe('BookReader with WebGL', () => {
       W / (2 * (RB.entry.trimMm.w / 10) + 10),
       box,
     )
-    expect(made.draw).toHaveBeenLastCalledWith(canvas())
+    expect(made.draws.draw).toHaveBeenLastCalledWith(
+      canvas(),
+      size.w,
+      size.h,
+      expect.any(Function),
+    )
     expect(made.book.set).toHaveBeenLastCalledWith(4, 0)
     expect(made.faces.focus).toHaveBeenLastCalledWith(4)
+  })
+
+  it('marks the GL ready only once the copy of its pixels lands', async () => {
+    const made = fakeGl()
+    let land = () => undefined
+    made.draws.draw.mockImplementation(
+      (_out, _w, _h, prep) =>
+        new Promise((resolve) => {
+          land = () => {
+            resolve(prep())
+          }
+        }),
+    )
+    await glMount(made)
+    const root = screen.getByTestId('ps-reader-gl')
+
+    expect(root.dataset.gl).toBeUndefined()
+    expect(root.dataset.faces).toBeUndefined()
+    await act(async () => {
+      land()
+      await Promise.resolve()
+    })
+    expect(root.dataset.gl).toBe('ready')
+    expect(root.dataset.faces).toBe('done')
   })
 
   it('reports faces still loading, redraws when a texture lands', async () => {
     const { made } = await glMount(fakeGl(true))
     expect(screen.getByTestId('ps-reader-gl').dataset.faces).toBe('loading')
-    const draws = made.draw.mock.calls.length
+    const draws = made.draws.draw.mock.calls.length
     act(() => {
       made.book.onChange()
     })
-    expect(made.draw).toHaveBeenCalledTimes(draws + 1)
+    expect(made.draws.draw).toHaveBeenCalledTimes(draws + 1)
   })
 
   it('poses the GL book mid-turn and marks the leaf for tests', async () => {
@@ -901,6 +942,7 @@ describe('BookReader with WebGL', () => {
   it('lets go of the GL book when the reader goes', async () => {
     const { made } = await glMount()
     cleanup()
+    expect(made.draws.stop).toHaveBeenCalledTimes(1)
     expect(made.book.dispose).toHaveBeenCalledTimes(1)
     expect(made.faces.dispose).toHaveBeenCalledTimes(1)
   })
