@@ -150,6 +150,24 @@ describe('PublishDialog', () => {
     open.mockRestore()
   })
 
+  it('run: a failure replaces the run in place', async () => {
+    act(() => {
+      publishStore.dispatch({ type: 'start' })
+    })
+    show({ kind: 'run' })
+
+    act(() => {
+      publishStore.dispatch({
+        type: 'failed',
+        failure: { code: 'timeout', message: '', sent: 0, total: 3 },
+      })
+    })
+
+    await waitFor(() => {
+      expect(step()).toBe('failed')
+    })
+  })
+
   it('run: Hide only closes; the run goes on', () => {
     act(() => {
       publishStore.dispatch({ type: 'start' })
