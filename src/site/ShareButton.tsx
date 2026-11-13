@@ -3,6 +3,12 @@ import { useEffect, useRef, useState } from 'react'
 /** How long the button reads "Copied". */
 export const COPIED_MS = 2000
 
+/** A longer gap between frames is a stall, not time "Copied" was seen. */
+const MAX_FRAME_MS = 100
+
+/** On a page too busy to paint, "Copied" still goes this long after the click. */
+const MAX_COPIED_MS = 3000
+
 /**
  * The system share sheet on a coarse pointer that has one; else the
  * clipboard. True when the link went to the clipboard.
@@ -43,26 +49,42 @@ export function ShareButton({
   // the copy that reads "Copied" (0: "Share"); a new copy restarts the window
   const [shown, setShown] = useState(0)
   const copies = useRef(0)
+  // the click of the copy that reads "Copied" (performance.now)
+  const clicked = useRef(0)
   const copied = shown > 0
-  // The 2 s count from the frame that paints "Copied": a long task between
-  // the commit and the paint would otherwise eat into what the reader sees.
-  // The cleanup drops the window on a new copy and on unmount.
+  // The 2 s are painted time, from the frame that paints "Copied": a long task
+  // (before that paint or during the window) would otherwise eat into what
+  // the reader sees, so a frame gap counts at most MAX_FRAME_MS. A stall
+  // stretches the window up to MAX_COPIED_MS after the click, never below
+  // 2 s after the paint. The cleanup drops the window on a new copy and on
+  // unmount.
   useEffect(() => {
     if (!copied) return
-    let timer: number | undefined
-    const frame = requestAnimationFrame(() => {
-      timer = window.setTimeout(() => {
-        setShown(0)
-      }, COPIED_MS)
-    })
+    let seen = 0
+    let end = Infinity
+    let last = 0
+    let frame = 0
+    const tick = (now: number) => {
+      if (end === Infinity) {
+        end = Math.max(clicked.current + MAX_COPIED_MS, now + COPIED_MS)
+      } else {
+        seen += Math.min(now - last, MAX_FRAME_MS)
+      }
+      last = now
+      if (seen >= COPIED_MS || now >= end) setShown(0)
+      else frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
     return () => {
       cancelAnimationFrame(frame)
-      window.clearTimeout(timer)
     }
   }, [copied, shown])
   const press = () => {
+    const at = performance.now()
     void shareOrCopy(title, url()).then((showCopied) => {
-      if (showCopied) setShown(++copies.current)
+      if (!showCopied) return
+      clicked.current = at
+      setShown(++copies.current)
     })
   }
   return (
