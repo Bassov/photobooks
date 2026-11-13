@@ -12,7 +12,7 @@ import {
   s3ErrorCode,
   type R2Failure,
 } from './r2Errors'
-import { r2Request, type R2RequestInput } from './r2Sign'
+import { r2Request, type R2RequestInput, type R2SignedRequest } from './r2Sign'
 import {
   fileKind,
   KIND_ORDER,
@@ -181,19 +181,37 @@ function defaultSleep(ms: number): Promise<void> {
  * Runs `task` over `items` in order, at most `limit` in flight: item `k` starts only once item
  * `k - limit` has settled and no item has failed, so a failure stops every later item whatever
  * order replies arrive in. The first failure is rethrown once the started items settle.
+ *
+ * `prepare` (signing: no request) runs `limit` items ahead of the window, and the first `limit`
+ * items start together once all are prepared, so the window holds `limit` requests on the wire
+ * and a refill goes out as soon as its slot frees, not after its own signing.
  */
-async function inPool<T>(
+async function inPool<T, P>(
   items: readonly T[],
   limit: number,
-  task: (item: T) => Promise<void>,
+  prepare: (item: T) => Promise<P>,
+  run: (prepared: P) => Promise<void>,
 ): Promise<void> {
   const errors: unknown[] = []
   const settled: Promise<void>[] = []
-  for (const [index, item] of items.entries()) {
+  const ready: Promise<P>[] = []
+  const prepareUpTo = (end: number) => {
+    for (const item of items.slice(ready.length, end)) {
+      const next = prepare(item)
+      // Handled where the item starts; one never started must not reject unhandled.
+      next.catch(() => undefined)
+      ready.push(next)
+    }
+  }
+  prepareUpTo(limit)
+  await Promise.allSettled(ready)
+  // `ready` grows by one per started item; the array iterator sees the new entries.
+  for (const [index, next] of ready.entries()) {
     if (index >= limit) await settled[index - limit]
     if (errors.length > 0) break
+    prepareUpTo(index + limit + 1)
     settled.push(
-      task(item).catch((error: unknown) => {
+      next.then(run).catch((error: unknown) => {
         errors.push(error)
       }),
     )
@@ -225,11 +243,15 @@ export async function publishSite(
   const sleep = deps.sleep ?? defaultSleep
   const isOnline = deps.isOnline ?? (() => navigator.onLine)
 
+  const sign = (request: Omit<R2RequestInput, 'now'>) =>
+    r2Request(credentials, { ...request, now: now() })
+
+  /** Fetches synchronously from the call: a signed request goes out with no await before it. */
   const attempt = async (
     request: Omit<R2RequestInput, 'now'>,
+    signed: R2SignedRequest,
     missingIsOk: boolean,
   ): Promise<Attempt> => {
-    const signed = await r2Request(credentials, { ...request, now: now() })
     // Aborted only by the 30 s timeout (a late abort of a settled request is a no-op).
     const timeout = new AbortController()
     void sleep(REQUEST_TIMEOUT_MS).then(() => {
@@ -269,21 +291,38 @@ export async function publishSite(
     }
   }
 
-  /** One request with P4 retries; throws `R2Error` on the final failure. */
-  const send = async (
+  /**
+   * One request with P4 retries, the first try already `signed`; a retry signs anew. Throws
+   * `R2Error` on the final failure.
+   */
+  const sendSigned = async (
     request: Omit<R2RequestInput, 'now'>,
+    signed: R2SignedRequest,
     missingIsOk: boolean,
   ): Promise<Response> => {
+    let next = signed
     for (let tries = 0; ; tries += 1) {
-      const result = await attempt(request, missingIsOk)
+      const result = await attempt(request, next, missingIsOk)
       if ('response' in result) return result.response
       const wait = RETRY_WAITS_MS[tries]
       if (!result.transient || wait === undefined) {
         throw new R2Error(result.failure)
       }
       await sleep(result.waitMs ?? wait)
+      next = await sign(request)
     }
   }
+
+  const send = async (
+    request: Omit<R2RequestInput, 'now'>,
+    missingIsOk: boolean,
+  ): Promise<Response> => sendSigned(request, await sign(request), missingIsOk)
+
+  /** Pool `prepare`: the request and its first signature. */
+  const signAhead = async (request: Omit<R2RequestInput, 'now'>) => ({
+    request,
+    signed: await sign(request),
+  })
 
   const putManifest = (files: ReadonlyMap<string, string>) =>
     send(
@@ -322,17 +361,19 @@ export async function publishSite(
     let sentBytes = 0
     input.onProgress?.({ phase: 'upload', done: 0, total: totalBytes })
     for (const group of kindGroups(puts)) {
-      await inPool(group, PUT_CONCURRENCY, async (file) => {
-        await send(
-          {
-            method: 'PUT',
-            key: file.key,
-            body: file.bytes,
-            contentType: contentTypeOf(file.key),
-            cacheControl: cacheControlOf(file.key),
-          },
-          false,
-        )
+      const signPut = async (file: PublishSiteFile) => ({
+        file,
+        ...(await signAhead({
+          method: 'PUT',
+          key: file.key,
+          body: file.bytes,
+          contentType: contentTypeOf(file.key),
+          cacheControl: cacheControlOf(file.key),
+        })),
+      })
+      await inPool(group, PUT_CONCURRENCY, signPut, async (put) => {
+        const { file } = put
+        await sendSigned(put.request, put.signed, false)
         live.set(file.key, file.sha256)
         sent += 1
         sentBytes += file.bytes.byteLength
@@ -346,9 +387,11 @@ export async function publishSite(
     const finishTotal = deletes.length + 1
     let finished = 0
     input.onProgress?.({ phase: 'finish', done: 0, total: finishTotal })
-    await inPool(deletes, PUT_CONCURRENCY, async (step) => {
-      await send({ method: 'DELETE', key: step.key }, true)
-      live.delete(step.key)
+    const signDelete = (step: (typeof deletes)[number]) =>
+      signAhead({ method: 'DELETE', key: step.key })
+    await inPool(deletes, PUT_CONCURRENCY, signDelete, async (del) => {
+      await sendSigned(del.request, del.signed, true)
+      live.delete(del.request.key)
       finished += 1
       input.onProgress?.({
         phase: 'finish',

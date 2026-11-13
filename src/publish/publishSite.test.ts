@@ -348,6 +348,61 @@ describe('publishSite: P4 retry', () => {
     expect(puts).toHaveLength(4)
   })
 
+  it('with 4 or more puts left, 4 are on the wire: the first 4 go out together, each reply refills', async () => {
+    const assetPuts = (r2: ReturnType<typeof createFakeR2>, type: string) =>
+      r2.events.filter(
+        (event) =>
+          event.type === type &&
+          event.method === 'PUT' &&
+          event.key.startsWith('assets/'),
+      ).length
+    await fc.assert(
+      fc.asyncProperty(fc.integer({ min: 4, max: 9 }), async (count) => {
+        const assets = Array.from(
+          { length: count },
+          (_, i) =>
+            [
+              `assets/${String(i).repeat(64)}.webp`,
+              `photo-${String(i)}`,
+            ] as const,
+        )
+        const r2 = createFakeR2()
+        const held: (() => void)[] = []
+        const onWireAtReply: number[] = []
+        r2.setOverride(async (method, key) => {
+          if (method !== 'PUT' || !key.startsWith('assets/')) return undefined
+          onWireAtReply.push(assetPuts(r2, 'start') - assetPuts(r2, 'end'))
+          await new Promise<void>((resolve) => held.push(resolve))
+          return undefined
+        })
+
+        const run = publishSite(
+          {
+            files: await siteFiles(assets),
+            credentials: CREDENTIALS,
+            bookPath: '',
+          },
+          deps(r2),
+        )
+        for (let left = count; left > 0; left -= 1) {
+          await vi.waitFor(() => {
+            expect(held).toHaveLength(Math.min(4, left))
+            expect(assetPuts(r2, 'end')).toBe(count - left)
+          })
+          expect(assetPuts(r2, 'start') - assetPuts(r2, 'end')).toBe(
+            Math.min(4, left),
+          )
+          held.shift()?.()
+        }
+
+        expect(await run).toMatchObject({ ok: true })
+        // The first reply already finds 4 on the wire: no put waits on its own signing.
+        expect(onWireAtReply[0]).toBe(4)
+      }),
+      { numRuns: 6 },
+    )
+  })
+
   it('a failure answered after the other puts still stops every later put', async () => {
     const assets = Array.from(
       { length: 6 },
