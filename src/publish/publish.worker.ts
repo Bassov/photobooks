@@ -9,7 +9,7 @@ import { sha256HexSync } from '../assets/sha256Sync'
 import { buildSiteTree } from '../site/export/buildSiteTree'
 import type { SiteExportInput } from '../site/export/types'
 import { createCredentialStore, type CheckCode } from './credentials'
-import { publishSite, type PublishDeps } from './publishSite'
+import { createPublisher, type PublishDeps } from './publisher'
 import { sha256Hex } from './r2Sign'
 
 /** Progress posts are at least this far apart. */
@@ -112,20 +112,16 @@ export async function runPublish(
       )
       return
     }
-    const result = await publishSite(
-      {
-        files,
-        credentials,
-        bookPath: bookPathIn(
-          new Set(files.map((file) => file.key)),
-          request.bookId,
-        ),
-        onProgress: (step) => {
-          progress(step.phase, step.done, step.total)
-        },
+    const result = await createPublisher(credentials, deps.publish).publish({
+      files,
+      bookPath: bookPathIn(
+        new Set(files.map((file) => file.key)),
+        request.bookId,
+      ),
+      onProgress: (step) => {
+        progress(step.phase, step.done, step.total)
       },
-      deps.publish,
-    )
+    })
     const checkedAtMs = deps.now().getTime()
     if (result.ok) {
       await store.saveStatus({ checkedAtMs, ok: true }).catch(() => undefined)

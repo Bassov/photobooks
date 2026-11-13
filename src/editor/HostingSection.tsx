@@ -11,7 +11,7 @@ import {
   connectHosting,
   recheckHosting,
   type CheckResult,
-} from '../publish/checkConnection'
+} from '../publish/hosting'
 import {
   forgetCredentials,
   loadHostingSummary,
