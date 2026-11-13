@@ -144,7 +144,7 @@ export function EditorTopBar({ title, onLibrary, onPreview, onSettings, exportSi
       <SiteJobPill name="Export site" testid="demo-export-site" run={exportSite} text={exportText(exportSite)} rest={EXPORT_PILL.idle} narrow empty={empty} className="px-3"
         wait={publish.phase === "run" ? "Wait until Publish finishes" : undefined} onPress={onExportSite} />
       <span className="contents" title="Print"><Button variant="ghost" size="sm" className="h-8 gap-1.5 rounded-full px-3 text-sm font-medium [&_svg]:size-4" style={quiet} onPress={onPrint} data-testid="demo-print" aria-label="Print"><Printer /></Button></span>
-      <SiteJobPill name="Publish" testid="demo-publish" run={publish} text={publishText(publish)} rest={PUBLISH_PILL.idle} empty={empty} className="e7-sec px-3.5"
+      <SiteJobPill name="Publish" testid="demo-publish" run={publish} text={publishText(publish)} rest={PUBLISH_PILL.idle} empty={empty} className="px-3.5"
         wait={exportSite.phase === "run" ? "Wait until the export finishes" : undefined} onPress={onPublish} />
     </div>
   )
