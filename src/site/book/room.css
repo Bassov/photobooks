@@ -85,8 +85,10 @@ html:has(.sb-room) {
   /* the host's box, not the window's (`.ss` asks for 100dvh) */
   min-height: 0;
 }
+/* the name links home (M110): over the GL reader's canvas, like "All books" */
 .sb-room .ss-name {
   margin: 0;
+  z-index: 2;
 }
 .sb-room[data-over] {
   animation: sb-room-in 240ms var(--ease-out) both;
@@ -357,7 +359,7 @@ html:has(.sb-room) {
 .pt-sheet {
   overflow: hidden;
 }
-/* the GL sheet canvas: shown only while a turn runs */
+/* the GL sheet canvas: hidden until it has drawn (then turn.tsx shows it, at rest too) */
 .pt-gl {
   position: absolute;
   z-index: 5;

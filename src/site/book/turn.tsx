@@ -167,7 +167,9 @@ export const PageTurn = forwardRef<SlidesApi, SlidesProps>(function PageTurn(
         el.style.opacity = isTop ? v.opacity : ''
       }
     }
-    if (canvas.current) canvas.current.style.visibility = on ? '' : 'hidden'
+    // explicit: '' would fall back to `.pt-gl { visibility: hidden }`
+    if (canvas.current)
+      canvas.current.style.visibility = on ? 'visible' : 'hidden'
     const f = v.fold
     if (on || f === null) return
     if (shadow.current) {
