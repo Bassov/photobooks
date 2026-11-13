@@ -348,6 +348,116 @@ describe('publishSite: P4 retry', () => {
     expect(puts).toHaveLength(4)
   })
 
+  it('a failure answered after the other puts still stops every later put', async () => {
+    const assets = Array.from(
+      { length: 6 },
+      (_, i) =>
+        [`assets/${String(i).repeat(64)}.webp`, `photo-${String(i)}`] as const,
+    )
+    const r2 = createFakeR2()
+    let othersDone = (): void => undefined
+    const othersReplied = new Promise<void>((resolve) => {
+      othersDone = resolve
+    })
+    r2.setOverride(async (method, key) => {
+      if (method !== 'PUT' || key !== assets[0]?.[0]) return undefined
+      await othersReplied
+      return s3Error(403, 'AccessDenied')
+    })
+    let uploaded = 0
+
+    const result = await publishSite(
+      {
+        files: await siteFiles(assets),
+        credentials: CREDENTIALS,
+        bookPath: '',
+        onProgress: (progress) => {
+          if (progress.phase !== 'upload' || progress.done === 0) return
+          uploaded += 1
+          if (uploaded === 3) othersDone()
+        },
+      },
+      deps(r2),
+    )
+
+    expect(result).toMatchObject({ ok: false, code: 'denied', sent: 3 })
+    const puts = r2.requests().filter((r) => r.startsWith('PUT assets/'))
+    expect(puts.toSorted()).toEqual(
+      assets.slice(0, 4).map(([key]) => `PUT ${key}`),
+    )
+    expect(storedManifest(r2)).toEqual({
+      v: 1,
+      files: Object.fromEntries(
+        await Promise.all(
+          assets
+            .slice(1, 4)
+            .map(async ([key, text]) => [
+              key,
+              (await siteFile(key, text)).sha256,
+            ]),
+        ),
+      ),
+    })
+  })
+
+  it('in any reply order, puts start in order, 4 at a time, none after a failure', async () => {
+    const assets = Array.from(
+      { length: 7 },
+      (_, i) =>
+        [`assets/${String(i).repeat(64)}.webp`, `photo-${String(i)}`] as const,
+    )
+    const files = await siteFiles(assets)
+    await fc.assert(
+      fc.asyncProperty(
+        fc.array(fc.nat(4), { minLength: 7, maxLength: 7 }),
+        fc.nat(6),
+        async (delays, failAt) => {
+          const r2 = createFakeR2()
+          r2.setOverride(async (method, key) => {
+            const index = assets.findIndex(([asset]) => asset === key)
+            if (method !== 'PUT' || index < 0) return undefined
+            for (let tick = 0; tick < (delays[index] ?? 0); tick += 1) {
+              await new Promise((resolve) => setTimeout(resolve, 0))
+            }
+            return index === failAt ? s3Error(403, 'AccessDenied') : undefined
+          })
+
+          const result = await publishSite(
+            { files, credentials: CREDENTIALS, bookPath: '' },
+            deps(r2),
+          )
+
+          const puts = r2.requests().filter((r) => r.startsWith('PUT assets/'))
+          const started = puts.length
+          expect(started).toBeGreaterThanOrEqual(Math.max(4, failAt + 1))
+          expect(started).toBeLessThanOrEqual(failAt + 4)
+          expect(r2.maxInFlight).toBeLessThanOrEqual(4)
+          expect(result).toMatchObject({
+            ok: false,
+            code: 'denied',
+            sent: started - 1,
+          })
+          // Signing is async, so requests reach R2 in any order; the set is a prefix.
+          expect(puts.toSorted()).toEqual(
+            assets.slice(0, started).map(([key]) => `PUT ${key}`),
+          )
+          expect(
+            Object.keys(
+              (storedManifest(r2) as { files: Record<string, string> }).files,
+            ).sort(),
+          ).toEqual(
+            assets
+              .slice(0, started)
+              .map(([key]) => key)
+              .filter((key) => key !== assets[failAt]?.[0])
+              .sort(),
+          )
+        },
+      ),
+      { numRuns: 40 },
+    )
+  })
+
   it('a put answered 404 NoSuchKey fails as other', async () => {
     const r2 = createFakeR2()
     r2.setOverride((method, key) =>
