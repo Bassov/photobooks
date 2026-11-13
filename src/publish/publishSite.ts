@@ -177,26 +177,28 @@ function defaultSleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-/** Runs `task` over `items`, `limit` at a time in order; the first failure stops new tasks and is rethrown once all settle. */
+/**
+ * Runs `task` over `items` in order, at most `limit` in flight: item `k` starts only once item
+ * `k - limit` has settled and no item has failed, so a failure stops every later item whatever
+ * order replies arrive in. The first failure is rethrown once the started items settle.
+ */
 async function inPool<T>(
   items: readonly T[],
   limit: number,
   task: (item: T) => Promise<void>,
 ): Promise<void> {
-  let next = 0
   const errors: unknown[] = []
-  const lane = async (): Promise<void> => {
-    while (errors.length === 0 && next < items.length) {
-      const item = items[next] as T
-      next += 1
-      try {
-        await task(item)
-      } catch (error) {
+  const settled: Promise<void>[] = []
+  for (const [index, item] of items.entries()) {
+    if (index >= limit) await settled[index - limit]
+    if (errors.length > 0) break
+    settled.push(
+      task(item).catch((error: unknown) => {
         errors.push(error)
-      }
-    }
+      }),
+    )
   }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, lane))
+  await Promise.all(settled)
   if (errors.length > 0) throw errors[0]
 }
 
