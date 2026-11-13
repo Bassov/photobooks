@@ -92,6 +92,29 @@ describe('SiteRoom desktop', () => {
     expect(id('site-next')?.hasAttribute('disabled')).toBe(true)
   })
 
+  it('names the site with a link home: closes over the home, a plain link on a direct visit', () => {
+    const onClose = vi.fn()
+    const { unmount } = render(
+      <SiteRoom input={bookInput()} over onClose={onClose} />,
+    )
+    const name = id('site-name')
+    expect(name?.tagName).toBe('A')
+    expect(name?.textContent).toBe('A. Photographer')
+    expect(name?.getAttribute('href')).toBe(
+      id('site-all-books')?.getAttribute('href'),
+    )
+    const over = new MouseEvent('click', { bubbles: true, cancelable: true })
+    name?.dispatchEvent(over)
+    expect(over.defaultPrevented).toBe(true)
+    expect(onClose).toHaveBeenCalledTimes(1)
+    unmount()
+
+    render(<SiteRoom input={bookInput()} />)
+    const direct = new MouseEvent('click', { bubbles: true, cancelable: true })
+    id('site-name')?.dispatchEvent(direct)
+    expect(direct.defaultPrevented).toBe(false)
+  })
+
   it('is a plain link home on a direct visit; Esc stays', () => {
     render(<SiteRoom input={bookInput()} />)
     const all = id('site-all-books')
@@ -127,6 +150,25 @@ describe('SiteRoom desktop', () => {
     expect(label()).toBe('Cover')
     act(() => {
       vi.advanceTimersByTime(1)
+    })
+    expect(label()).toBe('Page 1 of 20')
+  })
+
+  it('turns the cover only over the home, and not once the reader has moved', () => {
+    vi.useFakeTimers()
+    const { unmount } = render(<SiteRoom input={bookInput()} />)
+    act(() => {
+      vi.advanceTimersByTime(FADE_MS + COVER_DELAY_MS + 1000)
+    })
+    expect(label()).toBe('Cover')
+    unmount()
+
+    render(<SiteRoom input={bookInput()} over onClose={vi.fn()} />)
+    act(() => {
+      id('site-next')?.click()
+    })
+    act(() => {
+      vi.advanceTimersByTime(FADE_MS + COVER_DELAY_MS + 1000)
     })
     expect(label()).toBe('Page 1 of 20')
   })
@@ -260,6 +302,18 @@ describe('SiteRoom phone', () => {
     expect(id('site-prev')).toBeNull()
     expect(id('site-next')).toBeNull()
     expect(label()).toBe('Cover')
+  })
+
+  it('portrait over the home: opens at the cover and stays there', () => {
+    vi.useFakeTimers()
+    stubBox(390, 844)
+    render(<SiteRoom input={bookInput()} over onClose={vi.fn()} />)
+
+    act(() => {
+      vi.advanceTimersByTime(FADE_MS + COVER_DELAY_MS + 1000)
+    })
+    expect(label()).toBe('Cover')
+    expect(window.location.hash).toBe('')
   })
 
   it('portrait with ?reader=carousel: the carousel', () => {

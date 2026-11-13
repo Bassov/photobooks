@@ -169,10 +169,12 @@ export function SiteRoom({
   // the latest view and close for timers and window keys
   const viewNow = useRef(view)
   const closeNow = useRef(onClose)
+  const portNow = useRef(port)
   useLayoutEffect(() => {
     goRef.current = go
     viewNow.current = view
     closeNow.current = onClose
+    portNow.current = port
   })
 
   // the lightbox: spread i (`lightboxSlide`); closing it rests the reader on spread i
@@ -186,12 +188,14 @@ export function SiteRoom({
     })
   }
 
-  // opened over the home: the closed cover turns once the fade is done
+  // opened over the home: the closed cover turns once the fade is done (not
+  // in portrait: it opens at the cover, D23). The mode is read when the timer
+  // fires: on mount the viewport is not measured yet (the server's desk box).
   useEffect(() => {
-    if (!over || port) return
+    if (!over) return
     const t = window.setTimeout(
       () => {
-        if (viewNow.current === 0) goRef.current(1)
+        if (viewNow.current === 0 && !portNow.current) goRef.current(1)
       },
       reduced() ? 0 : FADE_MS + COVER_DELAY_MS,
     )
@@ -534,9 +538,14 @@ export function SiteRoom({
   return (
     <div {...roomProps}>
       {!isEmbedded && (
-        <p className="ss-name" data-testid="site-name">
+        <a
+          className="ss-name"
+          href={homeHref}
+          onClick={closeClick}
+          data-testid="site-name"
+        >
           {homeHead(input.site)}
-        </p>
+        </a>
       )}
       {allBooks && (
         <a
