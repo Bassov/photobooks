@@ -346,6 +346,25 @@ describe('PageTurn with WebGL', () => {
     expect(made.curl.dispose).toHaveBeenCalledTimes(1)
   })
 
+  it('shows the canvas at rest once it has drawn, the DOM sheets until then', async () => {
+    gl.wanted = true
+    const made = fakeCurl()
+    gl.open.mockResolvedValue(made)
+    mount()
+    const sheets = () =>
+      [...stage().querySelectorAll<HTMLElement>('.pt-sheet')].map(
+        (el) => el.style.visibility,
+      )
+    expect(sheets()).not.toContain('hidden')
+    await flush()
+
+    act(() => {
+      made.curl.onChange()
+    })
+    expect(screen.getByTestId('pt-gl').style.visibility).toBe('visible')
+    expect(sheets()).toStrictEqual(['hidden'])
+  })
+
   it('falls back to the CSS fold when GL fails', async () => {
     gl.wanted = true
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
