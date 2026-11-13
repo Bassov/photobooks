@@ -58,6 +58,8 @@ let now = 0
 let frames: FrameRequestCallback[] = []
 let ratio = 1
 let reduce = false
+/** where the reader sits on screen, scaled by k */
+let box = { x: 0, y: 0, k: 1 }
 
 /** Run the queued frames at time t. */
 function frame(t: number) {
@@ -72,6 +74,7 @@ function frame(t: number) {
 beforeEach(() => {
   now = 0
   frames = []
+  box = { x: 0, y: 0, k: 1 }
   ratio = 1
   reduce = false
   vi.spyOn(performance, 'now').mockImplementation(() => now)
@@ -85,10 +88,10 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
     function (this: HTMLElement) {
       return new DOMRect(
-        0,
-        0,
-        parseFloat(this.style.width) || 0,
-        parseFloat(this.style.height) || 0,
+        box.x,
+        box.y,
+        (parseFloat(this.style.width) || 0) * box.k,
+        (parseFloat(this.style.height) || 0) * box.k,
       )
     },
   )
@@ -148,9 +151,11 @@ function mount({
     )
   }
   render(<Host />)
-  reader().setPointerCapture = vi.fn()
+  const capture = vi.fn()
+  reader().setPointerCapture = capture
   return {
     onView,
+    capture,
     api,
     keys: (k: boolean) => {
       act(() => {
@@ -416,10 +421,11 @@ describe('BookReader turns', () => {
 
   it('flings a short fast drag on, springs a slow one back', () => {
     const { onView } = mount({ start: 4 })
+    // 50 px in the last 80 ms: 0.625 px/ms, released 10 ms later
     ptr('pointerdown', 700, { t: 0 })
-    ptr('pointermove', 690, { t: 10 })
-    ptr('pointermove', 640, { t: 20 })
-    ptr('pointerup', 640, { t: 30 })
+    ptr('pointermove', 690, { t: 100 })
+    ptr('pointermove', 640, { t: 180 })
+    ptr('pointerup', 640, { t: 190 })
     frame(5000)
     expect(onView).toHaveBeenCalledExactlyOnceWith(5)
     ptr('pointerdown', 700, { t: 100 })
@@ -435,6 +441,9 @@ describe('BookReader turns', () => {
     const { onView } = mount({ start: 4 })
     ptr('pointerdown', 60, { t: 0 })
     ptr('pointermove', 100, { t: 50 })
+    expect(cssAll(book(), '.sd-cast')).toStrictEqual(
+      turnShell(G, 3, thetaAt(100, 380, 380)).casts.map(cssOf),
+    )
     ptr('pointermove', 500, { t: 100 })
     ptr('pointerup', 500, { t: 300 })
     frame(5000)
@@ -511,7 +520,133 @@ describe('BookReader turns', () => {
   })
 })
 
+describe('BookReader in a moved, scaled box', () => {
+  // the reader at (100, 50) shown at 2×: book x → client 100 + 2x
+  const cx = (x: number) => 100 + 2 * x
+  const cy = (y: number) => 50 + 2 * y
+  beforeEach(() => {
+    box = { x: 100, y: 50, k: 2 }
+  })
+
+  it('splits the sides at the spine on screen', () => {
+    mount({ start: 4 })
+    ptr('pointermove', cx(380) - 1)
+    expect(reader().dataset.cursor).toBe('←')
+    ptr('pointermove', cx(380))
+    expect(reader().dataset.cursor).toBe('→')
+  })
+
+  it('drags by book px', () => {
+    const { onView, capture } = mount({ start: 4 })
+    ptr('pointerdown', cx(700), { y: cy(200) })
+    ptr('pointermove', cx(600), { y: cy(200) })
+    expect(capture).toHaveBeenCalledExactlyOnceWith(1)
+    expect(cssAll(book(), '.sd-cast')).toStrictEqual(
+      turnShell(G, 4, thetaAt(600, 380, 380)).casts.map(cssOf),
+    )
+    ptr('pointercancel', cx(600))
+    expect(onView).not.toHaveBeenCalled()
+  })
+
+  it('lifts the corner by book px', () => {
+    mount({ start: 4 })
+    ptr('pointermove', cx(600), { y: cy(200) })
+    expect(turnOf()).toBe('rest')
+    ptr('pointermove', cx(755), { y: cy(200) })
+    expect(turnOf()).toBe('lift')
+    ptr('pointermove', cx(755), { y: cy(470) })
+    frame(1000)
+    expect(turnOf()).toBe('rest')
+  })
+
+  it('opens a closed book only on a click on the book', () => {
+    const { onView } = mount()
+    ptr('pointerdown', cx(100))
+    ptr('pointerup', cx(100))
+    expect(onView).not.toHaveBeenCalled()
+    ptr('pointerdown', cx(400))
+    ptr('pointerup', cx(400))
+    expect(onView).toHaveBeenCalledExactlyOnceWith(1)
+  })
+})
+
+describe('BookReader pointer intent', () => {
+  it('waits out a 3 px mouse move', () => {
+    const { capture } = mount({ start: 4 })
+    ptr('pointerdown', 700)
+    ptr('pointermove', 703)
+    expect(turnOf()).toBe('rest')
+    expect(capture).not.toHaveBeenCalled()
+  })
+
+  it('drags a sideways touch, scrolls a vertical one', () => {
+    mount({ start: 4 })
+    const touch = { pointerType: 'touch', y: 300 }
+    ptr('pointerdown', 700, touch)
+    ptr('pointermove', 680, touch)
+    expect(turnOf()).toBe('drag')
+    ptr('pointercancel', 680, touch)
+    ptr('pointerdown', 700, touch)
+    ptr('pointermove', 698, { ...touch, y: 340 })
+    ptr('pointermove', 600, { ...touch, y: 340 })
+    expect(turnOf()).toBe('rest')
+  })
+
+  it('follows only the pointer that went down', () => {
+    mount({ start: 4 })
+    ptr('pointerdown', 700)
+    ptr('pointermove', 600, { pointerId: 2 })
+    expect(turnOf()).toBe('rest')
+  })
+
+  it('lays a lifted corner back the way it came', () => {
+    mount({ start: 4 })
+    ptr('pointermove', 755, { y: 200 })
+    frame(240)
+    ptr('pointermove', 600, { y: 200 })
+    frame(360)
+    expect(cssAll(book(), '.sd-cast')).toStrictEqual(
+      turnShell(G, 4, 10 - 10 * EASE(0.5)).casts.map(cssOf),
+    )
+    frame(1000)
+    ptr('pointermove', 5, { y: 200 })
+    frame(1240)
+    ptr('pointermove', 300, { y: 200 })
+    frame(1360)
+    expect(cssAll(book(), '.sd-cast')).toStrictEqual(
+      turnShell(G, 3, 170 + 10 * EASE(0.5)).casts.map(cssOf),
+    )
+  })
+
+  it('times a turn from its start', () => {
+    mount({ start: 4 })
+    now = 1000
+    key('ArrowRight')
+    const plan = turnPlan(5, 4, N, false, null)
+    frame(1000 + plan.ms / 2)
+    expect(cssAll(book(), '.sd-cast')).toStrictEqual(
+      turnShell(G, 4, 180 * TURN(0.5)).casts.map(cssOf),
+    )
+  })
+})
+
 describe('BookReader keys and jumps', () => {
+  it('takes window keys by default', () => {
+    const onView = vi.fn()
+    render(<BookReader rb={RB} view={4} onView={onView} width={W} />)
+    key('ArrowRight')
+    expect(onView).toHaveBeenCalledExactlyOnceWith(5)
+  })
+
+  it('drops a press queued past the end', () => {
+    const { onView } = mount({ start: 11 })
+    key('ArrowRight')
+    key('ArrowRight')
+    frame(5000)
+    frame(10000)
+    expect(onView.mock.calls).toStrictEqual([[12]])
+  })
+
   it('turns per arrow when at least half in view', () => {
     ratio = 0.5
     const { onView } = mount({ start: 4 })
@@ -651,6 +786,21 @@ describe('BookReader with WebGL', () => {
     return { ...m, made }
   }
   const canvas = () => screen.getByTestId<HTMLCanvasElement>('ps-reader-canvas')
+
+  it('opens no GL book for a reader gone before the module loads', async () => {
+    gl.wanted = true
+    mount()
+    cleanup()
+    await flush()
+    expect(gl.open).not.toHaveBeenCalled()
+  })
+
+  it('marks the back board closing as a board leaf', async () => {
+    await glMount(fakeGl(), 12)
+    key('ArrowLeft')
+    frame(50)
+    expect(screen.getByTestId('ps-leaf').dataset.leaf).toBe('board')
+  })
 
   it('opens the GL book for the room book at the page size of its width', async () => {
     await glMount()

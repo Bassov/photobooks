@@ -65,7 +65,9 @@ export interface ReaderApi {
 function reduced(): boolean {
   return matchMedia('(prefers-reduced-motion: reduce)').matches
 }
-const fine = () => matchMedia('(hover: hover) and (pointer: fine)').matches
+function fine(): boolean {
+  return matchMedia('(hover: hover) and (pointer: fine)').matches
+}
 
 /** One page face of spread view v (1 … n − 2): a half of its spread, or the endpaper. */
 function Face({
