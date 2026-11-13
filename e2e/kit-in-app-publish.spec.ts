@@ -102,6 +102,30 @@ const live = (l: Locator) => l.locator('> span').nth(1)
 const titleOf = (l: Locator) =>
   l.evaluate((el) => el.parentElement?.getAttribute('title') ?? '')
 
+type FocusWin = Window & { __focus: string[]; __focusMo?: MutationObserver }
+/** Logs `<step>:in|out` (is focus inside the dialog?) in the microtask after each data-step change: an Esc pressed
+ *  before React Aria's next-frame refocus only reaches the overlay when focus never fell to <body>. */
+const focusAtStep = (page: Page) =>
+  page.evaluate(() => {
+    const w = window as unknown as FocusWin
+    w.__focus = []
+    w.__focusMo?.disconnect()
+    w.__focusMo = new MutationObserver((rs) => {
+      for (const r of rs) {
+        const el = r.target as HTMLElement
+        const inside = document.activeElement?.closest('[role=dialog]')
+        w.__focus.push(`${el.dataset.step ?? ''}:${inside ? 'in' : 'out'}`)
+      }
+    })
+    w.__focusMo.observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-step'],
+    })
+  })
+const focusLog = (page: Page) =>
+  page.evaluate(() => (window as unknown as FocusWin).__focus)
+
 test.describe('K1 the Publish dialog', () => {
   test('no hosting: connect → Open Settings → Hosting', async ({ page }) => {
     await scenario(page, 'No hosting')
@@ -304,6 +328,33 @@ test.describe('K2 the Publish pill', () => {
     expect(await titleOf(pill(page))).toBe('Wait until the export finishes')
     await release(page)
     await expect(pill(page)).toBeEnabled()
+  })
+
+  test('#/demo: a step change keeps focus in the dialog, so Esc right after it closes', async ({
+    page,
+  }) => {
+    await seed(page, { ok: false, code: 'InvalidAccessKeyId' })
+    await pill(page).click()
+    await focusAtStep(page)
+    await page.getByTestId('publish-go').click()
+    await expect(dialog(page)).toHaveAttribute('data-step', 'failed')
+    expect(await focusLog(page)).toEqual(['failed:in'])
+
+    await seed(page)
+    await page.getByTestId('demo-export-site').click()
+    await page.getByTestId('export-site-choose').click()
+    await page
+      .locator('[role=dialog]')
+      .getByText('Exports', { exact: true })
+      .click()
+    await page.getByTestId('picker-select').click()
+    await focusAtStep(page)
+    await page.getByTestId('export-site-go').click()
+    await expect(page.getByTestId('export-site-dialog')).toHaveAttribute(
+      'data-step',
+      'run',
+    )
+    expect(await focusLog(page)).toEqual(['run:in'])
   })
 
   test('#/demo: a failed run stays until opened; no hosting → connect', async ({
