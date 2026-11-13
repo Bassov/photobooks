@@ -66,7 +66,8 @@ export function PublishDialog({ title, otherBooks, initialStep, fail, run, onHid
   const heading = "heading flex items-center gap-2 text-xl leading-tight [&_svg]:size-5"
   const text = "mt-1 text-sm text-muted-foreground"
   const btns = "mt-5 flex justify-end gap-2"
-  const hosting = <Button size="md" className="px-4" onPress={onOpenHosting} data-testid="publish-open-hosting">Open Settings → Hosting</Button>
+  // a step change unmounts the pressed button: each later step's main button takes focus, so Esc still reaches the dialog
+  const hosting = <Button size="md" className="px-4" onPress={onOpenHosting} autoFocus data-testid="publish-open-hosting">Open Settings → Hosting</Button>
   return (
     <AppModal isOpen width={480} onOpenChange={(o) => { if (!o) onHide() }}>
       <div className="px-6 pb-5 pt-5" data-testid="publish-dialog" data-step={step}>
@@ -85,7 +86,7 @@ export function PublishDialog({ title, otherBooks, initialStep, fail, run, onHid
           <p className={text}>{publishPhase(r.p)} · {r.p}%</p>
           <Progress aria-label="Publishing" value={r.p} className="mt-4" barClassName="h-1.5 bg-secondary" data-testid="publish-progress" />
           <p className="mt-3 text-xs text-muted-foreground">You can keep editing. Changes from now on go into the next publish.</p>
-          <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onHide} data-testid="publish-hide">Hide</Button></div>
+          <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onHide} autoFocus data-testid="publish-hide">Hide</Button></div>
         </>}
         {step === "done" && <>
           <div className={heading}><CircleCheck />Published</div>
@@ -93,13 +94,13 @@ export function PublishDialog({ title, otherBooks, initialStep, fail, run, onHid
           <div className="mt-4 select-all truncate rounded-md bg-field px-3 py-2 font-mono text-sm" data-testid="publish-link">{`${site}/books/${slug(title)}/`}</div>
           <p className="mt-2 text-xs text-muted-foreground" data-testid="publish-summary">14 changed files uploaded · 3.2 MB. 186 were already up to date.</p>
           <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onHide}>Done</Button>
-            <Button size="md" className="px-4" onPress={onOpenSite} data-testid="publish-open-site">Open site</Button></div>
+            <Button size="md" className="px-4" onPress={onOpenSite} autoFocus data-testid="publish-open-site">Open site</Button></div>
         </>}
         {step === "failed" && <>
           <div className={heading}><TriangleAlert />Publish didn't finish</div>
           <p className={text} data-testid="publish-error">{publishFailText(why, stored?.bucket ?? SAMPLE_HOSTING.bucket)}{sent}</p>
           <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onHide}>Close</Button>
-            {retry ? <Button size="md" className="px-4" onPress={go} data-testid="publish-retry">Try again</Button> : hosting}</div>
+            {retry ? <Button size="md" className="px-4" onPress={go} autoFocus data-testid="publish-retry">Try again</Button> : hosting}</div>
         </>}
       </div>
     </AppModal>

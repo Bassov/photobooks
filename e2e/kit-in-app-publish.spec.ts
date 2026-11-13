@@ -339,6 +339,7 @@ test.describe('K2 the Publish pill', () => {
     await page.getByTestId('publish-go').click()
     await expect(dialog(page)).toHaveAttribute('data-step', 'failed')
     expect(await focusLog(page)).toEqual(['failed:in'])
+    await expect(page.getByTestId('publish-open-hosting')).toBeFocused()
 
     await seed(page)
     await page.getByTestId('demo-export-site').click()
@@ -365,6 +366,7 @@ test.describe('K2 the Publish pill', () => {
     await page.getByTestId('publish-go').click()
     await expect(dialog(page)).toHaveAttribute('data-step', 'failed')
     await page.keyboard.press('Escape')
+    await expect(dialog(page)).toBeHidden()
     await expect(pill(page)).toHaveAttribute('data-state', 'failed')
     await expect(pill(page).locator('svg.lucide-triangle-alert')).toHaveCount(1)
     await expect(page.getByTestId('demo-publish-status')).toHaveText(
