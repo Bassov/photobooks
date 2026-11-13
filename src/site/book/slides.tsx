@@ -11,46 +11,22 @@ import {
   useImperativeHandle,
   useLayoutEffect,
   useRef,
-  type CSSProperties,
   type PointerEvent,
 } from 'react'
 import { slideOfView, spreadRatio, type RoomSlide } from '../siteModel'
 import { CoverFace, PageFace, SlideContent, type RoomBook } from '../SiteSlide'
 import { slideKey, slideKind } from './roomLayout'
+import {
+  paperBox,
+  paperLayers,
+  stripSlide,
+  tapStep,
+  type Point,
+} from './slidesGeo'
 
 export interface SlidesApi {
   go: (d: number) => void
   jump: (i: number) => void
-}
-
-const GRAIN =
-  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")"
-const SHEEN =
-  'linear-gradient(100deg, rgb(255 255 255/.08), rgb(255 255 255/0) 40%)'
-const LAYER: CSSProperties = {
-  position: 'absolute',
-  top: 0,
-  bottom: 0,
-  pointerEvents: 'none',
-}
-
-/**
- * Photo paper over a face: grain + sheen above the content. `x` / `w` place
- * the page under a paper-leaf strip so both stay continuous across strips.
- */
-function paperLayers(x = 0, w?: number): [CSSProperties, CSSProperties] {
-  const box = w === undefined ? { left: 0, right: 0 } : { left: x, width: w }
-  return [
-    {
-      ...LAYER,
-      ...box,
-      backgroundImage: GRAIN,
-      backgroundSize: '160px',
-      mixBlendMode: 'multiply',
-      opacity: 0.03,
-    },
-    { ...LAYER, ...box, background: SHEEN },
-  ]
 }
 
 /** The two paper layers as elements. */
@@ -84,8 +60,7 @@ export function Paper({
   sheet?: boolean
 }) {
   const kind = slideKind(s)
-  const sh = pw / spreadRatio(rb.book.settings.trim)
-  const h = kind === 'spread' && !sheet ? sh : ph
+  const ratio = spreadRatio(rb.book.settings.trim)
   const page = s.page
   const spread =
     page === undefined ? null : rb.renderSlide === undefined ? (
@@ -115,7 +90,11 @@ export function Paper({
           />
         ) : sheet ? (
           <div
-            style={{ position: 'absolute', left: 0, top: (ph - sh) / 2 }}
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: (ph - pw / ratio) / 2,
+            }}
             data-testid="pt-art"
           >
             {spread}
@@ -130,13 +109,7 @@ export function Paper({
   return (
     <div
       className="ps-paper"
-      style={{
-        top: (ph - h) / 2,
-        width: pw,
-        height: h,
-        borderRadius: kind === 'cover' ? 2 : undefined,
-        ...(sheet && { left: 0, boxShadow: 'none' }),
-      }}
+      style={paperBox(kind, pw, ph, ratio, sheet)}
       data-testid="ps-paper"
     >
       {content}
@@ -267,10 +240,7 @@ export const Slides = forwardRef<SlidesApi, SlidesProps>(function Slides(
     }
     const scroll = () => {
       el.dataset.scroll = 'move'
-      const i = Math.max(
-        0,
-        Math.min(slides.length - 1, Math.round(el.scrollLeft / pitch)),
-      )
+      const i = stripSlide(el.scrollLeft, pitch, slides.length)
       if (i !== L.si) {
         L.si = i
         cb.current.onSi(i)
@@ -303,24 +273,18 @@ export const Slides = forwardRef<SlidesApi, SlidesProps>(function Slides(
   }, [keys, n])
 
   // a tap (< 8 px, < 350 ms) turns: the left half back, the right half on
-  const down = useRef<{ x: number; y: number; t: number } | null>(null)
+  const down = useRef<Point | null>(null)
   const onPointerDown = (e: PointerEvent) => {
     down.current = { x: e.clientX, y: e.clientY, t: e.timeStamp }
   }
   const onPointerUp = (e: PointerEvent) => {
     const d = down.current
     down.current = null
-    const el = strip.current
-    if (
-      d === null ||
-      el === null ||
-      Math.abs(e.clientX - d.x) >= 8 ||
-      Math.abs(e.clientY - d.y) >= 8 ||
-      e.timeStamp - d.t > 350
-    )
-      return
-    const r = el.getBoundingClientRect()
-    go(e.clientX - r.left < r.width / 2 ? -1 : 1)
+    if (d === null) return
+    const r = e.currentTarget.getBoundingClientRect()
+    const up = { x: e.clientX, y: e.clientY, t: e.timeStamp }
+    const step = tapStep(d, up, r.left, r.width)
+    if (step !== null) go(step)
   }
 
   return (

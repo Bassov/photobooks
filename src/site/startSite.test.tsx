@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderSitePage } from './renderSitePage'
 import { prerenderSample } from './sampleShell'
 import { sampleSiteInput } from './sampleSite'
-import { startSite } from './startSite'
+import { sampleLoad, startSite } from './startSite'
 
 const perf = vi.hoisted(() => ({ enablePerfHooks: vi.fn() }))
 vi.mock('../perf/exposePerf', () => perf)
@@ -132,6 +132,23 @@ describe('startSite', () => {
     expect(testId('site-room')?.hasAttribute('data-over')).toBe(true)
     expect(testId('site-about')?.textContent).toMatch(/^Sea/)
     expect(window.location.search).toBe('?book=sea')
+    window.history.replaceState(null, '', '/')
+  })
+
+  it('builds sample books from links relative to the page, and nothing else', async () => {
+    window.history.replaceState(null, '', '/x/site.html')
+    const book = await sampleLoad(document)('site.html?book=lake')
+    expect(book.entry.id).toBe('lake')
+    await expect(sampleLoad(document)('site.html')).rejects.toThrow(
+      'no sample book: site.html',
+    )
+    // a document without a window: its base URI resolves the link
+    const detached = {
+      defaultView: null,
+      baseURI: 'https://example.test/site.html?book=alps',
+    } as unknown as Document
+    const sea = await sampleLoad(detached)('?book=sea')
+    expect(sea.entry.id).toBe('sea')
     window.history.replaceState(null, '', '/')
   })
 

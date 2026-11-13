@@ -4,7 +4,7 @@ import { SiteApp } from './SiteApp'
 import type { SitePageInput } from './siteInput'
 
 /** The sample site (`site.html?book=<id>`): its book inputs are built here. */
-const sampleLoad =
+export const sampleLoad =
   (doc: Document): LoadBook =>
   async (href) => {
     const { sampleSiteInput } = await import('./sampleSite')

@@ -56,14 +56,17 @@ describe('portGeo', () => {
 })
 
 describe('slideKind', () => {
-  const at = (page?: RoomSlide['page']): RoomSlide =>
-    ({ spread: 0, page }) as RoomSlide
+  const at = (side?: 'left' | 'right' | 'both'): RoomSlide => ({
+    view: 1,
+    label: '',
+    ...(side && { page: { spread: 1, side } }),
+  })
 
   it('tells the cover, a whole spread and one page apart', () => {
     expect(slideKind(at())).toBe('cover')
-    expect(slideKind(at({ side: 'both' } as RoomSlide['page']))).toBe('spread')
-    expect(slideKind(at({ side: 'left' } as RoomSlide['page']))).toBe('page')
-    expect(slideKind(at({ side: 'right' } as RoomSlide['page']))).toBe('page')
+    expect(slideKind(at('both'))).toBe('spread')
+    expect(slideKind(at('left'))).toBe('page')
+    expect(slideKind(at('right'))).toBe('page')
   })
 })
 

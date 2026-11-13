@@ -21,15 +21,14 @@ export const GL_BODY: Readonly<Record<SiteCatalogBook['fmt'], ReaderBody>> = {
 export const CSS_BODY: ReaderBody = [1, 1, 0, 0]
 
 /** The reader's box: width (its height is width / R) and top-left corner. */
-export interface ReaderBox {
+interface ReaderBox {
   w: number
   left: number
   top: number
 }
 
 /** A row's horizontal extent. */
-export type RowX =
-  { left: number; width: number } | { left: number; right: number }
+type RowX = { left: number; width: number } | { left: number; right: number }
 
 /** Desktop wider than this lays the foot row on the 12-column grid. */
 const NARROW_MAX = 640

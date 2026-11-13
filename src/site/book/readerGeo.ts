@@ -12,7 +12,7 @@ export const px = (n: number) => `${String(n)}px`
 const sin = (deg: number) => Math.sin((deg * Math.PI) / 180)
 
 /** one interior leaf, ms */
-export const TURN_MS = 820
+const TURN_MS = 820
 /** a board (the covers), ms */
 const BOARD_MS = 1000
 /** the outer band of a page where the corner lifts under a fine pointer, px */
@@ -63,7 +63,7 @@ export const edgesOf = (g: Geo, r: number): [number, number] => [
 ]
 
 /** A board: reaches tE below the page block, its bottom BD + 1 px darker. */
-export function boardStyle(
+function boardStyle(
   g: Geo,
   left: boolean,
   x: number,
@@ -82,7 +82,7 @@ export function boardStyle(
   }
 }
 /** A page-block side edge e px wide, shaded darker outward */
-export function edgeStyle(g: Geo, left: boolean, e: number): CSSProperties {
+function edgeStyle(g: Geo, left: boolean, e: number): CSSProperties {
   return {
     left: left ? -e : g.W,
     top: 1,
@@ -92,7 +92,7 @@ export function edgeStyle(g: Geo, left: boolean, e: number): CSSProperties {
   }
 }
 /** The tail strip: the page block's thickness under the pages */
-export function tailStyle(g: Geo, eL: number, eR: number): CSSProperties {
+function tailStyle(g: Geo, eL: number, eR: number): CSSProperties {
   const { W, H, tE } = g
   return {
     left: -eL,
@@ -103,7 +103,7 @@ export function tailStyle(g: Geo, eL: number, eR: number): CSSProperties {
   }
 }
 /** The gutter: 8 % of W centred on the spine, lifted over a turning book's pages */
-export const gutterStyle = (g: Geo, z: boolean): CSSProperties => ({
+const gutterStyle = (g: Geo, z: boolean): CSSProperties => ({
   left: g.pw - g.W * 0.04,
   top: 0,
   width: g.W * 0.08,
@@ -112,7 +112,7 @@ export const gutterStyle = (g: Geo, z: boolean): CSSProperties => ({
 })
 
 /** One page half of the open book: view v's side, placed. */
-export interface PagePart {
+interface PagePart {
   v: number
   side: 'L' | 'R'
   style: CSSProperties
@@ -190,7 +190,7 @@ export function openShell(g: Geo, v: number): Shell {
 }
 
 /** The board leaf of an opening (a = 0) or closing (a = n − 2) turn. */
-export interface BoardLeaf {
+interface BoardLeaf {
   style: CSSProperties
   face: CSSProperties
   /** the endpaper's inset on the leaf: its back when opening, its front when closing */
@@ -284,7 +284,7 @@ export function turnShell(g: Geo, a: number, th: number): TurnShell {
 }
 
 /** the paper leaf's strip count */
-export const STRIPS = 12
+const STRIPS = 12
 /** One strip of the paper leaf: its box, where the page faces sit in it, and its shades. */
 export interface Strip {
   style: CSSProperties
