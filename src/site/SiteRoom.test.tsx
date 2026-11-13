@@ -1,4 +1,4 @@
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { roomMode } from './book/roomLayout'
 import { COVER_DELAY_MS, DWELL_MS, FADE_MS, SiteRoom } from './SiteRoom'
@@ -273,6 +273,28 @@ describe('SiteRoom phone', () => {
 
     expect(id('ps-strip')).not.toBeNull()
     expect(id('pt-stage')).toBeNull()
+  })
+
+  it('portrait carousel: Play at the last slide restarts at slide 1 at once', () => {
+    stubBox(390, 844)
+    window.history.replaceState(
+      null,
+      '',
+      '/site.html?book=sea&reader=carousel#p6',
+    )
+    render(<SiteRoom input={bookInput('sea')} />)
+    const scrolls = vi.spyOn(screen.getByTestId('ps-strip'), 'scrollTo')
+    expect(label()).toBe('Page 6 of 6')
+
+    act(() => {
+      id('site-play')?.click()
+    })
+
+    expect(id('site-play')?.getAttribute('aria-pressed')).toBe('true')
+    // slide 1 at one 374 px pitch (390 box), no smooth scroll
+    expect(scrolls.mock.calls).toStrictEqual([
+      [{ left: 374, behavior: 'instant' }],
+    ])
   })
 
   it('landscape: the reader with Share and Play, no Fullscreen', () => {

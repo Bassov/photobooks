@@ -53,6 +53,26 @@ function alps(): SiteBookData {
   return input
 }
 
+/** The book with spread `at`'s first frame emptied (no photo); its id must not appear elsewhere. */
+function emptyFirstFrame(book: SiteBookData['book'], at: number) {
+  const frames = book.spreads[at]?.frames ?? []
+  const [first, ...rest] = frames
+  if (first === undefined) throw new Error('frame expected')
+  const { assetId, ...noPhoto } = first
+  if (assetId === undefined) throw new Error('photo frame expected')
+  if (rest.some((f) => f.assetId === assetId))
+    throw new Error('photo used twice')
+  return {
+    emptied: assetId,
+    edited: {
+      ...book,
+      spreads: book.spreads.map((s, i) =>
+        i === at ? { ...s, frames: [noPhoto, ...rest] } : s,
+      ),
+    },
+  }
+}
+
 beforeEach(() => {
   fakeCanvas2d()
 })
@@ -84,6 +104,19 @@ describe('pageImages', () => {
     expect(page.size).toBe(first.length - 2)
     expect(again.size).toBe(page.size)
     expect(gl.photo).toHaveBeenCalledTimes(first.length - 1)
+  })
+
+  it('skips frames with no photo and reads only the placed ones', async () => {
+    const { book, images } = alps()
+    const all = [...(await pageImages(book, images)(2)).keys()]
+    const { edited, emptied } = emptyFirstFrame(book, 1)
+    gl.photo.mockClear()
+
+    const page = await pageImages(edited, images)(2)
+
+    const left = all.filter((id) => id !== emptied)
+    expect([...page.keys()]).toStrictEqual(left)
+    expect(gl.photo).toHaveBeenCalledTimes(left.length)
   })
 
   it('has no photos past the last spread', async () => {

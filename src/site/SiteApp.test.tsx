@@ -117,6 +117,31 @@ describe('SiteApp', () => {
     })
   })
 
+  it('reloads the page when Forward cannot read the book', async () => {
+    const reload = vi
+      .spyOn(window.location, 'reload')
+      .mockImplementation(() => undefined)
+    await open(
+      vi.fn((href: string) =>
+        href === 'site.html?book=gone'
+          ? Promise.reject(new Error('offline'))
+          : Promise.resolve(sea),
+      ),
+    )
+
+    act(() => {
+      window.dispatchEvent(
+        new PopStateEvent('popstate', {
+          state: { siteBook: 'site.html?book=gone' },
+        }),
+      )
+    })
+
+    await vi.waitFor(() => {
+      expect(reload).toHaveBeenCalledTimes(1)
+    })
+  })
+
   it('leaves modified clicks to the browser', () => {
     const load = vi.fn(() => Promise.resolve(sea))
     render(<SiteApp input={home} load={load} />)
