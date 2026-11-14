@@ -22,7 +22,7 @@ import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { cn } from '../ui/cn'
 import { Icon } from '../ui/Icon'
-import { CheckingLabel, Fail, Swap } from './hostingBits'
+import { CheckingLabel, Fail, Swap, XS_GHOST } from './hostingBits'
 import {
   BOX,
   CARD,
@@ -584,7 +584,7 @@ function Help({ cors }: { cors: boolean }) {
         <Button
           variant="ghost"
           size="sm"
-          className="absolute right-1 top-1 h-7 px-2 text-xs"
+          className={cn('absolute right-1 top-1', XS_GHOST)}
           onPress={() => {
             // `navigator.clipboard` is missing outside secure contexts.
             void Promise.resolve()
@@ -773,7 +773,7 @@ function Connected({
           style={{ textDecorationColor: 'rgb(57 55 56 / 0.35)' }}
         >
           {new URL(summary.publicBaseUrl).host}
-          <Icon name="externalLink" size={14} className="size-3.5" />
+          <Icon name="externalLink" size={14} />
         </a>
       </div>
       {rule()}

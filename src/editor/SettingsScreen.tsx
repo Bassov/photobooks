@@ -63,7 +63,7 @@ export function SettingsScreen({
       <nav className="flex flex-col gap-0.5 bg-chrome p-3 pr-[13px]">
         <div className="mb-3 flex items-center gap-2 px-2 pt-1">
           <div className="grid size-6 place-items-center rounded-md bg-field text-foreground">
-            <Icon name="bookOpen" size={14} className="size-3" />
+            <Icon name="bookOpen" size={12} />
           </div>
           <span className="text-base font-semibold">Settings</span>
         </div>
