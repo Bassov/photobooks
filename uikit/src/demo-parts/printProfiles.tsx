@@ -115,6 +115,8 @@ export function fromDraft(base: KitProfile, d: Draft): KitProfile {
 }
 
 export const ERR = "#a8403a"
+/** the chevron of the kit's native selects (`print-default`, the hosting domain) */
+export const CHEVRON = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23535152' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`
 export const BOX = "flex h-8 items-center rounded-md bg-field px-2.5 text-sm text-foreground"
 /* kit Field rule: shadow-xs at rest; focus-visible and error are a 1 px inset ring instead */
 export const ring = (err: boolean) => err ? "shadow-none ring-1 ring-inset ring-[#a8403a]" : "shadow-xs has-[input:focus-visible]:shadow-none has-[input:focus-visible]:ring-1 has-[input:focus-visible]:ring-inset has-[input:focus-visible]:ring-[#535152]"
