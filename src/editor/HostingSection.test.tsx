@@ -53,6 +53,11 @@ function box(testId: string): HTMLElement {
   return parent
 }
 
+/** Not inside the hidden mode. */
+function shown(testId: string): boolean {
+  return screen.getByTestId(testId).closest('[hidden]') === null
+}
+
 function type(testId: string, value: string) {
   fireEvent.change(input(testId), { target: { value } })
 }
@@ -66,9 +71,13 @@ function fillValid() {
   fireEvent.blur(input('hosting-url'))
 }
 
+/** Not connected opens the guided setup; these tests switch to the manual form. */
 async function renderSection() {
   render(<HostingSection row={ROW} rule={rule} />)
-  return screen.findByTestId(/^hosting-(form|connected)$/)
+  const shown = await screen.findByTestId(/^hosting-(setup|connected)$/)
+  if (shown.dataset.testid === 'hosting-connected') return shown
+  fireEvent.click(screen.getByTestId('hosting-manual'))
+  return screen.getByTestId('hosting-form')
 }
 
 async function seedConnected(status = { checkedAtMs: Date.now(), ok: true }) {
@@ -267,7 +276,7 @@ describe('HostingSection', () => {
     answer(new TypeError('Failed to fetch'))
     await renderSection()
     expect(
-      screen.getByTestId('hosting-step-3').hasAttribute('data-marked'),
+      screen.getByTestId('hosting-help-step-3').hasAttribute('data-marked'),
     ).toBe(false)
     fillValid()
     fireEvent.click(screen.getByTestId('hosting-connect'))
@@ -275,7 +284,7 @@ describe('HostingSection', () => {
       'Add the CORS policy from step 3',
     )
     expect(
-      screen.getByTestId('hosting-step-3').hasAttribute('data-marked'),
+      screen.getByTestId('hosting-help-step-3').hasAttribute('data-marked'),
     ).toBe(true)
   })
 
@@ -354,6 +363,7 @@ describe('HostingSection', () => {
     await renderSection()
     fireEvent.click(screen.getByTestId('hosting-replace'))
     await screen.findByTestId('hosting-form')
+    expect(screen.queryByTestId('hosting-guided')).toBeNull()
     expect(input('hosting-account').value).toBe(ACCOUNT)
     expect(input('hosting-bucket').value).toBe('aleksandr-books')
     expect(input('hosting-url').value).toBe('https://books.basov.photo')
@@ -397,6 +407,8 @@ describe('HostingSection', () => {
     fireEvent.click(screen.getByTestId('hosting-forget'))
     fireEvent.click(await screen.findByRole('button', { name: 'Forget token' }))
     await screen.findByTestId('hosting-form')
+    expect(shown('hosting-form')).toBe(true)
+    expect(shown('hosting-setup')).toBe(false)
     expect(input('hosting-account').value).toBe('')
     await waitFor(() => {
       expect(document.activeElement).toBe(input('hosting-account'))
@@ -405,10 +417,90 @@ describe('HostingSection', () => {
     expect(await createCredentialStore().loadStatus()).toBeNull()
   })
 
+  it('Forget of a setup-made record returns to the setup with the token focused', async () => {
+    await createCredentialStore().save(STORED, {
+      origin: 'setup',
+      provisionedAtMs: Date.now(),
+    })
+    await renderSection()
+    expect(screen.getByTestId('hosting-checked').textContent).toContain(
+      'Set up automatically',
+    )
+    expect(screen.getByTestId('hosting-badge').textContent).toBe('Connected')
+    expect(screen.getByTestId('hosting-site-new').textContent).toBe(
+      'New address: it can take a few minutes to start working.',
+    )
+    fireEvent.click(screen.getByTestId('hosting-forget'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Forget token' }))
+    await screen.findByTestId('hosting-setup')
+    expect(shown('hosting-setup')).toBe(true)
+    await waitFor(() => {
+      expect(document.activeElement).toBe(input('hosting-setup-token'))
+    })
+    expect(await loadHostingSummary()).toBeNull()
+  })
+
+  it('a left-over setup token shows the API Tokens line', async () => {
+    await createCredentialStore().save(STORED, {
+      origin: 'setup',
+      provisionedAtMs: Date.now(),
+      setupTokenLeft: true,
+    })
+    await renderSection()
+    expect(screen.getByTestId('hosting-token-left').textContent).toContain(
+      'API Tokens',
+    )
+  })
+
+  it('an older setup record and a manual one show no new-address hint', async () => {
+    await createCredentialStore().save(STORED, {
+      origin: 'setup',
+      provisionedAtMs: Date.now() - 20 * 60_000,
+    })
+    await renderSection()
+    expect(screen.getByTestId('hosting-checked').textContent).toContain(
+      'Set up automatically',
+    )
+    expect(screen.queryByTestId('hosting-site-new')).toBeNull()
+    cleanup()
+    await seedConnected()
+    await renderSection()
+    expect(screen.getByTestId('hosting-checked').textContent).toContain(
+      'Checked',
+    )
+    expect(screen.queryByTestId('hosting-site-new')).toBeNull()
+  })
+
+  it('leaving the form for setup drops the secret: Connect waits for it again', async () => {
+    await renderSection()
+    fillValid()
+    expect(screen.getByTestId('hosting-connect').hasAttribute('disabled')).toBe(
+      false,
+    )
+    fireEvent.click(screen.getByTestId('hosting-guided'))
+    fireEvent.click(screen.getByTestId('hosting-manual'))
+    expect(input('hosting-account').value).toBe(ACCOUNT.toUpperCase())
+    expect(screen.getByTestId('hosting-connect').hasAttribute('disabled')).toBe(
+      true,
+    )
+  })
+
+  it('the mode links switch and drop the typed secret', async () => {
+    await renderSection()
+    type('hosting-secret', SECRET)
+    fireEvent.click(screen.getByTestId('hosting-guided'))
+    expect(shown('hosting-setup')).toBe(true)
+    expect(shown('hosting-form')).toBe(false)
+    expect(input('hosting-secret').value).toBe('')
+    fireEvent.click(screen.getByTestId('hosting-manual'))
+    expect(shown('hosting-form')).toBe(true)
+    expect(shown('hosting-setup')).toBe(false)
+  })
+
   it('rest form: intro, rules, muted hints, Connect label, no Cancel, no focus', async () => {
     await renderSection()
-    expect(document.body.textContent).toContain(
-      'Publish uploads your books to your own Cloudflare R2 bucket.',
+    expect(screen.getByTestId('settings-hosting-intro').textContent).toBe(
+      'Publish puts your books on your own site, in your own Cloudflare account. Set it up once: Photobooks keeps only a key for its own bucket, on this computer.',
     )
     // 4 between the 5 fields + 1 above the footer.
     expect(
@@ -419,7 +511,7 @@ describe('HostingSection', () => {
     const form = screen.getByTestId('hosting-form')
     expect(form.hasAttribute('aria-busy')).toBe(false)
     expect(screen.getByText('Connect').className).not.toContain('invisible')
-    expect(screen.getByText('Checking…').className).toContain('invisible')
+    expect(within(form).getByText('Checking…').className).toContain('invisible')
     expect(input('hosting-key').className.split(' ')).not.toContain(
       'text-muted-foreground',
     )
@@ -497,7 +589,10 @@ describe('HostingSection', () => {
     await waitFor(() => {
       expect(screen.getByText('Connect').className).toContain('invisible')
     })
-    expect(screen.getByText('Checking…').className).not.toContain('invisible')
+    expect(
+      within(screen.getByTestId('hosting-form')).getByText('Checking…')
+        .className,
+    ).not.toContain('invisible')
     expect(input('hosting-key').className.split(' ')).toContain(
       'text-muted-foreground',
     )

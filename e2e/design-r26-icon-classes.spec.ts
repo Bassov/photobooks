@@ -65,6 +65,9 @@ test('M113: Settings nav icons paint the muted ink', async ({ page }) => {
 test('M113: Hosting R2 tokens link icon is 12×12', async ({ page }) => {
   await openSettings(page)
   await page.getByTestId('settings-nav-hosting').click()
+  // Not connected opens the guided setup; the docs link is in the manual form.
+  await page.getByTestId('hosting-manual').click()
+  await expect(page.getByTestId('hosting-docs')).toBeVisible()
   const icon = page.getByTestId('hosting-docs').locator('svg.pb-icon')
   const box = await icon.boundingBox()
   expect(box?.width).toBe(12)
