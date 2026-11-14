@@ -155,8 +155,7 @@ function fileHasGate(cwd, file) {
 
 export function main(argv) {
   const [cmd, ...rest] = argv
-  if (cmd === 'scope')
-    return scopeCommand(rest[0] ?? 'origin/main', process.cwd())
+  if (cmd === 'scope') return scopeCommand(rest[0], process.cwd())
   if (cmd === 'verdict') return verdictCommand(rest)
   console.error(
     'usage: perf-lane.mjs scope <base> | verdict [--out f] [--base f --base-url u --base-ref r] <report.json>...',
@@ -167,10 +166,10 @@ export function main(argv) {
 /**
  * A git failure (no merge base, bad ref) is an error, never "not in scope":
  * a silent false would skip the gates on exactly the PRs that need them.
- * @param {string} base ref diffed as `${base}...HEAD`
+ * @param {string | undefined} base ref diffed as `${base}...HEAD`
  * @param {string} cwd git work tree to diff
  */
-export function scopeCommand(base, cwd) {
+export function scopeCommand(base = 'origin/main', cwd) {
   let files
   try {
     files = changedFiles(base, cwd)

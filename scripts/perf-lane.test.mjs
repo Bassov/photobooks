@@ -346,5 +346,27 @@ describe('scope (CLI in a git repo)', () => {
       expect(r.stdout).toBe('')
       expect(r.stderr).toContain('cannot diff origin/nope...HEAD')
     })
+
+    it('diffs against origin/main by default', () => {
+      makeRepo()
+      git('update-ref', 'refs/remotes/origin/main', 'main')
+      commit('src/render/paint.ts')
+      expect(run(undefined)).toEqual({
+        status: 0,
+        stdout: 'in_scope=true',
+        stderr: '',
+      })
+    })
+
+    it('returns 1 when git cannot even start in the work tree', () => {
+      makeRepo()
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const missing = path.join(os.tmpdir(), 'perf-lane-missing-dir')
+      const status = scopeCommand('main', missing)
+      const stderr = error.mock.calls.map((c) => c.join(' ')).join('\n')
+      error.mockRestore()
+      expect(status).toBe(1)
+      expect(stderr).toContain('cannot diff main...HEAD')
+    })
   })
 })
