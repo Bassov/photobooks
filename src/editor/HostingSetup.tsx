@@ -20,7 +20,7 @@ import { Button } from '../ui/Button'
 import { cn } from '../ui/cn'
 import { Icon } from '../ui/Icon'
 import { LoaderGlyph } from './export/exportSiteGlyphs'
-import { CheckingLabel, Fail, Swap } from './hostingBits'
+import { CheckingLabel, Fail, Swap, XS_GHOST } from './hostingBits'
 import { BOX, CARD, ERR, GHOST, MODE_LINK, ring } from './hostingStyles'
 import {
   PENDING_PROGRESS,
@@ -161,7 +161,7 @@ function StepHead({
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 px-2 text-xs font-medium text-foreground data-[hovered]:bg-[#CFCFCF]!"
+          className={cn(XS_GHOST, 'data-[hovered]:bg-[#CFCFCF]!')}
           onPress={onChange}
           data-testid={`hosting-step-${String(n)}-change`}
         >
@@ -197,7 +197,12 @@ const ROW_ICON: Record<RowView, ReactNode> = {
   ),
   done: <Icon name="check" size={16} />,
   failed: <Icon name="warning" size={16} />,
-  warn: <Icon name="warning" size={16} className="text-warning" />,
+  // `.pb-icon` paints currentColor, so the warning ink comes from the parent.
+  warn: (
+    <span className="grid size-4 shrink-0 place-items-center text-warning">
+      <Icon name="warning" size={16} />
+    </span>
+  ),
 }
 const NO_ROWS: readonly string[] = []
 
@@ -395,9 +400,11 @@ export function HostingSetup({
     target === undefined ? NO_ROWS : setupRowTexts(target.bucket, target.host)
 
   return (
-    <div className="@container">
+    // A query container keeps its children's margins, so the wrapper takes the card's top margin and it collapses
+    // with the intro's (M114).
+    <div className="mt-5 @container">
       <div
-        className={CARD}
+        className={cn(CARD, 'mt-0')}
         data-testid="hosting-setup"
         aria-busy={checking || running || undefined}
       >
