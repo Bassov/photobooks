@@ -173,6 +173,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [gl-faces-probe-flaky](roadmap/P3/gl-faces-probe-flaky.md) — Bug: /next-roadmap-item gl-faces-probe-flaky
 - [ ] [feature] [design-r25-publish-cache](roadmap/P3/design-r25-publish-cache.md) — Bug: /next-roadmap-item design-r25-publish-cache
 - [ ] [feature] [design-r27-button-styles](roadmap/P3/design-r27-button-styles.md) — Bug: /next-roadmap-item design-r27-button-styles
+- [ ] [feature] [site-settings-opfs-flake](roadmap/P3/site-settings-opfs-flake.md) — Bug: /next-roadmap-item site-settings-opfs-flake
 - [ ] [feature] [in-app-publish-kit](roadmap/P3/in-app-publish-kit.md) — Bug: /next-roadmap-item in-app-publish-kit
 - [x] [feature] [uikit-qa-split-1](roadmap/P3/uikit-qa-split-1.md) — Bug: /next-roadmap-item uikit-qa-split-1
 - [ ] [feature] [uikit-qa-split-2](roadmap/P3/uikit-qa-split-2.md) — Bug: /next-roadmap-item uikit-qa-split-2
