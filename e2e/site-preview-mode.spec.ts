@@ -107,8 +107,9 @@ test('Preview opens the site book room of the current book on the cover (1440 ×
   near(room.y, 48, 'room y')
   near(room.height, 852, 'room h')
   await expect(site.getByTestId('site-about')).toContainText(/\d+ pages/)
-  // Nothing published: no site name, no "All books", no Share.
-  await expect(site.getByTestId('site-name')).toHaveCount(0)
+  // The head name is the author, else the site title ("Photobooks" when
+  // unset); nothing published: no "All books", no Share.
+  await expect(site.getByTestId('site-name')).toHaveText('Photobooks')
   await expect(site.getByTestId('site-all-books')).toHaveCount(0)
   await expect(site.getByTestId('site-share')).toHaveCount(0)
   // The head name is plain text: nothing in the room links away.

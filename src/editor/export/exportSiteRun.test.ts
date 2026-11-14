@@ -8,6 +8,10 @@ import {
   type PublishedRevision,
 } from '../../project'
 import { sha256Hex } from '../../lib/sha256Hex'
+import {
+  resetSiteSettingsForTests,
+  setSiteSettings,
+} from '../siteSettingsStore'
 import type { SiteExportMessage } from '../../site/export/site-export.worker'
 import type { SiteViewerBundle } from '../../site/export/types'
 import {
@@ -203,6 +207,19 @@ describe('freezeForExport', () => {
     expect(frozen.revisions).toEqual([
       { bookId: 'open', publishedAtMs: 5, book },
     ])
+  })
+
+  it('keeps the session site settings without a library', async () => {
+    setSiteSettings({ title: 'Alps', author: 'Ann' })
+    const book = makeBook({ id: 'open' })
+
+    const frozen = await freezeForExport(book, null, 5)
+    resetSiteSettingsForTests()
+
+    expect(frozen.meta).toEqual({
+      books: { open: { status: 'published' } },
+      site: { title: 'Alps', author: 'Ann' },
+    })
   })
 
   it('saves the open book and adds the other published books, not drafts', async () => {

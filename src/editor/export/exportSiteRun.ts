@@ -26,6 +26,7 @@ import type {
 } from '../../site/export/types'
 import { siteMetaOf } from '../../site/siteModel'
 import type { SiteDirectoryHandle } from '../../site/export/writeSiteTree'
+import { getSiteSettings } from '../siteSettingsStore'
 import type { ExportSiteEvent } from './exportSiteStore'
 import { exportPercent } from './exportSiteText'
 
@@ -211,7 +212,13 @@ export async function freezeForExport(
   nowMs: number,
 ): Promise<{ meta: LibraryMeta; revisions: PublishedRevision[] }> {
   if (storage === null) {
-    const { meta, revision } = publishBook({}, book, nowMs)
+    // No library: the session's site settings (S2 keeps them in memory).
+    const site = getSiteSettings()
+    const { meta, revision } = publishBook(
+      Object.keys(site).length === 0 ? {} : { site },
+      book,
+      nowMs,
+    )
     return { meta, revisions: [revision] }
   }
   const current = await storage.getLibrary()
