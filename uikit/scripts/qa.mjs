@@ -314,8 +314,11 @@ const smokeS = async (name, id, fn) => {
 // Frozen: no new checks here. The §4 / v4–v0.6.1 checks moved to e2e/kit-{library,editor-canvas,tokens,credits,personal-site}.spec.ts
 // (uikit-qa-split-1), the v7–v0.10 spread list / book settings / sliders / toggles / tokens checks to
 // e2e/kit-{spread-list,book-settings,sliders,toggle-size,tokens}.spec.ts (uikit-qa-split-2), the editor chrome / credits /
-// library / settings / masters checks to e2e/kit-{editor-chrome,credits,library,settings,masters}.spec.ts (uikit-qa-split-3);
-// the blocks below move by feature in uikit-qa-split-4…, map in docs/roadmap/P3/uikit-qa-split-1.md.
+// library / settings / masters checks to e2e/kit-{editor-chrome,credits,library,settings,masters}.spec.ts (uikit-qa-split-3),
+// the editor canvas / parent overrides / #/demo sandbox / site preview / personal site checks to
+// e2e/kit-{editor-canvas,parent-overrides,demo-sandbox,site-preview,personal-site}.spec.ts (uikit-qa-split-4; the kit10 and W4
+// walks keep only the steps the checks left here need); the blocks below move by feature in uikit-qa-split-5…, map in
+// docs/roadmap/P3/uikit-qa-split-1.md.
 const walk6 = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walk6(`${d}/${e.name}`) : /\.(tsx?|css)$/.test(e.name) ? [`${d}/${e.name}`] : [])
 
 // ───────── v7: editor redesign, kit chrome, sliders, toggles, black-only-for-selection ─────────
@@ -327,19 +330,6 @@ const bg = (loc) => loc.evaluate((e) => getComputedStyle(e).backgroundColor)
 
 // ───────── v0.7.1: one editor, scenario states ─────────
 {
-  await smokeS("v7.1 P1 #3: v0.5.3 features live in the one editor — templates All/My (no search since kit-sync KS7), filmstrip drag source, inspector params, multi-select, Crop toolbar", "canvas", async () => {
-    await scen("Photo")
-    const r = {}
-    r.tb = await E('[role=toolbar]').count()
-    r.params = await E('[data-testid="inspector"] [data-testid="ctx-inspector"][data-ctx="photo"]').count()
-    await E('[data-item="p3"]').scrollIntoViewIfNeeded(); await page.waitForTimeout(200); await E('[data-item="p3"]').click(); await page.waitForTimeout(200) // the spread list is a drag source (reorder): scroll first, then click
-    r.tpl = await E('[data-testid="tpl-tile"]').count(); r.search = await E('[data-testid="inspector"] input[type=search], [data-testid="inspector"] [role=searchbox]').count()
-    r.film = await E('[data-testid="filmstrip"] [role=row]').count()
-    const fr = E('[data-testid="spread"][data-current] [data-testid="frame"]')
-    r.frames = await fr.count()
-    if (r.frames >= 2) { await fr.nth(0).click({ force: true }); await fr.nth(1).click({ modifiers: ["Shift"], force: true }); await page.waitForTimeout(200); r.multi = await E('[data-testid="sel-outline"]').count() }
-    return [r.tb >= 1 && r.params === 1 && r.tpl >= 4 && r.search === 0 && r.film >= 4 && (r.multi ?? 0) >= 2, JSON.stringify(r)]
-  })
   await smokeS("layout-tile-states (Owner 2026-11-02): the tile stays transparent, hover rings the paper, the paper fills a trim-shaped box, page 1 goes 3 columns", "canvas", async () => {
     const tile = () => E('[data-testid="layout-section"] [data-testid="tpl-tile"]').nth(1)
     const read = () => tile().evaluate((t) => {
@@ -399,30 +389,6 @@ const bg = (loc) => loc.evaluate((e) => getComputedStyle(e).backgroundColor)
     const sl = await D('[data-testid="adjust"] [role=slider], [data-testid="adjust"] input[type=range]').count()
     return [has.length === 0 && t0 !== t1 && /scale\(-/.test(t1) && cap === "Sunset at Zoutelande" && sl === 3, `missing=${has.join(",") || "-"} flip=${/scale\(-/.test(t1)} caption="${cap}" sliders=${sl}`]
   })
-  // P2-7 toolbar never covers a page-number label
-  {
-    const bad = []
-    await go(scr("canvas"), 700)
-    const fr = E('[data-testid="spread"] [data-testid="frame"]'); const n = await fr.count()
-    for (let i = 0; i < n; i++) { await fr.nth(i).click({ force: true }); await page.waitForTimeout(200)
-      const o = await page.evaluate(() => { const tb = document.querySelector('[data-testid="demo"] [data-testid="frame-toolbar"]'); if (!tb) return null; const a = tb.getBoundingClientRect()
-        const labels = [...document.querySelectorAll('[data-testid="demo"] [data-testid="page-labels"] span')]
-        return labels.filter((l) => { const b = l.getBoundingClientRect(); return b.width && l.textContent.trim() && !(a.right < b.left || b.right < a.left || a.bottom < b.top || b.bottom < a.top) }).map((l) => l.textContent) })
-      if (o?.length) bad.push(`frame ${i}: ${o.join(",")}`) ; await page.keyboard.press("Escape") }
-    const nl = await page.evaluate(() => document.querySelectorAll('[data-testid="demo"] [data-testid="page-labels"] span').length)
-    ok("v7.2 P2-7: Replace/Crop toolbar never overlaps a page-number label", nl > 0 && bad.length === 0, `${n} frames, ${nl} labels; ${bad.join(" | ") || "no overlap"}`)
-  }
-}
-// ───────── v0.7.3: designer review of v0.7.2 (uikit-audit/v7.2-review.md) ─────────
-{
-  // P2-1 spread-list-panel: no hidden-scrollbar canvas scroll
-  { await go(feat("spread-list-panel"), 1200)
-    const sc = await page.evaluate(() => [...document.querySelectorAll('[data-testid="demo"] *')].filter((e) => { const cs = getComputedStyle(e); return /(auto|scroll)/.test(cs.overflowY + cs.overflowX) && (e.scrollHeight > e.clientHeight + 2 || e.scrollWidth > e.clientWidth + 2) && e.closest('[data-testid="canvas"],[data-testid="viewport"],[data-testid="pasteboard"]') }).map((e) => e.dataset.testid || e.className.toString().slice(0, 40)))
-    ok("v7.3 P2-1: spread-list-panel canvas has no scrolling pasteboard", sc.length === 0, sc.slice(0, 4).join(" | ") || "none") }
-  // v8 §4: the site theme switcher is gone (one library-style look)
-  { await go(feat("site-settings"), 1000)
-    const n = await page.locator('[data-testid="site-settings"]').getByText(/^(Paper|Night|Sage)$/).count(), th = await page.locator('[data-site-theme]').count()
-    ok("v7.3→v8: Site settings has no Paper / Night / Sage theme switcher", n === 0 && th === 0, `${n} ${th}`) }
 }
 // ───────── v0.7.4: designer review of v0.7.3 (uikit-audit/v7.3-review.md) — 4 P2 polish items ─────────
 {
@@ -451,236 +417,6 @@ await smokeS("v8 §3.1 single filmstrip label 'Photos · N · M used'", "canvas"
   const t = (await D('[data-testid="film-head"]').innerText()).trim(); const n = await D('[data-testid="placed-count"]').count()
   const dup = await D('[data-testid="dock"]').evaluate((d) => (d.innerText.match(/\bused\b/g) || []).length)
   return [/^Photos · \d+ · \d+ used$/.test(t) && n === 1 && dup === 1, `"${t}" n=${n} used×${dup}`]
-})
-await smokeS("v8 §3.4 grid: per-spread custom 4 × 3 renders 4 columns and 3 rows on each page", "canvas", async () => {
-  await D('[data-item="p3"]').scrollIntoViewIfNeeded(); await page.waitForTimeout(200); await D('[data-item="p3"]').click(); await page.waitForTimeout(200)
-  const sg = D('[data-testid="spread-grid"]'); await sg.getByText("Custom", { exact: true }).click(); await page.waitForTimeout(200)
-  await sg.locator('[data-testid="spread-grid-C"]').fill("4"); await sg.locator('[data-testid="spread-grid-R"]').fill("3"); await page.waitForTimeout(200)
-  if (!(await D('[data-testid="grid-col"]').count())) { await sg.getByLabel("Show grid").click(); await page.waitForTimeout(250) }
-  const c = await D('[data-current] [data-testid="grid-col"]').count(), r = await D('[data-current] [data-testid="grid-row"]').count()
-  return [c === 8 && r === 6, `cols=${c} rows=${r} (2 pages)`]
-})
-await smokeS("layout-grids-parent-inherit GP2/GP3: Custom is grey and writes nothing; G 8 is own (600 + ↺); ↺ restores it and Custom stays", "canvas", async () => {
-  await D('[data-item="p3"]').scrollIntoViewIfNeeded(); await page.waitForTimeout(200); await D('[data-item="p3"]').click(); await page.waitForTimeout(200)
-  const sg = D('[data-testid="spread-grid"]'); await sg.getByText("Custom", { exact: true }).click(); await page.waitForTimeout(200)
-  const g = sg.locator('[data-testid="spread-grid-G"]'), w = () => g.evaluate((e) => getComputedStyle(e).fontWeight)
-  const g0 = await g.inputValue(), w0 = await w(), hint = await sg.locator('[data-testid="spread-grid-hint"]').textContent(), r0 = await sg.locator('[data-testid="spread-grid-reset-G"]').count()
-  const box0 = await g.locator("..").boundingBox()
-  await g.fill("8"); await page.waitForTimeout(200)
-  const w1 = await w(), reset = sg.locator('[data-testid="spread-grid-reset-G"]'), label = await reset.getAttribute("aria-label"), box1 = await g.locator("..").boundingBox()
-  await reset.click(); await page.waitForTimeout(200)
-  const g2 = await g.inputValue(), r2 = await sg.locator('[data-testid="spread-grid-reset-G"]').count(), custom = await sg.getByRole("button", { name: "Custom" }).getAttribute("aria-pressed")
-  const still = box0.width === box1.width && box0.height === box1.height
-  return [w0 === "400" && r0 === 0 && w1 === "600" && g2 === g0 && r2 === 0 && custom === "true" && still && /^Grey values follow /.test(hint ?? ""), `G ${g0} w${w0} → 8 w${w1} "${label}" → ${g2}; ↺ ${r0}/${r2}; Custom ${custom}; box ${box1.width}x${box1.height}; "${hint}"`]
-})
-await smokeS("layout-grids-parent-inherit GP5: link on writes only the margins ≠ T as spread overrides, in one undo step", "canvas", async () => {
-  await D('[data-item="p3"]').scrollIntoViewIfNeeded(); await page.waitForTimeout(200); await D('[data-item="p3"]').click(); await page.waitForTimeout(200)
-  const sg = D('[data-testid="spread-grid"]'); await sg.getByText("Custom", { exact: true }).click(); await page.waitForTimeout(200)
-  const read = () => Promise.all(["T", "B", "I", "O"].map(async (k) => { const i = sg.locator(`[data-testid="spread-grid-${k}"]`); return `${await i.inputValue()}${await i.evaluate((e) => getComputedStyle(e).fontWeight) === "600" ? "*" : ""}` })).then((v) => v.join("/"))
-  const m0 = await read(); await sg.locator('[data-testid="spread-grid-link"]').click(); await page.waitForTimeout(200)
-  const m1 = await read(); await page.keyboard.press("Control+z"); await page.waitForTimeout(200)
-  const m2 = await read(); const t = m0.split("/")[0], diff = m0.split("/").map((v, i) => i && v !== t ? `${t}*` : v).join("/")
-  return [m0 !== `${t}/${t}/${t}/${t}` && m1 === diff && m2 === m0, `${m0} → link ${m1} (want ${diff}) → undo ${m2}  (* = own, 600)`]
-})
-{
-  await go(feat("site-lightbox"), 600)
-  const e0 = errs.length
-  if (!(await page.locator('[data-testid="lightbox"]').count())) { await D('[data-testid="site-fullscreen-btn"]').first().click().catch(() => {}); await page.waitForTimeout(300) }
-  const m = await page.locator('[data-testid="site-fullscreen-book"]').evaluate((e) => { const r = e.getBoundingClientRect(), v = e.closest('[data-testid="lightbox"]').getBoundingClientRect(); return { w: r.width / v.width, h: r.height / v.height, pad: Math.min(r.left - v.left, v.right - r.right, r.top - v.top, v.bottom - r.bottom), fit: Math.min(Math.abs(r.width - (v.width - 128)), Math.abs(r.height - (v.height - 112))), cx: Math.abs(r.left - v.left - (v.right - r.right)) } }).catch(() => null)
-  const sw = await page.locator('text=/^(Paper|Night|Sage)$/').count()
-  // site-lightbox §2: the fit area is the dialog minus 64 top / 48 bottom / 64 sides; the slide touches it on its limiting side, centred
-  ok("v8 §4 + site-lightbox §2 site fullscreen fills ≥90% of one viewport dimension, fits the 64/48/64 inset area (48–64px padding); no Paper/Night/Sage switcher", !!m && Math.max(m.w, m.h) >= 0.9 && m.pad >= 47.5 && m.pad <= 64.5 && m.fit <= 0.5 && m.cx <= 0.5 && sw === 0 && errs.length === e0, JSON.stringify(m) + ` themes=${sw}`)
-  // Designer site-lightbox §2–§3: no control over the active slide; double-click zooms; a step resets; Esc closes at any zoom
-  const LB = '[data-testid="lightbox"]', zoomOf = () => page.locator(LB).getAttribute("data-zoom").catch(() => null)
-  const xo = await page.locator(LB).evaluate((v) => { const s = v.querySelector('[data-testid="site-fullscreen-book"]').getBoundingClientRect(), x = v.querySelector('[data-testid="site-fullscreen-close"]').getBoundingClientRect(); return { over: !(x.right <= s.left || x.left >= s.right || x.bottom <= s.top || x.top >= s.bottom), x: [x.left, x.top, x.width].map(Math.round), s: [s.left, s.top, s.right, s.bottom].map((n) => +n.toFixed(2)) } }).catch(() => null)
-  ok("site-lightbox §2 Close X does not overlap the active slide", !!xo && !xo.over, JSON.stringify(xo))
-  await page.locator('[data-testid="site-fullscreen-book"]').dblclick().catch(() => {}); await page.waitForTimeout(350)
-  const z2 = await zoomOf()
-  ok("site-lightbox §3 double-click → data-zoom 2.00", z2 === "2.00", z2)
-  await page.keyboard.press("ArrowRight"); await page.waitForTimeout(350)
-  const z1 = await zoomOf()
-  ok("site-lightbox §3 ArrowRight while zoomed → data-zoom 1.00", z2 === "2.00" && z1 === "1.00", `${z2} → ${z1}`)
-  await page.locator('[data-testid="site-fullscreen-book"]').dblclick().catch(() => {}); await page.waitForTimeout(350)
-  const z3 = await zoomOf()
-  await page.keyboard.press("Escape").catch(() => {}); await page.waitForTimeout(200)
-  const open = await page.locator(LB).count()
-  ok("site-lightbox §3 Esc while zoomed closes (one press)", z3 === "2.00" && open === 0, `zoom ${z3} · lightbox ${open}`)
-}
-{
-  const e0 = errs.length; const steps = []; let walk = false
-  try {
-    await go("#/", 500); await page.click('[data-testid="demo-link"]'); await page.waitForTimeout(500); await page.evaluate(() => window.__demo.reset()); await page.waitForTimeout(300)
-    const stage = () => page.evaluate(() => document.querySelector('[data-testid="demo"]')?.dataset.demoStage)
-    steps.push(await stage())
-    await page.getByRole("button", { name: /Create library/i }).first().click(); await page.waitForTimeout(300)
-    await page.locator("[role=dialog]").getByRole("button", { name: /Choose|Select|Use/i }).last().click(); await page.waitForTimeout(400); steps.push(await stage())
-    await page.getByRole("button", { name: /Create book/ }).first().click(); await page.waitForTimeout(300)
-    await page.locator("[role=dialog] input").first().fill("QA walk"); await page.click('[data-testid="create-book"]'); await page.waitForTimeout(700); steps.push(await stage())
-    await page.click('[data-testid="demo-add-folder"]'); await page.waitForTimeout(300)
-    await page.locator("[role=dialog]").getByRole("button", { name: /Choose|Select|Use|Add/i }).last().click(); await page.waitForTimeout(500)
-    const pc = await page.locator('[data-testid="placed-count"]').textContent()
-    await page.click('[data-testid="demo-publish"]'); await page.waitForTimeout(250); await page.click('[data-testid="publish-go"]'); await page.waitForTimeout(1900)
-    const link = await page.locator('[data-testid="publish-link"]').textContent()
-    await page.click('[data-testid="publish-open-site"]'); await page.waitForTimeout(500); steps.push(await stage())
-    await page.click('[data-testid="demo-site-back"]'); await page.waitForTimeout(500)
-    await page.click('[data-testid="demo-print"]'); await page.waitForTimeout(250); await page.click('[data-testid="print-go"]'); await page.waitForTimeout(1900)
-    const pd = await page.locator('[data-testid="print-done"]').count(); await page.click('[data-testid="print-close"]'); await page.waitForTimeout(250)
-    await page.click('[data-testid="editor-library"]'); await page.waitForTimeout(500); steps.push(await stage())
-    await page.click('[data-testid="home-settings"]'); await page.waitForTimeout(300); steps.push(await stage())
-    await page.click('[data-testid="demo-settings-back"]'); await page.waitForTimeout(300); steps.push(await stage())
-    walk = steps.join(">") === "welcome>library>editor>site>library>settings>library" && /\b20\b|\d+ · \d+ used/.test(pc) && /\S/.test(link) && pd === 1
-    steps.push(pc, link)
-  } catch (e) { steps.push("ERR " + e.message.split("\n")[0]) }
-  // dead-button sweep: every enabled control on each stage must change the DOM or the route
-  const seed = async (stage) => { await page.evaluate((stage) => { const d = window.__demo; d.reset(); const s = d.state(); s.path = "~/Pictures/Photobooks"; s.books = [{ id: "x1", title: "Probe", book: { endp: true, endpSame: true, w: 14.8, h: 21, preset: "A5" } }]; s.open = "x1"; d.go(stage) }, stage); await page.waitForTimeout(300) }
-  const SC = { welcome: "[data-testid=demo]", library: "[data-testid=demo]", settings: "[data-testid=demo]", site: "[data-testid=demo]", editor: "[data-testid=editor-bar], [data-testid=dock]" }
-  const Q = (sc) => `:is(${sc}) :is(button, [role=button], a[href], [role=radio], [role=tab], [role=switch], [role=checkbox]):visible`
-  const dead = []; let n = 0
-  await go("#/demo", 500)
-  for (const [stage, sc] of Object.entries(SC)) {
-    await seed(stage); const cnt = await page.locator(Q(sc)).count()
-    for (let i = 0; i < cnt; i++) {
-      await seed(stage); const el = page.locator(Q(sc)).nth(i); if (!(await el.count())) continue
-      if (await el.evaluate((e) => e.disabled || e.getAttribute("aria-disabled") === "true" || e.hasAttribute("data-disabled") || e.getAttribute("aria-checked") === "true" || e.getAttribute("aria-selected") === "true" || e.hasAttribute("aria-current") || /^https?:/.test(e.getAttribute("href") || ""))) continue
-      const label = await el.evaluate((e) => (e.getAttribute("aria-label") || e.textContent || e.dataset.testid || e.tagName).trim().slice(0, 40))
-      await page.evaluate(() => { window.__m = 0; const IGN = new Set(["data-hovered", "data-pressed", "data-focused", "data-focus-visible", "data-focus-within"]); window.__mo?.disconnect(); window.__mo = new MutationObserver((ms) => { for (const m of ms) if (m.type !== "attributes" || !IGN.has(m.attributeName)) window.__m++ }); window.__mo.observe(document.body, { subtree: true, childList: true, attributes: true, characterData: true }); window.__h = location.hash })
-      try { await el.click({ timeout: 1500 }) } catch { dead.push(`${stage}:${label}(unclickable)`); continue }
-      await page.waitForTimeout(220); n++
-      if (!(await page.evaluate(() => window.__m + (location.hash !== window.__h ? 1 : 0)))) dead.push(`${stage}:${label}`)
-    }
-  }
-  await page.evaluate(() => window.__mo?.disconnect())
-  ok("v8 §5 #/demo: end-to-end walk welcome→library→editor→publish→site→print→library→settings, linked from the index; no dead buttons", walk && n >= 25 && !dead.length && errs.length === e0, `${steps.join(" | ")} · clicked ${n} · dead [${dead.join(", ")}]`)
-}
-// ───────── v8.1: designer review of v0.8.0 (per-book state, own site, filmstrip, path, menu, focus, sliders, grid, print, custom size, blank book, settings)
-{
-  const e0 = errs.length; const W = {}
-  const stage = () => page.evaluate(() => document.querySelector('[data-testid="demo"]')?.dataset.demoStage)
-  const dlgBtn = (re) => page.locator("[role=dialog]").getByRole("button", { name: re }).last()
-  try {
-    await go("#/demo", 500); await page.evaluate(() => window.__demo.reset()); await page.waitForTimeout(300)
-    await page.getByRole("button", { name: /Create library/i }).first().click(); await page.waitForTimeout(300)
-    await dlgBtn(/Choose|Select|Use/i).click(); await page.waitForTimeout(400)
-    W.path = (await page.locator('[data-testid="library-path"]').textContent()).trim()
-    W.settingsBtns = await page.locator('[data-testid="demo"] [data-testid="library-bar"]').getByRole("button", { name: /Settings/ }).count()
-    await page.getByRole("button", { name: /Create book/ }).first().click(); await page.waitForTimeout(300)
-    await page.locator("[role=dialog] input").first().fill("Lake trip")
-    await page.locator("[role=dialog]").getByRole("button", { name: /A5|A4|Square|cm/ }).first().click().catch(() => {}); await page.waitForTimeout(200)
-    await page.getByRole("option", { name: /Custom size/ }).click(); await page.waitForTimeout(200)
-    W.custom = await page.locator('[data-testid="create-custom"]').count()
-    await page.fill('[data-testid="create-custom-w"]', "19"); await page.fill('[data-testid="create-custom-h"]', "23")
-    await page.click('[data-testid="create-book"]'); await page.waitForTimeout(700)
-    W.size = await page.evaluate(() => { const b = window.__demo.state().books[0].book; return `${b.w}x${b.h}` })
-    // blank book: no sample cover text, the title is the book's own
-    await page.click('[data-item="cover"]'); await page.waitForTimeout(300)
-    W.blankFront = await page.locator('[data-testid="cover-text-front"]').inputValue(); W.blankBack = await page.locator('[data-testid="cover-text-back"]').inputValue()
-    W.blankCover = await page.locator('[data-testid="cover-front"]').getAttribute("data-photo-id")
-    W.sample = /Summer by the sea/.test(await page.locator('[data-testid="demo"]').innerText())
-    W.film = (await page.locator('[data-testid="film-head"]').innerText()).trim()
-    W.tabs = await page.locator('[data-testid="dock"] [role=tab]').count()
-    await page.click('[data-testid="demo-add-folder"]'); await page.waitForTimeout(300)
-    await dlgBtn(/Choose|Select|Use|Add/i).click(); await page.waitForTimeout(500)
-    W.film2 = (await page.locator('[data-testid="film-head"]').innerText()).trim()
-    // edit: cover photo + front title, master A columns
-    await page.click('[data-item="cover"]'); await page.waitForTimeout(250)
-    const pickRow = page.locator('[data-testid="filmstrip"] [role="row"]').nth(3)
-    W.pick = await pickRow.getAttribute("data-key")
-    await pickRow.dragTo(page.locator('[data-testid="cover-front"]')); await page.waitForTimeout(450)
-    if (!(await page.locator('[data-testid="cover-text-front"]').count())) { await page.click('[data-item="cover"]'); await page.waitForTimeout(250) }
-    await page.fill('[data-testid="cover-text-front"]', "Lake trip 2026"); await page.waitForTimeout(200)
-    W.pickSrc = await page.locator('[data-testid="cover-front"] .cover-front-photo').evaluate((e) => (getComputedStyle(e).backgroundImage.match(/url\("?([^")]+)"?\)/) || [])[1] ?? null)
-    await page.locator('[data-testid="mode-seg"]').getByText("Masters", { exact: true }).click(); await page.waitForTimeout(300)
-    const col = page.locator('[data-testid="master-field-grid"] input').first(); await col.fill("5"); await col.press("Enter"); await page.waitForTimeout(250)
-    W.col0 = await col.inputValue()
-    await page.locator('[data-testid="mode-seg"]').getByText("Pages", { exact: true }).click(); await page.waitForTimeout(250)
-    W.spreads = await page.evaluate(() => window.__demo.state().books[0].doc?.spreads.length)
-    // print: real page count + the book's size
-    await page.click('[data-testid="demo-print"]'); await page.waitForTimeout(300)
-    W.print = (await page.locator('[data-testid="print-summary"]').textContent()) + " | " + (await page.locator('[data-testid="print-size"]').textContent())
-    await page.keyboard.press("Escape"); await page.waitForTimeout(250)
-    // back to the library: card shows the current cover
-    await page.click('[data-testid="editor-library"]'); await page.waitForTimeout(500)
-    const urlIn = (e) => { for (const x of [e, ...e.querySelectorAll("*")]) { const s = getComputedStyle(x).backgroundImage; const m = s.match(/url\("?([^")]+)"?\)/); if (m) return m[1]; if (x.tagName === "IMG") return x.src } return null }
-    W.cardSrc = await page.locator('[data-testid="demo"] [data-testid="book-cover"]').first().evaluate(urlIn).catch(() => null)
-    // reopen: state kept
-    await page.click('[data-testid="demo"] [data-testid="book-cover"]'); await page.waitForTimeout(700)
-    await page.click('[data-item="cover"]'); await page.waitForTimeout(300)
-    W.reCover = await page.locator('[data-testid="cover-front"]').getAttribute("data-photo-id"); W.reFront = await page.locator('[data-testid="cover-text-front"]').inputValue()
-    await page.locator('[data-testid="mode-seg"]').getByText("Masters", { exact: true }).click(); await page.waitForTimeout(300)
-    W.reCol = await page.locator('[data-testid="master-field-grid"] input').first().inputValue()
-    await page.locator('[data-testid="mode-seg"]').getByText("Pages", { exact: true }).click(); await page.waitForTimeout(250)
-    W.reSize = await page.evaluate(() => { const b = window.__demo.state().books[0].book; return `${b.w}x${b.h}` })
-    W.reSpreads = await page.evaluate(() => window.__demo.state().books[0].doc?.spreads.length)
-    // publish → Open site lands on library home of published books (v0.9.3); then open the book
-    await page.click('[data-testid="demo-publish"]'); await page.waitForTimeout(250); await page.click('[data-testid="publish-go"]'); await page.waitForTimeout(1900)
-    await page.click('[data-testid="publish-open-site"]'); await page.waitForTimeout(600); W.stage = await stage()
-    // personal-site K2: the bookcase of the published books; a book opens its reading room (the cover turns first)
-    W.catalog = await page.locator('[data-testid="site-case"]').count()
-    W.siteBooks = await page.locator('[data-testid="ss9-book"]').count()
-    W.caseLabel = await page.locator('[data-testid="ss9-book"]').first().getAttribute("aria-label")
-    await page.locator('[data-testid="ss9-book"]').first().click(); await page.waitForSelector('[data-testid="site-room"][data-view="1"]', { timeout: 5000 }); await page.waitForTimeout(1300)
-    W.siteAbout = (await page.locator('[data-testid="site-about"]').textContent()).trim()
-    W.siteInd = (await page.locator('[data-testid="site-label"]').textContent()).trim()
-    // personal-site D36: Share swaps to "Copied" in the same grid cell for 2000 ms (no width change)
-    const shareBox = () => page.locator('[data-testid="site-share"]').evaluate((e) => ({ w: e.getBoundingClientRect().width, txt: [...e.children].find((s) => getComputedStyle(s).visibility === "visible")?.textContent }))
-    W.share0 = await shareBox()
-    await page.click('[data-testid="site-share"]'); await page.waitForTimeout(200); W.share1 = await shareBox()
-    await page.waitForTimeout(2000); W.share2 = await shareBox()
-    // fullscreen: Esc returns focus to the Fullscreen button
-    await page.click('[data-testid="site-fullscreen-btn"]'); await page.waitForTimeout(300)
-    W.fsBox = await page.locator('[data-testid="lightbox"]').evaluate((v) => { const R = (e) => e.getBoundingClientRect(), d = R(v), b = R(v.querySelector('[data-testid="site-fullscreen-book"]').firstElementChild), r = (n) => +n.toFixed(2); return { box: [b.left - d.left, b.top - d.top, b.width, b.height].map(r), area: [d.width - 128, d.height - 112].map(r) } }).catch(() => null)
-    await page.keyboard.press("Escape"); await page.waitForTimeout(300)
-    W.focus = await page.evaluate(() => document.activeElement?.dataset.testid)
-    // library "…" menu: Rename, Duplicate, Remove
-    await page.click('[data-testid="demo-site-back"]'); await page.waitForTimeout(400); await page.click('[data-testid="editor-library"]'); await page.waitForTimeout(500)
-    const menu = async () => { await page.locator('[data-testid="demo"] [data-testid="book-menu"]').first().click(); await page.waitForTimeout(250) }
-    await menu(); W.items = await page.locator("[role=menuitem]").allTextContents()
-    await page.getByRole("menuitem", { name: "Rename" }).click(); await page.waitForTimeout(300)
-    await page.locator('[data-testid="rename-input"]').fill("Lake trip ’26"); await page.locator('[data-testid="rename-input"]').press("Enter"); await page.waitForTimeout(300)
-    await menu(); await page.getByRole("menuitem", { name: "Duplicate" }).click(); await page.waitForTimeout(300)
-    W.afterDup = await page.evaluate(() => window.__demo.state().books.map((b) => b.title))
-    await menu(); await page.getByRole("menuitem", { name: /Remove/ }).click(); await page.waitForTimeout(300); await page.getByRole("button", { name: "Remove book" }).click(); await page.waitForTimeout(300)
-    W.afterRm = await page.evaluate(() => window.__demo.state().books.map((b) => b.title))
-    await page.click('[data-testid="demo"] [data-testid="home-settings"]'); await page.waitForTimeout(300); W.settingsStage = await stage()
-  } catch (e) { W.err = e.message.split("\n")[0] }
-  const pages = 2 * (W.reSpreads ?? 0)
-  const J = (o) => String(JSON.stringify(o)).slice(0, 500)
-  ok("v8.1 P1-1 per-book state: edit cover photo + title + master grid, leave, reopen → cover, text, masters, size and spreads kept; library card shows the current cover",
-    !W.err && W.reCover === W.pick && W.reFront === "Lake trip 2026" && W.col0 === "5" && W.reCol === "5" && W.reSize === "19x23" && W.reSpreads === W.spreads && !!W.cardSrc && W.cardSrc === W.pickSrc, J({ err: W.err, pick: W.pick, reCover: W.reCover, reFront: W.reFront, col: [W.col0, W.reCol], size: W.reSize, card: W.cardSrc, pickSrc: W.pickSrc }))
-  ok("personal-site K2: Open site → the bookcase of the published book (title, 2(n − 1) pages); the room opens it at Page 1",
-    W.stage === "site" && W.catalog === 1 && W.siteBooks === 1 && (W.caseLabel ?? "").startsWith("Lake trip, ") && new RegExp(`\\b${pages - 2} pages`).test(W.caseLabel ?? "") && (W.siteAbout ?? "").startsWith("Lake trip") && (W.siteInd ?? "").startsWith("Page 1"),
-    J({ stage: W.stage, catalog: W.catalog, books: W.siteBooks, label: W.caseLabel, about: W.siteAbout, ind: W.siteInd }))
-  ok("personal-site D36: Share → 'Copied' for 2000 ms with no width change",
-    W.share0?.txt === "Share" && W.share1?.txt === "Copied" && W.share2?.txt === "Share" && Math.abs(W.share1.w - W.share0.w) <= 0.5 && Math.abs(W.share2.w - W.share0.w) <= 0.5, J([W.share0, W.share1, W.share2]))
-  ok("v8.1 P1-3 demo filmstrip: one plain label 'Photos · N · M used', no Photos/Templates capsule", /^Photos · \d+ · \d+ used$/.test(W.film ?? "") && /^Photos · \d+ · \d+ used$/.test(W.film2 ?? "") && W.tabs === 0, J([W.film, W.film2, W.tabs]))
-  ok("v8.1 P1-4 library path is not doubled", W.path === "~/Pictures/Photobooks" || (/^~\/Pictures\/[^~/]+$/.test(W.path ?? "")), W.path)
-  ok("v8.1 P2-1 demo library '…' menu: Rename, Duplicate, Remove work", J(W.items).includes("Rename") && J(W.items).includes("Duplicate") && J(W.items).includes("Remove") && W.afterDup?.length === 2 && W.afterDup.includes("Lake trip ’26") && W.afterDup.includes("Lake trip ’26 (copy)") && W.afterRm?.length === 1, J([W.items, W.afterDup, W.afterRm]))
-  // site-lightbox §2: the room's slide (endpaper | page 1) fits the area at the spread ratio, centred
-  const fb = W.fsBox
-  ok("site-lightbox §2 room lightbox slide fits the 64/48/64 area, centred",
-    !!fb && (Math.abs(fb.box[2] - fb.area[0]) <= 0.5 || Math.abs(fb.box[3] - fb.area[1]) <= 0.5) && fb.box[2] <= fb.area[0] + 0.5 && fb.box[3] <= fb.area[1] + 0.5 && Math.abs(fb.box[0] - 64 - (fb.area[0] - fb.box[2]) / 2) <= 0.5 && Math.abs(fb.box[1] - 64 - (fb.area[1] - fb.box[3]) / 2) <= 0.5, J(fb))
-  ok("v8.1 P2-2 Esc closes fullscreen and returns focus to site-fullscreen-btn", W.focus === "site-fullscreen-btn", W.focus)
-  ok("v8.1 P2-5 print dialog uses the real page count and the book's size", (W.print ?? "").includes(`${pages} pages`) && /Custom · 19 × 23 cm/.test(W.print ?? ""), W.print)
-  ok("v8.1 P2-6 Create book offers a Custom size (w × h) that the book gets", W.custom === 1 && W.size === "19x23", `${W.custom} ${W.size}`)
-  ok("v8.1 P2-7 new book starts blank: no photo on the cover, cover text = its own title, no sample text", W.blankCover === null && W.blankFront === "Lake trip" && W.blankBack === "Lake trip" && !W.sample, J([W.blankCover, W.blankFront, W.blankBack, W.sample]))
-  ok("v8.1 P2-8 one Settings button in the demo library bar, and it opens Settings", W.settingsBtns === 1 && W.settingsStage === "settings", `${W.settingsBtns} ${W.settingsStage}`)
-  ok("v8.1 demo walk: 0 console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
-}
-await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a frame snaps it to a column/row edge", "canvas", async () => {
-  await D('[data-item="p3"]').scrollIntoViewIfNeeded(); await page.waitForTimeout(200); await D('[data-item="p3"]').click(); await page.waitForTimeout(200)
-  const sg = D('[data-testid="spread-grid"]'); await sg.getByText("Custom", { exact: true }).click(); await page.waitForTimeout(200)
-  await sg.locator('[data-testid="spread-grid-C"]').fill("4"); await sg.locator('[data-testid="spread-grid-R"]').fill("3"); await page.waitForTimeout(200)
-  if (!(await D('[data-testid="grid-col"]').count())) { await sg.getByLabel("Show grid").click(); await page.waitForTimeout(250) }
-  const ab = await D('[data-testid="grid-col"], [data-testid="grid-row"]').evaluateAll((es) => es.length > 0 && es.every((e) => e.hasAttribute("data-allow-border")))
-  const fr = D('[data-current] [data-testid="frame"]').first(); const b = await fr.boundingBox()
-  const edges = await D('[data-current] [data-testid="grid-col"]').evaluateAll((es) => es.flatMap((e) => { const r = e.getBoundingClientRect(); return [r.left, r.right] }))
-  const tx = edges.map((x) => x - b.x).filter((d) => Math.abs(d) > 4).sort((a, c) => Math.abs(a) - Math.abs(c))[0] ?? 20
-  const sx = b.x + b.width / 2, sy = b.y + b.height / 2
-  await page.mouse.move(sx, sy); await page.mouse.down(); await page.mouse.move(sx + tx / 2, sy + 3, { steps: 4 }); await page.mouse.move(sx + tx + 5, sy + 2, { steps: 4 }); await page.mouse.up(); await page.waitForTimeout(250)
-  const a = await fr.boundingBox()
-  const snapped = edges.some((x) => Math.abs(a.x - x) < 1.5 || Math.abs(a.x + a.width - x) < 1.5)
-  await page.keyboard.press(process.platform === "darwin" ? "Meta+z" : "Control+z").catch(() => {})
-  return [ab && snapped, `allowBorder=${ab} moved ${Math.round(b.x)}→${Math.round(a.x)} (target ${Math.round(b.x + tx)}) snapped=${snapped}`]
 })
 // ───────── v8.2: frame-style Mat / Stroke / Corner radius — change, double-click, back to the style's real default (main editor + #/demo)
 {
@@ -740,236 +476,10 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   // flag toast calls whose title/description are photo-folder / filmstrip import or remove-from-gallery notices
   const badToast = /st\.toast\(\{[^\n]{0,200}(?:Added \d+ photo|no new photos|removed from the gallery|adds folders, not single|Drag photos onto)/.test(folderSrc)
   ok("v0.9 §3 source: no st.toast for photo-folder / filmstrip gallery events", !badToast, badToast ? "toast call still present" : "setStatus only")
-
-  // §6 no floating pager in Std editor demos
-  await go(scr("canvas"), 700)
-  const pagerEls = await page.locator('[data-testid="pager"]').count()
-  ok("v0.9 §6 no floating page switcher (pager)", pagerEls === 0, `pager=${pagerEls}`)
-  // P2 post-approval: parent-spreads also has no pager (ParentStd no longer mounts it)
-  await go(feat("parent-spreads"), 700)
-  const parentPager = await page.locator('[data-testid="pager"]').count()
-  ok("v0.9 §6 P2: #/feature/parent-spreads has no floating pager", parentPager === 0, `pager=${parentPager}`)
-
-  // §7 tool cursors on viewport (aria-labels: Select (V), Frame (F), Text (T), Pan (H))
-  await go(scr("canvas"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(200)
-  const cursors = {}
-  for (const [key, label] of [["Select", "Select (V)"], ["Frame", "Frame (F)"], ["Text", "Text (T)"], ["Hand", "Pan (H)"]]) {
-    await page.locator(`[data-testid="demo"] button[aria-label="${label}"]`).click(); await page.waitForTimeout(120)
-    cursors[key] = await page.locator('[data-testid="demo"] :is([data-testid="viewport"], [data-testid="pasteboard"])').evaluate((vp) => getComputedStyle(vp).cursor)
-  }
-  const curOk = (v, fb) => typeof v === "string" && (v === fb || v.includes(fb) || (v.startsWith("url(") && v.includes(fb)))
-  ok("v0.9 §7 / v0.9.3 tool cursors: Frame/Text outlined url (or crosshair/text), Hand=grab, Select=default",
-    curOk(cursors.Frame, "crosshair") && curOk(cursors.Text, "text") && (cursors.Hand === "grab" || cursors.Hand === "-webkit-grab") && (cursors.Select === "auto" || cursors.Select === "default"),
-    JSON.stringify(cursors))
-  const cssSrc = fs.readFileSync(new URL("../src/sandbox/v7.tsx", import.meta.url), "utf8")
-  ok("v0.9.3 tool cursor assets: white fill + black stroke in SVG data-URI CSS",
-    /cursor-tool-frame/.test(cssSrc) && /cursor-tool-text/.test(cssSrc) && /stroke-width/.test(cssSrc) && /%23232223/.test(cssSrc) && /%23ffffff|%23fff/.test(cssSrc),
-    "source check")
-
-  // §8 wheel zooms (zoom-menu leaves Fit)
-  await go(scr("canvas"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(200)
-  await page.locator(`[data-testid="demo"] button[aria-label="Select (V)"]`).click().catch(() => {})
-  const z0 = (await page.locator('[data-testid="demo"] [data-testid="zoom-menu"]').innerText()).trim()
-  const box = await page.locator('[data-testid="demo"] :is([data-testid="viewport"], [data-testid="pasteboard"])').boundingBox()
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-  await page.mouse.wheel(0, -240); await page.waitForTimeout(300)
-  const z1 = (await page.locator('[data-testid="demo"] [data-testid="zoom-menu"]').innerText()).trim()
-  ok("v0.9 §8 wheel over canvas changes zoom", z0 !== z1 && /%/.test(z1), `zoom "${z0}"→"${z1}"`)
-}
-
-
-// ───────── v0.9.1: consistency / duplication pass ─────────
-{
-  // §2 Preview = current-book preview, not Site stage
-  await go("#/demo", 400); await page.evaluate(() => { const d = window.__demo; d.reset(); d.state().path = "~/Pictures/Photobooks"; d.state().books = [{ id: "s1", title: "Prev", book: { endp: true, endpSame: true, w: 19, h: 23, preset: "custom" } }]; d.state().open = "s1"; d.go("editor") })
-  // (Lake trip trim 19 × 23: the site stage ratio is the spread's, 38 / 23 = 760 / 460 as the site-preview-mode values table)
-  await page.waitForTimeout(800)
-  // site-preview-mode §2 / §4 / §6: Delete / ⌘Z / "[" while the preview is open must not reach the editor — select a frame first if the book has one
-  const edSnap = () => page.evaluate(() => ({ doc: JSON.stringify(window.__demo?.state().books[0]?.doc ?? null).length, frames: document.querySelectorAll('[data-testid="demo-editor"] [data-testid="canvas"] [data-testid="frame"]').length, panel: !!document.querySelector('[data-testid="spreads-panel"]') }))
-  const ed0 = await edSnap()
-  await page.click('[data-testid="demo-preview"]'); await page.waitForTimeout(600)
-  const prevOpen = await page.locator('[data-testid="site-preview"]').count()
-  const stage = await page.locator('[data-testid="demo"]').getAttribute("data-demo-stage")
-  const spv = () => page.evaluate(() => {
-    const q = (s) => document.querySelector(`[data-testid="${s}"]`), r = (s) => { const b = q(s)?.getBoundingClientRect(); return b ? [b.x, b.y, b.width, b.height].map((v) => +v.toFixed(2)) : null }
-    const root = q("site-preview"), cs = root && getComputedStyle(root), bar = q("site-preview-bar"), stg = r("site-room"), se = document.scrollingElement
-    const at = stg && document.elementFromPoint(stg[0] + stg[2] / 2, stg[1] + stg[3] / 2)
-    return { root: root ? [cs.position, root.getAttribute("role"), root.getAttribute("aria-modal"), root.getAttribute("aria-label")] : null,
-      bar: bar ? [r("site-preview-bar")[3], getComputedStyle(bar).backgroundColor, getComputedStyle(bar).boxShadow] : null, back: r("site-preview-back"), label: r("site-preview-label"),
-      backTxt: q("site-preview-back")?.textContent, backTitle: q("site-preview-back")?.closest("[title]")?.getAttribute("title"), backKeys: q("site-preview-back")?.getAttribute("aria-keyshortcuts"),
-      lib: r("editor-library"), stage: stg, view: q("site-room")?.dataset.view, ind: q("site-label")?.textContent.trim(), share: !!q("site-share"), all: !!q("site-all-books"), fs: !!q("site-fullscreen-btn"),
-      paint: !!at?.closest('[data-testid="site-preview"]'), docScroll: [se.scrollWidth - innerWidth, se.scrollHeight - innerHeight] }
-  })
-  const sp0 = await spv()
-  const near = (a, b) => a != null && Math.abs(a - b) <= 0.5
-  ok("site-preview-mode §2: Preview opens the site preview dialog in the editor stage — 48 px #E1E1E1 bar with an inset rule, Back x 12 y 8 h 32 on the Library link, label 8 px right of Back",
-    prevOpen === 1 && stage === "editor" && JSON.stringify(sp0.root) === JSON.stringify(["fixed", "dialog", "true", "Site preview"]) && sp0.bar?.[0] === 48 && sp0.bar[1] === "rgb(225, 225, 225)" && /inset/.test(sp0.bar[2])
-      && near(sp0.back?.[0], 12) && near(sp0.back?.[1], 8) && near(sp0.back?.[3], 32) && sp0.backTxt === "Back to the editor" && sp0.backTitle === "Back to the editor (Esc)" && sp0.backKeys === "Escape"
-      && near(sp0.label?.[0], sp0.back[0] + sp0.back[2] + 8), JSON.stringify(sp0))
-  ok("personal-site D45: the Preview shows the room under the bar (painted on top), at 'Cover' (Owner M53); Share and All books hidden, Fullscreen kept; no document scroll at 1440 × 900",
-    !!sp0.stage && sp0.stage[1] >= 48 && sp0.paint && sp0.ind === "Cover" && !sp0.share && !sp0.all && sp0.fs && sp0.docScroll.every((v) => v === 0), JSON.stringify(sp0))
-  await page.setViewportSize({ width: 1280, height: 720 }); await page.waitForTimeout(400)
-  const spS = await spv()
-  await page.setViewportSize({ width: 1440, height: 900 }); await page.waitForTimeout(400)
-  ok("personal-site D45: 1280 × 720 room under the bar, no document scroll", !!spS.stage && spS.stage[1] >= 48 && spS.docScroll.every((v) => v === 0), JSON.stringify([spS.stage, spS.docScroll]))
-  // keys: → turns (the guard hands page keys to the room), the editor sees nothing (Delete, ⌘Z, "[" panel toggle)
-  await page.keyboard.press("ArrowRight"); await page.waitForTimeout(1200)
-  const ind1 = (await spv()).view
-  for (const key of ["Delete", "Backspace", "ControlOrMeta+z", "["]) { await page.keyboard.press(key); await page.waitForTimeout(120) }
-  // held Space must not arm the editor's pan (data-panning) under the preview
-  await page.keyboard.down("Space"); await page.waitForTimeout(150)
-  const spacePan = await page.locator('[data-testid="demo-editor"] [data-panning]').count()
-  await page.keyboard.up("Space"); await page.waitForTimeout(120)
-  // Tab ×10 / Shift+Tab ×10 stay inside the preview
-  const inSp = () => page.evaluate(() => !!document.activeElement?.closest('[data-testid="site-preview"]'))
-  const tabTrail = [await inSp()]
-  for (const key of [...Array(10).fill("Tab"), ...Array(10).fill("Shift+Tab")]) { await page.keyboard.press(key); tabTrail.push(await inSp()) }
-  // Fullscreen: Esc closes the lightbox only, a second Esc the preview
-  await page.click('[data-testid="site-fullscreen-btn"]'); await page.waitForTimeout(400)
-  const lb0 = await page.locator('[data-testid="lightbox"]').count()
-  await page.keyboard.press("Escape"); await page.waitForTimeout(300)
-  const esc1 = [await page.locator('[data-testid="lightbox"]').count(), await page.locator('[data-testid="site-preview"]').count()]
-  await page.keyboard.press("Escape"); await page.waitForTimeout(300)
-  const esc2 = await page.locator('[data-testid="site-preview"]').count()
-  const escFocus = await page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? document.activeElement?.tagName)
-  const ed1 = await edSnap(), stageEsc = await page.locator('[data-testid="demo"]').getAttribute("data-demo-stage")
-  ok("site-preview-mode §4: → turns the room from the cover to view 1; Delete / Backspace / ⌘Z / [ / Space change nothing in the editor (no data-panning); Tab ×10 and Shift+Tab ×10 stay inside",
-    ind1 === "1" && JSON.stringify(ed1) === JSON.stringify(ed0) && spacePan === 0 && tabTrail.every(Boolean), JSON.stringify({ ind1, ed0, ed1, spacePan, tabTrail: tabTrail.map(Number).join("") }))
-  ok("site-preview-mode §4: Fullscreen open → first Esc closes the lightbox only, second Esc closes the preview; focus back on Preview, still the editor stage",
-    lb0 === 1 && JSON.stringify(esc1) === "[0,1]" && esc2 === 0 && escFocus === "demo-preview" && stageEsc === "editor", JSON.stringify({ lb0, esc1, esc2, escFocus, stageEsc }))
-  // Space activates the focused Back button (the editor's Space-to-pan must not swallow it)
-  await page.click('[data-testid="demo-preview"]'); await page.waitForTimeout(600)
-  await page.focus('[data-testid="site-preview-back"]'); await page.keyboard.press("Space"); await page.waitForTimeout(300)
-  const spBack = { open: await page.locator('[data-testid="site-preview"]').count(), focus: await page.evaluate(() => document.activeElement?.getAttribute("data-testid")),
-    pan: await page.locator('[data-testid="demo-editor"] [data-panning]').count() }
-  ok("site-preview-mode §4: Space on the focused 'Back to the editor' closes the preview; focus back on Preview, no pan armed",
-    spBack.open === 0 && spBack.focus === "demo-preview" && spBack.pan === 0, JSON.stringify(spBack))
-  await go(feat("editor-chrome-toolbar"), 1000) // Stage 3: kit pages mount the #/demo editor parts
-  // a selected own frame survives Delete / Backspace pressed while the preview is open
-  const ownFrames = () => page.locator('[data-testid="demo-editor"] [data-testid="canvas"] [data-testid="frame"]').count()
-  const selFrame = page.locator('[data-testid="demo-editor"] [data-testid="canvas"] [data-testid="frame"]').first()
-  const fr0 = await ownFrames()
-  if (fr0) { await selFrame.click(); await page.waitForTimeout(200) }
-  await page.click('[data-testid="demo-preview"]'); await page.waitForTimeout(600)
-  const kitPrev = await page.locator('[data-testid="site-preview"]').count()
-  for (const key of ["Delete", "Backspace"]) { await page.keyboard.press(key); await page.waitForTimeout(120) }
-  await page.keyboard.press("Escape"); await page.waitForTimeout(300)
-  const fr1 = await ownFrames()
-  await page.keyboard.press("Delete"); await page.waitForTimeout(200) // control: after Esc the editor gets Delete again
-  const fr2 = await ownFrames()
-  ok("v0.9.1 §2 Preview opens in-app book preview (not Site stage) — site-preview-mode: the site's book page", prevOpen === 1 && stage === "editor" && kitPrev === 1, `demoPrev=${prevOpen} stage=${stage} kit=${kitPrev}`)
-  ok("site-preview-mode §4: a selected frame survives Delete / Backspace pressed in the preview; after Esc (selection kept) Delete removes it",
-    fr0 > 0 && fr1 === fr0 && fr2 === fr0 - 1, JSON.stringify({ fr0, fr1, fr2 }))
-  // kit page #/feature/site-preview-mode: Preview (the cover, Owner M53), Spread 2 (slide 2 = view 3), Fullscreen (the lightbox over the preview)
-  await go(feat("site-preview-mode"), 1000)
-  const spStates = []
-  for (const tab of ["Preview", "Spread 2", "Fullscreen"]) {
-    await page.locator(`[data-testid="scenarios"] [role="tab"]:text-is("${tab}")`).evaluate((t) => t.click()); await page.waitForTimeout(500)
-    spStates.push(await page.evaluate(() => [document.querySelectorAll('[data-testid="site-preview"]').length, document.querySelector('[data-testid="site-room"]')?.dataset.view, document.querySelectorAll('[data-testid="lightbox"]').length]))
-  }
-  ok("site-preview-mode kit page: states Preview (room view 0), Spread 2 (view 3), Fullscreen (lightbox over the preview)",
-    JSON.stringify(spStates.map(([n, , lb]) => [n, lb])) === "[[1,0],[1,0],[1,1]]" && spStates[0][1] === "0" && spStates[1][1] === "3", JSON.stringify(spStates))
-
-  // §3 page counts (Designer site D1/D2/D5): slides = cover + every spread; indicator = page label + spread counter (prod Preview), meta pages = last page number 2(n − 1) (Designer review); deep-link into the book (v0.9.3 catalog home)
-  await go("#/demo", 400); await page.evaluate(() => { const d = window.__demo; d.reset(); d.state().path = "~/Pictures/Photobooks"; d.state().books = [{ id: "s1", title: "Pages", book: { endp: true, endpSame: true, w: 14.8, h: 21, preset: "A5" }, published: true }]; d.state().open = "s1"; d.openSite("book") })
-  await page.emulateMedia({ reducedMotion: "reduce" }); await page.waitForTimeout(900)
-  const meta = (await page.locator('[data-testid="site-about"]').textContent()).trim()
-  const J = (o) => String(JSON.stringify(o)).slice(0, 600)
-  // personal-site D38: meta pages = 2(n − 1) → n = pages / 2 + 1 doc spreads; room views = cover, page 1, spreads 2…n − 1, back
-  const pagesMeta = /(\d+)\s*pages/.exec(meta), P = pagesMeta ? +pagesMeta[1] : 0, nSp = P / 2 + 1
-  const viewTxt = (v) => (v === 0 ? "Cover" : v === nSp + 1 ? "Back cover" : `${v === 1 ? "Page 1" : v === nSp ? `Page ${P}` : `Pages ${2 * (v - 1)}–${2 * v - 1}`} of ${P}`)
-  const lbl = () => page.locator('[data-testid="site-label"]').textContent().then((t) => t.trim())
-  const labels = [await lbl()]
-  for (let v = 0; v <= nSp && v < 40; v++) { await page.click('[data-testid="ss-next"]'); await page.waitForTimeout(250); labels.push(await lbl()) }
-  await page.keyboard.press("Home"); await page.waitForTimeout(250); const home = await lbl()
-  await page.keyboard.press("End"); await page.waitForTimeout(250); const end = await lbl()
-  await page.emulateMedia({ reducedMotion: "no-preference" })
-  const badLabels = labels.map((t, i) => [i, t]).filter(([v, t]) => t !== viewTxt(v))
-  ok("personal-site D38 / D41: a deep-linked session book opens on the Cover; labels Cover, Page 1 … last page, Back cover (pages = 2(n − 1)); Home / End",
-    nSp >= 3 && badLabels.length === 0 && home === "Cover" && end === viewTxt(nSp), J({ meta, nSp, badLabels, home, end }))
-
-  // the case: a landscape book joins it; 390 px root → no horizontal overflow on the case, the room's Share 20 left of Play
-  await page.evaluate(() => { const d = window.__demo; d.state().books = [...d.state().books, { id: "s2", title: "Wide", book: { endp: true, endpSame: true, w: 21, h: 14.8, preset: "A5" }, published: true }]; d.openSite("catalog") })
-  await page.waitForTimeout(600)
-  const caseIds = await page.locator('[data-testid="ss9-book"]').evaluateAll((els) => els.map((e) => e.dataset.id).sort())
-  const narrow = async () => { await page.evaluate(() => { document.querySelector('[data-testid="site"]').parentElement.style.width = "390px" }); await page.waitForTimeout(300)
-    return page.evaluate(() => { const s = document.querySelector('[data-testid="site"]'), x0 = s.getBoundingClientRect().left; return { sw: s.scrollWidth, cw: s.clientWidth, caseR: document.querySelector('[data-testid="site-case"]').getBoundingClientRect().right - x0 } }) }
-  const nCat = await narrow()
-  ok("personal-site K2: both published books on the case; 390 px root — no horizontal overflow, the case inside the margins",
-    JSON.stringify(caseIds) === '["s1","s2"]' && nCat.sw === nCat.cw && nCat.caseR <= nCat.cw - 16 + 0.5, J({ caseIds, nCat }))
-
-  // §6 no frame-toolbar Crop in canvas
-  const canv = fs.readFileSync(new URL("../src/sandbox/canvas.tsx", import.meta.url), "utf8")
-  ok("v0.9.1 §6 floating FrameToolbar removed from canvas", !/FrameToolbar/.test(canv), /FrameToolbar/.test(canv) ? "still mounted" : "gone")
-
-  // should-fix spot checks
-  const emptySlot = fs.readFileSync(new URL("../src/sandbox/inspector.tsx", import.meta.url), "utf8")
-  const ctxInsp = fs.readFileSync(new URL("../src/sandbox/context-inspector.tsx", import.meta.url), "utf8")
-  const listEmpty = fs.readFileSync(new URL("../src/sandbox/chrome.tsx", import.meta.url), "utf8")
-  ok("v0.9.1 §11 empty-slot copy unified (list + inspector meta N empty; frame Empty — drag a photo)",
-    emptySlot.includes('data-testid="empty-slot">Empty — drag a photo<')
-    && ctxInsp.includes("${empty} empty")
-    && !ctxInsp.includes("photo${placed")
-    && /\} empty</.test(listEmpty), "list+meta+frame")
-  await go(feat("parent-spreads"), 600)
-  ok("v0.9.1 §12 parent-spreads still has no pager", await page.locator('[data-testid="pager"]').count() === 0, "pager")
-
-  // v0.9.2: Space / Hand pan must not show a focus ring on the canvas chrome
-  await go(scr("canvas"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(200)
-  const canvas = page.locator('[data-testid="demo"] [data-testid="canvas"]')
-  await canvas.focus()
-  await page.keyboard.down("Space")
-  await page.waitForTimeout(100)
-  const spaceOutline = await canvas.evaluate((el) => {
-    const s = getComputedStyle(el)
-    return { outline: s.outlineStyle, w: s.outlineWidth, pan: el.hasAttribute("data-panning") }
-  })
-  await page.keyboard.up("Space")
-  await page.waitForTimeout(80)
-  await page.locator('[data-testid="demo"] button[aria-label="Pan (H)"]').click()
-  await page.waitForTimeout(100)
-  await canvas.focus()
-  // Tab once onto canvas to force keyboard modality if needed, then check hand still suppresses ring
-  const handOutline = await canvas.evaluate((el) => {
-    const s = getComputedStyle(el)
-    return { outline: s.outlineStyle, w: s.outlineWidth, pan: el.hasAttribute("data-panning") }
-  })
-  ok("v0.9.2 Space/Hand pan: no canvas focus outline",
-    spaceOutline.pan && (spaceOutline.outline === "none" || spaceOutline.w === "0px")
-    && handOutline.pan && (handOutline.outline === "none" || handOutline.w === "0px"),
-    `space=${JSON.stringify(spaceOutline)} hand=${JSON.stringify(handOutline)}`)
 }
 
 // ───────── v0.9.3: site library home, Space≠panels, outlined cursors, outline cleanup ─────────
 {
-  // Site: Open site → catalog; deep link → book
-  await go("#/demo", 500)
-  await page.evaluate(() => {
-    const d = window.__demo; d.reset()
-    const blank = { endp: true, endpSame: true, w: 14.8, h: 21, preset: "A5" }
-    d.state().path = "~/Pictures/Photobooks"
-    d.state().books = [
-      { id: "s1", title: "Lake trip", published: true, book: blank },
-      { id: "s2", title: "Fog", published: true, book: blank },
-      { id: "s3", title: "Draft", published: false, book: blank },
-    ]
-    d.state().open = "s1"; d.state().siteEntry = "catalog"; d.go("site")
-  })
-  await page.waitForTimeout(600)
-  const catN = await page.locator('[data-testid="site-case"]').count()
-  const titles = (await page.locator('[data-testid="ss9-book"]').evaluateAll((els) => els.map((e) => e.getAttribute("aria-label").split(",")[0]))).sort()
-  ok("personal-site K2: the site lands on the bookcase of the published books only",
-    catN === 1 && JSON.stringify(titles) === JSON.stringify(["Fog", "Lake trip"]), JSON.stringify({ catN, titles }))
-  await page.locator('[data-testid="ss9-book"][aria-label^="Lake trip,"]').click(); await page.waitForTimeout(1500)
-  const opened = (await page.locator('[data-testid="site-about"]').textContent().catch(() => "")).trim()
-  ok("personal-site K2: a book on the case opens its reading room", opened.startsWith("Lake trip"), opened)
-  // deep link opens that book's room (not the case)
-  await page.evaluate(() => { const d = window.__demo; d.state().open = "s2"; d.openSite("book") })
-  await page.waitForTimeout(700)
-  const deepTitle = (await page.locator('[data-testid="site-about"]').textContent().catch(() => "")).trim()
-  const deepOpen = await page.locator('[data-testid="site"]').getAttribute("data-open")
-  ok("personal-site K2: a book deep link opens that book's room", deepOpen === "s2" && deepTitle.startsWith("Fog"), JSON.stringify({ deepTitle, deepOpen }))
-
   // Filmstrip selection: no black ring-select
   await go(scr("canvas"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(300)
   const thumb = page.locator('[data-testid="demo"] [data-testid="filmstrip"] [role="row"]').first()
@@ -993,19 +503,6 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     JSON.stringify({ ...filmSel, blackRing }))
 }
 
-// Stage 3: feature pages mount editor parts at the real #/demo slot sizes (src/demo-parts/layout.ts SLOT)
-{
-  const SLOT = { left: 212, right: 300 }
-  const meas = async () => page.evaluate(() => { const w = (t) => { const e = document.querySelector(`[data-testid="${t}"]`); return e ? Math.round(e.getBoundingClientRect().width) : null }; return { l: w("panel-l"), r: w("panel-r") } })
-  await go("#/demo", 500); await page.evaluate(() => { const d = window.__demo; d.reset(); d.state().path = "~/Pictures/Photobooks"; d.go("library") }); await page.waitForTimeout(300)
-  const bad = []
-  for (const slug of ["editor-chrome-toolbar", "spread-list-panel", "pasteboard-workspace", "drag-place-replace", "inspector", "pdf-export"]) {
-    await go(feat(slug), 700); const m = await meas()
-    if ((m.l !== null && m.l !== SLOT.left) || (m.r !== null && m.r !== SLOT.right) || (m.l === null && m.r === null)) bad.push(`${slug} ${JSON.stringify(m)}`)
-  }
-  ok("stage 3: feature pages' panel-l / panel-r widths equal SLOT (212 / 300)", bad.length === 0, bad.join(" | ") || "6 pages")
-}
-
 
 // kit10: #/demo exposes the sandbox features it used to hide — view toggles, rulers + guides, spread menu / reorder, master guides + Page numbers, overrides, missing photo, Relink
 {
@@ -1016,88 +513,12 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await c(`${demo} [data-testid="new-book"]`); await page.waitForTimeout(300); await c('[data-testid="create-book"]'); await page.waitForTimeout(500)
   await c('[data-testid="demo-add-folder"]'); await page.locator("[role=dialog]").getByRole("button", { name: /Choose|Select|Use|Add/i }).last().click(); await page.waitForTimeout(400)
   await c('[data-item="p1"]'); await page.waitForTimeout(250)
-  // kit-sync-canvas (KS2–KS5, K1): #/demo stacks the pages as prod — gap 104/588 of the spread height, 11 px page numbers 8 px under the page,
-  // a content-wide new-spread pill centred between the numbers and the next spread, no frame size pill, Esc clears the "Release to replace" chip
-  {
-    const cur = `${demo} [data-testid="spread"][data-current]`
-    const m = await page.evaluate((sel) => {
-      const el = document.querySelector(sel), c = el.getBoundingClientRect()
-      const n = document.querySelector(`[data-testid="demo"] [data-testid="spread"][data-spread="${+el.dataset.spread + 1}"]`).getBoundingClientRect()
-      const l = [...el.closest("[data-stack-item]").querySelectorAll('[data-testid="page-labels"] span')].find((s) => s.textContent.trim()), lb = l.getBoundingClientRect()
-      return { n: document.querySelectorAll('[data-testid="demo"] [data-testid="pasteboard"] [data-testid="spread"]').length, h: c.height, gap: n.top - c.bottom, dy: lb.top - c.bottom, lh: lb.height, fs: getComputedStyle(l).fontSize }
-    }, cur)
-    // absolute Fit numbers (513.25 / 90.78 at 1440×900) are the demo-capture walk's; here the ratios hold at any window size
-    ok("kit-sync KS2: #/demo stacks the spreads; gap = 104/588 of the spread height", m.n > 1 && Math.abs(m.gap - m.h * 104 / 588) <= 1, `${m.n} spreads, h ${m.h.toFixed(2)} gap ${m.gap.toFixed(2)}`)
-    ok("kit-sync KS3: page numbers 11 px on screen, 8 px under the page", m.fs === "11px" && Math.abs(m.lh - 11) <= 0.5 && Math.abs(m.dy - 8) <= 0.5, `${m.fs} h ${m.lh} dy ${m.dy.toFixed(2)}`)
-    const row = await page.locator(`${demo} [data-testid="filmstrip"] [role="row"]`).nth(2).boundingBox(), sb = await page.locator(cur).boundingBox()
-    await page.mouse.move(row.x + row.width / 2, row.y + row.height / 2); await page.mouse.down()
-    for (let i = 1; i <= 8; i++) await page.mouse.move(row.x + (sb.x + sb.width / 2 - row.x) * i / 8, row.y + (sb.y + sb.height + 30 - row.y) * i / 8)
-    await page.waitForTimeout(400)
-    const p = await page.evaluate((sel) => {
-      const c = document.querySelector(sel).getBoundingClientRect(), pills = [...document.querySelectorAll('[data-testid="demo"] [data-testid="gap-pill"]')]
-      const e = pills.find((x) => x.getBoundingClientRect().top > c.bottom); if (!e) return null
-      const b = e.getBoundingClientRect(), s = getComputedStyle(e), n = [...document.querySelectorAll('[data-testid="demo"] [data-testid="spread"]')].map((x) => x.getBoundingClientRect()).find((x) => x.top > b.top)
-      return { w: b.width, h: b.height, fs: s.fontSize, r: s.borderRadius, ws: s.whiteSpace, up: b.top - c.bottom - 19, down: n.top - b.bottom, gapH: e.parentElement.getBoundingClientRect().height }
-    }, cur)
-    await page.keyboard.press("Escape"); await page.mouse.up(); await page.waitForTimeout(300)
-    ok("kit-sync KS4: new-spread pill 32 px, 12 px nowrap, width by content, radius 8, centred under the page numbers; the gap does not grow", !!p && p.h === 32 && p.fs === "12px" && p.ws === "nowrap" && p.r === "8px" && Math.abs(p.w - 199.23) <= 1 && Math.abs(p.up - p.down) <= 1 && Math.abs(p.up - (m.gap - 19 - 32) / 2) <= 1 && Math.abs(p.gapH - m.gap) <= 1, JSON.stringify(p))
-    await page.locator(`${cur} [data-testid="frame"]`).first().click(); await page.waitForTimeout(200)
-    const sizePill = await page.locator(`${demo} [data-testid="handles"]`).filter({ hasText: / × \d+ mm/ }).count()
-    ok("kit-sync KS5: a selected frame shows no size pill (380 × 230 mm)", (await page.locator(`${demo} [data-testid="handles"]`).count()) === 1 && sizePill === 0, `size pills ${sizePill}`)
-    await page.keyboard.press("Escape"); await page.waitForTimeout(200); await c('[data-item="p1"]'); await page.waitForTimeout(250)
-    // prod usePasteboardCamera: the wheel zooms about the cursor, Ctrl+= / Ctrl+- about the pasteboard centre
-    const r0 = await page.locator(cur).boundingBox(), mx = Math.round(r0.x + r0.width * 0.6), my = Math.round(r0.y + r0.height * 0.3)
-    await page.mouse.move(mx, my); for (let i = 0; i < 3; i++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(90) } await page.waitForTimeout(400)
-    const r1 = await page.locator(cur).boundingBox(), drift = [((mx - r1.x) / r1.width - (mx - r0.x) / r0.width) * r1.width, ((my - r1.y) / r1.height - (my - r0.y) / r0.height) * r1.height]
-    ok("kit-sync KS2: wheel zoom keeps the point under the cursor (≤ 2 px after 3 notches)", r1.width > r0.width && drift.every((d) => Math.abs(d) <= 2), drift.map((d) => d.toFixed(1)).join(" / "))
-    await page.keyboard.press("Control+0"); await page.waitForTimeout(250)
-    const pb = await page.locator(`${demo} [data-testid="pasteboard"]`).boundingBox(), cx0 = (await page.locator(cur).boundingBox()).x + r0.width / 2
-    for (let i = 0; i < 2; i++) { await page.keyboard.press("Control+Equal"); await page.waitForTimeout(150) }
-    const rk = await page.locator(cur).boundingBox(), kcx = rk.x + rk.width / 2
-    ok("kit-sync KS2: Ctrl+= zooms about the pasteboard centre (spread centre stays at the centre ±2 px)", rk.width > r0.width && Math.abs(kcx - (pb.x + pb.width / 2)) <= 2 && Math.abs(cx0 - kcx) <= 2, `centre ${kcx.toFixed(1)} vs ${(pb.x + pb.width / 2).toFixed(1)}`)
-    await page.keyboard.press("Control+0"); await page.waitForTimeout(250)
-    // M45 + Q3: the stack ends with the single last page on the left, its number under it, the stack gap before it; the `last` row scrolls to it
-    await c('[data-item="last"]'); await page.waitForTimeout(400)
-    const e = await page.evaluate(() => {
-      const root = document.querySelector('[data-testid="demo"] [data-testid="pasteboard"]'); if (!root) return null
-      const items = [...root.querySelectorAll("[data-stack-item]")], l = items.at(-1), lr = l.getBoundingClientRect(), pr = items.at(-2).getBoundingClientRect(), paper = l.querySelector("[data-paper]").getBoundingClientRect()
-      const lab = [...l.querySelectorAll('[data-testid="page-labels"] span')].find((s) => s.textContent.trim()), lb = lab.getBoundingClientRect()
-      return { key: l.dataset.stackItem, inView: lr.top >= root.getBoundingClientRect().top && lr.bottom <= root.getBoundingClientRect().bottom, left: paper.left - lr.left, w: paper.width / lr.width, gap: lr.top - pr.bottom, h: lr.height, t: lab.textContent, lcx: lb.left + lb.width / 2 - (paper.left + paper.width / 2), dy: lb.top - lr.bottom, fs: getComputedStyle(lab).fontSize }
-    })
-    ok("kit-sync KS2: the stack ends with the last page alone on the left, its number under it; the last row stays stacked", !!e && e.key === "last" && e.inView && e.left === 0 && e.w === 0.5 && Math.abs(e.gap - e.h * 104 / 588) <= 1 && e.t === "20" && Math.abs(e.lcx) <= 1 && Math.abs(e.dy - 8) <= 0.5 && e.fs === "11px", JSON.stringify(e))
-    // a click on the last page on the canvas selects it like the `last` row and keeps the view (prod: scrollTop unchanged)
-    await c('[data-item="p9"]'); await page.waitForTimeout(400)
-    const pbl = page.locator(`${demo} [data-testid="pasteboard"]`)
-    await pbl.evaluate((el) => { el.scrollTop = el.scrollHeight }); await page.waitForTimeout(150)
-    const t0 = await pbl.evaluate((el) => el.scrollTop)
-    await page.locator(`${demo} [data-stack-item="last"] [data-paper]`).click(); await page.waitForTimeout(400)
-    const t1 = await pbl.evaluate((el) => el.scrollTop), lsel = await page.locator(`${demo} [data-testid="panel-l"] [data-item="last"]`).getAttribute("aria-selected")
-    ok("kit-sync KS2: a canvas click on the last page selects it (the `last` row) and keeps the view", t0 > 0 && Math.abs(t1 - t0) <= 2 && lsel === "true", `scrollTop ${t0} → ${t1}, last row selected ${lsel}`)
-    // 11 px / 8 px is for page numbers only: cover labels keep 12 px, 10 px under the cover
-    // the list is scrolled to `last`; bring the cover row into view first (Playwright's own scroll-and-click misses the row there)
-    await page.locator('[data-item="cover"]').evaluate((el) => el.scrollIntoView({ block: "nearest" })); await page.waitForTimeout(150)
-    await c('[data-item="cover"]'); await page.waitForTimeout(400)
-    const cl = await page.evaluate(() => { const v = document.querySelector('[data-testid="demo"] [data-testid="node-view"]').getBoundingClientRect(); return [...document.querySelectorAll('[data-testid="demo"] [data-testid="page-labels"] span')].map((s) => ({ t: s.textContent, fs: getComputedStyle(s).fontSize, dy: +(s.getBoundingClientRect().top - v.bottom).toFixed(2) })) })
-    ok("kit-sync KS3: cover labels Back / Spine / Front keep 12 px, 10 px under the cover", cl.map((x) => x.t).join() === "Back,Spine,Front" && cl.every((x) => x.fs === "12px" && Math.abs(x.dy - 10) <= 0.5), JSON.stringify(cl))
-    await c('[data-item="p1"]'); await page.waitForTimeout(250)
-  }
   await page.locator(`${demo} [data-testid="filmstrip"] [role="row"]`).nth(1).dragTo(page.locator(`${demo} [data-testid="canvas"] [data-current] [data-testid="frame"]`).first()); await page.waitForTimeout(400) // p02 = the 800 px low-res photo
-  // kit-sync K1 (prod M43): Esc during a frame drag clears the "Release to replace" chip and the dimmed drag source
-  {
-    const fb = await page.locator(`${demo} [data-testid="spread"][data-current] [data-testid="frame"]`).first().boundingBox(), x = fb.x + fb.width / 2, y = fb.y + fb.height / 2
-    await page.mouse.move(x, y); await page.mouse.down(); for (let i = 1; i <= 6; i++) await page.mouse.move(x - 10 * i, y + 6 * i)
-    const mid = await page.locator(`${demo} [data-testid="canvas"]`).getByText("Release to replace").count()
-    await page.keyboard.press("Escape"); await page.mouse.up(); await page.waitForTimeout(250)
-    const after = await page.locator(`${demo} [data-testid="canvas"]`).getByText("Release to replace").count(), dim = await page.locator(`${demo} [data-frame].opacity-40`).count()
-    ok("kit-sync K1: Esc during a frame drag clears the Release to replace chip and the dimmed source", mid === 1 && after === 0 && dim === 0, `mid ${mid} after ${after} dimmed ${dim}`)
-    await page.keyboard.press("Escape"); await page.waitForTimeout(200)
-  }
   // KS1: rulers (Shift+R) and guides (Ctrl+;) are on keys as in prod; guides stay shown for the master guide checks below
   await page.keyboard.press("Shift+R"); await page.keyboard.press("Control+;"); await page.waitForTimeout(200)
   const g0 = await page.locator(`${demo} [data-testid="spread"] [data-guide]`).count()
   const rx = await page.locator(`${demo} [data-testid="ruler-x"]`).boundingBox(), sp = await page.locator(`${demo} [data-testid="spread"]`).first().boundingBox()
   await page.mouse.move(rx.x + rx.width / 2, rx.y + 10); await page.mouse.down(); await page.mouse.move(rx.x + rx.width / 2, sp.y + sp.height * 0.4, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(250)
-  ok("kit10: rulers show and a drag from the ruler adds a guide", (await page.locator(`${demo} [data-testid="spread"] [data-guide]`).count()) === g0 + 1, `${g0}→+1`)
   await page.keyboard.press("Shift+R")
   await page.locator(`${demo} [data-item="p1"]`).hover(); await c('[data-item="p1"] [data-testid="spread-menu"]'); await page.waitForTimeout(250)
   await page.getByRole("menuitem", { name: /Duplicate/ }).click(); await page.waitForTimeout(300)
@@ -1108,31 +529,8 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await page.mouse.move(ry.x + 10, ry.y + ry.height / 2); await page.mouse.down(); await page.mouse.move(mb.x + mb.width * 0.3, ry.y + ry.height / 2, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(250)
   await c('[data-testid="insp-master"] [role=switch][aria-label="Page numbers"]'); await page.waitForTimeout(200)
   await page.locator(`${demo} [data-testid="mode-seg"]`).getByText("Pages", { exact: true }).click(); await page.waitForTimeout(250); await c('[data-item="p1"]'); await page.waitForTimeout(250)
-  // parent-guides PG5: inherited guides are dashed --parent-soft, 24 px past the page, under own guides and pointer-transparent
-  const pg = await page.evaluate((demo) => {
-    const sp = document.querySelector(`${demo} [data-testid="spread"][data-current]`)
-    const all = [...sp.querySelectorAll("[data-guide]")], inh = all.filter((g) => g.dataset.passive !== undefined)
-    const order = all.findIndex((g) => g.dataset.passive === undefined) === -1 || all.findIndex((g) => g.dataset.passive === undefined) > all.indexOf(inh.at(-1))
-    const look = inh.map((g) => { const ln = g.firstElementChild, cs = getComputedStyle(ln), v = g.offsetHeight > g.offsetWidth, par = g.offsetParent
-      return { v, img: cs.backgroundImage, w: v ? ln.offsetWidth : ln.offsetHeight, pe: getComputedStyle(g).pointerEvents, over: v ? [-g.offsetTop, g.offsetHeight - par.clientHeight + g.offsetTop] : [-g.offsetLeft, g.offsetWidth - par.clientWidth + g.offsetLeft] } })
-    // a point on an inherited line inside an own frame: elementFromPoint must be that frame
-    let hit = null
-    for (const g of inh) { const r = g.firstElementChild.getBoundingClientRect(), v = r.height > r.width
-      for (const f of sp.querySelectorAll('[data-testid="frame"]')) { const b = f.getBoundingClientRect()
-        const x = v ? r.left + r.width / 2 : b.left + b.width / 2, y = v ? b.top + b.height / 2 : r.top + r.height / 2
-        if (x > b.left + 2 && x < b.right - 2 && y > b.top + 2 && y < b.bottom - 2) { hit = { x, y, id: f.dataset.frame, at: document.elementFromPoint(x, y)?.closest("[data-frame]")?.dataset.frame ?? null }; break } }
-      if (hit) break }
-    return { n: inh.length, order, look, hit }
-  }, demo)
-  ok("parent-guides PG5: a Master A spread shows its master's guides dashed rgb(163, 161, 162), 1 px, 24 px past the page, pointer-events none, under own guides",
-    pg.n >= 1 && pg.order && pg.look.every((l) => /repeating-linear-gradient\(.*rgb\(163, 161, 162\)/.test(l.img) && l.w === 1 && l.pe === "none" && l.over[0] === 24 && l.over[1] === 24), JSON.stringify({ n: pg.n, order: pg.order, look: pg.look[0] }))
-  ok("parent-guides PG2: elementFromPoint on a parent guide over a frame is the frame", !!pg.hit && pg.hit.at === pg.hit.id, JSON.stringify(pg.hit))
-  if (pg.hit) { await page.mouse.click(pg.hit.x, pg.hit.y); await page.waitForTimeout(200) }
-  const pgStatus = (await page.locator(`${demo} [data-testid="status"]`).textContent()) ?? ""
-  ok("parent-guides PG2: a click on a parent guide selects the frame below, no status", (await page.locator(`${demo} [data-current] [data-testid="sel-handle"]`).count()) > 0 && !/parent spread/.test(pgStatus), pgStatus)
   await page.keyboard.press("Escape"); await page.waitForTimeout(150)
   await page.locator(`${demo} [data-current] [data-testid="master-frame"]`).first().click({ modifiers: ["Control", "Shift"], force: true }); await page.waitForTimeout(250)
-  ok("parent-overrides PO2: Ctrl+Shift+click on a parent item makes an override copy", (await page.locator(`${demo} [data-testid="spread"][data-current] [data-override]`).count()) === 1)
   // missing photo + Relink
   await page.evaluate(() => window.__demo.missing(1)); await page.waitForTimeout(400)
   ok("kit10: a missing photo hatches its frame and the dock offers Relink…", (await page.locator(`${demo} [data-testid="demo-relink"]`).count()) === 1 && (await page.locator(`${demo} [data-testid="canvas"] .hatch-missing`).count()) >= 1)
@@ -1174,16 +572,6 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   // page-numbers-kit: the Page numbers section makes Book settings taller than the 900 px viewport, so its 10 px scrollbar shifts Hardcover left
   // cover-back-fill: the Back Fill row is a swatch + "#3E3C3B" (no pill, no note), flush right
   ok("kit-sync KS10: read-only rows flush right — Back fill swatch x 1347.86, Hardcover x 1285.45 (Book settings scrolls)", near(pw?.x, 1347.86) && near(hc?.x, 1285.45), `fill ${pw?.x} hardcover ${hc?.x}`)
-  if ((await page.locator(`${demo} [role=switch][aria-label="Endpapers"]`).getAttribute("aria-checked")) !== "true") await c('[role=switch][aria-label="Endpapers"]')
-  await c('[data-item="ef"]')
-  const ep = page.locator(`${demo} [data-testid="canvas-endpaper"]`)
-  ok("kit-sync KS9: endpaper canvas has no «Pastedown · glued to … board» caption", (await ep.count()) === 1 && !/Pastedown/.test(await ep.textContent()))
-  // r15 M89 (prod .endpaper-caption margin-top 0.5rem): the "Endpaper" caption is 12 px, 8 px under the endpaper bottom
-  const epc = await page.evaluate(() => { const d = document.querySelector('[data-testid="demo"]'), v = d.querySelector('[data-testid="canvas-endpaper"]').getBoundingClientRect(), s = [...d.querySelectorAll('[data-testid="page-labels"] span')].find((x) => x.textContent === "Endpaper"); return s && { fs: getComputedStyle(s).fontSize, dy: +(s.getBoundingClientRect().top - v.bottom).toFixed(2) } })
-  ok("r15 M89: endpaper caption 12 px, 8 px under the endpaper bottom (±0.5)", epc?.fs === "12px" && Math.abs(epc.dy - 8) <= 0.5, JSON.stringify(epc))
-  // r15 M91 (prod .endpaper-gutter): the spine is a 1 px hard line, black 18 %, centred on the spread — no gradient band
-  const sp = await page.evaluate(() => { const v = document.querySelector('[data-testid="demo"] [data-testid="canvas-endpaper"]'), l = v.querySelector('[data-testid="endpaper-spine"]'), vb = v.getBoundingClientRect(), b = l?.getBoundingClientRect(), cs = l && getComputedStyle(l); return l && { w: b.width, h: b.height, vh: vb.height, dx: +(b.x - (vb.x + vb.width / 2)).toFixed(2), bg: cs.backgroundColor, img: cs.backgroundImage, grads: [...v.querySelectorAll("div")].filter((e) => /linear-gradient/.test(getComputedStyle(e).backgroundImage)).length } })
-  ok("r15 M91: endpaper spine 1 px line at the centre, rgb(0 0 0 / 0.18), no gradient", sp?.w === 1 && sp.h === sp.vh && Math.abs(sp.dx) <= 0.5 && /^(rgba\(0, 0, 0, 0\.18\)|color\(srgb 0 0 0 \/ 0\.18\))$/.test(sp.bg) && sp.img === "none" && sp.grads === 0, JSON.stringify(sp))
 }
 
 // kit-sync W3 (Designer kit-sync Spec 6, 7, 12, 15, = prod): no Hide inspector in the inspector head, prod layout picker, prod flip glyphs, Page size chevron
@@ -1412,60 +800,6 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const hAll = await head(), copyAll = (await page.locator(`${dock} [data-testid="film-panel"]`).innerText()).trim()
   ok("kit-sync KS13: every photo placed + Unplaced on → Photos · 0 of 1 · 1 used and “Every photo is placed. Turn off “Unplaced” to see all.”", hAll === "Photos · 0 of 1 · 1 used" && copyAll === "Every photo is placed. Turn off “Unplaced” to see all.", JSON.stringify({ hAll, copyAll }))
   ok("kit-sync W5: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
-}
-
-// r16 M92 (Designer #421, = prod pasteboardClickSpreadId): a grey-canvas press activates the nearest spread and keeps the scroll
-{
-  const e0 = errs.length
-  await go("#/demo", 500); await page.evaluate(() => window.__demo.reset()); await page.waitForTimeout(500)
-  const c = async (sel) => { await page.locator(sel).first().click(); await page.waitForTimeout(300) }
-  await c('[data-testid="create-library"]'); await c('[data-testid="picker-select"]')
-  await c(`${demo} [data-testid="new-book"]`); await page.locator("[role=dialog] input").first().fill("Lake trip")
-  await page.locator("[role=dialog]").getByRole("button", { name: /A5|A4|Square|cm/ }).first().click(); await page.waitForTimeout(200)
-  await page.getByRole("option", { name: /Custom size/ }).click(); await page.waitForTimeout(200)
-  await page.fill('[data-testid="create-custom-w"]', "19"); await page.fill('[data-testid="create-custom-h"]', "23")
-  await c('[data-testid="create-book"]'); await c('[data-item="p1"]')
-  // the list grid eats Escape; the demo walk presses it from the inspector, here from the body
-  await page.evaluate(() => document.activeElement?.blur())
-  await page.keyboard.press("Escape"); await page.waitForTimeout(200); await page.keyboard.press("Escape"); await page.waitForTimeout(300)
-  const read = () => page.evaluate(() => {
-    const span = [...document.querySelectorAll('[data-stack-item="0"] [data-testid="page-labels"] span')].find((s) => s.textContent.trim() === "1")
-    const g = document.createRange(); if (span) g.selectNodeContents(span)
-    return { rows: [...document.querySelectorAll('[data-testid="list"] [aria-selected="true"]')].map((e) => e.getAttribute("data-item")), insp: document.querySelector('[data-testid="inspector"]')?.innerText.split("\n").slice(0, 2).join(" · "), y: span ? g.getBoundingClientRect().y : null }
-  })
-  const before = await read()
-  await page.locator('[data-testid="canvas"]').click({ position: { x: 20, y: 20 } }); await page.waitForTimeout(400)
-  const after = await read()
-  // the demo walk (demo-capture editor-spread-selected) reads y 66.25 before and after; this shorter walk (no photos added) lands at 52.25
-  ok("r16 M92: before the press (Esc ×2) no row and the empty inspector; page 1 above the centred spread 2–3 (label y < 100)", before.rows.length === 0 && before.insp === "Select a spread or photo" && before.y < 100, JSON.stringify(before))
-  ok("r16 M92: grey press at canvas 20,20 → row p0 (page 1) selected, inspector Spread · Page 1, page-1 label y unchanged ±0.5 (no re-centre)", after.rows.join() === "p0" && /^Spread · Page 1\b/.test(after.insp) && Math.abs(after.y - before.y) <= 0.5, JSON.stringify(after))
-  ok("r16 M92: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
-}
-
-// Designer r17 (kit-thumbgrid-page-select, = prod centerSpreadScroll): Masters → Pages remounts the stack and centres the current spread
-// even when it was fully in view — zoomed out 6 steps, spread 4–5 sits fully in view at scrollTop 0 and is not centred by the pick
-{
-  const e0 = errs.length
-  await go("#/demo", 500); await page.evaluate(() => window.__demo.reset()); await page.waitForTimeout(500)
-  const c = async (sel) => { await page.locator(sel).first().click(); await page.waitForTimeout(300) }
-  await c('[data-testid="create-library"]'); await c('[data-testid="picker-select"]')
-  await c(`${demo} [data-testid="new-book"]`); await page.locator("[role=dialog] input").first().fill("Lake trip"); await c('[data-testid="create-book"]')
-  for (let i = 0; i < 6; i++) { await page.locator('[data-testid="pasteboard"]').hover(); await page.keyboard.press("Control+Minus"); await page.waitForTimeout(200) }
-  await c('[data-item="p2"]')
-  const read = () => page.evaluate(() => {
-    const pb = document.querySelector('[data-testid="pasteboard"]'), el = pb?.querySelector('[data-stack-item="2"]')
-    if (!el) return null
-    return { top: pb.scrollTop, want: Math.max(0, Math.min(el.offsetTop + el.offsetHeight / 2 - pb.clientHeight / 2, pb.scrollHeight - pb.clientHeight)) }
-  })
-  const before = await read()
-  const seg = page.locator('[data-testid="mode-seg"]')
-  await seg.getByText("Masters", { exact: true }).click(); await page.waitForTimeout(300)
-  const gone = await page.locator("[data-stack-item]").count()
-  await seg.getByText("Pages", { exact: true }).click(); await page.waitForTimeout(500)
-  const after = await read()
-  ok("Designer r17: picked spread 4–5 fully in view keeps scrollTop 0 (not yet centred)", before?.top === 0 && before.want > 50, JSON.stringify(before))
-  ok("Designer r17: Masters → Pages remounts the stack and centres spread 4–5 (scrollTop = centre ±1)", gone === 0 && after && Math.abs(after.top - after.want) <= 1, JSON.stringify({ gone, after }))
-  ok("Designer r17: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
 
 // text-frames (Designer text-frames Spec "Kit changes"): Text click / drag, edit look, whole lines, Overflow chip, grow, inspector

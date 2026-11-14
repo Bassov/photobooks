@@ -938,3 +938,303 @@ test.describe('feature page smoke 1440×900', () => {
     expect(errs).toEqual([])
   })
 })
+
+// Moved from uikit/scripts/qa.mjs v7.3 / v8 / v0.9.1 / v0.9.3 (uikit-qa-split-4): Site settings has no theme switcher,
+// the site-lightbox fit / close / zoom on the feature page, #/demo session-book labels and the narrow bookcase, the
+// bookcase of published books only, a book's room and a book deep link.
+
+interface SiteDemoApi {
+  reset: () => void
+  state: () => Record<string, unknown> & { books: unknown[] }
+  go: (stage: string) => void
+  openSite: (entry: string) => void
+}
+
+/** two frames painted and no finite animation still running */
+async function siteSettled(page: Page) {
+  await page.evaluate(
+    () =>
+      new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
+  )
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document
+          .getAnimations()
+          .every(
+            (a) =>
+              a.playState !== 'running' ||
+              a.effect?.getComputedTiming().iterations === Infinity,
+          ),
+      ),
+    )
+    .toBe(true)
+}
+
+/** qa.mjs site-lightbox: the feature page may open with the lightbox up; open it if not */
+async function openLightbox(page: Page) {
+  if (!(await page.getByTestId('lightbox').count()))
+    await D(page, '[data-testid="site-fullscreen-btn"]')
+      .first()
+      .click()
+      .catch(() => null)
+}
+
+/** personal-site D38 indicator text for room view v of a book with nSp doc spreads and P pages */
+function viewTxt(v: number, nSp: number, P: number) {
+  if (v === 0) return 'Cover'
+  if (v === nSp + 1) return 'Back cover'
+  const at =
+    v === 1
+      ? 'Page 1'
+      : v === nSp
+        ? `Page ${String(P)}`
+        : `Pages ${String(2 * (v - 1))}–${String(2 * v - 1)}`
+  return `${at} of ${String(P)}`
+}
+
+test.describe('qa.mjs site checks 1440×900', () => {
+  test.use({ viewport: { width: 1440, height: 900 } })
+
+  test('v7.3→v8: Site settings has no Paper / Night / Sage theme switcher', async ({
+    page,
+  }) => {
+    await page.goto('/uikit/#/feature/site-settings')
+    await expect(page.getByTestId('demo')).toBeVisible()
+    await siteSettled(page)
+    const n = await page
+      .getByTestId('site-settings')
+      .getByText(/^(Paper|Night|Sage)$/)
+      .count()
+    const th = await page.locator('[data-site-theme]').count()
+    expect([n, th]).toEqual([0, 0])
+  })
+
+  test('site-lightbox §2–§3: fullscreen fills the 64/48/64 inset area, Close X off the slide; double-click zooms, a step resets, Esc closes', async ({
+    page,
+  }) => {
+    const errs = smokeErrors(page)
+    await page.goto('/uikit/#/feature/site-lightbox')
+    await expect(page.getByTestId('demo')).toBeVisible()
+    const LB = page.getByTestId('lightbox')
+    await openLightbox(page)
+    await expect(LB).toBeVisible()
+    await siteSettled(page)
+    const m = await page
+      .getByTestId('site-fullscreen-book')
+      .evaluate((e) => {
+        const r = e.getBoundingClientRect()
+        const lb = e.closest('[data-testid="lightbox"]')
+        if (!lb) return null
+        const v = lb.getBoundingClientRect()
+        return {
+          w: r.width / v.width,
+          h: r.height / v.height,
+          pad: Math.min(
+            r.left - v.left,
+            v.right - r.right,
+            r.top - v.top,
+            v.bottom - r.bottom,
+          ),
+          fit: Math.min(
+            Math.abs(r.width - (v.width - 128)),
+            Math.abs(r.height - (v.height - 112)),
+          ),
+          cx: Math.abs(r.left - v.left - (v.right - r.right)),
+        }
+      })
+      .catch(() => null)
+    const sw = await page.locator('text=/^(Paper|Night|Sage)$/').count()
+    // v8 §4 + site-lightbox §2: the fit area is the dialog minus 64 top / 48 bottom / 64 sides; the slide touches it on its limiting side, centred
+    expect
+      .soft(
+        !!m &&
+          Math.max(m.w, m.h) >= 0.9 &&
+          m.pad >= 47.5 &&
+          m.pad <= 64.5 &&
+          m.fit <= 0.5 &&
+          m.cx <= 0.5 &&
+          sw === 0,
+        `site fullscreen fills ≥90% of one viewport dimension, fits the 64/48/64 inset area (48–64px padding); no Paper/Night/Sage switcher: ${JSON.stringify(m)} themes=${String(sw)}`,
+      )
+      .toBe(true)
+    expect.soft(errs).toEqual([])
+    // Designer site-lightbox §2–§3: no control over the active slide; double-click zooms; a step resets; Esc closes at any zoom
+    const xo = await LB.evaluate((v) => {
+      const s = v
+        .querySelector('[data-testid="site-fullscreen-book"]')
+        ?.getBoundingClientRect()
+      const x = v
+        .querySelector('[data-testid="site-fullscreen-close"]')
+        ?.getBoundingClientRect()
+      if (!s || !x) return null
+      return {
+        over: !(
+          x.right <= s.left ||
+          x.left >= s.right ||
+          x.bottom <= s.top ||
+          x.top >= s.bottom
+        ),
+        x: [x.left, x.top, x.width].map(Math.round),
+        s: [s.left, s.top, s.right, s.bottom].map((n) => +n.toFixed(2)),
+      }
+    }).catch(() => null)
+    expect
+      .soft(
+        !!xo && !xo.over,
+        `site-lightbox §2 Close X does not overlap the active slide: ${JSON.stringify(xo)}`,
+      )
+      .toBe(true)
+    const slide = page.getByTestId('site-fullscreen-book')
+    await slide.dblclick()
+    // site-lightbox §3 double-click → data-zoom 2.00
+    await expect(LB).toHaveAttribute('data-zoom', '2.00')
+    await siteSettled(page)
+    await page.keyboard.press('ArrowRight')
+    // site-lightbox §3 ArrowRight while zoomed → data-zoom 1.00
+    await expect(LB).toHaveAttribute('data-zoom', '1.00')
+    await siteSettled(page)
+    await slide.dblclick()
+    await expect(LB).toHaveAttribute('data-zoom', '2.00')
+    await siteSettled(page)
+    await page.keyboard.press('Escape')
+    // site-lightbox §3 Esc while zoomed closes (one press)
+    await expect(LB).toHaveCount(0)
+  })
+
+  test('personal-site D38 / D41 / K2: a deep-linked session book reads Cover … Back cover with Home / End; the case at a 390 px root', async ({
+    page,
+  }) => {
+    // §3 page counts (Designer site D1/D2/D5): slides = cover + every spread; meta pages = last page number 2(n − 1)
+    await page.goto('/uikit/#/demo')
+    await expect(page.getByTestId('demo')).toBeVisible()
+    await page.evaluate(() => {
+      const d = (window as unknown as { __demo: SiteDemoApi }).__demo
+      d.reset()
+      d.state().path = '~/Pictures/Photobooks'
+      d.state().books = [
+        {
+          id: 's1',
+          title: 'Pages',
+          book: { endp: true, endpSame: true, w: 14.8, h: 21, preset: 'A5' },
+          published: true,
+        },
+      ]
+      d.state().open = 's1'
+      d.openSite('book')
+    })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    const about = page.getByTestId('site-about')
+    await expect(about).toHaveText(/\d+\s*pages/)
+    await siteSettled(page)
+    const meta = ((await about.textContent()) ?? '').trim()
+    // personal-site D38: meta pages = 2(n − 1) → n = pages / 2 + 1 doc spreads; room views = cover, page 1, spreads 2…n − 1, back
+    const P = Number(/(\d+)\s*pages/.exec(meta)?.[1] ?? 0)
+    const nSp = P / 2 + 1
+    const lbl = () =>
+      page
+        .getByTestId('site-label')
+        .textContent()
+        .then((t) => (t ?? '').trim())
+    expect(nSp, meta).toBeGreaterThanOrEqual(3)
+    await expect.poll(lbl).toBe(viewTxt(0, nSp, P))
+    for (let v = 0; v <= Math.min(nSp, 39); v++) {
+      await page.click('[data-testid="ss-next"]')
+      await expect.poll(lbl).toBe(viewTxt(v + 1, nSp, P))
+    }
+    await page.keyboard.press('Home')
+    await expect.poll(lbl).toBe('Cover')
+    await page.keyboard.press('End')
+    await expect.poll(lbl).toBe(viewTxt(nSp, nSp, P))
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+
+    // the case: a landscape book joins it; 390 px root → no horizontal overflow on the case
+    await page.evaluate(() => {
+      const d = (window as unknown as { __demo: SiteDemoApi }).__demo
+      d.state().books = [
+        ...d.state().books,
+        {
+          id: 's2',
+          title: 'Wide',
+          book: { endp: true, endpSame: true, w: 21, h: 14.8, preset: 'A5' },
+          published: true,
+        },
+      ]
+      d.openSite('catalog')
+    })
+    const books = page.getByTestId('ss9-book')
+    await expect(books).toHaveCount(2)
+    const caseIds = await books.evaluateAll((els) =>
+      els.map((e) => (e as HTMLElement).dataset.id).sort(),
+    )
+    await page.evaluate(() => {
+      const p = document.querySelector('[data-testid="site"]')?.parentElement
+      if (p) p.style.width = '390px'
+    })
+    await siteSettled(page)
+    const nCat = await page.evaluate(() => {
+      const s = document.querySelector('[data-testid="site"]')
+      const c = document.querySelector('[data-testid="site-case"]')
+      if (!s || !c) return null
+      const x0 = s.getBoundingClientRect().left
+      return {
+        sw: s.scrollWidth,
+        cw: s.clientWidth,
+        caseR: c.getBoundingClientRect().right - x0,
+      }
+    })
+    // personal-site K2: both published books on the case; 390 px root — no horizontal overflow, the case inside the margins
+    expect(caseIds).toEqual(['s1', 's2'])
+    expect(nCat).not.toBeNull()
+    expect(nCat?.sw, JSON.stringify(nCat)).toBe(nCat?.cw)
+    expect(nCat?.caseR ?? Infinity).toBeLessThanOrEqual(
+      (nCat?.cw ?? 0) - 16 + 0.5,
+    )
+  })
+
+  test('personal-site K2: the site lands on the bookcase of the published books only; a book opens its room; a deep link opens that room', async ({
+    page,
+  }) => {
+    await page.goto('/uikit/#/demo')
+    await expect(page.getByTestId('demo')).toBeVisible()
+    await page.evaluate(() => {
+      const d = (window as unknown as { __demo: SiteDemoApi }).__demo
+      d.reset()
+      const blank = { endp: true, endpSame: true, w: 14.8, h: 21, preset: 'A5' }
+      d.state().path = '~/Pictures/Photobooks'
+      d.state().books = [
+        { id: 's1', title: 'Lake trip', published: true, book: blank },
+        { id: 's2', title: 'Fog', published: true, book: blank },
+        { id: 's3', title: 'Draft', published: false, book: blank },
+      ]
+      d.state().open = 's1'
+      d.state().siteEntry = 'catalog'
+      d.go('site')
+    })
+    await expect(page.getByTestId('site-case')).toBeVisible()
+    await siteSettled(page)
+    const catN = await page.getByTestId('site-case').count()
+    const titles = (
+      await page
+        .getByTestId('ss9-book')
+        .evaluateAll((els) =>
+          els.map((e) => (e.getAttribute('aria-label') ?? '').split(',')[0]),
+        )
+    ).sort()
+    expect({ catN, titles }).toEqual({ catN: 1, titles: ['Fog', 'Lake trip'] })
+    await page
+      .locator('[data-testid="ss9-book"][aria-label^="Lake trip,"]')
+      .click()
+    const about = page.getByTestId('site-about')
+    // a book on the case opens its reading room
+    await expect(about).toHaveText(/^\s*Lake trip/)
+    // deep link opens that book's room (not the case)
+    await page.evaluate(() => {
+      const d = (window as unknown as { __demo: SiteDemoApi }).__demo
+      d.state().open = 's2'
+      d.openSite('book')
+    })
+    await expect(page.getByTestId('site')).toHaveAttribute('data-open', 's2')
+    await expect(about).toHaveText(/^\s*Fog/)
+  })
+})
