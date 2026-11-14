@@ -797,3 +797,144 @@ test('a kit page state naming a page still opens that page (site-preview-mode Sp
   await expect(room).toHaveAttribute('data-view', '3')
   await expect(page.getByTestId('site-label')).not.toHaveText('Cover')
 })
+
+// personal-site K3 smoke on the feature page (moved from uikit/scripts/qa.mjs §4,
+// uikit-qa-split-1): the site is the room → Fullscreen → lightbox, and every
+// control draws a solid 2 px focus-visible outline. Like the qa.mjs smoke(), a
+// console warning or a failed request fails the test too.
+
+const FEATURE = '/uikit/#/feature/personal-site'
+const D = (page: Page, s: string) => page.locator(`[data-testid="demo"] ${s}`)
+
+function smokeErrors(page: Page) {
+  const errs: string[] = []
+  page.on('console', (m) => {
+    if (m.type() === 'error' || m.type() === 'warning')
+      errs.push(`${m.type()}: ${m.text().slice(0, 240)}`)
+  })
+  page.on('pageerror', (e) => errs.push(`pageerror: ${e.message}`))
+  page.on('requestfailed', (r) => errs.push(`requestfailed: ${r.url()}`))
+  return errs
+}
+
+/** focused control in `sel`: [test id / aria-label / mailto, "<focus-visible?> <outline style> <width>"] */
+function focusRing(sel: string): [string, string] | null {
+  const e = document.activeElement as HTMLElement | null
+  if (!e?.closest(sel)) return null
+  const id =
+    e.dataset.testid ??
+    e.getAttribute('aria-label') ??
+    (e.getAttribute('href')?.startsWith('mailto:') ? 'mailto' : null)
+  // an <input> inside a <label> rings on the label
+  const cs = getComputedStyle(
+    e.matches('input') ? (e.closest('label') ?? e) : e,
+  )
+  return id
+    ? [
+        id,
+        `${e.matches(':focus-visible') ? '' : 'not focus-visible '}${cs.outlineStyle} ${cs.outlineWidth}`,
+      ]
+    : null
+}
+
+/** Tab (≤ 120 presses) until every control in `want` took focus inside `scope` */
+async function tabRings(
+  page: Page,
+  want: string[],
+  scope = '[data-testid="demo"]',
+) {
+  const seen: Record<string, string> = {}
+  for (let k = 0; k < 120 && want.some((t) => !(t in seen)); k++) {
+    await page.keyboard.press('Tab')
+    const r = await page.evaluate(focusRing, scope)
+    if (r && !(r[0] in seen)) seen[r[0]] = r[1]
+  }
+  return want.map((t) => [t, seen[t] ?? 'not reached'])
+}
+
+const solid = (ids: string[]) => ids.map((t) => [t, 'solid 2px'])
+
+test.describe('feature page smoke 1440×900', () => {
+  test.use({ viewport: { width: 1440, height: 900 } })
+
+  test('personal-site: bookcase → room → Fullscreen lightbox; Esc back to the room', async ({
+    page,
+  }) => {
+    const errs = smokeErrors(page)
+    await page.goto(FEATURE)
+    await D(page, '[data-testid="ss9-book"]').first().click()
+    await D(page, '[data-testid="site-fullscreen-btn"]').click()
+    await expect(D(page, '[data-testid="lightbox"]')).toBeVisible()
+    expect(
+      (
+        (await D(
+          page,
+          '[data-testid="site-fullscreen-indicator"]',
+        ).textContent()) ?? ''
+      ).trim(),
+    ).not.toBe('')
+    await page.keyboard.press('Escape')
+    await expect(D(page, '[data-testid="lightbox"]')).toHaveCount(0)
+    await expect(D(page, '[data-testid="site-fullscreen-btn"]')).toBeVisible()
+    expect(errs).toEqual([])
+  })
+
+  test('personal-site: focus-visible outline solid on every control; mouse click draws none', async ({
+    page,
+  }) => {
+    const errs = smokeErrors(page)
+    await page.goto(FEATURE)
+    await expect(D(page, '[data-testid="ss9-book"]').first()).toBeVisible()
+    const rings = await tabRings(page, ['ss9-book'])
+    await D(page, '[data-testid="ss9-book"]').first().click()
+    await expect(D(page, '[data-testid="ss-next"]')).toBeVisible()
+    // the room-enter animation is over
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          document.getAnimations().every((a) => a.playState !== 'running'),
+        ),
+      )
+      .toBe(true)
+    const room = [
+      'site-all-books',
+      'ss-next',
+      'site-share',
+      'site-fullscreen-btn',
+      'site-play',
+    ]
+    rings.push(...(await tabRings(page, room)))
+    // blur first: the last Tab stopped on this button, and a click on the focused control keeps focus-visible
+    await page.evaluate(() => {
+      ;(document.activeElement as HTMLElement | null)?.blur()
+    })
+    await D(page, '[data-testid="ss-next"]').click()
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const e = document.activeElement as HTMLElement
+          const cs = getComputedStyle(e)
+          return `${e.textContent.trim()} ${cs.outlineStyle} ${cs.outlineWidth}`
+        }),
+      )
+      .toMatch(/^Next none/)
+    await D(page, '[data-testid="site-fullscreen-btn"]').click()
+    await expect(D(page, '[data-testid="lightbox"]')).toBeVisible()
+    const lb = [
+      'Previous spread',
+      'Next spread',
+      'site-fullscreen-zoom',
+      'site-fullscreen-close',
+    ]
+    rings.push(
+      ...(await tabRings(page, lb, '[data-testid="lightbox"]')).map(
+        ([t, v]) => [`lightbox ${String(t)}`, String(v)],
+      ),
+    )
+    expect(rings).toEqual([
+      ...solid(['ss9-book', ...room]),
+      ...solid(lb.map((t) => `lightbox ${t}`)),
+    ])
+    expect(errs).toEqual([])
+  })
+})
