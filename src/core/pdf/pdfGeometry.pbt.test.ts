@@ -5,6 +5,7 @@ import { fc } from '@fast-check/vitest'
 import { pagesOf } from '../pages'
 import {
   applyMatrix,
+  blankSheets,
   compose,
   cropMarkSegments,
   imageMatrix,
@@ -86,6 +87,34 @@ describe('pdfGeometry properties', () => {
           expect(sheet.trim.x).toBe(before.length * trim.widthMm)
         }
       }),
+      runs,
+    )
+  })
+
+  it('blank sheets lift the book to its minimum in whole sheets', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 61 }),
+        fc.integer({ min: 0, max: 130 }),
+        trimArb,
+        fc.constantFrom('pages' as const, 'spreads' as const),
+        (spreads, min, trim, output) => {
+          const blanks = blankSheets(spreads, min, trim, output)
+          const pages = blanks.map((sheet) => sheet.trim.width / trim.widthMm)
+          const total = pages.reduce((sum, count) => sum + count, 0)
+          expect(pagesOf(spreads) + total).toBe(Math.max(pagesOf(spreads), min))
+          const wide = output === 'spreads' ? 2 : 1
+          for (const [index, count] of pages.entries()) {
+            expect(count).toBe(index < pages.length - 1 ? wide : count)
+            expect([1, wide]).toContain(count)
+          }
+          for (const sheet of blanks) {
+            expect(sheet.spreadIndex).toBe(spreads)
+            expect(sheet.trim).toMatchObject({ x: 0, y: 0 })
+            expect(sheet.trim.height).toBe(trim.heightMm)
+          }
+        },
+      ),
       runs,
     )
   })

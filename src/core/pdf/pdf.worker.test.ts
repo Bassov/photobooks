@@ -58,10 +58,11 @@ describe('runPdfPaint', () => {
     expect(posts).toHaveLength(1)
     const { pdf, sheets, skipped } = doneOf(posts[0]?.message)
     expect(posts[0]?.transfer).toEqual([pdf])
-    expect(sheets).toBe(1)
+    // One page, padded with blank pages to Generic's 20-page minimum.
+    expect(sheets).toBe(20)
     expect(skipped).toEqual([{ assetId: 'gone', reason: 'missing' }])
     const doc = await PDFDocument.load(pdf)
-    expect(doc.getPageCount()).toBe(1)
+    expect(doc.getPageCount()).toBe(20)
   })
 
   it("prints with the book's custom profile from the library", async () => {
