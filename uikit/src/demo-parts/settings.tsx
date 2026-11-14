@@ -12,7 +12,7 @@ import { SAMPLE_SITE_TEXTS, type SiteTexts } from "@/features/site/sample"
 import { useSession } from "./session"
 import { HostingSection, type HostingInit } from "./hosting"
 import { SiteSection } from "./siteSettings"
-import { CATALOG, GENERIC_ID, PrintProfileDialog, copyOf, newProfile, profileSummary, type Draft, type KitProfile } from "./printProfiles"
+import { CATALOG, CHEVRON, GENERIC_ID, PrintProfileDialog, copyOf, newProfile, profileSummary, type Draft, type KitProfile } from "./printProfiles"
 
 export type SettingsSection = "library" | "hosting" | "site" | "print" | "interface"
 /* ---------------------------------------------------------------- settings */
@@ -40,7 +40,7 @@ export function SettingsScreen(props: { bookCount?: number; libraryPath?: string
           <button key={id} type="button" data-testid={`settings-nav-${id}`} aria-current={sec === id ? "page" : undefined} onClick={() => setSec(id)} className={cn("flex items-center gap-2 rounded-md px-2 py-2 text-left text-sm outline-hidden hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring", sec === id && "bg-accent font-medium")}><I className="size-4 text-muted-foreground" />{l}</button>
         ))}
       </nav>
-      <main className="min-h-0 overflow-auto px-8 py-6">
+      <main className="@container min-h-0 overflow-auto px-8 py-6">
         <h1 className="heading text-2xl">{SECTIONS.find((s) => s[0] === sec)![1]}</h1>
         {sec === "library" ? (
           <>
@@ -85,7 +85,6 @@ export function SettingsScreen(props: { bookCount?: number; libraryPath?: string
 /** feature-page seed: the editor open on a custom profile id, or on a new profile ("new"), with an optional draft */
 export type PrintInit = { edit?: string; draft?: Partial<Draft> }
 type Editing = { p: KitProfile; mode: "new" | "edit"; draft?: Partial<Draft> }
-const CHEVRON = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23535152' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`
 const SECONDARY = "gap-1.5 px-3 text-sm shadow-xs data-[hovered]:bg-accent [&_svg]:size-4"
 const EYEBROW = "mt-6 flex h-8 max-w-[640px] items-center justify-between px-4"
 const EYEBROW_T = "text-2xs font-semibold uppercase tracking-[.12em] text-muted-foreground"

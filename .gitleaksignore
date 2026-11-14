@@ -3,3 +3,5 @@ e9a987bc6f9345d8edfe0ac0767f80a8157d9d88:uikit/src/features/pages.tsx:generic-ap
 e9a987bc6f9345d8edfe0ac0767f80a8157d9d88:e2e/kit-hosting-settings.spec.ts:generic-api-key:11
 # Fake e2e sample key from publish-credentials hosting spec (replaced by low-entropy fakes in 383873ae).
 e2792324c82d37f8a7b9e621dbb277dac350ed3e:e2e/hosting-settings.spec.ts:generic-api-key:17
+# Fake token-like redaction fixtures from connect-own-hosting-core (replaced by low-entropy fakes in the next commit).
+560b74b8b26e059eecc21ff6b9b13d1cd77dd662:src/publish/credentials.test.ts:generic-api-key:141

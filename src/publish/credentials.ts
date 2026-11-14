@@ -111,7 +111,18 @@ function base64(text: string): string {
   )
 }
 
-/** `text` with the key id and secret (raw, URL-encoded, base64) replaced. */
+/**
+ * A run of 40+ API-token / base64 characters with an uppercase letter or
+ * `_+`: a Cloudflare token or its base64. Lowercase bucket names and hex ids
+ * have neither and stay readable.
+ */
+const TOKEN_RUN = /[A-Za-z0-9_+/-]{40,}/g
+const TOKEN_MARK = /[A-Z_+]/
+
+/**
+ * `text` with the key id and secret (raw, URL-encoded, base64) and any
+ * token-like run replaced.
+ */
 export function redact(
   text: string,
   credentials: Pick<R2Credentials, 'accessKeyId' | 'secretAccessKey'>,
@@ -121,10 +132,9 @@ export function redact(
     .flatMap((secret) => [secret, encodeURIComponent(secret), base64(secret)])
     // Longest first, so a form is not cut by a shorter one inside it.
     .sort((a, b) => b.length - a.length)
-  return secrets.reduce(
-    (result, secret) => result.split(secret).join(REDACTED),
-    text,
-  )
+  return secrets
+    .reduce((result, secret) => result.split(secret).join(REDACTED), text)
+    .replace(TOKEN_RUN, (run) => (TOKEN_MARK.test(run) ? REDACTED : run))
 }
 
 export const SECRETS_DB_NAME = 'photobooks-secrets'
@@ -150,8 +160,36 @@ export type HostingStatus =
   | { checkedAtMs: number; ok: true }
   | { checkedAtMs: number; ok: false; code: CheckCode; message: string }
 
+/** How the stored key came about: guided setup or typed in the manual form. */
+interface HostingProvenance {
+  origin: 'setup' | 'manual'
+  /** When guided setup stored the record. */
+  provisionedAtMs?: number
+  /** Guided setup could not delete its setup token; the user should. */
+  setupTokenLeft?: boolean
+}
+
+const MANUAL: HostingProvenance = { origin: 'manual' }
+
+/** A record without a readable `origin` reads as manual (no migration). */
+function parseProvenance(input: unknown): HostingProvenance {
+  if (typeof input !== 'object' || input === null) return MANUAL
+  const { origin, provisionedAtMs, setupTokenLeft } = input as Record<
+    string,
+    unknown
+  >
+  if (origin !== 'setup') return MANUAL
+  return {
+    origin,
+    ...(typeof provisionedAtMs === 'number' && Number.isFinite(provisionedAtMs)
+      ? { provisionedAtMs }
+      : {}),
+    ...(setupTokenLeft === true ? { setupTokenLeft } : {}),
+  }
+}
+
 /** What the UI may read: no secret, only the access key id's last 4. */
-export interface HostingSummary {
+export interface HostingSummary extends Partial<HostingProvenance> {
   accountId: string
   bucket: string
   accessKeyTail: string
@@ -179,7 +217,12 @@ export interface CredentialStore {
   /** Stored credentials, or `undefined` when none or no longer valid. */
   load: () => Promise<R2Credentials | undefined>
   /** Validates first; throws an error naming the invalid fields only. */
-  save: (credentials: R2Credentials) => Promise<void>
+  save: (
+    credentials: R2Credentials,
+    provenance?: HostingProvenance,
+  ) => Promise<void>
+  /** How the stored record came about; manual when none or unreadable. */
+  loadProvenance: () => Promise<HostingProvenance>
   /** Last check result, or `null` when none or unreadable. */
   loadStatus: () => Promise<HostingStatus | null>
   saveStatus: (status: HostingStatus) => Promise<void>
@@ -233,15 +276,20 @@ export function createCredentialStore(
       const checked = validateCredentials(stored)
       return checked.ok ? checked.value : undefined
     },
-    save: async (credentials) => {
+    save: async (credentials, provenance) => {
       const checked = validateCredentials(credentials)
       if (!checked.ok) {
         throw new Error(
           `Invalid hosting credentials: ${Object.keys(checked.errors).join(', ')}`,
         )
       }
-      await run(factory, 'readwrite', (store) => store.put(checked.value, KEY))
+      const record = { ...checked.value, ...parseProvenance(provenance) }
+      await run(factory, 'readwrite', (store) => store.put(record, KEY))
     },
+    loadProvenance: async () =>
+      parseProvenance(
+        await run<unknown>(factory, 'readonly', (store) => store.get(KEY)),
+      ),
     loadStatus: async () =>
       parseStatus(
         await run<unknown>(factory, 'readonly', (store) =>
@@ -272,6 +320,7 @@ export async function loadHostingSummary(
     accessKeyTail: credentials.accessKeyId.slice(-4),
     publicBaseUrl: credentials.publicBaseUrl,
     status: await store.loadStatus(),
+    ...(await store.loadProvenance()),
   }
 }
 

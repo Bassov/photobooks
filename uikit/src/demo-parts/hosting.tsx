@@ -1,19 +1,24 @@
-/* Settings → Hosting (Designer Spec publish-credentials): the Cloudflare R2 entry form, the connected card, the help card
-   and the forget confirm. Kit: the check is simulated (900 ms) and nothing goes to the network. The secret input is
-   uncontrolled, so its value is never in React state or a DOM attribute; after Connect only the key's last 4 are kept. */
+/* Settings → Hosting (Designer Specs publish-credentials, connect-own-hosting): the guided setup (hostingSetup.tsx, the
+   default when not connected), the Cloudflare R2 entry form, the connected card, the help card and the forget confirm.
+   Kit: the check is simulated (900 ms) and nothing goes to the network. The secret input is uncontrolled, so its value
+   is never in React state or a DOM attribute; after Connect only the key's last 4 are kept. */
 import * as React from "react"
-import { ExternalLink, Loader2, TriangleAlert } from "lucide-react"
+import { ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/uui/Badge"
 import { AlertDialog } from "@/components/app/ui"
 import { BOX, ERR, ring } from "./printProfiles"
+import { Fail, GHOST, OUTLINE, Swap, checkingLabel, when } from "./hostingBits"
+import { HostingSetup, type SetupSeed } from "./hostingSetup"
 import { useSession, type HostingCode, type HostingRecord } from "./session"
 
 type Field = "account" | "bucket" | "key" | "secret" | "url"
+type Mode = "setup" | "manual"
 export type HostingDraft = Partial<Record<Field, string>>
-/** feature-page seed: a typed draft, a check frozen at Checking…, a failed check, Replace open, the forget confirm open */
-export type HostingInit = { draft?: HostingDraft; checking?: boolean; fail?: HostingCode; replace?: boolean; forget?: boolean }
+/** feature-page seed: a typed draft, a check frozen at Checking…, a failed check, Replace open, the forget confirm open;
+   `mode` opens the manual form, `setup` freezes the guided setup at a state */
+export type HostingInit = { draft?: HostingDraft; checking?: boolean; fail?: HostingCode; replace?: boolean; forget?: boolean; mode?: Mode; setup?: SetupSeed }
 
 /* ---------------------------------------------------------------- validation (Spec § Validation) */
 const HEX32 = /^[0-9a-f]{32}$/i
@@ -64,12 +69,6 @@ const failMessage = (code: HostingCode, bucket: string, stored = false) => ({
   Timeout: "Cloudflare didn't answer in 15 seconds. Try again.",
 })[code]
 const RINGS: Partial<Record<HostingCode, Field[]>> = { InvalidAccessKeyId: ["key", "secret"], NoSuchBucket: ["account", "bucket"] }
-function when(ms: number) {
-  const d = new Date(ms), now = new Date()
-  const t = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
-  if (d.toDateString() === now.toDateString()) return `today at ${t}`
-  return `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}) })} at ${t}`
-}
 /** Run `done` after the simulated 900 ms check; the timer dies with the component. */
 function useCheck() {
   const [checking, setChecking] = React.useState(false)
@@ -82,7 +81,7 @@ function useCheck() {
 /* ---------------------------------------------------------------- shared bits */
 const ROW = "flex min-h-13 items-center gap-4 px-4 py-2"
 const FOOT = "flex min-h-13 items-center gap-4 px-4 py-2.5"
-const OUTLINE = "px-3 text-sm shadow-xs data-[hovered]:bg-accent"
+const MODE_LINK = "mt-3 pl-4 text-xs text-foreground underline decoration-foreground/35 underline-offset-4"
 const EYEBROW = "mt-6 flex h-8 max-w-[640px] items-center justify-between px-4"
 const EYEBROW_T = "text-2xs font-semibold uppercase tracking-[.12em] text-muted-foreground"
 const ORIGIN = "https://photobooks.photobooks-bassov.workers.dev"
@@ -93,38 +92,31 @@ const CORS = `[{
   "ExposeHeaders": ["ETag"],
   "MaxAgeSeconds": 3600
 }]`
-/** Both labels sit in one grid cell, so the button keeps its width (the D36 Share rule). */
-function Swap({ on, rest, busy }: { on: boolean; rest: React.ReactNode; busy: React.ReactNode }) {
-  return (
-    <span className="grid [&>*]:col-start-1 [&>*]:row-start-1">
-      <span className={cn("flex items-center justify-center gap-1.5", on && "invisible")}>{rest}</span>
-      <span className={cn("flex items-center justify-center gap-1.5", !on && "invisible")}>{busy}</span>
-    </span>
-  )
-}
-const checkingLabel = <><Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" />Checking…</>
-const Fail = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex gap-2 text-sm" style={{ color: ERR }} role="alert" data-testid="hosting-error"><TriangleAlert className="mt-0.5 size-4 shrink-0" />{children}</div>
-)
-
 /* ---------------------------------------------------------------- section */
 export function HostingSection({ rule, init = {} }: { rule: React.ReactNode; init?: HostingInit }) {
   const { set, useDemo } = useSession()
   const rec = useDemo().hosting
   const [replacing, setReplacing] = React.useState(!!init.replace && !!rec)
   const [forget, setForget] = React.useState(!!init.forget && !!rec)
-  const [focus, setFocus] = React.useState<Field | undefined>(init.replace ? "key" : undefined)
+  const [focus, setFocus] = React.useState<Field | "token" | undefined>(init.replace ? "key" : undefined)
   const [seed, setSeed] = React.useState(init) // a scenario seed is used once: after Connect or Forget the form starts empty
-  const save = (r: HostingRecord) => { set({ hosting: r }); setReplacing(false); setSeed({}) }
+  const [mode, setMode] = React.useState<Mode>(init.mode ?? "setup")
+  const [round, setRound] = React.useState(0) // remounts both modes after Connect / Set up / Forget
+  const save = (r: HostingRecord) => { set({ hosting: r }); setReplacing(false); setSeed({}); setRound((n) => n + 1) }
+  /* not connected: both modes stay mounted, so each keeps its typed values; the hidden one drops its secret / token */
   return (
     <>
-      <p className="mt-1 max-w-[560px] text-sm leading-relaxed text-muted-foreground">Publish uploads your books to your own Cloudflare R2 bucket. Paste a bucket token once: it stays on this computer and is sent only to Cloudflare.</p>
+      <p className="mt-1 max-w-[560px] text-sm leading-relaxed text-muted-foreground" data-testid="settings-hosting-intro">Publish puts your books on your own site, in your own Cloudflare account. Set it up once: Photobooks keeps only a key for its own bucket, on this computer.</p>
       {rec && !replacing
         ? <Connected rec={rec} rule={rule} onForget={() => setForget(true)} onReplace={() => { setFocus("key"); setReplacing(true) }} onChecked={(r) => set({ hosting: r })} />
-        : <HostingForm key={rec ? "replace" : "new"} rule={rule} init={replacing ? { draft: { account: rec?.accountId, bucket: rec?.bucket, url: rec?.publicBaseUrl } } : seed}
-            focus={focus} onSaved={save} onCancel={replacing ? () => setReplacing(false) : undefined} />}
+        : rec
+          ? <HostingForm key="replace" rule={rule} init={{ draft: { account: rec.accountId, bucket: rec.bucket, url: rec.publicBaseUrl } }} focus={focus === "token" ? undefined : focus} active onSaved={save} onCancel={() => setReplacing(false)} />
+          : <React.Fragment key={round}>
+              <div hidden={mode !== "setup"}><HostingSetup rule={rule} seed={seed.setup} active={mode === "setup"} focus={focus === "token"} onDone={save} onManual={() => setMode("manual")} /></div>
+              <div hidden={mode !== "manual"}><HostingForm rule={rule} init={seed} focus={focus === "token" ? undefined : focus} active={mode === "manual"} onSaved={(r) => save({ ...r, origin: "manual" })} onGuided={() => setMode("setup")} /></div>
+            </React.Fragment>}
       <AlertDialog isOpen={forget} tone="destructive" title="Forget the hosting token?" confirmLabel="Forget token" onCancel={() => setForget(false)}
-        onConfirm={() => { setForget(false); setReplacing(false); setFocus("account"); setSeed({}); set({ hosting: null }) }}>
+        onConfirm={() => { const back: Mode = rec?.origin === "setup" ? "setup" : "manual"; setForget(false); setReplacing(false); setMode(back); setFocus(back === "setup" ? "token" : "account"); setSeed({}); setRound((n) => n + 1); set({ hosting: null }) }}>
         Photobooks deletes the token from this computer. Your published site stays online. To publish again, paste a token. The token still works in Cloudflare: delete it there if you no longer need it.
       </AlertDialog>
     </>
@@ -141,7 +133,9 @@ const FIELDS: [Field, string, string, string?][] = [
 ]
 const TID: Record<Field, string> = { account: "hosting-account", bucket: "hosting-bucket", key: "hosting-key", secret: "hosting-secret", url: "hosting-url" }
 type Values = Record<Exclude<Field, "secret">, string>
-function HostingForm({ rule, init, focus, onSaved, onCancel }: { rule: React.ReactNode; init: HostingInit; focus?: Field; onSaved: (r: HostingRecord) => void; onCancel?: () => void }) {
+function HostingForm({ rule, init, focus, active, onSaved, onCancel, onGuided }: {
+  rule: React.ReactNode; init: HostingInit; focus?: Field; active: boolean; onSaved: (r: HostingRecord) => void; onCancel?: () => void; onGuided?: () => void
+}) {
   const d = init.draft ?? {}
   const [v, setV] = React.useState<Values>({ account: d.account ?? "", bucket: d.bucket ?? "", key: d.key ?? "", url: d.url ?? "" })
   const [secret, setSecret] = React.useState<"" | "ok" | "bad">(!d.secret ? "" : HEX64.test(d.secret) ? "ok" : "bad")
@@ -152,6 +146,8 @@ function HostingForm({ rule, init, focus, onSaved, onCancel }: { rule: React.Rea
   const refs = React.useRef<Partial<Record<Field, HTMLInputElement | null>>>({})
   React.useEffect(() => { if (d.secret && secretRef.current) secretRef.current.value = d.secret }, [])
   React.useEffect(() => { if (!focus) return; const id = requestAnimationFrame(() => refs.current[focus]?.focus()); return () => cancelAnimationFrame(id) }, [focus])
+  /* leaving manual mode loses the secret (by design); the other fields stay */
+  React.useEffect(() => { if (active || !secretRef.current) return; secretRef.current.value = ""; setSecret("") }, [active])
   const errs: Partial<Record<Field, string>> = { account: errorOf("account", v.account), bucket: errorOf("bucket", v.bucket), key: errorOf("key", v.key), secret: secret === "bad" ? MSG.secret : undefined, url: errorOf("url", v.url) }
   const valid = !!(v.account && v.bucket && v.key && v.url) && secret === "ok" && !Object.values(errs).some(Boolean)
   const rings = (fail && RINGS[fail]) || []
@@ -221,11 +217,12 @@ function HostingForm({ rule, init, focus, onSaved, onCancel }: { rule: React.Rea
             {fail ? <Fail>{failMessage(fail, v.bucket)}</Fail> : <div className="text-xs leading-[16.8px] text-muted-foreground">Stored only on this computer. Sent only to Cloudflare.</div>}
           </div>
           <div className="flex shrink-0 gap-2">
-            {onCancel && <Button variant="ghost" size="sm" className="px-3 text-sm data-[hovered]:bg-accent" onPress={onCancel} isDisabled={checking} data-testid="hosting-cancel">Cancel</Button>}
+            {onCancel && <Button variant="ghost" size="sm" className={GHOST} onPress={onCancel} isDisabled={checking} data-testid="hosting-cancel">Cancel</Button>}
             <Button size="sm" className="px-3 text-sm" isDisabled={!valid && !checking} onPress={connect} data-testid="hosting-connect">{connectLabel}</Button>
           </div>
         </div>
       </div>
+      {onGuided && <button type="button" className={MODE_LINK} onClick={onGuided} disabled={checking} data-testid="hosting-guided">Set up automatically instead</button>}
       <Help cors={fail === "Cors"} />
     </>
   )
@@ -255,7 +252,7 @@ function Help({ cors }: { cors: boolean }) {
         <ol>
           {steps.map((s, i) => (
             <li key={i} className="-mx-2 grid grid-cols-[20px_1fr] rounded-lg px-2 py-1 text-sm text-muted-foreground" style={cors && i === 2 ? { background: "rgb(57 55 56 / 0.06)" } : undefined}
-              data-testid={`hosting-step-${i + 1}`} data-marked={cors && i === 2 ? "" : undefined}>
+              data-testid={`hosting-help-step-${i + 1}`} data-marked={cors && i === 2 ? "" : undefined}>
               <span className="font-medium tabular-nums text-foreground">{i + 1}</span><div className="min-w-0">{s}</div>
             </li>
           ))}
@@ -270,19 +267,28 @@ function Help({ cors }: { cors: boolean }) {
 function Connected({ rec, rule, onForget, onReplace, onChecked }: { rec: HostingRecord; rule: React.ReactNode; onForget: () => void; onReplace: () => void; onChecked: (r: HostingRecord) => void }) {
   const [checking, run] = useCheck()
   const recheck = () => { if (!checking) run(() => { const code = simulate(rec.bucket, rec.accessKeyTail); onChecked({ ...rec, checkedAtMs: Date.now(), ok: !code, code }) }) }
+  /* connect-own-hosting: "Set up automatically" until the first Check again; "New address" for 15 min after setup */
+  const setUp = rec.origin === "setup" && rec.checkedAtMs === rec.provisionedAtMs
+  const fresh = !!rec.provisionedAtMs && Date.now() - rec.provisionedAtMs < 15 * 60_000
   const mono = (k: string, val: React.ReactNode, tid: string, extra?: React.HTMLAttributes<HTMLSpanElement>) => (
     <><div className={ROW}><div className="min-w-0 flex-1 text-sm">{k}</div><span className="font-mono text-xs text-muted-foreground" data-testid={tid} {...extra}>{val}</span></div>{rule}</>
   )
   return (
     <div className="mt-5 max-w-[640px] overflow-hidden rounded-xl bg-chrome" data-testid="hosting-connected" aria-busy={checking || undefined}>
       <div className={ROW}>
-        <div className="min-w-0 flex-1 text-sm">Connection<div className="text-xs text-muted-foreground" data-testid="hosting-checked">{rec.ok ? "Checked" : "Last check failed"} {when(rec.checkedAtMs)}</div></div>
+        <div className="min-w-0 flex-1 text-sm">Connection<div className="text-xs text-muted-foreground" data-testid="hosting-checked">{setUp ? "Set up automatically" : rec.ok ? "Checked" : "Last check failed"} {when(rec.checkedAtMs)}</div></div>
         {rec.ok ? <Badge color="success" dot>Connected</Badge> : <Badge color="error" dot>Can't connect</Badge>}
       </div>
       {!rec.ok && rec.code && <div className="px-4 pb-2"><Fail>{failMessage(rec.code, rec.bucket, true)}</Fail></div>}
+      {rec.setupTokenLeft && (
+        <div className="px-4 pb-2 text-xs leading-[16.8px] text-muted-foreground" data-testid="hosting-token-left">
+          Delete the “Photobooks setup” token in Cloudflare →{" "}
+          <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-foreground underline decoration-foreground/35 underline-offset-4">API Tokens<ExternalLink className="size-3" /></a>.
+        </div>
+      )}
       {rule}
       <div className={ROW}>
-        <div className="min-w-0 flex-1 text-sm">Site address</div>
+        <div className="min-w-0 flex-1 text-sm">Site address{fresh && <div className="text-xs text-muted-foreground" data-testid="hosting-site-new">New address: it can take a few minutes to start working.</div>}</div>
         <a href={rec.publicBaseUrl} target="_blank" rel="noopener noreferrer" data-testid="hosting-site" className="inline-flex items-center gap-1 text-sm text-foreground underline underline-offset-4" style={{ textDecorationColor: "rgb(57 55 56 / 0.35)" }}>{new URL(rec.publicBaseUrl).host}<ExternalLink className="size-3.5" /></a>
       </div>
       {rule}
