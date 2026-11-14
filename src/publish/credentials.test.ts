@@ -137,6 +137,23 @@ describe('redact', () => {
     ).toBe('x [redacted] y')
   })
 
+  it('hides 40+ character token-like runs, keeps lowercase names and hex ids', () => {
+    const token = 'Ab3_kL9-mN0pQ1rS2tU3vW4xY5zA6bC7dE8fG9hJ'
+    const bucket = 'pb-books-some-long-subdomain-of-example-com'
+    const hex = 'a'.repeat(32) + '0123456789abcdef'
+    const empty = { accessKeyId: '', secretAccessKey: '' }
+
+    expect(redact(`t=${token} b=${bucket} h=${hex}`, empty)).toBe(
+      `t=[redacted] b=${bucket} h=${hex}`,
+    )
+    expect(redact(`${'a'.repeat(39)}_`, empty)).toBe('[redacted]')
+    expect(redact(`${'a'.repeat(38)}_`, empty)).toBe(`${'a'.repeat(38)}_`)
+    expect(redact(`x ${'a'.repeat(39)}+= y`, empty)).toBe('x [redacted]= y')
+    expect(redact(`${'a'.repeat(30)}/${'b'.repeat(30)}`, empty)).toBe(
+      `${'a'.repeat(30)}/${'b'.repeat(30)}`,
+    )
+  })
+
   it('leaves text without secrets unchanged, also for empty keys', () => {
     expect(redact('upload failed: 403', keys)).toBe('upload failed: 403')
     expect(redact('abc', { accessKeyId: '', secretAccessKey: '' })).toBe('abc')
@@ -281,6 +298,66 @@ describe('createCredentialStore', () => {
 
     expect(await createCredentialStore(factory).load()).toBeUndefined()
   })
+
+  it('round-trips the setup provenance beside the five values', async () => {
+    const factory = new IDBFactory()
+    const store = createCredentialStore(factory)
+    expect(await store.loadProvenance()).toEqual({ origin: 'manual' })
+
+    await store.save(VALID, {
+      origin: 'setup',
+      provisionedAtMs: 1_700,
+      setupTokenLeft: true,
+    })
+
+    expect(await createCredentialStore(factory).load()).toEqual(VALID)
+    expect(await createCredentialStore(factory).loadProvenance()).toEqual({
+      origin: 'setup',
+      provisionedAtMs: 1_700,
+      setupTokenLeft: true,
+    })
+    await store.save(VALID, { origin: 'setup' })
+    expect(await store.loadProvenance()).toEqual({ origin: 'setup' })
+    await store.save(VALID)
+    expect(await store.loadProvenance()).toEqual({ origin: 'manual' })
+  })
+
+  it('reads a record without a valid origin as manual', async () => {
+    const factory = new IDBFactory()
+    await createCredentialStore(factory).save(VALID)
+    const db = await new Promise<IDBDatabase>((resolve) => {
+      const request = factory.open(SECRETS_DB_NAME)
+      request.onsuccess = () => {
+        resolve(request.result)
+      }
+    })
+    const put = (value: unknown) =>
+      new Promise<void>((resolve) => {
+        const tx = db.transaction('r2', 'readwrite')
+        tx.objectStore('r2').put(value, 'credentials')
+        tx.oncomplete = () => {
+          resolve()
+        }
+      })
+    const store = createCredentialStore(factory)
+
+    await put({ ...VALID, origin: 'robot', provisionedAtMs: 5 })
+    expect(await store.loadProvenance()).toEqual({ origin: 'manual' })
+    await put({
+      ...VALID,
+      origin: 'setup',
+      provisionedAtMs: Number.NaN,
+      setupTokenLeft: 'yes',
+    })
+    expect(await store.loadProvenance()).toEqual({ origin: 'setup' })
+    await put({ ...VALID, origin: 'setup', provisionedAtMs: '5' })
+    expect(await store.loadProvenance()).toEqual({ origin: 'setup' })
+    await put(null)
+    expect(await store.loadProvenance()).toEqual({ origin: 'manual' })
+    await put('setup')
+    expect(await store.loadProvenance()).toEqual({ origin: 'manual' })
+    db.close()
+  })
 })
 
 describe('loadHostingSummary', () => {
@@ -299,6 +376,7 @@ describe('loadHostingSummary', () => {
       accessKeyTail: 'c5d6',
       publicBaseUrl: VALID.publicBaseUrl,
       status: null,
+      origin: 'manual',
     })
 
     await store.saveStatus({ checkedAtMs: 9, ok: true })
@@ -307,5 +385,20 @@ describe('loadHostingSummary', () => {
     const text = JSON.stringify(summary)
     expect(text).not.toContain(VALID.secretAccessKey)
     expect(text).not.toContain(VALID.accessKeyId)
+  })
+
+  it('carries the setup provenance', async () => {
+    const factory = new IDBFactory()
+    await createCredentialStore(factory).save(VALID, {
+      origin: 'setup',
+      provisionedAtMs: 42,
+      setupTokenLeft: true,
+    })
+
+    expect(await loadHostingSummary(factory)).toMatchObject({
+      origin: 'setup',
+      provisionedAtMs: 42,
+      setupTokenLeft: true,
+    })
   })
 })

@@ -13,7 +13,21 @@ import {
   publishAll,
 } from '../site/export/siteExport.test-helpers'
 import { writeSiteTree } from '../site/export/writeSiteTree'
+import { createCfApi } from './cfApi'
 import { createCredentialStore, type R2Credentials } from './credentials'
+import {
+  ACCOUNT,
+  createFakeCloudflare,
+  dumpIndexedDb,
+} from './fakeCloudflare.test-helpers'
+import { s3Error } from './fakeR2.test-helpers'
+import {
+  bucketNameFor,
+  discover,
+  runSetup,
+  type RowState,
+  type SetupPlan,
+} from './provision'
 
 /** Owner's security requirement: the token never reaches the personal site. */
 const PBT_RUNS = { numRuns: 200 }
@@ -92,6 +106,97 @@ describe('token leak guard (PBT)', () => {
           expect(text.includes(needle)).toBe(false)
         }
       }
+    },
+    PBT_TIMEOUT_MS,
+  )
+
+  test.prop(
+    [
+      fc.stringMatching(/^[A-Za-z0-9_-]{40,80}$/),
+      fc.constantFrom('success', 'failure', 'cancel', 'token-left'),
+    ],
+    { numRuns: 60 },
+  )(
+    'the setup token never reaches IndexedDB, localStorage, the URL or logs',
+    async (token, outcome) => {
+      const logged = (['log', 'info', 'warn', 'error', 'debug'] as const).map(
+        (method) => vi.spyOn(console, method),
+      )
+      const cf = createFakeCloudflare()
+      const controller = new AbortController()
+      cf.setOverride((call) => {
+        if (outcome === 'cancel' && call.path.endsWith('/cors')) {
+          controller.abort()
+        }
+        if (outcome === 'token-left' && call.method === 'DELETE') {
+          return Response.json(
+            { success: false, errors: [{ code: 1, message: token }] },
+            { status: 500 },
+          )
+        }
+        return undefined
+      })
+      if (outcome === 'failure') {
+        cf.r2.setOverride(() => s3Error(403, 'AccessDenied'))
+      }
+      const api = createCfApi(token, { fetch: cf.fetch, isOnline: () => true })
+      const found = await discover(api)
+      if (!found.ok) throw new Error(found.code)
+      const zone = found.zonesByAccount[ACCOUNT]?.[0]
+      if (zone === undefined) throw new Error('no zone')
+      const host = `books.${zone.name}`
+      const plan: SetupPlan = {
+        api,
+        tokenId: found.tokenId,
+        bucketWriteGroupId: found.bucketWriteGroupId,
+        accountId: found.defaultAccountId,
+        zone,
+        host,
+        bucket: bucketNameFor(host),
+        origin: location.origin,
+        memory: {},
+      }
+      const states: RowState[] = []
+      for await (const state of runSetup(plan, 1, {
+        fetch: cf.fetch,
+        isOnline: () => true,
+        signal: controller.signal,
+      })) {
+        states.push(state)
+      }
+
+      const stored = await createCredentialStore().load()
+      expect(stored !== undefined).toBe(
+        outcome === 'success' || outcome === 'token-left',
+      )
+      expect(cf.calls.length).toBeGreaterThan(0)
+      expect(
+        cf.calls.every(
+          (call) =>
+            call.authorization === `Bearer ${token}` &&
+            !call.path.includes(token),
+        ),
+      ).toBe(true)
+      const places = [
+        await dumpIndexedDb(indexedDB),
+        JSON.stringify(
+          Array.from({ length: localStorage.length }, (_, index) => {
+            const key = localStorage.key(index) ?? ''
+            return [key, localStorage.getItem(key)]
+          }),
+        ),
+        location.href,
+        JSON.stringify(logged.map((spy) => spy.mock.calls)),
+        JSON.stringify(states),
+        JSON.stringify(found),
+        JSON.stringify(plan.memory),
+      ]
+      for (const needle of forms(token)) {
+        for (const text of places) {
+          expect(text.includes(needle)).toBe(false)
+        }
+      }
+      for (const spy of logged) spy.mockRestore()
     },
     PBT_TIMEOUT_MS,
   )
