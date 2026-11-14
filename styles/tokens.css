@@ -158,6 +158,7 @@
   --text-welcome-display: clamp(56px, 6.3vw, 112px);
   --text-welcome-regrant: clamp(40px, 4.5vw, 72px);
 
+  --icon-size-12: 12px;
   --icon-size-14: 14px;
   --icon-size-16: 16px;
   --icon-size-20: 20px;
