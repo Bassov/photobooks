@@ -76,6 +76,13 @@ async function openHosting(page: Page) {
   await expect(page.locator('h1')).toHaveText('Hosting')
 }
 
+/** Not connected opens the guided setup; these tests use the manual form. */
+async function openManual(page: Page) {
+  await openHosting(page)
+  await page.getByTestId('hosting-manual').click()
+  await expect(page.getByTestId('hosting-form')).toBeVisible()
+}
+
 async function fill(page: Page, bucket = 'my-books') {
   await page.getByTestId('hosting-account').fill(ACCOUNT)
   await page.getByTestId('hosting-bucket').fill(bucket)
@@ -121,7 +128,7 @@ test('Connect checks, saves with zero LoAF, survives a reload and never shows th
   const logs: string[] = []
   page.on('console', (message) => logs.push(message.text()))
   const r2 = await routeR2(page, () => 'ok')
-  await openHosting(page)
+  await openManual(page)
   await expect(page.getByTestId('hosting-connect')).toBeDisabled()
   expect(r2.seen).toEqual([])
   await fill(page)
@@ -179,16 +186,16 @@ test('a CORS failure shows the footer message and marks help step 3', async ({
   page,
 }) => {
   await routeR2(page, () => 'cors')
-  await openHosting(page)
+  await openManual(page)
   await fill(page)
-  await expect(page.getByTestId('hosting-step-3')).not.toHaveAttribute(
+  await expect(page.getByTestId('hosting-help-step-3')).not.toHaveAttribute(
     'data-marked',
   )
   await page.getByTestId('hosting-connect').click()
   await expect(page.getByTestId('hosting-error')).toHaveText(
     'Cloudflare blocked the upload from this page. Add the CORS policy from step 3, then try again.',
   )
-  await expect(page.getByTestId('hosting-step-3')).toHaveCSS(
+  await expect(page.getByTestId('hosting-help-step-3')).toHaveCSS(
     'background-color',
     'rgba(57, 55, 56, 0.06)',
   )
@@ -199,7 +206,7 @@ test('Checking keeps the Connect width and the inputs read-only', async ({
   page,
 }) => {
   const r2 = await routeR2(page, () => 'hold')
-  await openHosting(page)
+  await openManual(page)
   await fill(page)
   const button = page.getByTestId('hosting-connect')
   const rest = await button.boundingBox()
@@ -220,7 +227,7 @@ test('Checking keeps the Connect width and the inputs read-only', async ({
 
 test('Replace → Cancel changes nothing', async ({ page }) => {
   const r2 = await routeR2(page, () => 'ok')
-  await openHosting(page)
+  await openManual(page)
   await connect(page)
   const card = (await page.getByTestId('hosting-connected').textContent()) ?? ''
   const sent = r2.seen.length
@@ -241,7 +248,7 @@ test('Check again stores a failure that survives a reload without a new check', 
 }) => {
   let answer: Answer = 'ok'
   const r2 = await routeR2(page, () => answer)
-  await openHosting(page)
+  await openManual(page)
   await connect(page)
   await expect(page.getByTestId('hosting-badge')).toHaveText('Connected')
 
@@ -270,7 +277,7 @@ test('Forget → confirm → empty form and an empty IndexedDB store', async ({
   page,
 }) => {
   await routeR2(page, () => 'ok')
-  await openHosting(page)
+  await openManual(page)
   await connect(page)
   expect(await secretsCount(page)).toBe(2)
   await page.getByTestId('hosting-forget').click()
@@ -285,7 +292,7 @@ test('Forget → confirm → empty form and an empty IndexedDB store', async ({
 
 test('an invalid value paints the error ring', async ({ page }) => {
   await routeR2(page, () => 'ok')
-  await openHosting(page)
+  await openManual(page)
   await page.getByTestId('hosting-bucket').fill('A')
   await expect(page.getByTestId('hosting-bucket')).toHaveAttribute(
     'aria-invalid',

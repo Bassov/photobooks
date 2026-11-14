@@ -22,8 +22,17 @@ import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { cn } from '../ui/cn'
 import { Icon } from '../ui/Icon'
-import { LoaderGlyph } from './export/exportSiteGlyphs'
-import './export/ExportSiteButton.css'
+import { CheckingLabel, Fail, Swap } from './hostingBits'
+import {
+  BOX,
+  CARD,
+  ERR,
+  GHOST,
+  MODE_LINK,
+  OUTLINE,
+  ring,
+} from './hostingStyles'
+import { HostingSetup } from './HostingSetup'
 import {
   HOSTING_MESSAGES,
   hostingFieldError,
@@ -34,26 +43,19 @@ import {
 } from './hostingForm'
 import { hostingCheckedWhen } from './settingsScreenModel'
 
-/* Settings → Hosting (Designer Spec publish-credentials, kit demo-parts/hosting.tsx). The secret input is uncontrolled:
-   its value is never in React state or a DOM attribute, and after Connect the UI reads only `loadHostingSummary`. */
+/* Settings → Hosting (Designer Specs publish-credentials, connect-own-hosting; kit demo-parts/hosting.tsx): the guided
+   setup (HostingSetup, the default when not connected), the manual form, the connected card. The secret input is
+   uncontrolled: its value is never in React state or a DOM attribute, and after Connect the UI reads only
+   `loadHostingSummary`. */
 
-/** Kit error red (printProfiles.tsx ERR); the prod status tokens are grey. */
-const ERR = '#a8403a'
-/* BOX / ring: the PrintProfileDialog field (private there). */
-const BOX =
-  'flex h-8 items-center rounded-md bg-field px-2.5 text-sm text-foreground'
-function ring(error: boolean): string {
-  return error
-    ? 'shadow-none ring-1 ring-inset ring-[#a8403a]'
-    : 'shadow-xs has-[input:focus-visible]:shadow-none has-[input:focus-visible]:ring-1 has-[input:focus-visible]:ring-inset has-[input:focus-visible]:ring-[#535152]'
-}
 const FOOT = 'flex min-h-13 items-center gap-4 px-4 py-2.5'
-const GHOST = 'px-3 text-sm'
-const OUTLINE = 'px-3 text-sm shadow-xs'
 const EYEBROW = 'mt-6 flex h-8 max-w-[640px] items-center justify-between px-4'
 const EYEBROW_T =
   'm-0 text-2xs font-semibold uppercase tracking-[.12em] text-muted-foreground'
-const CARD = 'mt-5 max-w-[640px] overflow-hidden rounded-xl bg-chrome'
+/** New-address hint window after setup (connect-own-hosting § Connected card). */
+const FRESH_MS = 15 * 60_000
+
+type Mode = 'setup' | 'manual'
 
 type Failure = Extract<CheckResult, { ok: false }>
 /** The four echoed fields; the secret never enters React state. */
@@ -119,61 +121,6 @@ const FIELDS: readonly {
   },
 ]
 
-/** Both labels sit in one grid cell, so the button keeps its width (the D36 Share rule). */
-function Swap({
-  on,
-  rest,
-  busy,
-}: {
-  on: boolean
-  rest: ReactNode
-  busy: ReactNode
-}) {
-  return (
-    <span className="grid [&>*]:col-start-1 [&>*]:row-start-1">
-      <span
-        className={cn(
-          'flex items-center justify-center gap-1.5',
-          on && 'invisible',
-        )}
-      >
-        {rest}
-      </span>
-      <span
-        className={cn(
-          'flex items-center justify-center gap-1.5',
-          !on && 'invisible',
-        )}
-      >
-        {busy}
-      </span>
-    </span>
-  )
-}
-
-const checkingLabel = (
-  <>
-    <span className="grid size-3.5 place-items-center [&_svg]:size-3.5">
-      <LoaderGlyph size={16} />
-    </span>
-    Checking…
-  </>
-)
-
-function Fail({ children }: { children: ReactNode }) {
-  return (
-    <div
-      className="flex gap-2 text-sm"
-      style={{ color: ERR }}
-      role="alert"
-      data-testid="hosting-error"
-    >
-      <Icon name="warning" size={16} className="mt-0.5 size-4 shrink-0" />
-      <span className="min-w-0">{children}</span>
-    </div>
-  )
-}
-
 export function HostingSection({
   row,
   rule,
@@ -186,11 +133,19 @@ export function HostingSection({
   /** Stored values to prefill while replacing the token; `null` otherwise. */
   const [replace, setReplace] = useState<Values | null>(null)
   const [forgetOpen, setForgetOpen] = useState(false)
-  const [focus, setFocus] = useState<HostingField | undefined>()
+  const [focus, setFocus] = useState<HostingField | 'token' | undefined>()
+  const [mode, setMode] = useState<Mode>('setup')
+  /** Remounts both modes after Set up / Connect / Forget, so they start empty. */
+  const [round, setRound] = useState(0)
 
   const reload = useCallback(async () => {
     setSummary(await loadHostingSummary())
   }, [])
+  const saved = async () => {
+    await reload()
+    setRound((n) => n + 1)
+  }
+  const fieldFocus = focus === 'token' ? undefined : focus
 
   useEffect(() => {
     void loadHostingSummary()
@@ -222,24 +177,48 @@ export function HostingSection({
             })
           }}
         />
-      ) : (
+      ) : replace !== null ? (
         <HostingForm
+          key="replace"
           row={row}
           rule={rule}
-          initial={replace ?? EMPTY_VALUES}
-          focus={focus}
+          initial={replace}
+          focus={fieldFocus}
           onSaved={async () => {
             await reload()
             setReplace(null)
           }}
-          onCancel={
-            replace
-              ? () => {
-                  setReplace(null)
-                }
-              : undefined
-          }
+          onCancel={() => {
+            setReplace(null)
+          }}
         />
+      ) : (
+        // Not connected: both modes stay mounted, so each keeps its typed values; the hidden one drops its secret.
+        <Fragment key={round}>
+          <div hidden={mode !== 'setup'}>
+            <HostingSetup
+              rule={rule}
+              focus={focus === 'token'}
+              onDone={saved}
+              onManual={() => {
+                setMode('manual')
+              }}
+            />
+          </div>
+          <div hidden={mode !== 'manual'}>
+            <HostingForm
+              row={row}
+              rule={rule}
+              initial={EMPTY_VALUES}
+              focus={fieldFocus}
+              onSaved={saved}
+              onCancel={undefined}
+              onGuided={() => {
+                setMode('setup')
+              }}
+            />
+          </div>
+        </Fragment>
       )}
       <AlertDialog
         isOpen={forgetOpen}
@@ -252,9 +231,12 @@ export function HostingSection({
         }}
         onConfirm={() => {
           setForgetOpen(false)
-          // Forget lives on the card, so the form mounts fresh and empty.
+          // Forget returns to the mode the record came from, mounted fresh and empty.
+          const back: Mode = summary?.origin === 'setup' ? 'setup' : 'manual'
           void forgetCredentials().then(() => {
-            setFocus('accountId')
+            setMode(back)
+            setFocus(back === 'setup' ? 'token' : 'accountId')
+            setRound((n) => n + 1)
             setSummary(null)
           })
         }}
@@ -269,10 +251,13 @@ export function HostingSection({
 
 function Intro() {
   return (
-    <p className="mt-1 max-w-[560px] text-sm leading-relaxed text-muted-foreground">
-      Publish uploads your books to your own Cloudflare R2 bucket. Paste a
-      bucket token once: it stays on this computer and is sent only to
-      Cloudflare.
+    <p
+      className="mt-1 max-w-[560px] text-sm leading-relaxed text-muted-foreground"
+      data-testid="settings-hosting-intro"
+    >
+      Publish puts your books on your own site, in your own Cloudflare account.
+      Set it up once: Photobooks keeps only a key for its own bucket, on this
+      computer.
     </p>
   )
 }
@@ -286,6 +271,7 @@ function HostingForm({
   focus,
   onSaved,
   onCancel,
+  onGuided,
 }: {
   row: string
   rule: () => ReactNode
@@ -294,6 +280,8 @@ function HostingForm({
   onSaved: () => Promise<void>
   /** Replace only. */
   onCancel: (() => void) | undefined
+  /** Not connected only: back to the guided setup. */
+  onGuided?: () => void
 }) {
   const [values, setValues] = useState<Values>(initial)
   // The secret's validity only: the value stays in the uncontrolled input.
@@ -525,11 +513,27 @@ function HostingForm({
               }}
               data-testid="hosting-connect"
             >
-              <Swap on={checking} rest="Connect" busy={checkingLabel} />
+              <Swap on={checking} rest="Connect" busy={<CheckingLabel />} />
             </Button>
           </div>
         </div>
       </div>
+      {onGuided !== undefined && (
+        <button
+          type="button"
+          className={MODE_LINK}
+          disabled={checking}
+          onClick={() => {
+            // Leaving the form drops the secret (by design).
+            if (secretRef.current !== null) secretRef.current.value = ''
+            setSecret('')
+            onGuided()
+          }}
+          data-testid="hosting-guided"
+        >
+          Set up automatically instead
+        </button>
+      )}
       <Help cors={failure?.code === 'cors'} />
     </>
   )
@@ -628,7 +632,7 @@ function Help({ cors }: { cors: boolean }) {
                 style={
                   marked ? { background: 'rgb(57 55 56 / 0.06)' } : undefined
                 }
-                data-testid={`hosting-step-${String(index + 1)}`}
+                data-testid={`hosting-help-step-${String(index + 1)}`}
                 data-marked={marked ? '' : undefined}
               >
                 <span className="font-medium tabular-nums text-foreground">
@@ -672,7 +676,21 @@ function Connected({
   onReplace: () => void
 }) {
   const [checking, setChecking] = useState(false)
-  const { status } = summary
+  const [now] = useState(() => Date.now())
+  const { status, provisionedAtMs } = summary
+  // Setup's own check counts until the first Check again stores a status.
+  const checked =
+    status !== null
+      ? {
+          label: status.ok ? 'Checked' : 'Last check failed',
+          atMs: status.checkedAtMs,
+          ok: status.ok,
+        }
+      : summary.origin === 'setup' && provisionedAtMs !== undefined
+        ? { label: 'Set up automatically', atMs: provisionedAtMs, ok: true }
+        : undefined
+  const fresh =
+    provisionedAtMs !== undefined && now - provisionedAtMs < FRESH_MS
 
   const recheck = async () => {
     if (checking) return
@@ -706,18 +724,17 @@ function Connected({
       <div className={row}>
         <div className="min-w-0 flex-1 text-sm">
           Connection
-          {status !== null && (
+          {checked !== undefined && (
             <div
               className="text-xs text-muted-foreground"
               data-testid="hosting-checked"
             >
-              {status.ok ? 'Checked' : 'Last check failed'}{' '}
-              {hostingCheckedWhen(status.checkedAtMs, new Date())}
+              {checked.label} {hostingCheckedWhen(checked.atMs, new Date())}
             </div>
           )}
         </div>
-        {status !== null &&
-          (status.ok ? (
+        {checked !== undefined &&
+          (checked.ok ? (
             <Badge color="success" dot data-testid="hosting-badge">
               Connected
             </Badge>
@@ -732,9 +749,37 @@ function Connected({
           <Fail>{status.message}</Fail>
         </div>
       )}
+      {summary.setupTokenLeft === true && (
+        <div
+          className="px-4 pb-2 text-xs leading-[16.8px] text-muted-foreground"
+          data-testid="hosting-token-left"
+        >
+          Delete the “Photobooks setup” token in Cloudflare →{' '}
+          <a
+            href="https://dash.cloudflare.com/profile/api-tokens"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-foreground underline decoration-foreground/35 underline-offset-4"
+          >
+            API Tokens
+            <Icon name="externalLink" size={12} />
+          </a>
+          .
+        </div>
+      )}
       {rule()}
       <div className={row}>
-        <div className="min-w-0 flex-1 text-sm">Site address</div>
+        <div className="min-w-0 flex-1 text-sm">
+          Site address
+          {fresh && (
+            <div
+              className="text-xs text-muted-foreground"
+              data-testid="hosting-site-new"
+            >
+              New address: it can take a few minutes to start working.
+            </div>
+          )}
+        </div>
         <a
           href={summary.publicBaseUrl}
           target="_blank"
@@ -785,7 +830,7 @@ function Connected({
             }}
             data-testid="hosting-recheck"
           >
-            <Swap on={checking} rest="Check again" busy={checkingLabel} />
+            <Swap on={checking} rest="Check again" busy={<CheckingLabel />} />
           </Button>
           <Button
             variant="outline"
