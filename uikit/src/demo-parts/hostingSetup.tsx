@@ -40,7 +40,7 @@ const dnsMessage = (host: string) => `${host} already points somewhere else in y
 
 /* ---------------------------------------------------------------- bits */
 const STEP = "flex min-h-13 items-center gap-4 px-4 py-2"
-const BODY = "pl-[52px] pr-4 pb-3.5"
+const BODY = "pl-13 pr-4 pb-3.5" // 52 = 16 + 20 + 16
 const LABEL = "mb-1.5 block text-sm leading-[19.5px] text-foreground"
 const HINT = "mt-1 text-xs leading-[16.8px] text-muted-foreground"
 const FOOT = "mt-3.5 flex items-center gap-4 @max-[480px]:flex-wrap"
@@ -53,8 +53,9 @@ const Ext = ({ href, children, tid }: { href: string; children: React.ReactNode;
 type Mark = "current" | "done" | "future"
 function Marker({ n, s }: { n: number; s: Mark }) {
   return (
-    <span data-testid={`hosting-marker-${n}`} data-state={s} className={cn("grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-semibold tabular-nums",
-      s === "current" && "bg-[#232223] text-[#F2F2F2]", s === "done" && "bg-[#D7D7D7] text-[#393738]", s === "future" && "text-[#535152] shadow-[inset_0_0_0_1px_rgb(57_55_56/.35)]")}>
+    <span data-testid={`hosting-marker-${n}`} data-state={s} className={cn("grid size-5 shrink-0 place-items-center rounded-full text-2xs font-semibold tabular-nums",
+      s === "current" && "bg-[#232223] text-[#F2F2F2]", s === "done" && "bg-[#D7D7D7] text-[#393738]", s === "future" && "text-[#535152]")}
+      style={s === "future" ? { boxShadow: "inset 0 0 0 1px rgb(57 55 56 / .35)" } : undefined}>
       {s === "done" ? <Check className="size-3" strokeWidth={2.5} /> : n}
     </span>
   )
@@ -166,6 +167,8 @@ export function HostingSetup({ rule, seed, active, focus, onDone, onManual }: {
     )
   }
   const failed = rows.includes("failed")
+  /* as the manual Connect: the busy loader while Checking… is the Spec's only icon on a primary button */
+  const continueLabel = <Swap on={checking} rest="Continue" busy={checkingLabel} />
   const rowTexts = ROWS(bucket, host)
   return (
     <>
@@ -200,7 +203,7 @@ export function HostingSetup({ rule, seed, active, focus, onDone, onManual }: {
                 </div>
                 <div className={FOOT}>
                   {fail ? <div className="min-w-0 flex-1"><Fail>{fail}</Fail></div> : <div className={NOTE}>Sent to Cloudflare through Photobooks. Never stored.</div>}
-                  <div className={BTNS}><Button size="sm" className="px-3 text-sm" isDisabled={!tokenOk && !checking} onPress={() => check(false)} data-testid="hosting-setup-continue"><Swap on={checking} rest="Continue" busy={checkingLabel} /></Button></div>
+                  <div className={BTNS}><Button size="sm" className="px-3 text-sm" isDisabled={!tokenOk && !checking} onPress={() => check(false)} data-testid="hosting-setup-continue">{continueLabel}</Button></div>
                 </div>
               </>
             )}
