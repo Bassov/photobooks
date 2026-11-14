@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-- [ ] Worker check request (preflight + colorWarnings → preflightRows) and <library>/exports write
+- [x] Worker check request (preflight + colorWarnings → preflightRows) and <library>/exports write
 - **Done when:** unit + PBT on `preflightRows` (errors → warnings → info; page list ≤ 5 numbers then `+n`; every input issue in exactly one row; texts = Designer Spec pdf-export §2.1 item 7); a worker `check` message returns rows incl. a non-sRGB row for an Adobe RGB fixture and reads ≤ 256 KB per photo; `writeExport` tests on an in-memory folder: creates `exports/`, replaces a same-name file, NotAllowedError → access, QuotaExceededError → full, other → other
 - **Browser check:** n/a (core, no UI; the Print dialog item drives it)
 - **Kit components:** none (core, no UI)
