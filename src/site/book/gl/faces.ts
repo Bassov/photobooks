@@ -2,16 +2,22 @@
  * Page faces for the GL reader (Designer D39): each printed page painted by
  * `paintPage`, grain after painting (the kit's `faceCanvas` shape). Faces
  * paint lazily, one at a time: the focused view and views ± 2 first. Paint and
- * grain are separate tasks with a yield after each, so painting never holds
- * the main thread for a whole batch.
+ * each grain band are separate tasks with a yield before each band, so
+ * painting never holds the main thread for a long task.
  */
 import { pagesOf, type Book } from '../../../core'
 import { paintPage, type PageImage } from '../../../render/pagePainter'
-import { ctx, cv, grain } from './canvas'
+import { ctx, cv, grain, GRAIN_BAND_PX, nextTask, rowBands } from './canvas'
 import { viewOfPage, type GlFace } from './types'
 
 /** views around the focused one that paint before the rest */
 const NEAR = 2
+/**
+ * Texels per paint band: Chromium rasterizes a page's draws (the photo's
+ * high-quality resample) at the end of the painting task, so a 2× page
+ * (1200 × 1600) paints in 4 clipped bands, one per task.
+ */
+export const PAINT_BAND_PX = 1 << 19
 
 export interface FaceSourceOptions {
   book: Book
@@ -41,11 +47,6 @@ export function paintOrder(pending: readonly number[], view: number): number[] {
   const far = pending.filter((page) => dist(page) > NEAR)
   return [...near.sort((a, b) => dist(a) - dist(b) || a - b), ...far]
 }
-
-const nextTask = () =>
-  new Promise<void>((resolve) => {
-    setTimeout(resolve, 0)
-  })
 
 interface Job {
   promise: Promise<HTMLCanvasElement>
@@ -85,24 +86,32 @@ export function createFaceSource(o: FaceSourceOptions): FaceSource {
   async function paint(page: number) {
     const c = cv(pagePx, (pagePx * heightMm) / widthMm)
     const x = ctx(c)
-    await paintPage(
-      x,
-      book,
-      page + 1,
-      await o.images(page + 1),
-      pagePx / widthMm,
-    )
-    await yieldTask()
-    if (dead) return c
-    grain(x, c.width, c.height, 5, 2)
+    const images = await o.images(page + 1)
+    for (const [y0, y1] of rowBands(c.width, c.height, PAINT_BAND_PX)) {
+      if (y0 > 0) await yieldTask()
+      if (dead) return c
+      // the canvas rasterizes this band's draws at the end of the task
+      x.save()
+      x.beginPath()
+      x.rect(0, y0, c.width, y1 - y0)
+      x.clip()
+      await paintPage(x, book, page + 1, images, pagePx / widthMm)
+      x.restore()
+    }
+    for (const [y0, y1] of rowBands(c.width, c.height, GRAIN_BAND_PX, 2)) {
+      await yieldTask()
+      if (dead) return c
+      grain(x, c.width, c.height, 5, 2, y0, y1)
+    }
     return c
   }
 
   async function pump() {
     if (running) return
     running = true
-    // the requests of this task queue up before the first pick
-    await Promise.resolve()
+    // the requests of this task queue up before the first pick, and painting
+    // never runs in the caller's task
+    await yieldTask()
     while (!dead && pending.length > 0) {
       const [page, ...rest] = paintOrder(pending, view) as [number, ...number[]]
       pending = rest

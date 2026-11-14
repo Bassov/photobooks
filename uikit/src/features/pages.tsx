@@ -49,6 +49,11 @@ const settingsAt = (section: SettingsSection, s: Partial<SessionState> = {}, pri
 /* publish-credentials: a valid draft (key and secret are low-entropy fakes) and the hosting seeds */
 const DRAFT: HostingDraft = { account: SAMPLE_HOSTING.accountId, bucket: SAMPLE_HOSTING.bucket, key: `${"ab".repeat(14)}9f2c`, secret: "5e".repeat(32), url: SAMPLE_HOSTING.publicBaseUrl }
 const hostingAt = (s: Partial<SessionState>, h?: HostingInit) => settingsAt("hosting", s, undefined, h)
+/* connect-own-hosting: a record setup just made (fresh, so "New address" shows), whose setup token couldn't be deleted */
+const setUpNow = (): SessionState["hosting"] => {
+  const now = Date.now()
+  return { ...SAMPLE_HOSTING, bucket: "pb-books-basov-photo", accessKeyTail: "7d1e", checkedAtMs: now, origin: "setup", provisionedAtMs: now, setupTokenLeft: true }
+}
 /* site-settings: no values (the placeholders are the fallbacks, S3) */
 const SITE_EMPTY: SessionState["site"] = { title: "", author: "", intro: "" }
 /* editor seeds (EditorView = the #/demo editor with an explicit studio state) */
@@ -223,16 +228,24 @@ export const PAGES: Record<string, FeatureDef> = {
     ["print-edit", "Edit profile", settingsAt("print", {}, { edit: "custom-lulu-copy" })],
     ["print-invalid", "Invalid values", settingsAt("print", {}, { edit: "new", draft: { name: "", trimMin: "300", trimMax: "200", pMax: "121" } })],
     ["hosting-empty", "Not connected", hostingAt({ hosting: null })],
-    ["hosting-invalid", "Format errors", hostingAt({ hosting: null }, { draft: { ...DRAFT, account: "0f3a9c51e2b74d0a8c66f1e9d3b", bucket: "Aleksandr_Books", url: "https://pub-41c2a0.r2.dev" } })],
-    ["hosting-checking", "Checking", hostingAt({ hosting: null }, { draft: DRAFT, checking: true })],
-    ["hosting-cors", "Check failed", hostingAt({ hosting: null }, { draft: DRAFT, fail: "Cors" })],
+    ["hosting-setup-checking", "Checking token", hostingAt({ hosting: null }, { setup: "checking" })],
+    ["hosting-setup-r2off", "R2 off", hostingAt({ hosting: null }, { setup: "r2off" })],
+    ["hosting-setup-address", "Choose address", hostingAt({ hosting: null }, { setup: "address" })],
+    ["hosting-setup-nozone", "No domain", hostingAt({ hosting: null }, { setup: "nozone" })],
+    ["hosting-setup-running", "Setting up", hostingAt({ hosting: null }, { setup: "running" })],
+    ["hosting-setup-failed", "Setup failed", hostingAt({ hosting: null }, { setup: "failed" })],
+    ["hosting-setup-done", "Set up", () => hostingAt({ hosting: setUpNow() })()],
+    ["hosting-manual", "Manual form", hostingAt({ hosting: null }, { mode: "manual" })],
+    ["hosting-invalid", "Format errors", hostingAt({ hosting: null }, { mode: "manual", draft: { ...DRAFT, account: "0f3a9c51e2b74d0a8c66f1e9d3b", bucket: "Aleksandr_Books", url: "https://pub-41c2a0.r2.dev" } })],
+    ["hosting-checking", "Checking", hostingAt({ hosting: null }, { mode: "manual", draft: DRAFT, checking: true })],
+    ["hosting-cors", "Check failed", hostingAt({ hosting: null }, { mode: "manual", draft: DRAFT, fail: "Cors" })],
     ["hosting-recheck-failed", "Re-check failed", hostingAt({ hosting: { ...SAMPLE_HOSTING, checkedAtMs: SAMPLE_HOSTING.checkedAtMs + 11 * 60_000, ok: false, code: "InvalidAccessKeyId" } })],
     ["hosting-replace", "Replace token", hostingAt({}, { replace: true })],
     ["hosting-forget", "Forget token", hostingAt({}, { forget: true })],
   ], {
-    what: "App settings with a back bar: Library (folder, Change library folder…), Hosting (Cloudflare R2 token: entry form, connected card, help), Site (title, author, intro = the home lead, edited in place), Print presets (default for new books, print shops, custom profiles and their editor), Interface.",
+    what: "App settings with a back bar: Library (folder, Change library folder…), Hosting (guided Cloudflare setup or the R2 token form, connected card, help), Site (title, author, intro = the home lead, edited in place), Print presets (default for new books, print shops, custom profiles and their editor), Interface.",
     where: "#/demo steps 40 (editor → Settings, back bar “Back to the book”) and 49 (library → Settings, back bar “Library”); Print presets only here.",
-    edge: ["Change library folder… confirms first; books are not moved", "Profile editor: errors show as you type and disable Save", "Deleting the default profile makes Generic the default", "The secret is never shown again", "Connect checks a real write before saving", "Saved on commit (blur / Enter); Esc reverts", "Intro ≤ 160 = ≤ 3 lines on the 1440 home"],
+    edge: ["Change library folder… confirms first; books are not moved", "Profile editor: errors show as you type and disable Save", "Deleting the default profile makes Generic the default", "The secret is never shown again", "Connect checks a real write before saving", "The setup token is never stored", "Only a key for one bucket is kept", "Saved on commit (blur / Enter); Esc reverts", "Intro ≤ 160 = ≤ 3 lines on the 1440 home"],
   }),
   /* ------------------------------------------------------------ site */
   "site-lightbox": page([

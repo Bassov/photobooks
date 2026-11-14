@@ -138,7 +138,7 @@ test.describe('K1 the Publish dialog', () => {
       'data-demo-stage',
       'settings',
     )
-    await expect(page.getByTestId('hosting-form')).toBeVisible()
+    await expect(page.getByTestId('hosting-setup')).toBeVisible()
   })
 
   test('options: no size or PDF, the bold host; the dialog frame', async ({

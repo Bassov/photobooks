@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ctx, cv, grain } from './canvas'
+import { ctx, cv, grain, GRAIN_BAND_PX, nextTask, rowBands } from './canvas'
 import { fakeCanvas2d } from './testing.test-helpers'
 
 afterEach(() => {
@@ -54,6 +54,25 @@ describe('grain', () => {
     expect(contexts.get(c)?.calls[0]).toEqual(['getImageData', 0, 0, 3, 4])
   })
 
+  it('grains rows y0 … y1 only, noise renewed from y0', () => {
+    const contexts = fakeCanvas2d()
+    const c = cv(2, 5)
+    const noise = [0.9, 0.1]
+    let n = 0
+    vi.spyOn(Math, 'random').mockImplementation(() => noise[n++ % 2] ?? 0)
+
+    grain(ctx(c), 2, 5, 10, 2, 1, 4)
+
+    const calls = contexts.get(c)?.calls
+    expect(calls?.[0]).toEqual(['getImageData', 0, 1, 2, 3])
+    expect(calls?.[1]).toEqual(['putImageData', 'data 24', 0, 1])
+    expect(n).toBe(2)
+    expect(Array.from(contexts.get(c)?.put ?? [])).toEqual([
+      132, 132, 132, 128, 132, 132, 132, 128, 132, 132, 132, 128, 132, 132, 132,
+      128, 124, 124, 124, 128, 124, 124, 124, 128,
+    ])
+  })
+
   it('defaults to 1-texel cells', () => {
     const contexts = fakeCanvas2d()
     const c = cv(2, 1)
@@ -66,5 +85,59 @@ describe('grain', () => {
     expect(Array.from(contexts.get(c)?.put ?? [])).toEqual([
       130, 130, 130, 128, 126, 126, 126, 128,
     ])
+  })
+})
+
+describe('rowBands', () => {
+  it('splits a 2× page grain into 8 whole-cell bands of at most GRAIN_BAND_PX texels', () => {
+    const bands = rowBands(1200, 1600, GRAIN_BAND_PX, 2)
+
+    expect(bands).toHaveLength(8)
+    expect(bands[0]).toEqual([0, 218])
+    expect(bands.at(-1)).toEqual([1526, 1600])
+    for (const [y0, y1] of bands) {
+      expect(y0 % 2).toBe(0)
+      expect((y1 - y0) * 1200).toBeLessThanOrEqual(GRAIN_BAND_PX)
+    }
+    expect(bands.flatMap(([y0, y1]) => [y0, y1]).slice(1, -1)).toEqual(
+      bands.slice(1).flatMap(([y0]) => [y0, y0]),
+    )
+  })
+
+  it('keeps one band for a small canvas and one cell row for a very wide one', () => {
+    expect(rowBands(100, 125, GRAIN_BAND_PX, 2)).toEqual([[0, 125]])
+    expect(rowBands(GRAIN_BAND_PX, 3, GRAIN_BAND_PX, 2)).toEqual([
+      [0, 2],
+      [2, 3],
+    ])
+  })
+
+  it('defaults to 1-row cells', () => {
+    expect(rowBands(1200, 1600, 1 << 19)).toEqual([
+      [0, 436],
+      [436, 872],
+      [872, 1308],
+      [1308, 1600],
+    ])
+    expect(rowBands(10, 3, 5)).toEqual([
+      [0, 1],
+      [1, 2],
+      [2, 3],
+    ])
+  })
+})
+
+describe('nextTask', () => {
+  it('resolves on the next timer task', async () => {
+    vi.useFakeTimers()
+    const done = vi.fn()
+
+    void nextTask().then(done)
+    await Promise.resolve()
+    expect(done).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(done).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
   })
 })

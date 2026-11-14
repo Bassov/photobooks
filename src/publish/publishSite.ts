@@ -151,7 +151,7 @@ function retryAfterMs(response: Response): number | undefined {
     : undefined
 }
 
-function defaultSleep(ms: number): Promise<void> {
+export function defaultSleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 

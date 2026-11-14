@@ -7,7 +7,7 @@
  * (0 … 180). The cover and the back board turn rigid; closed, the book slides
  * to the centre.
  */
-import { ctx, cv, grain } from './canvas'
+import { ctx, cv, grain, GRAIN_BAND_PX, nextTask, rowBands } from './canvas'
 import { BT, coverCanvas, SQ, stripes, tex } from './closed'
 import type { Three } from './three'
 import {
@@ -228,17 +228,21 @@ export class OpenBook {
   private face(f: Face): Promise<CanvasImageSource> {
     const page = pageOfFace(this.b, f)
     if (page !== null) return this.b.face(page)
-    return (this.endpaperFace ??= Promise.resolve(this.endpaperCanvas()))
+    return (this.endpaperFace ??= this.endpaperCanvas())
   }
 
-  private endpaperCanvas(): HTMLCanvasElement {
+  /** the endpaper, grained one band per task */
+  private async endpaperCanvas(): Promise<HTMLCanvasElement> {
     const PW = this.look.pagePx
     const PH = Math.round((PW * this.b.h) / this.b.w)
     const c = cv(PW, PH)
     const x = ctx(c)
     x.fillStyle = this.b.endpaper
     x.fillRect(0, 0, PW, PH)
-    grain(x, PW, PH, 5, 2)
+    for (const [y0, y1] of rowBands(PW, PH, GRAIN_BAND_PX, 2)) {
+      await nextTask()
+      grain(x, PW, PH, 5, 2, y0, y1)
+    }
     return c
   }
 
