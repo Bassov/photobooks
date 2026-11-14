@@ -12,6 +12,7 @@ import {
 import {
   browserAssertNoLoaf,
   browserClearLoafEntries,
+  waitFrames,
 } from './perf/perfFixture'
 import {
   choosePhotoFolder,
@@ -213,14 +214,14 @@ test('filmstrip scrolls during rescan without page scroll within frame-budget ga
   await expect(page.getByTestId('relink-scan-progress')).toBeVisible({
     timeout: 15_000,
   })
-  await page.waitForTimeout(100)
+  await waitFrames(page, 6)
   await page.evaluate(browserClearLoafEntries)
 
   for (let i = 0; i < 30; i += 1) {
     await page.getByTestId('filmstrip-scroll').evaluate((node) => {
       node.scrollLeft += 160
     })
-    await page.waitForTimeout(32)
+    await waitFrames(page, 2)
   }
 
   await page.evaluate(browserAssertNoLoaf, 0)

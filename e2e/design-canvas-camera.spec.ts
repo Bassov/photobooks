@@ -1,6 +1,7 @@
 import { expect, test } from './fixtures/coverage'
 import type { Locator, Page } from '@playwright/test'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
+import { settleCamera } from './fixtures/dispatchCtrlWheel'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 /** Kit `viewport.tsx` FIT_TOP / FIT_BOTTOM. */
@@ -27,11 +28,6 @@ function firstSpread(page: Page): Locator {
     .getByTestId('pasteboard-scroll')
     .getByTestId('spread-view')
     .first()
-}
-
-/** Zoom settles after the wheel gesture commits; wait for a stable box. */
-async function settle(page: Page): Promise<void> {
-  await page.waitForTimeout(400)
 }
 
 /** Spread-relative coordinates of a client point. */
@@ -62,7 +58,7 @@ async function expectPointHeld(
 test.beforeEach(async ({ page }) => {
   await openSessionEditor(page)
   await expect(page.getByTestId('zoom-label')).toHaveText('Fit')
-  await settle(page)
+  await settleCamera(page)
 })
 
 test('opens on the fitted spread with kit top air and no overlay chrome', async ({
@@ -105,7 +101,7 @@ test('wheel zoom keeps the point under the cursor in and out', async ({
 
   for (const delta of [-100, -100, -100, 100, 100, 100, 100]) {
     await page.mouse.wheel(0, delta)
-    await settle(page)
+    await settleCamera(page)
     await expectPointHeld(page, rel, point)
   }
   await assertDocumentFitsViewport(page)
@@ -121,10 +117,10 @@ test('wheel zoom anchored off the spread keeps the point too', async ({
   const rel = relative(spread, point)
   await page.mouse.move(point.x, point.y)
   await page.mouse.wheel(0, -100)
-  await settle(page)
+  await settleCamera(page)
   await expectPointHeld(page, rel, point)
   await page.mouse.wheel(0, 100)
-  await settle(page)
+  await settleCamera(page)
   await expectPointHeld(page, rel, point)
 })
 
@@ -139,13 +135,13 @@ test('± buttons zoom about the viewport centre and never recentre', async ({
   const cursor = { x: spread.x + 20, y: spread.y + 20 }
   await page.mouse.move(cursor.x, cursor.y)
   await page.mouse.wheel(0, -200)
-  await settle(page)
+  await settleCamera(page)
 
   for (const id of ['zoom-in', 'zoom-in', 'zoom-out']) {
     const before = await box(firstSpread(page))
     const rel = relative(before, centre)
     await page.getByTestId(id).click()
-    await settle(page)
+    await settleCamera(page)
     await expectPointHeld(page, rel, centre)
   }
 
@@ -168,10 +164,10 @@ test('keyboard zoom keeps the viewport centre and Fit recentres', async ({
   const fitted = await box(firstSpread(page))
   const rel = relative(fitted, centre)
   await page.keyboard.press('Control+=')
-  await settle(page)
+  await settleCamera(page)
   await expectPointHeld(page, rel, centre)
   await page.keyboard.press('Control+0')
-  await settle(page)
+  await settleCamera(page)
   await expect(page.getByTestId('zoom-label')).toHaveText('Fit')
   const refit = await box(firstSpread(page))
   expect(Math.abs(refit.y - fitted.y)).toBeLessThanOrEqual(1)

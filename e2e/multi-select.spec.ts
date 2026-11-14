@@ -10,6 +10,7 @@ import {
   clearPerfScenario,
   collectFrameStatsArtifact,
   enablePerfScenario,
+  waitFrames,
 } from './perf/perfFixture'
 
 // multi-select part 1 (Designer Spec "Canvas", "Clicks and keys"): Shift+click
@@ -816,7 +817,7 @@ test.describe('Multi-select frame-budget gates', () => {
       'aria-label',
       'Undo “Align frames” (Ctrl+Z)',
     )
-    await page.waitForTimeout(300)
+    await waitFrames(page, 20)
     await page.evaluate(browserAssertNoLoafThenClear)
   })
 
@@ -836,7 +837,7 @@ test.describe('Multi-select frame-budget gates', () => {
     await page.mouse.move(c3.x, c3.y, { steps: 40 })
     await page.mouse.up()
     await expect(pressed(page)).toHaveCount(4)
-    await page.waitForTimeout(300)
+    await waitFrames(page, 20)
     await page.evaluate(browserAssertNoLoafAndHandlerP95, {
       label: 'frame-gesture',
       budgetMs: PERF_BUDGETS.handlerP95Ms * PERF_BUDGETS.cpuThrottleRate,
@@ -873,7 +874,7 @@ test.describe('Multi-select frame-budget gates', () => {
       'aria-label',
       'Undo “Move 3 frames” (Ctrl+Z)',
     )
-    await page.waitForTimeout(300)
+    await waitFrames(page, 20)
     await page.evaluate(browserAssertNoLoafAndHandlerP95, {
       label: 'frame-gesture',
       budgetMs: PERF_BUDGETS.handlerP95Ms * PERF_BUDGETS.cpuThrottleRate,
@@ -894,11 +895,11 @@ test.describe('Multi-select frame-budget gates', () => {
       await frames(page)
         .nth(index)
         .click({ modifiers: ['Shift'] })
-      await page.waitForTimeout(120)
+      await waitFrames(page, 8)
     }
     await expect(pressed(page)).toHaveCount(2)
     await expect(spread(page).getByTestId('group-box')).toHaveCount(1)
-    await page.waitForTimeout(300)
+    await waitFrames(page, 20)
     await page.evaluate(browserAssertNoLoafThenClear)
   })
 })

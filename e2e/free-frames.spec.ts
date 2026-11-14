@@ -12,7 +12,11 @@ import {
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
 import { PERF_BUDGETS } from './perf/budgets'
-import { applyCpuThrottling, clearPerfScenario } from './perf/perfFixture'
+import {
+  applyCpuThrottling,
+  clearPerfScenario,
+  waitFrames,
+} from './perf/perfFixture'
 
 test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
@@ -291,7 +295,7 @@ test('dragging a frame across a dense spread with snapping stays within frame-bu
     }
   }
   await expect(frames(page)).toHaveCount(20)
-  await page.waitForTimeout(300)
+  await waitFrames(page, 20)
   // The last frame is still selected; its handles cover a frame this small.
   const { x: cx, y: cy } = await centerOf(frames(page).first())
 
@@ -313,7 +317,7 @@ test('dragging a frame across a dense spread with snapping stays within frame-bu
         box.y + box.height - 20,
       ),
     )
-    await page.waitForTimeout(8)
+    await waitFrames(page)
   }
   await page.mouse.up()
 

@@ -17,6 +17,7 @@ import {
   browserBeginLoafScenarioWindow,
   clearPerfScenario,
   enablePerfScenario,
+  waitFrames,
 } from './perf/perfFixture'
 
 // arrange-lock: the frame context menu and Ctrl/Cmd shortcuts dispatch the
@@ -268,10 +269,10 @@ test.describe('Arrange frame-budget gates', () => {
       'Control+Shift+KeyL',
     ]) {
       await page.keyboard.press(key)
-      await page.waitForTimeout(120)
+      await waitFrames(page, 8)
     }
     await expect(frame).not.toHaveAttribute('data-locked', 'true')
-    await page.waitForTimeout(300)
+    await waitFrames(page, 20)
     await page.evaluate(browserAssertNoLoafThenClear)
   })
 })

@@ -9,6 +9,7 @@ import {
   browserAssertNoLoaf,
   clearPerfScenario,
   enablePerfScenario,
+  waitFrames,
 } from './perf/perfFixture'
 import { choosePhotoFolder } from './fixtures/photoDirectoryPicker'
 
@@ -296,7 +297,7 @@ test.describe('frame-budget gates', () => {
       await page.getByTestId('filmstrip-scroll').evaluate((node) => {
         node.scrollLeft += 120
       })
-      await page.waitForTimeout(32)
+      await waitFrames(page, 2)
     }
     await page.evaluate(() => {
       window.__photobooksPerf?.clearLoafEntries()
@@ -307,7 +308,7 @@ test.describe('frame-budget gates', () => {
         await page.getByTestId('filmstrip-scroll').evaluate((node) => {
           node.scrollLeft += 120
         })
-        await page.waitForTimeout(32)
+        await waitFrames(page, 2)
       }
     })()
 

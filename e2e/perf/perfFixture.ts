@@ -86,6 +86,23 @@ export async function browserBeginLoafScenarioWindow(): Promise<void> {
 }
 
 /**
+ * Waits `count` rendered frames (one rAF each). Paces scripted gestures at
+ * the display rate and lets the LoAF tail land before a gate asserts, without
+ * a wall-clock sleep (`playwright/no-wait-for-timeout`).
+ */
+export async function waitFrames(page: Page, count = 1): Promise<void> {
+  await page.evaluate(async (frames) => {
+    for (let i = 0; i < frames; i += 1) {
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          resolve()
+        })
+      })
+    }
+  }, count)
+}
+
+/**
  * Warm the filmstrip virtualizer, then open a LoAF window.
  * Cold first-scroll mounts must not count toward scroll-during-import LoAF
  * (same pattern as book-titles rename-while-scroll). Reset to scrollLeft 0 so
@@ -102,12 +119,12 @@ export async function beginFilmstripLoafScrollWindow(
     await page.getByTestId('filmstrip-scroll').evaluate((node) => {
       node.scrollLeft += 160
     })
-    await page.waitForTimeout(32)
+    await waitFrames(page, 2)
   }
   await page.getByTestId('filmstrip-scroll').evaluate((node) => {
     node.scrollLeft = 0
   })
-  await page.waitForTimeout(32)
+  await waitFrames(page, 2)
   await page.evaluate(browserBeginLoafScenarioWindow)
 }
 
@@ -120,7 +137,7 @@ export async function scrollFilmstripLoafWindow(
     await page.getByTestId('filmstrip-scroll').evaluate((node) => {
       node.scrollLeft += 160
     })
-    await page.waitForTimeout(32)
+    await waitFrames(page, 2)
   }
 }
 
