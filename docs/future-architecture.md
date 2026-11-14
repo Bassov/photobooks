@@ -256,6 +256,8 @@ Other options, none clearly better: Cloudflare Pages (file caps like Workers, up
 - No file cap; ≈ $0 up to 10 books and under $1 per month at 100 books; free egress.
 - The stored credential reaches one bucket, not every Worker in the account.
 
+**Exception (Owner, Q-16, 2026-11-14): `/api/cf/*` relay on our Worker.** Owner: «Делаем так: автонастройка через шлюз на нашем Worker (4 задачи: kit, шлюз, ядро, UI); правило Q-10 получает исключение для /api/cf/*». api.cloudflare.com sends no CORS headers, so hosting setup calls the Cloudflare API through a stateless same-origin relay (`src/worker/cfRelay.ts`): same-origin callers only, an exact method + path allowlist, closed JSON bodies (a created key reaches one bucket), only `Authorization` + `Content-Type` forwarded, `Cache-Control: no-store`. It stores, logs and echoes no token (no `console.*`, Workers observability off). Every other path stays assets-only.
+
 Token safety (`src/publish/`, tests in `src/publish/*.test.ts`):
 
 - Bucket-scoped `Object Read & Write` token only — never an account-wide or Workers token.

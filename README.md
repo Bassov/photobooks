@@ -68,7 +68,7 @@ Operators: add repository secret `CODECOV_TOKEN` (Codecov upload / PR comments).
 
 ## Hosting (Cloudflare Workers Free)
 
-Assets-only Worker serves `dist/` as a SPA (`wrangler.jsonc`). Static asset requests are free/unlimited on the Workers Free plan; keep the Worker assets-only (no `main` script) so preview traffic does not consume the free daily Workers request quota.
+The Worker serves `dist/` as a SPA (`wrangler.jsonc`). Static asset requests are free/unlimited on the Workers Free plan; the script (`src/worker/index.ts`) runs only for `run_worker_first` paths — the Cloudflare API relay `/api/cf/*` used by hosting setup — so page traffic does not consume the free daily Workers request quota. Keep it that way: no other `run_worker_first` paths.
 
 | Workers Builds setting | Value                           |
 | ---------------------- | ------------------------------- |
