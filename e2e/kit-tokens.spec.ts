@@ -8,6 +8,9 @@ import { expect, test } from './fixtures/coverage'
 // surface, no blue (source + built CSS + rendered), the #232223 primary button and
 // its focus ring, the 3-level surfaces (canvas #C8CACB · chrome #E1E1E1 · field
 // #D7D7D7 · white = paper) in tokens and as rendered.
+// v7–v0.10 (uikit-qa-split-2): editor borders / blue / surfaces, scrollbars,
+// #232223 reserved for selection, rendered borders on every page, near-black
+// chips, DPI badge, dashed guides carry data-allow-border, kit versions.
 
 test.use({ viewport: { width: 1440, height: 900 } })
 
@@ -65,7 +68,9 @@ async function visit(page: Page, hash: string) {
       ? '[data-testid="footer-credits"]'
       : hash === '#/components'
         ? '[data-testid^="cmp-"]'
-        : '[data-testid="demo"]'
+        : hash.startsWith('#/full/')
+          ? '[data-testid="full"]'
+          : '[data-testid="demo"]'
   await expect(page.locator(root).first()).toBeVisible()
   await settled(page)
 }
@@ -640,5 +645,358 @@ test.describe('v6.1 3-level surfaces', () => {
       )
     expect(inputs.length).toBeGreaterThan(0)
     expect([...new Set(inputs)]).toEqual(['rgb(215, 215, 215)'])
+  })
+})
+
+// ───────── v7–v0.10 (uikit-qa-split-2) ─────────
+
+const UIKIT = path.resolve(process.cwd(), 'uikit')
+const readSrc = (f: string) => fs.readFileSync(path.join(SRC, f), 'utf8')
+const E = (page: Page, s: string) =>
+  page.locator(`[data-testid="demo"] [data-testid="editor7"] ${s}`)
+
+function watchErrors(page: Page) {
+  const errs: string[] = []
+  page.on('console', (m) => {
+    if (m.type() === 'error' || m.type() === 'warning')
+      errs.push(`${m.type()}: ${m.text().slice(0, 240)}`)
+  })
+  page.on('pageerror', (e) => errs.push(`pageerror: ${e.message}`))
+  page.on('requestfailed', (r) => errs.push(`requestfailed: ${r.url()}`))
+  return errs
+}
+
+/** qa.mjs scen(): the old editor scenario `tab` now lives on feature page `slug` */
+async function scen(page: Page, slug: string, tab: string) {
+  await open(page, feat(slug))
+  const t = page
+    .locator('[data-testid="scenarios"]')
+    .getByRole('tab', { name: tab, exact: true })
+  await t.click()
+  await expect(t).toHaveAttribute('aria-selected', 'true')
+  await settled(page)
+}
+
+/** smokeS("…", "canvas"): the canvas screen with its editor rendered; console errors collected from here on */
+async function openCanvas(page: Page) {
+  const errs = watchErrors(page)
+  await open(page, scr('canvas'))
+  await expect(
+    E(page, '[data-testid="panel-l"] [role=row]').first(),
+  ).toBeVisible()
+  await settled(page)
+  return errs
+}
+
+/** v7 editor: rendered borders, blue colours, header / aside surfaces */
+function editorSurfaces() {
+  const root = document.querySelector('[data-testid="editor7"]')
+  const bad: string[] = []
+  const blue: string[] = []
+  const bgs = new Set<string>()
+  for (const e of root?.querySelectorAll('*') ?? []) {
+    const s = getComputedStyle(e)
+    if (
+      e.closest(
+        '[data-testid="grid-overlay"],[data-testid="print-overlay"],[data-allow-border]',
+      )
+    )
+      continue
+    for (const k of ['top', 'right', 'bottom', 'left'])
+      if (
+        parseFloat(s.getPropertyValue(`border-${k}-width`)) > 0 &&
+        s.getPropertyValue(`border-${k}-style`) !== 'none' &&
+        !s.getPropertyValue(`border-${k}-color`).includes('rgba(0, 0, 0, 0)')
+      )
+        bad.push(e.tagName)
+    for (const c of [s.color, s.backgroundColor]) {
+      const m = /rgba?\((\d+), (\d+), (\d+)/.exec(c)
+      if (m && +(m[3] ?? 0) - Math.max(+(m[1] ?? 0), +(m[2] ?? 0)) > 12)
+        blue.push(c)
+    }
+    if (['HEADER', 'ASIDE'].includes(e.tagName)) bgs.add(s.backgroundColor)
+  }
+  return { bad: bad.length, blue: blue.length, bgs: [...bgs] }
+}
+
+/** #232223 anywhere in the editor except canvas selection, primary (bottom panel icon) buttons and used-photo badges */
+function blackOutsideSelection() {
+  const root = document.querySelector('[data-testid="editor7"]')
+  const bad: string[] = []
+  for (const e of root?.querySelectorAll('*') ?? []) {
+    const s = getComputedStyle(e)
+    const hit =
+      [
+        s.backgroundColor,
+        s.color,
+        s.outlineStyle !== 'none' ? s.outlineColor : '',
+      ].some((c) => c === 'rgb(35, 34, 35)') ||
+      /rgb\(35, 34, 35\)(?! 0px 0px 0px 0px)/.test(s.boxShadow)
+    if (!hit) continue
+    if (
+      e.closest('[data-testid="sel-outline"],[data-testid="sel-handle"]') ||
+      e.matches('[data-testid="sel-outline"],[data-testid="sel-handle"]')
+    )
+      continue
+    if (e.closest('[data-testid="panel-b"]') && e.querySelector('svg')) continue
+    if (e.closest('[data-photo][data-selected]') && e.tagName === 'SPAN')
+      continue
+    bad.push(
+      `${e.tagName}.${String((e as unknown as { className: unknown }).className).slice(0, 30)}`,
+    )
+  }
+  return bad
+}
+
+/** every rendered border on the page, outside the canvas print / grid guide overlays */
+function renderedBorders() {
+  const out: string[] = []
+  for (const e of document.querySelectorAll('body *')) {
+    if (
+      e.closest(
+        '[data-testid="grid-overlay"],[data-testid="print-overlay"],[data-allow-border]',
+      )
+    )
+      continue
+    const s = getComputedStyle(e)
+    for (const k of ['top', 'right', 'bottom', 'left'])
+      if (
+        parseFloat(s.getPropertyValue(`border-${k}-width`)) > 0 &&
+        s.getPropertyValue(`border-${k}-style`) !== 'none' &&
+        !/rgba\(\d+, \d+, \d+, 0\)/.test(
+          s.getPropertyValue(`border-${k}-color`),
+        ) &&
+        e.getClientRects().length
+      ) {
+        out.push(
+          `${e.tagName.toLowerCase()}.${String(
+            (e as unknown as { className: unknown }).className,
+          )
+            .split(' ')
+            .filter((c) => c.includes('border'))
+            .join('.')}`,
+        )
+        break
+      }
+  }
+  return out
+}
+
+/** near-black fills outside selection, primary buttons, used badges, lightbox, list rows, cover / endpaper paper, swatches */
+function nearBlackChips() {
+  return [...document.querySelectorAll('[data-testid="demo"] *, #root *')]
+    .filter((e) => {
+      const s = getComputedStyle(e)
+      const m = /rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?/.exec(
+        s.backgroundColor,
+      )
+      if (!m || (m[4] !== undefined && +m[4] < 0.9)) return false
+      const r = e.getBoundingClientRect()
+      return (
+        r.width &&
+        +(m[1] ?? 0) < 70 &&
+        +(m[2] ?? 0) < 70 &&
+        +(m[3] ?? 0) < 70 &&
+        !e.closest(
+          '[data-testid="sel-outline"],[data-testid="sel-chip"],[data-primary],[data-variant="primary"],.bg-primary,[data-used-badge],[data-testid="lightbox"],pre,[role=row],[role=gridcell],[data-testid="canvas-cover"],[data-testid="canvas-endpaper"],[data-swatch]',
+        ) &&
+        !/bg-primary|bg-select|bg-tag/.test(
+          String((e as unknown as { className: unknown }).className),
+        )
+      )
+    })
+    .map(
+      (e) =>
+        `${e.tagName.toLowerCase()}:"${e.textContent.trim().slice(0, 20)}"`,
+    )
+}
+
+const borderRoutes = [
+  ...screenIds.map(scr),
+  ...featureSlugs.map(feat),
+  '#/',
+  '#/components',
+]
+
+test.describe('v7–v0.10 tokens and surfaces', () => {
+  test('v7 editor: no borders, no blue, 3 surfaces only', async ({ page }) => {
+    const errs = await openCanvas(page)
+    const r = await page.evaluate(editorSurfaces)
+    expect(r.bad).toBe(0)
+    expect(r.blue).toBe(0)
+    expect(
+      r.bgs.filter(
+        (b) => b !== 'rgb(225, 225, 225)' && b !== 'rgba(0, 0, 0, 0)',
+      ),
+    ).toEqual([])
+    expect(errs).toEqual([])
+  })
+
+  test('v7 scrollbars: thin 4/6/8 px thumbs #A8A8A8/#969696/#7E7E7E, transparent track', async ({
+    page,
+  }) => {
+    const errs = await openCanvas(page)
+    const t = await page.evaluate(() => {
+      const s = getComputedStyle(document.documentElement)
+      return ['--scroll-thumb-rest', '--scroll-thumb', '--scroll-thumb-hover']
+        .map((n) => s.getPropertyValue(n).trim().toUpperCase())
+        .join()
+    })
+    expect(t).toBe('#A8A8A8,#969696,#7E7E7E')
+    expect(readSrc('index.css')).toMatch(
+      /scrollbar-thumb \{[^}]*border: 3px solid transparent/,
+    )
+    expect(errs).toEqual([])
+  })
+
+  test('v7 black #232223 only on canvas selection, primary button and used-photo badges', async ({
+    page,
+  }) => {
+    const errs = await openCanvas(page)
+    await scen(page, 'frame-selection-handles', 'Frame selected')
+    expect(await page.evaluate(blackOutsideSelection)).toEqual([])
+    expect(errs).toEqual([])
+  })
+
+  test('v7.4 P2-1: low-DPI badge and filmstrip Low-res chip use the field grey, not near-black', async ({
+    page,
+  }) => {
+    const errs = await openCanvas(page)
+    await scen(page, 'pasteboard-workspace', 'Spread')
+    await page.keyboard.press('d')
+    await expect(
+      page.locator('[data-testid="demo"] [data-testid="lowres-chip"]').first(),
+    ).toBeAttached()
+    const cols = await page.evaluate(() =>
+      [
+        ...document.querySelectorAll(
+          '[data-testid="demo"] [data-testid="dpi-badge"], [data-testid="demo"] [data-testid="lowres-chip"]',
+        ),
+      ].map(
+        (e) =>
+          `${e.getAttribute('data-testid') ?? ''}=${getComputedStyle(e).backgroundColor}`,
+      ),
+    )
+    const src = readSrc('sandbox/canvas.tsx') + readSrc('sandbox/chrome.tsx')
+    expect(src).not.toMatch(
+      /bg-dpi-low|bg-dpi-warn|bg-black\/60 px-1 py-px text-2xs font-medium text-white"><AlertTriangle/,
+    )
+    expect(src).toMatch(/data-testid="lowres-chip"/)
+    expect(
+      cols.filter(
+        (c) =>
+          Math.max(...(c.match(/\d+/g) ?? []).slice(0, 3).map(Number)) < 128,
+      ),
+    ).toEqual([])
+    expect(cols.some((c) => c.startsWith('lowres-chip'))).toBe(true)
+    expect(errs).toEqual([])
+  })
+
+  test('v7 no bg-primary outside buttons (black reserved)', () => {
+    const ink = walk(SRC)
+      .filter(
+        (f) =>
+          !/button\.tsx|editor7\.tsx|toast\.tsx|index\.css/.test(f) &&
+          /bg-primary(?![-\w])/.test(fs.readFileSync(f, 'utf8')),
+      )
+      .map(rel)
+    expect(ink).toEqual([])
+  })
+
+  test('kit version checks v7 … v0.10.0', () => {
+    const { version } = JSON.parse(
+      fs.readFileSync(path.join(UIKIT, 'package.json'), 'utf8'),
+    ) as { version: string }
+    expect(version, 'v7 version 0.7.x+').toMatch(/^0\.([789]|10)\./)
+    expect(version, 'v7.1 version 0.7.x+').toMatch(/^0\.([789]|10)\./)
+    expect(version, 'v7.2 version 0.7.x+').toMatch(/^0\.([789]|10)\./)
+    expect(version, 'v7.3 version 0.7.x+').toMatch(/^0\.([789]|10)\./)
+    expect(version, 'v7.4 version 0.7.4+').toMatch(/^0\.(7\.4|[89]\.|10\.)/)
+    expect(version, 'v0.9 version 0.9.x').toMatch(/^0\.(9|10)\./)
+    expect(version, 'v0.9.1 version 0.9.x+').toMatch(/^0\.(9|10)\./)
+    expect(version, 'v0.9.2+ version 0.9.x').toMatch(/^0\.(9|10)\./)
+    expect(version, 'v0.10.0 version 0.10.0').toBe('0.10.0')
+  })
+
+  test('v7.1 P2 #7: global `* { border-color }` is transparent (was var(--border) #CDCDCD)', () => {
+    const css = readSrc('index.css')
+    expect(css).toMatch(
+      /\*, ::before, ::after \{ border-color: transparent; \}/,
+    )
+    expect(css).not.toMatch(
+      /\*, ::before, ::after \{ border-color: var\(--border\)/,
+    )
+  })
+
+  // one test per 10 routes keeps each under the default timeout
+  for (let i = 0; i < borderRoutes.length; i += 10) {
+    const chunk = borderRoutes.slice(i, i + 10)
+    test(`v7.1 P2 #7: rendered borders = 0 on every kit page (exceptions: canvas print/grid guide overlays) — routes ${String(i + 1)}–${String(i + chunk.length)}`, async ({
+      page,
+    }) => {
+      const bad: string[] = []
+      for (const h of chunk) {
+        await visit(page, h)
+        bad.push(
+          ...(await page.evaluate(renderedBorders)).map((b) => `${h} ${b}`),
+        )
+      }
+      expect(bad).toEqual([])
+    })
+  }
+
+  test('v7.2 P2-8: DPI badge has no inset-shadow ring', () => {
+    expect(readSrc('index.css')).toMatch(/\.pb-badge \{ box-shadow: none; \}/)
+  })
+
+  test('v7.2 P2-9: no extra near-black chips (Preview · Panorama, Crop chip are light grey)', async ({
+    page,
+  }) => {
+    const bad: string[] = []
+    for (const h of [scr('canvas'), '#/full/canvas', feat('crop-in-frame')]) {
+      await visit(page, h)
+      bad.push(
+        ...(await page.evaluate(nearBlackChips)).map((b) => `${h}: ${b}`),
+      )
+    }
+    expect(bad).toEqual([])
+    expect(readSrc('sandbox/canvas.tsx')).not.toMatch(/bg-tag[^"]*">Preview ·/)
+  })
+
+  test('v7.2 P2-11: bleed and safe guides carry data-allow-border', () => {
+    expect(
+      readSrc('sandbox/canvas.tsx').match(
+        /data-allow-border className="absolute border border-(bleed|dashed border-guide)"/g,
+      ) ?? [],
+    ).toHaveLength(2)
+  })
+
+  test('v7.2 P2-6: npm run shots captures every editor scenario and writes editor-scenarios.md5', () => {
+    const sh = fs.readFileSync(path.join(UIKIT, 'scripts', 'shots.mjs'), 'utf8')
+    expect(sh).toMatch(/editor-scenarios\.md5/)
+    expect(sh).toMatch(/screen-editor--/)
+  })
+
+  test('v7.4 P2-3: dashed guides (master items, master margin, cover safe area) carry data-allow-border', () => {
+    const c = readSrc('sandbox/canvas.tsx')
+    const v = readSrc('sandbox/v7.tsx')
+    // master items inherited from the parent
+    expect(c).toMatch(
+      /p\.inherited && !st\.view\.preview && <div data-allow-border[^>]*\[outline-style:dashed\]/,
+    )
+    // cover safe area
+    expect(v).toMatch(
+      /<div data-allow-border key=\{s\} data-testid=\{`cover-safe-\$\{s\}`\}[^>]*1px dashed/,
+    )
+    // master margin
+    expect(v).toMatch(
+      /<div data-allow-border className="absolute inset-0" style=\{\{ outline: "1px dashed/,
+    )
+  })
+
+  test('v0.9.3 dead amber --crop removed from index.css', () => {
+    const css = readSrc('index.css')
+    expect(css).not.toMatch(/--crop:\s*#e0a33a/)
+    expect(css).toMatch(/--crop:\s*#6b696a/)
   })
 })
