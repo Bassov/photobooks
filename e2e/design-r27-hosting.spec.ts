@@ -158,8 +158,9 @@ test('M114 / M115 / M120: manual form and help position, the muted CORS Copy but
   await page.getByTestId('hosting-manual').click()
   await expect(page.getByTestId('hosting-form')).toBeVisible()
   near(await cardTop(page, 'hosting-form'), CARD_TOP, 'manual form')
-  // M114: the guided link's 19.5 px line box puts the help where the kit has
-  // it (y rel. the Settings `main`, like the Designer).
+  // M114: the pane's 19.5 px line height (the guided link's line box) puts
+  // the help where the kit has it (y rel. the Settings `main`, like the
+  // Designer); the form card keeps its height.
   const main = await box(page.getByTestId('settings').locator('main'))
   const h2 = await box(
     page.getByRole('heading', { name: 'How to get a token' }),
@@ -177,7 +178,7 @@ test('M114 / M115 / M120: manual form and help position, the muted CORS Copy but
       367.39,
     ],
   ] as const) {
-    expect(Math.abs(y - kit), `${what} y ${String(y)}`).toBeLessThanOrEqual(0.3)
+    expect(Math.abs(y - kit), `${what} ${String(y)}`).toBeLessThanOrEqual(0.3)
   }
   // M120: Copy keeps the kit ghost grey, not the Change foreground.
   await expectXsGhost(page.getByTestId('hosting-cors-copy'), 56.97, MUTED)
