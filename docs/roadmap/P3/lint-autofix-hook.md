@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P3
 Title: Bug: /next-roadmap-item lint-autofix-hook
+Status: done
 
 Process item (Owner 2026-11-15, worker-efficiency item 1 of 4; kind cfix, lane process). Why: workers lose ~115 calls per 7 d on lint/format failures (pre-commit 47, check:fast 30, eslint 25, typecheck 13), each a fix edit plus a rerun. Quality must not drop: every check stays; only avoidable failures stop costing calls.
 
