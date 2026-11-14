@@ -66,7 +66,7 @@ export function AdjustSection({ target }: { target: CropTarget }) {
       <Button
         variant="ghost"
         size="sm"
-        className="w-full"
+        className="w-full text-muted-foreground"
         isDisabled={!isAdjusted(adjust)}
         data-testid="adjust-reset"
         onPress={() => {
