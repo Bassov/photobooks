@@ -9,3 +9,5 @@
 
 1. Settings → Hosting at 1440×900: the setup card sits 20 px under the intro in steps 1–3; Change buttons are 28 px, 12 px text; Checking… spinner 14 px.
 2. Manual mode: the CORS Copy button is 28 px high; the setup → connected card keeps its position.
+
+- 1, 2: problem (harness) — `pnpm agent manual-qa` times out clicking `start-session` at the welcome screen (header intercepts the 1 px button) before Hosting opens; not a product regression. Covered by `e2e/design-r27-hosting.spec.ts` (3 passed locally at 1440×900 with the Designer's browser flags).
