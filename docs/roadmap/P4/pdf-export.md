@@ -7,8 +7,8 @@ Status: done
 
 ## Scope
 
-- [ ] PDF from the Print dialog (top-bar Print pill, Designer Spec `pdf-export` D1–D10): Page size / Printer / Imposition '1 per sheet' read-only rows, a bleed + crop marks **user checkbox** (D4, default on), the D5 summary and a Check block; progress with Hide; PDF ready + Open PDF and "Saved in …/exports." (D9, written to the exports folder); failed with Try again. No imposition segmented, no cancel, no download (kit `PrintDialog` wins, Designer call M8)
-- [ ] Peak memory measured on a 40-spread book against a recorded threshold; if above it, do `pdf-streaming`. Threshold: 1 GB peak ArrayBuffer growth; measured 1.4 GB (159 distinct 4.4 MB JPEGs, 78 sheets, 708 MB PDF) — above, `pdf-streaming` follows
+- [x] PDF from the Print dialog (top-bar Print pill, Designer Spec `pdf-export` D1–D10): Page size / Printer / Imposition '1 per sheet' read-only rows, a bleed + crop marks **user checkbox** (D4, default on), the D5 summary and a Check block; progress with Hide; PDF ready + Open PDF and "Saved in …/exports." (D9, written to the exports folder); failed with Try again. No imposition segmented, no cancel, no download (kit `PrintDialog` wins, Designer call M8)
+- [x] Peak memory measured on a 40-spread book against a recorded threshold; if above it, do `pdf-streaming`. Threshold: 1 GB peak ArrayBuffer growth; measured 1.4 GB (159 distinct 4.4 MB JPEGs, 78 sheets, 708 MB PDF) — above, `pdf-streaming` follows
 - **Perf:** scenario: edit while the PDF builds — zero LoAF.
 - **Browser check:** export with and without the bleed checkbox; pages match the editor at trim size; bleed + crop marks only when checked; Open PDF opens the written PDF and the done step names its exports folder.
 - **Browser check (from `printer-presets`):** pick a print preset, export a PDF that matches its spec (trim, bleed, page count, spine).
