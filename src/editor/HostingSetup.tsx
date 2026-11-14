@@ -313,7 +313,7 @@ export function HostingSetup({
     if (mine !== round.current) return
     setChecking(false)
     if (!found.ok) {
-      setR2Off(false)
+      // A failed Check again keeps its box (R2 off / no domain) and shows the error there.
       setFailure({
         message: found.message,
         token: TOKEN_FAILURES.includes(found.code),
