@@ -40,6 +40,7 @@ import {
 import { BAR, FIELD, SUB, T } from './editorChromeTokens'
 import { ChromeButton } from './ChromeButton'
 import { ExportSiteButton } from './export/ExportSiteButton'
+import { PrintButton } from './print/PrintButton'
 import { PanelToggles } from './EditorFrame'
 import { EditorSettings } from './EditorSettings'
 import { EditorToolGroup } from './EditorToolGroup'
@@ -418,6 +419,7 @@ export function EditorTopBar({
             <Icon name="settings" size={16} />
           </ChromeButton>
           <ExportSiteButton disabled={spreadCount === 0 || writeBlocked} />
+          <PrintButton disabled={spreadCount === 0 || writeBlocked} />
           <PublishButton
             disabled={spreadCount === 0 || writeBlocked}
             onOpenHosting={() => {
