@@ -16,7 +16,7 @@ export function ctx(c: HTMLCanvasElement): CanvasRenderingContext2D {
  * Paper grain (the kit's `grain`): luminance noise ±amp/2 per cell × cell
  * texels (the page texture is ~2 texels per screen px: a 2-texel cell keeps
  * the grain per screen pixel instead of averaging it away in the mipmaps).
- * Rows `y0` … `y1` only (a band of `grainBands`); noise rows renew every
+ * Rows `y0` … `y1` only (a band of `rowBands`); noise rows renew every
  * `cell` rows from `y0`.
  */
 export function grain(
