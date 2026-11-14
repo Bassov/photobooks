@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-- [ ] Guided connection of the user's own Cloudflare account with minimal scopes; automatic provisioning of site and storage
+- [x] Guided connection of the user's own Cloudflare account with minimal scopes; automatic provisioning of site and storage
 - **Browser check:** with a new Cloudflare account, connect and publish a site in one guided flow.
 - **Kit components:** partial: `uikit/src/demo-parts/settings.tsx:12-56` `SettingsScreen` Hosting section (read-only Provider / Account / Token rows, owner only); missing: provider choice, credential entry, test connection, the flow for other users
 - **Demo:** `uikit#/demo` steps 40, 49 (Settings → Hosting, owner only)
