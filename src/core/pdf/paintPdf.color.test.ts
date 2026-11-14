@@ -38,6 +38,7 @@ async function paint(bytes: Record<string, Uint8Array>) {
     book,
     profile: genericPrintProfile(),
     photos: (assetId) => Promise.resolve(bytes[assetId]),
+    marks: true,
   })
   return PDFDocument.load(result.pdf)
 }

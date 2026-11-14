@@ -90,8 +90,14 @@ async function paint(
   book: Book,
   profile: PrintProfile = pagesProfile,
   bytes: Record<string, Uint8Array> = FIXTURE_BYTES,
+  marks = true,
 ) {
-  const result = await paintBookPdf({ book, profile, photos: sourceOf(bytes) })
+  const result = await paintBookPdf({
+    book,
+    profile,
+    photos: sourceOf(bytes),
+    marks,
+  })
   return { result, doc: await PDFDocument.load(result.pdf) }
 }
 
@@ -159,10 +165,13 @@ describe('paintBookPdf', () => {
     expect(result.sheets).toBe(78)
     expect(doc.getPageCount()).toBe(78)
     expect(result.skipped).toEqual([])
+    const slug = 3 + CROP_MARK_LENGTH_MM
     for (const page of [doc.getPage(0), doc.getPage(1), doc.getPage(77)]) {
-      expect(box(page.getMediaBox())).toEqual(boxMm(0, 0, 306, 306))
-      expect(box(page.getBleedBox())).toEqual(boxMm(0, 0, 306, 306))
-      expect(box(page.getTrimBox())).toEqual(boxMm(3, 3, 300, 300))
+      expect(box(page.getMediaBox())).toEqual(
+        boxMm(0, 0, 300 + 2 * slug, 300 + 2 * slug),
+      )
+      expect(box(page.getBleedBox())).toEqual(boxMm(5, 5, 306, 306))
+      expect(box(page.getTrimBox())).toEqual(boxMm(slug, slug, 300, 300))
     }
   })
 
@@ -188,7 +197,7 @@ describe('paintBookPdf', () => {
     expect(drawnImages(doc, doc.getPage(1))).toHaveLength(4)
   })
 
-  it('prints one sheet per spread with crop marks when the profile asks', async () => {
+  it('prints one sheet per spread with crop marks', async () => {
     const { result, doc } = await paint(book, spreadsProfile)
 
     expect(result.sheets).toBe(PAINTER_SPREAD_COUNT)
@@ -211,15 +220,9 @@ describe('paintBookPdf', () => {
     expect(drawnImages(doc, inner)).toHaveLength(4)
   })
 
-  it('draws no crop marks when the profile does not ask', async () => {
-    const { doc } = await paint(book)
-
-    expect(contentOf(doc, doc.getPage(1))).not.toMatch(/ l\n/)
-  })
-
   it('clips each photo to its frame under the frame and image matrices', async () => {
     // No bleed: the left page draws only its own two frames.
-    const { doc } = await paint(book, { ...pagesProfile, bleedMaxMm: 0 })
+    const { doc } = await paint(book, pagesProfile, FIXTURE_BYTES, false)
 
     const content = contentOf(doc, doc.getPage(1))
     // The bleed clip, then frame + image matrices and a clip per photo.
@@ -438,7 +441,79 @@ describe('paintBookPdf on small books', () => {
       bytes,
     )
 
-    expect(box(doc.getPage(0).getTrimBox())).toEqual(boxMm(5, 5, 300, 300))
+    const slug = 5 + CROP_MARK_LENGTH_MM
+    expect(box(doc.getPage(0).getTrimBox())).toEqual(
+      boxMm(slug, slug, 300, 300),
+    )
+    expect(box(doc.getPage(0).getBleedBox())).toEqual(boxMm(5, 5, 310, 310))
+  })
+})
+
+describe('paintBookPdf marks', () => {
+  // A5, 4 pages padded to 6, a profile that asks for crop marks.
+  const book = makeBook({
+    assets: { a: {} },
+    settings: { trim: { widthMm: 148, heightMm: 210 }, bleedMm: 3 },
+    spreads: [0, 1, 2].map((index) =>
+      makeSpread({
+        id: `s${String(index)}`,
+        frames: [
+          makeFrame({
+            id: `f${String(index)}`,
+            assetId: 'a',
+            rect: { x: 10, y: 10, width: 100, height: 80 },
+          }),
+        ],
+      }),
+    ),
+  })
+  const profile: PrintProfile = {
+    ...pagesProfile,
+    cropMarks: true,
+    pageCount: { min: 6, step: 1, max: 200 },
+  }
+  const bytes = { a: fakeJpeg(40, 30, 'a') }
+
+  it('adds the 3 mm bleed and crop marks to every page with marks on', async () => {
+    const { result, doc } = await paint(book, profile, bytes, true)
+
+    expect(result.sheets).toBe(6)
+    const slug = 3 + CROP_MARK_LENGTH_MM
+    for (const page of doc.getPages()) {
+      expect(box(page.getBleedBox())).toEqual(boxMm(5, 5, 154, 216))
+      expect(box(page.getTrimBox())).toEqual(boxMm(slug, slug, 148, 210))
+      expect(box(page.getMediaBox())).toEqual(
+        boxMm(0, 0, 148 + 2 * slug, 210 + 2 * slug),
+      )
+      expect(contentOf(doc, page).match(/ l\n/g)).toHaveLength(8)
+    }
+  })
+
+  it('prints every page at trim size without marks with marks off', async () => {
+    const { result, doc } = await paint(book, profile, bytes, false)
+
+    expect(result.sheets).toBe(6)
+    for (const page of doc.getPages()) {
+      expect(box(page.getMediaBox())).toEqual(boxMm(0, 0, 148, 210))
+      expect(box(page.getBleedBox())).toEqual(boxMm(0, 0, 148, 210))
+      expect(box(page.getTrimBox())).toEqual(boxMm(0, 0, 148, 210))
+      expect(contentOf(doc, page)).not.toMatch(/ l\n/)
+    }
+    expect(drawnImages(doc, doc.getPage(3))).toHaveLength(1)
+    expect(contentOf(doc, doc.getPage(5))).toBe('')
+  })
+
+  it('reports each page once, in order, padding included', async () => {
+    const calls: [number, number][] = []
+    await paintBookPdf({
+      book,
+      profile,
+      photos: sourceOf(bytes),
+      marks: false,
+      onSheet: (painted, sheets) => calls.push([painted, sheets]),
+    })
+
+    expect(calls).toEqual([1, 2, 3, 4, 5, 6].map((index) => [index, 6]))
   })
 })
 
@@ -476,6 +551,7 @@ describe('paintBookPdf below the profile minimum', () => {
       bookOf(3),
       withMin(pagesProfile, 20),
       bytes,
+      false,
     )
 
     expect(result.sheets).toBe(20)
@@ -502,12 +578,8 @@ describe('paintBookPdf below the profile minimum', () => {
     expect(drawnImages(doc, doc.getPage(19))).toHaveLength(1)
   })
 
-  it('draws crop marks and nothing else on blank pages when the profile asks', async () => {
-    const { doc } = await paint(
-      bookOf(3),
-      withMin({ ...pagesProfile, cropMarks: true }, 6),
-      bytes,
-    )
+  it('draws crop marks and nothing else on blank pages with marks', async () => {
+    const { doc } = await paint(bookOf(3), withMin(pagesProfile, 6), bytes)
 
     const blank = contentOf(doc, doc.getPage(5))
     expect(blank.match(/ l\n/g)).toHaveLength(8)
