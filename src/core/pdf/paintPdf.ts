@@ -10,8 +10,16 @@ import { resolveSpread } from '../geometry/resolveSpread'
 import type { ResolvedItem, ResolvedSpread } from '../geometry/types'
 import type { PrintProfile } from '../print/profileSchema'
 import type { Book } from '../schema'
+import {
+  type FrameLook,
+  frameLook,
+  insetPhotoMatrix,
+  type RoundedRect,
+  roundedRectPath,
+} from './frameLookGeometry'
 import { profileForImage, readSourceColor } from './iccProfile'
 import {
+  compose,
   CROP_MARK_WIDTH_PT,
   cropMarkSegments,
   frameMatrix,
@@ -293,19 +301,88 @@ function paintSheet(
     const name =
       names.get(photo.image) ?? page.node.newXObject('Image', photo.image.ref)
     names.set(photo.image, name)
+    const image = imageMatrix(item, photo.orientation)
+    const look = frameLook(item.rectMm, item.style)
     ops.push(
       lib.pushGraphicsState(),
       cm(lib, frameMatrix(item)),
-      lib.rectangle(0, 0, item.rectMm.width, item.rectMm.height),
-      lib.clip(),
-      lib.endPath(),
-      cm(lib, imageMatrix(item, photo.orientation)),
-      lib.drawObject(name),
+      ...(look === undefined
+        ? [
+            lib.rectangle(0, 0, item.rectMm.width, item.rectMm.height),
+            lib.clip(),
+            lib.endPath(),
+            cm(lib, image),
+            lib.drawObject(name),
+          ]
+        : paintLook(lib, look, item.rectMm, image, name)),
       lib.popGraphicsState(),
     )
   }
   ops.push(lib.popGraphicsState())
   page.pushOperators(...ops)
+}
+
+function path(lib: PdfLib, shape: RoundedRect): PDFOperator[] {
+  return roundedRectPath(shape).map((segment) => {
+    switch (segment.op) {
+      case 'move':
+        return lib.moveTo(segment.to.x, segment.to.y)
+      case 'line':
+        return lib.lineTo(segment.to.x, segment.to.y)
+      case 'curve':
+        return lib.appendBezierCurve(
+          segment.c1.x,
+          segment.c1.y,
+          segment.c2.x,
+          segment.c2.y,
+          segment.to.x,
+          segment.to.y,
+        )
+      case 'close':
+        return lib.closePath()
+    }
+  })
+}
+
+/**
+ * A styled photo frame in frame-local mm: clip to the rounded frame box, the
+ * mat fill, the photo clipped to its inset box, the stroke on top.
+ */
+function paintLook(
+  lib: PdfLib,
+  look: FrameLook,
+  size: { width: number; height: number },
+  image: Matrix,
+  name: PDFName,
+): PDFOperator[] {
+  const ops = [...path(lib, look.outer), lib.clip(), lib.endPath()]
+  if (look.matColor !== undefined) {
+    ops.push(
+      lib.setFillingRgbColor(...rgb(look.matColor)),
+      ...path(lib, look.outer),
+      lib.fill(),
+    )
+  }
+  if (look.photo.rect.width > 0 && look.photo.rect.height > 0) {
+    ops.push(
+      lib.pushGraphicsState(),
+      ...path(lib, look.photo),
+      lib.clip(),
+      lib.endPath(),
+      cm(lib, compose(insetPhotoMatrix(size, look.photo.rect), image)),
+      lib.drawObject(name),
+      lib.popGraphicsState(),
+    )
+  }
+  if (look.stroke !== undefined) {
+    ops.push(
+      lib.setStrokingRgbColor(...rgb(look.stroke.color)),
+      lib.setLineWidth(look.stroke.widthMm),
+      ...path(lib, look.stroke),
+      lib.stroke(),
+    )
+  }
+  return ops
 }
 
 function paintCropMarks(

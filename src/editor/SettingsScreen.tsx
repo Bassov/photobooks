@@ -83,11 +83,10 @@ export function SettingsScreen({
                 settingsNavActiveClass(current),
               )}
             >
-              <Icon
-                name={section.icon}
-                size={16}
-                className="size-4 text-muted-foreground"
-              />
+              {/* Unlayered .pb-icon colour beats a utility on the svg; inherit it. */}
+              <span className="inline-flex text-muted-foreground">
+                <Icon name={section.icon} size={16} />
+              </span>
               {section.label}
             </button>
           )

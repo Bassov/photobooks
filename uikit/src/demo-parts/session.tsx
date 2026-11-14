@@ -17,7 +17,9 @@ export type DBook = { id: string; title: string; book: Book; doc?: Doc; cover?: 
   /** printer-presets D6: the book's print profile id; absent = Generic */ printProfile?: string }
 /** publish-credentials: what Settings → Hosting keeps after Connect. Never the secret, and the access key's last 4 only. */
 export type HostingCode = "InvalidAccessKeyId" | "AccessDenied" | "NoSuchBucket" | "Cors" | "Offline" | "Timeout"
-export type HostingRecord = { accountId: string; bucket: string; accessKeyTail: string; publicBaseUrl: string; checkedAtMs: number; ok: boolean; code?: HostingCode }
+export type HostingRecord = { accountId: string; bucket: string; accessKeyTail: string; publicBaseUrl: string; checkedAtMs: number; ok: boolean; code?: HostingCode
+  /** connect-own-hosting: how the record was made (absent = manual), when setup made it, and the setup token it couldn't delete (C10) */
+  origin?: "setup" | "manual"; provisionedAtMs?: number; setupTokenLeft?: boolean }
 export const todayAt = (h: number, m: number) => new Date().setHours(h, m, 0, 0)
 export const SAMPLE_HOSTING: HostingRecord = { accountId: "0f3a9c51e2b74d0a8c66f1e9d3b241c2", bucket: "aleksandr-books", accessKeyTail: "9f2c", publicBaseUrl: "https://books.basov.photo", checkedAtMs: todayAt(22, 40), ok: true }
 export type SessionState = { stage: Stage; path: string; books: DBook[]; open: string | null; back: Stage; nonce: number; siteEntry: "catalog" | "book"

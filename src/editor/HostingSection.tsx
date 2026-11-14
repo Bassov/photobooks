@@ -647,7 +647,7 @@ function Help({ cors }: { cors: boolean }) {
           data-testid="hosting-docs"
         >
           Cloudflare R2 tokens
-          <Icon name="externalLink" size={14} className="size-3" />
+          <Icon name="externalLink" size={12} />
         </a>
       </div>
     </>
