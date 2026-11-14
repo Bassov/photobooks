@@ -171,6 +171,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [in-app-publish-kit](roadmap/P3/in-app-publish-kit.md) — Bug: /next-roadmap-item in-app-publish-kit
 - [ ] [feature] [in-app-publish-core](roadmap/P3/in-app-publish-core.md) — Bug: /next-roadmap-item in-app-publish-core
 - [ ] [feature] [publish-site-flaky](roadmap/P3/publish-site-flaky.md) — Bug: /next-roadmap-item publish-site-flaky
+- [ ] [feature] [perf-workflow-merge-base](roadmap/P3/perf-workflow-merge-base.md) — Bug: /next-roadmap-item perf-workflow-merge-base
 - [ ] [feature] [site-settings-kit](roadmap/P3/site-settings-kit.md) — Bug: /next-roadmap-item site-settings-kit
 - [ ] [feature] [site-settings-core](roadmap/P3/site-settings-core.md) — Bug: /next-roadmap-item site-settings-core
 - [ ] [lite] [code-scout-agent](roadmap/P3/code-scout-agent.md) — Bug: /next-roadmap-item code-scout-agent
