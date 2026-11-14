@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P4
 Title: keep photo colors
+Status: done
 
 ## Scope
 
