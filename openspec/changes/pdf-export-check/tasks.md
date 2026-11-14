@@ -1,10 +1,10 @@
 ## Implementation
 
-- [ ] 1. `photoPages(book)` in `preflight.ts` on the shared printed-item loop
-- [ ] 2. `preflightRows` + `pageList` in `src/core/print/preflightText.ts` (unit + PBT)
-- [ ] 3. `pdfFileName(title, trimMm)` in `src/core/print/pdfFileName.ts` (unit)
-- [ ] 4. Worker `check` request (`runPdfCheck`, ≤ 256 KB colour reads) and tagged request dispatch
-- [ ] 5. `writeExport(root, name, bytes)` in `src/project/fsa/writeExport.ts` (in-memory folder tests)
+- [x] 1. `photoPages(book)` in `preflight.ts` on the shared printed-item loop (`preflight.test.ts` "photoPages")
+- [x] 2. `preflightRows` + `pageList` in `src/core/print/preflightText.ts` (`preflightText.test.ts`, `preflightText.pbt.test.ts`)
+- [x] 3. `pdfFileName(title, trimMm)` in `src/core/print/pdfFileName.ts` (`pdfFileName.test.ts`)
+- [x] 4. Worker `check` request (`runPdfCheck`, ≤ 256 KB colour reads) and tagged request dispatch (`pdf.worker.test.ts` "runPdfCheck")
+- [x] 5. `writeExport(root, name, bytes)` in `src/project/fsa/writeExport.ts` (`writeExport.test.ts`)
 
 ## Manual test scenarios
 
