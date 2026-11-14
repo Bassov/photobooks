@@ -3,7 +3,7 @@
 1. `handleCfRelay(request, upstream)` is pure over an injected `fetch`; `index.ts` routes `/api/cf/*` to it, else `env.ASSETS`. Order: origin (403) → allowlist (404) → Bearer token (401) → body (403 / 413 / 415) → forward to a URL rebuilt from matched parts.
 2. Bodies: capped read, `JSON.parse`, closed schemas (spec), re-serialized before forwarding. Bucket Item Write id `2efd5506f9c8494dacb1fa10a3e7d5b6` (Cloudflare R2 docs), pinned in a constant.
 3. `DELETE /user/tokens/:id`: the relay's own verify call with the same token must return `:id`.
-4. Responses: only `Content-Type` kept, plus `Cache-Control: no-store`; fixed error codes, nothing echoed; `redirect: 'error'`; `observability.enabled: false`; `no-console` lint.
+4. Responses: only `Content-Type` kept, plus `Cache-Control: no-store`; fixed error codes, nothing echoed; `redirect: 'manual'` (workerd has no `'error'`; a 3xx returns unfollowed); `observability.enabled: false`; `no-console` lint.
 5. No new deps: `tsconfig.worker.json` (WebWorker lib) owns `src/worker`; a local `Env` type.
 
 ## Touch-set & Test Plan

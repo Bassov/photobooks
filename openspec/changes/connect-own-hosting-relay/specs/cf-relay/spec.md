@@ -16,7 +16,7 @@ The Worker SHALL serve `/api/cf/*` with a stateless relay to `https://api.cloudf
 
 ### Requirement: Narrow relay bodies and headers
 
-The relay SHALL accept JSON bodies of at most 16 KB checked against closed schemas, SHALL forward only `Authorization` and `Content-Type`, and SHALL drop all upstream response headers except `Content-Type`.
+The relay SHALL accept JSON bodies of at most 16 KB checked against closed schemas, SHALL forward only `Authorization` and `Content-Type`, and SHALL drop all upstream response headers except `Content-Type` (adding only `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`), and SHALL never follow an upstream redirect.
 
 #### Scenario: Broader token request
 
