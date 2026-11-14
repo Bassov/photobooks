@@ -46,8 +46,13 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: |
           if [ "$EVENT_NAME" = "pull_request" ]; then
-            git fetch --no-tags --depth=1 origin "$BASE_REF"
-            node scripts/perf-lane.mjs scope "origin/$BASE_REF" | tee -a "$GITHUB_OUTPUT"
+            # Full-depth fetch: --depth=1 here made the base tip shallow, so
+            # base...HEAD had no merge base. No pipe into tee: a scope failure
+            # (exit 1) must fail this step, never read as "not in scope".
+            git fetch --no-tags origin "$BASE_REF"
+            scope=$(node scripts/perf-lane.mjs scope "origin/$BASE_REF")
+            echo "perf scope vs origin/$BASE_REF: $scope"
+            echo "$scope" >> "$GITHUB_OUTPUT"
           else
             echo "in_scope=true" >> "$GITHUB_OUTPUT"
           fi

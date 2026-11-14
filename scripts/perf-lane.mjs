@@ -139,6 +139,7 @@ export function judge(reports) {
 function changedFiles(base) {
   const out = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], {
     encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
   })
   return out.split('\n').filter(Boolean)
 }
@@ -153,19 +154,29 @@ function fileHasGate(file) {
 
 export function main(argv) {
   const [cmd, ...rest] = argv
-  if (cmd === 'scope') {
-    const inScope = isPerfScope(
-      changedFiles(rest[0] ?? 'origin/main'),
-      fileHasGate,
-    )
-    console.log(`in_scope=${String(inScope)}`)
-    return 0
-  }
+  if (cmd === 'scope') return scopeCommand(rest[0] ?? 'origin/main')
   if (cmd === 'verdict') return verdictCommand(rest)
   console.error(
     'usage: perf-lane.mjs scope <base> | verdict [--out f] [--base f --base-url u --base-ref r] <report.json>...',
   )
   return 2
+}
+
+/**
+ * A git failure (no merge base, bad ref) is an error, never "not in scope":
+ * a silent false would skip the gates on exactly the PRs that need them.
+ */
+function scopeCommand(base) {
+  let files
+  try {
+    files = changedFiles(base)
+  } catch (err) {
+    const why = String(err.stderr ?? err.message).trim()
+    console.error(`perf-lane scope: cannot diff ${base}...HEAD: ${why}`)
+    return 1
+  }
+  console.log(`in_scope=${String(isPerfScope(files, fileHasGate))}`)
+  return 0
 }
 
 function verdictCommand(args) {

@@ -44,7 +44,8 @@ jobs:
         env:
           STRYKER_DIFF_BASE: origin/${{ github.base_ref }}
         run: |
-          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          # Full depth: --depth=1 makes the base tip shallow (no merge base).
+          git fetch --no-tags origin "${{ github.base_ref }}"
           TARGETS="$(pnpm exec ts-rig-gate e2e-burn-in-targets | tr '\n' ' ')"
           echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
           if [ -z "$(echo "$TARGETS" | tr -d '[:space:]')" ]; then
