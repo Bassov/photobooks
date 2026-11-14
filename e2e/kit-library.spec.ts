@@ -1,10 +1,13 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 
-// Kit library (moved from uikit/scripts/qa.mjs §4 / v5 / v6 / v6.1, uikit-qa-split-1):
+// Kit library (moved from uikit/scripts/qa.mjs §4 / v5 / v6 / v6.1, uikit-qa-split-1;
+// v7.1 / v8 / v0.9 / v0.9.1 / kit-sync W4, uikit-qa-split-3):
 // the first run → Create Library → picker flow, the library home (rows, covers,
 // Create book, card menu), the library bar (search + sort) and Settings → library folder.
-// Every test also fails on a console error / warning, page error or failed request,
+// Smoke ports also fail on a console error / warning, page error or failed request,
 // like the qa.mjs smoke() helper.
 
 test.use({ viewport: { width: 1440, height: 900 } })
@@ -241,5 +244,239 @@ test('recents-home: v6.1 library still: Create book in header, Rename in card me
   await card.hover()
   await card.locator('button[aria-label="Book actions"]').click()
   await expect(page.getByRole('menuitem', { name: /Rename/ })).toHaveCount(1)
+  expect(errs).toEqual([])
+})
+
+// ───────── v7.1 / v8 / v0.9 / v0.9.1 / kit-sync W4 (uikit-qa-split-3) ─────────
+
+const SRC = path.resolve(process.cwd(), 'uikit', 'src')
+const readSrc = (f: string) => fs.readFileSync(path.join(SRC, f), 'utf8')
+const A5 = { endp: true, endpSame: true, w: 14.8, h: 21, preset: 'A5' }
+
+interface DemoApi {
+  reset: () => void
+  state: () => { path: string; books: unknown[] }
+  go: (view: string) => void
+}
+
+/** no finite animation still running (enter transitions done; spinners loop forever) */
+async function settled(page: Page) {
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document
+          .getAnimations()
+          .every(
+            (a) =>
+              a.playState !== 'running' ||
+              a.effect?.getComputedTiming().iterations === Infinity,
+          ),
+      ),
+    )
+    .toBe(true)
+}
+
+/** qa.mjs: go("#/demo") + __demo.reset(), the library path set, `books` seeded, the library view */
+async function demoLibrary(page: Page, books: unknown[]) {
+  await open(page, '#/demo')
+  await page.evaluate((books) => {
+    const d = (window as unknown as { __demo: DemoApi }).__demo
+    d.reset()
+    d.state().path = '~/Pictures/Photobooks'
+    d.state().books = books
+    d.go('library')
+  }, books)
+}
+
+/** a switch turned on (clicked only when it is off) */
+async function switchOn(sw: Locator) {
+  if ((await sw.getAttribute('aria-checked')) !== 'true') await sw.click()
+  await expect(sw).toHaveAttribute('aria-checked', 'true')
+}
+
+test('v7.1 P2 #5 / #7: Home shows both rows of books; Create book dialog has no rendered borders', async ({
+  page,
+}) => {
+  await open(page, '#/feature/recents-home')
+  await settled(page)
+  // v7.1 P2 #5: Home demo frame shows both rows of books (nothing clipped/scrolling)
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('[data-testid="demo"] *')]
+          .filter(
+            (e) =>
+              e.scrollHeight > e.clientHeight + 2 &&
+              /auto|scroll|hidden/.test(getComputedStyle(e).overflowY) &&
+              e.clientHeight > 200,
+          )
+          .map(
+            (e) =>
+              `${e.tagName} ${String(e.clientHeight)}/${String(e.scrollHeight)}`,
+          ),
+      ),
+    )
+    .toEqual([])
+  // v7.1 P2 #7: Create book dialog has no rendered borders (no border-t, Cancel is a ghost button)
+  await D(page, '[data-testid="new-book"]').first().click()
+  await expect(page.locator('[role=dialog]')).toBeVisible()
+  await settled(page)
+  const d = await page.evaluate(() => {
+    const dl = document.querySelector('[role=dialog]')
+    if (!dl) return null
+    const bad: string[] = []
+    for (const e of [dl, ...dl.querySelectorAll('*')]) {
+      const s = getComputedStyle(e)
+      for (const k of ['Top', 'Right', 'Bottom', 'Left'] as const)
+        if (
+          parseFloat(s[`border${k}Width`]) > 0 &&
+          s[`border${k}Style`] !== 'none' &&
+          !s[`border${k}Color`].includes('rgba(0, 0, 0, 0)')
+        )
+          bad.push(`${e.tagName}.${k}`)
+    }
+    return {
+      bad,
+      cancel: [...dl.querySelectorAll('button')].some(
+        (b) => b.textContent.trim() === 'Cancel',
+      ),
+    }
+  })
+  expect(d).toEqual({ bad: [], cancel: true })
+})
+
+test("recents-home: v8 §2 '...' menu: same alignment on every card; outside click and Esc close it; Esc returns focus to the trigger", async ({
+  page,
+}) => {
+  const errs = await open(page, '#/feature/recents-home')
+  const al = await D(page, '[data-testid="book-menu-slot"]').evaluateAll((s) =>
+    s.map((e) => {
+      const cap = e.closest('[data-testid="book-caption"]') ?? e.parentElement
+      return Math.round(
+        (cap?.getBoundingClientRect().right ?? 0) -
+          e.getBoundingClientRect().right,
+      )
+    }),
+  )
+  expect(al.length).toBeGreaterThan(1)
+  expect([...new Set(al)]).toEqual([0])
+  const tile = D(page, '[data-testid="book-menu"]').first()
+  const menu = page.locator('[role=menu]')
+  await tile.click()
+  await expect(menu).toHaveCount(1)
+  await page.mouse.click(5, 450)
+  await expect(menu).toHaveCount(0)
+  await tile.click()
+  await expect(menu).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await expect(menu).toHaveCount(0)
+  expect(
+    await page.evaluate(
+      () => (document.activeElement as HTMLElement | null)?.dataset.testid,
+    ),
+  ).toBe('book-menu')
+  expect(errs).toEqual([])
+})
+
+test("v0.9 §2 empty library hides book-count / no '0 books'", async ({
+  page,
+}) => {
+  await demoLibrary(page, [])
+  await expect(D(page, '[data-testid="home-empty"]')).toBeVisible()
+  await expect(
+    page.locator('[data-testid="demo"] [data-testid="book-count"]'),
+  ).toHaveCount(0)
+  expect(await demo(page).innerText()).not.toMatch(/\b0 books\b/)
+})
+
+test('v0.9.1 §1 Create book dialog shared (title + Page size) on demo and library', async ({
+  page,
+}) => {
+  await open(page, '#/demo')
+  await page.evaluate(() => {
+    ;(window as unknown as { __demo: DemoApi }).__demo.reset()
+  })
+  const dialog = page.locator('[role=dialog]')
+  const createDialog = page.locator('[data-testid="create-book-dialog"]')
+  await page
+    .getByRole('button', { name: /Create library/i })
+    .first()
+    .click()
+  await dialog.getByRole('button', { name: /Choose|Select|Use/i }).click()
+  await expect(dialog).toHaveCount(0)
+  await page
+    .getByRole('button', { name: /Create book/ })
+    .first()
+    .click()
+  await expect(createDialog).toHaveCount(1)
+  expect(await dialog.getByText('Page size').count()).toBeGreaterThanOrEqual(1)
+  await page.keyboard.press('Escape')
+  await open(page, '#/feature/recents-home')
+  await page
+    .getByRole('button', { name: /Create book/ })
+    .first()
+    .click()
+  await expect(createDialog).toHaveCount(1)
+  expect(await dialog.getByText('Page size').count()).toBeGreaterThanOrEqual(1)
+})
+
+test('v0.9.1 §4 demo uses inline rename (no rename-dialog)', () => {
+  const src = readSrc('demo-parts/library.tsx')
+  expect(src).not.toMatch(/rename-dialog/)
+  expect(src).toMatch(/rename-input/)
+})
+
+test('v0.9.1 §9 demo library has Search + Sort', async ({ page }) => {
+  await demoLibrary(page, [
+    { id: 's1', title: 'Alpha', book: A5 },
+    { id: 's2', title: 'Beta', book: A5 },
+  ])
+  await expect(page.locator('[data-testid="lib-search"]')).toHaveCount(1)
+  await expect(page.locator('[data-testid="lib-sort"]')).toHaveCount(1)
+})
+
+test('v0.9.1 §10/16 menu slot absolute right-0 (no -mr-1.5); Published chip not bg-black/55', () => {
+  const src = readSrc('features/library.tsx')
+  expect(src).toMatch(/book-menu-slot/)
+  expect(src).toMatch(/absolute right-0/)
+  expect(src).not.toMatch(/-mr-1\.5/)
+  expect(src).not.toMatch(/book-published[\s\S]{0,80}bg-black\/55/)
+})
+
+test("v0.9.1 §15 FolderPicker has no 'system dialog (emulated)'", () => {
+  expect(readSrc('features/screens.tsx')).not.toMatch(
+    /system dialog \(emulated\)/,
+  )
+})
+
+test('kit-sync W4 → KS11: library card title over the photo rgb(245, 245, 245); no console errors in the W4 walk', async ({
+  page,
+}) => {
+  // replays the kit-sync W4 walk (book "Lake trip": cover inspector, Linen, Book settings, endpapers) up to Library
+  const errs = await open(page, '#/demo')
+  await page.evaluate(() => {
+    ;(window as unknown as { __demo: DemoApi }).__demo.reset()
+  })
+  const c = (sel: string) => page.locator(sel).first().click()
+  await c('[data-testid="create-library"]')
+  await c('[data-testid="picker-select"]')
+  await c('[data-testid="demo"] [data-testid="new-book"]')
+  await page.locator('[role=dialog] input').first().fill('Lake trip')
+  await c('[data-testid="create-book"]')
+  await expect(page.locator('[role=dialog]')).toHaveCount(0)
+  await c('[data-item="cover"]')
+  await expect(D(page, '[data-testid="insp-cover"]')).toBeVisible()
+  const material = D(page, '[data-testid="cover-material"]')
+  await material.selectOption('Linen')
+  await expect(material).toHaveValue('Linen')
+  await c('[data-testid="book-title"]')
+  await expect(D(page, '[data-testid="insp-book"]')).toBeVisible()
+  await switchOn(D(page, '[role=switch][aria-label="Endpapers"]'))
+  await c('[data-item="ef"]')
+  await expect(D(page, '[data-testid="canvas-endpaper"]')).toHaveCount(1)
+  await c('[data-testid="editor-library"]')
+  await expect(
+    D(page, '[data-testid="book-cover"] .lib-obj div[style*="color"]').first(),
+  ).toHaveCSS('color', 'rgb(245, 245, 245)')
   expect(errs).toEqual([])
 })
