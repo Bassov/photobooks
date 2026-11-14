@@ -54,16 +54,18 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 
 ## Toolchain / headless agents
 
-Interactive shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`); headless launcher preloads it — do not source. Unattended: `/next-roadmap-item`. Harness (Claude Code only: `CLAUDE.md` + `.claude/`): `docs/agent-loop.md` `## Harnesses`. Prefer preflight run card / `pnpm agent instructions` over raw OpenSpec reads (denied headless). `pnpm agent stats <log>` exits 1 if peak context >300K or first-round input >400K.
+Interactive shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`); headless: preloaded, do not source. Unattended: `/next-roadmap-item`. Harness (Claude Code only: `CLAUDE.md` + `.claude/`): `docs/agent-loop.md` `## Harnesses`. Prefer preflight run card / `pnpm agent instructions` over raw OpenSpec reads (denied headless). `pnpm agent stats <log>` exits 1 if peak context >300K or first-round input >400K.
 
-Headless shell style (denied otherwise): change files with the Edit / Write tools, never `sed -i`, `cat > f <<EOF` or `python3 -` heredocs; `pnpm exec <bin>`, never `npx`; one plain command per Bash call (no `bash -c`); no `git commit --amend` or `node -e`; temp files under the worktree, not `/tmp`.
+Code reading: before editing, map the code with ONE `code-scout` call (all questions in one prompt). Own grep/sed only for pinpoint checks; batch the remaining reads in one Bash call.
 
-Run `pnpm stryker:diff` (~2–3 min) before `pnpm agent finish` on `src/` changes; finish also runs it and blocks (2-run cap, then C-session in `docs/agent-loop.md`).
+Headless shell style (denied otherwise): change files with Edit / Write, never `sed -i`, `cat > f <<EOF` or `python3 -` heredocs; `pnpm exec <bin>`, never `npx`; one plain command per Bash call (no `bash -c`); no `git commit --amend` or `node -e`; temp files under the worktree, not `/tmp`.
 
-Happy path needs no project MCP (`git` / `gh` / `pnpm`). OpenSpec is native in `pnpm agent`. Quiet scripts are the baseline.
+Run `pnpm stryker:diff` (~2–3 min) before `pnpm agent finish` on `src/` changes; finish also runs it and blocks (2-run cap, then C-session).
+
+No project MCP needed; OpenSpec is native in `pnpm agent`; quiet scripts are the baseline.
 
 `pnpm install` fails while `core.hooksPath` is set (`prepare` → lefthook): `pnpm install --frozen-lockfile --ignore-scripts`, then `pnpm rebuild esbuild workerd lefthook`. Dev: `pnpm exec vite --host 0.0.0.0 --port 5173`.
 
 ## Doc budget
 
-Sizes: `quality/gates.json` `agentRules.budgets`. Skills for workflows; specs for behavior. Loop: `docs/agent-loop.md`; artifacts: `openspec/config.yaml`.
+Sizes: `quality/gates.json` `agentRules.budgets`. Skills for workflows; specs for behavior.

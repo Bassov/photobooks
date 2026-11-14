@@ -173,6 +173,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [publish-site-flaky](roadmap/P3/publish-site-flaky.md) — Bug: /next-roadmap-item publish-site-flaky
 - [ ] [feature] [site-settings-kit](roadmap/P3/site-settings-kit.md) — Bug: /next-roadmap-item site-settings-kit
 - [ ] [feature] [site-settings-core](roadmap/P3/site-settings-core.md) — Bug: /next-roadmap-item site-settings-core
+- [ ] [lite] [code-scout-agent](roadmap/P3/code-scout-agent.md) — Bug: /next-roadmap-item code-scout-agent
 - [ ] [feature] [publish-credentials-core](roadmap/P3/publish-credentials-core.md) — Bug: /next-roadmap-item publish-credentials-core
 - [ ] [feature] [design-r25-publish-pill-kit](roadmap/P3/design-r25-publish-pill-kit.md) — Bug: /next-roadmap-item design-r25-publish-pill-kit
 - [ ] [feature] [publish-credentials-kit](roadmap/P3/publish-credentials-kit.md) — Bug: /next-roadmap-item publish-credentials-kit
