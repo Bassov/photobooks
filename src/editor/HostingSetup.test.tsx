@@ -9,6 +9,7 @@ import { IDBFactory } from 'fake-indexeddb'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { loadHostingSummary } from '../publish/credentials'
+import { setupTemplateUrl } from '../publish/provision'
 import {
   ACCOUNT,
   cfError,
@@ -206,6 +207,8 @@ describe('HostingSetup', () => {
     await settled()
     fireEvent.click(byId('hosting-setup-cancel'))
     expect(state('hosting-marker-2')).toBe('current')
+    expect(screen.queryByTestId('hosting-step-2-change')).toBeNull()
+    expect(screen.queryByTestId('hosting-step-2-summary')).toBeNull()
     expect(screen.queryByTestId('hosting-setup-progress')).toBeNull()
     expect(await loadHostingSummary()).toBeNull()
     await expectNoTokenLeft()
@@ -279,6 +282,7 @@ describe('HostingSetup states', () => {
     expect(token.getAttribute('aria-invalid')).toBeNull()
     expect(token.getAttribute('spellcheck')).toBe('false')
     expect(token.readOnly).toBe(false)
+    expect(token.className.split(' ')).not.toContain('text-muted-foreground')
     expect(ringed('hosting-setup-token')).toBe(false)
     expect(tokenLine().textContent).toContain('Permissions:')
     expect(red(tokenLine())).toBe(false)
@@ -314,7 +318,7 @@ describe('HostingSetup states', () => {
     expect(byId('hosting-setup').getAttribute('aria-busy')).toBe('true')
     const token = input('hosting-setup-token')
     expect(token.readOnly).toBe(true)
-    expect(token.className).toContain('text-muted-foreground')
+    expect(token.className.split(' ')).toContain('text-muted-foreground')
     expect(byId('hosting-setup-continue').hasAttribute('disabled')).toBe(false)
     fireEvent.click(byId('hosting-setup-continue'))
     release()
@@ -532,6 +536,186 @@ describe('HostingSetup states', () => {
     expect(screen.queryByTestId('hosting-setup-progress')).toBeNull()
     cf.state.dnsTaken.delete(HOST)
     fireEvent.click(byId('hosting-setup-run'))
+    await screen.findByTestId('hosting-connected')
+  })
+
+  it('step heads: marker paint, titles, summaries and links per step', async () => {
+    const marker = (n: number) => byId(`hosting-marker-${String(n)}`)
+    const title = (n: number) =>
+      byId(`hosting-step-${String(n)}`).children[1] as HTMLElement
+    const classes = (element: Element) => element.className.split(' ')
+    await openSetup()
+    expect(classes(marker(1))).toContain('bg-[#232223]')
+    expect(marker(1).getAttribute('style')).toBeNull()
+    expect(classes(marker(2))).toContain('text-[#535152]')
+    expect(marker(2).getAttribute('style')).toContain('box-shadow')
+    expect(title(1).textContent).toBe('Connect your Cloudflare account')
+    expect(classes(title(1))).toContain('font-medium')
+    expect(title(2).textContent).toBe('Choose the site address')
+    expect(classes(title(2))).toContain('text-muted-foreground')
+    expect(classes(title(2))).not.toContain('font-medium')
+    expect(screen.queryByTestId('hosting-step-1-summary')).toBeNull()
+    expect(screen.queryByTestId('hosting-step-1-change')).toBeNull()
+    const template = byId('hosting-setup-template')
+    expect(template.getAttribute('href')).toBe(setupTemplateUrl())
+    expect(template.getAttribute('target')).toBe('_blank')
+    expect(template.getAttribute('rel')).toBe('noopener noreferrer')
+    expect(template.textContent).toBe('Create a setup token')
+
+    paste(SETUP_TOKEN)
+    fireEvent.click(byId('hosting-setup-continue'))
+    await screen.findByTestId('hosting-setup-host')
+    expect(classes(marker(1))).toContain('bg-[#D7D7D7]')
+    expect(classes(marker(1))).not.toContain('bg-[#232223]')
+    expect(marker(1).getAttribute('style')).toBeNull()
+    expect(title(1).textContent).toBe('Cloudflare account')
+    expect(title(2).textContent).toBe('Choose the site address')
+    expect(classes(title(3))).toContain('text-muted-foreground')
+    expect(screen.queryByTestId('hosting-step-2-summary')).toBeNull()
+    expect(screen.queryByTestId('hosting-step-3-summary')).toBeNull()
+    expect(input('hosting-setup-sub').getAttribute('spellcheck')).toBe('false')
+    expect(cf.calls.length).toBeGreaterThan(0)
+    expect(
+      cf.calls.every((call) => call.authorization === `Bearer ${SETUP_TOKEN}`),
+    ).toBe(true)
+  })
+
+  it('the boxes link to Cloudflare; the R2 box hides the address step', async () => {
+    cf.state.r2Off.add(ACCOUNT)
+    cf.state.zones[ACCOUNT] = []
+    await openSetup()
+    paste(SETUP_TOKEN)
+    fireEvent.click(byId('hosting-setup-continue'))
+    await screen.findByTestId('hosting-setup-box')
+    expect(state('hosting-marker-1')).toBe('current')
+    expect(screen.queryByTestId('hosting-setup-run')).toBeNull()
+    expect(screen.queryByTestId('hosting-setup-token')).toBeNull()
+    expect(
+      screen.getByRole('link', { name: 'Turn on R2' }).getAttribute('href'),
+    ).toBe('https://dash.cloudflare.com/?to=/:account/r2/overview')
+
+    cf.state.r2Off.delete(ACCOUNT)
+    fireEvent.click(byId('hosting-setup-recheck'))
+    await waitFor(() => {
+      expect(byId('hosting-setup-box').textContent).toContain(
+        'This account has no active domain yet.',
+      )
+    })
+    expect(
+      screen.getByRole('link', { name: 'Add a domain' }).getAttribute('href'),
+    ).toBe('https://dash.cloudflare.com/?to=/:account/add-site')
+    expect(
+      screen.getByRole('link', { name: 'Buy a domain' }).getAttribute('href'),
+    ).toBe('https://dash.cloudflare.com/?to=/:account/domains/register')
+  })
+
+  it('Check again clears the last error while it checks', async () => {
+    cf.state.r2Off.add(ACCOUNT)
+    let down = false
+    let gated = false
+    const release = hold((url) => gated && url.endsWith('/accounts'))
+    cf.setOverride((call) =>
+      down && call.path === '/accounts' ? cfError(500, 1) : undefined,
+    )
+    await openSetup()
+    paste(SETUP_TOKEN)
+    fireEvent.click(byId('hosting-setup-continue'))
+    await screen.findByTestId('hosting-setup-box')
+    down = true
+    fireEvent.click(byId('hosting-setup-recheck'))
+    await screen.findByTestId('hosting-error')
+    await settled()
+    gated = true
+    fireEvent.click(byId('hosting-setup-recheck'))
+    expect(byId('hosting-setup').getAttribute('aria-busy')).toBe('true')
+    expect(screen.queryByTestId('hosting-error')).toBeNull()
+    release()
+    await screen.findByTestId('hosting-error')
+  })
+
+  it('the manual link drops the token state and the error', async () => {
+    cf.setOverride((call) =>
+      call.path === '/user/tokens/verify' ? cfError(500, 1) : undefined,
+    )
+    await openSetup()
+    paste(SETUP_TOKEN)
+    fireEvent.click(byId('hosting-setup-continue'))
+    await screen.findByTestId('hosting-error')
+    fireEvent.click(byId('hosting-manual'))
+    fireEvent.click(byId('hosting-guided'))
+    expect(screen.queryByTestId('hosting-error')).toBeNull()
+    expect(byId('hosting-setup-continue').hasAttribute('disabled')).toBe(true)
+    expect(byId('hosting-setup').textContent).toContain('Never stored.')
+  })
+
+  it('an answer that lands after the manual link is dropped', async () => {
+    const release = hold((url) => url.endsWith('/verify'))
+    await openSetup()
+    paste(SETUP_TOKEN)
+    fireEvent.click(byId('hosting-setup-continue'))
+    fireEvent.click(byId('hosting-manual'))
+    fireEvent.click(byId('hosting-guided'))
+    release()
+    await waitFor(() => {
+      expect(cf.requests().some((call) => call.endsWith('/accounts'))).toBe(
+        true,
+      )
+    })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(state('hosting-marker-1')).toBe('current')
+    expect(screen.queryByTestId('hosting-setup-host')).toBeNull()
+    expect(byId('hosting-setup').hasAttribute('aria-busy')).toBe(false)
+  })
+
+  it('leaving Settings mid-run stops after the current call', async () => {
+    const release = hold((url) => url.endsWith('/cors'))
+    await toStep2()
+    fireEvent.click(byId('hosting-setup-run'))
+    await waitFor(() => {
+      expect(state('hosting-setup-row-2')).toBe('running')
+    })
+    const before = cf.calls.length
+    cleanup()
+    release()
+    await waitFor(() => {
+      expect(cf.calls).toHaveLength(before + 1)
+    })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(cf.calls).toHaveLength(before + 1)
+    expect(await loadHostingSummary()).toBeNull()
+  })
+
+  it('Try again keeps the done rows and hides its buttons while it runs', async () => {
+    cf.state.dnsTaken.add(HOST)
+    // The relay client keeps the fetch it was made with: gate it from the start.
+    let gated = false
+    const release = hold(() => gated)
+    await toStep2()
+    fireEvent.click(byId('hosting-setup-run'))
+    await waitFor(() => {
+      expect(state('hosting-setup-row-3')).toBe('failed')
+    })
+    await settled()
+    expect(red(byId('hosting-setup-row-error'))).toBe(true)
+    expect(
+      byId('hosting-setup-row-1').firstElementChild?.className.split(' '),
+    ).not.toContain('text-muted-foreground')
+    expect(byId('hosting-setup-row-4').querySelector('[data-icon]')).toBeNull()
+    cf.state.dnsTaken.delete(HOST)
+    gated = true
+    fireEvent.click(byId('hosting-setup-retry'))
+    await waitFor(() => {
+      expect(state('hosting-setup-row-3')).toBe('running')
+    })
+    expect(
+      byId('hosting-setup-row-3').querySelector('[data-icon="loader"]'),
+    ).not.toBeNull()
+    expect(state('hosting-setup-row-1')).toBe('done')
+    expect(state('hosting-setup-row-2')).toBe('done')
+    expect(screen.queryByTestId('hosting-setup-retry')).toBeNull()
+    expect(screen.queryByTestId('hosting-setup-cancel')).toBeNull()
+    expect(screen.queryByTestId('hosting-step-2-change')).toBeNull()
+    release()
     await screen.findByTestId('hosting-connected')
   })
 })

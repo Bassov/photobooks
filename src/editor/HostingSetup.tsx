@@ -3,6 +3,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type CSSProperties,
   type ReactNode,
 } from 'react'
 import { createCfApi, type CfApi } from '../publish/cfApi'
@@ -30,10 +31,12 @@ import {
   setupRowTexts,
   setupTarget,
   setupTokenState,
+  stepMark,
   subdomainError,
   tidySubdomain,
   type ProgressView,
   type RowView,
+  type StepMark,
 } from './hostingSetupModel'
 
 /* Settings → Hosting guided setup (Designer Spec connect-own-hosting C1–C10, kit demo-parts/hostingSetup.tsx). The
@@ -86,24 +89,27 @@ function Ext({
   )
 }
 
-type Mark = 'current' | 'done' | 'future'
+const MARKER: Record<StepMark, string> = {
+  current: 'bg-[#232223] text-[#F2F2F2]',
+  done: 'bg-[#D7D7D7] text-[#393738] [&_svg]:stroke-[2.5]',
+  future: 'text-[#535152]',
+}
+const MARKER_STYLE: Record<StepMark, CSSProperties | undefined> = {
+  current: undefined,
+  done: undefined,
+  future: { boxShadow: 'inset 0 0 0 1px rgb(57 55 56 / .35)' },
+}
 
-function Marker({ n, mark }: { n: number; mark: Mark }) {
+function Marker({ n, mark }: { n: number; mark: StepMark }) {
   return (
     <span
       data-testid={`hosting-marker-${String(n)}`}
       data-state={mark}
       className={cn(
         'grid size-5 shrink-0 place-items-center rounded-full text-2xs font-semibold tabular-nums',
-        mark === 'current' && 'bg-[#232223] text-[#F2F2F2]',
-        mark === 'done' && 'bg-[#D7D7D7] text-[#393738] [&_svg]:stroke-[2.5]',
-        mark === 'future' && 'text-[#535152]',
+        MARKER[mark],
       )}
-      style={
-        mark === 'future'
-          ? { boxShadow: 'inset 0 0 0 1px rgb(57 55 56 / .35)' }
-          : undefined
-      }
+      style={MARKER_STYLE[mark]}
     >
       {mark === 'done' ? <Icon name="check" size={12} /> : n}
     </span>
@@ -125,7 +131,7 @@ function StepHead({
   summary: ReactNode
   onChange?: (() => void) | undefined
 }) {
-  const mark: Mark = n === step ? 'current' : n < step ? 'done' : 'future'
+  const mark = stepMark(n, step)
   return (
     <div
       className={STEP}
@@ -151,7 +157,7 @@ function StepHead({
           {summary}
         </span>
       )}
-      {mark === 'done' && onChange !== undefined && (
+      {onChange !== undefined && (
         <Button
           variant="ghost"
           size="sm"
@@ -178,25 +184,22 @@ function Box({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-function RowIcon({ row }: { row: RowView }) {
-  if (row === 'running') {
-    return (
-      <span className="grid size-4 shrink-0 place-items-center">
-        <LoaderGlyph size={16} />
-      </span>
-    )
-  }
-  if (row === 'done') return <Icon name="check" size={16} />
-  if (row === 'failed') return <Icon name="warning" size={16} />
-  if (row === 'warn') {
-    return <Icon name="warning" size={16} className="text-warning" />
-  }
-  return (
+const ROW_ICON: Record<RowView, ReactNode> = {
+  pending: (
     <span className="grid size-4 shrink-0 place-items-center">
       <span className="size-1.5 rounded-full bg-[rgb(57_55_56/.35)]" />
     </span>
-  )
+  ),
+  running: (
+    <span className="grid size-4 shrink-0 place-items-center">
+      <LoaderGlyph size={16} />
+    </span>
+  ),
+  done: <Icon name="check" size={16} />,
+  failed: <Icon name="warning" size={16} />,
+  warn: <Icon name="warning" size={16} className="text-warning" />,
 }
+const NO_ROWS: readonly string[] = []
 
 interface StepOneFailure {
   message: string
@@ -239,11 +242,11 @@ export function HostingSetup({
   const api = useRef<CfApi | null>(null)
   const plan = useRef<SetupPlan | null>(null)
   const run = useRef<AbortController | null>(null)
-  /** Bumped by every reset: late answers of an older round are dropped. */
-  const round = useRef(0)
+  /** A new token on every reset: late answers of an older round are dropped. */
+  const round = useRef({})
 
   const reset = () => {
-    round.current += 1
+    round.current = {}
     run.current?.abort()
     run.current = null
     api.current = null
@@ -254,14 +257,13 @@ export function HostingSetup({
     setTokenState('')
     setFailure(undefined)
     setR2Off(false)
-    setProgress(PENDING_PROGRESS)
     setRunning(false)
   }
 
   useEffect(
     () => () => {
       // Leaving Settings cancels setup after the current call (C8).
-      round.current += 1
+      round.current = {}
       run.current?.abort()
       api.current = null
       plan.current = null
@@ -279,13 +281,13 @@ export function HostingSetup({
     }
   }, [focus])
 
-  const view =
-    discovery === undefined ? undefined : addressView(discovery, accountId)
-  const zones = view?.active ?? []
+  const view = addressView(discovery, accountId)
+  const zones = view.active
   const zoneNow = zones.find((z) => z.name === zone) ?? zones[0]
   const subError = subdomainError(sub)
+  /** Undefined while the account has no active zone. */
   const target =
-    discovery === undefined || zoneNow === undefined
+    zoneNow === undefined || discovery === undefined
       ? undefined
       : setupTarget(discovery, accountId, sub, zoneNow.name)
   const canRun = target !== undefined && subError === undefined
@@ -326,13 +328,11 @@ export function HostingSetup({
         ? prev
         : found.defaultAccountId,
     )
-    if (step === 1 && !found.r2On) {
+    // The R2 box and the token field live in step 1 only: leaving it unmounts the token, and a reset clears both.
+    if (!found.r2On) {
       setR2Off(true)
       return
     }
-    setR2Off(false)
-    if (tokenRef.current !== null) tokenRef.current.value = ''
-    setTokenState('')
     setStep(2)
   }
 
@@ -373,26 +373,26 @@ export function HostingSetup({
     if (mine !== round.current || controller.signal.aborted) return
     run.current = null
     setRunning(false)
-    if (last?.row === 6 && last.state !== 'failed') {
-      api.current = null
-      plan.current = null
-      await onDone()
-    }
+    // `runSetup` stops at the first failure, else after row 6.
+    if (last === undefined || last.state === 'failed') return
+    api.current = null
+    plan.current = null
+    await onDone()
   }
 
+  /** Cancel setup / step 2 Change: the next Set up starts from row 1 on fresh rows. */
   const toStep2 = () => {
-    round.current += 1
+    round.current = {}
     run.current?.abort()
     run.current = null
     plan.current = null
-    setProgress(PENDING_PROGRESS)
     setRunning(false)
     setStep(2)
   }
 
   const account = discovery?.accounts.find((a) => a.id === accountId)
   const rowTexts =
-    target === undefined ? [] : setupRowTexts(target.bucket, target.host)
+    target === undefined ? NO_ROWS : setupRowTexts(target.bucket, target.host)
 
   return (
     <div className="@container">
@@ -578,13 +578,13 @@ export function HostingSetup({
                 </select>
               </div>
             )}
-            {zones.length === 0 ? (
+            {target === undefined ? (
               <Box title="This account has no active domain yet.">
                 <div className={HINT}>
                   Your site needs a domain on Cloudflare. Add one you own, or
                   buy one in Cloudflare. When it shows Active, check again.
                 </div>
-                {view !== undefined && view.pending.length > 0 && (
+                {view.pending.length > 0 && (
                   <div className={HINT} data-testid="hosting-setup-pending">
                     Waiting for nameservers:{' '}
                     <span className="font-mono">{view.pending.join(', ')}</span>{' '}
@@ -653,7 +653,7 @@ export function HostingSetup({
                   <select
                     aria-label="Domain"
                     data-testid="hosting-setup-zone"
-                    value={zoneNow?.name}
+                    value={target.zone}
                     onChange={(event) => {
                       setZone(event.target.value)
                     }}
@@ -677,24 +677,21 @@ export function HostingSetup({
                     <>
                       Your site:{' '}
                       <span className="text-foreground">
-                        https://{target?.host}
+                        https://{target.host}
                       </span>
-                      . Leave the first part empty to use {zoneNow?.name}{' '}
-                      itself.
+                      . Leave the first part empty to use {target.zone} itself.
                     </>
                   )}
                 </div>
-                {target !== undefined && (
-                  <div
-                    className={cn(HINT, 'mt-2')}
-                    data-testid="hosting-setup-bucket"
-                  >
-                    Storage:{' '}
-                    {target.reused ? 'existing R2 bucket ' : 'new R2 bucket '}
-                    <span className="font-mono">{target.bucket}</span>
-                    {target.reused ? ' (reused)' : ''}
-                  </div>
-                )}
+                <div
+                  className={cn(HINT, 'mt-2')}
+                  data-testid="hosting-setup-bucket"
+                >
+                  Storage:{' '}
+                  {target.reused ? 'existing R2 bucket ' : 'new R2 bucket '}
+                  <span className="font-mono">{target.bucket}</span>
+                  {target.reused ? ' (reused)' : ''}
+                </div>
               </>
             )}
             <div className={FOOT}>
@@ -748,14 +745,14 @@ export function HostingSetup({
                       )}
                       style={row === 'failed' ? { color: ERR } : undefined}
                     >
-                      <RowIcon row={row} />
+                      {ROW_ICON[row]}
                       <span
                         data-testid={`hosting-setup-row-${String(i + 1)}-text`}
                       >
                         {text}
                       </span>
                     </div>
-                    {row === 'failed' && progress.message !== undefined && (
+                    {row === 'failed' && (
                       <div
                         role="alert"
                         className="pb-1.5 pl-6 text-xs leading-[16.8px]"

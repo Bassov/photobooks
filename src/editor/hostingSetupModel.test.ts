@@ -4,13 +4,17 @@ import type { Discovery, RowState, SetupRow } from '../publish/provision'
 import {
   addressView,
   applyRowState,
+  checkedLine,
   failedRow,
+  freshAddress,
+  FRESH_MS,
   PENDING_PROGRESS,
   SETUP_MESSAGES,
   setupRowTexts,
   setupTarget,
   setupTokenState,
   siteHost,
+  stepMark,
   subdomainError,
   tidySubdomain,
   type ProgressView,
@@ -103,14 +107,83 @@ describe('addressView', () => {
     expect(view.pending).toEqual(['later.photo'])
   })
 
-  it('is empty for an account without zones', () => {
+  it('is empty for an account without zones and before discovery', () => {
     expect(addressView(DISCOVERY, 'acc-2')).toEqual({ active: [], pending: [] })
+    expect(addressView(undefined, 'acc-1')).toEqual({
+      active: [],
+      pending: [],
+    })
+  })
+})
+
+describe('stepMark', () => {
+  it('marks earlier steps done, the open one current, later ones future', () => {
+    expect([1, 2, 3].map((n) => stepMark(n, 1))).toEqual([
+      'current',
+      'future',
+      'future',
+    ])
+    expect([1, 2, 3].map((n) => stepMark(n, 2))).toEqual([
+      'done',
+      'current',
+      'future',
+    ])
+    expect([1, 2, 3].map((n) => stepMark(n, 3))).toEqual([
+      'done',
+      'done',
+      'current',
+    ])
+  })
+})
+
+describe('connected card lines', () => {
+  const AT = 1_700_000_000_000
+
+  it('a stored status wins over setup', () => {
+    expect(
+      checkedLine({
+        status: { checkedAtMs: AT, ok: true },
+        origin: 'setup',
+        provisionedAtMs: AT - 1,
+      }),
+    ).toEqual({ label: 'Checked', atMs: AT, ok: true })
+    expect(
+      checkedLine({
+        status: {
+          checkedAtMs: AT,
+          ok: false,
+          code: 'offline',
+          message: 'No connection.',
+        },
+      }),
+    ).toEqual({ label: 'Last check failed', atMs: AT, ok: false })
+  })
+
+  it("setup's own check counts until the first Check again", () => {
+    expect(
+      checkedLine({ status: null, origin: 'setup', provisionedAtMs: AT }),
+    ).toEqual({ label: 'Set up automatically', atMs: AT, ok: true })
+    expect(checkedLine({ status: null, origin: 'setup' })).toBeUndefined()
+    expect(
+      checkedLine({ status: null, origin: 'manual', provisionedAtMs: AT }),
+    ).toBeUndefined()
+    expect(checkedLine({ status: null })).toBeUndefined()
+  })
+
+  it('the new-address hint lasts FRESH_MS after setup', () => {
+    expect(FRESH_MS).toBe(15 * 60_000)
+    expect(freshAddress(AT, AT)).toBe(true)
+    expect(freshAddress(AT, AT + FRESH_MS - 1)).toBe(true)
+    expect(freshAddress(AT, AT + FRESH_MS)).toBe(false)
+    expect(freshAddress(AT + FRESH_MS, AT)).toBe(true)
+    expect(freshAddress(undefined, AT)).toBe(false)
   })
 })
 
 describe('setupTarget', () => {
   it('reuses an existing bucket of the account', () => {
     expect(setupTarget(DISCOVERY, 'acc-1', 'books', 'basov.photo')).toEqual({
+      zone: 'basov.photo',
       host: 'books.basov.photo',
       bucket: 'pb-books-basov-photo',
       reused: true,
@@ -163,6 +236,30 @@ describe('applyRowState', () => {
     expect(applyRowState(view, { row: 4, state: 'running' })).toEqual({
       rows: ['done', 'done', 'done', 'running', 'pending', 'pending'],
     })
+  })
+
+  it('a done or failed row keeps later rows; only failure carries a message', () => {
+    const view: ProgressView = {
+      rows: ['done', 'running', 'pending', 'done', 'pending', 'pending'],
+    }
+    const done = applyRowState(view, { row: 2, state: 'done' })
+    expect(done.rows).toEqual([
+      'done',
+      'done',
+      'pending',
+      'done',
+      'pending',
+      'pending',
+    ])
+    expect(Object.keys(done)).toEqual(['rows'])
+    expect(
+      applyRowState(view, {
+        row: 2,
+        state: 'failed',
+        code: 'conflict',
+        message: 'Taken.',
+      }).rows,
+    ).toEqual(['done', 'failed', 'pending', 'done', 'pending', 'pending'])
   })
 
   it('has no failed row while pending', () => {

@@ -363,6 +363,7 @@ describe('HostingSection', () => {
     await renderSection()
     fireEvent.click(screen.getByTestId('hosting-replace'))
     await screen.findByTestId('hosting-form')
+    expect(screen.queryByTestId('hosting-guided')).toBeNull()
     expect(input('hosting-account').value).toBe(ACCOUNT)
     expect(input('hosting-bucket').value).toBe('aleksandr-books')
     expect(input('hosting-url').value).toBe('https://books.basov.photo')
@@ -406,6 +407,8 @@ describe('HostingSection', () => {
     fireEvent.click(screen.getByTestId('hosting-forget'))
     fireEvent.click(await screen.findByRole('button', { name: 'Forget token' }))
     await screen.findByTestId('hosting-form')
+    expect(shown('hosting-form')).toBe(true)
+    expect(shown('hosting-setup')).toBe(false)
     expect(input('hosting-account').value).toBe('')
     await waitFor(() => {
       expect(document.activeElement).toBe(input('hosting-account'))
@@ -420,8 +423,12 @@ describe('HostingSection', () => {
       provisionedAtMs: Date.now(),
     })
     await renderSection()
-    expect(screen.getByTestId('hosting-connected').textContent).toContain(
+    expect(screen.getByTestId('hosting-checked').textContent).toContain(
       'Set up automatically',
+    )
+    expect(screen.getByTestId('hosting-badge').textContent).toBe('Connected')
+    expect(screen.getByTestId('hosting-site-new').textContent).toBe(
+      'New address: it can take a few minutes to start working.',
     )
     fireEvent.click(screen.getByTestId('hosting-forget'))
     fireEvent.click(await screen.findByRole('button', { name: 'Forget token' }))
@@ -442,6 +449,39 @@ describe('HostingSection', () => {
     await renderSection()
     expect(screen.getByTestId('hosting-token-left').textContent).toContain(
       'API Tokens',
+    )
+  })
+
+  it('an older setup record and a manual one show no new-address hint', async () => {
+    await createCredentialStore().save(STORED, {
+      origin: 'setup',
+      provisionedAtMs: Date.now() - 20 * 60_000,
+    })
+    await renderSection()
+    expect(screen.getByTestId('hosting-checked').textContent).toContain(
+      'Set up automatically',
+    )
+    expect(screen.queryByTestId('hosting-site-new')).toBeNull()
+    cleanup()
+    await seedConnected()
+    await renderSection()
+    expect(screen.getByTestId('hosting-checked').textContent).toContain(
+      'Checked',
+    )
+    expect(screen.queryByTestId('hosting-site-new')).toBeNull()
+  })
+
+  it('leaving the form for setup drops the secret: Connect waits for it again', async () => {
+    await renderSection()
+    fillValid()
+    expect(screen.getByTestId('hosting-connect').hasAttribute('disabled')).toBe(
+      false,
+    )
+    fireEvent.click(screen.getByTestId('hosting-guided'))
+    fireEvent.click(screen.getByTestId('hosting-manual'))
+    expect(input('hosting-account').value).toBe(ACCOUNT.toUpperCase())
+    expect(screen.getByTestId('hosting-connect').hasAttribute('disabled')).toBe(
+      true,
     )
   })
 

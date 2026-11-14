@@ -1,3 +1,4 @@
+import type { HostingSummary } from '../publish/credentials'
 import {
   bucketNameFor,
   type Discovery,
@@ -40,21 +41,33 @@ export function siteHost(sub: string, zone: string): string {
   return sub === '' ? zone : `${sub}.${zone}`
 }
 
+export type StepMark = 'current' | 'done' | 'future'
+
+/** Step `n`'s marker while `step` is open: earlier steps are done. */
+export function stepMark(n: number, step: number): StepMark {
+  if (n < step) return 'done'
+  return n === step ? 'current' : 'future'
+}
+
 type Zone = Discovery['zonesByAccount'][string][number]
 
 export interface AddressView {
   /** Active zones of the account, in Cloudflare's order. */
-  active: Zone[]
+  active: readonly Zone[]
   /** Names of zones waiting for nameservers. */
-  pending: string[]
+  pending: readonly string[]
 }
 
-/** Step 2's zones for one account. */
+const NO_ZONES: readonly Zone[] = []
+const NO_ADDRESS: AddressView = { active: NO_ZONES, pending: [] }
+
+/** Step 2's zones for one account; none before discovery. */
 export function addressView(
-  discovery: Discovery,
+  discovery: Discovery | undefined,
   accountId: string,
 ): AddressView {
-  const zones = discovery.zonesByAccount[accountId] ?? []
+  if (discovery === undefined) return NO_ADDRESS
+  const zones = discovery.zonesByAccount[accountId] ?? NO_ZONES
   return {
     active: zones.filter((zone) => zone.status === 'active'),
     pending: zones
@@ -64,6 +77,8 @@ export function addressView(
 }
 
 export interface SetupTarget {
+  /** The chosen zone's name. */
+  zone: string
   host: string
   bucket: string
   /** The account already has the bucket: setup reuses it (C7). */
@@ -79,6 +94,7 @@ export function setupTarget(
   const host = siteHost(sub, zone)
   const bucket = bucketNameFor(host)
   return {
+    zone,
     host,
     bucket,
     reused: discovery.bucketsByAccount[accountId]?.includes(bucket) === true,
@@ -125,8 +141,9 @@ export function applyRowState(
 ): ProgressView {
   const index = state.row - 1
   const rows = view.rows.map((row, i): RowView => {
+    if (i < index) return row
     if (i === index) return VIEW[state.state]
-    return state.state === 'running' && i > index ? 'pending' : row
+    return state.state === 'running' ? 'pending' : row
   })
   return state.state === 'failed' ? { rows, message: state.message } : { rows }
 }
@@ -135,4 +152,38 @@ export function applyRowState(
 export function failedRow(view: ProgressView): SetupRow | undefined {
   const index = view.rows.indexOf('failed')
   return index === -1 ? undefined : ((index + 1) as SetupRow)
+}
+
+/** New-address hint window after setup (connect-own-hosting § Connected card). */
+export const FRESH_MS = 15 * 60_000
+
+export interface CheckedLine {
+  label: string
+  atMs: number
+  ok: boolean
+}
+
+/** The connected card's Connection line: setup's own check counts until the first Check again stores a status. */
+export function checkedLine(
+  summary: Pick<HostingSummary, 'status' | 'origin' | 'provisionedAtMs'>,
+): CheckedLine | undefined {
+  const { status, provisionedAtMs } = summary
+  if (status !== null) {
+    return {
+      label: status.ok ? 'Checked' : 'Last check failed',
+      atMs: status.checkedAtMs,
+      ok: status.ok,
+    }
+  }
+  return summary.origin === 'setup' && provisionedAtMs !== undefined
+    ? { label: 'Set up automatically', atMs: provisionedAtMs, ok: true }
+    : undefined
+}
+
+/** A set-up address younger than `FRESH_MS` may still be starting. */
+export function freshAddress(
+  provisionedAtMs: number | undefined,
+  nowMs: number,
+): boolean {
+  return provisionedAtMs !== undefined && nowMs - provisionedAtMs < FRESH_MS
 }

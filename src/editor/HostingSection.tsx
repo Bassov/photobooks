@@ -41,6 +41,7 @@ import {
   validateHostingForm,
   type HostingField,
 } from './hostingForm'
+import { checkedLine, freshAddress } from './hostingSetupModel'
 import { hostingCheckedWhen } from './settingsScreenModel'
 
 /* Settings → Hosting (Designer Specs publish-credentials, connect-own-hosting; kit demo-parts/hosting.tsx): the guided
@@ -52,8 +53,6 @@ const FOOT = 'flex min-h-13 items-center gap-4 px-4 py-2.5'
 const EYEBROW = 'mt-6 flex h-8 max-w-[640px] items-center justify-between px-4'
 const EYEBROW_T =
   'm-0 text-2xs font-semibold uppercase tracking-[.12em] text-muted-foreground'
-/** New-address hint window after setup (connect-own-hosting § Connected card). */
-const FRESH_MS = 15 * 60_000
 
 type Mode = 'setup' | 'manual'
 
@@ -133,18 +132,14 @@ export function HostingSection({
   /** Stored values to prefill while replacing the token; `null` otherwise. */
   const [replace, setReplace] = useState<Values | null>(null)
   const [forgetOpen, setForgetOpen] = useState(false)
+  /** Forget returns to the mode the record came from. */
+  const [forgetBack, setForgetBack] = useState<Mode>('manual')
   const [focus, setFocus] = useState<HostingField | 'token' | undefined>()
   const [mode, setMode] = useState<Mode>('setup')
-  /** Remounts both modes after Set up / Connect / Forget, so they start empty. */
-  const [round, setRound] = useState(0)
 
   const reload = useCallback(async () => {
     setSummary(await loadHostingSummary())
   }, [])
-  const saved = async () => {
-    await reload()
-    setRound((n) => n + 1)
-  }
   const fieldFocus = focus === 'token' ? undefined : focus
 
   useEffect(() => {
@@ -165,6 +160,7 @@ export function HostingSection({
           rule={rule}
           onChanged={reload}
           onForget={() => {
+            setForgetBack(summary.origin === 'setup' ? 'setup' : 'manual')
             setForgetOpen(true)
           }}
           onReplace={() => {
@@ -194,12 +190,13 @@ export function HostingSection({
         />
       ) : (
         // Not connected: both modes stay mounted, so each keeps its typed values; the hidden one drops its secret.
-        <Fragment key={round}>
+        // The connected card unmounts them, so after Set up / Connect / Forget they start empty.
+        <>
           <div hidden={mode !== 'setup'}>
             <HostingSetup
               rule={rule}
               focus={focus === 'token'}
-              onDone={saved}
+              onDone={reload}
               onManual={() => {
                 setMode('manual')
               }}
@@ -211,14 +208,14 @@ export function HostingSection({
               rule={rule}
               initial={EMPTY_VALUES}
               focus={fieldFocus}
-              onSaved={saved}
+              onSaved={reload}
               onCancel={undefined}
               onGuided={() => {
                 setMode('setup')
               }}
             />
           </div>
-        </Fragment>
+        </>
       )}
       <AlertDialog
         isOpen={forgetOpen}
@@ -232,11 +229,9 @@ export function HostingSection({
         onConfirm={() => {
           setForgetOpen(false)
           // Forget returns to the mode the record came from, mounted fresh and empty.
-          const back: Mode = summary?.origin === 'setup' ? 'setup' : 'manual'
           void forgetCredentials().then(() => {
-            setMode(back)
-            setFocus(back === 'setup' ? 'token' : 'accountId')
-            setRound((n) => n + 1)
+            setMode(forgetBack)
+            setFocus(forgetBack === 'setup' ? 'token' : 'accountId')
             setSummary(null)
           })
         }}
@@ -677,20 +672,9 @@ function Connected({
 }) {
   const [checking, setChecking] = useState(false)
   const [now] = useState(() => Date.now())
-  const { status, provisionedAtMs } = summary
-  // Setup's own check counts until the first Check again stores a status.
-  const checked =
-    status !== null
-      ? {
-          label: status.ok ? 'Checked' : 'Last check failed',
-          atMs: status.checkedAtMs,
-          ok: status.ok,
-        }
-      : summary.origin === 'setup' && provisionedAtMs !== undefined
-        ? { label: 'Set up automatically', atMs: provisionedAtMs, ok: true }
-        : undefined
-  const fresh =
-    provisionedAtMs !== undefined && now - provisionedAtMs < FRESH_MS
+  const { status } = summary
+  const checked = checkedLine(summary)
+  const fresh = freshAddress(summary.provisionedAtMs, now)
 
   const recheck = async () => {
     if (checking) return
