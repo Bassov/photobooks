@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  drawnWidthMm,
   frameBox,
   imageCropBox,
   pageCutLine,
@@ -36,5 +37,18 @@ describe('frameBox', () => {
       left: '-50%',
       top: '-20%',
     })
+  })
+
+  const rect = { x: 0, y: 0, width: 100, height: 150 }
+
+  it.each([
+    ['unturned: frame width over the window width', 0, 0.5, 200],
+    ['half turn: still the frame width', 2, 0.5, 200],
+    ['quarter turn: frame height over the window width', 1, 0.5, 300],
+    ['three quarter turns: frame height', 3, 0.25, 600],
+    ['an empty window counts as the whole source', 0, 0, 100],
+  ] as const)('draws the image %s', (_, turns, windowWidth, expected) => {
+    const crop = { x: 0, y: 0, width: windowWidth, height: 1 }
+    expect(drawnWidthMm(rect, crop, turns)).toBe(expected)
   })
 })

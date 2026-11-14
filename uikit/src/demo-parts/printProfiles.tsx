@@ -46,14 +46,15 @@ export const profileHint = (p: KitProfile) => `${fmtN(p.trimMinMm / 10)}–${fmt
 export const pagesRange = (p: KitProfile): [number, number] => [PAGE_MIN, Math.min(PAGE_MAX, p.pageCount.max)]
 /** The book's custom profiles; #/demo provides the session's, feature pages get the sample. */
 export const PrintCustomsCtx = React.createContext<KitProfile[]>(SAMPLE_CUSTOMS)
-/** Book settings PRINT warnings: unknown profile, page side (cm) out of the trim range, page count out of the profile range. */
+/** Book settings PRINT warnings: unknown profile, page width then height (cm) out of the trim range (one each, like prod's
+    `trim-width` / `trim-height` issues), page count out of the profile range. */
 export function printIssues(id: string | undefined, customs: KitProfile[], size: { w: number; h: number }, pages: number) {
   const p = profileById(id, customs), out: string[] = []
   if (id !== undefined && p.id !== id) out.push("This book’s printer isn’t in this library. Using Generic.")
-  const side = (v: number) => `This page is ${fmtN(v)} cm ${v === size.w ? "wide" : "high"}.`
-  const lo = Math.min(size.w, size.h), hi = Math.max(size.w, size.h)
-  if (lo * 10 < p.trimMinMm) out.push(`${p.name} takes pages from ${fmtN(p.trimMinMm / 10)} cm. ${side(lo)}`)
-  if (hi * 10 > p.trimMaxMm) out.push(`${p.name} takes pages up to ${fmtN(p.trimMaxMm / 10)} cm. ${side(hi)}`)
+  for (const [v, side] of [[size.w, "wide"], [size.h, "high"]] as const) {
+    const limit = v * 10 < p.trimMinMm ? `from ${fmtN(p.trimMinMm / 10)} cm` : v * 10 > p.trimMaxMm ? `up to ${fmtN(p.trimMaxMm / 10)} cm` : ""
+    if (limit) out.push(`${p.name} takes pages ${limit}. This page is ${fmtN(v)} cm ${side}.`)
+  }
   if (pages < p.pageCount.min) out.push(`${p.name} prints at least ${p.pageCount.min} pages; this book’s ${pages} print as ${p.pageCount.min}.`)
   if (pages > p.pageCount.max) out.push(`${p.name} prints up to ${p.pageCount.max} pages. This book has ${pages}.`)
   return out
@@ -113,10 +114,12 @@ export function fromDraft(base: KitProfile, d: Draft): KitProfile {
     coverWrapMm: v("wrap"), coverHingeMm: v("hinge"), dpi: { warn: v("dpiWarn"), min: v("dpiMin") } }
 }
 
-const ERR = "#a8403a"
-const BOX = "flex h-8 items-center rounded-md bg-field px-2.5 text-sm text-foreground"
+export const ERR = "#a8403a"
+/** the chevron of the kit's native selects (`print-default`, the hosting domain) */
+export const CHEVRON = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23535152' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`
+export const BOX = "flex h-8 items-center rounded-md bg-field px-2.5 text-sm text-foreground"
 /* kit Field rule: shadow-xs at rest; focus-visible and error are a 1 px inset ring instead */
-const ring = (err: boolean) => err ? "shadow-none ring-1 ring-inset ring-[#a8403a]" : "shadow-xs has-[input:focus-visible]:shadow-none has-[input:focus-visible]:ring-1 has-[input:focus-visible]:ring-inset has-[input:focus-visible]:ring-[#535152]"
+export const ring = (err: boolean) => err ? "shadow-none ring-1 ring-inset ring-[#a8403a]" : "shadow-xs has-[input:focus-visible]:shadow-none has-[input:focus-visible]:ring-1 has-[input:focus-visible]:ring-inset has-[input:focus-visible]:ring-[#535152]"
 const input = "min-w-0 flex-1 border-0 bg-transparent p-0 outline-none"
 const GROUP = "col-span-2 mt-3 text-2xs font-semibold uppercase leading-[14.84px] tracking-[.12em] text-muted-foreground"
 

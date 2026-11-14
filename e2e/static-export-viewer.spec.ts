@@ -87,13 +87,10 @@ async function serveStatic(
   return { server, url: `http://127.0.0.1:${String(port)}/` }
 }
 
-test('a served export opens a styled book page whose pages turn, at phone and desktop sizes', async ({
-  page,
-}) => {
-  test.setTimeout(120_000)
-  await openFixture(page)
-  await useOpfsFolder(page, 'served')
-  await exportToDone(page, true)
+/** Writes the exported `dist/` of the `served` folder to disk. */
+async function writeDist(
+  page: Page,
+): Promise<{ files: Record<string, string>; root: string }> {
   const files = await readDistFiles(page, 'served')
   const root = test.info().outputPath('dist')
   for (const [path, bytes] of Object.entries(files)) {
@@ -101,6 +98,82 @@ test('a served export opens a styled book page whose pages turn, at phone and de
     await mkdir(dirname(file), { recursive: true })
     await writeFile(file, Buffer.from(bytes, 'base64'))
   }
+  return { files, root }
+}
+
+/** Failed (≥ 400 or aborted) request urls of `viewer`. */
+function failedRequests(viewer: Page): string[] {
+  const failed: string[] = []
+  viewer.on('response', (response) => {
+    if (response.status() >= 400) failed.push(response.url())
+  })
+  viewer.on('requestfailed', (request) => failed.push(request.url()))
+  return failed
+}
+
+test('a served export ships the UI fonts and every page loads them', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  await openFixture(page)
+  await useOpfsFolder(page, 'served')
+  await exportToDone(page, true)
+  const { files, root } = await writeDist(page)
+  const fonts = Object.keys(files).filter((path) =>
+    path.startsWith('viewer/fonts/'),
+  )
+  expect(fonts).toContain('viewer/fonts/fonts.css')
+  // 9 UI faces + the home's 3 Site Inter Display (opsz) subsets
+  expect(fonts.filter((path) => path.endsWith('.woff2'))).toHaveLength(12)
+  const site = JSON.parse(
+    Buffer.from(files['site.json'] ?? '', 'base64').toString(),
+  ) as { books: { path: string }[] }
+  const { server, url } = await serveStatic(root)
+
+  try {
+    for (const path of ['', site.books[0]?.path ?? '']) {
+      const viewer = await page.context().newPage()
+      const failed = failedRequests(viewer)
+
+      await viewer.goto(`${url}${path}`)
+      const loaded = await viewer.evaluate(async () => {
+        const faces = await Promise.all(
+          ['Inter Variable', 'Lora Variable'].map((family) =>
+            document.fonts.load(`16px "${family}"`, 'Aa'),
+          ),
+        )
+        return faces.map((list) =>
+          list.map((face) => `${face.family}:${face.status}`),
+        )
+      })
+      await viewer.waitForLoadState('networkidle')
+
+      expect(loaded, `fonts at /${path}`).toEqual([
+        ['Inter Variable:loaded'],
+        ['Lora Variable:loaded'],
+      ])
+      // the home's face (D43), Cyrillic subset included
+      const display = await viewer.evaluate(async () => {
+        await document.fonts.load('16px "Site Inter Display"', 'Озеро')
+        return document.fonts.check('16px "Site Inter Display"', 'Озеро')
+      })
+      expect(display, `Site Inter Display at /${path}`).toBe(true)
+      expect(failed, `failed requests at /${path}`).toEqual([])
+      await viewer.close()
+    }
+  } finally {
+    server.close()
+  }
+})
+
+test('a served export opens a styled book page whose pages turn, at phone and desktop sizes', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  await openFixture(page)
+  await useOpfsFolder(page, 'served')
+  await exportToDone(page, true)
+  const { files, root } = await writeDist(page)
   const site = JSON.parse(
     Buffer.from(files['site.json'] ?? '', 'base64').toString(),
   ) as { viewer?: string; books: { path: string }[] }
@@ -120,31 +193,25 @@ test('a served export opens a styled book page whose pages turn, at phone and de
       const viewer = await page.context().newPage()
       await viewer.setViewportSize(viewport)
       const errors: string[] = []
-      const failed: string[] = []
+      const failed = failedRequests(viewer)
       viewer.on('console', (message) => {
         if (message.type() === 'error') errors.push(message.text())
       })
       viewer.on('pageerror', (error) => errors.push(error.message))
-      viewer.on('response', (response) => {
-        if (response.status() >= 400) failed.push(response.url())
-      })
-      viewer.on('requestfailed', (request) => failed.push(request.url()))
 
       await viewer.goto(`${url}${site.books[0]?.path ?? ''}`)
 
-      const book = viewer.getByTestId('site-book-page')
+      const book = viewer.getByTestId('site-room')
       await expect(book).toBeVisible()
-      // Viewer CSS: the `.site` field paints --site-bg, not the default white.
+      // Viewer CSS: the room paints the site paper (--ss-bg), not white.
       const [field] = await pixelsAt(book, [{ x: 2, y: 2 }])
-      expect(field?.slice(0, 3)).toEqual([0xe1, 0xe1, 0xe1])
-      const next = viewer.getByRole('button', { name: 'Next spread' })
-      await expect(next).toHaveCSS('background-color', 'rgb(215, 215, 215)')
-      // Viewer JS: the hydrated pager turns to the next slide.
-      const indicator = viewer.getByTestId('site-page-indicator')
-      const first = await indicator.textContent()
+      expect(field?.slice(0, 3)).toEqual([244, 243, 240])
+      // Viewer JS: the hydrated room turns to the next view.
+      const label = viewer.getByTestId('site-label')
+      await expect(label).toHaveText('Cover')
       await expect(async () => {
-        await next.click()
-        await expect(indicator).not.toHaveText(first ?? '', { timeout: 500 })
+        await viewer.keyboard.press('ArrowRight')
+        await expect(label).not.toHaveText('Cover', { timeout: 500 })
       }).toPass({ timeout: 10_000 })
       await viewer.waitForLoadState('networkidle')
 

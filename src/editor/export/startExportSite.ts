@@ -10,8 +10,11 @@ import { runExportSite, type SiteDerivativeDeps } from './exportSiteRun'
 import { exportSiteStore } from './exportSiteStore'
 import { loadSiteViewerBundle } from './siteViewerBundle'
 
-/** Session file, else the registered photo folder; any book's asset record. */
-const readSource: SiteDerivativeDeps['readSource'] = async (assetId, asset) => {
+/** Session file, else the registered photo folder; any book's asset record (Export and Publish). */
+export const readSource: SiteDerivativeDeps['readSource'] = async (
+  assetId,
+  asset,
+) => {
   const retained = getAssetSource(assetId)
   if (retained !== undefined) {
     return retained

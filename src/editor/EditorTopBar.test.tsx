@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
+import { IDBFactory } from 'fake-indexeddb'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetScanWorker } from '../assets'
 import { stubScanWorker } from '../assets/scanWorkerMock.test-helpers'
@@ -190,11 +191,29 @@ describe('EditorTopBar', () => {
     expect(screen.queryByTestId('export')).toBeNull()
     expect(screen.queryByTestId('editor-publish')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Export' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Publish' })).toBeNull()
+    expect(screen.getByTestId('publish').getAttribute('aria-label')).toBe(
+      'Publish',
+    )
     expect(screen.queryByTestId('camera-bar')).toBeNull()
     expect(screen.queryByRole('toolbar', { name: 'Camera' })).toBeNull()
     const preview = screen.getByTestId('present')
     expect(preview.textContent).toBe('Preview')
+  })
+
+  it('Publish without hosting opens Settings on Hosting', async () => {
+    vi.stubGlobal('indexedDB', new IDBFactory())
+    render(<EditorShell />)
+
+    fireEvent.click(screen.getByTestId('publish'))
+    const dialog = await screen.findByTestId('publish-dialog')
+    expect(dialog.getAttribute('data-step')).toBe('connect')
+    fireEvent.click(screen.getByTestId('publish-open-hosting'))
+
+    expect(screen.queryByTestId('publish-dialog')).toBeNull()
+    expect(
+      screen.getByTestId('settings-nav-hosting').getAttribute('aria-current'),
+    ).toBe('page')
+    vi.unstubAllGlobals()
   })
 
   it('draws the kit top bar controls: field pills, 32 px history, open toggles, an inset zoom menu', () => {
@@ -203,9 +222,16 @@ describe('EditorTopBar', () => {
     const settings = screen.getByTestId('editor-settings-open')
     const exportSite = screen.getByTestId('export-site')
     expect(exportSite.getAttribute('aria-label')).toBe('Export site')
-    expect(exportSite.parentElement).toBe(settings.parentElement)
-    expect(settings.nextElementSibling).toBe(exportSite)
-    for (const pill of [preview, settings, exportSite]) {
+    const publish = screen.getByTestId('publish')
+    // Site job pills sit in a box-less wait-title wrapper (P7).
+    const exportBox = exportSite.parentElement
+    expect(exportBox?.parentElement).toBe(settings.parentElement)
+    expect(settings.nextElementSibling).toBe(exportBox)
+    // Export site, its status region, then Publish (spec in-app-publish).
+    expect(exportBox?.nextElementSibling?.nextElementSibling).toBe(
+      publish.parentElement,
+    )
+    for (const pill of [preview, settings, exportSite, publish]) {
       expect(pill.className).toContain('editor-top-pill')
       expect(pill.className).not.toContain('e7-sec')
       expect(pill.style.background).toBe('#D7D7D7')

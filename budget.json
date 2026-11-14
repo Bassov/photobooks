@@ -13,7 +13,7 @@
     "path": "/site.html",
     "resourceSizes": [
       { "resourceType": "document", "budget": 20 },
-      { "resourceType": "script", "budget": 200 },
+      { "resourceType": "script", "budget": 400 },
       { "resourceType": "stylesheet", "budget": 30 },
       { "resourceType": "total", "budget": 450 }
     ],

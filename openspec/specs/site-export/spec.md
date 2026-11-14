@@ -53,16 +53,30 @@ The system SHALL run `buildSiteTree` and the writes in a module worker that post
 
 ### Requirement: Viewer bundle in every export
 
-The production build SHALL emit `site-viewer.json` listing the site viewer entry's files (entry chunk, static imports, CSS, assets). Every Export SHALL load those files into the worker request's `viewer`, with root-absolute CSS `url(/…)` rewritten relative to `viewer/` and their files included, so the exported book pages link the viewer CSS and JS; a missing manifest or file SHALL fail the export with `unknown`.
+The production build SHALL emit `site-viewer.json` listing the site viewer entry's files (entry chunk, static imports, CSS, assets, and the dynamic-import closure the pages load lazily — the home's GL books and three — copied but not linked; the sample shell and perf hooks left out) plus the UI fonts (`fonts/fonts.css` first among the CSS, its font files, and the Latin faces to preload, the home's Site Inter Display Latin face included). JS-hosted URLs (lazy imports and their preload dependencies) SHALL resolve relative to the importing chunk. Every Export SHALL load those files into the worker request's `viewer`, with root-absolute CSS `url(/…)` rewritten relative to `viewer/` and their files included, so every exported page links the viewer CSS, the fonts stylesheet and JS and preloads the Latin font faces with page-relative URLs; a missing manifest or file SHALL fail the export with `unknown`.
 
 #### Scenario: Served export
 
 - **WHEN** an exported `dist/` is served by a plain static server and a book page is opened
 - **THEN** the viewer CSS applies, the next page turns, and no asset request 404s
 
+#### Scenario: Served export fonts
+
+- **WHEN** the home and a book page of a served export are opened
+- **THEN** the font files exist under `viewer/fonts/`, `document.fonts` reports "Inter Variable" and "Lora Variable" loaded and "Site Inter Display" checks for Cyrillic text, and no request (the home's lazy GL chunks included) fails
+
+### Requirement: Site book data
+
+Every catalog book SHALL carry the site book data of its published revision: `trimMm`, the UTC `year` of `publishedAtMs`, `pageCount` = 2(n − 1), `spine {cloth: cover back fill, text: spine text else the title, ink}` with ink `#F1F3F6` when the cloth's relative luminance is below 0.23 and `#2E2C2D` otherwise, `paper` = the book's page colour else `#FBFAF7`, and `endpaper` `#E9E4DA`. Each book SHALL also get `books/<key>/book.json`: the book-page input with its catalog entry, key-sorted, next to its `index.html`.
+
+#### Scenario: Book data file
+
+- **WHEN** a library with two published books is exported
+- **THEN** each book directory holds `book.json` whose `entry` has that book's year, page count and spine
+
 ### Requirement: Export site from the editor
 
-The editor top bar SHALL end with an "Export site" pill (after Settings) that opens a dialog (Options → Running → Done / Failed) and writes the site into `<chosen folder>/dist/` through the export worker. Export SHALL freeze the open book with `publishBook` at the moment Export is pressed (library-backed: `library.json` and `published.json` saved) and export it with the other published revisions, with web derivatives of every shown photo (a photo without `contentHash` is hashed from its source bytes during the run); edits made during the run go into the next export. One export runs at a time; the running dialog can be hidden (Hide, Esc, outside click) and the pill then shows `NN%` over a fill, "Exported" for 4 s, or "Failed" until opened. The pill keeps the width of its rest content in every state, its accessible name stays "Export site", and a status region announces progress at most every 10 %. The chosen folder handle SHALL be remembered per library in the session IndexedDB and readwrite permission re-requested on Export. Nothing is uploaded.
+The editor top bar SHALL show an "Export site" pill (after Settings, before Publish) that opens a dialog (Options → Running → Done / Failed) and writes the site into `<chosen folder>/dist/` through the export worker. Export SHALL freeze the open book with `publishBook` at the moment Export is pressed (library-backed: `library.json` and `published.json` saved) and export it with the other published revisions, with web derivatives of every shown photo (a photo without `contentHash` is hashed from its source bytes during the run); edits made during the run go into the next export. One export runs at a time, and Export site is disabled while Publish runs; the running dialog can be hidden (Hide, Esc, outside click) and the pill then shows `NN%` over a fill, "Exported" for 4 s, or "Failed" until opened. The pill keeps the width of its rest content in every state (icon-only below 1360 px), its accessible name stays "Export site", and a status region announces progress at most every 10 %. The chosen folder handle SHALL be remembered per library in the session IndexedDB and readwrite permission re-requested on Export. Nothing is uploaded.
 
 #### Scenario: Export while editing
 
@@ -78,3 +92,35 @@ The editor top bar SHALL end with an "Export site" pill (after Settings) that op
 
 - **WHEN** the chosen folder holds a `dist/` that is not a Photobooks export
 - **THEN** the dialog shows the "isn't a Photobooks export" text, its primary action goes back to choosing a folder, and the foreign `dist/` is unchanged
+
+### Requirement: Site settings in export and publish
+
+Export site and Publish SHALL build every page from the library's `site` settings (title, else "Photobooks"; author; intro). Publish SHALL add the canonical `url` from Hosting's `publicBaseUrl` without a trailing slash; Export to a folder has no url. Without site settings the output SHALL equal the title-only default.
+
+#### Scenario: Exported home uses the site settings
+
+- **WHEN** a library with `site: { title: 'Alps & Sea', author: 'Ann' }` is exported
+- **THEN** the home `<title>` names "Alps & Sea" and its lead reads "Photobooks by Ann."
+
+### Requirement: Site settings are saved to the library
+
+The editor SHALL store site settings edits in `library.json` read-modify-write, one write at a time in call order, with no write when the normalised value is unchanged. A failed write SHALL show "Couldn't save site settings to the library folder" and keep the values for the session.
+
+#### Scenario: Unchanged value writes nothing
+
+- **WHEN** the author is set to `' Ann '` while the stored author is `Ann`
+- **THEN** `library.json` is not written
+
+### Requirement: Settings → Site edits the site settings
+
+Settings → Site SHALL edit Site title, Author (≤ 80) and Intro (≤ 160, one paragraph, live `n / 160` counter) in place: blur or Enter commits, Esc reverts to the stored value and keeps focus. An empty field SHALL show the site's fallback as its placeholder. The editor Preview and a session-only export SHALL use the current settings; typing SHALL re-render only the Settings section.
+
+#### Scenario: Enter commits, Esc reverts
+
+- **WHEN** the user types "Ann" in Author and presses Enter, then types "Bo" and presses Esc
+- **THEN** the stored author is "Ann", the field shows "Ann" and keeps focus
+
+#### Scenario: Empty fields show the fallbacks
+
+- **WHEN** no site settings are set
+- **THEN** the placeholders read "Photobooks", "Your name" and "A line or two about your books", and the counter `0 / 160`

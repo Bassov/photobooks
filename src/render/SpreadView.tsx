@@ -41,6 +41,7 @@ import {
   turnedPhotoStyle,
 } from './photoLayout'
 import {
+  drawnWidthMm,
   frameBox,
   imageCropBox,
   pageCutLine,
@@ -236,7 +237,8 @@ export function SpreadView({
   resolved: ResolvedSpread
   previewUrlFor: (assetId: string) => string | undefined
   /**
-   * Srcset source per photo; `widthMm` = frame width, for the caller's
+   * Srcset source per photo; `widthMm` = the width the image is drawn at
+   * (frame width × crop scale, `drawnWidthMm`), for the caller's
    * `sizes` (a single page is half of the caller's spread-wide stage).
    * Undefined (or no prop) falls back to `previewUrlFor`.
    */
@@ -293,7 +295,14 @@ export function SpreadView({
     const missingId = missingAssetId(item.assetId, isMissingAsset)
     const missing = missingId !== undefined
     const source = previewUrlUnlessMissing(missing, item.assetId, (id) =>
-      imageFor?.(id, item.rectMm.width),
+      imageFor?.(
+        id,
+        drawnWidthMm(
+          item.rectMm,
+          item.sourceCropRect ?? FULL_CROP,
+          item.photoQuarterTurns ?? 0,
+        ),
+      ),
     )
     return (
       <SpreadFrame

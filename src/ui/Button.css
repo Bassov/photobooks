@@ -40,7 +40,7 @@
 }
 
 .pb-button--default[data-hovered] {
-  background: color-mix(in srgb, var(--primary) 90%, var(--foreground));
+  background: var(--primary-hover);
 }
 
 /* Kit outline + shadow-xs (90° turns, Crop, Change library folder…). */
@@ -64,8 +64,9 @@
   background: var(--accent);
 }
 
+/* Kit ghost has no ink of its own: it inherits (base-layer `color: inherit`),
+   so a `text-muted-foreground` utility still wins where the kit mutes it. */
 .pb-button--ghost {
-  color: var(--muted-foreground);
   background: transparent;
 }
 
@@ -74,14 +75,20 @@
   background: var(--accent);
 }
 
-/* Filled destructive — AlertDialog confirm only (docs/design.md). */
+/* Filled destructive — AlertDialog confirm only (docs/design.md); kit
+   shadow-xs at rest and hover, none while pressed. */
 .pb-button--destructive {
   color: var(--destructive-foreground);
   background: var(--destructive-solid);
+  box-shadow: var(--shadow-xs);
 }
 
 .pb-button--destructive[data-hovered] {
   background: var(--destructive-solid-hover);
+}
+
+.pb-button--destructive[data-pressed] {
+  box-shadow: none;
 }
 
 .pb-button[data-pressed] {

@@ -66,7 +66,7 @@ UI ref: `uikit#/feature/design-tokens`.
 
 ## Iconography
 
-One family: **in-repo SVG set** (`src/ui/Icon.tsx` + `src/ui/icons/`), Lucide-compatible stroke 2, `currentColor`, 24×24 viewBox. Size tokens: **14 / 16 / 20** (`--icon-size-14/16/20`). No `lucide-react` in the app package (kit may keep lucide as visual reference). Icon-only controls always have an accessible name + tooltip. Decorative icons omit `label` and are `aria-hidden`.
+One family: **in-repo SVG set** (`src/ui/Icon.tsx` + `src/ui/icons/`), Lucide-compatible stroke 2, `currentColor`, 24×24 viewBox. Size tokens: **12 / 14 / 16 / 20** (`--icon-size-12/14/16/20`). No `lucide-react` in the app package (kit may keep lucide as visual reference). Icon-only controls always have an accessible name + tooltip. Decorative icons omit `label` and are `aria-hidden`.
 
 UI ref: `uikit#/feature/icon-set`.
 

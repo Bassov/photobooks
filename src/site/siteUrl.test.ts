@@ -1,6 +1,6 @@
 import { fc, test } from '@fast-check/vitest'
 import { describe, expect, it } from 'vitest'
-import { pageHref, sitePageUrl } from './siteUrl'
+import { imageSrc, keptQuery, pageHref, sitePageUrl } from './siteUrl'
 
 const PAGE = 'https://site.test/books/abc/'
 
@@ -33,6 +33,42 @@ describe('pageHref', () => {
       expect(new URL(pageHref(href), PAGE).origin).toBe('https://site.test')
     },
   )
+})
+
+describe('imageSrc', () => {
+  it('keeps the photo paths the export and the sample site write', () => {
+    expect(imageSrc('../../media/a-480.webp')).toBe('../../media/a-480.webp')
+    expect(imageSrc('/photos/hi/c18b.jpg')).toBe('/photos/hi/c18b.jpg')
+  })
+
+  it('rejects schemes, other hosts and markup', () => {
+    expect(imageSrc('javascript:alert(1)')).toBe('javascriptalert1')
+    expect(imageSrc('data:image/svg+xml,<svg>')).toBe('dataimage/svgxmlsvg')
+    expect(imageSrc('https://evil.test/x.jpg')).toBe('https//evil.test/x.jpg')
+    expect(imageSrc('//evil.test/x.jpg')).toBe('.//evil.test/x.jpg')
+    expect(imageSrc('"><b>')).toBe('b')
+  })
+
+  test.prop([fc.string({ unit: 'binary' })], { numRuns: 1000 })(
+    'every image loads from this site',
+    (src) => {
+      expect(new URL(imageSrc(src), PAGE).origin).toBe('https://site.test')
+    },
+  )
+})
+
+describe('keptQuery', () => {
+  it('keeps only the listed keys, values to path characters', () => {
+    expect(keptQuery('?book=sea&x=1&empty=1', ['book', 'empty'])).toBe(
+      '?book=sea&empty=1',
+    )
+    expect(keptQuery('?book=%22%3E%3Cimg%3E', ['book'])).toBe('?book=img')
+  })
+
+  it('is empty without a listed key', () => {
+    expect(keptQuery('?x=1', ['book'])).toBe('')
+    expect(keptQuery('', ['book'])).toBe('')
+  })
 })
 
 describe('sitePageUrl', () => {

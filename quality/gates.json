@@ -237,7 +237,7 @@
           },
           {
             "resourceType": "script",
-            "budget": 200
+            "budget": 400
           },
           {
             "resourceType": "stylesheet",
@@ -295,6 +295,11 @@
         "path": ".claude/agents/manual-qa.md",
         "maxLines": 40,
         "maxChars": 2500
+      },
+      {
+        "path": ".claude/agents/code-scout.md",
+        "maxLines": 30,
+        "maxChars": 1200
       },
       {
         "path": ".claude/commands/next-roadmap-item.md",

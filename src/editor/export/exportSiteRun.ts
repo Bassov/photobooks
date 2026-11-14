@@ -24,7 +24,9 @@ import type {
   SiteDerivativeInput,
   SiteViewerBundle,
 } from '../../site/export/types'
+import { siteMetaOf } from '../../site/siteModel'
 import type { SiteDirectoryHandle } from '../../site/export/writeSiteTree'
+import { getSiteSettings } from '../siteSettingsStore'
 import type { ExportSiteEvent } from './exportSiteStore'
 import { exportPercent } from './exportSiteText'
 
@@ -210,7 +212,13 @@ export async function freezeForExport(
   nowMs: number,
 ): Promise<{ meta: LibraryMeta; revisions: PublishedRevision[] }> {
   if (storage === null) {
-    const { meta, revision } = publishBook({}, book, nowMs)
+    // No library: the session's site settings (S2 keeps them in memory).
+    const site = getSiteSettings()
+    const { meta, revision } = publishBook(
+      Object.keys(site).length === 0 ? {} : { site },
+      book,
+      nowMs,
+    )
     return { meta, revisions: [revision] }
   }
   const current = await storage.getLibrary()
@@ -281,7 +289,13 @@ export async function runExportSite(deps: ExportSiteRunDeps): Promise<void> {
     const viewer = await deps.loadViewer()
     const request: SiteExportRequest = {
       folder: deps.folder as unknown as SiteDirectoryHandle,
-      input: { meta: frozen.meta, revisions, derivatives, viewer },
+      input: {
+        meta: frozen.meta,
+        site: siteMetaOf(frozen.meta),
+        revisions,
+        derivatives,
+        viewer,
+      },
     }
     const transfer = [...derivatives, ...viewer.files].map(
       (file) => file.bytes.buffer as ArrayBuffer,

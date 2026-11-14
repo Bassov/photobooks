@@ -18,7 +18,8 @@ Reviewer briefs: `pnpm agent review-brief --out <file> --base origin/main`; pass
 
 **Output caps** (every byte a tool prints stays in context for the rest of the run):
 
-- Files: `Grep -n` first (≤30 hits), then `Read` with offset/limit ≤60 lines. Never Read a whole file over ~100 lines, never `cat` a directory or several files, no `sed -n` sweeps, no re-read of the item, a rule file or a file you just edited.
+- Code reading: before editing, map the code with ONE `code-scout` call (all questions in one prompt). Own grep/sed only for pinpoint checks; batch the remaining reads in one Bash call.
+- Files: find the place with `git grep -n` first; read a file under ~400 lines whole in one call, a bigger one in ranges of ≥150 lines; put several ranges or files in one Bash call. Read a file once per run: no re-read of what is in context or a file you just edited (use `git diff`).
 - Specs and JSON reports (Stryker, Playwright, coverage): Grep the field you need; never dump them.
 - Commands: `pnpm -s`, the `:quiet` scripts, vitest `--reporter=dot`; pipe long output through `| tail -40` or redirect to `.cache/agent/<name>.log` and Grep it.
 - No TodoWrite in `-p`. Claude Code runs prettier after each Edit/Write; do not run it by hand.

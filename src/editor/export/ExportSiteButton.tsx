@@ -1,14 +1,7 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type CSSProperties,
-  type ReactNode,
-} from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { Icon } from '../../ui/Icon'
-import { ChromeButton } from '../ChromeButton'
-import { FIELD, T } from '../editorChromeTokens'
+import { isPublishRunning, publishStore } from '../publish/publishStore'
+import { PUBLISH_WAIT_TITLE } from '../publish/publishText'
 import { ExportSiteDialog, type ExportSiteStep } from './ExportSiteDialog'
 import { CircleCheckGlyph } from './exportSiteGlyphs'
 import { exportSiteStore, type ExportSiteState } from './exportSiteStore'
@@ -17,29 +10,33 @@ import {
   EXPORT_FAILED_STATUS,
   exportRunningTitle,
   exportStatusText,
-  nextAnnouncedPercent,
 } from './exportSiteText'
-import './ExportSiteButton.css'
+import { SiteJobPill, type SiteJobContent } from './SiteJobPill'
 
 const NAME = 'Export site'
 
-function pillContent(state: ExportSiteState): {
-  icon: ReactNode
-  label: ReactNode
+const REST: SiteJobContent = {
+  icon: <Icon name="export" size={16} />,
+  label: NAME,
+}
+
+const SAY = {
+  running: exportStatusText,
+  done: EXPORT_DONE_STATUS,
+  failed: EXPORT_FAILED_STATUS,
+}
+
+function pillContent(state: ExportSiteState): SiteJobContent & {
   title: string
 } {
   switch (state.kind) {
     case 'idle':
-      return {
-        icon: <Icon name="export" size={16} />,
-        label: NAME,
-        title: NAME,
-      }
+      return { ...REST, title: NAME }
     case 'running':
       return {
         icon: <Icon name="export" size={16} />,
         label: (
-          <span className="export-site-pill__percent">{`${String(state.percent)}%`}</span>
+          <span className="site-job-pill__percent">{`${String(state.percent)}%`}</span>
         ),
         title: exportRunningTitle(state.percent),
       }
@@ -65,29 +62,6 @@ const STEP_FOR: Record<ExportSiteState['kind'], ExportSiteStep> = {
   failed: 'failed',
 }
 
-/** Status region text: progress at most every 10 %, then the outcome. */
-function useStatusText(state: ExportSiteState): string {
-  const announced = useRef<number | null>(null)
-  const [text, setText] = useState('')
-  useEffect(() => {
-    if (state.kind === 'running') {
-      const next = nextAnnouncedPercent(state.percent, announced.current)
-      if (next !== null) {
-        announced.current = next
-        setText(exportStatusText(next))
-      }
-      return
-    }
-    announced.current = null
-    if (state.kind === 'done') {
-      setText(EXPORT_DONE_STATUS)
-    } else if (state.kind === 'failed') {
-      setText(EXPORT_FAILED_STATUS)
-    }
-  }, [state])
-  return text
-}
-
 /** Designer spec static-export §1: top bar "Export site" pill + its dialog. */
 export function ExportSiteButton({ disabled }: { disabled: boolean }) {
   const state = useSyncExternalStore(
@@ -95,53 +69,37 @@ export function ExportSiteButton({ disabled }: { disabled: boolean }) {
     exportSiteStore.getSnapshot,
     exportSiteStore.getSnapshot,
   )
+  const publishing = useSyncExternalStore(
+    publishStore.subscribe,
+    isPublishRunning,
+    isPublishRunning,
+  )
   const [dialog, setDialog] = useState<{
     step: ExportSiteStep
     opened: ExportSiteState
   } | null>(null)
-  const status = useStatusText(state)
-  const { icon, label, title } = pillContent(state)
-  const style: CSSProperties & { '--export-site-progress'?: number } = {
-    background: FIELD,
-    color: T,
-  }
-  if (state.kind === 'running') {
-    style['--export-site-progress'] = state.percent / 100
-  }
+  const { title, ...content } = pillContent(state)
 
   return (
     <>
-      <ChromeButton
-        className="editor-top-pill export-site-pill h-8 text-sm font-medium"
-        style={style}
-        data-testid="export-site"
-        data-state={state.kind}
-        aria-label={NAME}
+      <SiteJobPill
+        name={NAME}
+        testId="export-site"
+        className=""
+        kind={state.kind}
+        percent={state.kind === 'running' ? state.percent : 0}
+        rest={REST}
+        content={content}
         title={title}
+        say={SAY}
+        narrow
+        wait={publishing ? PUBLISH_WAIT_TITLE : undefined}
         disabled={disabled && state.kind === 'idle'}
         onClick={() => {
           setDialog({ step: STEP_FOR[state.kind], opened: state })
           exportSiteStore.dispatch({ type: 'seen' })
         }}
-      >
-        <span className="export-site-pill__cell">
-          <span
-            className="export-site-pill__content export-site-pill__sizer"
-            aria-hidden="true"
-            data-testid="export-site-sizer"
-          >
-            <Icon name="export" size={16} />
-            <span className="export-site-pill__label">{NAME}</span>
-          </span>
-          <span className="export-site-pill__content">
-            {icon}
-            <span className="export-site-pill__label">{label}</span>
-          </span>
-        </span>
-      </ChromeButton>
-      <span role="status" className="sr-only" data-testid="export-site-status">
-        {status}
-      </span>
+      />
       {dialog === null ? null : (
         <ExportSiteDialog
           initialStep={dialog.step}

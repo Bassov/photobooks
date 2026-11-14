@@ -12,7 +12,7 @@ test('the Preview pill opens the site preview, never the presentation overlay', 
   await expect(pill).toHaveAccessibleName('Preview')
   await pill.click()
   const preview = page.getByTestId('site-preview')
-  await expect(preview.getByTestId('site-page-indicator')).toHaveText('Cover')
+  await expect(preview.getByTestId('site-label')).toHaveText('Cover')
   await expect(page.getByTestId('presentation')).toHaveCount(0)
   await expect(page.getByTestId('presentation-cover')).toHaveCount(0)
   // The editor stays mounted under it, not replaced.

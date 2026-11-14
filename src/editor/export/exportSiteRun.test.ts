@@ -8,6 +8,10 @@ import {
   type PublishedRevision,
 } from '../../project'
 import { sha256Hex } from '../../lib/sha256Hex'
+import {
+  resetSiteSettingsForTests,
+  setSiteSettings,
+} from '../siteSettingsStore'
 import type { SiteExportMessage } from '../../site/export/site-export.worker'
 import type { SiteViewerBundle } from '../../site/export/types'
 import {
@@ -205,6 +209,19 @@ describe('freezeForExport', () => {
     ])
   })
 
+  it('keeps the session site settings without a library', async () => {
+    setSiteSettings({ title: 'Alps', author: 'Ann' })
+    const book = makeBook({ id: 'open' })
+
+    const frozen = await freezeForExport(book, null, 5)
+    resetSiteSettingsForTests()
+
+    expect(frozen.meta).toEqual({
+      books: { open: { status: 'published' } },
+      site: { title: 'Alps', author: 'Ann' },
+    })
+  })
+
   it('saves the open book and adds the other published books, not drafts', async () => {
     const storage = createMemoryLibraryStorage()
     const open = makeBook({ id: 'open', title: 'Lake' })
@@ -373,6 +390,36 @@ describe('runExportSite', () => {
     expect(post.transfer.map((b) => b.byteLength)).toEqual([
       30, 30, 30, 30, 5, 7,
     ])
+  })
+
+  it("sends the library's site settings without a url (S7)", async () => {
+    const storage = createMemoryLibraryStorage()
+    const book = bookWithHash('open', HASH_A, 'Lake')
+    await storage.createBook(book)
+    await storage.updateLibrary({
+      site: { title: 'Alps', author: 'Ann' },
+    })
+    const run = runDeps([{ done: { books: 1, files: 1, bytes: 1 } }], {
+      book,
+      storage,
+    })
+
+    await runExportSite(run.deps)
+
+    const [post] = run.posted as [{ request: { input: { site: unknown } } }]
+    expect(post.request.input.site).toStrictEqual({
+      title: 'Alps',
+      author: 'Ann',
+    })
+  })
+
+  it('sends the title-only default without site settings', async () => {
+    const run = runDeps([{ done: { books: 1, files: 1, bytes: 1 } }])
+
+    await runExportSite(run.deps)
+
+    const [post] = run.posted as [{ request: { input: { site: unknown } } }]
+    expect(post.request.input.site).toStrictEqual({ title: 'Photobooks' })
   })
 
   it('fails as unknown without starting the worker when the viewer cannot load', async () => {

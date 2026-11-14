@@ -158,6 +158,7 @@
   --text-welcome-display: clamp(56px, 6.3vw, 112px);
   --text-welcome-regrant: clamp(40px, 4.5vw, 72px);
 
+  --icon-size-12: 12px;
   --icon-size-14: 14px;
   --icon-size-16: 16px;
   --icon-size-20: 20px;
@@ -392,6 +393,62 @@ html[data-density='compact'] {
   --site-page-shadow: 0 2px 6px rgb(0 0 0 / 0.1), 0 12px 32px rgb(0 0 0 / 0.14);
   --site-h1-narrow: 28px;
   --page-shadow: var(--site-page-shadow);
+}
+
+/* Site home (Designer personal-site P4; src/site/siteSystem.css): the kit's
+   site system (uikit/src/features/site/system.css) and bookcase values.
+   On :root so the html behind the home takes the paper colour too. */
+:root {
+  --ss-bg: #f4f3f0;
+  --ss-ink: #141414;
+  --ss-grey: #6f6f6b;
+  --ss-line: rgb(20 20 20 / 0.12);
+  --ss-text: 16px;
+  --ss-text-phone: 15px;
+  --ss-lead: 24px;
+  --ss-lead-phone: 19px;
+  --ss-spine-year: 9px;
+  --ss-cover-radius: 1px 2px 2px 1px;
+  --ss-case-front: #e4ded3;
+  --ss-case-back: #cec6b7;
+  --ss-shelf-top: #d9d2c5;
+  --ss-shelf-face: #e8e2d7;
+  --ss-shelf-foot: #dcd5c9;
+  --ss-plinth-foot: #d3ccbf;
+  --ss-page-line: #ddd7cc;
+  /* shade (black) and light (white) at N % alpha */
+  --ss-shade-0: rgb(0 0 0 / 0);
+  --ss-shade-5: rgb(0 0 0 / 0.05);
+  --ss-shade-6: rgb(0 0 0 / 0.06);
+  --ss-shade-8: rgb(0 0 0 / 0.08);
+  --ss-shade-10: rgb(0 0 0 / 0.1);
+  --ss-shade-12: rgb(0 0 0 / 0.12);
+  --ss-shade-18: rgb(0 0 0 / 0.18);
+  --ss-shade-20: rgb(0 0 0 / 0.2);
+  --ss-shade-22: rgb(0 0 0 / 0.22);
+  --ss-shade-25: rgb(0 0 0 / 0.25);
+  --ss-shade-28: rgb(0 0 0 / 0.28);
+  --ss-shade-30: rgb(0 0 0 / 0.3);
+  --ss-shade-32: rgb(0 0 0 / 0.32);
+  --ss-shade-35: rgb(0 0 0 / 0.35);
+  --ss-light-0: rgb(255 255 255 / 0);
+  --ss-light-10: rgb(255 255 255 / 0.1);
+  --ss-light-12: rgb(255 255 255 / 0.12);
+  --ss-light-14: rgb(255 255 255 / 0.14);
+  --ss-light-16: rgb(255 255 255 / 0.16);
+  --ss-light-26: rgb(255 255 255 / 0.26);
+  /* the room (personal-site P5; kit site-book/{room,reader,turn}.css) */
+  --ss-t13: 13px;
+  --ss-paper: #ffffff;
+  --ss-edge-light: #fbfaf7;
+  --ss-tail-light: #f6f3ec;
+  --ss-tail-dark: #dcd6cb;
+  --ss-flap: #f4f3f1;
+  --ss-shade-4: rgb(0 0 0 / 0.04);
+  --ss-shade-14: rgb(0 0 0 / 0.14);
+  --ss-shade-45: rgb(0 0 0 / 0.45);
+  --ss-shade-50: rgb(0 0 0 / 0.5);
+  --ss-light-5: rgb(255 255 255 / 0.05);
 }
 
 @media (prefers-reduced-motion: reduce) {

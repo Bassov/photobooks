@@ -1,0 +1,54 @@
+/* Phone portrait reader, Page turn (Spec site-stand-v6 T / F): a fixed bed under page-sized sheets; the CSS fold paints
+   the turning sheet's clip, the shadow it casts and the mirrored flap (geometry set per frame in turn.tsx). */
+.pt-stage {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  touch-action: pinch-zoom;
+  outline: none;
+}
+.pt-stage:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+.pt-bed,
+.pt-sheet {
+  position: absolute;
+  left: 16px;
+  top: 0;
+}
+.pt-bed {
+  background: var(--site-paper);
+  box-shadow: var(--site-shadow-book);
+}
+.pt-sheet {
+  overflow: hidden;
+}
+.pt-shadow,
+.pt-flap {
+  position: absolute;
+  top: 0;
+  pointer-events: none;
+}
+.pt-shadow {
+  z-index: 3;
+  background: linear-gradient(90deg, rgb(0 0 0 / 0.25), rgb(0 0 0 / 0));
+}
+.pt-flap {
+  z-index: 4;
+  overflow: hidden;
+  background: rgb(244 243 241);
+  box-shadow: -4px 0 12px rgb(0 0 0 / 0.18);
+}
+.pt-mirror {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: scaleX(-1);
+  opacity: 0.1;
+}
+.pt-flap-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(270deg, rgb(0 0 0 / 0.1), rgb(0 0 0 / 0) 60%);
+}

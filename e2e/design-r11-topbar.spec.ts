@@ -20,10 +20,10 @@ import { openLibraryBook } from './fixtures/openLibraryBook'
 //     3.35544e+07px), padding 0 12, bg rgb(215, 215, 215), rgb(57, 55, 56),
 //     no shadow, the same on hover.
 // Settings (Preview right + 6), 40 × 32, the same pill and colours.
-// Export site (Settings right + 6), the same pill (static-export §1). The
-// kit's Print and Publish follow (out of scope: no Print / Publish in the
-// product), so the product's right cluster ends at the bar's right inset,
-// 1428, where the kit's last item ends.
+// Export site (Settings right + 6), the same pill (static-export §1), then
+// Publish (Export site right + 6, padding 0 14; in-app-publish §1). The
+// kit's Print is out of scope, so Publish ends the right cluster at the
+// bar's right inset, 1428, where the kit's last item ends.
 
 const INK = 'rgb(57, 55, 56)'
 const MUTED = 'rgb(83, 81, 82)'
@@ -198,7 +198,16 @@ test.describe('design-r11-topbar M69', () => {
     near(settings.height, KIT.height, 'settings height')
     const exportSite = await box(page.getByTestId('export-site'))
     near(exportSite.x, settings.right + KIT.previewToSettings, 'export site x')
-    near(exportSite.right, KIT.barEnd, 'right cluster end')
+    const publish = await box(page.getByTestId('publish'))
+    near(publish.x, exportSite.right + KIT.previewToSettings, 'publish x')
+    near(publish.right, KIT.barEnd, 'right cluster end')
+    expect(await look(page.getByTestId('publish'))).toEqual({
+      bg: FIELD,
+      color: INK,
+      radius: PILL,
+      padding: '0px 14px',
+      shadow: 'none',
+    })
     for (const id of ['present', 'editor-settings-open', 'export-site']) {
       expect(await look(page.getByTestId(id))).toEqual({
         bg: FIELD,
@@ -243,7 +252,7 @@ test.describe('design-r11-topbar M69', () => {
     const zoomIn = await box(page.getByTestId('zoom-in'))
     near(toggles.x, zoomIn.right + KIT.zoomToToggles + KIT.togglePitch, 'x')
     near(
-      (await box(page.getByTestId('export-site'))).right,
+      (await box(page.getByTestId('publish'))).right,
       KIT.barEnd,
       'right cluster end',
     )
@@ -254,4 +263,37 @@ test.describe('design-r11-topbar M69', () => {
     )
     await assertDocumentFitsViewport(page)
   })
+})
+
+// in-app-publish P11: Export site goes icon-only below 1360 px; Publish
+// keeps its label at every width.
+test.describe('design-r11-topbar P11 site pills', () => {
+  for (const [w, label] of [
+    [1360, true],
+    [1359, false],
+  ] as const) {
+    test(`${String(w)} px: Export site label ${label ? 'shown' : 'hidden'}, Publish labelled`, async ({
+      page,
+    }) => {
+      await openSpreadOne(page)
+      await page.setViewportSize({ width: w, height: 900 })
+      const exportSite = page.getByTestId('export-site')
+      const exportLabel = exportSite.locator(
+        '.site-job-pill__content:not(.site-job-pill__sizer) .site-job-pill__label',
+      )
+      await expect(exportLabel).toBeVisible({ visible: label })
+      const exportWidth = (await box(exportSite)).width
+      // Icon-only is 40 px (±0.5); labelled is wider.
+      expect(exportWidth).toBeGreaterThan(39.5)
+      expect(exportWidth > 40.5).toBe(label)
+      const publishLabel = page
+        .getByTestId('publish')
+        .locator(
+          '.site-job-pill__content:not(.site-job-pill__sizer) .site-job-pill__label',
+        )
+      await expect(publishLabel).toBeVisible()
+      await expect(publishLabel).toHaveText('Publish')
+      await assertDocumentFitsViewport(page)
+    })
+  }
 })

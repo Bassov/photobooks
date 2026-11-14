@@ -99,9 +99,25 @@ export function AppModal({ width = 512, isOpen, onOpenChange, isDismissable = tr
     <DialogOverlay isOpen={isOpen} onOpenChange={onOpenChange} isDismissable={isDismissable} className="bg-black/40 backdrop-blur-[1.5px]">
       <DialogContent role={role} closeButton={false} className={cn("max-h-[calc(100%-32px)] max-w-[calc(100%-32px)] gap-0 overflow-auto border-0 p-0 shadow-lg sm:rounded-xl", className)} style={{ width }}>
         {children}
+        <KeepFocus />
       </DialogContent>
     </DialogOverlay>
   )
+}
+
+/* A step change that unmounts the focused button (Publish → run / failed) drops focus to <body>; React Aria's FocusScope
+ * only pulls it back a frame later, and an Esc in between never reaches the overlay, so the dialog stays open over the
+ * page. Re-runs on every AppModal render (no deps), skips the mount (the dialog's own autofocus owns that). */
+function KeepFocus() {
+  const ref = React.useRef<HTMLSpanElement>(null)
+  const mounted = React.useRef(false)
+  React.useLayoutEffect(() => {
+    if (!mounted.current) { mounted.current = true; return }
+    const a = document.activeElement
+    if (a && a !== document.body && a.isConnected) return
+    ref.current?.closest<HTMLElement>("[role=dialog],[role=alertdialog]")?.focus()
+  })
+  return <span ref={ref} hidden />
 }
 
 /* ---- AlertDialog: confirm a destructive action (kit v3) ----

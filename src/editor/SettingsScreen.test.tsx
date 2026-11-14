@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
+import { IDBFactory } from 'fake-indexeddb'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import * as assets from '../assets'
@@ -22,6 +23,7 @@ describe('SettingsScreen', () => {
     cleanup()
     resetPrintProfilesForTests()
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
   it('shows the measured preview cache size, a dash when unavailable', async () => {
@@ -100,18 +102,70 @@ describe('SettingsScreen', () => {
     expect(screen.queryByRole('alertdialog')).toBeNull()
   })
 
-  it('hides sections without backing behavior (no stubs, no inputs)', () => {
+  it('hides Interface, which has no backing behavior (no stub, no inputs)', () => {
     render(<SettingsScreen libraryPath="Lib" bookCount={0} />)
-    for (const id of ['hosting', 'site', 'interface']) {
-      expect(screen.queryByTestId(`settings-nav-${id}`)).toBeNull()
-      expect(screen.queryByTestId(`settings-deferred-${id}`)).toBeNull()
-    }
+    expect(screen.queryByTestId('settings-nav-interface')).toBeNull()
+    expect(screen.queryByTestId('settings-deferred-interface')).toBeNull()
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
       'Library',
+      'Hosting',
+      'Site',
       'Print presets',
       'Change library folder…',
     ])
+  })
+
+  it('opens on the section it is given', async () => {
+    vi.stubGlobal('indexedDB', new IDBFactory())
+    render(
+      <SettingsScreen
+        libraryPath="Lib"
+        bookCount={0}
+        initialSection="hosting"
+      />,
+    )
+    expect(
+      screen.getByTestId('settings-nav-hosting').getAttribute('aria-current'),
+    ).toBe('page')
+    await screen.findByTestId('hosting-setup')
+  })
+
+  it('opens Hosting: title, intro and the form inputs only there', async () => {
+    vi.stubGlobal('indexedDB', new IDBFactory())
+    render(<SettingsScreen libraryPath="Lib" bookCount={0} />)
+    fireEvent.click(screen.getByTestId('settings-nav-hosting'))
+    expect(screen.getByTestId('settings-section-title').textContent).toBe(
+      'Hosting',
+    )
+    expect(
+      screen.getByTestId('settings-nav-hosting').getAttribute('aria-current'),
+    ).toBe('page')
+    await screen.findByTestId('hosting-setup')
+    expect(screen.queryByTestId('library-settings-panel')).toBeNull()
+    // The manual form stays mounted but hidden: only the setup token shows.
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(screen.getByLabelText('Setup token').getAttribute('type')).toBe(
+      'password',
+    )
+    fireEvent.click(screen.getByTestId('settings-nav-library'))
+    expect(screen.queryByRole('textbox')).toBeNull()
+  })
+
+  it('opens Site: title and the three site fields only there', () => {
+    render(<SettingsScreen libraryPath="Lib" bookCount={0} />)
+    fireEvent.click(screen.getByTestId('settings-nav-site'))
+    expect(screen.getByTestId('settings-section-title').textContent).toBe(
+      'Site',
+    )
+    expect(
+      screen.getByTestId('settings-nav-site').getAttribute('aria-current'),
+    ).toBe('page')
+    expect(screen.getByTestId('site-settings')).toBeTruthy()
+    expect(screen.getAllByRole('textbox')).toHaveLength(3)
+    expect(screen.getAllByTestId('settings-rule')).toHaveLength(2)
+    fireEvent.click(screen.getByTestId('settings-nav-library'))
+    expect(screen.queryByTestId('site-settings')).toBeNull()
   })
 
   it('switches to Print presets: title, aria-current and active row follow', () => {

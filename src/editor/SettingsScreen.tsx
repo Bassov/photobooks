@@ -7,9 +7,11 @@ import { Button } from '../ui/Button'
 import { cn } from '../ui/cn'
 import { FeaturedIcon } from '../ui/FeaturedIcon'
 import { Icon } from '../ui/Icon'
+import { HostingSection } from './HostingSection'
 import { ensureKitTypeStyles } from './kitTypeStyles'
 import { changeLibraryFolder } from './projectSession'
 import { PrintPresetsSection } from './PrintPresetsSection'
+import { SiteSettingsSection } from './SiteSettingsSection'
 import {
   SETTINGS_SECTIONS,
   settingsNavActiveClass,
@@ -35,13 +37,16 @@ export function SettingsScreen({
   libraryPath,
   bookCount,
   changeDisabled,
+  initialSection = 'library',
 }: {
   libraryPath: string
   /** `null` while the current library's list is pending or failed. */
   bookCount: number | null
   changeDisabled?: boolean
+  /** Section shown first (Publish → "Open Settings → Hosting"). */
+  initialSection?: SettingsSectionId
 }) {
-  const [sectionId, setSectionId] = useState<SettingsSectionId>('library')
+  const [sectionId, setSectionId] = useState<SettingsSectionId>(initialSection)
   const [confirm, setConfirm] = useState(false)
   const [cacheBytes, setCacheBytes] = useState<number | null>(null)
 
@@ -58,7 +63,7 @@ export function SettingsScreen({
       <nav className="flex flex-col gap-0.5 bg-chrome p-3 pr-[13px]">
         <div className="mb-3 flex items-center gap-2 px-2 pt-1">
           <div className="grid size-6 place-items-center rounded-md bg-field text-foreground">
-            <Icon name="bookOpen" size={14} className="size-3" />
+            <Icon name="bookOpen" size={12} />
           </div>
           <span className="text-base font-semibold">Settings</span>
         </div>
@@ -78,11 +83,10 @@ export function SettingsScreen({
                 settingsNavActiveClass(current),
               )}
             >
-              <Icon
-                name={section.icon}
-                size={16}
-                className="size-4 text-muted-foreground"
-              />
+              {/* Unlayered .pb-icon colour beats a utility on the svg; inherit it. */}
+              <span className="inline-flex text-muted-foreground">
+                <Icon name={section.icon} size={16} />
+              </span>
               {section.label}
             </button>
           )
@@ -102,6 +106,10 @@ export function SettingsScreen({
         </h1>
         {sectionId === 'print' ? (
           <PrintPresetsSection row={ROW} rule={settingsRule} />
+        ) : sectionId === 'hosting' ? (
+          <HostingSection row={ROW} rule={settingsRule} />
+        ) : sectionId === 'site' ? (
+          <SiteSettingsSection row={ROW} rule={settingsRule} />
         ) : (
           <>
             <p className="mt-1 max-w-[560px] text-sm leading-relaxed text-muted-foreground">

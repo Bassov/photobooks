@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   genericPrintProfile,
   parsePrintProfile,
+  photoPages,
   preflight,
   preflightRules,
   type Book,
@@ -551,5 +552,28 @@ describe('preflight', () => {
       assetReads: 2 * first.assetReads,
       statusReads: 2 * first.statusReads,
     })
+  })
+})
+
+describe('photoPages', () => {
+  it('maps each placed photo to its printed pages, ascending and unique', () => {
+    const book = bookWith([
+      photo({ id: 'right', rect: { x: 250, y: 50, width: 100, height: 100 } }),
+      photo({ id: 'left' }),
+      photo({ id: 'left-2', rect: { x: 20, y: 20, width: 50, height: 50 } }),
+      photo({ id: 'soft', assetId: 'soft' }),
+      photo({
+        id: 'pasteboard',
+        assetId: 'blurry',
+        rect: { x: -300, y: 50, width: 100, height: 100 },
+      }),
+      photo({ id: 'empty', assetId: undefined }),
+      text('Hello'),
+    ])
+
+    expect([...photoPages(book)]).toEqual([
+      ['sharp', [2, 3]],
+      ['soft', [2]],
+    ])
   })
 })

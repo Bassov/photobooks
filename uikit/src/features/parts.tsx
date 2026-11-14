@@ -7,8 +7,6 @@ import { UNSAFE_PortalProvider } from "react-aria"
 import { StudioProvider, useStudio, type Features, type View, type Node, type Book } from "@/sandbox/store"
 import { makeDoc, type Doc } from "@/sandbox/model"
 import { EditorFrame, TopBar, SpreadsPanel, Dock, StatusLine, Pager, Toasts } from "@/sandbox/chrome"
-import { BOOKS } from "./screens"
-import { SiteViewer } from "./site-viewer"
 import { Viewport } from "@/sandbox/viewport"
 
 export function Std({ init, features, view, cur = 2, sel, missing, node, mode, book, top, left, right, dock, overlay, canvasExtra, pager = false, wrap, pick, keep }: {
@@ -28,7 +26,7 @@ export function Std({ init, features, view, cur = 2, sel, missing, node, mode, b
     <StudioProvider init={init ?? (() => makeDoc())} features={features} view={view} cur={cur} sel={sel} missing={missing} node={node} mode={mode} book={book}>
       {pick !== undefined && <AutoPick pick={pick} />}
       <W><EditorFrame
-        top={top ?? <PreviewTopBar />}
+        top={top ?? <TopBar />}
         left={left === false ? undefined : left ?? <SpreadsPanel />}
         right={right === false ? undefined : right ?? <ContextInspector />}
         canvas={<Viewport><StatusLine />{pager && <Pager />}{canvasExtra}</Viewport>}
@@ -44,31 +42,15 @@ function AutoPick({ pick }: { pick: number | number[] }) {
 }
 
 
-/** Kit editor Preview: in-app current-book preview (not the published Site stage). */
-function PreviewTopBar(props: React.ComponentProps<typeof TopBar>) {
-  const st = useStudio()
-  const [open, setOpen] = React.useState(false)
-  const card = { ...BOOKS[0], id: "preview", title: props.title ?? "Untitled book", cover: "", spreads: st.doc.spreads.length, status: "draft" as const }
-  return (
-    <>
-      <TopBar {...props} onPreview={() => setOpen(true)} />
-      {open && (
-        <div className="fixed inset-0 z-[80]" data-testid="book-preview">
-          <SiteViewer single title="Preview" onClose={() => setOpen(false)} books={[card]} initial={{ page: "book", book: "preview", slide: st.cur + 1 }} />
-        </div>
-      )}
-    </>
-  )
-}
-
 /* Scenario switcher strip above a demo (kit chrome, not product UI) */
 import { Tabs as KTabs, TabList as KTabList, Tab as KTab } from "@/components/ui/tabs"
 export function Scenarios({ items, value, onChange, note }: { items: [string, string][]; value: string; onChange: (v: string) => void; note?: React.ReactNode }) {
   return (
     <div className="flex h-10 shrink-0 items-center gap-3 bg-chrome px-3" data-testid="scenarios">
       <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">Scenario</span>
-      <KTabs selectedKey={value} onSelectionChange={(k) => onChange(String(k))}>
-        <KTabList aria-label="Scenario" size="sm" className="bg-field">
+      {/* a long list scrolls inside the strip instead of widening the page */}
+      <KTabs selectedKey={value} onSelectionChange={(k) => onChange(String(k))} className="no-scrollbar min-w-0 overflow-x-auto">
+        <KTabList aria-label="Scenario" size="sm" className="w-max bg-field">
           {items.map(([id, l]) => <KTab key={id} id={id}>{l}</KTab>)}
         </KTabList>
       </KTabs>

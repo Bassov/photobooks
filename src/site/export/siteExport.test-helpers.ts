@@ -126,6 +126,16 @@ export function referencedPaths(tree: SiteTree): string[] {
       for (const match of text.matchAll(/"(?:path|viewer)":"([^"]*)"/g)) {
         refs.push(resolvePath('', match[1] ?? ''))
       }
+      // Each book directory holds its `book.json` (D41).
+      for (const match of text.matchAll(/"path":"(books\/[^"]*\/)"/g)) {
+        refs.push(`${match[1] ?? ''}book.json`)
+      }
+    }
+    if (file.path.endsWith('/book.json')) {
+      const dir = file.path.slice(0, file.path.lastIndexOf('/') + 1)
+      for (const match of text.matchAll(/"src":"([^"]*)"/g)) {
+        refs.push(resolvePath(dir, match[1] ?? ''))
+      }
     }
   }
   return refs

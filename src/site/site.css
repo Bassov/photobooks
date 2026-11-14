@@ -1,6 +1,6 @@
-/* Site viewer entry (Designer site-viewer §1–§4). Utilities only for the
-   shared render views (BookObject); the site's own layout is plain CSS on
-   --site-* in siteViewer.css (the editor's site preview imports it too). */
+/* Site entry: tokens and the utilities of the shared render views the pages
+   paint (spreads, the cover); the site's own layout is plain CSS in
+   siteSystem.css and book/room.css. */
 @layer theme, base, components, utilities;
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/utilities.css' layer(utilities) source(none);
@@ -13,4 +13,8 @@ body {
   overflow-x: clip;
 }
 
-@import './siteViewer.css';
+.site *,
+.site *::before,
+.site *::after {
+  box-sizing: border-box;
+}

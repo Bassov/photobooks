@@ -36,7 +36,7 @@ import { installThumbBackgroundWarm } from './thumbBackgroundWarm'
 import { useChromeImport } from './useChromeImport'
 import './EditorShell.css'
 
-// Its chunk holds the site book page and siteViewer.css.
+// Its chunk holds the site's reading room and its CSS.
 const SitePreview = lazy(() => import('./SitePreview'))
 
 export function EditorShell() {
