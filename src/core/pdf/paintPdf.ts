@@ -120,7 +120,7 @@ export async function paintBookPdf(
       })
     }
   }
-  // Spec D5: a book below the profile minimum prints as the minimum.
+  // A book below the profile minimum prints as the minimum (print issues).
   const blanks = blankSheets(
     book.spreads.length,
     profile.pageCount.min,

@@ -14,6 +14,7 @@
 | `src/core/pdf/pdfGeometry.test.ts`     | `blankSheets` examples                    |
 | `src/core/pdf/pdfGeometry.pbt.test.ts` | PBT page total, whole sheets              |
 | `src/core/pdf/paintPdf.test.ts`        | 4-page book on min 20, at-min, crop marks |
+| `src/core/pdf/pdf.worker.test.ts`      | 1-page book now prints 20 (Generic min)   |
 | `docs/roadmap/P4/pdf-min-pages.md`     | fill stub item                            |
 
 - Reuse: `pagesOf`, `sheetBoxes`, `paintCropMarks`.
