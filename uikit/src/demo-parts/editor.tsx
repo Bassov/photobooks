@@ -16,7 +16,7 @@ import type { View } from "@/sandbox/store"
 import { FolderPicker } from "@/features/screens"
 import { useSession, blankDoc, blankExtras, type Extras } from "./session"
 import { PrintCustomsCtx, profileById } from "./printProfiles"
-import { ExportSiteDialog, PrintDialog, PublishDialog, RelinkDialog, useExportRun, usePublishRun, type ExportPhase, type ExportStep, type PublishStep } from "./dialogs"
+import { ExportSiteDialog, PrintDialog, PublishDialog, RelinkDialog, useExportRun, usePrintRun, usePublishRun, type ExportPhase, type ExportStep, type PublishStep, type RunStep } from "./dialogs"
 import { DemoSitePreview } from "./site"
 import type { SiteState } from "@/features/site-viewer"
 import { SLOT } from "./layout"
@@ -111,21 +111,29 @@ const PUBLISH_PILL = {
 }
 const publishText = ({ phase, p }: ExportPill): PillText =>
   phase === "run" ? { label: `${p}%`, title: `Publishing · ${p}%`, say: `Publishing, ${tens(p)}%` } : PUBLISH_PILL[phase]
-/** Site job pill (Designer static-export §1, in-app-publish §1): the rest content is a hidden sizer in the same grid cell as
- *  the live content, so every state keeps the rest width; running fills a ::before layer (scaleX) under "NN%". `narrow`: the
- *  label hides below 1360 px (Export site; P11). `wait`: the other site job runs (P7), the pill is disabled with that title. */
+/** pdf-export D1: icon only in every state; the Printer stays while running (over the fill). */
+const PRINT_PILL = {
+  idle: { Icon: Printer, label: "", title: "Print", say: "" },
+  done: { Icon: CircleCheck, label: "", title: "PDF ready", say: "PDF ready" },
+  failed: { Icon: TriangleAlert, label: "", title: "PDF not exported", say: "PDF not exported" },
+}
+const printText = ({ phase, p }: ExportPill): PillText =>
+  phase === "run" ? { Icon: Printer, label: "", title: `Exporting PDF · ${p}%`, say: `Exporting PDF, ${tens(p)}%` } : PRINT_PILL[phase]
+/** Job pill (Designer static-export §1, in-app-publish §1, pdf-export D1): the rest content is a hidden sizer in the same grid
+ *  cell as the live content, so every state keeps the rest width; running fills a ::before layer (scaleX) under "NN%". `narrow`:
+ *  the label hides below 1424 px (Export site; pdf-export D2). `wait`: the other site job runs (P7), the pill is disabled with that title. */
 function SiteJobPill({ name, testid, run, text, rest, narrow, wait, empty, className, onPress }: {
   name: string; testid: string; run: ExportPill; text: PillText; rest: PillText; narrow?: boolean; wait?: string; empty: boolean; className: string; onPress?: () => void
 }) {
   const cell = "col-start-1 row-start-1 flex items-center gap-1.5"
-  const lbl = narrow ? "max-[1360px]:hidden" : undefined
+  const lbl = narrow ? "max-[1423.98px]:hidden" : undefined
   const fill = "before:absolute before:inset-0 before:origin-left before:bg-control before:[transform:scaleX(var(--p))] before:[transition:transform_160ms_linear] motion-reduce:before:[transition:none]"
   // the jolly Button has no title prop: a display:contents wrapper carries it without adding a box to the bar
   return <>
     <span className="contents" title={wait ?? text.title}>
       <Button variant="ghost" size="sm" isDisabled={empty || !!wait} className={cn("relative inline-grid h-8 justify-items-center overflow-hidden rounded-full text-sm font-medium [&_svg]:size-4", className, run.phase === "run" && fill)}
         style={{ ...quiet, "--p": run.p / 100 } as React.CSSProperties} onPress={onPress} aria-label={name} data-state={run.phase === "run" ? "running" : run.phase} data-testid={testid}>
-        <span aria-hidden className={cn(cell, "invisible")}>{rest.Icon && <rest.Icon />}<span className={lbl}>{rest.label}</span></span>
+        <span aria-hidden className={cn(cell, "invisible")}>{rest.Icon && <rest.Icon />}{rest.label && <span className={lbl}>{rest.label}</span>}</span>
         <span className={cn(cell, "relative tabular-nums")}>{text.Icon && <text.Icon />}{text.label && <span className={lbl}>{text.label}</span>}</span>
       </Button>
     </span>
@@ -133,8 +141,8 @@ function SiteJobPill({ name, testid, run, text, rest, narrow, wait, empty, class
   </>
 }
 /** #/demo editor top bar: tools, history, view toggles (snap, grid), zoom, save, title (→ Book settings) and Preview · Settings · Export site · Print · Publish. */
-export function EditorTopBar({ title, onLibrary, onPreview, onSettings, exportSite = { phase: "idle", p: 0 }, onExportSite, onPrint, publish = { phase: "idle", p: 0 }, onPublish }: {
-  title: string; onLibrary?: () => void; onPreview?: () => void; onSettings?: () => void; exportSite?: ExportPill; onExportSite?: () => void; onPrint?: () => void; publish?: ExportPill; onPublish?: () => void
+export function EditorTopBar({ title, onLibrary, onPreview, onSettings, exportSite = { phase: "idle", p: 0 }, onExportSite, print = { phase: "idle", p: 0 }, onPrint, publish = { phase: "idle", p: 0 }, onPublish }: {
+  title: string; onLibrary?: () => void; onPreview?: () => void; onSettings?: () => void; exportSite?: ExportPill; onExportSite?: () => void; print?: ExportPill; onPrint?: () => void; publish?: ExportPill; onPublish?: () => void
 }) {
   const empty = useStudio().doc.spreads.length === 0
   const right = (
@@ -143,7 +151,7 @@ export function EditorTopBar({ title, onLibrary, onPreview, onSettings, exportSi
       <Button variant="ghost" size="sm" className="h-8 gap-1.5 rounded-full px-3 text-sm font-medium [&_svg]:size-4" style={quiet} onPress={onSettings} data-testid="demo-editor-settings" aria-label="Settings"><Settings /></Button>
       <SiteJobPill name="Export site" testid="demo-export-site" run={exportSite} text={exportText(exportSite)} rest={EXPORT_PILL.idle} narrow empty={empty} className="px-3"
         wait={publish.phase === "run" ? "Wait until Publish finishes" : undefined} onPress={onExportSite} />
-      <span className="contents" title="Print"><Button variant="ghost" size="sm" className="h-8 gap-1.5 rounded-full px-3 text-sm font-medium [&_svg]:size-4" style={quiet} onPress={onPrint} data-testid="demo-print" aria-label="Print"><Printer /></Button></span>
+      <SiteJobPill name="Print" testid="demo-print" run={print} text={printText(print)} rest={PRINT_PILL.idle} empty={empty} className="px-3" onPress={onPrint} />
       <SiteJobPill name="Publish" testid="demo-publish" run={publish} text={publishText(publish)} rest={PUBLISH_PILL.idle} empty={empty} className="px-3.5"
         wait={exportSite.phase === "run" ? "Wait until the export finishes" : undefined} onPress={onPublish} />
     </div>
@@ -167,16 +175,20 @@ export function DemoEditor({ id, initialDialog = null, initialPreview = false }:
   const pub = usePublishRun()
   const [pubStep, setPubStep] = React.useState<PublishStep>()
   const openPublish = () => { setPubStep(pub.phase === "idle" ? undefined : pub.phase); pub.seen(); setDlg("publish") }
+  // the print run too (pdf-export D7): the pill reopens the dialog in its current step
+  const pr = usePrintRun()
+  const [prStep, setPrStep] = React.useState<RunStep>("opts")
+  const openPrint = () => { setPrStep(pr.phase === "idle" ? "opts" : pr.phase); pr.seen(); setDlg("print") }
   const openHosting = () => { setDlg(null); set({ stage: "settings", back: "editor", settingsSection: "hosting" }) }
   const others = S.books.filter((x) => x.published && x.id !== id).map((x) => x.title)
   return (
     <div className="h-full" data-testid="demo-editor"><PrintCustomsCtx.Provider value={S.printProfiles}>
       <Std keep init={() => b.doc ?? blankDoc()} book={b.book} cur={0} features={DEMO_FEATURES} view={DEMO_VIEW} missing={b.missing} left={<SpreadsPanel reorder actions />}
-        top={<EditorTopBar title={b.title} onLibrary={() => set({ stage: "library", open: null })} onPreview={() => setPreview(true)} onSettings={() => set({ stage: "settings", back: "editor", settingsSection: undefined })} exportSite={{ phase: ex.phase, p: ex.p }} onExportSite={openExport} onPrint={() => setDlg("print")} publish={{ phase: pub.phase, p: pub.p }} onPublish={openPublish} />}
+        top={<EditorTopBar title={b.title} onLibrary={() => set({ stage: "library", open: null })} onPreview={() => setPreview(true)} onSettings={() => set({ stage: "settings", back: "editor", settingsSection: undefined })} exportSite={{ phase: ex.phase, p: ex.p }} onExportSite={openExport} print={{ phase: pr.phase, p: pr.p }} onPrint={openPrint} publish={{ phase: pub.phase, p: pub.p }} onPublish={openPublish} />}
         dock={<PhotosDock />}
         overlay={<><DocSpy id={id} /><MissingSync id={id} />
           {preview && <DemoSitePreview id={id} onExit={() => setPreview(false)} initial={typeof initialPreview === "object" ? initialPreview : undefined} />}
-          {dlg === "publish" && <PublishDialog title={b.title} otherBooks={others} initialStep={pubStep} run={pub} onHide={() => setDlg(null)} onOpenSite={openSite} onOpenHosting={openHosting} />}{dlg === "print" && <PrintDialog book={b.book} spreads={b.doc?.spreads.length ?? 10} title={b.title} profile={profileById(b.doc?.print?.profile ?? b.printProfile, S.printProfiles)} onClose={() => setDlg(null)} />}
+          {dlg === "publish" && <PublishDialog title={b.title} otherBooks={others} initialStep={pubStep} run={pub} onHide={() => setDlg(null)} onOpenSite={openSite} onOpenHosting={openHosting} />}{dlg === "print" && <PrintDialog book={b.book} spreads={b.doc?.spreads.length ?? 10} title={b.title} profile={profileById(b.doc?.print?.profile ?? b.printProfile, S.printProfiles)} initialStep={prStep} run={pr} onClose={() => setDlg(null)} />}
           {dlg === "export" && <ExportSiteDialog title={b.title} otherBooks={others} initialStep={exStep} run={ex} onHide={() => setDlg(null)} />}</>} />
     </PrintCustomsCtx.Provider></div>
   )
@@ -219,14 +231,15 @@ export function CanvasPart(p: PartState) { return <PartStudio {...p}><div classN
 export type EditorSlots = { left?: boolean; right?: boolean; dock?: boolean }
 /** The #/demo editor (top bar, spread list, canvas, inspector, photos dock, DEMO_FEATURES) at its real EditorFrame slot sizes,
  *  seeded with an explicit studio state. `slots` hides panels the page is not about (the canvas always stays). */
-export function EditorView({ title = "Lake trip", slots = {}, pick, crop, view, extras, overlay, exportSite, publish, ...p }: PartState & {
-  title?: string; slots?: EditorSlots; pick?: number | number[]; crop?: boolean; view?: Partial<View>; extras?: Partial<Extras>; overlay?: React.ReactNode; exportSite?: ExportPill; publish?: ExportPill
+export function EditorView({ title = "Lake trip", slots = {}, pick, crop, view, extras, overlay, exportSite, print, publish, missing, ...p }: PartState & {
+  title?: string; slots?: EditorSlots; pick?: number | number[]; crop?: boolean; view?: Partial<View>; extras?: Partial<Extras>; overlay?: React.ReactNode; exportSite?: ExportPill; print?: ExportPill; publish?: ExportPill
+  /** photo ids that show hatched (can't be found) */ missing?: string[]
 }) {
   React.useState(() => { setEditorExtras({ ...blankExtras(title), ...extras }); return 0 })
   return (
     <div className="h-full" data-testid="editor-view">
-      <Std keep init={p.doc ?? (() => blankDoc())} book={p.book} cur={p.cur ?? 0} sel={p.sel} node={p.node} mode={p.mode} features={p.features ?? DEMO_FEATURES} view={view} pick={pick}
-        top={<EditorTopBar title={title} exportSite={exportSite} publish={publish} />}
+      <Std keep init={p.doc ?? (() => blankDoc())} book={p.book} cur={p.cur ?? 0} sel={p.sel} node={p.node} mode={p.mode} features={p.features ?? DEMO_FEATURES} view={view} pick={pick} missing={missing}
+        top={<EditorTopBar title={title} exportSite={exportSite} print={print} publish={publish} />}
         left={slots.left === false ? false : <SpreadsPanel reorder actions />}
         right={slots.right === false ? false : undefined}
         dock={slots.dock === false ? false : <PhotosDock />}

@@ -1,18 +1,24 @@
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { animationsSettled } from './fixtures/animationsSettled'
-import { topAt } from './fixtures/paintProbe'
+import { pixelsAt, topAt } from './fixtures/paintProbe'
 
 // pdf-export-kit (Designer pdf-export §2.1–2.4, PE1–PE3): the kit #/demo Print
 // dialog. Options with a read-only "1 per sheet" row (2-up / 4-up hidden), the
 // D5 summary, the Check block (checking / clean / issues, never blocking), the
 // run (Hide / Esc hide it), PDF ready with Open PDF and the saved path, and
 // the failed step. Values are the Spec's, measured in the DOM.
+// pdf-export-kit-pill (D1, D2, §2.5, PE4): the top-bar Print job pill (40 × 32
+// in every state), the run outliving the dialog, the #/feature states. The kit
+// run is a 1.4 s stand-in on performance.now, frozen here to hold a percent.
 
-test.use({ viewport: { width: 1440, height: 900 } })
+// The headless shell rounds text advances (Export site 111); the full Chromium
+// build lays text out as the kit QA and the Designer measure it.
+test.use({ viewport: { width: 1440, height: 900 }, channel: 'chromium' })
 
 type Frame = Record<string, unknown>
 interface Win {
+  __pt: number | null
   __demo: {
     reset: () => void
     go: (s: string) => void
@@ -31,6 +37,12 @@ const rows = (page: Page) => check(page).getByTestId('print-check-row')
 
 /** A new book (Create book default A5 portrait, 10 spreads of empty frames). */
 async function openNewBook(page: Page) {
+  await page.addInitScript(() => {
+    const w = window as unknown as Win
+    const pn = performance.now.bind(performance)
+    w.__pt = null
+    performance.now = () => w.__pt ?? pn()
+  })
   await page.goto('/uikit/#/demo')
   await expect(demo(page)).toBeVisible()
   await page.evaluate(() => {
@@ -106,6 +118,29 @@ async function seedBook(
   )
   await expect(demo(page).getByTestId('demo-print')).toBeVisible()
 }
+
+const printPill = (page: Page) => demo(page).getByTestId('demo-print')
+/** The pill's title sits on its display:contents wrapper (the Button has no title prop). */
+const titleOf = (l: Locator) =>
+  l.evaluate((el) => el.parentElement?.getAttribute('title') ?? '')
+const sizeOf = async (l: Locator) => {
+  const b = await l.boundingBox()
+  return [b?.width, b?.height]
+}
+const freeze = (page: Page) =>
+  page.evaluate(() => {
+    const w = window as unknown as Win
+    w.__pt = Math.floor(performance.now())
+  })
+const advance = (page: Page, ms: number) =>
+  page.evaluate((d) => {
+    const w = window as unknown as Win
+    w.__pt = (w.__pt ?? 0) + d
+  }, ms)
+const release = (page: Page) =>
+  page.evaluate(() => {
+    ;(window as unknown as Win).__pt = null
+  })
 
 async function openPrint(page: Page) {
   await demo(page).getByTestId('demo-print').click()
@@ -330,8 +365,8 @@ test('PE3 run: page progress, 6 px bar, Esc hides; done with Open PDF', async ({
   await page.keyboard.press('Escape')
   await expect(dialog(page)).toHaveCount(0)
 
-  await openPrint(page)
-  await dialog(page).getByTestId('print-go').click()
+  // the run went on behind the pill; the pill opens it, and it ends in place
+  await printPill(page).click()
   await expect(dialog(page)).toHaveAttribute('data-step', 'done')
   await expect(dialog(page).getByTestId('print-done')).toHaveText(
     'lake-trip-A5.pdf · 6 pages · 11.5 MB',
@@ -367,6 +402,7 @@ test('PE3 run: page progress, 6 px bar, Esc hides; done with Open PDF', async ({
 
 test('PE3 run: Hide and an outside click hide it', async ({ page }) => {
   await openPrint(page)
+  await freeze(page)
   await dialog(page).getByTestId('print-go').click()
   await expect(dialog(page)).toHaveAttribute('data-step', 'run')
   await expect(dialog(page).getByTestId('print-run-text')).toHaveText(
@@ -374,10 +410,11 @@ test('PE3 run: Hide and an outside click hide it', async ({ page }) => {
   )
   await dialog(page).getByTestId('print-hide').click()
   await expect(dialog(page)).toHaveCount(0)
-  await openPrint(page)
-  await dialog(page).getByTestId('print-go').click()
+  await printPill(page).click()
+  await expect(dialog(page)).toHaveAttribute('data-step', 'run')
   await page.mouse.click(20, 450)
   await expect(dialog(page)).toHaveCount(0)
+  await expect(printPill(page)).toHaveAttribute('data-state', 'running')
 })
 
 test('PE3 failed: access / full / other texts, Try again exports', async ({
@@ -411,4 +448,194 @@ test('PE3 failed: access / full / other texts, Try again exports', async ({
   ).toBeVisible()
   await dialog(page).getByTestId('print-retry').click()
   await expect(dialog(page)).toHaveAttribute('data-step', 'done')
+})
+
+test.describe('PE4 top bar at 1440', () => {
+  test('Preview · Settings · Export site · Print · Publish x and widths, gap 6', async ({
+    page,
+  }) => {
+    const boxes = await Promise.all(
+      [
+        'demo-preview',
+        'demo-editor-settings',
+        'demo-export-site',
+        'demo-print',
+        'demo-publish',
+      ].map(async (id) => {
+        const b = await demo(page).getByTestId(id).boundingBox()
+        return [b?.x ?? 0, b?.width ?? 0, b?.height ?? 0]
+      }),
+    )
+    const want = [
+      [1042.64, 95.45],
+      [1144.09, 40],
+      [1190.09, 112.33],
+      [1308.42, 40],
+      [1354.42, 73.58],
+    ]
+    boxes.forEach(([x = 0, w = 0, h = 0], i) => {
+      const [wx = 0, ww = 0] = want[i] ?? []
+      expect(
+        Math.abs(x - wx),
+        `x ${String(x)} ≈ ${String(wx)}`,
+      ).toBeLessThanOrEqual(0.5)
+      expect(
+        Math.abs(w - ww),
+        `w ${String(w)} ≈ ${String(ww)}`,
+      ).toBeLessThanOrEqual(0.5)
+      expect(h).toBe(32)
+      const [nx = 0] = boxes[i + 1] ?? [x + w + 6]
+      expect(Math.abs(nx - (x + w) - 6)).toBeLessThanOrEqual(0.5)
+    })
+  })
+})
+
+test('PE4 Print pill: rest, running fill, reopen, done 4 s, rest; 40 × 32 throughout', async ({
+  page,
+}) => {
+  const pill = printPill(page)
+  const status = demo(page).getByTestId('demo-print-status')
+  await expect(pill).toHaveAttribute('data-state', 'idle')
+  await expect(pill).toHaveAttribute('aria-label', 'Print')
+  expect(await titleOf(pill)).toBe('Print')
+  expect(await sizeOf(pill)).toEqual([40, 32])
+  await expect(pill.locator('svg.lucide-printer')).toHaveCount(2) // sizer + live
+  await expect(status).toHaveText('')
+
+  await openPrint(page)
+  await freeze(page)
+  await dialog(page).getByTestId('print-go').click()
+  await advance(page, 700)
+  await expect(dialog(page).getByTestId('print-run-text')).toHaveText(
+    'Page 11 of 20 · 48%',
+  )
+  await dialog(page).getByTestId('print-hide').click()
+  await expect(dialog(page)).toHaveCount(0)
+  await expect(pill).toHaveAttribute('data-state', 'running')
+  expect(await titleOf(pill)).toBe('Exporting PDF · 48%')
+  await expect(status).toHaveText('Exporting PDF, 40%')
+  expect(await sizeOf(pill)).toEqual([40, 32])
+  // what paints: the #BEBEBE fill up to 48 % of the pill, the quiet #D7D7D7 after it
+  await expect
+    .poll(async () => {
+      const px = await pixelsAt(pill, [
+        { x: 6, y: 16 },
+        { x: 34, y: 16 },
+      ])
+      return px.map(([r = 0]) => r)
+    })
+    .toEqual([190, 215])
+
+  // the pill opens the dialog in its current step; Esc hides it again
+  await pill.click()
+  await expect(dialog(page)).toHaveAttribute('data-step', 'run')
+  await page.keyboard.press('Escape')
+  await expect(dialog(page)).toHaveCount(0)
+
+  await release(page)
+  await expect(pill).toHaveAttribute('data-state', 'done')
+  const doneAt = Date.now()
+  expect(await titleOf(pill)).toBe('PDF ready')
+  await expect(status).toHaveText('PDF ready')
+  expect(await sizeOf(pill)).toEqual([40, 32])
+  await expect(pill.locator('svg.lucide-circle-check')).toHaveCount(1)
+  await expect(pill).toHaveAttribute('data-state', 'idle', { timeout: 8000 })
+  expect(Date.now() - doneAt).toBeGreaterThan(3000)
+  expect(await titleOf(pill)).toBe('Print')
+  await expect(pill.locator('svg.lucide-printer')).toHaveCount(2)
+})
+
+test('PE4 failed pill stays until the pill opens the dialog', async ({
+  page,
+}) => {
+  // fake clock from a fresh navigation: runFor skips the 4.5 s below
+  await page.goto('about:blank')
+  await page.clock.install()
+  await openNewBook(page)
+  const pill = printPill(page)
+  await openPrint(page)
+  await page.evaluate(() => {
+    ;(window as unknown as Win).__printDemo.fail('full')
+  })
+  await dialog(page).getByTestId('print-go').click()
+  await expect(dialog(page)).toHaveAttribute('data-step', 'failed')
+  await dialog(page).getByRole('button', { name: 'Close' }).click()
+  await expect(dialog(page)).toHaveCount(0)
+  await expect(pill).toHaveAttribute('data-state', 'failed')
+  expect(await titleOf(pill)).toBe('PDF not exported')
+  await expect(demo(page).getByTestId('demo-print-status')).toHaveText(
+    'PDF not exported',
+  )
+  expect(await sizeOf(pill)).toEqual([40, 32])
+  await expect(pill.locator('svg.lucide-triangle-alert')).toHaveCount(1)
+  // longer than PDF ready's 4 s: failed doesn't time out
+  await page.clock.runFor(4500)
+  await expect(pill).toHaveAttribute('data-state', 'failed')
+
+  await pill.click()
+  await expect(dialog(page)).toHaveAttribute('data-step', 'failed')
+  await expect(dialog(page).getByTestId('print-error')).toHaveText(
+    'The disk is full.',
+  )
+  await expect(pill).toHaveAttribute('data-state', 'idle')
+  await page.keyboard.press('Escape')
+  await openPrint(page)
+})
+
+test('PE4 #/feature/pdf-export: every state is reachable', async ({ page }) => {
+  await page.goto('/uikit/#/full/pdf-export')
+  const pill = page.getByTestId('demo-print')
+  const dlg = page.getByTestId('print-dialog')
+  const tab = (name: string) =>
+    page
+      .getByTestId('scenarios')
+      .getByRole('tab', { name, exact: true })
+      .evaluate((t: HTMLElement) => {
+        t.click()
+      })
+  const states: [string, string | null, string, string][] = [
+    ['Checking', 'opts', 'idle', 'checking'],
+    ['No problems', 'opts', 'idle', 'clean'],
+    ['Issues', 'opts', 'idle', 'issues'],
+    ['No bleed', 'opts', 'idle', 'issues'],
+    ['Exporting', 'run', 'running', ''],
+    ['Hidden, 48 %', null, 'running', ''],
+    ['PDF ready', 'done', 'done', ''],
+    ['PDF ready, skipped photos', 'done', 'done', ''],
+    ['Failed', 'failed', 'failed', ''],
+  ]
+  for (const [name, step, state, checkState] of states) {
+    await tab(name)
+    await expect(pill).toHaveAttribute('data-state', state)
+    expect(await sizeOf(pill)).toEqual([40, 32])
+    // [] = no dialog / no Check block on that step
+    await expect
+      .poll(() => dlg.evaluateAll((els) => els.map((e) => e.dataset.step)))
+      .toEqual(step === null ? [] : [step])
+    await expect
+      .poll(() =>
+        dlg
+          .getByTestId('print-check')
+          .evaluateAll((els) => els.map((e) => e.dataset.state)),
+      )
+      .toEqual(checkState ? [checkState] : [])
+  }
+  await tab('No bleed')
+  await expect(dlg.getByTestId('print-summary')).toHaveText(
+    'PDF · 20 pages · trim size, no marks',
+  )
+  await tab('Exporting')
+  await expect(dlg.getByTestId('print-run-text')).toHaveText(
+    'Page 11 of 20 · 48%',
+  )
+  await tab('PDF ready')
+  await expect(dlg.getByTestId('print-skipped')).toHaveCount(0)
+  await tab('PDF ready, skipped photos')
+  await expect(dlg.getByTestId('print-skipped')).toHaveText(
+    /^2 photos couldn’t be read and print as blank paper · pages? [\d, ]+$/,
+  )
+  await tab('Failed')
+  await expect(dlg.getByTestId('print-error')).toHaveText(
+    /^Photobooks can’t write to “.+”\. Allow access to the folder and try again\.$/,
+  )
 })
