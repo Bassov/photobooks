@@ -8,7 +8,11 @@ import {
   PDFRawStream,
   PDFRef,
 } from '@cantoo/pdf-lib'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { fc } from '@fast-check/vitest'
 import { describe, expect, it } from 'vitest'
+import { pagesOf } from '../pages'
 import { genericPrintProfile } from '../print/genericProfile'
 import type { PrintProfile } from '../print/profileSchema'
 import type { Book } from '../schema'
@@ -435,5 +439,122 @@ describe('paintBookPdf on small books', () => {
     )
 
     expect(box(doc.getPage(0).getTrimBox())).toEqual(boxMm(5, 5, 300, 300))
+  })
+})
+
+describe('paintBookPdf below the profile minimum', () => {
+  const gates = JSON.parse(
+    readFileSync(resolve(process.cwd(), 'quality/gates.json'), 'utf8'),
+  ) as { pbt: { seed: number } }
+
+  function bookOf(spreads: number): Book {
+    return makeBook({
+      assets: { a: {} },
+      spreads: Array.from({ length: spreads }, (_, index) =>
+        makeSpread({
+          id: `s${String(index)}`,
+          frames: [
+            makeFrame({
+              id: `f${String(index)}`,
+              assetId: 'a',
+              rect: { x: 10, y: 10, width: 100, height: 80 },
+            }),
+          ],
+        }),
+      ),
+    })
+  }
+
+  const bytes = { a: fakeJpeg(40, 30, 'a') }
+
+  function withMin(profile: PrintProfile, min: number): PrintProfile {
+    return { ...profile, pageCount: { min, step: 1, max: Math.max(min, 200) } }
+  }
+
+  it('pads a 4-page book to 20 blank pages with the boxes of page 1', async () => {
+    const { result, doc } = await paint(
+      bookOf(3),
+      withMin(pagesProfile, 20),
+      bytes,
+    )
+
+    expect(result.sheets).toBe(20)
+    expect(doc.getPageCount()).toBe(20)
+    const first = doc.getPage(0)
+    for (const page of doc.getPages().slice(4)) {
+      expect(box(page.getMediaBox())).toEqual(box(first.getMediaBox()))
+      expect(box(page.getTrimBox())).toEqual(box(first.getTrimBox()))
+      expect(box(page.getBleedBox())).toEqual(box(first.getBleedBox()))
+      expect(contentOf(doc, page)).toBe('')
+    }
+    expect(drawnImages(doc, doc.getPage(3))).toHaveLength(1)
+  })
+
+  it('keeps a book at the minimum as it is', async () => {
+    const { result, doc } = await paint(
+      bookOf(11),
+      withMin(pagesProfile, 20),
+      bytes,
+    )
+
+    expect(result.sheets).toBe(20)
+    expect(doc.getPageCount()).toBe(20)
+    expect(drawnImages(doc, doc.getPage(19))).toHaveLength(1)
+  })
+
+  it('draws crop marks and nothing else on blank pages when the profile asks', async () => {
+    const { doc } = await paint(
+      bookOf(3),
+      withMin({ ...pagesProfile, cropMarks: true }, 6),
+      bytes,
+    )
+
+    const blank = contentOf(doc, doc.getPage(5))
+    expect(blank.match(/ l\n/g)).toHaveLength(8)
+    expect(blank).not.toMatch(/ re\n|Do\n/)
+    expect(box(doc.getPage(5).getMediaBox())).toEqual(
+      box(doc.getPage(0).getMediaBox()),
+    )
+  })
+
+  it('pads spread sheets two pages wide, an odd remainder on one page', async () => {
+    // 4 pages on 3 sheets; 5 more pages: 2 + 2 + 1.
+    const { result, doc } = await paint(
+      bookOf(3),
+      withMin(spreadsProfile, 9),
+      bytes,
+    )
+
+    expect(result.sheets).toBe(6)
+    const slug = 3 + CROP_MARK_LENGTH_MM
+    expect(doc.getPages().map((page) => box(page.getTrimBox()))).toEqual(
+      [300, 600, 300, 600, 600, 300].map((width) =>
+        boxMm(slug, slug, width, 300),
+      ),
+    )
+    for (const page of doc.getPages().slice(3)) {
+      expect(contentOf(doc, page).match(/ l\n/g)).toHaveLength(8)
+      expect(contentOf(doc, page)).not.toMatch(/Do\n/)
+    }
+  })
+
+  it('prints max(book pages, profile minimum) pages', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.integer({ min: 0, max: 8 }),
+        fc.integer({ min: 1, max: 24 }),
+        async (spreads, min) => {
+          const { result, doc } = await paint(
+            bookOf(spreads),
+            withMin(pagesProfile, min),
+            bytes,
+          )
+          const pages = Math.max(pagesOf(spreads), min)
+          expect(result.sheets).toBe(pages)
+          expect(doc.getPageCount()).toBe(pages)
+        },
+      ),
+      { seed: gates.pbt.seed, numRuns: 30 },
+    )
   })
 })
