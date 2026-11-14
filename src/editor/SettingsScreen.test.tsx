@@ -128,7 +128,7 @@ describe('SettingsScreen', () => {
     expect(
       screen.getByTestId('settings-nav-hosting').getAttribute('aria-current'),
     ).toBe('page')
-    await screen.findByTestId('hosting-form')
+    await screen.findByTestId('hosting-setup')
   })
 
   it('opens Hosting: title, intro and the form inputs only there', async () => {
@@ -141,12 +141,13 @@ describe('SettingsScreen', () => {
     expect(
       screen.getByTestId('settings-nav-hosting').getAttribute('aria-current'),
     ).toBe('page')
-    await screen.findByTestId('hosting-form')
+    await screen.findByTestId('hosting-setup')
     expect(screen.queryByTestId('library-settings-panel')).toBeNull()
-    expect(screen.getAllByRole('textbox')).toHaveLength(4)
-    expect(
-      screen.getByLabelText('Secret access key').getAttribute('type'),
-    ).toBe('password')
+    // The manual form stays mounted but hidden: only the setup token shows.
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(screen.getByLabelText('Setup token').getAttribute('type')).toBe(
+      'password',
+    )
     fireEvent.click(screen.getByTestId('settings-nav-library'))
     expect(screen.queryByRole('textbox')).toBeNull()
   })

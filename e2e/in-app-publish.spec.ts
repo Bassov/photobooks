@@ -139,6 +139,7 @@ async function openSettingsHosting(page: Page): Promise<void> {
 /** Connect the fake bucket in Settings → Hosting, then back to the book. */
 async function connect(page: Page, r2: FakeR2): Promise<void> {
   await openSettingsHosting(page)
+  await page.getByTestId('hosting-manual').click()
   await page.getByTestId('hosting-account').fill(ACCOUNT)
   await page.getByTestId('hosting-bucket').fill('my-books')
   await page.getByTestId('hosting-key').fill(KEY)

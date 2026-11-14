@@ -1,6 +1,15 @@
 import { fc, test } from '@fast-check/vitest'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { IDBFactory } from 'fake-indexeddb'
+import { createElement } from 'react'
 import { afterEach, beforeEach, describe, expect, vi } from 'vitest'
+import { HostingSection } from '../editor/HostingSection'
 import { buildSiteTree } from '../site/export'
 import {
   createMemorySiteDirectory,
@@ -197,6 +206,69 @@ describe('token leak guard (PBT)', () => {
         }
       }
       for (const spy of logged) spy.mockRestore()
+    },
+    PBT_TIMEOUT_MS,
+  )
+
+  test.prop(
+    [
+      fc.stringMatching(/^[A-Za-z0-9_-]{40,80}$/),
+      fc.constantFrom('success', 'failure', 'cancel'),
+    ],
+    { numRuns: 15 },
+  )(
+    'the guided setup card keeps the setup token out of the DOM and storage',
+    async (token, outcome) => {
+      const idb = new IDBFactory()
+      vi.stubGlobal('indexedDB', idb)
+      const cf = createFakeCloudflare()
+      vi.stubGlobal('fetch', cf.fetch)
+      const host = 'books.basov.photo'
+      if (outcome !== 'success') cf.state.dnsTaken.add(host)
+      const byId = (id: string) => screen.getByTestId(id)
+      try {
+        render(createElement(HostingSection, { row: '', rule: () => null }))
+        fireEvent.change(await screen.findByTestId('hosting-setup-token'), {
+          target: { value: token },
+        })
+        fireEvent.click(byId('hosting-setup-continue'))
+        await screen.findByTestId('hosting-setup-host')
+        fireEvent.click(byId('hosting-setup-run'))
+        if (outcome === 'success') {
+          await screen.findByTestId('hosting-connected')
+        } else {
+          await waitFor(() => {
+            expect(byId('hosting-setup-retry')).toBeTruthy()
+          })
+          if (outcome === 'cancel') {
+            fireEvent.click(byId('hosting-setup-cancel'))
+          }
+        }
+
+        expect(
+          cf.calls.every((call) => call.authorization === `Bearer ${token}`),
+        ).toBe(true)
+        const values = Array.from(
+          document.querySelectorAll('input'),
+          (field) => field.value,
+        )
+        const places = [
+          document.documentElement.outerHTML,
+          JSON.stringify(values),
+          await dumpIndexedDb(idb),
+          Object.keys(localStorage)
+            .map((key) => `${key}=${localStorage.getItem(key) ?? ''}`)
+            .join('\n'),
+          location.href,
+        ]
+        for (const needle of forms(token)) {
+          for (const text of places) {
+            expect(text.includes(needle)).toBe(false)
+          }
+        }
+      } finally {
+        cleanup()
+      }
     },
     PBT_TIMEOUT_MS,
   )

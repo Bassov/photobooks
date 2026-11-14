@@ -107,6 +107,46 @@ export function preflight(
   options: PreflightOptions = {},
 ): PreflightIssue[] {
   const issues = pageCountIssues(book, profile)
+  for (const { item, sheet, box, spreadId, page } of printedItems(book)) {
+    const location: PreflightLocation = { spreadId, page, itemId: item.frameId }
+    issues.push(
+      ...itemIssues(book, profile, options, item, location),
+      ...placementIssues(book, profile, item, box, sheet, location),
+    )
+  }
+  return issues
+}
+
+/**
+ * Printed pages of each placed photo (asset id → ascending, unique pages),
+ * by the same page rule as `preflight` issue locations.
+ */
+export function photoPages(book: Book): Map<string, number[]> {
+  const pages = new Map<string, Set<number>>()
+  for (const { item, page } of printedItems(book)) {
+    if (item.assetId !== undefined) {
+      const set = pages.get(item.assetId) ?? new Set<number>()
+      pages.set(item.assetId, set.add(page))
+    }
+  }
+  return new Map(
+    [...pages].map(([assetId, set]) => [
+      assetId,
+      [...set].sort((a, b) => a - b),
+    ]),
+  )
+}
+
+interface PrintedItem {
+  item: ResolvedItem
+  sheet: Sheet
+  box: RectMm
+  spreadId: string
+  page: number
+}
+
+/** Resolved items that reach a page, spread by spread, item by item. */
+function* printedItems(book: Book): Generator<PrintedItem> {
   for (const [index, spread] of book.spreads.entries()) {
     const resolved = resolveSpread(book, spread.id, {
       getAspectRatio: (assetId) => {
@@ -126,36 +166,19 @@ export function preflight(
         trimWidthMm: book.settings.trim.widthMm,
       }
       for (const item of resolved.items) {
-        issues.push(
-          ...spreadItemIssues(book, profile, options, item, sheet, spread.id),
-        )
+        const box = boundsOf(item)
+        if (prints(box, sheet)) {
+          yield {
+            item,
+            sheet,
+            box,
+            spreadId: spread.id,
+            page: pageAt(box, sheet),
+          }
+        }
       }
     }
   }
-  return issues
-}
-
-function spreadItemIssues(
-  book: Book,
-  profile: PrintProfile,
-  options: PreflightOptions,
-  item: ResolvedItem,
-  sheet: Sheet,
-  spreadId: string,
-): PreflightIssue[] {
-  const box = boundsOf(item)
-  if (!prints(box, sheet)) {
-    return []
-  }
-  const location: PreflightLocation = {
-    spreadId,
-    page: pageAt(box, sheet),
-    itemId: item.frameId,
-  }
-  return [
-    ...itemIssues(book, profile, options, item, location),
-    ...placementIssues(book, profile, item, box, sheet, location),
-  ]
 }
 
 function pageCountIssues(book: Book, profile: PrintProfile): PreflightIssue[] {
