@@ -548,6 +548,10 @@ test('PE4 Print pill: rest, running fill, reopen, done 4 s, rest; 40 × 32 throu
 test('PE4 failed pill stays until the pill opens the dialog', async ({
   page,
 }) => {
+  // fake clock from a fresh navigation: runFor skips the 4.5 s below
+  await page.goto('about:blank')
+  await page.clock.install()
+  await openNewBook(page)
   const pill = printPill(page)
   await openPrint(page)
   await page.evaluate(() => {
@@ -565,7 +569,7 @@ test('PE4 failed pill stays until the pill opens the dialog', async ({
   expect(await sizeOf(pill)).toEqual([40, 32])
   await expect(pill.locator('svg.lucide-triangle-alert')).toHaveCount(1)
   // longer than PDF ready's 4 s: failed doesn't time out
-  await page.waitForTimeout(4500)
+  await page.clock.runFor(4500)
   await expect(pill).toHaveAttribute('data-state', 'failed')
 
   await pill.click()
