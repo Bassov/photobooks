@@ -168,7 +168,7 @@ export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0
             <div className="flex flex-col gap-1.5" data-testid="print-check" data-state={checking ? "checking" : rows.length ? "issues" : "clean"}>
               <span className="text-xs text-muted-foreground">{checking ? "Check" : checkLabel(rows)}</span>
               <ul className="scroll-thin flex max-h-[118.25px] flex-col gap-1.5 overflow-y-auto" data-testid="print-check-list">
-                {checking ? <CheckLine icon={Loader2} className="text-muted-foreground [&>svg]:animate-spin motion-reduce:[&>svg]:animate-none">Checking the book…</CheckLine>
+                {checking ? <CheckLine icon={Loader2} className="text-muted-foreground [&_svg]:animate-spin motion-reduce:[&_svg]:animate-none">Checking the book…</CheckLine>
                   : !rows.length ? <CheckLine icon={CircleCheck} className="text-foreground">No problems found</CheckLine>
                     : rows.map((r) => <CheckLine key={r.rule} icon={SEVERITY_ROW[r.severity][0]} className={SEVERITY_ROW[r.severity][1]} pages={r.pages} rule={r.rule}>{r.text}</CheckLine>)}
               </ul>

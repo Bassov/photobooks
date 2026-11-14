@@ -229,6 +229,7 @@ test('PE2 check: checking, then issues; Export PDF stays enabled', async ({
   const go = dialog(page).getByTestId('print-go')
   await expect(check(page)).toHaveAttribute('data-state', 'checking')
   await expect(rows(page)).toHaveText(['Checking the book…'])
+  await expect(rows(page).locator('svg')).toHaveCSS('animation-name', 'spin')
   await expect(go).toBeEnabled()
   await expect(check(page)).toHaveAttribute('data-state', 'issues')
   await expect(go).toBeEnabled()
