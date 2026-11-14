@@ -16,6 +16,8 @@ export function ctx(c: HTMLCanvasElement): CanvasRenderingContext2D {
  * Paper grain (the kit's `grain`): luminance noise ±amp/2 per cell × cell
  * texels (the page texture is ~2 texels per screen px: a 2-texel cell keeps
  * the grain per screen pixel instead of averaging it away in the mipmaps).
+ * Rows `y0` … `y1` only (a band of `rowBands`); noise rows renew every
+ * `cell` rows from `y0`.
  */
 export function grain(
   x: CanvasRenderingContext2D,
@@ -23,12 +25,14 @@ export function grain(
   h: number,
   amp: number,
   cell = 1,
+  y0 = 0,
+  y1 = h,
 ): void {
-  const d = x.getImageData(0, 0, w, h)
+  const d = x.getImageData(0, y0, w, y1 - y0)
   const a = d.data
   const cw = Math.ceil(w / cell)
   const row = new Float32Array(cw)
-  for (let y = 0; y < h; y++) {
+  for (let y = 0; y < y1 - y0; y++) {
     if (y % cell === 0) {
       for (let i = 0; i < cw; i++) row[i] = (Math.random() - 0.5) * amp
     }
@@ -39,5 +43,31 @@ export function grain(
       a[i + 2] = (a[i + 2] ?? 0) + n
     }
   }
-  x.putImageData(d, 0, 0)
+  x.putImageData(d, 0, y0)
 }
+
+/** texels per grain band: a 2× page (1200 × 1600) grains in 8 tasks */
+export const GRAIN_BAND_PX = 1 << 18
+
+/**
+ * The row bands `[y0, y1)` of a `w` × `h` canvas: whole cells of `cell` rows,
+ * at most `texels` each unless one cell row is wider. Per-texel work (grain,
+ * the canvas raster of a band's draws) goes one band per task.
+ */
+export function rowBands(
+  w: number,
+  h: number,
+  texels: number,
+  cell = 1,
+): [number, number][] {
+  const rows = Math.max(cell, Math.floor(texels / w / cell) * cell)
+  const bands: [number, number][] = []
+  for (let y = 0; y < h; y += rows) bands.push([y, Math.min(h, y + rows)])
+  return bands
+}
+
+/** the next task (`setTimeout` 0) */
+export const nextTask = (): Promise<void> =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, 0)
+  })
