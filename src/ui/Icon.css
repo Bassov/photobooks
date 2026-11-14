@@ -5,6 +5,11 @@
   color: currentColor;
 }
 
+.pb-icon[data-size='12'] {
+  width: var(--icon-size-12);
+  height: var(--icon-size-12);
+}
+
 .pb-icon[data-size='14'] {
   width: var(--icon-size-14);
   height: var(--icon-size-14);
