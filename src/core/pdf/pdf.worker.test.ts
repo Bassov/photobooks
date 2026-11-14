@@ -1,4 +1,7 @@
 import { PDFDocument } from '@cantoo/pdf-lib'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { fc } from '@fast-check/vitest'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { genericPrintProfile } from '../print/genericProfile'
 import { makeBook, makeFrame, makeSpread } from '../testing/fixtures'
@@ -11,6 +14,10 @@ import {
   type PdfPaintMessage,
   type PdfWorkerRequest,
 } from './pdf.worker'
+
+const gates = JSON.parse(
+  readFileSync(resolve(process.cwd(), 'quality/gates.json'), 'utf8'),
+) as { pbt: { seed: number } }
 
 /** SOI, SOF0 (1 × 1, 3 channels), EOI. */
 const JPEG = new Uint8Array([
@@ -41,11 +48,12 @@ async function run(request: Parameters<typeof runPdfPaint>[0]) {
   return posts
 }
 
-function doneOf(message: PdfPaintMessage | undefined) {
-  if (message === undefined || !('done' in message)) {
+function doneOf(message: unknown) {
+  const paint = message as PdfPaintMessage | undefined
+  if (paint === undefined || !('done' in paint)) {
     throw new Error('no done message')
   }
-  return message.done
+  return paint.done
 }
 
 describe('runPdfPaint', () => {
@@ -57,16 +65,34 @@ describe('runPdfPaint', () => {
     const posts = await run({
       book: structuredClone(photoBook()),
       photos: { a: new Blob([JPEG]) },
+      marks: true,
     })
 
-    expect(posts).toHaveLength(1)
-    const { pdf, sheets, skipped } = doneOf(posts[0]?.message)
-    expect(posts[0]?.transfer).toEqual([pdf])
     // One page, padded with blank pages to Generic's 20-page minimum.
+    expect(posts).toHaveLength(21)
+    const { pdf, sheets, skipped } = doneOf(posts[20]?.message)
+    expect(posts[20]?.transfer).toEqual([pdf])
     expect(sheets).toBe(20)
     expect(skipped).toEqual([{ assetId: 'gone', reason: 'missing' }])
     const doc = await PDFDocument.load(pdf)
     expect(doc.getPageCount()).toBe(20)
+    // Crop marks widen the media past the 3 mm bleed box.
+    const page = doc.getPage(0)
+    expect(page.getMediaBox().width).toBeGreaterThan(page.getBleedBox().width)
+  })
+
+  it('prints at trim size without marks, whatever the profile asks', async () => {
+    const custom = { ...genericPrintProfile(), id: 'shop', cropMarks: true }
+    const posts = await run({
+      book: photoBook({ id: 'shop', overrides: {} }),
+      printProfiles: [custom],
+      photos: {},
+      marks: false,
+    })
+
+    const doc = await PDFDocument.load(doneOf(posts.at(-1)?.message).pdf)
+    const page = doc.getPage(0)
+    expect(page.getMediaBox()).toEqual(page.getTrimBox())
   })
 
   it("prints with the book's custom profile from the library", async () => {
@@ -74,18 +100,55 @@ describe('runPdfPaint', () => {
       ...genericPrintProfile(),
       id: 'shop',
       name: 'Shop',
-      cropMarks: true,
+      pageCount: { min: 2, step: 2, max: 10 },
     }
     const posts = await run({
       book: photoBook({ id: 'shop', overrides: {} }),
       printProfiles: [custom],
       photos: {},
+      marks: true,
     })
 
-    const doc = await PDFDocument.load(doneOf(posts[0]?.message).pdf)
-    // Crop marks widen the media past the 3 mm bleed box.
-    const page = doc.getPage(0)
-    expect(page.getMediaBox().width).toBeGreaterThan(page.getBleedBox().width)
+    expect(doneOf(posts.at(-1)?.message).sheets).toBe(2)
+  })
+
+  it('posts one progress message per page, in order, then the PDF', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.integer({ min: 0, max: 6 }),
+        fc.integer({ min: 1, max: 16 }),
+        fc.boolean(),
+        async (spreads, min, marks) => {
+          const custom = {
+            ...genericPrintProfile(),
+            id: 'shop',
+            output:
+              spreads % 2 === 0 ? ('pages' as const) : ('spreads' as const),
+            pageCount: { min, step: 1, max: 200 },
+          }
+          const posts = await run({
+            book: makeBook({
+              spreads: Array.from({ length: spreads }, (_, index) =>
+                makeSpread({ id: `s${String(index)}`, frames: [] }),
+              ),
+              printProfile: { id: 'shop', overrides: {} },
+            }),
+            printProfiles: [custom],
+            photos: {},
+            marks,
+          })
+
+          const { sheets } = doneOf(posts.at(-1)?.message)
+          expect(posts.slice(0, -1)).toEqual(
+            Array.from({ length: sheets }, (_, index) => ({
+              message: { progress: { painted: index + 1, sheets } },
+              transfer: [],
+            })),
+          )
+        },
+      ),
+      { seed: gates.pbt.seed, numRuns: 30 },
+    )
   })
 
   it('answers a worker message with a posted PDF', async () => {
@@ -95,19 +158,23 @@ describe('runPdfPaint', () => {
       onmessage: (event: { data: PdfWorkerRequest }) => void
     }
 
-    scope.onmessage({ data: { paint: { book: photoBook(), photos: {} } } })
+    scope.onmessage({
+      data: { paint: { book: photoBook(), photos: {}, marks: true } },
+    })
 
     await vi.waitFor(() => {
-      expect(posts).toHaveLength(1)
+      expect(posts).toHaveLength(21)
     })
-    const [message, transfer] = posts[0] ?? []
-    expect(transfer).toEqual([doneOf(message as PdfPaintMessage).pdf])
+    expect(posts[0]).toEqual([{ progress: { painted: 1, sheets: 20 } }, []])
+    const [message, transfer] = posts[20] ?? []
+    expect(transfer).toEqual([doneOf(message).pdf])
   })
 
   it('posts one failure when painting throws', async () => {
     const posts = await run({
       book: { ...photoBook(), spreads: null } as never,
       photos: {},
+      marks: true,
     })
 
     expect(posts).toEqual([

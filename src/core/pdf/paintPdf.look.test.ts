@@ -47,6 +47,7 @@ async function pageLines(style: FrameStyle | undefined): Promise<string[]> {
     book,
     profile: genericPrintProfile(),
     photos: () => Promise.resolve(PNG),
+    marks: false,
   })
   const doc = await PDFDocument.load(result.pdf)
   const contents = doc.getPage(0).node.normalizedEntries().Contents

@@ -17,9 +17,11 @@ export interface PdfPaintRequest {
   printProfiles?: readonly PrintProfile[]
   /** Original photo files by asset id; `File`s clone without reading them. */
   photos: Readonly<Record<string, Blob>>
+  /** The user's "bleed and crop marks" choice (Spec D4). */
+  marks: boolean
 }
 
-export interface PdfCheckRequest extends PdfPaintRequest {
+export interface PdfCheckRequest extends Omit<PdfPaintRequest, 'marks'> {
   /** Relink scan result by asset id; absent ids are present and unchanged. */
   assetStatus?: Readonly<Record<string, PreflightAssetStatus>>
 }
@@ -28,6 +30,8 @@ export type PdfWorkerRequest =
   { paint: PdfPaintRequest } | { check: PdfCheckRequest }
 
 export type PdfPaintMessage =
+  /** After each PDF page, `painted` 1..`sheets`. */
+  | { progress: { painted: number; sheets: number } }
   | { done: { pdf: ArrayBuffer; sheets: number; skipped: SkippedPhoto[] } }
   | { failed: { message: string } }
 
@@ -37,7 +41,10 @@ export type PdfCheckMessage =
 /** Bytes read from the head of each photo: JPEG APP2 / PNG iCCP sit there. */
 export const COLOR_READ_BYTES = 256 * 1024
 
-/** Paints the book's PDF; exactly one `done` / `failed` message follows. */
+/**
+ * Paints the book's PDF: a `progress` message per page (posted, never
+ * awaited), then exactly one `done` / `failed` message.
+ */
 export async function runPdfPaint(
   request: PdfPaintRequest,
   post: (message: PdfPaintMessage, transfer: Transferable[]) => void,
@@ -51,6 +58,10 @@ export async function runPdfPaint(
         return blob === undefined
           ? undefined
           : new Uint8Array(await blob.arrayBuffer())
+      },
+      marks: request.marks,
+      onSheet: (painted, sheets) => {
+        post({ progress: { painted, sheets } }, [])
       },
     })
     const pdf = new Uint8Array(result.pdf).buffer

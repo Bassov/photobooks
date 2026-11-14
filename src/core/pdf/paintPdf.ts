@@ -46,6 +46,13 @@ export interface PaintPdfInput {
   /** The book's effective print profile (`bookPrintProfile`). */
   profile: PrintProfile
   photos: PhotoByteSource
+  /**
+   * The user's "bleed and crop marks" choice, over the profile's crop marks:
+   * on = the profile bleed and crop marks, off = trim size, no marks.
+   */
+  marks: boolean
+  /** Called after each PDF page, `painted` 1..`sheets`. */
+  onSheet?: (painted: number, sheets: number) => void
 }
 
 export interface SkippedPhoto {
@@ -70,10 +77,10 @@ interface Embedded {
 
 /**
  * Paints the book's interior (page backgrounds and photos) into a print PDF
- * per `profile`: one page per book page or per spread, bleed from the book
- * inside the profile's range, crop marks only when the profile asks, blank
- * pages after the book up to the profile's minimum page count. JPEGs go in
- * as their original bytes, each asset once.
+ * per `profile`: one page per book page or per spread, blank pages after the
+ * book up to the profile's minimum page count. With `marks`, bleed from the
+ * book inside the profile's range and crop marks; without, trim size only.
+ * JPEGs go in as their original bytes, each asset once.
  */
 export async function paintBookPdf(
   input: PaintPdfInput,
@@ -107,19 +114,13 @@ export async function paintBookPdf(
     },
   })
 
-  const bleedMm = printBleedMm(book.settings.bleedMm, profile)
+  const { marks } = input
+  const bleedMm = marks ? printBleedMm(book.settings.bleedMm, profile) : 0
   const sheets = pdfSheets(
     book.spreads.length,
     book.settings.trim,
     profile.output,
   )
-  for (const [index, spread] of resolved.entries()) {
-    for (const sheet of sheets.filter((s) => s.spreadIndex === index)) {
-      addSheetPage(lib, doc, sheet, profile, bleedMm, (page, slugMm) => {
-        paintSheet(lib, page, sheet, spread, embedded, slugMm, bleedMm)
-      })
-    }
-  }
   // A book below the profile minimum prints as the minimum (print issues).
   const blanks = blankSheets(
     book.spreads.length,
@@ -127,13 +128,26 @@ export async function paintBookPdf(
     book.settings.trim,
     profile.output,
   )
-  for (const sheet of blanks) addSheetPage(lib, doc, sheet, profile, bleedMm)
-
-  return {
-    pdf: await doc.save(),
-    sheets: sheets.length + blanks.length,
-    skipped,
+  const total = sheets.length + blanks.length
+  let painted = 0
+  const added = () => {
+    painted += 1
+    input.onSheet?.(painted, total)
   }
+  for (const [index, spread] of resolved.entries()) {
+    for (const sheet of sheets.filter((s) => s.spreadIndex === index)) {
+      addSheetPage(lib, doc, sheet, marks, bleedMm, (page, slugMm) => {
+        paintSheet(lib, page, sheet, spread, embedded, slugMm, bleedMm)
+      })
+      added()
+    }
+  }
+  for (const sheet of blanks) {
+    addSheetPage(lib, doc, sheet, marks, bleedMm)
+    added()
+  }
+
+  return { pdf: await doc.save(), sheets: total, skipped }
 }
 
 function resolveAll(
@@ -147,22 +161,17 @@ function resolveAll(
 
 /**
  * Adds the PDF page of `sheet` with its trim, bleed and media boxes, runs
- * `paint` (nothing: blank paper), then crop marks when the profile asks.
+ * `paint` (nothing: blank paper), then crop marks with `marks`.
  */
 function addSheetPage(
   lib: PdfLib,
   doc: PDFDocument,
   sheet: PdfSheet,
-  profile: PrintProfile,
+  marks: boolean,
   bleedMm: number,
   paint?: (page: PDFPage, slugMm: number) => void,
 ): void {
-  const boxes = sheetBoxes(
-    sheet.trim.width,
-    sheet.trim.height,
-    bleedMm,
-    profile.cropMarks,
-  )
+  const boxes = sheetBoxes(sheet.trim.width, sheet.trim.height, bleedMm, marks)
   const page = doc.addPage([boxes.media.width, boxes.media.height])
   page.setBleedBox(
     boxes.bleed.x,
@@ -177,7 +186,7 @@ function addSheetPage(
     boxes.trim.height,
   )
   paint?.(page, boxes.slugMm)
-  if (profile.cropMarks) {
+  if (marks) {
     paintCropMarks(lib, page, sheet, boxes.slugMm, bleedMm)
   }
 }
