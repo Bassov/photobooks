@@ -179,7 +179,7 @@ export function DemoEditor({ id, initialDialog = null, initialPreview = false }:
   const pr = usePrintRun()
   const [prStep, setPrStep] = React.useState<RunStep>("opts")
   const openPrint = () => { setPrStep(pr.phase === "idle" ? "opts" : pr.phase); pr.seen(); setDlg("print") }
-  const openHosting =() => { setDlg(null); set({ stage: "settings", back: "editor", settingsSection: "hosting" }) }
+  const openHosting = () => { setDlg(null); set({ stage: "settings", back: "editor", settingsSection: "hosting" }) }
   const others = S.books.filter((x) => x.published && x.id !== id).map((x) => x.title)
   return (
     <div className="h-full" data-testid="demo-editor"><PrintCustomsCtx.Provider value={S.printProfiles}>

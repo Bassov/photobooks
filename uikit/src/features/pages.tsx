@@ -33,7 +33,7 @@ const PRINT_50 = printRun("run", 50)
 const PRINT_FAILED = printRun("failed", 0)
 const docNoFrames = (): Doc => ({ ...docFilled(), spreads: docFilled().spreads.map((s) => ({ ...s, frames: [] })) })
 const placedPhotos = () => docFilled().spreads.flatMap((s) => s.frames.flatMap((f) => (f.photo ? [f.photo] : [])))
-const PUB_FAILED: PublishRun ={ phase: "failed", p: 0, fail: "timeout", sent: 12, total: 40, start: () => {}, seen: () => {} }
+const PUB_FAILED: PublishRun = { phase: "failed", p: 0, fail: "timeout", sent: 12, total: 40, start: () => {}, seen: () => {} }
 
 type Sc = [id: string, label: string, render: () => React.ReactNode]
 function page(items: Sc[], notes: Notes, h = H): FeatureDef {
