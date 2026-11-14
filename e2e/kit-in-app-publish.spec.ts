@@ -3,7 +3,7 @@ import { expect, test } from './fixtures/coverage'
 import { pixelsAt } from './fixtures/paintProbe'
 
 // in-app-publish (kit): K1 the Publish dialog steps, K2 the Publish pill and
-// P7, K3 Export site icon-only below 1360 px and the page states. The kit run
+// P7, K3 Export site icon-only below 1424 px and the page states. The kit run
 // is a 1.4 s stand-in on performance.now, frozen here to hold a percent.
 
 const KIT = '/uikit/#/full/in-app-publish'
@@ -410,10 +410,10 @@ test.describe('K2 the Publish pill', () => {
   })
 })
 
-test.describe('K3 Export site below 1360 px', () => {
+test.describe('K3 Export site below 1424 px', () => {
   for (const [w, label] of [
-    [1360, true],
-    [1359, false],
+    [1424, true],
+    [1423, false],
   ] as const) {
     test(`${String(w)} px: Export site label ${label ? 'shown' : 'hidden'}, Publish labelled`, async ({
       page,

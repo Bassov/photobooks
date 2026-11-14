@@ -114,12 +114,17 @@ export async function capture(out, { log = console.log, probe } = {}) {
     ["editor-relinked", () => c('[data-testid="relink-resolve"]')],
     ["editor-preview", () => c('[data-testid="demo-preview"]')],
     // site-preview-mode: Preview = the reading room of the current book (opens on the cover, Owner M53); Esc closes it
-    ["print-options", async () => { await page.keyboard.press("Escape"); await settle(); await c('[data-testid="demo-print"]') }],
-    ["print-options-4up-no-bleed", async () => { await page.locator("[role=dialog]").getByText("4-up", { exact: true }).click(); await page.locator("[role=dialog]").getByText(/Add 3 mm bleed/).click() }],
+    // Designer pdf-export §3: the Check settles into issues (low-res photos, empty photo frames); Hide keeps the run in the Print pill
+    ["print-options", async () => { await page.keyboard.press("Escape"); await settle(); await c('[data-testid="demo-print"]'); await page.waitForSelector('[data-testid="print-check"][data-state="issues"]') }],
+    ["print-options-no-bleed", () => page.locator("[role=dialog]").getByText(/Add 3 mm bleed/).click()],
     ["print-running-50pct", () => midRun('[data-testid="print-go"]')],
     ["print-done", async () => { await release(); await page.waitForSelector('[data-testid="print-dialog"][data-step="done"]', { timeout: 8000 }) }],
-    ["print-done-shown-in-folder", () => c('[data-testid="print-show"]')],
-    ["publish-options", async () => { await c('[data-testid="print-close"]'); await settle(); await c('[data-testid="demo-publish"]') }],
+    ["print-running-hidden", async () => {
+      await c('[data-testid="print-close"]'); await page.waitForSelector('[data-testid="demo-print"][data-state="idle"]', { timeout: 8000 })
+      await c('[data-testid="demo-print"]'); await midRun('[data-testid="print-go"]'); await c('[data-testid="print-hide"]') }],
+    ["publish-options", async () => {
+      await release(); await page.waitForSelector('[data-testid="demo-print"][data-state="done"]', { timeout: 8000 }); await c('[data-testid="demo-print"]')
+      await c('[data-testid="print-close"]'); await settle(); await c('[data-testid="demo-publish"]') }],
     ["publish-running-50pct", () => midRun('[data-testid="publish-go"]')],
     // Designer in-app-publish P3: Esc hides the run, the pill shows NN%; the pill's check opens Published
     ["publish-running-hidden", () => page.keyboard.press("Escape")],

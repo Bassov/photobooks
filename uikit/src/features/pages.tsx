@@ -7,7 +7,9 @@ import {
 } from "@/demo-parts"
 import { LAKE_BOOK, LAKE_TITLE, docBlank, docAdded, docFilled, COVER_DONE, dbook, SHELF } from "@/demo-parts/fixtures"
 import { pickPrint, profileById } from "@/demo-parts/printProfiles"
-import { ExportSiteDialog, type ExportRun, type PublishRun } from "@/demo-parts/dialogs"
+import { ExportSiteDialog, type ExportRun, type PrintRun, type PublishRun } from "@/demo-parts/dialogs"
+import { printProgress } from "@/demo-parts/printCheck"
+import { pagesOf } from "@/sandbox/v7"
 import type { PrintInit, SettingsSection } from "@/demo-parts/settings"
 import { SAMPLE_HOSTING, type SessionState } from "@/demo-parts/session"
 import type { HostingDraft, HostingInit } from "@/demo-parts/hosting"
@@ -24,7 +26,14 @@ const PATH = "~/Pictures/Photobooks"
 const EXPORTED = ["Fog", "Summer ’25"]
 const RUN_42: ExportRun = { phase: "run", p: 42, fail: "unknown", folder: "Sites", start: () => {}, seen: () => {} }
 const PUB_42: PublishRun = { phase: "run", p: 42, fail: "timeout", sent: 0, total: 40, start: () => {}, seen: () => {} }
-const PUB_FAILED: PublishRun = { phase: "failed", p: 0, fail: "timeout", sent: 12, total: 40, start: () => {}, seen: () => {} }
+/* pdf-export: the Lake trip dialog, a run frozen half way (Page 11 of 20 · 48%), a failed one and a book with no frames (a clean check) */
+const Print = (p: Partial<React.ComponentProps<typeof PrintDialog>>) => <PrintDialog book={LAKE_BOOK} spreads={10} title={LAKE_TITLE} onClose={() => {}} {...p} />
+const printRun = (phase: PrintRun["phase"], v: number, fail: PrintRun["fail"] = "access"): PrintRun => ({ phase, ...printProgress(v, pagesOf(10)), fail, start: () => true, seen: () => {} })
+const PRINT_50 = printRun("run", 50)
+const PRINT_FAILED = printRun("failed", 0)
+const docNoFrames = (): Doc => ({ ...docFilled(), spreads: docFilled().spreads.map((s) => ({ ...s, frames: [] })) })
+const placedPhotos = () => docFilled().spreads.flatMap((s) => s.frames.flatMap((f) => (f.photo ? [f.photo] : [])))
+const PUB_FAILED: PublishRun ={ phase: "failed", p: 0, fail: "timeout", sent: 12, total: 40, start: () => {}, seen: () => {} }
 
 type Sc = [id: string, label: string, render: () => React.ReactNode]
 function page(items: Sc[], notes: Notes, h = H): FeatureDef {
@@ -278,14 +287,20 @@ export const PAGES: Record<string, FeatureDef> = {
   }),
   /* ------------------------------------------------------------ print */
   "pdf-export": page([
-    ["opts", "Options", ed({ doc: docFilled, cur: 1, overlay: <PrintDialog book={LAKE_BOOK} spreads={10} title={LAKE_TITLE} onClose={() => {}} /> })],
-    ["4up", "4-up, no bleed", ed({ doc: docFilled, cur: 1, overlay: <PrintDialog book={LAKE_BOOK} spreads={10} title={LAKE_TITLE} onClose={() => {}} initialImposition="4up" initialBleed={false} /> })],
-    ["run", "Exporting", ed({ doc: docFilled, cur: 1, overlay: <PrintDialog book={LAKE_BOOK} spreads={10} title={LAKE_TITLE} onClose={() => {}} initialStep="run" /> })],
-    ["done", "PDF ready", ed({ doc: docFilled, cur: 1, overlay: <PrintDialog book={LAKE_BOOK} spreads={10} title={LAKE_TITLE} onClose={() => {}} initialStep="done" /> })],
+    ["opts-checking", "Checking", ed({ doc: docFilled, cur: 1, overlay: <Print holdCheck /> })],
+    ["opts-clean", "No problems", ed({ doc: docNoFrames, cur: 1, overlay: <Print /> })],
+    ["opts-issues", "Issues", ed({ doc: docFilled, cur: 1, overlay: <Print /> })],
+    ["no-bleed", "No bleed", ed({ doc: docFilled, cur: 1, overlay: <Print initialBleed={false} /> })],
+    ["run", "Exporting", ed({ doc: docFilled, cur: 1, print: { phase: "run", p: PRINT_50.p }, overlay: <Print initialStep="run" run={PRINT_50} /> })],
+    ["run-hidden", "Hidden, 48 %", ed({ doc: docFilled, cur: 1, print: { phase: "run", p: PRINT_50.p } })],
+    ["done", "PDF ready", ed({ doc: docFilled, cur: 1, print: { phase: "done", p: 0 }, overlay: <Print initialStep="done" /> })],
+    ["done-skipped", "PDF ready, skipped photos", ed({ doc: docFilled, cur: 1, missing: placedPhotos().slice(0, 2), print: { phase: "done", p: 0 }, overlay: <Print initialStep="done" /> })],
+    ["failed", "Failed", ed({ doc: docFilled, cur: 1, print: { phase: "failed", p: 0 }, overlay: <Print initialStep="failed" run={PRINT_FAILED} /> })],
   ], {
-    what: "Print dialog over the editor: page size, the book’s printer profile, imposition for duplex (1 per sheet, 2-up, 4-up) and “Add 3 mm bleed and crop marks”; Export PDF shows progress, then PDF ready with Show in folder.",
-    where: "#/demo steps 27–31 (top bar → Print).",
-    edge: ["Sheet count follows the imposition", "Exporting runs to PDF ready on its own"],
+    what: "Print: the top-bar Print pill opens a dialog with page size, the book’s printer profile, 1 per sheet, “Add 3 mm bleed and crop marks” and a Check that never blocks; Export PDF shows progress that can be hidden (the pill fills), then PDF ready with Open PDF.",
+    where: "#/demo steps 48–52 (top bar → Print → Export PDF → Hide → the pill).",
+    keys: [["Esc", "closes the dialog (Hide while running); the PDF keeps building in the pill"]],
+    edge: ["The pill is icon-only 40 × 32 in every state: a fill while running, a check for 4 s, a warning until opened", "Print runs beside Export site and Publish", "Below a 1424 px window Export site is icon-only"],
   }),
   /* ------------------------------------------------------------ publish */
   "in-app-publish": page([
@@ -300,7 +315,7 @@ export const PAGES: Record<string, FeatureDef> = {
     what: "Publish dialog over the editor: options, then progress that can be hidden (the pill shows NN%), then Published with Open site; without hosting it points to Settings → Hosting; failures retry.",
     where: "#/demo steps 53–56 (top bar → Publish → Publish → Esc → the pill).",
     keys: [["Esc", "closes the dialog (Hide while running); the upload keeps running in the pill"]],
-    edge: ["Only changed files upload", "Try again sends only the rest", "The pill keeps its width in every state: NN% over a fill while running, a check for 4 s, a warning until opened", "Publish and Export site wait for each other", "Below a 1360 px window Export site is icon-only; Publish keeps its label"],
+    edge: ["Only changed files upload", "Try again sends only the rest", "The pill keeps its width in every state: NN% over a fill while running, a check for 4 s, a warning until opened", "Publish and Export site wait for each other", "Below a 1424 px window Export site is icon-only; Publish keeps its label"],
   }),
   /* ------------------------------------------------------------ static export */
   "static-export": page([
@@ -314,6 +329,6 @@ export const PAGES: Record<string, FeatureDef> = {
     what: "Export site: the top-bar pill after Settings opens a dialog that writes the site of your books to a folder on this computer (Folder, Books, Export), shows progress, then Site exported with how to serve it. Nothing is uploaded.",
     where: "#/demo steps 57–60 (top bar → Export site → Choose folder… → Export → Hide → Exported).",
     keys: [["Esc", "closes the dialog (Hide while running); the export keeps running in the pill"]],
-    edge: ["The pill keeps its width in every state: NN% over a fill while running, “Exported” for 4 s, “Failed” until opened", "Below a 1360 px window the pill is icon-only, 40 × 32", "Picker folder “Family” holds a foreign dist: “isn’t a Photobooks export”, Choose folder… goes back to Options"],
+    edge: ["The pill keeps its width in every state: NN% over a fill while running, “Exported” for 4 s, “Failed” until opened", "Below a 1424 px window the pill is icon-only, 40 × 32", "Picker folder “Family” holds a foreign dist: “isn’t a Photobooks export”, Choose folder… goes back to Options"],
   }),
 }

@@ -116,14 +116,34 @@ const SEVERITY_ROW: Record<CheckSeverity, [LucideIcon, string]> = {
 function CheckLine({ icon: Icon, className, children, pages = [], rule }: { icon: LucideIcon; className: string; children: React.ReactNode; pages?: number[]; rule?: string }) {
   return <li className={`flex items-start gap-2 text-sm ${className}`} data-testid="print-check-row" data-rule={rule}><span className="flex h-lh shrink-0 items-center"><Icon className="size-4" /></span><span>{children}{pages.length > 0 && <span className="font-normal text-muted-foreground">{pageList(pages)}</span>}</span></li>
 }
-/** #/demo Print dialog (Designer pdf-export §2.1–2.4): options + Check → exporting (Hide) → PDF ready / failed. */
-export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0], initialStep = "opts", initialImposition = "single", initialBleed = true }: {
+export type PrintRun = { phase: ExportPhase; p: number; text: string; fail: PrintFail; start: (sheets: number) => boolean; seen: () => void }
+/** Kit stand-in for the PDF worker (pdf-export D1, D7), shaped like `useExportRun`: the run outlives the dialog (Hide / Esc),
+ *  "PDF ready" shows for 4 s, "PDF not exported" stays until `seen()` (the pill opened the dialog). `start` fails at once on a
+ *  `__printDemo.fail()` seed and says whether it runs. */
+export function usePrintRun(ms = 1400): PrintRun {
+  const [phase, setPhase] = React.useState<ExportPhase>("idle")
+  const [fail, setFail] = React.useState<PrintFail>("other")
+  const [sheets, setSheets] = React.useState(1)
+  const v = useRun(phase === "run", ms, () => setPhase("done"))
+  React.useEffect(() => { if (phase !== "done") return; const t = setTimeout(() => setPhase("idle"), 4000); return () => clearTimeout(t) }, [phase])
+  return {
+    phase, ...printProgress(phase === "run" ? v : 0, sheets), fail,
+    start: (n) => { setSheets(n); const f = takePrintFail(); if (f) { setFail(f); setPhase("failed") } else setPhase("run"); return !f },
+    seen: () => setPhase((x) => (x === "failed" ? "idle" : x)),
+  }
+}
+/** #/demo Print dialog (Designer pdf-export §2.1–2.4): options + Check → exporting (Hide) → PDF ready / failed.
+ *  `run`: the editor's print run (the pill shows it after Hide); a feature page leaves it out. `holdCheck` keeps the Check checking. */
+export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0], initialStep = "opts", initialImposition = "single", initialBleed = true, run: given, holdCheck }: {
   book: Book; spreads: number; title: string; onClose: () => void; /** the book's print profile (printer-presets; default Generic) */ profile?: KitProfile
-  initialStep?: RunStep; initialImposition?: "single" | "2up" | "4up"; initialBleed?: boolean
+  initialStep?: RunStep; initialImposition?: "single" | "2up" | "4up"; initialBleed?: boolean; run?: PrintRun; holdCheck?: boolean
 }) {
   const bleedMm = profileBleed(profile)
+  const own = usePrintRun()
+  const r = given ?? own
   const [step, setStep] = React.useState<RunStep>(initialStep)
-  const [fail, setFail] = React.useState<PrintFail>("other")
+  // the run ends while the dialog is open: move to PDF ready / failed in place
+  React.useEffect(() => { if (step === "run" && (r.phase === "done" || r.phase === "failed")) setStep(r.phase) }, [step, r.phase])
   // v0.8.1 (P2-5): print uses the book's real size and page count
   const size = `${fmtN(book.w)} × ${fmtN(book.h)} cm`
   const known = PRESETS.find((p) => (p.w === book.w && p.h === book.h) || (p.w === book.h && p.h === book.w))
@@ -131,7 +151,6 @@ export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0
   const [impPicked, setImp] = React.useState<string>(initialImposition)
   const imp = IMPOSITION ? impPicked : "single"
   const [bleed, setBleed] = React.useState(initialBleed)
-  const v = useRun(step === "run", 1400, () => setStep("done"))
   const pages = pagesOf(spreads)
   const per = imp === "4up" ? 8 : imp === "2up" ? 4 : 1
   const sheets = Math.ceil(pages / per)
@@ -140,13 +159,12 @@ export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0
   // the check (D6): a stand-in for the PDF worker over the studio doc; it runs on open and again when the profile changes
   const st = useStudio() as Studio | null
   const [checking, setChecking] = React.useState(true)
-  React.useEffect(() => { setChecking(true); const t = setTimeout(() => setChecking(false), 800); return () => clearTimeout(t) }, [profile.id])
+  React.useEffect(() => { setChecking(true); if (holdCheck) return; const t = setTimeout(() => setChecking(false), 800); return () => clearTimeout(t) }, [profile.id, holdCheck])
   const rows = React.useMemo(() => (st ? printCheckRows(st.doc, st.book, st.missing, profile) : []), [st?.doc, st?.book, st?.missing, profile])
   const errors = rows.some((r) => r.severity === "error")
   const skipped = rows.find((r) => r.rule === "asset-missing")
   const skippedN = new Set(st?.doc.spreads.flatMap((s) => s.frames.map((f) => f.photo)).filter((id) => id && st.missing.has(id))).size
-  const go = () => { const f = takePrintFail(); if (f) { setFail(f); setStep("failed") } else setStep("run") }
-  const run = printProgress(v, sheets)
+  const go = () => setStep(r.start(sheets) ? "run" : "failed")
   const heading = "heading flex items-center gap-2 text-xl leading-tight [&_svg]:size-5"
   const text = "mt-1 text-sm text-muted-foreground"
   const btns = "mt-5 flex justify-end gap-2"
@@ -179,8 +197,8 @@ export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0
         </>}
         {step === "run" && <>
           <div className={heading}><Loader2 className="animate-spin motion-reduce:animate-none" />Exporting PDF…</div>
-          <p className={`${text} tabular-nums`} data-testid="print-run-text">{run.text}</p>
-          <Progress aria-label="Exporting PDF" value={run.p} className="mt-4" barClassName="h-1.5 bg-secondary" data-testid="print-progress" />
+          <p className={`${text} tabular-nums`} data-testid="print-run-text">{r.text}</p>
+          <Progress aria-label="Exporting PDF" value={r.p} className="mt-4" barClassName="h-1.5 bg-secondary" data-testid="print-progress" />
           <p className="mt-3 text-xs text-muted-foreground">You can keep editing. Changes from now on aren’t in this PDF.</p>
           <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onClose} autoFocus data-testid="print-hide">Hide</Button></div>
         </>}
@@ -194,7 +212,7 @@ export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0
         </>}
         {step === "failed" && <>
           <div className={heading}><TriangleAlert />PDF not exported</div>
-          <p className={text} data-testid="print-error">{printFailText(fail, library)}</p>
+          <p className={text} data-testid="print-error">{printFailText(r.fail, library)}</p>
           <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onClose}>Close</Button>
             <Button size="md" className="px-4" onPress={go} autoFocus data-testid="print-retry">Try again</Button></div>
         </>}
