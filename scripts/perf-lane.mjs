@@ -136,17 +136,18 @@ export function judge(reports) {
   return { pass: problems.length === 0, problems, notes, red }
 }
 
-function changedFiles(base) {
+function changedFiles(base, cwd) {
   const out = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], {
+    cwd,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   return out.split('\n').filter(Boolean)
 }
 
-function fileHasGate(file) {
+function fileHasGate(cwd, file) {
   try {
-    return fs.readFileSync(file, 'utf8').includes(GATE_TITLE)
+    return fs.readFileSync(path.join(cwd, file), 'utf8').includes(GATE_TITLE)
   } catch {
     return false
   }
@@ -154,7 +155,8 @@ function fileHasGate(file) {
 
 export function main(argv) {
   const [cmd, ...rest] = argv
-  if (cmd === 'scope') return scopeCommand(rest[0] ?? 'origin/main')
+  if (cmd === 'scope')
+    return scopeCommand(rest[0] ?? 'origin/main', process.cwd())
   if (cmd === 'verdict') return verdictCommand(rest)
   console.error(
     'usage: perf-lane.mjs scope <base> | verdict [--out f] [--base f --base-url u --base-ref r] <report.json>...',
@@ -165,17 +167,20 @@ export function main(argv) {
 /**
  * A git failure (no merge base, bad ref) is an error, never "not in scope":
  * a silent false would skip the gates on exactly the PRs that need them.
+ * @param {string} base ref diffed as `${base}...HEAD`
+ * @param {string} cwd git work tree to diff
  */
-function scopeCommand(base) {
+export function scopeCommand(base, cwd) {
   let files
   try {
-    files = changedFiles(base)
+    files = changedFiles(base, cwd)
   } catch (err) {
     const why = String(err.stderr ?? err.message).trim()
     console.error(`perf-lane scope: cannot diff ${base}...HEAD: ${why}`)
     return 1
   }
-  console.log(`in_scope=${String(isPerfScope(files, fileHasGate))}`)
+  const hasGate = (file) => fileHasGate(cwd, file)
+  console.log(`in_scope=${String(isPerfScope(files, hasGate))}`)
   return 0
 }
 
@@ -236,7 +241,7 @@ function verdictCommand(args) {
 function prChangedFiles(baseRef) {
   if (!baseRef) return null
   try {
-    return changedFiles(baseRef)
+    return changedFiles(baseRef, process.cwd())
   } catch {
     return null
   }
