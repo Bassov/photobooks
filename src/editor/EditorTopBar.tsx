@@ -229,7 +229,7 @@ function ZoomChrome() {
         <Button
           variant="ghost"
           size="sm"
-          className="editor-zoom-menu gap-1 px-2 text-sm tabular-nums"
+          className="editor-zoom-menu gap-1 px-2 text-sm tabular-nums text-muted-foreground"
           aria-label="Zoom"
           data-testid="zoom-menu"
         >

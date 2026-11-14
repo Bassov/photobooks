@@ -27,4 +27,16 @@ describe('Badge', () => {
     expect(el.getAttribute('data-dot')).toBe('true')
     expect(el.querySelector('.pb-badge-dot')).toBeTruthy()
   })
+
+  it('flags a small dot badge so the kit pl-1 padding applies', () => {
+    render(
+      <Badge color="success" dot>
+        Connected
+      </Badge>,
+    )
+    const el = screen.getByText('Connected')
+    expect(el.className).toContain('pb-badge--sm')
+    expect(el.getAttribute('data-dot')).toBe('true')
+    expect(el.firstElementChild?.className).toBe('pb-badge-dot')
+  })
 })
