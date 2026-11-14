@@ -193,6 +193,8 @@ describe('discover', () => {
           { id: ACCOUNT, name: 'A' },
           { id: 1, name: 'B' },
           { id: 'c' },
+          { id: '__proto__', name: 'D' },
+          { id: `../../${ACCOUNT}`, name: 'E' },
         ])
       }
       if (call.path.startsWith('/zones')) {
@@ -240,9 +242,14 @@ describe('discover', () => {
     [
       'an inactive token',
       '/user/tokens/verify',
-      cfOk({ id: 'x', status: 'disabled' }),
+      cfOk({ id: SETUP_TOKEN_ID, status: 'disabled' }),
     ],
     ['a verify without id', '/user/tokens/verify', cfOk({ status: 'active' })],
+    [
+      'a verify with a path-like id',
+      '/user/tokens/verify',
+      cfOk({ id: `../${SETUP_TOKEN_ID}`, status: 'active' }),
+    ],
     ['accounts 403', '/accounts', cfError(403)],
     ['accounts 401', '/accounts', cfError(401)],
   ])('rejects the token on %s', async (_name, path, response) => {

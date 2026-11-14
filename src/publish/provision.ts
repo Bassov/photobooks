@@ -14,7 +14,7 @@ import {
 import type { HostingDeps } from './hosting'
 import { createPublisher } from './publisher'
 import { defaultSleep } from './publishSite'
-import { BUCKET_PATTERN, sha256Hex } from './r2Sign'
+import { ACCOUNT_ID_PATTERN, BUCKET_PATTERN, sha256Hex } from './r2Sign'
 
 /** Workers R2 Storage · Edit, Zone · Read, API Tokens · Edit (C2). */
 const PERMISSION_GROUP_KEYS = [
@@ -146,7 +146,13 @@ export async function discover(
       : passOn(verify)
   }
   const { id: tokenId, status } = verify.result
-  if (typeof tokenId !== 'string' || status !== 'active') {
+  // Ids from responses go into relay paths: 32 lowercase hex only (token ids
+  // share the account id shape).
+  if (
+    typeof tokenId !== 'string' ||
+    !ACCOUNT_ID_PATTERN.test(tokenId) ||
+    status !== 'active'
+  ) {
     return { ok: false, code: 'token-rejected', message: REJECTED }
   }
 
@@ -157,7 +163,9 @@ export async function discover(
       : passOn(listed)
   }
   const accounts = listOf(listed.result).flatMap((account) =>
-    typeof account.id === 'string' && typeof account.name === 'string'
+    typeof account.id === 'string' &&
+    ACCOUNT_ID_PATTERN.test(account.id) &&
+    typeof account.name === 'string'
       ? [{ id: account.id, name: account.name }]
       : [],
   )
