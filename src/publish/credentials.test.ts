@@ -138,8 +138,8 @@ describe('redact', () => {
   })
 
   it('hides 40+ character token-like runs, keeps lowercase names and hex ids', () => {
-    const token = 'Ab3_kL9-mN0pQ1rS2tU3vW4xY5zA6bC7dE8fG9hJ'
-    const bucket = 'pb-books-some-long-subdomain-of-example-com'
+    const token = 'Ab3_'.repeat(10)
+    const bucket = `pb-${'abc-'.repeat(11)}com`
     const hex = 'a'.repeat(32) + '0123456789abcdef'
     const empty = { accessKeyId: '', secretAccessKey: '' }
 
