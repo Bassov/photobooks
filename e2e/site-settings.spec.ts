@@ -5,6 +5,7 @@ import {
   installReactCommitProbe,
   reactCommitsOutside,
 } from './fixtures/reactCommits'
+import { topAt } from './fixtures/paintProbe'
 import { exportToDone, useOpfsFolder } from './fixtures/siteExport'
 import { PERF_BUDGETS } from './perf/budgets'
 import {
@@ -90,7 +91,12 @@ test('the site fields save on commit, survive a reload and feed Preview and expo
   await page.getByTestId('editor-settings-back').click()
   await page.getByTestId('present').click()
   const preview = page.getByTestId('site-preview')
-  await expect(preview.getByTestId('site-name')).toHaveText(AUTHOR)
+  const name = preview.getByTestId('site-name')
+  await expect(name).toHaveText(AUTHOR)
+  await expect(name).toBeVisible()
+  // Paint: the topmost hit at the name's centre is the name (nothing covers it).
+  const [top] = await topAt(name)
+  expect(top).toContain('site-name')
   await page.keyboard.press('Escape')
   await expect(preview).toHaveCount(0)
 
