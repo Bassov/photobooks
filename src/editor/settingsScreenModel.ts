@@ -1,8 +1,8 @@
 import type { IconName } from '../ui/icons/glyphs'
 
-export type SettingsSectionId = 'library' | 'hosting' | 'print'
+export type SettingsSectionId = 'library' | 'hosting' | 'site' | 'print'
 
-/** Site / Interface have no backing behavior yet (D2): hidden, not stubbed. */
+/** Interface has no backing behavior yet (D2): hidden, not stubbed. */
 export const SETTINGS_SECTIONS: readonly {
   id: SettingsSectionId
   label: string
@@ -10,6 +10,7 @@ export const SETTINGS_SECTIONS: readonly {
 }[] = [
   { id: 'library', label: 'Library', icon: 'hardDrive' },
   { id: 'hosting', label: 'Hosting', icon: 'keyRound' },
+  { id: 'site', label: 'Site', icon: 'globe' },
   { id: 'print', label: 'Print presets', icon: 'printer' },
 ]
 

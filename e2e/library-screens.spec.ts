@@ -932,9 +932,12 @@ test('kit v0.10 settings (step 49): back bar, Library only, tokens, confirm firs
   await expect(page.getByTestId('settings')).toBeVisible()
   await expect(page.getByTestId('settings-back')).toHaveText('Library')
 
-  // Library · Hosting · Print presets; Site / Interface have no backing
+  // Library · Hosting · Site · Print presets; Interface has no backing
   // behavior: hidden.
-  await expect(page.locator('[data-testid^="settings-nav-"]')).toHaveCount(3)
+  await expect(page.locator('[data-testid^="settings-nav-"]')).toHaveCount(4)
+  await expect(
+    page.locator('[data-testid^="settings-nav-"]').nth(2),
+  ).toHaveAttribute('data-testid', 'settings-nav-site')
   // Owner design change (round 11, M71): kit `bg-accent` selected row.
   await expect(page.getByTestId('settings-nav-library')).toHaveCSS(
     'background-color',

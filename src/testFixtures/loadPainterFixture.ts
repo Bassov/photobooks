@@ -10,6 +10,7 @@ import {
 } from '../core/testing/painterFixture'
 import { resetBookStore } from '../editor/bookStore'
 import { seedPrintProfilesFromQuery } from '../editor/printProfilesStore'
+import { seedSiteSettingsFromQuery } from '../editor/siteSettingsStore'
 import { retainAssetSource } from '../photo/assetSources'
 import { painterSourceFile } from './painterSourceFile'
 
@@ -147,4 +148,5 @@ export function loadPainterFixture(search = window.location.search): void {
     retainAssetSource(assetId, painterSourceFile(assetId), { cover: true })
   }
   seedPrintProfilesFromQuery(search)
+  seedSiteSettingsFromQuery(search)
 }

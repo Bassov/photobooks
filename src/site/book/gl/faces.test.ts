@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeSpread } from '../../../core/testing/fixtures'
 import { paintPage } from '../../../render/pagePainter'
-import { createFaceSource, paintOrder } from './faces'
+import { GRAIN_BAND_PX, rowBands } from './canvas'
+import { createFaceSource, PAINT_BAND_PX, paintOrder } from './faces'
 import { fakeCanvas2d, type FakeContext } from './testing.test-helpers'
 
 vi.mock('../../../render/pagePainter', () => ({
@@ -72,13 +73,90 @@ describe('createFaceSource', () => {
     const [x, ...args] = painted.mock.calls[0] ?? []
     expect(x).toBe(c.getContext('2d'))
     expect(args).toEqual([book, 3, new Map(), 0.5])
-    expect(log.slice(0, 3)).toEqual(['images 3', 'paint 3', 'yield'])
+    expect(log.slice(0, 4)).toEqual(['yield', 'images 3', 'paint 3', 'yield'])
     expect(contexts.get(c)?.calls).toEqual([
+      ['save'],
+      ['beginPath'],
+      ['rect', 0, 0, 100, 125],
+      ['clip'],
+      ['restore'],
       ['getImageData', 0, 0, 100, 125],
       ['putImageData', 'data 50000', 0, 0],
     ])
     expect(s.face(2)).toBe(s.face(2))
   })
+
+  it('paints and grains a 2× face one clipped band per task', async () => {
+    const s = createFaceSource({
+      book,
+      images,
+      pagePx: 1200,
+      yieldTask: () => {
+        log.push('yield')
+        return Promise.resolve()
+      },
+    })
+
+    const c = (await s.face(0)) as HTMLCanvasElement
+
+    const calls = contexts.get(c)?.calls ?? []
+    const paintBands = rowBands(1200, 1500, PAINT_BAND_PX)
+    expect(paintBands).toHaveLength(4)
+    expect(calls.filter(([name]) => name === 'rect')).toEqual(
+      paintBands.map(([y0, y1]) => ['rect', 0, y0, 1200, y1 - y0]),
+    )
+    expect(calls.slice(0, 5).map(([name]) => name)).toEqual([
+      'save',
+      'beginPath',
+      'rect',
+      'clip',
+      'restore',
+    ])
+    const grainBands = rowBands(1200, 1500, GRAIN_BAND_PX, 2)
+    expect(grainBands).toHaveLength(7)
+    expect(calls.filter(([name]) => name === 'getImageData')).toEqual(
+      grainBands.map(([y0, y1]) => ['getImageData', 0, y0, 1200, y1 - y0]),
+    )
+    expect(log.slice(0, 16)).toEqual([
+      'yield',
+      'images 1',
+      'paint 1',
+      'yield',
+      'paint 1',
+      'yield',
+      'paint 1',
+      'yield',
+      'paint 1',
+      ...Array.from({ length: 7 }, () => 'yield'),
+    ])
+  })
+
+  it.each([
+    { at: 3, paints: 2, grains: 0 },
+    { at: 6, paints: 4, grains: 1 },
+  ])(
+    'stops painting and grain once disposed (at yield $at)',
+    async ({ at, paints: n, grains }) => {
+      let yields = 0
+      const s = createFaceSource({
+        book,
+        images,
+        pagePx: 1200,
+        yieldTask: () => {
+          if (++yields === at) s.dispose()
+          return Promise.resolve()
+        },
+      })
+
+      const c = (await s.face(0)) as HTMLCanvasElement
+
+      const calls = contexts.get(c)?.calls ?? []
+      expect(painted).toHaveBeenCalledTimes(n)
+      expect(calls.filter(([name]) => name === 'putImageData')).toHaveLength(
+        grains,
+      )
+    },
+  )
 
   it('paints the requests of one task by distance to the view', async () => {
     const s = source()
@@ -87,7 +165,8 @@ describe('createFaceSource', () => {
     await Promise.all(faces)
 
     expect(paints()).toEqual(['paint 1', 'paint 5', 'paint 10'])
-    expect(log.slice(0, 6)).toEqual([
+    expect(log.slice(0, 7)).toEqual([
+      'yield',
       'images 1',
       'paint 1',
       'yield',
@@ -172,7 +251,13 @@ describe('createFaceSource', () => {
 
     const c = (await first) as HTMLCanvasElement
     await expect(queued).rejects.toThrow('disposed')
-    expect(contexts.get(c)?.calls ?? []).toEqual([])
+    expect(contexts.get(c)?.calls.map(([name]) => name)).toEqual([
+      'save',
+      'beginPath',
+      'rect',
+      'clip',
+      'restore',
+    ])
     await settle()
     expect(paints()).toEqual(['paint 1'])
   })
@@ -183,7 +268,9 @@ describe('createFaceSource', () => {
     const done = vi.fn()
 
     void s.face(0).then(done)
-    await vi.advanceTimersByTimeAsync(0)
+    for (let i = 0; i < 10; i++) await Promise.resolve()
+    expect(painted).not.toHaveBeenCalled()
+    await vi.runAllTimersAsync()
 
     expect(done).toHaveBeenCalledTimes(1)
     vi.useRealTimers()

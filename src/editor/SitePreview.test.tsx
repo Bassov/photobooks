@@ -7,6 +7,7 @@ import {
   resetBookStore,
 } from './bookStore'
 import SitePreview, { PreviewSlide } from './SitePreview'
+import { resetSiteSettingsForTests, setSiteSettings } from './siteSettingsStore'
 
 const book = makeBook({
   title: 'Lake trip',
@@ -61,6 +62,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   resetBookStore()
+  resetSiteSettingsForTests()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
@@ -74,7 +76,9 @@ describe('SitePreview', () => {
     const room = screen.getByTestId('site-room')
     expect(room.hasAttribute('data-embedded')).toBe(true)
     expect(screen.getByTestId('site-about').textContent).toMatch(/^Lake trip/)
-    expect(screen.queryByTestId('site-name')).toBeNull()
+    // No author, no site title: the head name is the "Photobooks" fallback.
+    expect(screen.getByTestId('site-name').textContent).toBe('Photobooks')
+    expect(screen.getByTestId('site-name').tagName).toBe('SPAN')
     expect(screen.queryByTestId('site-all-books')).toBeNull()
     expect(screen.queryByTestId('site-share')).toBeNull()
     // Nothing in the room links away.
@@ -94,6 +98,19 @@ describe('SitePreview', () => {
     const head = screen.getByText('Lake trip', { selector: '.sb-back' })
     expect(head.tagName).toBe('SPAN')
     expect(screen.getByTestId('site-room').querySelector('a')).toBeNull()
+  })
+
+  it('heads the room with the author, else the site title, live', () => {
+    render(<SitePreview onExit={vi.fn()} />)
+    const name = () => screen.getByTestId('site-name').textContent
+    act(() => {
+      setSiteSettings({ title: 'Alps & Sea' })
+    })
+    expect(name()).toBe('Alps & Sea')
+    act(() => {
+      setSiteSettings({ author: 'Ann' })
+    })
+    expect(name()).toBe('Ann')
   })
 
   it('steps with the keys and follows book edits', () => {

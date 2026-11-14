@@ -63,7 +63,7 @@ Desktop rooms ≤ 640 px wide SHALL use the narrow foot (pager on its own row, a
 
 ### Requirement: Embedded book page
 
-The room SHALL accept an embedded mode for hosts such as the editor preview: `embedded { slide, onSlide }` makes the view controlled and SHALL NOT write the URL, listen to `hashchange` or add a `window` keydown listener; `allBooks: false` hides "All books"; `share: false` hides Share; `renderSlide(slide, widthPx)` replaces the page paint (the CSS reader is used) on the reader and in the lightbox. All are off by default and the published site SHALL render unchanged.
+The room SHALL accept an embedded mode for hosts such as the editor preview: `embedded { slide, onSlide }` makes the view controlled and SHALL NOT write the URL, listen to `hashchange` or add a `window` keydown listener; its head name (`author`, else the site title) is plain text, not a link; `allBooks: false` hides "All books"; `share: false` hides Share; `renderSlide(slide, widthPx)` replaces the page paint (the CSS reader is used) on the reader and in the lightbox. All are off by default and the published site SHALL render unchanged.
 
 #### Scenario: Embedded step
 
@@ -81,7 +81,7 @@ The system SHALL derive a book's phone slides from its spreads (parent frames in
 
 ### Requirement: Lazy GL book renderer
 
-The site SHALL ship the stand's WebGL book (closed book, open book, page curl; three r170 vendored) only in lazily imported chunks: the `site` entry and its static imports SHALL stay ≤ 200 KB of gzipped script and contain no GL module. The renderer SHALL take a GL-local input (cover panels, cloth, page count, trim, paper default `#FBFAF7`, endpaper default `#E9E4DA`, a face provider); the thickness SHALL follow the stand's rule for the page count plus two endpapers. Faces SHALL be painted with the page painter lazily, pages of the focused view and views ± 2 first, grain after painting, one page per task, with no long task over 50 ms for 6 faces at 2×.
+The site SHALL ship the stand's WebGL book (closed book, open book, page curl; three r170 vendored) only in lazily imported chunks: the `site` entry and its static imports SHALL stay ≤ 200 KB of gzipped script and contain no GL module. The renderer SHALL take a GL-local input (cover panels, cloth, page count, trim, paper default `#FBFAF7`, endpaper default `#E9E4DA`, a face provider); the thickness SHALL follow the stand's rule for the page count plus two endpapers. Faces SHALL be painted with the page painter lazily, pages of the focused view and views ± 2 first, grain after painting, one page at a time, never in the requesting task: painting (clipped) and grain SHALL each go one row band per task (endpaper grain too), with no long task over 50 ms for 6 faces at 2×.
 
 #### Scenario: Face order
 

@@ -11,6 +11,7 @@ import { HostingSection } from './HostingSection'
 import { ensureKitTypeStyles } from './kitTypeStyles'
 import { changeLibraryFolder } from './projectSession'
 import { PrintPresetsSection } from './PrintPresetsSection'
+import { SiteSettingsSection } from './SiteSettingsSection'
 import {
   SETTINGS_SECTIONS,
   settingsNavActiveClass,
@@ -108,6 +109,8 @@ export function SettingsScreen({
           <PrintPresetsSection row={ROW} rule={settingsRule} />
         ) : sectionId === 'hosting' ? (
           <HostingSection row={ROW} rule={settingsRule} />
+        ) : sectionId === 'site' ? (
+          <SiteSettingsSection row={ROW} rule={settingsRule} />
         ) : (
           <>
             <p className="mt-1 max-w-[560px] text-sm leading-relaxed text-muted-foreground">

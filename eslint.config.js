@@ -79,5 +79,10 @@ export default tseslint.config(
       'playwright/no-conditional-in-test': 'error',
     },
   },
+  {
+    // The Cloudflare relay sees users' setup tokens: it logs nothing.
+    files: ['src/worker/**/*.ts'],
+    rules: { 'no-console': 'error' },
+  },
   eslintConfigPrettier,
 )
