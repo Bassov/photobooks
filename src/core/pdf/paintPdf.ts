@@ -4,11 +4,13 @@ import type {
   PDFName,
   PDFOperator,
   PDFPage,
+  PDFRef,
 } from '@cantoo/pdf-lib'
 import { resolveSpread } from '../geometry/resolveSpread'
 import type { ResolvedItem, ResolvedSpread } from '../geometry/types'
 import type { PrintProfile } from '../print/profileSchema'
 import type { Book } from '../schema'
+import { profileForImage, readSourceColor } from './iccProfile'
 import {
   CROP_MARK_WIDTH_PT,
   cropMarkSegments,
@@ -77,6 +79,7 @@ export async function paintBookPdf(
     .map((item) => item.assetId)
     .filter((assetId) => assetId !== undefined)
   const { embedded, skipped } = await embedPhotos(
+    lib,
     doc,
     [...new Set(assetIds)],
     input,
@@ -153,6 +156,7 @@ function paintPage(
 }
 
 async function embedPhotos(
+  lib: PdfLib,
   doc: PDFDocument,
   assetIds: string[],
   input: PaintPdfInput,
@@ -162,6 +166,7 @@ async function embedPhotos(
 }> {
   const embedded = new Map<string | undefined, Embedded>()
   const skipped: SkippedPhoto[] = []
+  const iccRefs = new Map<string, PDFRef>()
   for (const assetId of assetIds) {
     const bytes = await input.photos(assetId)
     if (bytes === undefined) {
@@ -178,6 +183,7 @@ async function embedPhotos(
       skipped.push({ assetId, reason: 'unsupported' })
       continue
     }
+    await tagColor(lib, doc, image, bytes, iccRefs)
     embedded.set(assetId, {
       image,
       // The raw JPEG keeps its EXIF orientation; PDF viewers ignore it.
@@ -185,6 +191,43 @@ async function embedPhotos(
     })
   }
   return { embedded, skipped }
+}
+
+const DEVICE_CHANNELS: Readonly<Record<string, number>> = {
+  '/DeviceGray': 1,
+  '/DeviceRGB': 3,
+  '/DeviceCMYK': 4,
+}
+
+/**
+ * Gives the image an ICCBased color space: the photo's own profile, sRGB for
+ * an untagged RGB photo. Each distinct profile is one stream per PDF.
+ */
+async function tagColor(
+  lib: PdfLib,
+  doc: PDFDocument,
+  image: PDFImage,
+  bytes: Uint8Array,
+  iccRefs: Map<string, PDFRef>,
+): Promise<void> {
+  await image.embed()
+  const stream = doc.context.lookup(image.ref, lib.PDFStream)
+  const colorSpace = lib.PDFName.of('ColorSpace')
+  const device = stream.dict.lookup(colorSpace, lib.PDFName)
+  const channels = DEVICE_CHANNELS[device.asString()] ?? 0
+  const icc = profileForImage((await readSourceColor(bytes)).icc, channels)
+  if (icc === undefined) return
+  const key = new TextDecoder('latin1').decode(icc)
+  const ref =
+    iccRefs.get(key) ??
+    doc.context.register(
+      doc.context.flateStream(icc, { N: channels, Alternate: device }),
+    )
+  iccRefs.set(key, ref)
+  stream.dict.set(
+    colorSpace,
+    doc.context.obj([lib.PDFName.of('ICCBased'), ref]),
+  )
 }
 
 function cm(lib: PdfLib, m: Matrix): PDFOperator {
