@@ -49,6 +49,7 @@ test('M113: Settings nav icons paint the muted ink', async ({ page }) => {
     expect(await icon.evaluate((el) => getComputedStyle(el).color), id).toBe(
       `rgb(${MUTED.join(', ')})`,
     )
+    // Computed colour is exact; the darkest pixel may be anti-aliased lighter.
     const ink = await darkest(icon)
     for (const [i, c] of MUTED.entries()) {
       expect(ink[i], `${id} channel ${String(i)}`).toBeGreaterThanOrEqual(c - 2)
