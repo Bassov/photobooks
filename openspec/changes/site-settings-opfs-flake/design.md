@@ -1,7 +1,7 @@
 ## Decisions
 
 1. Retry in the adapter, not per caller: `getText` in `src/project/fsa/handles.ts` re-snapshots (`getFile()` again) and reads again when `text()` rejects `NotReadableError`, up to 4 reads; other errors and the last failure propagate unchanged. Security: no new handles or permission requests; the retry only re-reads a handle the adapter already holds.
-2. The browser fake models the Chromium rule: each file has a version, bumped by `close()` / `writeFile` / `removeEntry`; a `File` snapshot's `text()` / `arrayBuffer()` rejects `NotReadableError` once the version moved. A one-shot `afterSnapshot` hook lets a test commit a write between snapshot and read.
+2. The browser fake models the Chromium rule: each file has a version, bumped by `close()` / `writeFile` / `removeEntry`; a `File` snapshot's `text()` / `arrayBuffer()` rejects `NotReadableError` once the version moved. An `onSnapshot(name, hook)` hook lets a test commit a write between snapshot and read.
 3. e2e: `e2e/fixtures/opfsText.ts` `readOpfsText(page, path)` returns the text or `OPFS_MID_WRITE` on `NotReadableError`; poll callers keep polling, assertion values unchanged.
 
 ## Touch-set & Test Plan
