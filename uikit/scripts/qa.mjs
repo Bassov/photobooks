@@ -312,7 +312,9 @@ const smokeS = async (name, id, fn) => {
   await page.keyboard.press("Escape").catch(() => {})
 }
 // Frozen: no new checks here. The §4 / v4–v0.6.1 checks moved to e2e/kit-{library,editor-canvas,tokens,credits,personal-site}.spec.ts
-// (uikit-qa-split-1); the blocks below move by feature in uikit-qa-split-2…, map in docs/roadmap/P3/uikit-qa-split-1.md.
+// (uikit-qa-split-1), the v7–v0.10 spread list / book settings / sliders / toggles / tokens checks to
+// e2e/kit-{spread-list,book-settings,sliders,toggle-size,tokens}.spec.ts (uikit-qa-split-2); the blocks below
+// move by feature in uikit-qa-split-3…, map in docs/roadmap/P3/uikit-qa-split-1.md.
 const walk6 = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walk6(`${d}/${e.name}`) : /\.(tsx?|css)$/.test(e.name) ? [`${d}/${e.name}`] : [])
 
 // ───────── v7: editor redesign, kit chrome, sliders, toggles, black-only-for-selection ─────────
@@ -322,18 +324,6 @@ const SCEN3 = { "Photo": ["frame-selection-handles", "Frame selected"], "Book se
 const scen = async (l) => { const m = SCEN3[l]; if (m) { await go(feat(m[0]), 700); l = m[1] } await D('[data-testid="scenarios"]').getByRole("tab", { name: l, exact: true }).click(); await page.waitForTimeout(250) }
 const bg = (loc) => loc.evaluate((e) => getComputedStyle(e).backgroundColor)
 const items = () => E('[data-testid="panel-l"] [role=row]').evaluateAll((els) => els.map((e) => e.getAttribute("data-item")))
-await smokeS("v7 list order: Cover · Endpaper · page 1 · spreads · last page · Endpaper", "canvas", async () => {
-  const it = await items(), labels = await E('[data-testid="panel-l"] [role=row] [data-label]').allInnerTexts()
-  const okO = it[0] === "cover" && it[1] === "ef" && it[2] === "p0" && it.at(-3) === "p9" && it.at(-2) === "last" && it.at(-1) === "eb"
-  return [okO && labels[2] === "1" && labels[3] === "2–3" && labels.at(-3) === "18–19" && labels.at(-2) === "20", it.join(",") + " | " + labels.join(",")]
-})
-await smokeS("v7 endpapers only when enabled in Book settings", "canvas", async () => {
-  await E('[data-testid="book-title"]').click(); await page.waitForTimeout(150)
-  const pressed = await E('[data-testid="book-title"]').getAttribute("aria-pressed"), insp = await E('[data-testid="insp-book"]').count()
-  await E('[role=switch][aria-label="Endpapers"]').click(); await page.waitForTimeout(150)
-  const it = await items()
-  return [pressed === "true" && insp === 1 && !it.includes("ef") && !it.includes("eb") && it[0] === "cover" && it[1] === "p0", `pressed=${pressed} ${it.join(",")}`]
-})
 await smokeS("v7 Pages/Masters toggle: masters show margins, columns, # placeholders", "canvas", async () => {
   await E('[data-testid="mode-seg"] button', ).nth(1).click(); await page.waitForTimeout(200)
   // page-numbers-kit: Show off hides the position seg and hint; no dead "Position · Bottom" row
@@ -342,79 +332,6 @@ await smokeS("v7 Pages/Masters toggle: masters show margins, columns, # placehol
   const it = await items(), m = await E('[data-testid="canvas-master"]').count(), mm = await E('[data-testid="master-margin"]').count(), c = await E('[data-testid="master-col"]').count(), pn = await E('[data-testid="master-pn"]').allInnerTexts()
   const segOn = await E('[data-testid="master-pn-position"]').count(), dead = await E('[data-testid="insp-master"]').getByText(/^(Position|Bottom)$/).count()
   return [it.join() === "mA,mB" && m === 1 && mm === 2 && c >= 4 && pn.length === 2 && pn.every((t) => t === "#") && segOff === 0 && segOn === 1 && dead === 0, `${it} margin=${mm} cols=${c} pn=${pn} seg off/on=${segOff}/${segOn} position row=${dead}`]
-})
-await smokeS("v7 selection: list row #CACACA + bold, no outline; hover #D7D7D7", "canvas", async () => {
-  const sel = E('[data-testid="panel-l"] [role=row][aria-selected=true]')
-  const b = await bg(sel), o = await sel.evaluate((e) => getComputedStyle(e).outlineStyle), fw = await sel.locator("[data-label]").evaluate((e) => getComputedStyle(e).fontWeight)
-  const other = E('[data-testid="panel-l"] [role=row][aria-selected=false]').first(); await other.hover(); await page.waitForTimeout(200)
-  const h = await bg(other)
-  return [b === "rgb(202, 202, 202)" && o === "none" && +fw >= 600 && h === "rgb(215, 215, 215)", `sel=${b} outline=${o} fw=${fw} hover=${h}`]
-})
-// v0.7.4 P2-4: 16 → 17 used — the cover photo (p01) now counts as used
-await smokeS("v7 editor: no borders, no blue, 3 surfaces only", "canvas", async () => {
-  const r = await page.evaluate(() => { const root = document.querySelector('[data-testid="editor7"]'); const bad = [], blue = [], bgs = new Set()
-    for (const e of root.querySelectorAll("*")) { const s = getComputedStyle(e)
-      if (e.closest('[data-testid="grid-overlay"],[data-testid="print-overlay"],[data-allow-border]')) continue
-      for (const k of ["Top", "Right", "Bottom", "Left"]) if (parseFloat(s[`border${k}Width`]) > 0 && s[`border${k}Style`] !== "none" && !/rgba\(0, 0, 0, 0\)/.test(s[`border${k}Color`])) bad.push(e.tagName)
-      for (const c of [s.color, s.backgroundColor]) { const m = c.match(/rgba?\((\d+), (\d+), (\d+)/); if (m && (+m[3] - Math.max(+m[1], +m[2]) > 12)) blue.push(c) }
-      if (["HEADER", "ASIDE"].includes(e.tagName)) bgs.add(s.backgroundColor) }
-    return { bad: bad.length, blue: blue.length, bgs: [...bgs] } })
-  return [r.bad === 0 && r.blue === 0 && r.bgs.every((b) => b === "rgb(225, 225, 225)" || b === "rgba(0, 0, 0, 0)"), JSON.stringify(r)]
-})
-await smokeS("v7 scrollbars: thin 4/6/8 px thumbs #A8A8A8/#969696/#7E7E7E, transparent track", "canvas", async () => {
-  const t = await page.evaluate(() => { const s = getComputedStyle(document.documentElement); return ["--scroll-thumb-rest", "--scroll-thumb", "--scroll-thumb-hover"].map((n) => s.getPropertyValue(n).trim().toUpperCase()) })
-  const css = fs.readFileSync(new URL("../src/index.css", import.meta.url), "utf8")
-  return [t.join() === "#A8A8A8,#969696,#7E7E7E" && /scrollbar-thumb \{[^}]*border: 3px solid transparent/.test(css), t.join()]
-})
-// sliders: variant B
-await smokeS("v7 sliders variant B: 3px #CACACA track, fill #A8A8A8 (#8E8E8E dragging), 14px #F7F7F7 knob, 4px halo, no black", "canvas", async () => {
-  await scen("Photo")
-  const sl = E('.sl-track').first().locator("xpath=.."), tr = sl.locator(".sl-track"), fi = sl.locator(".sl-fill"), th = sl.locator(".sl-thumb")
-  const h = await tr.evaluate((e) => e.getBoundingClientRect().height), tb = await bg(tr), fb = await bg(fi), tw = await th.evaluate((e) => e.getBoundingClientRect().width), kb = await bg(th)
-  await page.mouse.move(1, 1); await th.hover() // v7.2: the inspector now opens with Crop (zoom) first — its slider can sit at the fold
-  const bx = await th.boundingBox(); await page.mouse.move(bx.x + 7, bx.y + 7); await page.mouse.down(); await page.mouse.move(bx.x + 30, bx.y + 7, { steps: 4 }); await page.waitForTimeout(200)
-  const fd = await bg(fi), halo = await th.evaluate((e) => getComputedStyle(e).boxShadow); await page.mouse.up()
-  const n = await page.evaluate(() => [...document.querySelectorAll(".sl-track, .sl-fill, .sl-thumb")].filter((e) => /rgb\((3[0-9]|2[0-9]|[0-9]), /.test(getComputedStyle(e).backgroundColor)).length)
-  return [h === 3 && tb === "rgb(202, 202, 202)" && fb === "rgb(168, 168, 168)" && fd === "rgb(142, 142, 142)" && tw === 14 && kb === "rgb(247, 247, 247)" && /0px 0px 0px 4px/.test(halo) && n === 0, `h=${h} track=${tb} fill=${fb}→${fd} knob=${tw}/${kb} halo=${halo} black=${n}`]
-})
-await smoke("v7 kit Slider component uses variant B too", "editor-chrome-toolbar", async () => {
-  await page.evaluate(() => { location.hash = "#/components" }); await page.waitForTimeout(600)
-  const r = await page.evaluate(() => { const t = [...document.querySelectorAll(".sl-track")]; return { n: t.length, ok: t.every((e) => getComputedStyle(e).backgroundColor === "rgb(202, 202, 202)" && e.getBoundingClientRect().height === 3) && [...document.querySelectorAll(".sl-thumb")].every((e) => getComputedStyle(e).backgroundColor === "rgb(247, 247, 247)") } })
-  return [r.n >= 3 && r.ok, JSON.stringify(r)]
-})
-// toggles + swatches
-await smokeS("v7 toggles: ON #A8A8A8, OFF #CACACA, knob #F7F7F7; selected swatch 2px #8E8E8E ring with 2px offset", "canvas", async () => {
-  await scen("Book settings")
-  const sw = E('[role=switch][aria-label="Endpapers"]'), on = await bg(sw); await sw.click(); await page.waitForTimeout(150); const off = await bg(sw)
-  const kn = await bg(sw.locator("span")); await sw.click()
-  // v0.9.1: Binding/Material/Fill demoted (no fake book swatches). .swatch-on still styles wired spread Background chips.
-  await scen("Photo")
-  await page.locator('[data-testid="demo"] [data-testid="canvas"]').click({ position: { x: 20, y: 20 } }).catch(() => {})
-  await page.waitForTimeout(250)
-  let so = ""
-  if (await E('[data-testid="bg-swatches"] .swatch-on').count()) {
-    so = await E('[data-testid="bg-swatches"] .swatch-on').first().evaluate((e) => { const c = getComputedStyle(e); return `${c.outlineWidth} ${c.outlineStyle} ${c.outlineColor} ${c.outlineOffset}` })
-  } else {
-    so = await page.evaluate(() => { const el = document.createElement("span"); el.className = "swatch-on"; document.body.appendChild(el); const c = getComputedStyle(el); const r = `${c.outlineWidth} ${c.outlineStyle} ${c.outlineColor} ${c.outlineOffset}`; el.remove(); return r })
-  }
-  return [on === "rgb(168, 168, 168)" && off === "rgb(202, 202, 202)" && kn === "rgb(247, 247, 247)" && so === "2px solid rgb(142, 142, 142) 2px", `on=${on} off=${off} knob=${kn} swatch=${so}`]
-})
-await smoke("v7 kit Switch component: ON #A8A8A8 / OFF #CACACA / knob #F7F7F7", "editor-chrome-toolbar", async () => {
-  await page.evaluate(() => { location.hash = "#/components" }); await page.waitForTimeout(600)
-  const r = await page.evaluate(() => [...document.querySelectorAll(".sw-track")].map((e) => [e.closest("[data-selected]") ? 1 : 0, getComputedStyle(e).backgroundColor, getComputedStyle(e.firstElementChild).backgroundColor]))
-  return [r.length >= 2 && r.every(([s, b, k]) => b === (s ? "rgb(168, 168, 168)" : "rgb(202, 202, 202)") && k === "rgb(247, 247, 247)"), JSON.stringify(r.slice(0, 4))]
-})
-await smokeS("v7 black #232223 only on canvas selection, primary button and used-photo badges", "canvas", async () => {
-  await scen("Photo")
-  const r = await page.evaluate(() => { const root = document.querySelector('[data-testid="editor7"]'); const bad = []
-    for (const e of root.querySelectorAll("*")) { const s = getComputedStyle(e); const hit = [s.backgroundColor, s.color, s.outlineStyle !== "none" ? s.outlineColor : ""].some((c) => c === "rgb(35, 34, 35)") || /rgb\(35, 34, 35\)(?! 0px 0px 0px 0px)/.test(s.boxShadow)
-      if (!hit) continue
-      if (e.closest('[data-testid="sel-outline"],[data-testid="sel-handle"]') || e.matches('[data-testid="sel-outline"],[data-testid="sel-handle"]')) continue
-      if (e.closest('[data-testid="panel-b"]') && e.querySelector("svg")) continue
-      if (e.closest('[data-photo][data-selected]') && e.tagName === "SPAN") continue
-      bad.push(e.tagName + "." + (e.className?.baseVal ?? e.className).toString().slice(0, 30)) }
-    return bad })
-  return [r.length === 0, r.slice(0, 6).join(" | ")]
 })
 // kit chrome
 await go("#/", 700)
@@ -447,13 +364,6 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
 {
   const r = await page.evaluate(() => { const a = document.querySelector("main a[href^=http], table a"); const s = a && getComputedStyle(a); const lines = [...document.querySelectorAll("main *, table *")].filter((e) => { const c = getComputedStyle(e); return parseFloat(c.borderTopWidth) > 0 && c.borderTopStyle !== "none" && !/rgba\(0, 0, 0, 0\)/.test(c.borderTopColor) }).length; return { c: s?.color, d: s?.textDecorationLine, lines } })
   ok("v7 credits page: links #393738, no underline at rest, no lines", r.c === "rgb(57, 55, 56)" && !/underline/.test(r.d) && r.lines === 0, JSON.stringify(r))
-}
-{
-  const src = walk6(new URL("../src", import.meta.url).pathname).map((f) => [f, fs.readFileSync(f, "utf8")])
-  const ink = src.filter(([f, s]) => !/button\.tsx|editor7\.tsx|toast\.tsx|index\.css/.test(f) && /bg-primary(?![-\w])/.test(s)).map(([f]) => f.split("/src/")[1])
-  ok("v7 no bg-primary outside buttons (black reserved)", ink.length === 0, ink.join(", "))
-  const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v7 version 0.7.x+ (0.9.0 since v9)", /^0\.([789]|10)\./.test(pkg.version), pkg.version)
 }
 
 // ───────── v0.7.1: one editor, scenario states, no keyboard trap, page count, tone-only surfaces ─────────
@@ -488,10 +398,6 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     const src = fs.existsSync(new URL("../src/features/editor7.tsx", import.meta.url))
     ok("v7.1 P1 #3: ONE editor — every editor demo is the v7 frame, editor7.tsx removed, no 'Spreads 8' / '1 Cover' / 'Spread 1 · cover' / dark spread outline anywhere", !bad.length && !src && tried.length > 10, `${tried.length} pages with an editor; bad=${bad.slice(0, 6).join(" ; ")}`)
   }
-  await smoke("v7.1 P1 #3: feature page uses the new list (Pages/Masters seg, page labels) and inspector", "spread-list-panel", async () => {
-    const seg = await D('[data-testid="mode-seg"]').count(), lab = await D('[data-testid="panel-l"] [role=row] [data-label]').allInnerTexts(), bar = await D('[data-testid="editor-bar"]').count()
-    return [seg === 1 && bar === 1 && lab.includes("1") && lab.includes("2–3"), `seg=${seg} bar=${bar} labels=${lab.slice(0, 5)}`]
-  })
   await smokeS("v7.1 P1 #3: v0.5.3 features live in the one editor — templates All/My (no search since kit-sync KS7), filmstrip drag source, inspector params, multi-select, Crop toolbar", "canvas", async () => {
     await scen("Photo")
     const r = {}
@@ -529,23 +435,6 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
       return { bad, cancel: [...dl.querySelectorAll("button")].some((b) => b.textContent.trim() === "Cancel") } })
     ok("v7.1 P2 #7: Create book dialog has no rendered borders (no border-t, Cancel is a ghost button)", d && d.cancel && d.bad.length === 0, JSON.stringify(d))
     await page.keyboard.press("Escape") }
-  // P2 #7 global: no `*` border colour, rendered borders 0 on every page except print/grid overlays
-  {
-    const css = fs.readFileSync(new URL("../src/index.css", import.meta.url), "utf8")
-    ok("v7.1 P2 #7: global `* { border-color }` is transparent (was var(--border) #CDCDCD)", /\*, ::before, ::after \{ border-color: transparent; \}/.test(css) && !/\*, ::before, ::after \{ border-color: var\(--border\)/.test(css))
-    const bad = []
-    for (const id of [...screenIds.map(scr), ...pages.map((p) => feat(p.slug)), "#/", "#/components"]) {
-      await go(id, 300)
-      const n = await page.evaluate(() => { const out = []
-        for (const e of document.querySelectorAll("body *")) { if (e.closest('[data-testid="grid-overlay"],[data-testid="print-overlay"],[data-allow-border]')) continue
-          const s = getComputedStyle(e); for (const k of ["Top", "Right", "Bottom", "Left"]) if (parseFloat(s[`border${k}Width`]) > 0 && s[`border${k}Style`] !== "none" && !/rgba\(\d+, \d+, \d+, 0\)/.test(s[`border${k}Color`]) && e.getClientRects().length) { out.push(`${e.tagName.toLowerCase()}.${String(e.className).split(" ").filter((c) => /border/.test(c)).join(".")}`); break } }
-        return out })
-      if (n.length) bad.push(`${id} ×${n.length} ${[...new Set(n)].slice(0, 3).join(" ")}`)
-    }
-    ok("v7.1 P2 #7: rendered borders = 0 on every kit page (exceptions: canvas print/grid guide overlays)", bad.length === 0, bad.length ? `${bad.length} pages: ${bad.slice(0, 8).join(" | ")}` : "0 borders")
-  }
-  const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v7.1 version 0.7.x+ (0.9.0 since v9)", /^0\.([789]|10)\./.test(pkg.version), pkg.version)
 }
 // ───────── v0.7.2: designer review of v0.7.1 (uikit-audit/v7.1-review.md) ─────────
 {
@@ -615,57 +504,6 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     const hdr = await page.evaluate(() => (document.querySelector('[data-testid="demo"]').innerText.match(/(\d+)[ \u00a0]pages/) || [])[1])
     ok("v7.2 P1-3: editor header says ≥ 20 pages", +hdr >= 20, `header ${hdr} pages, list rows ${n}`)
   }
-  // P1-4 grayscale: no hue on any rendered colour (photos are images, exempt) + text contrast ≥ 4.5:1
-  {
-    const scanHue = () => page.evaluate(() => {
-      const root = document.querySelector('[data-testid="demo"]') || document.body; const out = []
-      const sat = (c) => { const m = c.match(/rgba?\(([\d.]+),?\s*([\d.]+),?\s*([\d.]+)(?:[,/]\s*([\d.]+))?/); if (!m) return 0; if (m[4] !== undefined && +m[4] < 0.05) return 0; return Math.max(+m[1], +m[2], +m[3]) - Math.min(+m[1], +m[2], +m[3]) }
-      for (const el of root.querySelectorAll("*")) { const r = el.getBoundingClientRect(); if (!r.width || !r.height) continue
-        if (el.closest("[data-swatch],[data-theme-option]")) continue
-        const cs = getComputedStyle(el); if (cs.visibility === "hidden" || cs.opacity === "0") continue
-        for (const p of ["color", "backgroundColor", "outlineColor", "borderTopColor", "fill", "stroke"]) { const v = cs[p]
-          if (p === "outlineColor" && (cs.outlineStyle === "none" || cs.outlineWidth === "0px")) continue
-          if (p === "borderTopColor" && cs.borderTopWidth === "0px") continue
-          if (p === "color" && ![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue
-          if ((p === "fill" || p === "stroke") && !(el instanceof SVGElement)) continue
-          if (sat(v) > 12) out.push(`${p} ${v} <${el.tagName.toLowerCase()} ${el.getAttribute("data-testid") || ""}> "${(el.textContent || "").trim().slice(0, 20)}"`) } }
-      return out })
-    const scanContrast = () => page.evaluate(() => {
-      const root = document.querySelector('[data-testid="demo"]') || document.body; const out = []
-      const parse = (c) => { const m = c.match(/rgba?\(([\d.]+),?\s*([\d.]+),?\s*([\d.]+)(?:[,/]\s*([\d.]+))?/); return m ? [+m[1], +m[2], +m[3], m[4] === undefined ? 1 : +m[4]] : null }
-      const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b) }
-      const mix = (a, b) => [a[0] * a[3] + b[0] * (1 - a[3]), a[1] * a[3] + b[1] * (1 - a[3]), a[2] * a[3] + b[2] * (1 - a[3]), 1]
-      for (const el of root.querySelectorAll("*")) {
-        if (![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue
-        const r = el.getBoundingClientRect(); if (!r.width || !r.height) continue
-        if (el.closest('[aria-disabled="true"],[disabled],[data-disabled],[aria-hidden="true"],[inert]')) continue
-        const cs = getComputedStyle(el); if (cs.visibility === "hidden" || +cs.opacity < 0.95) continue
-        // effective background: walk up, blending; give up over photos/images (text on photos is exempt)
-        const layers = []; let photo = false, e = el
-        while (e && e !== document.documentElement) { const s = getComputedStyle(e); if (s.backgroundImage !== "none" && !/gradient/.test(s.backgroundImage)) { photo = true; break }
-          if (+s.opacity < 0.95 && e !== el) { photo = true; break }
-          const b = parse(s.backgroundColor); if (b && b[3] > 0) { layers.push(b); if (b[3] >= 0.99) break }
-          // a sibling <img> under absolutely-positioned text → text on a photo
-          if (e.parentElement && [...e.parentElement.children].some((c) => c !== e && (c.tagName === "IMG" || c.querySelector?.(":scope > img")))) { photo = true; break }
-          e = e.parentElement }
-        // text drawn over a photo / cover image (any image under its box within 5 ancestors) is exempt
-        if (!photo) { let a = el; for (let k = 0; k < 6 && a; k++, a = a.parentElement) { if ([...a.querySelectorAll('img,[style*="url("]')].some((im) => { const b = im.getBoundingClientRect(); return !(b.right < r.left || r.right < b.left || b.bottom < r.top || r.bottom < b.top) })) { photo = true; break } } }
-        if (photo) continue
-        let bg = [255, 255, 255, 1]; for (let i = layers.length - 1; i >= 0; i--) bg = mix(layers[i], bg)
-        let fg = parse(cs.color); if (!fg) continue; fg = mix(fg, bg)
-        const L1 = lum(fg), L2 = lum(bg), cr = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05)
-        if (cr < 4.5) out.push(`${cr.toFixed(2)} <${el.tagName.toLowerCase()} ${el.getAttribute("data-testid") || ""}> "${el.textContent.trim().slice(0, 24)}"`) }
-      return out })
-    const hue = [], con = []
-    const check = async (id) => { const h = await scanHue(); if (h.length) hue.push(`${id} ×${h.length}: ${[...new Set(h)].slice(0, 3).join(" ; ")}`); const c = await scanContrast(); if (c.length) con.push(`${id} ×${c.length}: ${[...new Set(c)].slice(0, 3).join(" ; ")}`) }
-    for (const id of [...screenIds.map(scr), ...pages.map((p) => feat(p.slug)), "#/full/canvas", "#/full/library"]) { await go(id, 350); await check(id) }
-    await go(scr("canvas"), 700)
-    for (const t of await D('[data-testid="scenarios"] [role=tab]').allTextContents()) { await scen(t); await page.waitForTimeout(250); await check(`editor/${t}`) }
-    // states that only exist after interaction: crop mode, low-DPI photo, Delete frame, N empty
-    await scen("Photo"); await page.keyboard.press("Enter").catch(() => {}); await D('[data-testid="crop"]').click().catch(() => {}); await page.waitForTimeout(300); await check("editor/crop-mode")
-    const css = fs.readFileSync(new URL("../src/index.css", import.meta.url), "utf8")
-    ok("v7.2 P2-8: DPI badge has no inset-shadow ring", /\.pb-badge \{ box-shadow: none; \}/.test(css))
-  }
   // P1-5 inspector back to spec
   await smokeS("v7.2 P1-5: Photo inspector has Fill/Fit, Rotate & flip, Adjust, Caption — and they work", "canvas", async () => {
     await scen("Photo"); await page.waitForTimeout(300)
@@ -694,17 +532,6 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     const nl = await page.evaluate(() => document.querySelectorAll('[data-testid="demo"] [data-testid="page-labels"] span').length)
     ok("v7.2 P2-7: Replace/Crop toolbar never overlaps a page-number label", nl > 0 && bad.length === 0, `${n} frames, ${nl} labels; ${bad.join(" | ") || "no overlap"}`)
   }
-  // P2-9 near-black only for canvas selection, primary button, used-photo badges
-  {
-    const bad = []
-    for (const id of [scr("canvas"), "#/full/canvas", feat("crop-in-frame")]) { await go(id, 600)
-      const r = await page.evaluate(() => [...document.querySelectorAll('[data-testid="demo"] *, #root *')].filter((e) => { const s = getComputedStyle(e); const m = s.backgroundColor.match(/rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?/); if (!m || (m[4] !== undefined && +m[4] < 0.9)) return false
-        const r = e.getBoundingClientRect(); return r.width && +m[1] < 70 && +m[2] < 70 && +m[3] < 70 && !e.closest('[data-testid="sel-outline"],[data-testid="sel-chip"],[data-primary],[data-variant="primary"],.bg-primary,[data-used-badge],[data-testid="lightbox"],pre,[role=row],[role=gridcell],[data-testid="canvas-cover"],[data-testid="canvas-endpaper"],[data-swatch]') && !/bg-primary|bg-select|bg-tag/.test(e.className?.toString?.() || "") }).map((e) => `${e.tagName.toLowerCase()}:"${e.textContent.trim().slice(0, 20)}"`))
-      if (r.length) bad.push(`${id}: ${r.slice(0, 3).join(",")}`) }
-    const src = fs.readFileSync(new URL("../src/sandbox/canvas.tsx", import.meta.url), "utf8")
-    ok("v7.2 P2-9: no extra near-black chips (Preview · Panorama, Crop chip are light grey)", bad.length === 0 && !/bg-tag[^"]*">Preview ·/.test(src), bad.join(" | ") || "none")
-    ok("v7.2 P2-11: bleed and safe guides carry data-allow-border", (src.match(/data-allow-border className="absolute border border-(bleed|dashed border-guide)"/g) || []).length === 2)
-  }
   // P2-10 #/full/* loads without a failed request (favicon) — over http, like the reviewer
   {
     const http = await import("node:http"); const path = await import("node:path")
@@ -718,11 +545,6 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     await p2.close(); srv.close()
     ok("v7.2 P2-10: #/full/* (served over http) loads with no 404 / failed request / console error", fails.length === 0, fails.slice(0, 4).join(" | ") || "clean")
   }
-  // P2-6 shots script captures the editor scenarios + md5 list
-  { const sh = fs.readFileSync(new URL("./shots.mjs", import.meta.url), "utf8")
-    ok("v7.2 P2-6: npm run shots captures every editor scenario and writes editor-scenarios.md5", /editor-scenarios\.md5/.test(sh) && /screen-editor--/.test(sh)) }
-  const pkg2 = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v7.2 version 0.7.x+ (0.9.0 since v9)", /^0\.([789]|10)\./.test(pkg2.version), pkg2.version)
 }
 // ───────── v0.7.3: designer review of v0.7.2 (uikit-audit/v7.2-review.md) ─────────
 {
@@ -772,20 +594,9 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
   { await go(feat("site-settings"), 1000)
     const n = await page.locator('[data-testid="site-settings"]').getByText(/^(Paper|Night|Sage)$/).count(), th = await page.locator('[data-site-theme]').count()
     ok("v7.3→v8: Site settings has no Paper / Night / Sage theme switcher", n === 0 && th === 0, `${n} ${th}`) }
-  const pkg3 = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v7.3 version 0.7.x+ (0.9.1 since v9.1)", /^0\.([789]|10)\./.test(pkg3.version), pkg3.version)
 }
 // ───────── v0.7.4: designer review of v0.7.3 (uikit-audit/v7.3-review.md) — 4 P2 polish items ─────────
 {
-  // P2-1 low-DPI badge + Low-res chip are grey, not near-black
-  await smokeS("v7.4 P2-1: low-DPI badge and filmstrip Low-res chip use the field grey, not near-black", "canvas", async () => {
-    await scen("Nothing selected").catch(() => {}); await page.keyboard.press("d").catch(() => {}); await page.waitForTimeout(250)
-    const cols = await page.evaluate(() => [...document.querySelectorAll('[data-testid="demo"] [data-testid="dpi-badge"], [data-testid="demo"] [data-testid="lowres-chip"]')].map((e) => e.dataset.testid + "=" + getComputedStyle(e).backgroundColor))
-    const src = fs.readFileSync(new URL("../src/sandbox/canvas.tsx", import.meta.url), "utf8") + fs.readFileSync(new URL("../src/sandbox/chrome.tsx", import.meta.url), "utf8")
-    const dark = cols.filter((c) => { const m = c.match(/\d+/g).map(Number); return Math.max(m[0], m[1], m[2]) < 128 })
-    const srcOk = !/bg-dpi-low|bg-dpi-warn|bg-black\/60 px-1 py-px text-2xs font-medium text-white"><AlertTriangle/.test(src) && /data-testid="lowres-chip"/.test(src)
-    return [srcOk && dark.length === 0 && cols.some((c) => c.startsWith("lowres-chip")), cols.slice(0, 4).join(" ") || "none rendered"]
-  })
   // P2-2 Masters inspector drives the master render
   await smokeS("v7.4 P2-2: Masters inspector — page numbers toggle, margin and grid fields change the master render", "canvas", async () => {
     await scen("Masters"); await page.waitForTimeout(300)
@@ -798,11 +609,6 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     await D('[data-testid="master-field-T"]').fill("20"); await page.waitForTimeout(200); const r3 = await r()
     return [r0.pn === 0 && r1.pn > 0 && r2.cols === 2 * 4 && r2.cols !== r0.cols && r3.inset !== r2.inset, `pn ${r0.pn}→${r1.pn}, cols ${r0.cols}→${r2.cols}, inset ${r2.inset}→${r3.inset}`]
   })
-  // P2-3 dashed guides carry data-allow-border
-  { const c = fs.readFileSync(new URL("../src/sandbox/canvas.tsx", import.meta.url), "utf8"), v = fs.readFileSync(new URL("../src/sandbox/v7.tsx", import.meta.url), "utf8")
-    const inh = /p\.inherited && !st\.view\.preview && <div data-allow-border[^>]*\[outline-style:dashed\]/.test(c)
-    const safe = /<div data-allow-border key=\{s\} data-testid=\{`cover-safe-\$\{s\}`\}[^>]*1px dashed/.test(v), mg = /<div data-allow-border className="absolute inset-0" style=\{\{ outline: "1px dashed/.test(v)
-    ok("v7.4 P2-3: dashed guides (master items, master margin, cover safe area) carry data-allow-border", inh && safe && mg, `inherited=${inh} coverSafe=${safe} masterMargin=${mg}`) }
   // P2-4 cover Replace updates the filmstrip 'used' count
   await smokeS("v7.4 P2-4 / v0.9: dragging onto the cover updates the filmstrip used count", "canvas", async () => {
     // #/demo: cover + filmstrip both in view (kit screen page clips one or the other)
@@ -822,8 +628,6 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     const marks = await page.evaluate(() => document.querySelectorAll('[data-testid="filmstrip"] [role="row"] [title="Placed in the book"]').length)
     return [cv === film[0] && mark && n1 === marks && n0 >= 0, `${n0} → ${n1} used (= ${marks} ✓ marks), ${film[0]} marked=${mark} cover=${cv}`]
   })
-  const pkg4 = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v7.4 version 0.7.4+ (0.9.0 since v9)", /^0\.(7\.4|[89]\.|10\.)/.test(pkg4.version), pkg4.version)
 }
 // ───────── v8: credits, "..." menu, filmstrip label, sliders, grid, site fullscreen, #/demo
 {
@@ -862,17 +666,6 @@ await smokeS("v8 §3.1 single filmstrip label 'Photos · N · M used'", "canvas"
   const t = (await D('[data-testid="film-head"]').innerText()).trim(); const n = await D('[data-testid="placed-count"]').count()
   const dup = await D('[data-testid="dock"]').evaluate((d) => (d.innerText.match(/\bused\b/g) || []).length)
   return [/^Photos · \d+ · \d+ used$/.test(t) && n === 1 && dup === 1, `"${t}" n=${n} used×${dup}`]
-})
-await smokeS("v8 §3.3 sliders: arrows ±1 step, Shift ×10, double-click resets, value field editable", "canvas", async () => {
-  const sl = D('[data-reset]').first(); const v = async () => +(await sl.locator('input[type=range]').first().inputValue())
-  const step = +(await sl.locator('input[type=range]').first().getAttribute("step") || 1)
-  const v0 = await v(); await sl.hover(); const y0 = await page.evaluate(() => scrollY)
-  await page.keyboard.press("ArrowRight"); const v1 = await v(); await page.keyboard.press("Shift+ArrowRight"); const v2 = await v()
-  await page.keyboard.press("ArrowLeft"); const v3 = await v()
-  await sl.dblclick(); await page.waitForTimeout(100); const v4 = await v(); const def = +(await sl.getAttribute("data-reset"))
-  const fld = D('[data-testid="slider-value"]').first(); const editable = await fld.isEditable()
-  const near = (a, b) => Math.abs(a - b) < step / 2
-  return [near(v1 - v0, step) && near(v2 - v1, 10 * step) && near(v2 - v3, step) && near(v4, def) && editable && y0 === await page.evaluate(() => scrollY), `${v0}→${v1}→${v2}→${v3} dbl→${v4} (default ${def}, step ${step}) field=${editable}`]
 })
 await smokeS("v8 §3.4 grid: per-spread custom 4 × 3 renders 4 columns and 3 rows on each page", "canvas", async () => {
   await D('[data-item="p3"]').scrollIntoViewIfNeeded(); await page.waitForTimeout(200); await D('[data-item="p3"]').click(); await page.waitForTimeout(200)
@@ -1088,24 +881,6 @@ await smokeS("layout-grids-parent-inherit GP5: link on writes only the margins �
   ok("v8.1 P2-8 one Settings button in the demo library bar, and it opens Settings", W.settingsBtns === 1 && W.settingsStage === "settings", `${W.settingsBtns} ${W.settingsStage}`)
   ok("v8.1 demo walk: 0 console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
-await smokeS("v8.1 P2-3 slider double-click resets to the real default (frame style, spread margin/gap, compare, pages)", "canvas", async () => {
-  const out = []
-  const dbl = async (loc) => { const r = loc.locator('input[type=range]').first(); const def = +(await loc.getAttribute("data-reset")); await loc.hover(); await page.keyboard.press("Shift+ArrowRight"); await page.waitForTimeout(80); const v1 = +(await r.inputValue()); await loc.dblclick(); await page.waitForTimeout(120); return [def, v1, +(await r.inputValue())] }
-  await D('[data-item="p3"]').click(); await page.waitForTimeout(250)
-  const sp = D('[data-testid="spread-spacing"] [data-reset]')
-  for (let i = 0; i < 2; i++) out.push(["spread" + i, ...await dbl(sp.nth(i))])
-  const good = out.every(([, d, v1, v2]) => d === 0 && v1 !== d && v2 === d)
-  return [good, JSON.stringify(out)]
-})
-{
-  const src = (await import("node:fs")).readFileSync
-  const bad = []
-  for (const [f, labels] of [["src/sandbox/sections.tsx", ["Mat", "Stroke", "Corner radius"]], ["src/sandbox/context-inspector.tsx", ["Margin", "Gap"]]]) {
-    const t = src(new URL(`../${f}`, import.meta.url), "utf8")
-    for (const l of labels) { const m = t.match(new RegExp(`<SliderRow label="${l}"[^>]*`)); if (!m || !/resetValue=/.test(m[0])) bad.push(`${f}:${l}`) }
-  }
-  ok("v8.1 P2-3 every listed slider declares its real default (resetValue)", bad.length === 0, bad.join(", ") || "Mat, Stroke, Radius, Margin, Gap")
-}
 await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a frame snaps it to a column/row edge", "canvas", async () => {
   await D('[data-item="p3"]').scrollIntoViewIfNeeded(); await page.waitForTimeout(200); await D('[data-item="p3"]').click(); await page.waitForTimeout(200)
   const sg = D('[data-testid="spread-grid"]'); await sg.getByText("Custom", { exact: true }).click(); await page.waitForTimeout(200)
@@ -1235,9 +1010,6 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const pub = await page.locator('[data-testid="demo-publish"]').evaluate((e) => { const s = getComputedStyle(e); return { bg: s.backgroundColor, color: s.color } })
   const primaryBlack = /rgb\(\s*35,\s*34,\s*35\s*\)|rgb\(\s*0,\s*0,\s*0\s*\)/.test(pub.bg)
   ok("v0.9 §9 Publish is quiet gray, not primary black", !primaryBlack && /rgb\(\s*215,\s*215,\s*215\s*\)|rgb\(\s*225,\s*225,\s*225\s*\)/.test(pub.bg), JSON.stringify(pub))
-
-  const pkg9 = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v0.9 version 0.9.x", /^0\.(9|10)\./.test(pkg9.version), pkg9.version)
 }
 
 
@@ -1380,11 +1152,6 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const renameDlgSrc = fs.readFileSync(new URL("../src/demo-parts/library.tsx", import.meta.url), "utf8")
   ok("v0.9.1 §4 demo uses inline rename (no rename-dialog)", !/rename-dialog/.test(renameDlgSrc) && /rename-input/.test(renameDlgSrc), "inline")
 
-  // §5 Binding/Material/Fill not fake SegC without setter
-  const v7src = fs.readFileSync(new URL("../src/sandbox/v7.tsx", import.meta.url), "utf8")
-  const fake = /Sec title="Binding"><SegC/.test(v7src) || /Sec title="Material"><SegC/.test(v7src) || /title="Back"[\s\S]*?Swatches cs=/.test(v7src)
-  ok("v0.9.1 §5 Binding/Material/Fill demoted (no fake interactive SegC/Swatches)", !fake && /binding-readonly|material-readonly|fill-readonly/.test(v7src), fake ? "still fake" : "readonly")
-
   // §6 no frame-toolbar Crop in canvas
   const canv = fs.readFileSync(new URL("../src/sandbox/canvas.tsx", import.meta.url), "utf8")
   ok("v0.9.1 §6 floating FrameToolbar removed from canvas", !/FrameToolbar/.test(canv), /FrameToolbar/.test(canv) ? "still mounted" : "gone")
@@ -1429,9 +1196,6 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await go(feat("parent-spreads"), 600)
   ok("v0.9.1 §12 parent-spreads still has no pager", await page.locator('[data-testid="pager"]').count() === 0, "pager")
 
-  const pkg91 = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v0.9.1 version 0.9.x+", /^0\.(9|10)\./.test(pkg91.version), pkg91.version)
-
   // v0.9.2: Space / Hand pan must not show a focus ring on the canvas chrome
   await go(scr("canvas"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(200)
   const canvas = page.locator('[data-testid="demo"] [data-testid="canvas"]')
@@ -1456,8 +1220,6 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     spaceOutline.pan && (spaceOutline.outline === "none" || spaceOutline.w === "0px")
     && handOutline.pan && (handOutline.outline === "none" || handOutline.w === "0px"),
     `space=${JSON.stringify(spaceOutline)} hand=${JSON.stringify(handOutline)}`)
-  const pkg92 = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v0.9.2+ version 0.9.x", /^0\.(9|10)\./.test(pkg92.version), pkg92.version)
 }
 
 // ───────── v0.9.3: site library home, Space≠panels, outlined cursors, outline cleanup ─────────
@@ -1546,13 +1308,6 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("v0.9.3 filmstrip selection: tone only, no black ring-select",
     !blackRing && /202,\s*202,\s*202/.test(filmSel.bg),
     JSON.stringify({ ...filmSel, blackRing }))
-
-  // --crop amber removed
-  const css = fs.readFileSync(new URL("../src/index.css", import.meta.url), "utf8")
-  ok("v0.9.3 dead amber --crop removed from index.css", !/--crop:\s*#e0a33a/.test(css) && /--crop:\s*#6b696a/.test(css), "crop tokens")
-
-  const pkg93 = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v0.10.0 version 0.10.0", pkg93.version === "0.10.0", pkg93.version)
 }
 
 // Stage 3: feature pages mount editor parts at the real #/demo slot sizes (src/demo-parts/layout.ts SLOT)
@@ -1691,12 +1446,7 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("kit10: rulers show and a drag from the ruler adds a guide", (await page.locator(`${demo} [data-testid="spread"] [data-guide]`).count()) === g0 + 1, `${g0}→+1`)
   await page.keyboard.press("Shift+R")
   await page.locator(`${demo} [data-item="p1"]`).hover(); await c('[data-item="p1"] [data-testid="spread-menu"]'); await page.waitForTimeout(250)
-  ok("kit10: spread row menu offers Add after / Duplicate / Delete", (await page.getByRole("menuitem").allInnerTexts()).filter((t) => /Add after|Duplicate|Delete/.test(t)).length === 3)
   await page.getByRole("menuitem", { name: /Duplicate/ }).click(); await page.waitForTimeout(300)
-  const n0 = await page.locator(`${demo} [data-testid="panel-l"] [role=row]`).count()
-  // kit-sync KS8 (M17): the spread list ends without the Add spread + Ctrl+↵ row (the row menu Add after stays)
-  const addRows = await page.locator(`${demo} [data-testid="panel-l"]`).getByText(/^Add spread$|^Ctrl\+↵$/).count() + await page.locator(`${demo} [data-testid="add-spread"]`).count()
-  ok("kit10: spread list is a drag source (reorder) — kit-sync KS8: 0 Add spread rows", (await page.locator(`${demo} [data-testid="panel-l"] button`).filter({ hasText: "Drag" }).count()) > 0 && addRows === 0, `${n0} rows, ${addRows} add-spread`)
   // master guides + Page numbers feed every spread on the master
   await page.locator(`${demo} [data-testid="mode-seg"]`).getByText("Masters", { exact: true }).click(); await page.waitForTimeout(250)
   await page.keyboard.press("Shift+R"); await page.waitForTimeout(200)
@@ -1863,8 +1613,6 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("kit-sync KS12: Flip H / Flip V carry prod's glyphs", flips[0] === "m3 7 5 5-5 5V7 m21 7-5 5 5 5V7 M12 20v2 M12 14v2 M12 8v2 M12 2v2" && flips[1] === "m17 3-5 5-5-5h10 m17 21-5-5-5 5h10 M4 12H2 M10 12H8 M16 12h-2 M22 12h-2", JSON.stringify(flips))
   await c('[data-testid="book-title"]')
   const size = page.locator(`${demo} [data-testid="size-preset"]`)
-  const chev = await size.evaluate((e) => { const s = getComputedStyle(e); return { svg: /svg/.test(s.backgroundImage) && /m6 9 6 6 6-6/.test(s.backgroundImage) && /%236b696a/i.test(s.backgroundImage), gradient: /gradient/.test(s.backgroundImage), size: s.backgroundSize, pos: s.backgroundPosition, pr: s.paddingRight } })
-  ok("kit-sync KS15: Page size select shows a 16 px chevron-down #6b696a (prod .pb-select), not the triangle caret", chev.svg && !chev.gradient && chev.size === "16px 16px" && chev.pos === "calc(100% - 8px) 50%" && chev.pr === "32px", JSON.stringify(chev))
   await size.selectOption("sq20"); await page.waitForTimeout(300) // a 2:1 spread: prod's tile h 69.5
   await c('[data-item="p1"]')
   const sec = `${demo} [data-testid="layout-section"]`

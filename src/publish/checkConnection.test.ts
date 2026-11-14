@@ -331,6 +331,7 @@ describe('connectHosting', () => {
       accessKeyTail: 'c5d6',
       publicBaseUrl: CREDENTIALS.publicBaseUrl,
       status: { checkedAtMs: NOW.getTime(), ok: true },
+      origin: 'manual',
     })
   })
 

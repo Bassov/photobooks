@@ -10,8 +10,17 @@ import { resolveSpread } from '../geometry/resolveSpread'
 import type { ResolvedItem, ResolvedSpread } from '../geometry/types'
 import type { PrintProfile } from '../print/profileSchema'
 import type { Book } from '../schema'
+import {
+  type FrameLook,
+  frameLook,
+  insetPhotoMatrix,
+  type RoundedRect,
+  roundedRectPath,
+} from './frameLookGeometry'
 import { profileForImage, readSourceColor } from './iccProfile'
 import {
+  blankSheets,
+  compose,
   CROP_MARK_WIDTH_PT,
   cropMarkSegments,
   frameMatrix,
@@ -46,7 +55,7 @@ export interface SkippedPhoto {
 
 export interface PaintPdfResult {
   pdf: Uint8Array
-  /** PDF pages written. */
+  /** PDF pages written, blank padding pages included. */
   sheets: number
   /** Photos left as paper, each once. */
   skipped: SkippedPhoto[]
@@ -62,8 +71,9 @@ interface Embedded {
 /**
  * Paints the book's interior (page backgrounds and photos) into a print PDF
  * per `profile`: one page per book page or per spread, bleed from the book
- * inside the profile's range, crop marks only when the profile asks. JPEGs
- * go in as their original bytes, each asset once.
+ * inside the profile's range, crop marks only when the profile asks, blank
+ * pages after the book up to the profile's minimum page count. JPEGs go in
+ * as their original bytes, each asset once.
  */
 export async function paintBookPdf(
   input: PaintPdfInput,
@@ -105,11 +115,25 @@ export async function paintBookPdf(
   )
   for (const [index, spread] of resolved.entries()) {
     for (const sheet of sheets.filter((s) => s.spreadIndex === index)) {
-      paintPage(lib, doc, sheet, spread, embedded, profile, bleedMm)
+      addSheetPage(lib, doc, sheet, profile, bleedMm, (page, slugMm) => {
+        paintSheet(lib, page, sheet, spread, embedded, slugMm, bleedMm)
+      })
     }
   }
+  // A book below the profile minimum prints as the minimum (print issues).
+  const blanks = blankSheets(
+    book.spreads.length,
+    profile.pageCount.min,
+    book.settings.trim,
+    profile.output,
+  )
+  for (const sheet of blanks) addSheetPage(lib, doc, sheet, profile, bleedMm)
 
-  return { pdf: await doc.save(), sheets: sheets.length, skipped }
+  return {
+    pdf: await doc.save(),
+    sheets: sheets.length + blanks.length,
+    skipped,
+  }
 }
 
 function resolveAll(
@@ -121,14 +145,17 @@ function resolveAll(
     .filter((spread) => spread !== undefined)
 }
 
-function paintPage(
+/**
+ * Adds the PDF page of `sheet` with its trim, bleed and media boxes, runs
+ * `paint` (nothing: blank paper), then crop marks when the profile asks.
+ */
+function addSheetPage(
   lib: PdfLib,
   doc: PDFDocument,
   sheet: PdfSheet,
-  spread: ResolvedSpread,
-  embedded: Map<string | undefined, Embedded>,
   profile: PrintProfile,
   bleedMm: number,
+  paint?: (page: PDFPage, slugMm: number) => void,
 ): void {
   const boxes = sheetBoxes(
     sheet.trim.width,
@@ -149,7 +176,7 @@ function paintPage(
     boxes.trim.width,
     boxes.trim.height,
   )
-  paintSheet(lib, page, sheet, spread, embedded, boxes.slugMm, bleedMm)
+  paint?.(page, boxes.slugMm)
   if (profile.cropMarks) {
     paintCropMarks(lib, page, sheet, boxes.slugMm, bleedMm)
   }
@@ -293,19 +320,88 @@ function paintSheet(
     const name =
       names.get(photo.image) ?? page.node.newXObject('Image', photo.image.ref)
     names.set(photo.image, name)
+    const image = imageMatrix(item, photo.orientation)
+    const look = frameLook(item.rectMm, item.style)
     ops.push(
       lib.pushGraphicsState(),
       cm(lib, frameMatrix(item)),
-      lib.rectangle(0, 0, item.rectMm.width, item.rectMm.height),
-      lib.clip(),
-      lib.endPath(),
-      cm(lib, imageMatrix(item, photo.orientation)),
-      lib.drawObject(name),
+      ...(look === undefined
+        ? [
+            lib.rectangle(0, 0, item.rectMm.width, item.rectMm.height),
+            lib.clip(),
+            lib.endPath(),
+            cm(lib, image),
+            lib.drawObject(name),
+          ]
+        : paintLook(lib, look, item.rectMm, image, name)),
       lib.popGraphicsState(),
     )
   }
   ops.push(lib.popGraphicsState())
   page.pushOperators(...ops)
+}
+
+function path(lib: PdfLib, shape: RoundedRect): PDFOperator[] {
+  return roundedRectPath(shape).map((segment) => {
+    switch (segment.op) {
+      case 'move':
+        return lib.moveTo(segment.to.x, segment.to.y)
+      case 'line':
+        return lib.lineTo(segment.to.x, segment.to.y)
+      case 'curve':
+        return lib.appendBezierCurve(
+          segment.c1.x,
+          segment.c1.y,
+          segment.c2.x,
+          segment.c2.y,
+          segment.to.x,
+          segment.to.y,
+        )
+      case 'close':
+        return lib.closePath()
+    }
+  })
+}
+
+/**
+ * A styled photo frame in frame-local mm: clip to the rounded frame box, the
+ * mat fill, the photo clipped to its inset box, the stroke on top.
+ */
+function paintLook(
+  lib: PdfLib,
+  look: FrameLook,
+  size: { width: number; height: number },
+  image: Matrix,
+  name: PDFName,
+): PDFOperator[] {
+  const ops = [...path(lib, look.outer), lib.clip(), lib.endPath()]
+  if (look.matColor !== undefined) {
+    ops.push(
+      lib.setFillingRgbColor(...rgb(look.matColor)),
+      ...path(lib, look.outer),
+      lib.fill(),
+    )
+  }
+  if (look.photo.rect.width > 0 && look.photo.rect.height > 0) {
+    ops.push(
+      lib.pushGraphicsState(),
+      ...path(lib, look.photo),
+      lib.clip(),
+      lib.endPath(),
+      cm(lib, compose(insetPhotoMatrix(size, look.photo.rect), image)),
+      lib.drawObject(name),
+      lib.popGraphicsState(),
+    )
+  }
+  if (look.stroke !== undefined) {
+    ops.push(
+      lib.setStrokingRgbColor(...rgb(look.stroke.color)),
+      lib.setLineWidth(look.stroke.widthMm),
+      ...path(lib, look.stroke),
+      lib.stroke(),
+    )
+  }
+  return ops
 }
 
 function paintCropMarks(

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyMatrix,
+  blankSheets,
   compose,
   CROP_MARK_LENGTH_MM,
   cropMarkOffsetMm,
@@ -67,6 +68,22 @@ describe('pdfSheets', () => {
       { spreadIndex: 1, trim: { x: 0, y: 0, width: 600, height: 200 } },
       { spreadIndex: 2, trim: { x: 0, y: 0, width: 300, height: 200 } },
     ])
+  })
+
+  it('adds blank sheets up to the minimum after the last spread', () => {
+    const page = { x: 0, y: 0, width: 300, height: 200 }
+    // 4 spreads print 6 pages.
+    expect(blankSheets(4, 8, TRIM, 'pages')).toEqual([
+      { spreadIndex: 4, trim: page },
+      { spreadIndex: 4, trim: page },
+    ])
+    expect(blankSheets(4, 11, TRIM, 'spreads')).toEqual([
+      { spreadIndex: 4, trim: { ...page, width: 600 } },
+      { spreadIndex: 4, trim: { ...page, width: 600 } },
+      { spreadIndex: 4, trim: page },
+    ])
+    expect(blankSheets(4, 6, TRIM, 'pages')).toEqual([])
+    expect(blankSheets(4, 2, TRIM, 'spreads')).toEqual([])
   })
 
   it('prints nothing for an empty book and one page for a one-spread book', () => {

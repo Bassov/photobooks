@@ -165,14 +165,18 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
 - [x] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
 - [ ] [feature] [publish-core](roadmap/P3/publish-core.md) — Bug: /next-roadmap-item publish-core
+- [ ] [feature] [design-r26-icon-classes](roadmap/P3/design-r26-icon-classes.md) — Bug: /next-roadmap-item design-r26-icon-classes
+- [ ] [feature] [recents-home-captions](roadmap/P3/recents-home-captions.md) — Bug: /next-roadmap-item recents-home-captions
 - [ ] [feature] [publish-site-flaky-2](roadmap/P3/publish-site-flaky-2.md) — Bug: /next-roadmap-item publish-site-flaky-2
 - [ ] [feature] [startpublish-raf-flaky](roadmap/P3/startpublish-raf-flaky.md) — Bug: /next-roadmap-item startpublish-raf-flaky
 - [ ] [feature] [gl-faces-probe-flaky](roadmap/P3/gl-faces-probe-flaky.md) — Bug: /next-roadmap-item gl-faces-probe-flaky
 - [ ] [feature] [design-r25-publish-cache](roadmap/P3/design-r25-publish-cache.md) — Bug: /next-roadmap-item design-r25-publish-cache
 - [ ] [feature] [in-app-publish-kit](roadmap/P3/in-app-publish-kit.md) — Bug: /next-roadmap-item in-app-publish-kit
 - [x] [feature] [uikit-qa-split-1](roadmap/P3/uikit-qa-split-1.md) — Bug: /next-roadmap-item uikit-qa-split-1
+- [ ] [feature] [uikit-qa-split-2](roadmap/P3/uikit-qa-split-2.md) — Bug: /next-roadmap-item uikit-qa-split-2
 - [ ] [feature] [in-app-publish-core](roadmap/P3/in-app-publish-core.md) — Bug: /next-roadmap-item in-app-publish-core
 - [ ] [feature] [publish-site-flaky](roadmap/P3/publish-site-flaky.md) — Bug: /next-roadmap-item publish-site-flaky
+- [ ] [feature] [perf-workflow-merge-base](roadmap/P3/perf-workflow-merge-base.md) — Bug: /next-roadmap-item perf-workflow-merge-base
 - [ ] [feature] [site-settings-kit](roadmap/P3/site-settings-kit.md) — Bug: /next-roadmap-item site-settings-kit
 - [ ] [feature] [site-settings-core](roadmap/P3/site-settings-core.md) — Bug: /next-roadmap-item site-settings-core
 - [ ] [lite] [code-scout-agent](roadmap/P3/code-scout-agent.md) — Bug: /next-roadmap-item code-scout-agent
@@ -207,9 +211,12 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [kit-preview-fold-strip](roadmap/P4/kit-preview-fold-strip.md) — Bug: /next-roadmap-item kit-preview-fold-strip
 - [ ] [feature] [design-r21-profile-fields](roadmap/P4/design-r21-profile-fields.md) — Bug: /next-roadmap-item design-r21-profile-fields
 - [ ] [prep] [pdf-color-tagging](roadmap/P4/pdf-color-tagging.md) — keep photo colors
+- [ ] [feature] [pdf-frame-looks](roadmap/P4/pdf-frame-looks.md) — Bug: /next-roadmap-item pdf-frame-looks
+- [ ] [feature] [pdf-min-pages](roadmap/P4/pdf-min-pages.md) — Bug: /next-roadmap-item pdf-min-pages
 - [ ] [feature] [pdf-export](roadmap/P4/pdf-export.md) — print PDF
 - [ ] [feature] [site-final-data](roadmap/P4/site-final-data.md) — Bug: /next-roadmap-item site-final-data
 - [ ] [feature] [pdf-export-kit](roadmap/P4/pdf-export-kit.md) — Bug: /next-roadmap-item pdf-export-kit
+- [ ] [feature] [pdf-export-check](roadmap/P4/pdf-export-check.md) — Bug: /next-roadmap-item pdf-export-check
 - [ ] [feature] [lightbox-timer-leak](roadmap/P4/lightbox-timer-leak.md) — Bug: /next-roadmap-item lightbox-timer-leak
 - [ ] [feature] [static-export-viewer](roadmap/P4/static-export-viewer.md) — Bug: /next-roadmap-item static-export-viewer
 - [ ] [prep] [pdf-captions](roadmap/P4/pdf-captions.md) — text in the PDF
@@ -233,9 +240,11 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 **Review cut:** someone else gets their own library and site. **Kit-first:** Designer drafts the P5 kit pages (onboarding / account, own library + site, hosting / connect) before items are sliced (call D6); `printer-presets` and `connect-own-hosting` have a partial kit (Settings → Print presets / Hosting rows). `onboarding-others` is held in `docs/backlog/` until then.
 
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
+- [ ] [feature] [connect-own-hosting-kit](roadmap/P5/connect-own-hosting-kit.md) — Bug: /next-roadmap-item connect-own-hosting-kit
 - [ ] [feature] [connect-own-hosting-relay](roadmap/P5/connect-own-hosting-relay.md) — Bug: /next-roadmap-item connect-own-hosting-relay
 - [ ] [feature] [design-r24-site-kit](roadmap/P5/design-r24-site-kit.md) — Bug: /next-roadmap-item design-r24-site-kit
 - [ ] [lite] [a5-fit-parity](roadmap/P5/a5-fit-parity.md) — Bug: /next-roadmap-item a5-fit-parity
+- [ ] [feature] [connect-own-hosting-core](roadmap/P5/connect-own-hosting-core.md) — Bug: /next-roadmap-item connect-own-hosting-core
 - [ ] [feature] [connect-own-hosting](roadmap/P5/connect-own-hosting.md) — bring your own hosting (Security Review)
 - [ ] [feature] [prepush-scoped-units](roadmap/P5/prepush-scoped-units.md) — Bug: /next-roadmap-item prepush-scoped-units
 - [ ] [lite] [ratchet-merge-base](roadmap/P5/ratchet-merge-base.md) — Bug: /next-roadmap-item ratchet-merge-base

@@ -1,5 +1,6 @@
 import { getSpreadPageCount } from '../geometry/spreadSize'
 import type { NormalizedRect, RectMm, ResolvedItem } from '../geometry/types'
+import { pagesOf } from '../pages'
 import type { PrintProfile } from '../print/profileSchema'
 
 /** PDF points per millimetre (72 pt per inch). */
@@ -94,6 +95,33 @@ export function pdfSheets(
         trim: { x: page * widthMm, y: 0, width: widthMm, height: heightMm },
       })
     }
+  }
+  return sheets
+}
+
+/**
+ * Blank paper sheets after the book's own that lift its printed pages
+ * (`pagesOf`, the count print issues report) to `minPages`, `spreadIndex`
+ * past the last spread: one per page (`'pages'`), or two-page sheets with a
+ * single-page last one for an odd remainder (`'spreads'`).
+ */
+export function blankSheets(
+  spreadCount: number,
+  minPages: number,
+  trim: { widthMm: number; heightMm: number },
+  output: PrintProfile['output'],
+): PdfSheet[] {
+  const { widthMm, heightMm } = trim
+  const perSheet = output === 'spreads' ? 2 : 1
+  const sheets: PdfSheet[] = []
+  let missing = minPages - pagesOf(spreadCount)
+  while (missing > 0) {
+    const pages = Math.min(perSheet, missing)
+    sheets.push({
+      spreadIndex: spreadCount,
+      trim: { x: 0, y: 0, width: pages * widthMm, height: heightMm },
+    })
+    missing -= pages
   }
   return sheets
 }
