@@ -40,10 +40,34 @@ async function open(page: Page, hash: string) {
   await expect(page.getByTestId('demo')).toBeVisible()
 }
 
-/** a route without a guaranteed demo root (#/, #/components): load + the qa.mjs settle time */
+/** no finite animation still running (enter transitions done; spinners loop forever) */
+async function settled(page: Page) {
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document
+          .getAnimations()
+          .every(
+            (a) =>
+              a.playState !== 'running' ||
+              a.effect?.getComputedTiming().iterations === Infinity,
+          ),
+      ),
+    )
+    .toBe(true)
+}
+
+/** any route: its known root rendered (#/ footer, #/components sections, else the demo), animations done */
 async function visit(page: Page, hash: string) {
   await page.goto(`/uikit/${hash}`)
-  await page.waitForTimeout(450)
+  const root =
+    hash === '#/'
+      ? '[data-testid="footer-credits"]'
+      : hash === '#/components'
+        ? '[data-testid^="cmp-"]'
+        : '[data-testid="demo"]'
+  await expect(page.locator(root).first()).toBeVisible()
+  await settled(page)
 }
 
 /** contrast of on-primary on primary (rest, hover) and the --select token */
@@ -304,7 +328,6 @@ async function primaryButtonIssues(
   h: string,
 ): Promise<[number, string[]]> {
   await visit(page, h)
-  await page.waitForTimeout(250)
   const r = await page.evaluate(() =>
     [...document.querySelectorAll('button, a[role=button], [role=button]')]
       .filter((b) =>
@@ -377,8 +400,7 @@ async function scanSurfaces(page: Page, hashes: string[]) {
   const tint: string[] = []
   const white: string[] = []
   for (const h of hashes) {
-    await page.goto(`/uikit/${h}`)
-    await page.waitForTimeout(320)
+    await visit(page, h)
     for (const [w, k, s] of await page.evaluate(offToneSurfaces)) {
       if (w === 'W') white.push(`${h} ${s}`)
       else if (!CONTENT.has(k)) tint.push(`${h} ${k} ${s}`)
@@ -418,7 +440,7 @@ for (const id of ['library', 'editor-chrome', 'settings'])
     page,
   }) => {
     await open(page, scr(id))
-    await page.waitForTimeout(700)
+    await settled(page)
     expect(await page.evaluate(lowSecondaryText)).toEqual([])
   })
 
@@ -565,17 +587,17 @@ test.describe('v6.1 3-level surfaces', () => {
     expect(c.filter((x) => x[2] < 4.5)).toEqual([])
   })
 
-  test('v6.1 rendered: no tinted near-grey surfaces, white only on paper / thumbnails / content swatches', async ({
-    page,
-  }) => {
-    test.setTimeout(180_000)
-    const { tint, white } = await scanSurfaces(page, [
-      ...screenIds.map(scr),
-      ...featureSlugs.map(feat),
-    ])
-    expect(tint).toEqual([])
-    expect(white).toEqual([])
-  })
+  const surfaceRoutes = [...screenIds.map(scr), ...featureSlugs.map(feat)]
+  for (let i = 0; i < surfaceRoutes.length; i += 10) {
+    const chunk = surfaceRoutes.slice(i, i + 10)
+    test(`v6.1 rendered (routes ${String(i + 1)}–${String(i + chunk.length)}): no tinted near-grey surfaces, white only on paper / thumbnails / content swatches`, async ({
+      page,
+    }) => {
+      const { tint, white } = await scanSurfaces(page, chunk)
+      expect(tint).toEqual([])
+      expect(white).toEqual([])
+    })
+  }
 
   test('v6.1 library top bar, kit header and inputs render in tone', async ({
     page,
@@ -592,11 +614,14 @@ test.describe('v6.1 3-level surfaces', () => {
       'rgb(225, 225, 225)',
     )
     await open(page, feat('inspector'))
-    await page
+    const bookTab = page
       .locator('[data-testid="scenarios"]')
       .getByRole('tab', { name: 'Book settings' })
-      .click()
-    await page.waitForTimeout(250)
+    await bookTab.click()
+    await expect(bookTab).toHaveAttribute('aria-selected', 'true')
+    await expect(
+      page.locator('[data-testid="demo"] input:not([type=checkbox])').first(),
+    ).toBeVisible()
     // v6.1 inputs render in the field tone rgb(215,215,215)
     const inputs = await page
       .locator(

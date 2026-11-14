@@ -888,7 +888,14 @@ test.describe('feature page smoke 1440×900', () => {
     const rings = await tabRings(page, ['ss9-book'])
     await D(page, '[data-testid="ss9-book"]').first().click()
     await expect(D(page, '[data-testid="ss-next"]')).toBeVisible()
-    await page.waitForTimeout(1500)
+    // the room-enter animation is over
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          document.getAnimations().every((a) => a.playState !== 'running'),
+        ),
+      )
+      .toBe(true)
     const room = [
       'site-all-books',
       'ss-next',
@@ -902,12 +909,15 @@ test.describe('feature page smoke 1440×900', () => {
       ;(document.activeElement as HTMLElement | null)?.blur()
     })
     await D(page, '[data-testid="ss-next"]').click()
-    await page.waitForTimeout(150)
-    const click = await page.evaluate(() => {
-      const e = document.activeElement as HTMLElement
-      const cs = getComputedStyle(e)
-      return `${e.textContent.trim()} ${cs.outlineStyle} ${cs.outlineWidth}`
-    })
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const e = document.activeElement as HTMLElement
+          const cs = getComputedStyle(e)
+          return `${e.textContent.trim()} ${cs.outlineStyle} ${cs.outlineWidth}`
+        }),
+      )
+      .toMatch(/^Next none/)
     await D(page, '[data-testid="site-fullscreen-btn"]').click()
     await expect(D(page, '[data-testid="lightbox"]')).toBeVisible()
     const lb = [
@@ -925,7 +935,6 @@ test.describe('feature page smoke 1440×900', () => {
       ...solid(['ss9-book', ...room]),
       ...solid(lb.map((t) => `lightbox ${t}`)),
     ])
-    expect(click).toMatch(/^Next none/)
     expect(errs).toEqual([])
   })
 })

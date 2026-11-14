@@ -63,22 +63,45 @@ test('screen canvas: tooltips: at most 1 open while tabbing the top bar, none af
 }) => {
   await open(page, '#/screen/canvas')
   await page.locator('[data-testid="demo"] button').first().focus()
-  let maxTips = 0
-  for (let i = 0; i < 12; i++) {
-    await page.keyboard.press('Tab')
-    await page.waitForTimeout(80)
-    maxTips = Math.max(maxTips, await page.locator('[role=tooltip]').count())
-  }
+  // the most tooltips open at once, recorded on every DOM change
+  await page.evaluate(() => {
+    const w = window as unknown as { maxTips: number }
+    w.maxTips = 0
+    const count = () => {
+      w.maxTips = Math.max(
+        w.maxTips,
+        document.querySelectorAll('[role=tooltip]').length,
+      )
+    }
+    new MutationObserver(count).observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+    })
+    count()
+  })
+  const tips = page.locator('[role=tooltip]')
+  for (let i = 0; i < 12; i++) await tabMovesFocus(page)
   await page.keyboard.press('Escape')
-  await page.waitForTimeout(250)
-  const afterEsc = await page.locator('[role=tooltip]').count()
+  await expect(tips).toHaveCount(0)
+  // leaving: focus may run past the last control, so no focus-moved wait here
   for (let i = 0; i < 6; i++) await page.keyboard.press('Tab')
-  await page.waitForTimeout(250)
-  const afterLeave = await page.locator('[role=tooltip]').count()
+  await expect(tips).toHaveCount(0)
+  const maxTips = await page.evaluate(
+    () => (window as unknown as { maxTips: number }).maxTips,
+  )
   expect(maxTips).toBeLessThanOrEqual(1)
-  expect(afterEsc).toBe(0)
-  expect(afterLeave).toBe(0)
 })
+
+/** press Tab and wait until focus left the element that had it */
+async function tabMovesFocus(page: Page) {
+  const before = await page.evaluateHandle(() => document.activeElement)
+  await page.keyboard.press('Tab')
+  await expect
+    .poll(() => page.evaluate((b) => document.activeElement !== b, before))
+    .toBe(true)
+  await before.dispose()
+}
 
 test('layout-grids-render-snap: empty inspector is labelled Spread, no stale hint block', async ({
   page,

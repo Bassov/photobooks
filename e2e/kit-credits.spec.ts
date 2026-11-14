@@ -23,9 +23,8 @@ test('v6→v8 #/full/library: no kit credit line, only the in-product Welcome ca
   page,
 }) => {
   await page.goto('/uikit/#/full/library')
-  await page.waitForTimeout(500)
-  await expect(page.locator('[data-testid="photo-credit"]')).toHaveCount(0)
   await expect(page.locator('[data-testid="screen-credit"]')).toHaveCount(1)
+  await expect(page.locator('[data-testid="photo-credit"]')).toHaveCount(0)
 })
 
 test('v6 #/credits page lists the 10 Commons photos + the CC0 set', async ({
