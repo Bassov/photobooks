@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P5
 Title: bring your own hosting (Security Review)
+Status: done
 
 ## Scope
 
