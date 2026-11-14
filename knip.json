@@ -27,7 +27,9 @@
     "fast-check",
     "nyc",
     "@albasov/ts-agent-rig",
-    "tailwindcss"
+    "tailwindcss",
+    // Added early by the Owner (Q-14); drop when pdf-captions imports it.
+    "@pdf-lib/fontkit"
   ],
   "ignoreIssues": {
     "src/core/index.ts": ["types", "exports"],
