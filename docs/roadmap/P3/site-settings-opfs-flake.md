@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P3
 Title: Bug: /next-roadmap-item site-settings-opfs-flake
+Status: done
 
 Flaky e2e (CI run 43633889412 on #612): `e2e/site-settings.spec.ts` "the site fields save on commit, survive a reload and feed Preview and export" failed once with `NotReadableError: The requested file could not be read` in `storedSite`, which reads OPFS `photobooks-e2e-library/library.json` with `getFile().text()` while the app rewrites it (`createWritable` → `close` replaces the file under a `File` snapshot taken before the close).
 
