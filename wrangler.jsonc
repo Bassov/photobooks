@@ -1,7 +1,9 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "photobooks",
-  // Workers Free: assets-only SPA (static asset requests are free/unlimited).
+  // Workers Free: static asset requests are free/unlimited. The script only
+  // runs for `run_worker_first` paths: the Cloudflare API relay `/api/cf/*`.
+  "main": "src/worker/index.ts",
   "compatibility_date": "2026-10-13",
   "workers_dev": true,
   "preview_urls": true,
@@ -9,9 +11,13 @@
   "previews": {},
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/cf/*"],
   },
+  // Off: invocation logs record request metadata, and the relay carries users'
+  // setup tokens in `Authorization` (Owner, Q-16: nothing stored or logged).
   "observability": {
-    "enabled": true,
+    "enabled": false,
   },
 }
