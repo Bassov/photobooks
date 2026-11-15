@@ -284,6 +284,13 @@ type Probe = Window & {
   restore?: () => void
 }
 
+type FadeProbe = Window & {
+  /** the viewport point the fade probe samples */
+  fadeAt?: { x: number; y: number }
+  /** per crossfade start: RGB of the overlay (old frame) and of the reader canvas under it at `fadeAt` */
+  fades: { over: number[]; under: number[] }[]
+}
+
 function installProbe() {
   const w = window as unknown as Probe
   const canvas = () => {
@@ -515,6 +522,70 @@ test.describe('desktop 1440×900: GL turn fixes (site-stand-v7 T)', () => {
     )
     expect(bwd).toBeLessThanOrEqual(12)
     expect(dRgb(back, old2)).toBeGreaterThan(12)
+    expect(errors).toEqual([])
+  })
+
+  test('reduced motion: a step crossfades from the old view to the new one (the fade starts once the new pixels land)', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000)
+    const errors = collectErrors(page)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    // at each fade start: the overlay (the old frame) and the reader canvas under it, 3×3 mean at `fadeAt`
+    await page.addInitScript(() => {
+      const w = window as unknown as FadeProbe
+      w.fades = []
+      const at = (c: HTMLCanvasElement) => {
+        const p = w.fadeAt
+        const x = c.getContext('2d')
+        if (!p || !x || !c.width) return [-1, -1, -1]
+        const r = c.getBoundingClientRect()
+        const k = c.width / r.width
+        const d = x.getImageData(
+          Math.round((p.x - r.x) * k) - 1,
+          Math.round((p.y - r.y) * k) - 1,
+          3,
+          3,
+        ).data
+        return [0, 1, 2].map((ch) => {
+          let s = 0
+          for (let i = 0; i < 9; i++) s += d[4 * i + ch] ?? 0
+          return s / 9
+        })
+      }
+      // shadows Element.prototype.animate, which it calls on
+      HTMLCanvasElement.prototype.animate = function (keys, opts) {
+        const under = this.previousElementSibling
+        if (
+          under instanceof HTMLCanvasElement &&
+          under.dataset.testid === 'ps-reader-canvas'
+        )
+          w.fades.push({ over: at(this), under: at(under) })
+        return Element.prototype.animate.call(this, keys, opts)
+      }
+    })
+    await openBook(page, 'lake-trip')
+    // view 9 → 10: the left page near the spine differs between the two views (T1)
+    await goToView(page, 9)
+    const g = await geometry(page)
+    const left = { x: g.spine - 0.1 * g.pw, y: g.y }
+    const old = await rgbAt(page, left.x, left.y)
+    await page.evaluate((p) => {
+      ;(window as unknown as FadeProbe).fadeAt = p
+    }, left)
+    await page.keyboard.press('ArrowRight')
+    await settle(page, 10)
+    const landed = await rgbAt(page, left.x, left.y)
+    const fade = await page.evaluate(
+      () => (window as unknown as FadeProbe).fades.at(-1) ?? null,
+    )
+    console.log(
+      `fade: old ${old.map(Math.round).join(',')} landed ${landed.map(Math.round).join(',')} at the fade start: over ${fade?.over.map(Math.round).join(',') ?? '—'} under ${fade?.under.map(Math.round).join(',') ?? '—'}`,
+    )
+    expect(dRgb(old, landed)).toBeGreaterThan(12)
+    expect(fade).not.toBeNull()
+    expect(dRgb(fade?.over ?? [], old)).toBeLessThanOrEqual(12)
+    expect(dRgb(fade?.under ?? [], landed)).toBeLessThanOrEqual(12)
     expect(errors).toEqual([])
   })
 

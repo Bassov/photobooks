@@ -112,6 +112,25 @@ export const readExport = (page: Page, folder: string, file: string) =>
     { folder, file },
   )
 
+/** Every byte of `<folder>/exports/<file>` (booklet-imposition: the PDF is loaded in the test). */
+export async function readExportBytes(
+  page: Page,
+  folder: string,
+  file: string,
+): Promise<Uint8Array> {
+  const bytes = await page.evaluate(
+    async ({ folder, file }) => {
+      const root = await navigator.storage.getDirectory()
+      const library = await root.getDirectoryHandle(folder)
+      const exports = await library.getDirectoryHandle('exports')
+      const blob = await (await exports.getFileHandle(file)).getFile()
+      return Array.from(new Uint8Array(await blob.arrayBuffer()))
+    },
+    { folder, file },
+  )
+  return new Uint8Array(bytes)
+}
+
 /** The next PDF write is refused like a revoked folder permission. */
 export const denyNextWrite = (page: Page) =>
   page.evaluate(() => {

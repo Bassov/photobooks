@@ -1,3 +1,4 @@
+import { PDFDocument } from '@cantoo/pdf-lib'
 import type { Locator, Page, TestInfo } from '@playwright/test'
 import { animationsSettled } from './fixtures/animationsSettled'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
@@ -9,6 +10,7 @@ import {
   holdPdf,
   openPrintFixture,
   readExport,
+  readExportBytes,
   releasePdf,
 } from './fixtures/printJob'
 
@@ -156,8 +158,11 @@ test.describe('pdf-export dialog', () => {
     )
     await expect(page.getByTestId('print-profile')).toHaveText('PrinterGeneric')
     await expect(page.getByTestId('print-imposition')).toHaveText(
-      'Imposition1 per sheet',
+      'Imposition (duplex)1 per sheet2-up4-up',
     )
+    await expect(
+      dialog(page).getByRole('radio', { name: '1 per sheet' }),
+    ).toBeChecked()
     await expect(page.getByTestId('print-bleed')).toBeChecked()
     await expect(dialog(page)).toContainText('Add 3 mm bleed and crop marks')
     const summary = page.getByTestId('print-summary')
@@ -335,5 +340,75 @@ test.describe('pdf-export dialog', () => {
         ' · ',
       )[0] ?? ''
     expect((await readExport(page, folder, file))?.head).toBe('%PDF-')
+  })
+})
+
+// booklet-imposition: 2-up / 4-up booklets of short painter books. Book
+// pages are even, so the 14-page book stands in for 13 (4 / 2 sheets too).
+test.describe('booklet-imposition', () => {
+  const runs = [
+    { spreads: 5, pages: 8, id: '2up', label: '2-up', sheets: '2 sheets' },
+    { spreads: 5, pages: 8, id: '4up', label: '4-up', sheets: '1 sheet' },
+    { spreads: 8, pages: 14, id: '2up', label: '2-up', sheets: '4 sheets' },
+    { spreads: 8, pages: 14, id: '4up', label: '4-up', sheets: '2 sheets' },
+  ] as const
+  const flips = {
+    '2up': 'flip on the short edge',
+    '4up': 'flip on the long edge',
+  } as const
+
+  for (const run of runs) {
+    test(`a ${String(run.pages)}-page book prints ${run.label} on ${run.sheets}`, async ({
+      page,
+    }, testInfo) => {
+      const folder = folderFor(testInfo)
+      await openPrintFixture(page, folder, `&spreads=${String(run.spreads)}`)
+      await openPrint(page)
+      await dialog(page).getByRole('radio', { name: run.label }).check()
+      await expect(page.getByTestId('print-summary')).toHaveText(
+        `PDF · ${String(run.pages)} pages on ${run.sheets} · bleed 3 mm`,
+      )
+      await assertDocumentFitsViewport(page)
+      await page.getByTestId('print-go').click()
+      await expect(dialog(page)).toHaveAttribute('data-step', 'done', {
+        timeout: 30_000,
+      })
+
+      const done = page.getByTestId('print-done')
+      await expect(done).toHaveText(
+        new RegExp(
+          `^[a-z0-9-]+-sq30-${run.id}\\.pdf · ${run.sheets} · \\d+\\.\\d MB$`,
+        ),
+      )
+      await expect(page.getByTestId('print-duplex')).toContainText(
+        flips[run.id],
+      )
+      const [file = ''] = String(await done.textContent()).split(' · ')
+      const pdf = await PDFDocument.load(
+        await readExportBytes(page, folder, file),
+      )
+      // Front and back of every paper sheet.
+      expect(pdf.getPageCount()).toBe(2 * Number.parseInt(run.sheets, 10))
+    })
+  }
+
+  test('the run says it is imposing after painting', async ({
+    page,
+  }, testInfo) => {
+    await openPrintFixture(page, folderFor(testInfo), '&spreads=8')
+    await openPrint(page)
+    await dialog(page).getByRole('radio', { name: '2-up' }).check()
+    await holdPdf(page)
+    await page.getByTestId('print-go').click()
+    // 14 painted pages and the paint `done`.
+    await releasePdf(page, 15)
+    await expect(page.getByTestId('print-run-text')).toHaveText(
+      /^Imposing sheets · [1-4] of 4 · (8\d|9[0-5])%$/,
+    )
+    await releasePdf(page)
+    await expect(dialog(page)).toHaveAttribute('data-step', 'done', {
+      timeout: 30_000,
+    })
+    await expect(page.getByTestId('print-done')).toContainText(' · 4 sheets · ')
   })
 })

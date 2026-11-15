@@ -41,13 +41,17 @@ const twoFrames = (page: Page) =>
       }),
   )
 
-/** Open Print, Export PDF with paint messages held, then Hide. */
-async function exportHidden(page: Page): Promise<void> {
+/** Open Print, Export PDF (`imposition`) with paint messages held, then Hide. */
+async function exportHidden(
+  page: Page,
+  imposition = '1 per sheet',
+): Promise<void> {
   await pill(page).click()
   await expect(page.getByTestId('print-check')).not.toHaveAttribute(
     'data-state',
     'checking',
   )
+  await page.getByRole('radio', { name: imposition }).check()
   await holdPdf(page)
   await page.getByTestId('print-go').click()
   await page.getByTestId('print-hide').click()
@@ -118,6 +122,51 @@ test.describe('frame-budget gates', () => {
     const rows = await page.evaluate(browserTakeLoafScripts)
     console.log(
       `print-perf: ${String(rows.length)} LoAF ${JSON.stringify(rows)}`,
+    )
+    await page.evaluate(browserAssertNoLoaf, PERF_BUDGETS.loafEntriesMax)
+  })
+
+  // booklet-imposition: the 78 pages are painted first; the drag and zoom
+  // then run while the PDF worker imposes the 20 2-up sheets.
+  test('dragging a frame and zooming while a 2-up booklet imposes stays within budget', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(150_000)
+    await openPrintFixture(
+      page,
+      `print-perf-impose-${String(testInfo.workerIndex)}`,
+      '&perf=1',
+    )
+    await page.waitForFunction(() => window.__photobooksPerf !== undefined)
+    const warm = await centerOf(page)
+    await page.mouse.move(warm.x, warm.y)
+    await page.mouse.down()
+    await page.mouse.move(warm.x + 6, warm.y + 4, { steps: 4 })
+    await page.mouse.up()
+    await exportHidden(page, '2-up')
+    // 78 painted pages and the paint `done`: imposing starts at 80 %.
+    await releasePdf(page, 79)
+    await expect(pill(page)).toHaveAttribute(
+      'title',
+      /^Exporting PDF · (8\d|9[0-5])%$/,
+      { timeout: 60_000 },
+    )
+    await applyCpuThrottling(page)
+    await clearPerfScenario(page)
+
+    await page.evaluate(browserStartLoafScripts)
+    await page.evaluate(browserBeginLoafScenarioWindow)
+    await dragWhilePainting(page, 1)
+    await dispatchCtrlWheel(page, -100, 4, { settle: false })
+    await releasePdf(page)
+    await expect(pill(page)).toHaveAttribute('data-state', 'done', {
+      timeout: 120_000,
+    })
+    await twoFrames(page)
+
+    const rows = await page.evaluate(browserTakeLoafScripts)
+    console.log(
+      `print-perf impose: ${String(rows.length)} LoAF ${JSON.stringify(rows)}`,
     )
     await page.evaluate(browserAssertNoLoaf, PERF_BUDGETS.loafEntriesMax)
   })

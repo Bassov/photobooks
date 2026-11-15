@@ -73,15 +73,32 @@ export function checkLabel(rows: readonly CheckRow[]) {
 
 /** D5: `PDF · {pages} pages` [+ ` on {sheets} sheets`] + ` · bleed {b} mm` / ` · trim size, no marks`. */
 export const printSummary = (pages: number, sheets: number, bleedMm: number | null) =>
-  `PDF · ${pages} pages${sheets !== pages ? ` on ${sheets} sheets` : ""}${bleedMm === null ? " · trim size, no marks" : ` · bleed ${fmtN(bleedMm)} mm`}`
+  `PDF · ${pages} pages${sheets !== pages ? ` on ${sheets} ${sheets === 1 ? "sheet" : "sheets"}` : ""}${bleedMm === null ? " · trim size, no marks" : ` · bleed ${fmtN(bleedMm)} mm`}`
 
-/** §2.2: run progress `v` 0…100 → 95 % painting sheets ("Page i of n · p%"), the last 5 % writing the file ("Saving · p%"). */
-export function printProgress(v: number, sheets: number) {
-  const painted = Math.min(sheets, Math.floor((v / 95) * sheets))
-  if (painted >= sheets) return { p: v, text: `Saving · ${v}%` }
-  const p = Math.round(((100 * painted) / sheets) * 0.95)
-  return { p, text: `Page ${painted + 1} of ${sheets} · ${p}%` }
+/** §2.2: run progress `v` 0…100 → 95 % painting sheets ("Page i of n · p%"), the last 5 % writing the file ("Saving · p%").
+ *  A booklet (`paper` sheets, booklet-imposition) paints up to 80 %, then imposes ("Imposing sheets · i of n · p%") up to 95 %. */
+export function printProgress(v: number, sheets: number, paper = 0) {
+  const share = paper ? 80 : 95
+  const painted = Math.min(sheets, Math.floor((v / share) * sheets))
+  if (painted < sheets) {
+    const p = Math.round((share * painted) / sheets)
+    return { p, text: `Page ${painted + 1} of ${sheets} · ${p}%` }
+  }
+  const imposed = Math.min(paper, Math.floor(((v - 80) / 15) * paper))
+  if (imposed < paper) {
+    const p = 80 + Math.round((15 * imposed) / paper)
+    return { p, text: `Imposing sheets · ${imposed + 1} of ${paper} · ${p}%` }
+  }
+  return { p: v, text: `Saving · ${v}%` }
 }
+
+/** Kit layouts of the Imposition (duplex) control. */
+export type PrintLayout = "single" | "2up" | "4up"
+/** How to print and fold a booklet on a home duplex printer (prod `printDuplexText`). */
+export const printDuplexText = (layout: Exclude<PrintLayout, "single">) =>
+  layout === "2up"
+    ? "Print on both sides, flip on the short edge. Stack the sheets in order, fold in half and staple on the fold."
+    : "Print on both sides, flip on the long edge. Cut each sheet across, put the top half on the bottom half, fold and staple."
 
 /** §2.4 failed texts. */
 export const printFailText = (f: PrintFail, library: string) =>

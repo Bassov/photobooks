@@ -12,7 +12,7 @@ import { useStudio, type Book, type Studio } from "@/sandbox/store"
 import { PRESETS, pagesOf, fmtN } from "@/sandbox/v7"
 import { SAMPLE_HOSTING, slug, useRun, useSession, type HostingRecord } from "./session"
 import { CATALOG, profileBleed, type KitProfile } from "./printProfiles"
-import { checkLabel, libraryLabel, openSamplePdf, pageList, printCheckRows, printFailText, printProgress, printSummary, takePrintFail, type CheckSeverity, type PrintFail } from "./printCheck"
+import { checkLabel, libraryLabel, openSamplePdf, pageList, printCheckRows, printDuplexText, printFailText, printProgress, printSummary, takePrintFail, type CheckSeverity, type PrintFail, type PrintLayout } from "./printCheck"
 
 export type RunStep = "opts" | "run" | "done" | "failed"
 export type PublishStep = "connect" | "opts" | "run" | "done" | "failed"
@@ -107,8 +107,8 @@ export function PublishDialog({ title, otherBooks, initialStep, fail, run, onHid
     </AppModal>
   )
 }
-/** pdf-export D3: 2-up / 4-up stay hidden until `booklet-imposition` owns them. */
-const IMPOSITION: boolean = false
+/** booklet-imposition: the Imposition (duplex) control (pdf-export D3 kept it hidden until then). */
+const IMPOSITION: boolean = true
 const SEVERITY_ROW: Record<CheckSeverity, [LucideIcon, string]> = {
   error: [CircleAlert, "font-medium text-destructive-solid"], warning: [TriangleAlert, "text-warning-fg"], info: [Info, "text-muted-foreground"],
 }
@@ -116,7 +116,7 @@ const SEVERITY_ROW: Record<CheckSeverity, [LucideIcon, string]> = {
 function CheckLine({ icon: Icon, className, children, pages = [], rule }: { icon: LucideIcon; className: string; children: React.ReactNode; pages?: number[]; rule?: string }) {
   return <li className={`flex items-start gap-2 text-sm ${className}`} data-testid="print-check-row" data-rule={rule}><span className="flex h-lh shrink-0 items-center"><Icon className="size-4" /></span><span>{children}{pages.length > 0 && <span className="font-normal text-muted-foreground">{pageList(pages)}</span>}</span></li>
 }
-export type PrintRun = { phase: ExportPhase; p: number; text: string; fail: PrintFail; start: (sheets: number) => boolean; seen: () => void }
+export type PrintRun = { phase: ExportPhase; p: number; text: string; fail: PrintFail; start: (sheets: number, paper?: number) => boolean; seen: () => void }
 /** Kit stand-in for the PDF worker (pdf-export D1, D7), shaped like `useExportRun`: the run outlives the dialog (Hide / Esc),
  *  "PDF ready" shows for 4 s, "PDF not exported" stays until `seen()` (the pill opened the dialog). `start` fails at once on a
  *  `__printDemo.fail()` seed and says whether it runs. */
@@ -124,11 +124,12 @@ export function usePrintRun(ms = 1400): PrintRun {
   const [phase, setPhase] = React.useState<ExportPhase>("idle")
   const [fail, setFail] = React.useState<PrintFail>("other")
   const [sheets, setSheets] = React.useState(1)
+  const [paper, setPaper] = React.useState(0)
   const v = useRun(phase === "run", ms, () => setPhase("done"))
   React.useEffect(() => { if (phase !== "done") return; const t = setTimeout(() => setPhase("idle"), 4000); return () => clearTimeout(t) }, [phase])
   return {
-    phase, ...printProgress(phase === "run" ? v : 0, sheets), fail,
-    start: (n) => { setSheets(n); const f = takePrintFail(); if (f) { setFail(f); setPhase("failed") } else setPhase("run"); return !f },
+    phase, ...printProgress(phase === "run" ? v : 0, sheets, paper), fail,
+    start: (n, booklet = 0) => { setSheets(n); setPaper(booklet); const f = takePrintFail(); if (f) { setFail(f); setPhase("failed") } else setPhase("run"); return !f },
     seen: () => setPhase((x) => (x === "failed" ? "idle" : x)),
   }
 }
@@ -136,7 +137,7 @@ export function usePrintRun(ms = 1400): PrintRun {
  *  `run`: the editor's print run (the pill shows it after Hide); a feature page leaves it out. `holdCheck` keeps the Check checking. */
 export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0], initialStep = "opts", initialImposition = "single", initialBleed = true, run: given, holdCheck }: {
   book: Book; spreads: number; title: string; onClose: () => void; /** the book's print profile (printer-presets; default Generic) */ profile?: KitProfile
-  initialStep?: RunStep; initialImposition?: "single" | "2up" | "4up"; initialBleed?: boolean; run?: PrintRun; holdCheck?: boolean
+  initialStep?: RunStep; initialImposition?: PrintLayout; initialBleed?: boolean; run?: PrintRun; holdCheck?: boolean
 }) {
   const bleedMm = profileBleed(profile)
   const own = usePrintRun()
@@ -148,8 +149,8 @@ export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0
   const size = `${fmtN(book.w)} × ${fmtN(book.h)} cm`
   const known = PRESETS.find((p) => (p.w === book.w && p.h === book.h) || (p.w === book.h && p.h === book.w))
   const preset = known?.id ?? "custom"
-  const [impPicked, setImp] = React.useState<string>(initialImposition)
-  const imp = IMPOSITION ? impPicked : "single"
+  const [impPicked, setImp] = React.useState<PrintLayout>(initialImposition)
+  const imp: PrintLayout = IMPOSITION ? impPicked : "single"
   const [bleed, setBleed] = React.useState(initialBleed)
   const pages = pagesOf(spreads)
   const per = imp === "4up" ? 8 : imp === "2up" ? 4 : 1
@@ -164,7 +165,8 @@ export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0
   const errors = rows.some((r) => r.severity === "error")
   const skipped = rows.find((r) => r.rule === "asset-missing")
   const skippedN = new Set(st?.doc.spreads.flatMap((s) => s.frames.map((f) => f.photo)).filter((id) => id && st.missing.has(id))).size
-  const go = () => setStep(r.start(sheets) ? "run" : "failed")
+  // a booklet paints every page, then imposes its paper sheets
+  const go = () => setStep((imp === "single" ? r.start(sheets) : r.start(pages, sheets)) ? "run" : "failed")
   const heading = "heading flex items-center gap-2 text-xl leading-tight [&_svg]:size-5"
   const text = "mt-1 text-sm text-muted-foreground"
   const btns = "mt-5 flex justify-end gap-2"
@@ -179,7 +181,7 @@ export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0
             <div className="flex items-center justify-between text-sm" data-testid="print-size"><span className="text-muted-foreground">Page size</span><span className="tabular-nums">{known ? known.name : "Custom"} · {size}</span></div>
             <div className="flex items-center justify-between text-sm" data-testid="print-profile"><span className="text-muted-foreground">Printer</span><span>{profile.name}</span></div>
             {IMPOSITION
-              ? <div className="flex flex-col gap-1.5"><span className="text-xs text-muted-foreground">Imposition (duplex)</span><Segmented label="Imposition" value={imp} onChange={setImp} items={[{ id: "single", label: "1 per sheet" }, { id: "2up", label: "2-up" }, { id: "4up", label: "4-up" }]} /></div>
+              ? <div className="flex flex-col gap-1.5" data-testid="print-imposition"><span className="text-xs text-muted-foreground">Imposition (duplex)</span><Segmented label="Imposition" value={imp} onChange={(v) => setImp(v as PrintLayout)} items={[{ id: "single", label: "1 per sheet" }, { id: "2up", label: "2-up" }, { id: "4up", label: "4-up" }]} /></div>
               : <div className="flex items-center justify-between text-sm" data-testid="print-imposition"><span className="text-muted-foreground">Imposition</span><span>1 per sheet</span></div>}
             <Checkbox isSelected={bleed} onChange={setBleed} data-testid="print-bleed">Add {fmtN(bleedMm)} mm bleed and crop marks</Checkbox>
             <div className="text-xs text-muted-foreground" data-testid="print-summary">{printSummary(pages, sheets, bleed ? bleedMm : null)}</div>
@@ -204,8 +206,9 @@ export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0
         </>}
         {step === "done" && <>
           <div className={heading}><CircleCheck />PDF ready</div>
-          <p className={text} data-testid="print-done">{file} · {sheets} pages · {(sheets * 1.92).toFixed(1)} MB</p>
+          <p className={text} data-testid="print-done">{file} · {sheets} {imp === "single" ? "pages" : "sheets"} · {(sheets * 1.92).toFixed(1)} MB</p>
           <p className="mt-1.5 text-xs text-muted-foreground" data-testid="print-saved">Saved in {library}/exports.</p>
+          {imp !== "single" && <p className="mt-3 text-sm" data-testid="print-duplex">{printDuplexText(imp)}</p>}
           {skipped && <ul className="mt-3" data-testid="print-skipped"><CheckLine icon={TriangleAlert} className={SEVERITY_ROW.warning[1]} pages={skipped.pages}>{skippedN} {skippedN === 1 ? "photo" : "photos"} couldn’t be read and print{skippedN === 1 ? "s" : ""} as blank paper</CheckLine></ul>}
           <div className={btns}><Button variant="ghost" size="md" className="gap-1.5 px-4 [&_svg]:size-4" onPress={() => openSamplePdf(file)} data-testid="print-open"><ExternalLink />Open PDF</Button>
             <Button size="md" className="px-4" onPress={onClose} autoFocus data-testid="print-close">Done</Button></div>

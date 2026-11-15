@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { pixelsAt } from './fixtures/paintProbe'
+import { readerLanded } from './fixtures/readerLanded'
 
 // kit-preview-fold-strip (Designer page-numbers kit review, 2026-11-06): the
 // kit `#/demo` Preview showed a grey strip at the left edge of Page 1 (the
@@ -91,6 +92,8 @@ test.describe('kit Preview single-page slides', () => {
     await expect(room).toHaveAttribute('data-view', '0')
     await page.keyboard.press('ArrowRight')
     await expect(room).toHaveAttribute('data-view', '1')
+    // the landed page paints a frame or more after data-view (fenced draw)
+    await readerLanded(room.getByTestId('ps-reader'), 1)
     const bar = await page.getByTestId('site-preview-bar').boundingBox()
     const b = await room.boundingBox()
     expect(b?.y ?? 0).toBeGreaterThanOrEqual((bar?.y ?? 0) + (bar?.height ?? 0))

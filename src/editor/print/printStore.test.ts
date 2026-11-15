@@ -11,6 +11,7 @@ import {
 const handle = { kind: 'file', name: 'a.pdf' } as ExportFileHandle
 const outcome: PrintOutcome = {
   file: 'a.pdf',
+  layout: 'single',
   sheets: 20,
   bytes: 1_200_000,
   skipped: { count: 0, pages: [] },
@@ -23,6 +24,8 @@ const running: PrintState = {
   sheets: 20,
   percent: 48,
   saving: false,
+  layout: 'single',
+  imposing: null,
 }
 
 describe('reducePrint', () => {
@@ -33,8 +36,58 @@ describe('reducePrint', () => {
       sheets: 20,
       percent: 0,
       saving: false,
+      layout: 'single',
+      imposing: null,
     })
+    expect(
+      reducePrint(PRINT_IDLE, { type: 'start', sheets: 20, layout: '4up' }),
+    ).toMatchObject({ layout: '4up' })
     expect(reducePrint(running, { type: 'start', sheets: 4 })).toBe(running)
+  })
+
+  it('paints a booklet to 80 %, then imposes to 95 %, never back', () => {
+    const booklet: PrintState = { ...running, layout: '2up' }
+    expect(reducePrint(booklet, { type: 'progress', painted: 20 })).toEqual({
+      ...booklet,
+      painted: 20,
+      percent: 80,
+    })
+    const started = reducePrint(booklet, {
+      type: 'imposing',
+      imposed: 0,
+      sheets: 5,
+    })
+    expect(started).toEqual({
+      ...booklet,
+      painted: 20,
+      percent: 80,
+      imposing: { imposed: 0, sheets: 5 },
+    })
+    const imposed = reducePrint(started, {
+      type: 'imposing',
+      imposed: 5,
+      sheets: 5,
+    })
+    expect(imposed).toMatchObject({
+      percent: 95,
+      imposing: { imposed: 5, sheets: 5 },
+    })
+    expect(
+      reducePrint(imposed, { type: 'imposing', imposed: 5, sheets: 5 }),
+    ).toBe(imposed)
+    expect(
+      reducePrint(imposed, { type: 'imposing', imposed: 2, sheets: 5 }),
+    ).toBe(imposed)
+    expect(reducePrint(imposed, { type: 'progress', painted: 21 })).toBe(
+      imposed,
+    )
+    const saving = reducePrint(imposed, { type: 'saving' })
+    expect(
+      reducePrint(saving, { type: 'imposing', imposed: 6, sheets: 5 }),
+    ).toBe(saving)
+    expect(
+      reducePrint(PRINT_IDLE, { type: 'imposing', imposed: 1, sheets: 5 }),
+    ).toBe(PRINT_IDLE)
   })
 
   it('turns painted sheets into 95 % and never goes back', () => {

@@ -35,6 +35,7 @@ vi.mock('./startPrint', async (importOriginal) => ({
 const handle = { kind: 'file', name: 'lake-trip-A5.pdf' } as ExportFileHandle
 const outcome = {
   file: 'lake-trip-A5.pdf',
+  layout: 'single' as const,
   sheets: 20,
   bytes: 3_456_789,
   skipped: { count: 0, pages: [] },
@@ -102,9 +103,14 @@ describe('PrintDialog options', () => {
     expect(screen.getByTestId('print-profile').textContent).toBe(
       'PrinterGeneric',
     )
+    const imposition = screen.getByRole('radiogroup', { name: 'Imposition' })
     expect(screen.getByTestId('print-imposition').textContent).toBe(
-      'Imposition1 per sheet',
+      'Imposition (duplex)1 per sheet2-up4-up',
     )
+    expect(
+      screen.getByRole('radio', { name: '1 per sheet' }).matches(':checked'),
+    ).toBe(true)
+    expect(imposition.querySelectorAll('input:disabled')).toHaveLength(0)
     expect(screen.getByText('Add 3 mm bleed and crop marks')).not.toBeNull()
     const summary = screen.getByTestId('print-summary')
     expect(summary.textContent).toBe('PDF · 20 pages · bleed 3 mm')
@@ -115,6 +121,19 @@ describe('PrintDialog options', () => {
     await waitFor(() => {
       expect(check().getAttribute('data-state')).toBe('clean')
     })
+  })
+
+  it('counts paper sheets for a booklet and exports it', () => {
+    show()
+    const summary = screen.getByTestId('print-summary')
+
+    fireEvent.click(screen.getByRole('radio', { name: '2-up' }))
+    expect(summary.textContent).toBe('PDF · 20 pages on 5 sheets · bleed 3 mm')
+    fireEvent.click(screen.getByRole('radio', { name: '4-up' }))
+    expect(summary.textContent).toBe('PDF · 20 pages on 3 sheets · bleed 3 mm')
+    fireEvent.click(screen.getByTestId('print-go'))
+
+    expect(startPrint).toHaveBeenCalledWith(true, '4up')
   })
 
   it('checks the book: checking, then clean', async () => {
@@ -167,7 +186,7 @@ describe('PrintDialog options', () => {
 
     fireEvent.click(screen.getByTestId('print-go'))
 
-    expect(startPrint).toHaveBeenCalledWith(true)
+    expect(startPrint).toHaveBeenCalledWith(true, 'single')
     expect(step()).toBe('run')
   })
 
@@ -187,7 +206,7 @@ describe('PrintDialog options', () => {
     const onClose = show()
     fireEvent.click(screen.getByTestId('print-bleed'))
     fireEvent.click(screen.getByTestId('print-go'))
-    expect(startPrint).toHaveBeenCalledWith(false)
+    expect(startPrint).toHaveBeenCalledWith(false, 'single')
 
     fireEvent.click(screen.getByTestId('print-hide'))
 
@@ -241,6 +260,37 @@ describe('PrintDialog run', () => {
       'Saved in Photobooks/exports.',
     )
     expect(screen.queryByTestId('print-skipped')).toBeNull()
+    expect(screen.queryByTestId('print-duplex')).toBeNull()
+  })
+
+  it('shows a booklet imposing, then its sheets and how to fold it', async () => {
+    show()
+    fireEvent.click(screen.getByTestId('print-go'))
+    act(() => {
+      printStore.dispatch({ type: 'imposing', imposed: 1, sheets: 5 })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('print-run-text').textContent).toBe(
+        'Imposing sheets · 2 of 5 · 83%',
+      )
+    })
+    act(() => {
+      printStore.dispatch({
+        type: 'done',
+        ...outcome,
+        file: 'lake-trip-A5-2up.pdf',
+        layout: '2up',
+        sheets: 5,
+      })
+    })
+
+    expect(screen.getByTestId('print-done').textContent).toBe(
+      'lake-trip-A5-2up.pdf · 5 sheets · 3.5 MB',
+    )
+    expect(screen.getByTestId('print-duplex').textContent).toMatch(
+      /^Print on both sides, flip on the short edge\./,
+    )
   })
 
   it('shows an empty run text before the store runs', () => {
@@ -274,7 +324,7 @@ describe('PrintDialog failed', () => {
     )
     fireEvent.click(screen.getByTestId('print-retry'))
 
-    expect(retryPrint).toHaveBeenCalledWith(true)
+    expect(retryPrint).toHaveBeenCalledWith(true, 'single')
     expect(step()).toBe('run')
   })
 

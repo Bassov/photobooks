@@ -116,7 +116,10 @@ export async function capture(out, { log = console.log, probe } = {}) {
     // site-preview-mode: Preview = the reading room of the current book (opens on the cover, Owner M53); Esc closes it
     // Designer pdf-export §3: the Check settles into issues (low-res photos, empty photo frames); Hide keeps the run in the Print pill
     ["print-options", async () => { await page.keyboard.press("Escape"); await settle(); await c('[data-testid="demo-print"]'); await page.waitForSelector('[data-testid="print-check"][data-state="issues"]') }],
-    ["print-options-no-bleed", () => page.locator("[role=dialog]").getByText(/Add 3 mm bleed/).click()],
+    // booklet-imposition: 4-up with bleed off, so the run imposes and PDF ready shows the folding steps
+    ["print-options-4up-no-bleed", async () => {
+      await page.locator("[role=dialog]").getByText("4-up", { exact: true }).click()
+      await page.locator("[role=dialog]").getByText(/Add 3 mm bleed/).click() }],
     ["print-running-50pct", () => midRun('[data-testid="print-go"]')],
     ["print-done", async () => { await release(); await page.waitForSelector('[data-testid="print-dialog"][data-step="done"]', { timeout: 8000 }) }],
     ["print-running-hidden", async () => {
