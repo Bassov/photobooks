@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-- [ ] Per-page chunks streamed to the file
+- [x] Per-page chunks streamed to the file
 - **Browser check:** a 40-spread export's peak memory stays below the threshold recorded in `pdf-export`.
 - **Kit components:** none (contingency, no UI)
 - **Demo:** n/a
