@@ -226,6 +226,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [lint-no-wait-for-timeout](roadmap/P4/lint-no-wait-for-timeout.md) — Bug: /next-roadmap-item lint-no-wait-for-timeout
 - [ ] [feature] [pdf-export-marks](roadmap/P4/pdf-export-marks.md) — Bug: /next-roadmap-item pdf-export-marks
 - [ ] [feature] [pdf-export](roadmap/P4/pdf-export.md) — print PDF
+- [ ] [feature] [booklet-imposition-core](roadmap/P4/booklet-imposition-core.md) — Bug: /next-roadmap-item booklet-imposition-core
 - [ ] [feature] [site-final-data](roadmap/P4/site-final-data.md) — Bug: /next-roadmap-item site-final-data
 - [ ] [feature] [pdf-export-kit](roadmap/P4/pdf-export-kit.md) — Bug: /next-roadmap-item pdf-export-kit
 - [ ] [feature] [pdf-export-kit-pill](roadmap/P4/pdf-export-kit-pill.md) — Bug: /next-roadmap-item pdf-export-kit-pill
