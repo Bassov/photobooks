@@ -35,6 +35,21 @@ export function pdfFileName(
   title: string,
   trim: { widthMm: number; heightMm: number },
 ): string {
+  return `${pdfFileStem(title, trim)}.pdf`
+}
+
+/** The cover sheet's file beside the pages: `lake-trip-A5-cover.pdf` (Designer cover-pdf C10). */
+export function pdfCoverFileName(
+  title: string,
+  trim: { widthMm: number; heightMm: number },
+): string {
+  return `${pdfFileStem(title, trim)}-cover.pdf`
+}
+
+function pdfFileStem(
+  title: string,
+  trim: { widthMm: number; heightMm: number },
+): string {
   const w = fmtN(trim.widthMm / 10)
   const h = fmtN(trim.heightMm / 10)
   const preset = PDF_NAME_PRESETS.find(
@@ -42,5 +57,5 @@ export function pdfFileName(
       (fmtN(p.wCm) === w && fmtN(p.hCm) === h) ||
       (fmtN(p.wCm) === h && fmtN(p.hCm) === w),
   )
-  return `${titleSlug(title)}-${preset?.id ?? `${w}x${h}cm`}.pdf`
+  return `${titleSlug(title)}-${preset?.id ?? `${w}x${h}cm`}`
 }
