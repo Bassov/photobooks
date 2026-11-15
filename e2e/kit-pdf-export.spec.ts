@@ -24,7 +24,11 @@ interface Win {
     go: (s: string) => void
     state: () => {
       open: string
-      books: { id: string; doc: { spreads: { frames: Frame[] }[] } }[]
+      books: {
+        id: string
+        extras?: Record<string, unknown>
+        doc: { spreads: { frames: Frame[] }[] }
+      }[]
     }
   }
   __printDemo: { fail: (f: string) => void }
@@ -81,19 +85,21 @@ const img = (
 /**
  * Replaces the open book's spreads (base geometry: 200 × 200 mm pages) and
  * its missing photos, then remounts the editor so the studio reads them.
+ * `front`: the front cover photo (a new book has none: the cover-front-empty row).
  */
 async function seedBook(
   page: Page,
   spreads: Frame[][],
   missing: string[] = [],
   print?: object,
+  front = '',
 ) {
   await page.evaluate(() => {
     ;(window as unknown as Win).__demo.go('library')
   })
   await expect(demo(page)).toHaveAttribute('data-demo-stage', 'library')
   await page.evaluate(
-    ([spreads, missing, print]) => {
+    ([spreads, missing, print, front]) => {
       const d = (window as unknown as Win).__demo
       const S = d.state()
       S.books = S.books.map((b) =>
@@ -101,6 +107,7 @@ async function seedBook(
           ? {
               ...b,
               missing,
+              extras: { ...b.extras, cover: front },
               doc: {
                 ...b.doc,
                 ...(print ? { print } : {}),
@@ -114,7 +121,7 @@ async function seedBook(
       )
       d.go('editor')
     },
-    [spreads, missing, print] as const,
+    [spreads, missing, print, front] as const,
   )
   await expect(demo(page).getByTestId('demo-print')).toBeVisible()
 }
@@ -233,10 +240,47 @@ test('PE1 options: 1 per sheet row, profile bleed label, D5 summary', async ({
   })
   await expect(bleed).toBeChecked()
   const summary = dialog(page).getByTestId('print-summary')
-  await expect(summary).toHaveText('PDF · 20 pages · bleed 3 mm')
+  await expect(summary).toHaveText('PDF · 20 pages + cover · bleed 3 mm')
   await dialog(page).getByTestId('print-bleed').click()
   await expect(bleed).not.toBeChecked()
-  await expect(summary).toHaveText('PDF · 20 pages · trim size, no marks')
+  await expect(summary).toHaveText(
+    'PDF · 20 pages + cover · trim size, no marks',
+  )
+})
+
+// cover-pdf §2.1.1 (C8): the Cover row sits between Printer and Imposition in
+// both layouts, so switching the imposition changes only its text.
+test('cover-pdf options: Cover row in both layouts, rows below move +30.85', async ({
+  page,
+}) => {
+  await openPrint(page)
+  await animationsSettled(page.locator('[role=dialog]'))
+  const cover = dialog(page).getByTestId('print-cover')
+  // A5: 2 × 14.8 + 1.2 spine + 2 × 1.5 wrap = 33.8 × 24 cm
+  await expect(cover).toHaveText('Cover33.8 × 24 cm · spine 12 mm')
+  const tops = () =>
+    dialog(page).evaluate((pd) => {
+      const top = (sel: string) =>
+        (pd.querySelector(sel)?.getBoundingClientRect().top ?? 0) -
+        pd.getBoundingClientRect().top
+      return [
+        '[data-testid="print-profile"]',
+        '[data-testid="print-cover"]',
+        '[data-testid="print-imposition"] > span',
+      ].map((s) => top(s).toFixed(2))
+    })
+  const single = await tops()
+  expect(single).toEqual(['115.94', '146.78', '177.63'])
+  // what paints at the row: the Cover row itself, not a sibling over it
+  expect((await topAt(cover))[0]).toContain('print-cover')
+  await dialog(page).getByRole('radio', { name: '2-up' }).click()
+  await expect(cover).toHaveText('CoverNone with booklets')
+  await expect(dialog(page).getByTestId('print-summary')).toHaveText(
+    'PDF · 20 pages on 5 sheets · bleed 3 mm',
+  )
+  expect(await tops()).toEqual(single)
+  await dialog(page).getByRole('radio', { name: '4-up' }).click()
+  await expect(cover).toHaveText('CoverNone with booklets')
 })
 
 test('booklet-imposition: 4-up counts sheets, imposes and says how to fold', async ({
@@ -268,6 +312,10 @@ test('booklet-imposition: 4-up counts sheets, imposes and says how to fold', asy
   await expect(dialog(page).getByTestId('print-duplex')).toHaveText(
     'Print on both sides, flip on the short edge. Stack the sheets in order, fold in half and staple on the fold.',
   )
+  // cover-pdf C1: a booklet writes no cover file
+  await expect(dialog(page).getByTestId('print-done-cover')).toHaveCount(0)
+  await expect(dialog(page).getByTestId('print-open-cover')).toHaveCount(0)
+  await expect(dialog(page).getByTestId('print-open')).toHaveText('Open PDF')
 })
 
 test('PE1 bleed label and Printer row follow the book profile', async ({
@@ -287,7 +335,7 @@ test('PE1 bleed label and Printer row follow the book profile', async ({
     'Add 5 mm bleed and crop marks',
   )
   await expect(dialog(page).getByTestId('print-summary')).toHaveText(
-    'PDF · 20 pages · bleed 5 mm',
+    'PDF · 20 pages + cover · bleed 5 mm',
   )
 })
 
@@ -315,6 +363,9 @@ test('PE2 check: clean book shows No problems found', async ({ page }) => {
   await seedBook(
     page,
     Array.from({ length: 10 }, () => []),
+    [],
+    undefined,
+    'p01',
   )
   await openPrint(page)
   await expect(check(page)).toHaveAttribute('data-state', 'clean')
@@ -337,6 +388,8 @@ test('PE2 check: rows ordered by severity, styled, capped at 118.25 px', async (
     '2 photos aren’t sRGB (Adobe RGB, Display P3), colours may shift · pages 4, 5',
     '1 empty photo frame · page 6',
     '1 empty text frame · page 5',
+    // cover-pdf C9: the cover row after the page rows of its severity, no page list
+    'Front cover has no photo and prints in the back fill colour',
   ])
   const style = await rows(page).evaluateAll((els) =>
     els.map((el) => {
@@ -361,6 +414,7 @@ test('PE2 check: rows ordered by severity, styled, capped at 118.25 px', async (
     'rgb(35, 34, 35) 500 13px 18.85px 16 1.42',
     'rgb(57, 55, 56) 400 13px 18.85px 16 1.42',
     'rgb(57, 55, 56) 400 13px 18.85px 16 1.42',
+    'rgb(83, 81, 82) 400 13px 18.85px 16 1.42',
     'rgb(83, 81, 82) 400 13px 18.85px 16 1.42',
   ])
   const list = check(page).getByTestId('print-check-list')
@@ -405,6 +459,13 @@ test('PE3 run: page progress, 6 px bar, Esc hides; done with Open PDF', async ({
   await expect(dialog(page).getByTestId('print-done')).toHaveText(
     'lake-trip-A5.pdf · 6 pages · 11.5 MB',
   )
+  // cover-pdf C10: the cover file on its own line, then Open pages · Open cover · Done
+  await expect(dialog(page).getByTestId('print-done-cover')).toHaveText(
+    'lake-trip-A5-cover.pdf · cover · 2.9 MB',
+  )
+  await expect(
+    dialog(page).locator('button:not([aria-label="Close"])'),
+  ).toHaveText(['Open pages', 'Open cover', 'Done'])
   await expect(dialog(page).getByTestId('print-saved')).toHaveText(
     /^Saved in .+\/exports\.$/,
   )
@@ -420,16 +481,24 @@ test('PE3 run: page progress, 6 px bar, Esc hides; done with Open PDF', async ({
     window.open = (url?: string | URL) => (w.opened.push(String(url)), null)
   })
   await dialog(page).getByTestId('print-open').click()
+  await dialog(page).getByTestId('print-open-cover').click()
   const opened = await page.evaluate(async () => {
-    const url = (window as unknown as { opened: string[] }).opened.join()
-    const r = await fetch(url)
-    return [
-      url.slice(0, 5),
-      r.headers.get('content-type'),
-      (await r.text()).slice(0, 8),
-    ]
+    const urls = (window as unknown as { opened: string[] }).opened
+    return Promise.all(
+      urls.map(async (url) => {
+        const r = await fetch(url)
+        return [
+          url.slice(0, 5),
+          r.headers.get('content-type'),
+          (await r.text()).slice(0, 8),
+        ]
+      }),
+    )
   })
-  expect(opened).toEqual(['blob:', 'application/pdf', '%PDF-1.4'])
+  expect(opened).toEqual([
+    ['blob:', 'application/pdf', '%PDF-1.4'],
+    ['blob:', 'application/pdf', '%PDF-1.4'],
+  ])
   await dialog(page).getByTestId('print-close').click()
   await expect(dialog(page)).toHaveCount(0)
 })
@@ -541,15 +610,15 @@ test('PE4 Print pill: rest, running fill, reopen, done 4 s, rest; 40 × 32 throu
   await dialog(page).getByTestId('print-go').click()
   await advance(page, 700)
   await expect(dialog(page).getByTestId('print-run-text')).toHaveText(
-    'Page 11 of 20 · 48%',
+    'Page 12 of 20 · 50%',
   )
   await dialog(page).getByTestId('print-hide').click()
   await expect(dialog(page)).toHaveCount(0)
   await expect(pill).toHaveAttribute('data-state', 'running')
-  expect(await titleOf(pill)).toBe('Exporting PDF · 48%')
-  await expect(status).toHaveText('Exporting PDF, 40%')
+  expect(await titleOf(pill)).toBe('Exporting PDF · 50%')
+  await expect(status).toHaveText('Exporting PDF, 50%')
   expect(await sizeOf(pill)).toEqual([40, 32])
-  // what paints: the #BEBEBE fill up to 48 % of the pill, the quiet #D7D7D7 after it
+  // what paints: the #BEBEBE fill up to 50 % of the pill, the quiet #D7D7D7 after it
   await expect
     .poll(async () => {
       const px = await pixelsAt(pill, [
@@ -631,12 +700,13 @@ test('PE4 #/feature/pdf-export: every state is reachable', async ({ page }) => {
     ['Checking', 'opts', 'idle', 'checking'],
     ['No problems', 'opts', 'idle', 'clean'],
     ['Issues', 'opts', 'idle', 'issues'],
+    ['Cover check', 'opts', 'idle', 'issues'],
     ['No bleed', 'opts', 'idle', 'issues'],
     ['2-up', 'opts', 'idle', 'issues'],
     ['4-up, no bleed', 'opts', 'idle', 'issues'],
     ['Exporting', 'run', 'running', ''],
     ['Imposing', 'run', 'running', ''],
-    ['Hidden, 48 %', null, 'running', ''],
+    ['Hidden, 50 %', null, 'running', ''],
     ['PDF ready', 'done', 'done', ''],
     ['PDF ready, 2-up', 'done', 'done', ''],
     ['PDF ready, skipped photos', 'done', 'done', ''],
@@ -660,11 +730,11 @@ test('PE4 #/feature/pdf-export: every state is reachable', async ({ page }) => {
   }
   await tab('No bleed')
   await expect(dlg.getByTestId('print-summary')).toHaveText(
-    'PDF · 20 pages · trim size, no marks',
+    'PDF · 20 pages + cover · trim size, no marks',
   )
   await tab('Exporting')
   await expect(dlg.getByTestId('print-run-text')).toHaveText(
-    'Page 11 of 20 · 48%',
+    'Page 12 of 20 · 50%',
   )
   await tab('4-up, no bleed')
   await expect(dlg.getByTestId('print-summary')).toHaveText(
@@ -688,5 +758,125 @@ test('PE4 #/feature/pdf-export: every state is reachable', async ({ page }) => {
   await tab('Failed')
   await expect(dlg.getByTestId('print-error')).toHaveText(
     /^Photobooks can’t write to “.+”\. Allow access to the folder and try again\.$/,
+  )
+})
+
+// cover-pdf §2.1.4 (C9): cover rows after the page rows of their severity, no
+// page list; none with booklets. Lake trip 19 × 23 cm: sheet 42.2 × 26 cm.
+test('cover-pdf #/feature/pdf-export: Cover row and the Cover check rows', async ({
+  page,
+}) => {
+  await page.goto('/uikit/#/full/pdf-export')
+  const dlg = page.getByTestId('print-dialog')
+  const tab = (name: string) =>
+    page
+      .getByTestId('scenarios')
+      .getByRole('tab', { name, exact: true })
+      .evaluate((t: HTMLElement) => {
+        t.click()
+      })
+  const coverRows = dlg.locator(
+    '[data-testid="print-check-row"][data-rule^="cover-"], [data-testid="print-check-row"][data-rule^="spine-"]',
+  )
+  await tab('Issues')
+  await expect(dlg.getByTestId('print-check')).toHaveAttribute(
+    'data-state',
+    'issues',
+  )
+  await expect(dlg.getByTestId('print-cover')).toHaveText(
+    'Cover42.2 × 26 cm · spine 12 mm',
+  )
+  // the Lake trip cover has no front photo yet
+  await expect(coverRows).toHaveText([
+    'Front cover has no photo and prints in the back fill colour',
+  ])
+
+  await tab('Cover check')
+  await expect(dlg.getByTestId('print-check')).toHaveAttribute(
+    'data-state',
+    'issues',
+  )
+  await expect(dlg.getByTestId('print-cover')).toHaveText(
+    'Cover41.4 × 26 cm · spine 4 mm',
+  )
+  await expect(coverRows).toHaveText([
+    'Front cover photo is 182 ppi, below 200 ppi',
+    'Spine text is 5.7 pt, below Generic’s 6 pt minimum',
+    'Spine text is longer than the spine and ends in “…”',
+  ])
+  const all = await dlg
+    .getByTestId('print-check-row')
+    .evaluateAll((els): [string, string][] =>
+      els.map((e) => [
+        e.getAttribute('data-rule') ?? '',
+        e.getAttribute('class') ?? '',
+      ]),
+    )
+  const rules = all.map(([r]) => r)
+  const cover = (r: string) => /^(cover|spine)-/.test(r)
+  // warnings: every page row, then the cover rows; the cover rows are warnings
+  const firstCover = rules.findIndex(cover)
+  expect(rules.slice(firstCover).every(cover)).toBe(true)
+  for (const [r, cls] of all.slice(firstCover))
+    expect(cls, r).toContain('text-warning-fg')
+  // no page list on a cover row (the muted span after the text)
+  await expect(coverRows.locator('.text-muted-foreground')).toHaveCount(0)
+
+  await tab('2-up')
+  await expect(dlg.getByTestId('print-cover')).toHaveText(
+    'CoverNone with booklets',
+  )
+  await tab('PDF ready')
+  await expect(dlg.getByTestId('print-done-cover')).toHaveText(
+    'lake-trip-19x23cm-cover.pdf · cover · 2.9 MB',
+  )
+  await expect(dlg.getByTestId('print-open')).toHaveText('Open pages')
+  await expect(dlg.getByTestId('print-open-cover')).toHaveText('Open cover')
+  await tab('PDF ready, 2-up')
+  await expect(dlg.getByTestId('print-done-cover')).toHaveCount(0)
+  await expect(dlg.getByTestId('print-open')).toHaveText('Open PDF')
+})
+
+test('cover-pdf run: the cover sheet is the last unit (Cover · p%)', async ({
+  page,
+}) => {
+  await openPrint(page)
+  await freeze(page)
+  await dialog(page).getByTestId('print-go').click()
+  // 92 % of the 1.4 s run: 20 of 21 units painted → the cover
+  await advance(page, 1400 * 0.92)
+  await expect(dialog(page).getByTestId('print-run-text')).toHaveText(
+    'Cover · 90%',
+  )
+  await release(page)
+})
+
+test('cover-pdf: a book without a front photo gets the info row', async ({
+  page,
+}) => {
+  await openPrint(page)
+  await expect(check(page)).toHaveAttribute('data-state', 'issues')
+  await expect(
+    check(page).locator('[data-rule="cover-front-empty"]'),
+  ).toHaveText('Front cover has no photo and prints in the back fill colour')
+  await dialog(page).getByRole('radio', { name: '2-up' }).click()
+  await expect(
+    check(page).locator('[data-rule="cover-front-empty"]'),
+  ).toHaveCount(0)
+})
+
+// cover-pdf C5: the kit canvas spine is cloth = the back fill (#3E3C3B), as it prints
+test('cover-pdf C5: the kit cover spine paints the back fill', async ({
+  page,
+}) => {
+  await page.goto('/uikit/#/full/cover-editor')
+  const spine = page.getByTestId('cover-spine').first()
+  await expect(spine).toHaveCSS('background-color', 'rgb(62, 60, 59)')
+  // what paints: a spine pixel off the text, and the sheet behind it
+  const [px] = await pixelsAt(spine, [{ x: 2, y: 4 }])
+  expect(px?.slice(0, 3)).toEqual([62, 60, 59])
+  await expect(page.getByTestId('cover-sheet').first()).toHaveCSS(
+    'background-image',
+    /^linear-gradient\(90deg, rgb\(62, 60, 59\) [\d.]+%, rgb\(142, 142, 142\) [\d.]+%\)$/,
   )
 })

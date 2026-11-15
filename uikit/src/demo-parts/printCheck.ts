@@ -1,29 +1,69 @@
 /* pdf-export (Designer spec 2026-11-14 §2.1–2.4): the kit stand-in for the PDF worker's check and the Print dialog texts.
    Pure over the studio doc. Rule ids, severities and order follow core `PREFLIGHT_RULE_IDS` (the kit never imports src/);
-   safe-zone / bleed-hazard need core geometry and are left to the product. */
-import { effectiveDpi, type Doc } from "@/sandbox/model"
+   safe-zone / bleed-hazard need core geometry and are left to the product.
+   cover-pdf (Designer spec 2026-11-15 §2.1–2.3): the cover file's rows (`scope: "cover"`), summary, run unit and done texts. */
+import { P } from "@/data"
+import { effectiveDpi, orientedSize, type Doc } from "@/sandbox/model"
 import type { Book } from "@/sandbox/store"
-import { fmtN } from "@/sandbox/v7"
+import { fmtN, SAFE, WRAP } from "@/sandbox/v7"
 import type { KitProfile } from "./printProfiles"
 
 export type CheckSeverity = "error" | "warning" | "info"
-export type CheckRow = { rule: string; severity: CheckSeverity; text: string; pages: number[] }
+export type CheckScope = "pages" | "cover"
+export type CheckRow = { rule: string; severity: CheckSeverity; scope: CheckScope; text: string; pages: number[] }
 export type PrintFail = "access" | "full" | "other"
 
 /** SAMPLE DATA: kit photos with an embedded non-sRGB profile (prod reads the ICC tag, `colorWarnings`). */
 export const KIT_COLOR: Readonly<Record<string, string>> = { p05: "Adobe RGB", p19: "Display P3" }
+/** Generic `minFontPt` (core `genericPrintProfile()`); `KitProfile` doesn't carry it. */
+const MIN_FONT_PT = 6
 
 const ORDER = ["page-count-below-min", "page-count-above-max", "page-count-step", "asset-missing", "asset-modified", "dpi-below-min",
-  "dpi-below-warn", "colour", "empty-image-frame", "empty-text-frame", "safe-zone-intrusion", "bleed-hazard"]
+  "dpi-below-warn", "colour", "empty-image-frame", "empty-text-frame", "safe-zone-intrusion", "bleed-hazard",
+  "cover-asset-missing", "cover-asset-modified", "cover-dpi-below-min", "cover-dpi-below-warn", "cover-not-srgb", "spine-text-small",
+  "spine-text-cut", "cover-front-empty"]
 const RANK: Record<CheckSeverity, number> = { error: 0, warning: 1, info: 2 }
 const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
 
-/** " · page 6" / " · pages 2, 3, 6"; at most 5 numbers, then " +{n}"; "" for book-level rules. */
-export function pageList(pages: readonly number[]) {
+/** " · page 6" / " · pages 2, 3, 6"; at most 5 numbers, then " +{n}"; "" for book-level rules. `cover` leads: " · cover, page 6". */
+export function pageList(pages: readonly number[], cover = false) {
   const ps = [...new Set(pages)].sort((a, b) => a - b)
-  if (!ps.length) return ""
-  const head = ps.slice(0, 5).join(", ")
-  return ` · ${ps.length === 1 ? "page" : "pages"} ${head}${ps.length > 5 ? ` +${ps.length - 5}` : ""}`
+  const head = ps.length ? `${ps.length === 1 ? "page" : "pages"} ${ps.slice(0, 5).join(", ")}${ps.length > 5 ? ` +${ps.length - 5}` : ""}` : ""
+  const all = [cover && "cover", head].filter(Boolean).join(", ")
+  return all && ` · ${all}`
+}
+
+/** The cover the check reads: the editor's front photo and spine text, the spine in mm (a manual spine where seeded); `ppi`
+ *  and `modified` are SAMPLE seeds (the kit has no crop zoom on the cover nor a file watcher). */
+export type KitCover = { photo: string | null; spine: string; spineMm: number; ppi?: number; modified?: boolean }
+/** §2.1.4: the front photo's ppi in its box (front board + wrap on top, outer and bottom), cover fit. */
+export function coverPpi(photo: string, book: Book) {
+  const o = orientedSize(P(photo), 0)
+  return Math.round(25.4 / Math.max(((book.w + WRAP) * 10) / o.w, ((book.h + 2 * WRAP) * 10) / o.h))
+}
+/** §2.1.4 cover rows (C9): never block, no page list. `advanceMm(text, sizeMm)` = the spine text's width at that size. */
+export function coverCheckRows(cover: KitCover, book: Book, missing: ReadonlySet<string>, profile: KitProfile, advanceMm: (text: string, sizeMm: number) => number): CheckRow[] {
+  const rows: CheckRow[] = []
+  const add = (rule: string, severity: CheckSeverity, text: string) => rows.push({ rule, severity, scope: "cover", text, pages: [] })
+  const ph = cover.photo
+  if (!ph) add("cover-front-empty", "info", "Front cover has no photo and prints in the back fill colour")
+  else if (missing.has(ph)) add("cover-asset-missing", "error", "Front cover photo can’t be found")
+  else {
+    if (cover.modified) add("cover-asset-modified", "warning", "Front cover photo changed on disk since it was added")
+    const ppi = cover.ppi ?? coverPpi(ph, book)
+    if (ppi < profile.dpi.min) add("cover-dpi-below-min", "error", `Front cover photo is ${ppi} ppi, below ${profile.dpi.min} ppi`)
+    else if (ppi < profile.dpi.warn) add("cover-dpi-below-warn", "warning", `Front cover photo is ${ppi} ppi, below ${profile.dpi.warn} ppi`)
+    if (KIT_COLOR[ph]) add("cover-not-srgb", "warning", `Front cover photo isn’t sRGB (${KIT_COLOR[ph]}), colours may shift`)
+  }
+  const spine = cover.spine.trim()
+  if (spine) {
+    // the canvas spine type: min(12 at the 848 px closed cover, half the spine), cut at trim height − 2 × safe
+    const size = Math.min(((2 * book.w * 10 + cover.spineMm) * 12) / 848, cover.spineMm / 2)
+    const pt = (size * 72) / 25.4
+    if (pt < MIN_FONT_PT) add("spine-text-small", "warning", `Spine text is ${fmtN(pt)} pt, below ${profile.name}’s ${MIN_FONT_PT} pt minimum`)
+    if (advanceMm(spine, size) > (book.h - 2 * SAFE) * 10) add("spine-text-cut", "warning", "Spine text is longer than the spine and ends in “…”")
+  }
+  return rows
 }
 
 /** Placed photos of the doc with their physical page (spread `i` holds pages 2i + 1, 2i + 2). */
@@ -32,12 +72,12 @@ function placed(doc: Doc, book: Book) {
   return doc.spreads.flatMap((s, i) => s.frames.map((f) => ({ f, page: 2 * i + (f.x + f.w / 2 > half ? 2 : 1) })))
 }
 
-/** The Check block rows: one per rule, errors → warnings → info, in rule order within a severity. */
-export function printCheckRows(doc: Doc, book: Book, missing: ReadonlySet<string>, profile: KitProfile): CheckRow[] {
+/** The Check block rows: one per rule, errors → warnings → info; within a severity the page rows, then the `cover` rows, in rule order. */
+export function printCheckRows(doc: Doc, book: Book, missing: ReadonlySet<string>, profile: KitProfile, cover: CheckRow[] = []): CheckRow[] {
   const pages = doc.spreads.length * 2
   const pc = profile.pageCount
-  const rows: CheckRow[] = []
-  const add = (rule: string, severity: CheckSeverity, text: string, ps: number[] = []) => rows.push({ rule, severity, text, pages: ps })
+  const rows: CheckRow[] = [...cover]
+  const add = (rule: string, severity: CheckSeverity, text: string, ps: number[] = []) => rows.push({ rule, severity, scope: "pages", text, pages: ps })
   if (pages < pc.min) add("page-count-below-min", "error", `${profile.name} prints at least ${pc.min} pages. This book has ${pages}.`)
   if (pages > pc.max) add("page-count-above-max", "error", `${profile.name} prints up to ${pc.max} pages. This book has ${pages}.`)
   if (pc.step > 1 && pages % pc.step) add("page-count-step", "error", `${profile.name} prints pages in steps of ${pc.step}. This book has ${pages}.`)
@@ -61,6 +101,7 @@ export function printCheckRows(doc: Doc, book: Book, missing: ReadonlySet<string
   if (emptyImg.length) add("empty-image-frame", "warning", `${n(emptyImg.length, "empty photo frame", "empty photo frames")}`, emptyImg.map((x) => x.page))
   const emptyText = items.filter(({ f }) => f.kind === "text" && !f.text?.trim())
   if (emptyText.length) add("empty-text-frame", "info", `${n(emptyText.length, "empty text frame", "empty text frames")}`, emptyText.map((x) => x.page))
+  // cover ids follow every page id in ORDER, so rule order alone puts the cover rows after the page rows of a severity
   return rows.sort((a, b) => RANK[a.severity] - RANK[b.severity] || ORDER.indexOf(a.rule) - ORDER.indexOf(b.rule))
 }
 
@@ -71,18 +112,26 @@ export function checkLabel(rows: readonly CheckRow[]) {
   return parts.length ? `Check · ${parts.join(", ")}` : "Check"
 }
 
-/** D5: `PDF · {pages} pages` [+ ` on {sheets} sheets`] + ` · bleed {b} mm` / ` · trim size, no marks`. */
-export const printSummary = (pages: number, sheets: number, bleedMm: number | null) =>
-  `PDF · ${pages} pages${sheets !== pages ? ` on ${sheets} ${sheets === 1 ? "sheet" : "sheets"}` : ""}${bleedMm === null ? " · trim size, no marks" : ` · bleed ${fmtN(bleedMm)} mm`}`
+/** D5: `PDF · {pages} pages` [+ ` on {sheets} sheets`] [+ ` + cover`] + ` · bleed {b} mm` [`, cover {c} mm`] / ` · trim size, no marks`.
+ *  `coverBleedMm`: the cover file's bleed (1 per sheet only), `null` = no cover file. */
+export const printSummary = (pages: number, sheets: number, bleedMm: number | null, coverBleedMm: number | null = null) =>
+  `PDF · ${pages} pages${sheets !== pages ? ` on ${sheets} ${sheets === 1 ? "sheet" : "sheets"}` : ""}${coverBleedMm === null ? "" : " + cover"}${bleedMm === null ? " · trim size, no marks" : ` · bleed ${fmtN(bleedMm)} mm${coverBleedMm !== null && coverBleedMm !== bleedMm ? `, cover ${fmtN(coverBleedMm)} mm` : ""}`}`
+/** §2.1.2: the bleed checkbox names the cover bleed only when it differs (1 per sheet). */
+export const printBleedLabel = (bleedMm: number, coverBleedMm: number | null = null) =>
+  `Add ${fmtN(bleedMm)} mm bleed${coverBleedMm !== null && coverBleedMm !== bleedMm ? ` (cover ${fmtN(coverBleedMm)} mm)` : ""} and crop marks`
+/** C1: the cover file sits next to the pages file. */
+export const coverFileName = (file: string) => file.replace(/\.pdf$/, "-cover.pdf")
 
-/** §2.2: run progress `v` 0…100 → 95 % painting sheets ("Page i of n · p%"), the last 5 % writing the file ("Saving · p%").
+/** §2.2: run progress `v` 0…100 → 95 % painting sheets ("Page i of n · p%") and, with `cover`, the cover sheet as one more unit
+ *  ("Cover · p%"); the last 5 % writing the files ("Saving · p%").
  *  A booklet (`paper` sheets, booklet-imposition) paints up to 80 %, then imposes ("Imposing sheets · i of n · p%") up to 95 %. */
-export function printProgress(v: number, sheets: number, paper = 0) {
+export function printProgress(v: number, sheets: number, paper = 0, cover = false) {
   const share = paper ? 80 : 95
-  const painted = Math.min(sheets, Math.floor((v / share) * sheets))
-  if (painted < sheets) {
-    const p = Math.round((share * painted) / sheets)
-    return { p, text: `Page ${painted + 1} of ${sheets} · ${p}%` }
+  const units = sheets + (cover ? 1 : 0)
+  const painted = Math.min(units, Math.floor((v / share) * units))
+  if (painted < units) {
+    const p = Math.round((share * painted) / units)
+    return { p, text: painted < sheets ? `Page ${painted + 1} of ${sheets} · ${p}%` : `Cover · ${p}%` }
   }
   const imposed = Math.min(paper, Math.floor(((v - 80) / 15) * paper))
   if (imposed < paper) {
