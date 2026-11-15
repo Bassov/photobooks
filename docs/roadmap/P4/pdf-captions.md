@@ -18,4 +18,8 @@ Status: done
 - **Hard nos:** no UI
 - **Tokens:** Grayscale product tokens (RULES.md): field `#D7D7D7`, bar `#E1E1E1`, list / film selection `#CACACA`, canvas selection `#232223` with white handles, crop `--crop` `#6b696a`; values from `uikit/src/index.css`, mapped to `src/ui/` tokens. No blue, no teal.
 - **Test:** unit + PBT on the pure text layout; no e2e (no UI)
-- **Depends:** pdf-export, text-frame-model (= `text-frames-core`, done), `text-blocks` (done: #445/#447/#467, closed by `text-blocks-close`); all met
+- **Depends:** pdf-export, text-frame-model (also needs held `text-blocks` re-added first)
+
+## Done note
+
+Depends met: pdf-export done; text-frame-model = `text-frames-core` (done); `text-blocks` done (#445/#447/#467, closed by `text-blocks-close`).
