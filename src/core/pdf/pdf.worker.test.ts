@@ -9,8 +9,10 @@ import { ADOBE_RGB_ICC, colorJpeg } from '../testing/colorFixtures'
 import {
   COLOR_READ_BYTES,
   runPdfCheck,
+  runPdfImpose,
   runPdfPaint,
   type PdfCheckMessage,
+  type PdfImposeMessage,
   type PdfPaintMessage,
   type PdfWorkerRequest,
 } from './pdf.worker'
@@ -182,6 +184,85 @@ describe('runPdfPaint', () => {
         message: { failed: { message: expect.stringMatching(/TypeError/) } },
         transfer: [],
       },
+    ])
+  })
+})
+
+async function pagePdf(pages: number): Promise<ArrayBuffer> {
+  const doc = await PDFDocument.create()
+  for (let n = 0; n < pages; n += 1) doc.addPage([300, 400])
+  return new Uint8Array(await doc.save()).buffer
+}
+
+async function impose(request: Parameters<typeof runPdfImpose>[0]) {
+  const posts: { message: PdfImposeMessage; transfer: Transferable[] }[] = []
+  await runPdfImpose(request, (message, transfer) => {
+    posts.push({ message, transfer })
+  })
+  return posts
+}
+
+function imposedOf(message: unknown) {
+  const impose = message as PdfImposeMessage | undefined
+  if (impose === undefined || !('done' in impose)) {
+    throw new Error('no done message')
+  }
+  return impose.done
+}
+
+describe('runPdfImpose', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('posts progress per sheet, then the imposed PDF, transferred', async () => {
+    const posts = await impose({ pdf: await pagePdf(13), layout: '2up' })
+
+    expect(posts.slice(0, -1)).toEqual(
+      [1, 2, 3, 4].map((imposed) => ({
+        message: { progress: { imposed, sheets: 4 } },
+        transfer: [],
+      })),
+    )
+    const { pdf, sheets } = imposedOf(posts[4]?.message)
+    expect(posts[4]?.transfer).toEqual([pdf])
+    expect(sheets).toBe(4)
+    const doc = await PDFDocument.load(pdf)
+    expect(doc.getPageCount()).toBe(8)
+    expect(doc.getPage(0).getSize()).toEqual({ width: 600, height: 400 })
+  })
+
+  it('answers a worker impose message with a posted 4-up PDF', async () => {
+    const posts: unknown[][] = []
+    vi.stubGlobal('postMessage', (...args: unknown[]) => posts.push(args))
+    const scope = globalThis as unknown as {
+      onmessage: (event: { data: PdfWorkerRequest }) => void
+    }
+
+    scope.onmessage({
+      data: { impose: { pdf: await pagePdf(8), layout: '4up' } },
+    })
+
+    await vi.waitFor(() => {
+      expect(posts).toHaveLength(2)
+    })
+    expect(posts[0]).toEqual([{ progress: { imposed: 1, sheets: 1 } }, []])
+    const [message, transfer] = posts[1] ?? []
+    const { pdf, sheets } = imposedOf(message)
+    expect(sheets).toBe(1)
+    expect(transfer).toEqual([pdf])
+    const doc = await PDFDocument.load(pdf)
+    expect(doc.getPage(0).getSize()).toEqual({ width: 600, height: 800 })
+  })
+
+  it('posts one failure when the page PDF does not load', async () => {
+    const posts = await impose({
+      pdf: new Uint8Array([1, 2, 3]).buffer,
+      layout: '2up',
+    })
+
+    expect(posts).toEqual([
+      { message: { failed: { message: expect.any(String) } }, transfer: [] },
     ])
   })
 })
