@@ -94,6 +94,17 @@ describe('PrintButton', () => {
     )
   })
 
+  it('says the running percent when it mounts during a run', () => {
+    printStore.dispatch({ type: 'start', sheets: 20 })
+
+    render(<PrintButton disabled={false} />)
+
+    expect(pill().getAttribute('title')).toBe('Exporting PDF · 0%')
+    expect(screen.getByTestId('print-status').textContent).toBe(
+      'Exporting PDF, 0%',
+    )
+  })
+
   it('shows PDF ready, opens the done step from the pill', () => {
     render(<PrintButton disabled={false} />)
     act(() => {

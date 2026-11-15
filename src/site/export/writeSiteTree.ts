@@ -37,6 +37,8 @@ export type SiteWritePlan =
 export interface SiteWritable {
   write: (data: Uint8Array) => Promise<void>
   close: () => Promise<void>
+  /** Drops what was written (the platform writable; the site writer never aborts). */
+  abort: () => Promise<void>
 }
 
 export interface SiteFileHandle {

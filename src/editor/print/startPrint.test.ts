@@ -10,10 +10,10 @@ import {
   type PdfPaintMessage,
   type PdfWorkerRequest,
 } from '../../core/pdf/pdf.worker'
-import type {
-  ExportDirectoryHandle,
-  ExportFileHandle,
-  ExportWriteResult,
+import {
+  openExport,
+  type ExportDirectoryHandle,
+  type ExportFileHandle,
 } from '../../project'
 import { resetBookStore } from '../bookStore'
 import { getOpenLibraryHandle } from '../projectSession'
@@ -74,8 +74,10 @@ class InProcessWorker {
   onmessage: ((event: { data: unknown }) => void) | null = null
   onerror: (() => void) | null = null
   terminated = false
+  request: PdfWorkerRequest | null = null
   transfer: Transferable[] = []
-  postMessage(request: PdfWorkerRequest, transfer: Transferable[]) {
+  postMessage(request: PdfWorkerRequest, transfer: Transferable[] = []) {
+    this.request = request
     this.transfer = transfer
     const post = (data: unknown) => {
       this.onmessage?.({ data })
@@ -127,28 +129,42 @@ const inProcess: PdfWorkerRunner = (request, onMessage) => {
   void inWorker(request, post)
 }
 
-/** A library folder whose `exports/` keeps the written bytes. */
+/**
+ * A library folder whose `exports/` keeps a file on `close`; `log` lists
+ * each write (its size), close and abort.
+ */
 function memoryLibrary() {
   const files = new Map<string, Uint8Array>()
+  const log: string[] = []
   const fileHandle = (name: string): ExportFileHandle => ({
     kind: 'file',
     name,
     getFile: () =>
       Promise.resolve(new Blob([new Uint8Array(files.get(name) ?? [])])),
-    createWritable: () =>
-      Promise.resolve({
+    createWritable: () => {
+      const chunks: Uint8Array<ArrayBuffer>[] = []
+      return Promise.resolve({
         write: (data: Uint8Array) => {
-          files.set(name, data)
+          chunks.push(data.slice())
+          log.push(`write ${String(data.length)}`)
           return Promise.resolve()
         },
-        close: () => Promise.resolve(),
-      }),
+        close: async () => {
+          files.set(name, new Uint8Array(await new Blob(chunks).arrayBuffer()))
+          log.push('close')
+        },
+        abort: () => {
+          log.push('abort')
+          return Promise.resolve()
+        },
+      })
+    },
   })
   const library: ExportDirectoryHandle = {
     getDirectoryHandle: () => Promise.resolve(library),
     getFileHandle: (name) => Promise.resolve(fileHandle(name)),
   }
-  return { library, files }
+  return { library, files, log }
 }
 
 function recorder() {
@@ -172,7 +188,7 @@ async function print(
   overrides: Partial<Parameters<typeof runPrint>[0]> = {},
   layout: PrintLayout = 'single',
 ) {
-  const { library, files } = memoryLibrary()
+  const { library, files, log } = memoryLibrary()
   const store = recorder()
   const job: PrintJob = { book: photoBook(), printProfiles: [], marks, layout }
   await runPrint({
@@ -181,11 +197,14 @@ async function print(
     runWorker: inProcess,
     library: () => Promise.resolve(library),
     libraryLabel: 'Photobooks',
-    write: (await import('../../project')).writeExport,
-    dispatch: store.dispatch,
+    open: openExport,
+    dispatch: (event) => {
+      log.push(event.type)
+      return store.dispatch(event)
+    },
     ...overrides,
   })
-  return { store, files }
+  return { store, files, log }
 }
 
 async function firstPage(bytes: Uint8Array | undefined) {
@@ -302,7 +321,7 @@ describe('runPrint', () => {
   })
 
   it('fails with other when imposing fails, before saving', async () => {
-    const { store } = await print(
+    const { store, log } = await print(
       false,
       {
         runWorker: (request, onMessage) => {
@@ -318,19 +337,56 @@ describe('runPrint', () => {
 
     expect(store.state()).toMatchObject({ kind: 'failed', code: 'other' })
     expect(store.events.map((event) => event.type)).not.toContain('saving')
+    expect(log.slice(-2)).toEqual(['abort', 'failed'])
   })
 
   it('fails with the write error code', async () => {
-    const write = vi.fn((): Promise<ExportWriteResult> =>
-      Promise.resolve({ ok: false, code: 'full' }),
-    )
-    const { store } = await print(true, { write })
+    const { store } = await print(true, {
+      open: () => ({
+        write: vi.fn(),
+        close: () => Promise.resolve({ ok: false, code: 'full' }),
+        abort: vi.fn(),
+      }),
+    })
 
     expect(store.state()).toEqual({
       kind: 'failed',
       code: 'full',
       library: 'Photobooks',
     })
+  })
+
+  it('writes the chunks as they arrive, in order, and closes after saving', async () => {
+    const chunks = [new Uint8Array([1, 2]), new Uint8Array([3])]
+    const { store, files, log } = await print(true, {
+      runWorker: (_request, onMessage) => {
+        for (const chunk of chunks) onMessage({ chunk: chunk.slice().buffer })
+        onMessage({ progress: { painted: 1, sheets: 20 } })
+        onMessage({ done: { bytes: 3, sheets: 20, skipped: [] } })
+      },
+    })
+
+    expect(files.get('lake-trip-A5.pdf')).toEqual(new Uint8Array([1, 2, 3]))
+    expect(log.filter((entry) => entry.startsWith('write'))).toEqual([
+      'write 2',
+      'write 1',
+    ])
+    expect(log.indexOf('saving')).toBeLessThan(log.indexOf('close'))
+    expect(log.slice(-2)).toEqual(['close', 'done'])
+    expect(store.state()).toMatchObject({ kind: 'done', bytes: 3 })
+  })
+
+  it('aborts the file when painting fails after some chunks', async () => {
+    const { store, files, log } = await print(true, {
+      runWorker: (_request, onMessage) => {
+        onMessage({ chunk: new Uint8Array([1]).buffer })
+        onMessage({ failed: { message: 'boom' } })
+      },
+    })
+
+    expect(store.state()).toMatchObject({ kind: 'failed', code: 'other' })
+    expect(log.slice(-3)).toEqual(['write 1', 'abort', 'failed'])
+    expect(files.size).toBe(0)
   })
 
   it('fails with access without a library folder', async () => {
@@ -505,7 +561,7 @@ describe('the open book', () => {
     expect(workers[0]?.transfer).toEqual([])
   })
 
-  it('imposes a booklet in a second worker, moving the page PDF to it', async () => {
+  it('imposes a booklet in a second worker, handing it the page PDF as a Blob', async () => {
     const { library, files } = memoryLibrary()
     vi.mocked(getOpenLibraryHandle).mockResolvedValue(library)
 
@@ -517,8 +573,20 @@ describe('the open book', () => {
     expect([...files.keys()]).toEqual(['lake-trip-A5-4up.pdf'])
     expect(workers).toHaveLength(2)
     expect(workers.every((worker) => worker.terminated)).toBe(true)
-    const [moved] = workers[1]?.transfer ?? []
-    expect(moved).toBeInstanceOf(ArrayBuffer)
+    const request = workers[1]?.request
+    const pages =
+      request !== null && request !== undefined && 'impose' in request
+        ? request.impose.pdf
+        : undefined
+    expect(pages).toBeInstanceOf(Blob)
+    expect(pages?.type).toBe('application/pdf')
+    expect(await pages?.slice(0, 5).text()).toBe('%PDF-')
+    expect(
+      (
+        await PDFDocument.load(await (pages ?? new Blob()).arrayBuffer())
+      ).getPageCount(),
+    ).toBe(2)
+    expect(workers[1]?.transfer).toEqual([])
   })
 
   it('tries the same snapshot again after a failure', async () => {
@@ -594,12 +662,13 @@ describe('the open book', () => {
     })
   })
 
-  it('keeps the worker for progress messages', () => {
+  it('keeps the worker for progress and chunk messages', () => {
     const onMessage = vi.fn()
     runPdfWorker({ check: { book: photoBook(), photos: {} } }, onMessage)
     workers[0]?.onmessage?.({ data: { progress: { painted: 1, sheets: 2 } } })
+    workers[0]?.onmessage?.({ data: { chunk: new ArrayBuffer(1) } })
 
-    expect(onMessage).toHaveBeenCalledTimes(1)
+    expect(onMessage).toHaveBeenCalledTimes(2)
     expect(workers[0]?.terminated).toBe(false)
   })
 })

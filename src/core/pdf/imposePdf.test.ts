@@ -10,11 +10,15 @@ import {
 } from '@cantoo/pdf-lib'
 import { describe, expect, it } from 'vitest'
 import { imposePdf } from './imposePdf'
+import { pdfChunks } from './pdfChunks.test-helpers'
 
 const PAGE = { width: 300, height: 400 }
 
 /** A page PDF whose page `n` fills an `n`-wide rectangle (`n 0 l`), so a copy names its page. */
-async function pagePdf(pages: number, blank = 0): Promise<Uint8Array> {
+async function pagePdf(
+  pages: number,
+  blank = 0,
+): Promise<Uint8Array<ArrayBuffer>> {
   const doc = await PDFDocument.create()
   for (let n = 1; n <= pages; n += 1) {
     const page = doc.addPage([PAGE.width, PAGE.height])
@@ -57,12 +61,14 @@ function placements(doc: PDFDocument, page: PDFPage): string[] {
 
 async function impose(pages: number, layout: '2up' | '4up', blank = 0) {
   const progress: [number, number][] = []
+  const file = pdfChunks()
   const result = await imposePdf({
-    pdf: await pagePdf(pages, blank),
+    pdf: new Blob([await pagePdf(pages, blank)]),
     layout,
+    onChunk: file.onChunk,
     onSheet: (imposed, sheets) => progress.push([imposed, sheets]),
   })
-  const doc = await PDFDocument.load(result.pdf)
+  const doc = await PDFDocument.load(file.bytes())
   return { result, progress, doc, sides: doc.getPages() }
 }
 
@@ -105,6 +111,39 @@ describe('imposePdf', () => {
     expect(sides.map((side) => placements(doc, side))).toEqual([
       ['4@0,0', '1@300,0'],
       ['2@0,0'],
+    ])
+  })
+
+  it('reads a page PDF that streams in several parts', async () => {
+    const bytes = await pagePdf(4)
+    /** A Blob whose stream yields its bytes in three parts. */
+    class Parted extends Blob {
+      override stream() {
+        const cuts = [0, 100, 700, bytes.length]
+        return new ReadableStream<Uint8Array<ArrayBuffer>>({
+          start: (controller) => {
+            for (const [index, cut] of cuts.slice(1).entries()) {
+              controller.enqueue(bytes.slice(cuts[index], cut))
+            }
+            controller.close()
+          },
+        })
+      }
+    }
+    const file = pdfChunks()
+
+    const result = await imposePdf({
+      pdf: new Parted([bytes]),
+      layout: '2up',
+      onChunk: file.onChunk,
+      onSheet: () => undefined,
+    })
+
+    const doc = await PDFDocument.load(file.bytes())
+    expect(result.sheets).toBe(1)
+    expect(doc.getPages().map((side) => placements(doc, side))).toEqual([
+      ['4@0,0', '1@300,0'],
+      ['2@0,0', '3@300,0'],
     ])
   })
 

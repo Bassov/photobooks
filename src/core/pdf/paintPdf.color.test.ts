@@ -21,6 +21,7 @@ import {
 } from '../testing/painterFixture'
 import { srgbIccProfile } from './iccProfile'
 import { paintBookPdf } from './paintPdf'
+import { pdfChunks } from './pdfChunks.test-helpers'
 
 const [first, second, third, fourth] = PAINTER_ASSET_IDS
 const { book } = makePainterFixture()
@@ -34,13 +35,15 @@ const PNG = Uint8Array.from(
 )
 
 async function paint(bytes: Record<string, Uint8Array>) {
-  const result = await paintBookPdf({
+  const file = pdfChunks()
+  await paintBookPdf({
     book,
     profile: genericPrintProfile(),
     photos: (assetId) => Promise.resolve(bytes[assetId]),
     marks: true,
+    onChunk: file.onChunk,
   })
-  return PDFDocument.load(result.pdf)
+  return PDFDocument.load(file.bytes())
 }
 
 function streams(doc: PDFDocument): PDFRawStream[] {

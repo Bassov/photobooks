@@ -29,8 +29,8 @@ export interface PdfCheckRequest extends Omit<PdfPaintRequest, 'marks'> {
 }
 
 export interface PdfImposeRequest {
-  /** The page PDF from a `paint` request's `done`. */
-  pdf: ArrayBuffer
+  /** The page PDF: a `paint` request's chunks; a Blob clones unread. */
+  pdf: Blob
   layout: ImpositionLayout
 }
 
@@ -39,27 +39,46 @@ export type PdfWorkerRequest =
   | { check: PdfCheckRequest }
   | { impose: PdfImposeRequest }
 
+/** The next bytes of the PDF file, transferred; chunks come in file order. */
+export interface PdfChunkMessage {
+  chunk: ArrayBuffer
+}
+
 export type PdfPaintMessage =
+  | PdfChunkMessage
   /** After each PDF page, `painted` 1..`sheets`. */
   | { progress: { painted: number; sheets: number } }
-  | { done: { pdf: ArrayBuffer; sheets: number; skipped: SkippedPhoto[] } }
+  /** After the last chunk; `bytes` = every chunk together. */
+  | { done: { bytes: number; sheets: number; skipped: SkippedPhoto[] } }
   | { failed: { message: string } }
 
 export type PdfCheckMessage =
   { checked: { rows: PreflightRow[] } } | { failed: { message: string } }
 
 export type PdfImposeMessage =
+  | PdfChunkMessage
   /** After each sheet (front and back), `imposed` 1..`sheets`. */
   | { progress: { imposed: number; sheets: number } }
-  | { done: { pdf: ArrayBuffer; sheets: number } }
+  | { done: { bytes: number; sheets: number } }
   | { failed: { message: string } }
+
+/** Posts a writer chunk, moving its buffer (the chunk owns all of it). */
+function postChunk(
+  post: (message: PdfChunkMessage, transfer: Transferable[]) => void,
+): (chunk: Uint8Array) => void {
+  return (chunk) => {
+    const buffer = chunk.buffer as ArrayBuffer
+    post({ chunk: buffer }, [buffer])
+  }
+}
 
 /** Bytes read from the head of each photo: JPEG APP2 / PNG iCCP sit there. */
 export const COLOR_READ_BYTES = 256 * 1024
 
 /**
- * Paints the book's PDF: a `progress` message per page (posted, never
- * awaited), then exactly one `done` / `failed` message.
+ * Paints the book's PDF: `chunk` messages as the file grows, a `progress`
+ * message per page (posted, never awaited), then exactly one `done` /
+ * `failed` message.
  */
 export async function runPdfPaint(
   request: PdfPaintRequest,
@@ -76,14 +95,13 @@ export async function runPdfPaint(
           : new Uint8Array(await blob.arrayBuffer())
       },
       marks: request.marks,
+      onChunk: postChunk(post),
       onSheet: (painted, sheets) => {
         post({ progress: { painted, sheets } }, [])
       },
     })
-    const pdf = new Uint8Array(result.pdf).buffer
-    post({ done: { pdf, sheets: result.sheets, skipped: result.skipped } }, [
-      pdf,
-    ])
+    const { bytes, sheets, skipped } = result
+    post({ done: { bytes, sheets, skipped } }, [])
   } catch (error) {
     post({ failed: { message: String(error) } }, [])
   }
@@ -122,8 +140,9 @@ export async function runPdfCheck(
 }
 
 /**
- * Imposes the page PDF: a `progress` message per sheet (posted, never
- * awaited), then exactly one `done` / `failed` message.
+ * Imposes the page PDF (read whole): `chunk` messages as the imposed file
+ * grows, a `progress` message per sheet (posted, never awaited), then
+ * exactly one `done` / `failed` message.
  */
 export async function runPdfImpose(
   request: PdfImposeRequest,
@@ -133,12 +152,12 @@ export async function runPdfImpose(
     const result = await imposePdf({
       pdf: request.pdf,
       layout: request.layout,
+      onChunk: postChunk(post),
       onSheet: (imposed, sheets) => {
         post({ progress: { imposed, sheets } }, [])
       },
     })
-    const pdf = new Uint8Array(result.pdf).buffer
-    post({ done: { pdf, sheets: result.sheets } }, [pdf])
+    post({ done: { bytes: result.bytes, sheets: result.sheets } }, [])
   } catch (error) {
     post({ failed: { message: String(error) } }, [])
   }

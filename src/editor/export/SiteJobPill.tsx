@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { ChromeButton } from '../ChromeButton'
 import { FIELD, T } from '../editorChromeTokens'
 import { nextAnnouncedPercent } from './exportSiteText'
@@ -17,35 +11,54 @@ export interface SiteJobContent {
   label?: ReactNode
 }
 
-/** Status region text: progress at most every 10 %, then the outcome. */
+interface StatusSay {
+  running: (percent: number) => string
+  done: string
+  failed: string
+}
+
+interface Status {
+  kind: SiteJobKind
+  percent: number
+  /** Last running percent said; null outside a run. */
+  announced: number | null
+  text: string
+}
+
+/** The status after the pill moved to `kind` / `percent`. */
+function nextStatus(
+  status: Pick<Status, 'announced' | 'text'>,
+  kind: SiteJobKind,
+  percent: number,
+  say: StatusSay,
+): Status {
+  if (kind === 'running') {
+    const next = nextAnnouncedPercent(percent, status.announced)
+    return next === null
+      ? { ...status, kind, percent }
+      : { kind, percent, announced: next, text: say.running(next) }
+  }
+  const text =
+    kind === 'done' ? say.done : kind === 'failed' ? say.failed : status.text
+  return { kind, percent, announced: null, text }
+}
+
+/**
+ * Status region text: progress at most every 10 %, then the outcome. Worked
+ * out while rendering, so it commits with the pill's title and fill.
+ */
 function useStatusText(
   kind: SiteJobKind,
   percent: number,
-  say: {
-    running: (percent: number) => string
-    done: string
-    failed: string
-  },
+  say: StatusSay,
 ): string {
-  const announced = useRef<number | null>(null)
-  const [text, setText] = useState('')
-  useEffect(() => {
-    if (kind === 'running') {
-      const next = nextAnnouncedPercent(percent, announced.current)
-      if (next !== null) {
-        announced.current = next
-        setText(say.running(next))
-      }
-      return
-    }
-    announced.current = null
-    if (kind === 'done') {
-      setText(say.done)
-    } else if (kind === 'failed') {
-      setText(say.failed)
-    }
-  }, [kind, percent, say])
-  return text
+  const [status, setStatus] = useState(() =>
+    nextStatus({ announced: null, text: '' }, kind, percent, say),
+  )
+  if (status.kind === kind && status.percent === percent) return status.text
+  const next = nextStatus(status, kind, percent, say)
+  setStatus(next)
+  return next.text
 }
 
 /**
@@ -78,7 +91,7 @@ export function SiteJobPill({
   rest: SiteJobContent
   content: SiteJobContent
   title: string
-  say: Parameters<typeof useStatusText>[2]
+  say: StatusSay
   narrow?: boolean
   wait?: string | undefined
   disabled: boolean

@@ -9,6 +9,7 @@ import { genericPrintProfile } from '../print/genericProfile'
 import type { FrameStyle } from '../schema'
 import { makeBook, makeFrame, makeSpread } from '../testing/fixtures'
 import { paintBookPdf } from './paintPdf'
+import { pdfChunks } from './pdfChunks.test-helpers'
 import { PT_PER_MM } from './pdfGeometry'
 
 /** 1 × 1 RGBA PNG. */
@@ -43,13 +44,15 @@ async function pageLines(style: FrameStyle | undefined): Promise<string[]> {
       }),
     ],
   })
-  const result = await paintBookPdf({
+  const file = pdfChunks()
+  await paintBookPdf({
     book,
     profile: genericPrintProfile(),
     photos: () => Promise.resolve(PNG),
     marks: false,
+    onChunk: file.onChunk,
   })
-  const doc = await PDFDocument.load(result.pdf)
+  const doc = await PDFDocument.load(file.bytes())
   const contents = doc.getPage(0).node.normalizedEntries().Contents
   const streams =
     contents instanceof PDFArray
