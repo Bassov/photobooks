@@ -12,3 +12,6 @@
 1. Open Print on a book, pick 2-up: summary says "on N sheets"; Export PDF → run shows "Imposing sheets"; PDF ready shows "N sheets" and the flip-on-short-edge text; Open PDF shows two pages per side.
 2. Leave 1 per sheet: the run and PDF ready read as before (pages, no duplex text).
 3. Pick 4-up with bleed off: summary "trim size, no marks"; PDF ready shows the cut-across text.
+
+manual-qa (2026-11-15): problem — harness: all 3 scenarios time out clicking `start-session` on the welcome screen (header intercepts the click), before any product step. Covered instead by e2e run locally and green: `e2e/print-dialog.spec.ts` (`booklet-imposition`: 2-up / 4-up summaries, Imposing sheets run text, done sheets + flip text, PDF page counts; options default 1 per sheet; kit offsets match), `e2e/kit-pdf-export.spec.ts`, `e2e/print-perf.spec.ts` (0 LoAF while imposing).
+ui-review: pass — `SegmentedControl` primitive (radios, labelled group, focus-visible outline), no disabled stubs, status in text not colour, dialog offsets equal the kit's within 1 px, `assertDocumentFitsViewport` on the booklet options.
