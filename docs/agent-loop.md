@@ -46,12 +46,12 @@ How for each stage lives elsewhere (do not duplicate here):
 
 ## Buckets (entry commands)
 
-| Bucket | Entry                                                  | When                                         |
-| ------ | ------------------------------------------------------ | -------------------------------------------- |
-| **A**  | `pnpm check:fast` (`pnpm check`)                       | Apply loops; hand-push; finish if stamp miss |
-| **B**  | `pnpm test:e2e:changed:quiet` then `pnpm stryker:diff` | Stages 4 / 7 / 9                             |
-| **C1** | `pnpm check:integrity`                                 | Stage 11; hand-push; CI                      |
-| **C2** | `pnpm quality:self-check`                              | Stage 11 only                                |
+| Bucket | Entry                                                                                                                                                                                                                                               | When                                         |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| **A**  | `pnpm check:fast` (`pnpm check`)                                                                                                                                                                                                                    | Apply loops; hand-push; finish if stamp miss |
+| **B**  | `pnpm test:e2e:changed:quiet` (changed specs, then ≤12 specs using test ids in the `src/` hunks: `scripts/e2e-related.mjs`) then `pnpm stryker:diff`; a related spec fails → fix the product or update the spec in this PR, never skip or weaken it | Stages 4 / 7 / 9                             |
+| **C1** | `pnpm check:integrity`                                                                                                                                                                                                                              | Stage 11; hand-push; CI                      |
+| **C2** | `pnpm quality:self-check`                                                                                                                                                                                                                           | Stage 11 only                                |
 
 **B lanes:** `test:e2e:changed:quiet` is the functional lane (`E2E_LANE=functional`, no `frame-budget gates` describes). Run frame-budget only when the touch-set hits `src/render|perf|photo|assets`, filmstrip, pasteboard, `e2e/perf`, `e2e/*frame*` or a spec with a `frame-budget gates` describe: `E2E_LANE=perf E2E_COVERAGE=0 pnpm test:e2e:quiet -g "frame-budget gates"` (or `pnpm perf`). CI mirrors this: `e2e` (functional) and the scoped required `perf` job (`perf.yml`: 3 runs; red if a scenario fails in ≥2 runs or any frame blocks >50 ms; out of scope → green "not in scope"). Thresholds stay as in #249. A red nightly `perf` run on main → `pnpm roadmap add` a flake/perf item (no new GH issue). A PR scenario that is red on the latest main push run and whose spec / sources the PR leaves alone is reported "pre-existing on main" and does not fail `perf` (`scripts/perf-baseline.mjs`): do not prove "red on main too" or wait for the main fix; if you touch it, fix it.
 
@@ -104,7 +104,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 ### 4 · First B
 
 - Run **B** once vs `origin/main` (full current diff). Fix; re-run failed slice; re-A if code changed (still no phase commit).
-- Skip the e2e half of B when pointless (CI still runs e2e + perf); never skip `stryker:diff` on `src/` changes (`agent finish` runs it, 2-run cap). In-scope once: `audit:ci` / `test:lhci`.
+- Never skip `stryker:diff` on `src/` changes (`agent finish` runs it, 2-run cap). In-scope once: `audit:ci` / `test:lhci`.
 
 ### 5 · Phase commit
 
