@@ -16,6 +16,7 @@ import {
   type PdfPaintMessage,
   type PdfWorkerRequest,
 } from './pdf.worker'
+import { bookFontFiles } from './pdfText.test-helpers'
 
 const gates = JSON.parse(
   readFileSync(resolve(process.cwd(), 'quality/gates.json'), 'utf8'),
@@ -80,6 +81,55 @@ const withoutChunks = <T extends { message: object }>(posts: T[]) =>
 describe('runPdfPaint', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+  })
+
+  /** A book whose one text frame prints `Lake`. */
+  function textBook() {
+    return makeBook({
+      spreads: [
+        makeSpread({
+          frames: [
+            makeFrame({
+              id: 't',
+              kind: 'text',
+              content: { type: 'static', text: 'Lake' },
+            }),
+          ],
+        }),
+      ],
+    })
+  }
+
+  it('fetches the book font files the text needs from the app fonts folder', async () => {
+    const fetched: string[] = []
+    vi.stubGlobal('location', { href: 'https://app.test/assets/pdf.worker.js' })
+    vi.stubGlobal('fetch', async (url: URL) => {
+      fetched.push(url.href)
+      const file = url.pathname.split('/').at(-1) ?? ''
+      return new Response(new Blob([new Uint8Array(await bookFontFiles(file))]))
+    })
+
+    const posts = await run({ book: textBook(), photos: {}, marks: false })
+
+    expect(doneOf(posts.at(-1)?.message).sheets).toBe(20)
+    expect(fetched).toEqual([
+      'https://app.test/fonts/inter-latin-wght-normal.woff2',
+    ])
+  })
+
+  it('fails the paint when a font file does not load', async () => {
+    vi.stubGlobal('location', { href: 'https://app.test/assets/pdf.worker.js' })
+    vi.stubGlobal('fetch', () =>
+      Promise.resolve(new Response(null, { status: 404 })),
+    )
+
+    const posts = await run({ book: textBook(), photos: {}, marks: false })
+
+    expect(posts.at(-1)?.message).toEqual({
+      failed: {
+        message: 'Error: font inter-latin-wght-normal.woff2: HTTP 404',
+      },
+    })
   })
 
   it('reads the photo blobs and posts the PDF in chunks, transferred', async () => {

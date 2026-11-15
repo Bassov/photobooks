@@ -13,18 +13,21 @@ describe('text styles', () => {
   it('pins the Designer type scale', () => {
     expect(TEXT_STYLES).toEqual({
       title: {
+        family: 'Lora Variable',
         fontFamily: "'Lora Variable', Georgia, serif",
         sizeMm: 9,
         weight: 500,
         lineHeight: 1.15,
       },
       caption: {
+        family: 'Inter Variable',
         fontFamily: "'Inter Variable', system-ui, sans-serif",
         sizeMm: 3.1,
         weight: 400,
         lineHeight: 1.4,
       },
       body: {
+        family: 'Inter Variable',
         fontFamily: "'Inter Variable', system-ui, sans-serif",
         sizeMm: 3.6,
         weight: 400,

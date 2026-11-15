@@ -7,6 +7,15 @@ import {
   type ResolvedText,
   type Spread,
 } from '../core'
+import {
+  baselineOffset,
+  breakTextLines,
+  CAPTION_COLOR,
+  CAPTION_GAP_MM,
+  CAPTION_LINE_HEIGHT,
+  ellipsize,
+  FOLIO_LINE_HEIGHT,
+} from '../core/pdf/textLayout'
 import { frameBox, type PxBox } from './frameBox'
 import { adjustFilter, frameStyleCss } from './frameLookCss'
 import { turnedPhotoStyle } from './photoLayout'
@@ -16,6 +25,8 @@ import {
   textNodeStyle,
   textStyleFonts,
 } from './textStyles'
+
+export { breakTextLines }
 
 /**
  * Canvas 2D page painter (Designer D39): one physical page of the book as
@@ -32,57 +43,12 @@ export type PageImage =
 
 /** `--paper` (styles/tokens.css): the page colour default and frame fill. */
 const PAPER = '#ffffff'
-/** `--muted-foreground` (styles/tokens.css): `.spread-frame-caption` colour. */
-const CAPTION_COLOR = '#535152'
 /** `--font-ui` (styles/tokens.css): captions and folios. */
 const UI_FONT = "'Inter Variable', Inter, sans-serif"
-/** `SpreadView` CAPTION_GAP_MM: the caption sits 1.5 mm under the frame. */
-const CAPTION_GAP_MM = 1.5
-/** `.spread-frame-caption` / `.spread-view-folio` line heights. */
-const CAPTION_LINE_HEIGHT = 1.3
-const FOLIO_LINE_HEIGHT = 1.4
-const ELLIPSIS = '…'
 const FULL_CROP = { x: 0, y: 0, width: 1, height: 1 } as const
 
 interface FontSource {
   load(font: string, text?: string): Promise<unknown>
-}
-
-/**
- * Lines of `text` in a box `maxWidth` wide, as CSS `white-space: pre-wrap;
- * overflow-wrap: anywhere` breaks them: hard breaks, then greedy at spaces
- * (trailing spaces hang), and a word wider than the box splits anywhere.
- */
-export function breakTextLines(
-  measure: (text: string) => number,
-  text: string,
-  maxWidth: number,
-): string[] {
-  const lines: string[] = []
-  for (const paragraph of text.split('\n')) {
-    let line = ''
-    for (const token of paragraph.match(/[^ ]+ *| /g) ?? []) {
-      if (measure((line + token).trimEnd()) <= maxWidth) {
-        line += token
-        continue
-      }
-      if (line !== '') {
-        lines.push(line.trimEnd())
-        line = ''
-      }
-      const word = token.trimEnd()
-      for (const char of word) {
-        if (line !== '' && measure(line + char) > maxWidth) {
-          lines.push(line)
-          line = ''
-        }
-        line += char
-      }
-      line += token.slice(word.length)
-    }
-    lines.push(line.trimEnd())
-  }
-  return lines
 }
 
 /**
@@ -241,9 +207,11 @@ function paintPhotoBody(
 /** First line box baseline: half-leading above the font's ascent. */
 function baseline(ctx: PageContext, sample: string, lineHeight: number) {
   const metrics = ctx.measureText(sample)
-  const ascent = metrics.fontBoundingBoxAscent
-  const content = ascent + metrics.fontBoundingBoxDescent
-  return (lineHeight - content) / 2 + ascent
+  return baselineOffset(
+    lineHeight,
+    metrics.fontBoundingBoxAscent,
+    metrics.fontBoundingBoxDescent,
+  )
 }
 
 function alignX(align: CanvasTextAlign, width: number): number {
@@ -290,17 +258,11 @@ function paintCaption(
   ctx.font = `400 ${String(size)}px ${UI_FONT}`
   ctx.fillStyle = CAPTION_COLOR
   ctx.textAlign = 'left'
-  let line = caption
-  if (ctx.measureText(line).width > box.width) {
-    const chars = Array.from(caption)
-    while (
-      chars.length > 0 &&
-      ctx.measureText(chars.join('') + ELLIPSIS).width > box.width
-    ) {
-      chars.pop()
-    }
-    line = chars.join('') + ELLIPSIS
-  }
+  const line = ellipsize(
+    (text) => ctx.measureText(text).width,
+    caption,
+    box.width,
+  )
   ctx.save()
   ctx.beginPath()
   ctx.rect(0, top, box.width, lineHeight)

@@ -6,7 +6,7 @@ Title: text in the PDF
 
 ## Scope
 
-- [ ] Captions with the same embedded font files as the DOM painter
+- [x] Captions with the same embedded font files as the DOM painter
 - **Browser check:** captions in the PDF match the editor.
 - **UI ref:** `kit v0.9.3 #/feature/pdf-captions (removed in kit v0.10.0, no replacement)`
 - **UI kit:** none in v0.10.0 (kit v0.9.3 `#/feature/pdf-captions`, removed) — editor vs PDF caption parity
@@ -17,4 +17,4 @@ Title: text in the PDF
 - **Hard nos:** no UI
 - **Tokens:** Grayscale product tokens (RULES.md): field `#D7D7D7`, bar `#E1E1E1`, list / film selection `#CACACA`, canvas selection `#232223` with white handles, crop `--crop` `#6b696a`; values from `uikit/src/index.css`, mapped to `src/ui/` tokens. No blue, no teal.
 - **Test:** unit + PBT on the pure text layout; no e2e (no UI)
-- **Depends:** pdf-export, text-frame-model (also needs held `text-blocks` re-added first)
+- **Depends:** pdf-export, text-frame-model (= `text-frames-core`, done), `text-blocks` (done: #445/#447/#467, closed by `text-blocks-close`); all met
