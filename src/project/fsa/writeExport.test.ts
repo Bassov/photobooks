@@ -11,11 +11,11 @@ const PDF_2 = bytes('%PDF-1.7 second, longer')
 
 /** Streams `chunks` to `exports/<name>` and closes. */
 async function write(
-  root: Parameters<typeof openExport>[0],
+  root: Awaited<Parameters<typeof openExport>[0]>,
   name: string,
   chunks: Uint8Array[],
 ) {
-  const stream = openExport(root, name)
+  const stream = openExport(Promise.resolve(root), name)
   for (const chunk of chunks) stream.write(chunk)
   return stream.close()
 }
@@ -59,7 +59,7 @@ describe('openExport', () => {
       'exports/lake-trip-A5.pdf': PDF_2,
     })
 
-    const stream = openExport(library.root, 'lake-trip-A5.pdf')
+    const stream = openExport(Promise.resolve(library.root), 'lake-trip-A5.pdf')
     stream.write(PDF)
     await stream.abort()
 
@@ -153,6 +153,20 @@ describe('openExport', () => {
 
     expect(result).toEqual({ ok: false, code: 'full' })
     expect(ops).toEqual(['close', 'abort'])
+  })
+
+  it('fails with access without a library folder, an abort included', async () => {
+    const stream = openExport(Promise.resolve(null), 'a.pdf')
+    stream.write(PDF)
+    await stream.abort()
+
+    expect(await stream.close()).toEqual({ ok: false, code: 'access' })
+  })
+
+  it('fails with other when the library folder cannot be read', async () => {
+    expect(
+      await openExport(Promise.reject(new Error('gone')), 'a.pdf').close(),
+    ).toEqual({ ok: false, code: 'other' })
   })
 
   it('fails with other when exports is a file', async () => {

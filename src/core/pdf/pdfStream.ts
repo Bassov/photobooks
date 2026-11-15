@@ -88,12 +88,9 @@ export function streamPdf(
     },
     finish: () => {
       write(true)
+      // The section puts each entry in object number order itself.
       const xref = lib.PDFCrossRefSection.create()
-      for (const [ref, at] of offsets.sort(
-        ([a], [b]) => a.objectNumber - b.objectNumber,
-      )) {
-        xref.addEntry(ref, at)
-      }
+      for (const [ref, at] of offsets) xref.addEntry(ref, at)
       const { Root, Info, ID } = context.trailerInfo
       const trailerDict = lib.PDFTrailerDict.of(
         context.obj({ Size: context.largestObjectNumber + 1, Root, Info, ID }),

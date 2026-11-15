@@ -20,7 +20,6 @@ import {
   openExport,
   type ExportDirectoryHandle,
   type ExportFileHandle,
-  type ExportStream,
 } from '../../project'
 import { getBookPrintProfiles, getBookStoreSnapshot } from '../bookStore'
 import { readSource } from '../export/startExportSite'
@@ -180,13 +179,6 @@ async function imposed(
   return 'done' in message && 'sheets' in message.done ? message.done : null
 }
 
-/** The output without a library: writes go nowhere, saving fails as `access`. */
-const NO_LIBRARY: ExportStream = {
-  write: () => undefined,
-  close: () => Promise.resolve({ ok: false, code: 'access' }),
-  abort: () => Promise.resolve(),
-}
-
 /**
  * One Print run (Designer pdf-export §2.2–2.4): paint in the PDF worker,
  * impose a booklet there too, streaming the file to
@@ -218,10 +210,9 @@ export async function runPrint(deps: PrintRunDeps): Promise<void> {
     layout === 'single'
       ? single
       : `${single.slice(0, -'.pdf'.length)}-${layout}.pdf`
-  let output = NO_LIBRARY
+  // No library folder, or a refused one, shows as `access` on close.
+  const output = deps.open(deps.library(), file)
   try {
-    const library = await deps.library()
-    if (library !== null) output = deps.open(library, file)
     const write = (chunk: ArrayBuffer) => {
       output.write(new Uint8Array(chunk))
     }

@@ -38,7 +38,6 @@ export {
   openExport,
   type ExportDirectoryHandle,
   type ExportFileHandle,
-  type ExportStream,
   type ExportWritable,
   type ExportWriteErrorCode,
   type ExportWriteResult,

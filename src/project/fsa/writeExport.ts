@@ -48,11 +48,11 @@ export interface ExportStream {
 
 /**
  * Streams `<library>/exports/<name>`, creating `exports/`. The file opens
- * with the first queued step, so a refused folder shows on `close`. The
- * platform rejects names with a path separator, `.` or `..`.
+ * with the first queued step, so a refused or missing (`null`) folder shows
+ * on `close`. The platform rejects names with a path separator, `.` or `..`.
  */
 export function openExport(
-  library: ExportDirectoryHandle,
+  library: Promise<ExportDirectoryHandle | null>,
   name: string,
 ): ExportStream {
   let failure: { error: unknown } | undefined
@@ -60,7 +60,11 @@ export function openExport(
     failure ??= { error }
   }
   const target = (async () => {
-    const exports = await library.getDirectoryHandle(EXPORTS_DIR, {
+    const root = await library
+    if (root === null) {
+      throw new DOMException('No library folder', 'NotAllowedError')
+    }
+    const exports = await root.getDirectoryHandle(EXPORTS_DIR, {
       create: true,
     })
     const file = await exports.getFileHandle(name, { create: true })
@@ -80,17 +84,15 @@ export function openExport(
     },
     close: async () => {
       await queue
-      if (failure === undefined) {
+      try {
+        if (failure !== undefined) throw failure.error
         const { file, writable } = await target
-        try {
-          await writable.close()
-          return { ok: true, file }
-        } catch (error) {
-          fail(error)
-        }
+        await writable.close()
+        return { ok: true, file }
+      } catch (error) {
+        await drop()
+        return { ok: false, code: exportErrorCode(error) }
       }
-      await drop()
-      return { ok: false, code: exportErrorCode(failure?.error) }
     },
     abort: async () => {
       await queue
