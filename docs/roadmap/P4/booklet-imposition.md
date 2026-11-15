@@ -7,9 +7,9 @@ Status: done
 
 ## Scope
 
-- [ ] Owns the 2-up and 4-up imposition options in the Print dialog (shown once this ships). Pure 2-up saddle-stitch sheet order with blank-page padding; imposed PDF from the page PDF (in the worker)
-- [ ] 4-up (duplex) sheet order; sheet-count summary in the Print dialog
-- [ ] Duplex printing instructions
+- [x] Owns the 2-up and 4-up imposition options in the Print dialog (shown once this ships). Pure 2-up saddle-stitch sheet order with blank-page padding; imposed PDF from the page PDF (in the worker)
+- [x] 4-up (duplex) sheet order; sheet-count summary in the Print dialog
+- [x] Duplex printing instructions
 - **Perf:** imposition runs in the PDF worker; scenario: edit while imposing — zero LoAF.
 - **Browser check:** print an 8–16 page booklet, fold, pages read in order.
 - **Kit components:** `uikit#/feature/pdf-export` (`uikit/src/features/pages.tsx` page `pdf-export`); parts: `uikit/src/demo-parts/dialogs.tsx` (`PrintDialog (imposition 2-up saddle-stitch / 4-up, duplex)`)
