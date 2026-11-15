@@ -1,5 +1,4 @@
 // Zod-free: the print PDF's file name (Designer Spec pdf-export D8).
-import type { ImpositionLayout } from './imposition'
 import { fmtN } from './profileText'
 
 /** Kit page-size presets (portrait cm); `src/editor/pageSizePresets.ts` holds the same ids and sizes. */
@@ -30,13 +29,11 @@ export function titleSlug(title: string): string {
 /**
  * `{slug(title)}-{preset id}.pdf` when the trim is a kit preset in either
  * orientation, else `{slug(title)}-{w}x{h}cm.pdf` (e.g. `lake-trip-A5.pdf`,
- * `lake-trip-19x23cm.pdf`); a booklet adds its layout
- * (`lake-trip-A5-2up.pdf`).
+ * `lake-trip-19x23cm.pdf`).
  */
 export function pdfFileName(
   title: string,
   trim: { widthMm: number; heightMm: number },
-  layout?: ImpositionLayout,
 ): string {
   const w = fmtN(trim.widthMm / 10)
   const h = fmtN(trim.heightMm / 10)
@@ -45,6 +42,5 @@ export function pdfFileName(
       (fmtN(p.wCm) === w && fmtN(p.hCm) === h) ||
       (fmtN(p.wCm) === h && fmtN(p.hCm) === w),
   )
-  const suffix = layout === undefined ? '' : `-${layout}`
-  return `${titleSlug(title)}-${preset?.id ?? `${w}x${h}cm`}${suffix}.pdf`
+  return `${titleSlug(title)}-${preset?.id ?? `${w}x${h}cm`}.pdf`
 }

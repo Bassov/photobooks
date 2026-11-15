@@ -219,10 +219,10 @@ export async function runPrint(deps: PrintRunDeps): Promise<void> {
       fail('access')
       return
     }
-    const file = pdfFileName(
-      book.title ?? '',
-      book.settings.trim,
-      layout === 'single' ? undefined : layout,
+    // A booklet adds its layout (`lake-trip-A5-2up.pdf`).
+    const file = pdfFileName(book.title ?? '', book.settings.trim).replace(
+      /\.pdf$/,
+      layout === 'single' ? '.pdf' : `-${layout}.pdf`,
     )
     const written = await deps.write(library, file, new Uint8Array(pdf))
     if (!written.ok) {
