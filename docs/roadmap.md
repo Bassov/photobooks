@@ -184,6 +184,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [uikit-qa-split-3](roadmap/P3/uikit-qa-split-3.md) — Bug: /next-roadmap-item uikit-qa-split-3
 - [ ] [feature] [uikit-qa-split-4](roadmap/P3/uikit-qa-split-4.md) — Bug: /next-roadmap-item uikit-qa-split-4
 - [ ] [feature] [uikit-qa-split-5](roadmap/P3/uikit-qa-split-5.md) — Bug: /next-roadmap-item uikit-qa-split-5
+- [ ] [feature] [uikit-qa-split-6](roadmap/P3/uikit-qa-split-6.md) — Bug: /next-roadmap-item uikit-qa-split-6
 - [ ] [feature] [in-app-publish-core](roadmap/P3/in-app-publish-core.md) — Bug: /next-roadmap-item in-app-publish-core
 - [ ] [feature] [publish-site-flaky](roadmap/P3/publish-site-flaky.md) — Bug: /next-roadmap-item publish-site-flaky
 - [ ] [feature] [perf-workflow-merge-base](roadmap/P3/perf-workflow-merge-base.md) — Bug: /next-roadmap-item perf-workflow-merge-base

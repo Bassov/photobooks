@@ -46,9 +46,9 @@ Line numbers are qa.mjs at `e90d45da` (before batch 1). Count = `ok()` call site
 | frame style            | 1001–1015, 1457–1486, 2178–2195                                                                                                                        | `e2e/kit-frame-style.spec.ts`      | 3 + 1      | split-5 ✓ |
 | cover                  | 2133–2161, 2610–2652                                                                                                                                   | `e2e/kit-cover.spec.ts`            | 13 + 0     | split-5 ✓ |
 | static export          | 2587–2609                                                                                                                                              | `e2e/kit-static-export.spec.ts`    | 3 + 0      | split-5 ✓ |
-| text frames            | 2462–2549                                                                                                                                              | `e2e/kit-text-frames.spec.ts`      | 15 + 0     | split-6   |
-| default master         | 2550–2586                                                                                                                                              | `e2e/kit-default-master.spec.ts`   | 8 + 0      | split-6   |
-| printer presets        | 2653–2800                                                                                                                                              | `e2e/kit-print-presets.spec.ts`    | 27 + 0     | split-6   |
+| text frames            | 2462–2549                                                                                                                                              | `e2e/kit-text-frames.spec.ts`      | 15 + 0     | split-6 ✓ |
+| default master         | 2550–2586                                                                                                                                              | `e2e/kit-default-master.spec.ts`   | 8 + 0      | split-6 ✓ |
+| printer presets        | 2653–2800                                                                                                                                              | `e2e/kit-print-presets.spec.ts`    | 27 + 0     | split-6 ✓ |
 
 Per item (`ok()` + smoke): split-1 27 + 18 · split-2 23 + 14 · split-3 47 + 5 · split-4 70 + 5 · split-5 74 + 6 (moves the last smoke calls → also drops `smoke` / `smokeS` and their 2 `ok()` sites) · split-6 50 + 0. Sum: 29 (§4 incl. the 2 helper sites) + 264 = 293 moved, 56 left in sections 0–3.
 
