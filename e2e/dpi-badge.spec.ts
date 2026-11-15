@@ -13,7 +13,11 @@ import {
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
 import { PERF_BUDGETS } from './perf/budgets'
-import { applyCpuThrottling, clearPerfScenario } from './perf/perfFixture'
+import {
+  applyCpuThrottling,
+  clearPerfScenario,
+  waitFrames,
+} from './perf/perfFixture'
 
 test.beforeAll(() => {
   ensurePhotoFixtures()
@@ -163,14 +167,14 @@ test.describe('low-resolution badge on frames', () => {
     await filledFrame(page).dblclick()
     const center = await frameCenter(page)
     await page.mouse.move(center.x, center.y)
-    await page.waitForTimeout(300)
+    await waitFrames(page, 20)
 
     await applyCpuThrottling(page)
     await clearPerfScenario(page)
     // Alternate zoom in / out so the badge crosses the threshold repeatedly.
     for (let i = 0; i < 6; i += 1) {
       await page.mouse.wheel(0, i % 2 === 0 ? -600 : 600)
-      await page.waitForTimeout(250)
+      await waitFrames(page, 16)
     }
     await page.mouse.down()
     const start = Date.now()
@@ -181,7 +185,7 @@ test.describe('low-resolution badge on frames', () => {
         center.x + Math.sin(tick / 8) * 60,
         center.y + Math.cos(tick / 8) * 40,
       )
-      await page.waitForTimeout(8)
+      await waitFrames(page)
     }
     await page.mouse.up()
 

@@ -2,7 +2,11 @@ import { expect, test } from './fixtures/coverage'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { dispatchCtrlWheel } from './fixtures/dispatchCtrlWheel'
 import { openSessionEditor } from './fixtures/openSessionEditor'
-import { applyCpuThrottling, clearPerfScenario } from './perf/perfFixture'
+import {
+  applyCpuThrottling,
+  clearPerfScenario,
+  waitFrames,
+} from './perf/perfFixture'
 import type { Locator, Page } from '@playwright/test'
 
 const ACTIVE_SPREAD = '[data-active="true"] [data-testid="spread-view"]'
@@ -264,7 +268,7 @@ test.describe('frame-budget gates', () => {
     await page.mouse.down()
     for (let step = 0; step < 40; step += 1) {
       await page.mouse.move(grab.x, grab.y - 20 + (step % 20) * 2)
-      await page.waitForTimeout(16)
+      await waitFrames(page)
     }
     await page.mouse.up()
 

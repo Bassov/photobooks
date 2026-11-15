@@ -14,7 +14,11 @@ import {
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
 import { PERF_BUDGETS } from './perf/budgets'
-import { applyCpuThrottling, clearPerfScenario } from './perf/perfFixture'
+import {
+  applyCpuThrottling,
+  clearPerfScenario,
+  waitFrames,
+} from './perf/perfFixture'
 
 test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
@@ -225,7 +229,7 @@ test('panning a crop for 5 s stays within frame-budget gates', async ({
   await expect
     .poll(async () => (await imageBox(page)).width)
     .not.toBe(cover.width)
-  await page.waitForTimeout(300)
+  await waitFrames(page, 20)
 
   await applyCpuThrottling(page)
   await clearPerfScenario(page)
@@ -238,7 +242,7 @@ test('panning a crop for 5 s stays within frame-budget gates', async ({
       center.x + Math.sin(tick / 8) * 60,
       center.y + Math.cos(tick / 8) * 40,
     )
-    await page.waitForTimeout(8)
+    await waitFrames(page)
   }
   await page.mouse.up()
 

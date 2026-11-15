@@ -8,6 +8,7 @@ import {
   browserBeginLoafScenarioWindow,
   clearPerfScenario,
   enablePerfScenario,
+  waitFrames,
 } from './perf/perfFixture'
 
 test.beforeEach(async ({ page }) => {
@@ -131,7 +132,7 @@ test.describe('inspector frame-budget gates', () => {
     await page.mouse.down()
     for (let tick = 1; tick <= 120; tick += 1) {
       await page.mouse.move(sx - 30 - Math.sin(tick / 8) * 25, sy - 20)
-      await page.waitForTimeout(8)
+      await waitFrames(page)
     }
     // Live values were flowing while the pointer was down.
     await expect(width).not.toHaveValue(before)

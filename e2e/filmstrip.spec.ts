@@ -23,6 +23,7 @@ import {
   collectFrameStatsArtifact,
   enablePerfScenario,
   scrollFilmstripLoafWindow,
+  waitFrames,
 } from './perf/perfFixture'
 import {
   choosePhotoFolder,
@@ -280,34 +281,34 @@ test('portrait gallery fills the scrollport while scrolling', async ({
     await scroll.evaluate((node, nextLeft) => {
       node.scrollLeft = nextLeft
     }, left)
-    await page.waitForTimeout(50)
 
-    const coverage = await page.evaluate(() => {
-      const port = document.querySelector('[data-testid="filmstrip-scroll"]')
-      if (!(port instanceof HTMLElement)) {
-        return { ok: false, reason: 'no-scrollport' }
-      }
-      const portBox = port.getBoundingClientRect()
-      const items = Array.from(
-        document.querySelectorAll('[data-testid="filmstrip-item"]'),
-      )
-      if (items.length === 0) {
-        return { ok: false, reason: 'no-items' }
-      }
-      let maxRight = 0
-      for (const el of items) {
-        const box = el.getBoundingClientRect()
-        if (box.right > maxRight) {
-          maxRight = box.right
+    const coverage = () =>
+      page.evaluate(() => {
+        const port = document.querySelector('[data-testid="filmstrip-scroll"]')
+        if (!(port instanceof HTMLElement)) {
+          return { ok: false, reason: 'no-scrollport' }
         }
-      }
-      // Rightmost mounted card should reach near the scrollport's right edge
-      // (allow scrollbar / padding slack). A fixed 16-item window leaves >400px.
-      const hole = portBox.right - maxRight
-      return { ok: hole < 120, hole, itemCount: items.length }
-    })
+        const portBox = port.getBoundingClientRect()
+        const items = Array.from(
+          document.querySelectorAll('[data-testid="filmstrip-item"]'),
+        )
+        if (items.length === 0) {
+          return { ok: false, reason: 'no-items' }
+        }
+        let maxRight = 0
+        for (const el of items) {
+          const box = el.getBoundingClientRect()
+          if (box.right > maxRight) {
+            maxRight = box.right
+          }
+        }
+        // Rightmost mounted card should reach near the scrollport's right edge
+        // (allow scrollbar / padding slack). A fixed 16-item window leaves >400px.
+        const hole = portBox.right - maxRight
+        return { ok: hole < 120, hole, itemCount: items.length }
+      })
 
-    expect(coverage.ok, JSON.stringify(coverage)).toBe(true)
+    await expect.poll(coverage).toMatchObject({ ok: true })
   }
 })
 
@@ -914,7 +915,7 @@ test('bulk import fills every revealed placeholder even while scrolling', async 
     await page.getByTestId('filmstrip-scroll').evaluate((node) => {
       node.scrollLeft += 120
     })
-    await page.waitForTimeout(32)
+    await waitFrames(page, 2)
   }
 
   await expect
@@ -987,7 +988,7 @@ test('virtual window re-covers scrollport after import scroll without a nudge', 
     await page.getByTestId('filmstrip-scroll').evaluate((node) => {
       node.scrollLeft += 100
     })
-    await page.waitForTimeout(24)
+    await waitFrames(page, 2)
   }
 
   await expect
@@ -1002,7 +1003,7 @@ test('virtual window re-covers scrollport after import scroll without a nudge', 
   })
 
   // Settle without scrolling — the window must already cover the port.
-  await page.waitForTimeout(200)
+  await waitFrames(page, 12)
 
   const coverage = await page
     .getByTestId('filmstrip-scroll')
@@ -1573,7 +1574,7 @@ test('scroll mid-import keeps earlier revealed tile ids', async ({ page }) => {
     await page.getByTestId('filmstrip-scroll').evaluate((node) => {
       node.scrollLeft += 140
     })
-    await page.waitForTimeout(24)
+    await waitFrames(page, 2)
   }
 
   await expect
