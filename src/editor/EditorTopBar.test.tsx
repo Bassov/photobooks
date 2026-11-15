@@ -227,8 +227,11 @@ describe('EditorTopBar', () => {
     const exportBox = exportSite.parentElement
     expect(exportBox?.parentElement).toBe(settings.parentElement)
     expect(settings.nextElementSibling).toBe(exportBox)
-    // Export site, its status region, then Publish (spec in-app-publish).
-    expect(exportBox?.nextElementSibling?.nextElementSibling).toBe(
+    // Export site, Print, then Publish, each pill followed by its status
+    // region (spec in-app-publish, pdf-export).
+    const printBox = screen.getByTestId('print').parentElement
+    expect(exportBox?.nextElementSibling?.nextElementSibling).toBe(printBox)
+    expect(printBox?.nextElementSibling?.nextElementSibling).toBe(
       publish.parentElement,
     )
     for (const pill of [preview, settings, exportSite, publish]) {

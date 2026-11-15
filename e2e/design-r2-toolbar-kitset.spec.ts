@@ -29,6 +29,7 @@ const BAR_CONTROLS = [
   'Preview',
   'Settings',
   'Export site',
+  'Print',
   'Publish',
 ]
 

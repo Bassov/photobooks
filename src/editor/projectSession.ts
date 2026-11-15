@@ -935,6 +935,19 @@ export function getOpenLibrary(): {
     : null
 }
 
+/**
+ * The open library's folder handle (readwrite since the bind), for writes
+ * outside `LibraryStorage` such as `exports/` (pdf-export D8); else `null`.
+ */
+export async function getOpenLibraryHandle(): Promise<SessionDirectoryHandle | null> {
+  const open = getOpenLibrary()
+  if (open === null) {
+    return null
+  }
+  const peeked = await session.peekLibraryHandle(open.libraryId)
+  return peeked.ok ? peeked.value : null
+}
+
 /** Register an in-session AssetSource root for a library-backed import. */
 export function registerAssetSource(rootId: string, source: AssetSource): void {
   registerInRegistry(rootId, source)

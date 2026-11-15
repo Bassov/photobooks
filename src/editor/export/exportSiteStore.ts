@@ -1,5 +1,13 @@
 import type { SiteExportErrorCode } from '../../site/export/writeSiteTree'
 import type { ExportSitePhase, ExportSiteSummary } from './exportSiteText'
+import {
+  browserJobClock,
+  createJobStore,
+  JOB_DONE_MS,
+  JOB_PROGRESS_MS,
+  type JobClock,
+  type JobStore,
+} from './jobStore'
 
 /** Designer spec static-export §1: pill / dialog run state. */
 export type ExportSiteState =
@@ -21,9 +29,9 @@ export type ExportSiteEvent =
 export const EXPORT_SITE_IDLE: ExportSiteState = { kind: 'idle' }
 
 /** Progress reaches subscribers at most this often. */
-export const EXPORT_PROGRESS_MS = 250
+export const EXPORT_PROGRESS_MS = JOB_PROGRESS_MS
 /** "Exported" stays on the pill this long. */
-export const EXPORT_DONE_MS = 4000
+export const EXPORT_DONE_MS = JOB_DONE_MS
 
 /** Pure transitions; one run at a time, percent never goes back. */
 export function reduceExportSite(
@@ -58,91 +66,13 @@ export function reduceExportSite(
   }
 }
 
-type TimerHandle = ReturnType<typeof setTimeout>
+export type ExportSiteClock = JobClock
 
-export interface ExportSiteClock {
-  now: () => number
-  setTimer: (run: () => void, ms: number) => TimerHandle
-  clearTimer: (handle: TimerHandle | undefined) => void
-  requestFrame: (run: () => void) => void
-}
+export type ExportSiteStore = JobStore<ExportSiteState, ExportSiteEvent>
 
-export interface ExportSiteStore {
-  getSnapshot: () => ExportSiteState
-  subscribe: (listener: () => void) => () => void
-  /** `false` when a run is already going (the event is dropped). */
-  dispatch: (event: ExportSiteEvent) => boolean
-}
-
-/**
- * Module store over `reduceExportSite`. Progress is published at most every
- * `EXPORT_PROGRESS_MS`, in an animation frame; other events at once. `done`
- * expires after `EXPORT_DONE_MS`.
- */
+/** Job store over `reduceExportSite` (`createJobStore`). */
 export function createExportSiteStore(clock: ExportSiteClock): ExportSiteStore {
-  let state = EXPORT_SITE_IDLE
-  let published = state
-  let publishedAt = Number.NEGATIVE_INFINITY
-  let flushPending = false
-  let expireTimer: TimerHandle | undefined
-  const listeners = new Set<() => void>()
-
-  const publish = () => {
-    flushPending = false
-    if (published === state) {
-      return
-    }
-    published = state
-    publishedAt = clock.now()
-    for (const listener of listeners) {
-      listener()
-    }
-  }
-
-  const dispatch = (event: ExportSiteEvent): boolean => {
-    const next = reduceExportSite(state, event)
-    if (next === state) {
-      return false
-    }
-    state = next
-    if (event.type === 'progress') {
-      if (!flushPending) {
-        flushPending = true
-        const wait = Math.max(0, publishedAt + EXPORT_PROGRESS_MS - clock.now())
-        clock.setTimer(() => {
-          clock.requestFrame(publish)
-        }, wait)
-      }
-      return true
-    }
-    // Every other change shows at once; only `done` reacts to the expiry.
-    clock.clearTimer(expireTimer)
-    expireTimer = clock.setTimer(() => {
-      dispatch({ type: 'expire' })
-    }, EXPORT_DONE_MS)
-    publish()
-    return true
-  }
-
-  return {
-    getSnapshot: () => published,
-    subscribe(listener) {
-      listeners.add(listener)
-      return () => {
-        listeners.delete(listener)
-      }
-    },
-    dispatch,
-  }
+  return createJobStore(reduceExportSite, EXPORT_SITE_IDLE, clock)
 }
 
-export const exportSiteStore = createExportSiteStore({
-  now: () => performance.now(),
-  setTimer: (run, ms) => setTimeout(run, ms),
-  clearTimer: globalThis.clearTimeout.bind(globalThis),
-  requestFrame: (run) => {
-    requestAnimationFrame(() => {
-      run()
-    })
-  },
-})
+export const exportSiteStore = createExportSiteStore(browserJobClock)

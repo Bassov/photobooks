@@ -1,0 +1,518 @@
+import { PDFDocument } from '@cantoo/pdf-lib'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeBook, makeFrame, makeSpread } from '../../core/testing/fixtures'
+import {
+  runPdfCheck,
+  runPdfPaint,
+  type PdfWorkerRequest,
+} from '../../core/pdf/pdf.worker'
+import type {
+  ExportDirectoryHandle,
+  ExportFileHandle,
+  ExportWriteResult,
+} from '../../project'
+import { resetBookStore } from '../bookStore'
+import { getOpenLibraryHandle } from '../projectSession'
+import {
+  PRINT_IDLE,
+  printStore,
+  reducePrint,
+  type PrintEvent,
+  type PrintState,
+} from './printStore'
+import {
+  checkOpenBook,
+  checkPrint,
+  openPrintedPdf,
+  OPEN_PDF_URL_MS,
+  printCounts,
+  resolvePrintPhotos,
+  retryPrint,
+  runPdfWorker,
+  runPrint,
+  startPrint,
+  type PdfWorkerRunner,
+  type PrintJob,
+} from './startPrint'
+
+vi.mock('../export/startExportSite', () => ({
+  readSource: vi.fn((assetId: string) =>
+    assetId === 'a'
+      ? Promise.resolve(new Blob([JPEG]))
+      : Promise.reject(new Error('Photo source unavailable')),
+  ),
+}))
+
+vi.mock('../projectSession', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../projectSession')>()),
+  getOpenLibraryHandle: vi.fn(() => Promise.resolve(null)),
+  getProjectSessionSnapshot: () => ({ libraryLabel: 'Photobooks' }),
+}))
+
+/** The PDF worker in-process: messages go back asynchronously, like `postMessage`. */
+class InProcessWorker {
+  onmessage: ((event: { data: unknown }) => void) | null = null
+  onerror: (() => void) | null = null
+  terminated = false
+  postMessage(request: PdfWorkerRequest) {
+    const post = (data: unknown) => {
+      this.onmessage?.({ data })
+    }
+    void ('check' in request
+      ? runPdfCheck(request.check, post)
+      : runPdfPaint(request.paint, post))
+  }
+  terminate() {
+    this.terminated = true
+  }
+}
+
+const workers: InProcessWorker[] = []
+vi.mock('../../core/pdf/createPdfWorker', () => ({
+  createPdfWorker: () => {
+    const worker = new InProcessWorker()
+    workers.push(worker)
+    return worker
+  },
+}))
+
+/** SOI, SOF0 (1 × 1, 3 channels), EOI. */
+const JPEG = new Uint8Array([
+  0xff, 0xd8, 0xff, 0xc0, 0, 17, 8, 0, 1, 0, 1, 3, 1, 0x22, 0, 2, 0x11, 1, 3,
+  0x11, 1, 0xff, 0xd9,
+])
+
+const MM = 72 / 25.4
+
+function photoBook() {
+  return makeBook({
+    title: 'Lake trip',
+    settings: { trim: { widthMm: 148, heightMm: 210 }, bleedMm: 3 },
+    assets: { a: {}, gone: {} },
+    // Page 1, then the single last page 2.
+    spreads: [
+      makeSpread({ frames: [makeFrame({ id: 'f-a', assetId: 'a' })] }),
+      makeSpread({
+        id: 'spread-2',
+        frames: [makeFrame({ id: 'f-gone', assetId: 'gone' })],
+      }),
+    ],
+  })
+}
+
+const inProcess: PdfWorkerRunner = (request, onMessage) => {
+  const post = (message: Parameters<typeof onMessage>[0]) => {
+    onMessage(message)
+  }
+  void ('check' in request
+    ? runPdfCheck(request.check, post)
+    : runPdfPaint(request.paint, post))
+}
+
+/** A library folder whose `exports/` keeps the written bytes. */
+function memoryLibrary() {
+  const files = new Map<string, Uint8Array>()
+  const fileHandle = (name: string): ExportFileHandle => ({
+    kind: 'file',
+    name,
+    getFile: () =>
+      Promise.resolve(new Blob([new Uint8Array(files.get(name) ?? [])])),
+    createWritable: () =>
+      Promise.resolve({
+        write: (data: Uint8Array) => {
+          files.set(name, data)
+          return Promise.resolve()
+        },
+        close: () => Promise.resolve(),
+      }),
+  })
+  const library: ExportDirectoryHandle = {
+    getDirectoryHandle: () => Promise.resolve(library),
+    getFileHandle: (name) => Promise.resolve(fileHandle(name)),
+  }
+  return { library, files }
+}
+
+function recorder() {
+  let state: PrintState = PRINT_IDLE
+  const events: PrintEvent[] = []
+  return {
+    events,
+    state: () => state,
+    dispatch: (event: PrintEvent) => {
+      const next = reducePrint(state, event)
+      if (next === state) return false
+      state = next
+      events.push(event)
+      return true
+    },
+  }
+}
+
+async function print(
+  marks: boolean,
+  overrides: Partial<Parameters<typeof runPrint>[0]> = {},
+) {
+  const { library, files } = memoryLibrary()
+  const store = recorder()
+  const job: PrintJob = { book: photoBook(), printProfiles: [], marks }
+  await runPrint({
+    job,
+    resolvePhotos: resolvePrintPhotos,
+    runWorker: inProcess,
+    library: () => Promise.resolve(library),
+    libraryLabel: 'Photobooks',
+    write: (await import('../../project')).writeExport,
+    dispatch: store.dispatch,
+    ...overrides,
+  })
+  return { store, files }
+}
+
+async function firstPage(bytes: Uint8Array | undefined) {
+  if (bytes === undefined) throw new Error('nothing written')
+  const doc = await PDFDocument.load(bytes)
+  return { doc, page: doc.getPage(0) }
+}
+
+function settlePrintStore() {
+  printStore.dispatch({ type: 'failed', code: 'other', library: '' })
+  printStore.dispatch({ type: 'seen' })
+  printStore.dispatch({ type: 'expire' })
+}
+
+beforeEach(() => {
+  settlePrintStore()
+  workers.length = 0
+  resetBookStore({
+    book: photoBook(),
+    sessionMeta: new Map(),
+    importRunning: false,
+    importExpectedCount: 0,
+  })
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  settlePrintStore()
+})
+
+describe('runPrint', () => {
+  it('writes the D8 file with bleed and crop marks when the box is on', async () => {
+    const { store, files } = await print(true)
+
+    const state = store.state()
+    expect(state).toMatchObject({
+      kind: 'done',
+      file: 'lake-trip-A5.pdf',
+      sheets: 20,
+      library: 'Photobooks',
+      skipped: { count: 1, pages: [2] },
+    })
+    const bytes = files.get('lake-trip-A5.pdf')
+    expect(state.kind === 'done' && state.bytes).toBe(bytes?.byteLength)
+    const { doc, page } = await firstPage(bytes)
+    expect(doc.getPageCount()).toBe(20)
+    const trim = page.getTrimBox()
+    const bleed = page.getBleedBox()
+    expect(trim.width).toBeCloseTo(148 * MM, 3)
+    expect(bleed.width - trim.width).toBeCloseTo(6 * MM, 3)
+    // Crop marks need media past the bleed box.
+    expect(page.getMediaBox().width).toBeGreaterThan(bleed.width)
+  })
+
+  it('writes trim-size pages without marks when the box is off', async () => {
+    const { files } = await print(false)
+
+    const { page } = await firstPage(files.get('lake-trip-A5.pdf'))
+    expect(page.getMediaBox()).toEqual(page.getTrimBox())
+    expect(page.getTrimBox().width).toBeCloseTo(148 * MM, 3)
+  })
+
+  it('reports each painted sheet, then saving, then done', async () => {
+    const { store } = await print(true)
+
+    const types = store.events.map((event) => event.type)
+    expect(types[0]).toBe('start')
+    expect(store.events[0]).toEqual({ type: 'start', sheets: 20 })
+    expect(types.filter((type) => type === 'progress')).toHaveLength(20)
+    expect(types.slice(-2)).toEqual(['saving', 'done'])
+  })
+
+  it('fails with the write error code', async () => {
+    const write = vi.fn((): Promise<ExportWriteResult> =>
+      Promise.resolve({ ok: false, code: 'full' }),
+    )
+    const { store } = await print(true, { write })
+
+    expect(store.state()).toEqual({
+      kind: 'failed',
+      code: 'full',
+      library: 'Photobooks',
+    })
+  })
+
+  it('fails with access without a library folder', async () => {
+    const { store } = await print(true, {
+      library: () => Promise.resolve(null),
+    })
+
+    expect(store.state()).toMatchObject({ kind: 'failed', code: 'access' })
+  })
+
+  it('fails with other when the worker or the photos fail', async () => {
+    const worker = await print(true, {
+      runWorker: (_request, onMessage) => {
+        onMessage({ failed: { message: 'boom' } })
+      },
+    })
+    expect(worker.store.state()).toMatchObject({
+      kind: 'failed',
+      code: 'other',
+    })
+    expect(worker.store.events.map((event) => event.type)).not.toContain(
+      'saving',
+    )
+
+    const photos = await print(true, {
+      resolvePhotos: () => Promise.reject(new Error('gone')),
+    })
+    expect(photos.store.state()).toMatchObject({
+      kind: 'failed',
+      code: 'other',
+    })
+  })
+
+  it('lists every page of the skipped photos in order', async () => {
+    const book = makeBook({
+      settings: { trim: { widthMm: 148, heightMm: 210 }, bleedMm: 3 },
+      assets: { x: {}, y: {} },
+      // x on pages 1 and 4, y on page 2.
+      spreads: [
+        makeSpread({ frames: [makeFrame({ id: 'f-x1', assetId: 'x' })] }),
+        makeSpread({
+          id: 'spread-2',
+          frames: [makeFrame({ id: 'f-y', assetId: 'y' })],
+        }),
+        makeSpread({
+          id: 'spread-3',
+          frames: [makeFrame({ id: 'f-x4', assetId: 'x' })],
+        }),
+      ],
+    })
+
+    const { store } = await print(true, {
+      job: { book, printProfiles: [], marks: true },
+    })
+
+    expect(store.state()).toMatchObject({
+      kind: 'done',
+      skipped: { count: 2, pages: [1, 2, 4] },
+    })
+  })
+
+  it('does nothing while a run is going', async () => {
+    const runWorker = vi.fn()
+    await print(true, { runWorker, dispatch: () => false })
+
+    expect(runWorker).not.toHaveBeenCalled()
+  })
+})
+
+describe('printCounts', () => {
+  it('counts physical pages and the profile output sheets (D5)', () => {
+    expect(printCounts(photoBook(), [])).toEqual({ pages: 2, sheets: 2 })
+  })
+})
+
+describe('checkPrint', () => {
+  it('marks unreadable photos missing in the worker check', async () => {
+    const rows = await checkPrint({
+      book: photoBook(),
+      printProfiles: [],
+      resolvePhotos: resolvePrintPhotos,
+      runWorker: inProcess,
+    })
+
+    const missing = rows.find((row) => row.id === 'asset-missing')
+    expect(missing).toMatchObject({ severity: 'error', pages: [2] })
+  })
+
+  it('shows no rows when the check fails', async () => {
+    const failed = await checkPrint({
+      book: photoBook(),
+      printProfiles: [],
+      resolvePhotos: resolvePrintPhotos,
+      runWorker: (_request, onMessage) => {
+        onMessage({ failed: { message: 'boom' } })
+      },
+    })
+    const thrown = await checkPrint({
+      book: photoBook(),
+      printProfiles: [],
+      resolvePhotos: () => Promise.reject(new Error('gone')),
+      runWorker: inProcess,
+    })
+
+    expect(failed).toEqual([])
+    expect(thrown).toEqual([])
+  })
+})
+
+describe('resolvePrintPhotos', () => {
+  it('returns the readable sources and lists the rest as missing', async () => {
+    const book = photoBook()
+    // 'a' is readable but has no asset record.
+    const ghost = makeBook({
+      ...book,
+      assets: { gone: {} },
+    })
+
+    const resolved = await resolvePrintPhotos(book)
+    const noRecord = await resolvePrintPhotos(ghost)
+
+    expect(Object.keys(resolved.photos)).toEqual(['a'])
+    expect(resolved.missing).toEqual(['gone'])
+    expect(Object.keys(noRecord.photos)).toEqual([])
+    expect(new Set(noRecord.missing)).toEqual(new Set(['a', 'gone']))
+  })
+})
+
+describe('the open book', () => {
+  it('runs Export PDF through one worker per request and ends it', async () => {
+    const { library, files } = memoryLibrary()
+    vi.mocked(getOpenLibraryHandle).mockResolvedValue(library)
+
+    startPrint(false)
+
+    expect(printStore.getSnapshot().kind).toBe('running')
+    await vi.waitFor(() => {
+      expect(printStore.getSnapshot().kind).toBe('done')
+    })
+    expect([...files.keys()]).toEqual(['lake-trip-A5.pdf'])
+    expect(workers).toHaveLength(1)
+    expect(workers[0]?.terminated).toBe(true)
+  })
+
+  it('tries the same snapshot again after a failure', async () => {
+    vi.mocked(getOpenLibraryHandle).mockResolvedValue(null)
+    startPrint(true)
+    await vi.waitFor(() => {
+      expect(printStore.getSnapshot()).toMatchObject({
+        kind: 'failed',
+        code: 'access',
+        library: 'Photobooks',
+      })
+    })
+    resetBookStore({
+      book: makeBook({ title: 'Other' }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const { library, files } = memoryLibrary()
+    vi.mocked(getOpenLibraryHandle).mockResolvedValue(library)
+    printStore.dispatch({ type: 'seen' })
+
+    retryPrint(true)
+
+    await vi.waitFor(() => {
+      expect(printStore.getSnapshot().kind).toBe('done')
+    })
+    expect([...files.keys()]).toEqual(['lake-trip-A5.pdf'])
+  })
+
+  it('checks the open book', async () => {
+    const rows = await checkOpenBook()
+
+    expect(rows.map((row) => row.id)).toContain('asset-missing')
+  })
+
+  it('reports a crashed worker as a failed check', async () => {
+    const post = vi
+      .spyOn(InProcessWorker.prototype, 'postMessage')
+      .mockImplementation(function (this: InProcessWorker) {
+        this.onerror?.()
+      })
+
+    const rows = await checkOpenBook()
+
+    expect(rows).toEqual([])
+    expect(workers[0]?.terminated).toBe(true)
+    post.mockRestore()
+  })
+
+  it('turns a worker error into a failed message', () => {
+    const onMessage = vi.fn()
+    runPdfWorker({ check: { book: photoBook(), photos: {} } }, onMessage)
+    workers[0]?.onerror?.()
+
+    expect(onMessage).toHaveBeenCalledWith({
+      failed: { message: 'PDF worker error' },
+    })
+    expect(workers[0]?.terminated).toBe(true)
+  })
+
+  it('starts a new export on Try again without an earlier one', async () => {
+    vi.resetModules()
+    const fresh = await import('./startPrint')
+    const { printStore: freshStore } = await import('./printStore')
+
+    fresh.retryPrint(true)
+
+    expect(freshStore.getSnapshot().kind).toBe('running')
+    await vi.waitFor(() => {
+      expect(freshStore.getSnapshot().kind).not.toBe('running')
+    })
+  })
+
+  it('keeps the worker for progress messages', () => {
+    const onMessage = vi.fn()
+    runPdfWorker({ check: { book: photoBook(), photos: {} } }, onMessage)
+    workers[0]?.onmessage?.({ data: { progress: { painted: 1, sheets: 2 } } })
+
+    expect(onMessage).toHaveBeenCalledTimes(1)
+    expect(workers[0]?.terminated).toBe(false)
+  })
+})
+
+describe('openPrintedPdf', () => {
+  it('opens the written file in a new tab, cuts the opener and revokes later', async () => {
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:pdf')
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockReturnValue(undefined)
+    const tab = { opener: {} as unknown }
+    const timers: { run: () => void; ms: number }[] = []
+    const win = {
+      open: vi.fn(() => tab as unknown as Window),
+      setTimeout: vi.fn((run: () => void, ms: number) => {
+        timers.push({ run, ms })
+        return 1
+      }),
+    }
+    const { library, files } = memoryLibrary()
+    files.set('a.pdf', new Uint8Array([1, 2, 3]))
+    const handle = await library.getFileHandle('a.pdf')
+
+    await openPrintedPdf(handle, win)
+
+    expect(create.mock.calls[0]?.[0]).toBeInstanceOf(Blob)
+    expect((create.mock.calls[0]?.[0] as Blob).type).toBe('application/pdf')
+    expect((create.mock.calls[0]?.[0] as Blob).size).toBe(3)
+    expect(win.open).toHaveBeenCalledWith('blob:pdf', '_blank')
+    expect(tab.opener).toBeNull()
+    expect(timers[0]?.ms).toBe(OPEN_PDF_URL_MS)
+    expect(revoke).not.toHaveBeenCalled()
+    timers[0]?.run()
+    expect(revoke).toHaveBeenCalledWith('blob:pdf')
+  })
+
+  it('survives a blocked pop-up', async () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:pdf')
+    const win = { open: vi.fn(() => null), setTimeout: vi.fn() }
+    const { library } = memoryLibrary()
+
+    await openPrintedPdf(await library.getFileHandle('a.pdf'), win)
+
+    expect(win.setTimeout).toHaveBeenCalledTimes(1)
+  })
+})

@@ -39,9 +39,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* P11: Export site is icon-only below 1360 px (12 + 16 + 12 = 40 wide, like
-   Settings); Publish keeps its label. */
-@media (max-width: 1359.98px) {
+/* pdf-export D2: Export site is icon-only below 1424 px (12 + 16 + 12 = 40
+   wide, like Settings); Publish keeps its label. */
+@media (max-width: 1423.98px) {
   .site-job-pill__label--narrow {
     display: none;
   }

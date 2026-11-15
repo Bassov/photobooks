@@ -52,7 +52,7 @@ function useStatusText(
  * Top bar site job pill (kit `SiteJobPill`): the rest content is a hidden
  * sizer in the live content's grid cell, so every state keeps the rest
  * width; running fills a `::before` layer under the content. `narrow`: the
- * label hides below 1360 px (P11). `wait`: the other site job runs (P7), the
+ * label hides below 1424 px (pdf-export D2). `wait`: the other site job runs (P7), the
  * pill is disabled with that title on a box-less wrapper.
  */
 export function SiteJobPill({
@@ -116,7 +116,9 @@ export function SiteJobPill({
               data-testid={`${testId}-sizer`}
             >
               {rest.icon}
-              <span className={label}>{rest.label}</span>
+              {rest.label === undefined ? null : (
+                <span className={label}>{rest.label}</span>
+              )}
             </span>
             <span className="site-job-pill__content">
               {content.icon}
