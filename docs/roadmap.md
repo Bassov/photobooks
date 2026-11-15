@@ -167,6 +167,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [publish-core](roadmap/P3/publish-core.md) — Bug: /next-roadmap-item publish-core
 - [ ] [feature] [e2e-related-local](roadmap/P3/e2e-related-local.md) — Bug: /next-roadmap-item e2e-related-local
 - [ ] [lite] [cfix-lite-default](roadmap/P3/cfix-lite-default.md) — Bug: /next-roadmap-item cfix-lite-default
+- [ ] [lite] [main-red-print-test](roadmap/P3/main-red-print-test.md) — Bug: /next-roadmap-item main-red-print-test
 - [ ] [feature] [design-r26-icon-classes](roadmap/P3/design-r26-icon-classes.md) — Bug: /next-roadmap-item design-r26-icon-classes
 - [ ] [feature] [design-r27-hosting-buttons](roadmap/P3/design-r27-hosting-buttons.md) — Bug: /next-roadmap-item design-r27-hosting-buttons
 - [ ] [feature] [design-r28-hosting](roadmap/P3/design-r28-hosting.md) — Bug: /next-roadmap-item design-r28-hosting
