@@ -8,7 +8,9 @@ import type { PrintProfile } from '../print/profileSchema'
 import { bookPrintProfile } from '../printProfile'
 import type { Book } from '../schema'
 import { colorWarnings } from './colorPreflight'
+import type { ImpositionLayout } from '../print/imposition'
 import { readSourceColor } from './iccProfile'
+import { imposePdf } from './imposePdf'
 import { paintBookPdf, type SkippedPhoto } from './paintPdf'
 
 export interface PdfPaintRequest {
@@ -26,8 +28,16 @@ export interface PdfCheckRequest extends Omit<PdfPaintRequest, 'marks'> {
   assetStatus?: Readonly<Record<string, PreflightAssetStatus>>
 }
 
+export interface PdfImposeRequest {
+  /** The page PDF from a `paint` request's `done`. */
+  pdf: ArrayBuffer
+  layout: ImpositionLayout
+}
+
 export type PdfWorkerRequest =
-  { paint: PdfPaintRequest } | { check: PdfCheckRequest }
+  | { paint: PdfPaintRequest }
+  | { check: PdfCheckRequest }
+  | { impose: PdfImposeRequest }
 
 export type PdfPaintMessage =
   /** After each PDF page, `painted` 1..`sheets`. */
@@ -37,6 +47,12 @@ export type PdfPaintMessage =
 
 export type PdfCheckMessage =
   { checked: { rows: PreflightRow[] } } | { failed: { message: string } }
+
+export type PdfImposeMessage =
+  /** After each sheet (front and back), `imposed` 1..`sheets`. */
+  | { progress: { imposed: number; sheets: number } }
+  | { done: { pdf: ArrayBuffer; sheets: number } }
+  | { failed: { message: string } }
 
 /** Bytes read from the head of each photo: JPEG APP2 / PNG iCCP sit there. */
 export const COLOR_READ_BYTES = 256 * 1024
@@ -105,13 +121,36 @@ export async function runPdfCheck(
   }
 }
 
+/**
+ * Imposes the page PDF: a `progress` message per sheet (posted, never
+ * awaited), then exactly one `done` / `failed` message.
+ */
+export async function runPdfImpose(
+  request: PdfImposeRequest,
+  post: (message: PdfImposeMessage, transfer: Transferable[]) => void,
+): Promise<void> {
+  try {
+    const result = await imposePdf({
+      pdf: request.pdf,
+      layout: request.layout,
+      onSheet: (imposed, sheets) => {
+        post({ progress: { imposed, sheets } }, [])
+      },
+    })
+    const pdf = new Uint8Array(result.pdf).buffer
+    post({ done: { pdf, sheets: result.sheets } }, [pdf])
+  } catch (error) {
+    post({ failed: { message: String(error) } }, [])
+  }
+}
+
 async function sourceColor(assetId: string, pages: number[], blob: Blob) {
   const head = await blob.slice(0, COLOR_READ_BYTES).arrayBuffer()
   const { family } = await readSourceColor(new Uint8Array(head))
   return { assetId, pages, family }
 }
 
-type PdfWorkerMessage = PdfPaintMessage | PdfCheckMessage
+type PdfWorkerMessage = PdfPaintMessage | PdfCheckMessage | PdfImposeMessage
 
 const workerScope = globalThis as typeof globalThis & {
   onmessage: ((event: MessageEvent<PdfWorkerRequest>) => void) | null
@@ -125,5 +164,7 @@ workerScope.onmessage = (event: MessageEvent<PdfWorkerRequest>) => {
   const request = event.data
   void ('check' in request
     ? runPdfCheck(request.check, post)
-    : runPdfPaint(request.paint, post))
+    : 'impose' in request
+      ? runPdfImpose(request.impose, post)
+      : runPdfPaint(request.paint, post))
 }
