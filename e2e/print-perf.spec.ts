@@ -108,7 +108,7 @@ test.describe('frame-budget gates', () => {
     await page.evaluate(browserStartLoafScripts)
     await page.evaluate(browserBeginLoafScenarioWindow)
     await dragWhilePainting(page, 2)
-    await dispatchCtrlWheel(page, -100, 4, { settleMs: 0 })
+    await dispatchCtrlWheel(page, -100, 4, { settle: false })
     await releasePdf(page)
     await expect(pill(page)).toHaveAttribute('data-state', 'done', {
       timeout: 120_000,
