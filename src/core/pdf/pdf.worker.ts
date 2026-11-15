@@ -72,6 +72,19 @@ function postChunk(
   }
 }
 
+/** A book font file as the app serves it (`public/fonts`, the DOM's files). */
+async function fetchBookFont(file: string): Promise<Uint8Array> {
+  const url = new URL(
+    `${import.meta.env.BASE_URL}fonts/${file}`,
+    globalThis.location.href,
+  )
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error(`font ${file}: HTTP ${String(response.status)}`)
+  }
+  return new Uint8Array(await response.arrayBuffer())
+}
+
 /** Bytes read from the head of each photo: JPEG APP2 / PNG iCCP sit there. */
 export const COLOR_READ_BYTES = 256 * 1024
 
@@ -94,6 +107,7 @@ export async function runPdfPaint(
           ? undefined
           : new Uint8Array(await blob.arrayBuffer())
       },
+      fonts: fetchBookFont,
       marks: request.marks,
       onChunk: postChunk(post),
       onSheet: (painted, sheets) => {

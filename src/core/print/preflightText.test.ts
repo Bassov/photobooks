@@ -195,6 +195,105 @@ describe('preflightRows', () => {
     expect(rows[2]?.count).toBe(3)
   })
 
+  it('words the cover rules as the Designer table, scope cover, no page list', () => {
+    const rows = preflightRows({
+      issues: [
+        issue('cover-front-empty'),
+        issue('spine-text-cut'),
+        issue('spine-text-small', undefined, {
+          measured: (2 * 72) / 25.4,
+          threshold: 6,
+        }),
+        { ...issue('cover-not-srgb'), family: 'display-p3' },
+        issue('cover-dpi-below-warn', undefined, {
+          measured: 182,
+          threshold: 200,
+        }),
+        issue('cover-dpi-below-min', undefined, {
+          measured: 110,
+          threshold: 150,
+        }),
+        issue('cover-asset-modified'),
+        issue('cover-asset-missing'),
+        issue('bleed-hazard', 9),
+        issue('asset-missing', 2),
+      ],
+      colors: [],
+      profile,
+    })
+
+    expect(
+      rows.map(({ id, severity, scope, text, pageList }) => [
+        id,
+        severity,
+        scope,
+        text + pageList,
+      ]),
+    ).toEqual([
+      ['asset-missing', 'error', 'pages', '1 photo can’t be found · page 2'],
+      [
+        'cover-asset-missing',
+        'error',
+        'cover',
+        'Front cover photo can’t be found',
+      ],
+      [
+        'cover-dpi-below-min',
+        'error',
+        'cover',
+        'Front cover photo is 110 ppi, below 150 ppi',
+      ],
+      [
+        'bleed-hazard',
+        'warning',
+        'pages',
+        '1 photo stops short of the bleed · page 9',
+      ],
+      [
+        'cover-asset-modified',
+        'warning',
+        'cover',
+        'Front cover photo changed on disk since it was added',
+      ],
+      [
+        'cover-dpi-below-warn',
+        'warning',
+        'cover',
+        'Front cover photo is 182 ppi, below 200 ppi',
+      ],
+      [
+        'cover-not-srgb',
+        'warning',
+        'cover',
+        'Front cover photo isn’t sRGB (Display P3), colours may shift',
+      ],
+      [
+        'spine-text-small',
+        'warning',
+        'cover',
+        'Spine text is 5.7 pt, below Shop’s 6 pt minimum',
+      ],
+      [
+        'spine-text-cut',
+        'warning',
+        'cover',
+        'Spine text is longer than the spine and ends in “…”',
+      ],
+      [
+        'cover-front-empty',
+        'info',
+        'cover',
+        'Front cover has no photo and prints in the back fill colour',
+      ],
+    ])
+  })
+
+  it('names no family for a cover-not-srgb issue without one', () => {
+    expect(texts([issue('cover-not-srgb')])).toEqual([
+      'Front cover photo isn’t sRGB (), colours may shift',
+    ])
+  })
+
   it('words one non-sRGB photo in the singular', () => {
     const [row] = preflightRows({
       issues: [],

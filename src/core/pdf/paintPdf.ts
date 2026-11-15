@@ -8,7 +8,11 @@ import type {
 } from '@cantoo/pdf-lib'
 import { type PdfChunkSink, type PdfStream, streamPdf } from './pdfStream'
 import { resolveSpread } from '../geometry/resolveSpread'
-import type { ResolvedItem, ResolvedSpread } from '../geometry/types'
+import type {
+  ResolvedFolio,
+  ResolvedItem,
+  ResolvedSpread,
+} from '../geometry/types'
 import type { PrintProfile } from '../print/profileSchema'
 import type { Book } from '../schema'
 import {
@@ -19,6 +23,20 @@ import {
   roundedRectPath,
 } from './frameLookGeometry'
 import { profileForImage, readSourceColor } from './iccProfile'
+import {
+  type FontFileSource,
+  type FontNeed,
+  loadPdfFonts,
+  type PdfFonts,
+} from './pdfFonts'
+import {
+  layoutCaption,
+  layoutFolio,
+  layoutTextFrame,
+  styleFont,
+  type TextBlock,
+  UI_FONT,
+} from './textLayout'
 import {
   blankSheets,
   compose,
@@ -47,6 +65,8 @@ export interface PaintPdfInput {
   /** The book's effective print profile (`bookPrintProfile`). */
   profile: PrintProfile
   photos: PhotoByteSource
+  /** The book font files; needed once the book prints any text. */
+  fonts?: FontFileSource
   /**
    * The user's "bleed and crop marks" choice, over the profile's crop marks:
    * on = the profile bleed and crop marks, off = trim size, no marks.
@@ -120,6 +140,7 @@ export async function paintBookPdf(
         : orientedAspect(photo.width, photo.height, photo.orientation)
     },
   })
+  const fonts = await loadPdfFonts(lib, doc, fontNeeds(resolved), input.fonts)
 
   const { marks } = input
   const bleedMm = marks ? printBleedMm(book.settings.bleedMm, profile) : 0
@@ -145,7 +166,7 @@ export async function paintBookPdf(
   for (const [index, spread] of resolved.entries()) {
     for (const sheet of sheets.filter((s) => s.spreadIndex === index)) {
       addSheetPage(lib, doc, sheet, marks, bleedMm, (page, slugMm) => {
-        paintSheet(lib, page, sheet, spread, embedded, slugMm, bleedMm)
+        paintSheet(lib, page, sheet, spread, embedded, fonts, slugMm, bleedMm)
       })
       added()
     }
@@ -156,6 +177,8 @@ export async function paintBookPdf(
   }
   // As pdf-lib's save: a PDF has at least one page.
   if (total === 0) doc.addPage()
+  // Each font once, with every glyph the pages set.
+  await fonts.embed()
 
   return { bytes: stream.finish(), sheets: total, skipped }
 }
@@ -293,13 +316,85 @@ function rgb(hex: string): [number, number, number] {
   ) as [number, number, number]
 }
 
-/** Parent layer beneath the spread's frames, each by `z` (as the canvas paints). */
-function paintOrder(items: ResolvedItem[]): ResolvedItem[] {
-  const byZ = (list: ResolvedItem[]) => [...list].sort((a, b) => a.z - b.z)
+type PaintEntry =
+  { z: number; item: ResolvedItem } | { z: number; folio: ResolvedFolio }
+
+/**
+ * Parent layer (parent items and folios at z 0) beneath the spread's
+ * frames, each by `z` (as the canvas paints).
+ */
+function paintOrder(spread: ResolvedSpread): PaintEntry[] {
+  const byZ = (list: PaintEntry[]) => [...list].sort((a, b) => a.z - b.z)
+  const items = spread.items.map((item) => ({ z: item.z, item }))
   return [
-    ...byZ(items.filter((item) => item.parent === true)),
-    ...byZ(items.filter((item) => item.parent !== true)),
+    ...byZ([
+      ...items.filter((entry) => entry.item.parent === true),
+      ...(spread.folios ?? []).map((folio) => ({ z: 0, folio })),
+    ]),
+    ...byZ(items.filter((entry) => entry.item.parent !== true)),
   ]
+}
+
+/** Text the book prints, per font: which font faces the PDF embeds. */
+function fontNeeds(spreads: ResolvedSpread[]): FontNeed[] {
+  return spreads.flatMap((spread) => [
+    ...spread.items.flatMap((item) => [
+      ...(item.text === undefined
+        ? []
+        : [{ font: styleFont(item.text.styleId), text: item.text.text }]),
+      ...(item.caption === undefined
+        ? []
+        : [{ font: UI_FONT, text: `${item.caption}…` }]),
+    ]),
+    ...(spread.folios ?? []).map((folio) => ({
+      font: UI_FONT,
+      text: folio.text,
+    })),
+  ])
+}
+
+/** A text block's lines in its colour, clipped as laid out. */
+function paintBlock(
+  lib: PdfLib,
+  page: PDFPage,
+  fonts: PdfFonts,
+  block: TextBlock,
+): PDFOperator[] {
+  const ops = [lib.pushGraphicsState()]
+  if (block.clip !== undefined) {
+    const { x, y, width, height } = block.clip
+    ops.push(lib.rectangle(x, y, width, height), lib.clip(), lib.endPath())
+  }
+  ops.push(lib.setFillingRgbColor(...rgb(block.color)))
+  for (const line of block.lines) {
+    if (line.text === '') continue
+    ops.push(...fonts.show(page, block.font, line.text, line.x, line.baseline))
+  }
+  ops.push(lib.popGraphicsState())
+  return ops
+}
+
+/**
+ * A frame's photo in frame-local mm, clipped to the frame or its look; the
+ * clip stays set after it.
+ */
+function paintPhotoBody(
+  lib: PdfLib,
+  item: ResolvedItem,
+  photo: Embedded,
+  name: PDFName,
+): PDFOperator[] {
+  const image = imageMatrix(item, photo.orientation)
+  const look = frameLook(item.rectMm, item.style)
+  return look === undefined
+    ? [
+        lib.rectangle(0, 0, item.rectMm.width, item.rectMm.height),
+        lib.clip(),
+        lib.endPath(),
+        cm(lib, image),
+        lib.drawObject(name),
+      ]
+    : paintLook(lib, look, item.rectMm, image, name)
 }
 
 function paintSheet(
@@ -308,6 +403,7 @@ function paintSheet(
   sheet: PdfSheet,
   spread: ResolvedSpread,
   embedded: Map<string | undefined, Embedded>,
+  fonts: PdfFonts,
   slugMm: number,
   bleedMm: number,
 ): void {
@@ -337,27 +433,45 @@ function paintSheet(
   }
   // One page resource per image, however many frames show it.
   const names = new Map<PDFRef, PDFName>()
-  for (const item of paintOrder(spread.items)) {
-    const photo = embedded.get(item.assetId)
+  for (const entry of paintOrder(spread)) {
+    if ('folio' in entry) {
+      const { folio } = entry
+      if (frameTouches({ rectMm: folio.rectMm, rotation: 0 }, bleed)) {
+        ops.push(...paintBlock(lib, page, fonts, layoutFolio(folio, fonts)))
+      }
+      continue
+    }
+    const { item } = entry
     // The other page of a spread is out of this sheet's bleed: skip it.
-    if (photo === undefined || !frameTouches(item, bleed)) continue
-    const name =
-      names.get(photo.ref) ?? page.node.newXObject('Image', photo.ref)
-    names.set(photo.ref, name)
-    const image = imageMatrix(item, photo.orientation)
-    const look = frameLook(item.rectMm, item.style)
+    if (!frameTouches(item, bleed)) continue
+    const frame: PDFOperator[] = []
+    const photo = embedded.get(item.assetId)
+    if (photo !== undefined) {
+      const name =
+        names.get(photo.ref) ?? page.node.newXObject('Image', photo.ref)
+      names.set(photo.ref, name)
+      const body = paintPhotoBody(lib, item, photo, name)
+      // The caption prints outside the frame's clip.
+      frame.push(
+        ...(item.caption === undefined
+          ? body
+          : [lib.pushGraphicsState(), ...body, lib.popGraphicsState()]),
+      )
+    }
+    // An empty frame sets no line (and loads no font to measure one).
+    if (item.text !== undefined && item.text.text !== '') {
+      const block = layoutTextFrame(item.text, item.rectMm, fonts)
+      frame.push(...paintBlock(lib, page, fonts, block))
+    }
+    if (item.caption !== undefined) {
+      const block = layoutCaption(item.caption, item.rectMm, fonts)
+      frame.push(...paintBlock(lib, page, fonts, block))
+    }
+    if (frame.length === 0) continue
     ops.push(
       lib.pushGraphicsState(),
       cm(lib, frameMatrix(item)),
-      ...(look === undefined
-        ? [
-            lib.rectangle(0, 0, item.rectMm.width, item.rectMm.height),
-            lib.clip(),
-            lib.endPath(),
-            cm(lib, image),
-            lib.drawObject(name),
-          ]
-        : paintLook(lib, look, item.rectMm, image, name)),
+      ...frame,
       lib.popGraphicsState(),
     )
   }

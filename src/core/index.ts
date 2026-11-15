@@ -83,12 +83,14 @@ export {
   preflight,
   preflightRules,
   type PreflightAssetStatus,
+  type PreflightCoverOptions,
   type PreflightFixId,
   type PreflightIssue,
   type PreflightLocation,
   type PreflightOptions,
   type PreflightRuleId,
   type PreflightRuleSpec,
+  type PreflightScope,
   type PreflightSeverity,
 } from './print/preflight'
 export {
@@ -99,7 +101,12 @@ export {
   type PreflightRowId,
   type PreflightRowsInput,
 } from './print/preflightText'
-export { PDF_NAME_PRESETS, pdfFileName, titleSlug } from './print/pdfFileName'
+export {
+  PDF_NAME_PRESETS,
+  pdfCoverFileName,
+  pdfFileName,
+  titleSlug,
+} from './print/pdfFileName'
 export {
   SPINE_WIDTH_SOURCES,
   type CoverPrint,
