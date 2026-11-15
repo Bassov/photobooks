@@ -7,7 +7,7 @@ export interface CheckboxProps {
   checked: boolean
   onChange: (checked: boolean) => void
   children: ReactNode
-  /** Mixed state; shown as a bar. A click resolves it to checked. */
+  /** Mixed state; shown as a minus. A click resolves it to checked. */
   isIndeterminate?: boolean
   isDisabled?: boolean
   isInvalid?: boolean
@@ -15,7 +15,7 @@ export interface CheckboxProps {
   'data-testid'?: string
 }
 
-/** Checkbox on the `--sel` tone; selected fills with ink. */
+/** Kit Checkbox: `--sel` box; selected / mixed fill with `--color-mark`. */
 export function Checkbox({
   checked,
   onChange,
@@ -52,9 +52,9 @@ export function Checkbox({
       />
       <span className="pb-check__box" aria-hidden="true">
         {isIndeterminate ? (
-          <span className="pb-check__bar" />
+          <Icon name="minus" size={16} />
         ) : checked ? (
-          <Icon name="check" size={14} />
+          <Icon name="check" size={16} />
         ) : null}
       </span>
       {children}
