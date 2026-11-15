@@ -2,9 +2,16 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { hookOutput, inRepoPath, lintAutofix, main } from './lint-autofix.mjs'
+import {
+  HARD_TIMEOUT_MS,
+  hookOutput,
+  inRepoPath,
+  lintAutofix,
+  main,
+} from './lint-autofix.mjs'
 
 const SCRIPT = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -84,6 +91,9 @@ describe('lintAutofix', () => {
     put(root, 'notes.md', '#  Title\n')
     expect(await lintAutofix(hook('notes.md'), root)).toBeNull()
     expect(read(root, 'notes.md')).toBe('# Title\n')
+    put(root, 'src/ok.js', 'export  const ok = 1\n')
+    expect(await lintAutofix(hook('src/ok.js'), root)).toBeNull()
+    expect(read(root, 'src/ok.js')).toBe('export const ok = 1\n')
   })
 
   it('skips a file outside the repo', async () => {
@@ -99,6 +109,23 @@ describe('lintAutofix', () => {
     put(root, 'gen/a.js', UGLY)
     expect(await lintAutofix(hook('gen/a.js'), root)).toBeNull()
     expect(read(root, 'gen/a.js')).toBe(UGLY)
+  })
+
+  it('formats with prettier defaults when no config is found', async () => {
+    const root = tmpRoot()
+    fs.rmSync(path.join(root, '.prettierrc'))
+    put(root, 'data.json', '{"a":1}')
+    expect(await lintAutofix(hook('data.json'), root)).toBeNull()
+    expect(read(root, 'data.json')).toBe('{ "a": 1 }\n')
+  })
+
+  it('leaves a formatted file untouched and reports an eslint parse error', async () => {
+    const root = tmpRoot()
+    put(root, 'src/a.ts', 'export const a: number = 1\n')
+    expect(await lintAutofix(hook('src/a.ts'), root)).toBe(
+      'lint-autofix: src/a.ts: 1 eslint error(s) left after --fix (first 1:15 parse)',
+    )
+    expect(read(root, 'src/a.ts')).toBe('export const a: number = 1\n')
   })
 
   it('skips bad JSON and missing files', async () => {
@@ -130,6 +157,43 @@ describe('main', () => {
     const write = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
     expect(await main(root, () => Promise.resolve(hook('src/a.js')))).toBe(0)
     expect(write).not.toHaveBeenCalled()
+  })
+
+  it('CLI entry reads stdin, arms the hard timeout and sets exit code 0', async () => {
+    vi.useFakeTimers()
+    const argv1 = process.argv[1]
+    const exitCode = process.exitCode
+    vi.spyOn(process, 'stdin', 'get').mockReturnValue(
+      Readable.from([hook(path.join(os.tmpdir(), 'nowhere.ts'))]),
+    )
+    const exit = vi.spyOn(process, 'exit').mockReturnValue(undefined)
+    const write = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+    try {
+      process.argv[1] = SCRIPT
+      vi.resetModules()
+      await import('./lint-autofix.mjs')
+      expect(process.exitCode).toBe(0)
+      expect(write).not.toHaveBeenCalled()
+      vi.advanceTimersByTime(HARD_TIMEOUT_MS)
+      expect(exit).toHaveBeenCalledExactlyOnceWith(0)
+    } finally {
+      process.argv[1] = argv1
+      process.exitCode = exitCode
+      vi.useRealTimers()
+    }
+  })
+
+  it('module import without argv[1] does not run the CLI', async () => {
+    const argv1 = process.argv[1]
+    const read = vi.spyOn(process, 'stdin', 'get')
+    try {
+      process.argv.splice(1, 1)
+      vi.resetModules()
+      await import('./lint-autofix.mjs')
+      expect(read).not.toHaveBeenCalled()
+    } finally {
+      process.argv.splice(1, 0, argv1)
+    }
   })
 
   it('CLI exits 0 and prints nothing for a non-repo path', () => {
