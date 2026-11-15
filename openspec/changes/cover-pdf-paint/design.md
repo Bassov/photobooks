@@ -20,6 +20,7 @@
 | `src/core/pdf/pdf.worker.ts`           | `cover` request                     |
 | `src/core/pdf/pdf.worker.test.ts`      | round trip                          |
 | `src/render/CoverView.tsx`             | photo anchor                        |
+| `src/render/CoverView.test.tsx`        | anchor test (new case only)         |
 | `openspec/specs/print-dialog/spec.md`  | delta (archive)                     |
 | `docs/roadmap/P4/cover-pdf-paint.md`   | item                                |
 

@@ -10,4 +10,4 @@ Roadmap: `docs/roadmap/P4/cover-pdf-paint.md` (scope / Done when). Reference: De
 ### Delta / Risk
 
 - New cover painter shares fonts / text layout with pdf-captions; the title shadow is not printed (C7).
-- `CoverView` takes the photo anchor from `coverLayout`; the canvas look stays the same.
+- `CoverView` takes the photo anchor from `coverPhotoAnchor` (`pdfGeometry.ts`); the canvas look stays the same.
