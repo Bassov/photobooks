@@ -6,6 +6,7 @@ import {
   preflightRules,
   type PreflightIssue,
   type PreflightRuleId,
+  type PreflightScope,
   type PreflightSeverity,
 } from './preflight'
 import type { PrintProfile } from './profileSchema'
@@ -24,6 +25,11 @@ export interface PreflightColorIssue {
 export interface PreflightRow {
   id: PreflightRowId
   severity: PreflightSeverity
+  /**
+   * Cover rows show only with 1 per sheet and carry no pages. `preflightRows`
+   * always sets it; optional only for hand-built rows in editor tests.
+   */
+  scope?: PreflightScope
   /** Input issues grouped in this row. */
   count: number
   text: string
@@ -81,7 +87,7 @@ export function preflightRows(input: PreflightRowsInput): PreflightRow[] {
   const rows = [...groups].map(([rule, issues]) =>
     row(
       rule,
-      preflightRules()[rule].severity,
+      preflightRules()[rule],
       issues.length,
       ruleText(rule, issues, input.profile),
       issues.flatMap(({ location }) =>
@@ -93,7 +99,7 @@ export function preflightRows(input: PreflightRowsInput): PreflightRow[] {
     rows.push(
       row(
         'color-space',
-        'warning',
+        { severity: 'warning', scope: 'pages' },
         input.colors.length,
         colorText(input.colors, input.profile),
         input.colors.flatMap(({ pages }) => pages),
@@ -110,7 +116,7 @@ export function preflightRows(input: PreflightRowsInput): PreflightRow[] {
 
 function row(
   id: PreflightRowId,
-  severity: PreflightSeverity,
+  { severity, scope }: { severity: PreflightSeverity; scope: PreflightScope },
   count: number,
   text: string,
   pages: readonly number[],
@@ -119,6 +125,7 @@ function row(
   return {
     id,
     severity,
+    scope,
     count,
     text,
     pages: unique,
@@ -162,6 +169,21 @@ function ruleText(
       return `${counted(n, 'frame')} ${n === 1 ? 'crosses' : 'cross'} the ${fmtN(profile.safeMarginMm)} mm safe margin`
     case 'bleed-hazard':
       return `${counted(n, 'photo')} ${n === 1 ? 'stops' : 'stop'} short of the bleed`
+    case 'cover-asset-missing':
+      return 'Front cover photo can’t be found'
+    case 'cover-asset-modified':
+      return 'Front cover photo changed on disk since it was added'
+    case 'cover-dpi-below-min':
+    case 'cover-dpi-below-warn':
+      return `Front cover photo is ${measured} ppi, below ${threshold} ppi`
+    case 'cover-not-srgb':
+      return `Front cover photo isn’t ${SPACE_LABEL[profile.colorSpace]} (${familyList(issues.flatMap(({ family }) => family ?? []))}), colours may shift`
+    case 'spine-text-small':
+      return `Spine text is ${fmtN(Number(first?.measured))} pt, below ${profile.name}’s ${threshold} pt minimum`
+    case 'spine-text-cut':
+      return 'Spine text is longer than the spine and ends in “…”'
+    case 'cover-front-empty':
+      return 'Front cover has no photo and prints in the back fill colour'
   }
 }
 
@@ -170,9 +192,13 @@ function colorText(
   profile: PreflightRowsInput['profile'],
 ): string {
   const n = colors.length
-  const families = [...new Set(colors.map(({ family }) => family))]
+  return `${counted(n, 'photo')} ${n === 1 ? 'isn’t' : 'aren’t'} ${SPACE_LABEL[profile.colorSpace]} (${familyList(colors.map(({ family }) => family))}), colours may shift`
+}
+
+/** Unique family labels in a fixed order: `Adobe RGB, Display P3`. */
+function familyList(families: readonly ColorWarning['family'][]): string {
+  return [...new Set(families)]
     .sort((a, b) => FAMILY_ORDER.indexOf(a) - FAMILY_ORDER.indexOf(b))
     .map((family) => FAMILY_LABEL[family])
     .join(', ')
-  return `${counted(n, 'photo')} ${n === 1 ? 'isn’t' : 'aren’t'} ${SPACE_LABEL[profile.colorSpace]} (${families}), colours may shift`
 }

@@ -44,3 +44,11 @@ export function pdfFileName(
   )
   return `${titleSlug(title)}-${preset?.id ?? `${w}x${h}cm`}.pdf`
 }
+
+/** The cover sheet's file beside the pages: `lake-trip-A5-cover.pdf` (Designer cover-pdf C10). */
+export function pdfCoverFileName(
+  title: string,
+  trim: { widthMm: number; heightMm: number },
+): string {
+  return pdfFileName(title, trim).replace(/\.pdf$/, '-cover.pdf')
+}

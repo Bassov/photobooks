@@ -35,13 +35,17 @@ const issueArb: fc.Arbitrary<PreflightIssue> = fc
     page: fc.option(pageArb, { nil: undefined }),
     threshold: fc.integer({ min: 1, max: 400 }),
   })
-  .map(({ rule, page, threshold }) => ({
-    rule,
-    ...preflightRules()[rule],
-    location: page === undefined ? {} : { page },
-    measured: 1,
-    threshold,
-  }))
+  .map(({ rule, page, threshold }) => {
+    const spec = preflightRules()[rule]
+    // `preflight` gives cover issues no location.
+    return {
+      rule,
+      ...spec,
+      location: page === undefined || spec.scope === 'cover' ? {} : { page },
+      measured: 1,
+      threshold,
+    }
+  })
 
 const colorArb: fc.Arbitrary<PreflightColorIssue> = fc.record({
   family: fc.constantFrom('adobe-rgb', 'display-p3', 'other-rgb'),
@@ -82,6 +86,27 @@ describe('preflightRows (properties)', () => {
         expect(rows.reduce((sum, { count }) => sum + count, 0)).toBe(
           issues.length + colors.length,
         )
+      }),
+      runs,
+    )
+  })
+
+  it('cover rows have scope cover and no pages, after the interior rows of their severity', () => {
+    fc.assert(
+      fc.property(inputArb, ({ issues, colors }) => {
+        const rows = preflightRows({ issues, colors, profile })
+        for (const [index, row] of rows.entries()) {
+          const scope =
+            row.id === 'color-space' ? 'pages' : preflightRules()[row.id].scope
+          expect(row.scope).toBe(scope)
+          if (scope === 'cover') {
+            expect([row.pages, row.pageList]).toEqual([[], ''])
+            const next = rows[index + 1]
+            expect(
+              next?.severity !== row.severity || next.scope === 'cover',
+            ).toBe(true)
+          }
+        }
       }),
       runs,
     )

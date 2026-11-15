@@ -6,7 +6,9 @@ import {
   genericPrintProfile,
   getSpreadPageCount,
   preflight,
+  type Book,
   type Frame,
+  type PreflightOptions,
 } from '../index'
 import { makeBook, makeSpread } from '../testing/fixtures'
 
@@ -101,11 +103,89 @@ const cleanBookArb = fc
     }),
   )
 
+/** A 20-page book with any front photo, spine and cover check options. */
+const coverCaseArb = fc
+  .record({
+    trimMm: fc.integer({ min: 100, max: 400 }),
+    widthPx: fc.integer({ min: 100, max: 8000 }),
+    heightPx: fc.integer({ min: 100, max: 8000 }),
+    zoom: fc.double({ min: 1, max: 4, noNaN: true }),
+    front: fc.constantFrom('photo', 'none', 'unknown'),
+    status: fc.constantFrom('ok', 'missing', 'modified'),
+    family: fc.option(fc.constantFrom('adobe-rgb', 'display-p3', 'other-rgb'), {
+      nil: undefined,
+    }),
+    spineText: fc.string({ maxLength: 12 }),
+    manualMm: fc.option(fc.integer({ min: 4, max: 40 }), { nil: undefined }),
+    advanceMm: fc.double({ min: 0, max: 600, noNaN: true }),
+    layout: fc.constantFrom('single', '2up', '4up'),
+  })
+  .map((c) => {
+    const book = makeBook({
+      settings: { trim: { widthMm: c.trimMm, heightMm: c.trimMm } },
+      assets: { a: { widthPx: c.widthPx, heightPx: c.heightPx } },
+      gallery: ['a'],
+      spreads: Array.from({ length: 11 }, (_, i) =>
+        makeSpread({ id: `s${String(i)}` }),
+      ),
+    })
+    const assetId = { photo: 'a', none: undefined, unknown: 'gone' }[c.front]
+    return {
+      layout: c.layout,
+      book: {
+        ...book,
+        cover: {
+          ...book.cover,
+          front: {
+            text: '',
+            crop: { zoom: c.zoom, center: { x: 0.5, y: 0.5 } },
+            ...(assetId === undefined ? {} : { assetId }),
+          },
+          spine: { ...book.cover.spine, text: c.spineText },
+          style: { ...book.cover.style, spineWidthMm: c.manualMm ?? 12 },
+          print: {
+            spineWidthSource: c.manualMm === undefined ? 'profile' : 'manual',
+          },
+        },
+      } satisfies Book,
+      options: {
+        assetStatus: new Map([['a', c.status]]),
+        cover: {
+          layout: c.layout,
+          colors:
+            c.family === undefined ? [] : [{ assetId: 'a', family: c.family }],
+          textAdvanceMm: () => c.advanceMm,
+        },
+      } satisfies PreflightOptions,
+    }
+  })
+
 describe('preflight (property)', () => {
   it('a book inside every profile limit yields no issues', () => {
     fc.assert(
       fc.property(cleanBookArb, (book) => {
         expect(preflight(book, generic)).toEqual([])
+      }),
+      runs,
+    )
+  })
+
+  it('cover issues: scope cover, no location, at most one dpi row, none for booklets', () => {
+    fc.assert(
+      fc.property(coverCaseArb, ({ book, options, layout }) => {
+        const cover = preflight(book, generic, options).filter(
+          ({ scope }) => scope === 'cover',
+        )
+        for (const found of cover) {
+          expect(found.rule).toMatch(/^(cover|spine)-/)
+          expect(found.location).toEqual({})
+        }
+        expect(
+          cover.filter(({ rule }) => rule.startsWith('cover-dpi')).length,
+        ).toBeLessThanOrEqual(1)
+        if (layout !== 'single') {
+          expect(cover).toEqual([])
+        }
       }),
       runs,
     )

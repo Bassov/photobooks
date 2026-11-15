@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { PDF_NAME_PRESETS, pdfFileName, titleSlug } from './pdfFileName'
+import {
+  PDF_NAME_PRESETS,
+  pdfCoverFileName,
+  pdfFileName,
+  titleSlug,
+} from './pdfFileName'
 
 describe('pdfFileName', () => {
   it('names a preset trim by its id, in either orientation', () => {
@@ -26,6 +31,20 @@ describe('pdfFileName', () => {
   it.each(PDF_NAME_PRESETS)('names the $id trim $id', ({ id, wCm, hCm }) => {
     expect(pdfFileName('b', { widthMm: wCm * 10, heightMm: hCm * 10 })).toBe(
       `b-${id}.pdf`,
+    )
+  })
+})
+
+describe('pdfCoverFileName', () => {
+  it('adds -cover to the preset and the W×H names', () => {
+    expect(pdfCoverFileName('Lake trip', { widthMm: 148, heightMm: 210 })).toBe(
+      'lake-trip-A5-cover.pdf',
+    )
+    expect(pdfCoverFileName('Lake trip', { widthMm: 190, heightMm: 230 })).toBe(
+      'lake-trip-19x23cm-cover.pdf',
+    )
+    expect(pdfCoverFileName('', { widthMm: 200, heightMm: 200 })).toBe(
+      'book-sq20-cover.pdf',
     )
   })
 })

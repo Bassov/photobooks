@@ -9,6 +9,7 @@ import {
   type Book,
   type Frame,
   type PreflightAssetStatus,
+  type PreflightCoverOptions,
   type PrintProfile,
   type PrintProfileInput,
 } from '../index'
@@ -79,46 +80,97 @@ describe('preflight rule table', () => {
       {
         "asset-missing": {
           "fix": "relink-asset",
+          "scope": "pages",
           "severity": "error",
         },
         "asset-modified": {
           "fix": "relink-asset",
+          "scope": "pages",
           "severity": "warning",
         },
         "bleed-hazard": {
           "fix": "extend-to-bleed",
+          "scope": "pages",
+          "severity": "warning",
+        },
+        "cover-asset-missing": {
+          "fix": "relink-asset",
+          "scope": "cover",
+          "severity": "error",
+        },
+        "cover-asset-modified": {
+          "fix": "relink-asset",
+          "scope": "cover",
+          "severity": "warning",
+        },
+        "cover-dpi-below-min": {
+          "fix": "reduce-photo-scale",
+          "scope": "cover",
+          "severity": "error",
+        },
+        "cover-dpi-below-warn": {
+          "fix": "reduce-photo-scale",
+          "scope": "cover",
+          "severity": "warning",
+        },
+        "cover-front-empty": {
+          "fix": "edit-cover",
+          "scope": "cover",
+          "severity": "info",
+        },
+        "cover-not-srgb": {
+          "fix": "edit-cover",
+          "scope": "cover",
           "severity": "warning",
         },
         "dpi-below-min": {
           "fix": "reduce-photo-scale",
+          "scope": "pages",
           "severity": "error",
         },
         "dpi-below-warn": {
           "fix": "reduce-photo-scale",
+          "scope": "pages",
           "severity": "warning",
         },
         "empty-image-frame": {
           "fix": "fill-or-remove-frame",
+          "scope": "pages",
           "severity": "warning",
         },
         "empty-text-frame": {
           "fix": "fill-or-remove-frame",
+          "scope": "pages",
           "severity": "info",
         },
         "page-count-above-max": {
           "fix": "remove-pages",
+          "scope": "pages",
           "severity": "error",
         },
         "page-count-below-min": {
           "fix": "add-pages",
+          "scope": "pages",
           "severity": "error",
         },
         "page-count-step": {
           "fix": "add-pages",
+          "scope": "pages",
           "severity": "error",
         },
         "safe-zone-intrusion": {
           "fix": "move-into-safe-zone",
+          "scope": "pages",
+          "severity": "warning",
+        },
+        "spine-text-cut": {
+          "fix": "edit-cover",
+          "scope": "cover",
+          "severity": "warning",
+        },
+        "spine-text-small": {
+          "fix": "edit-cover",
+          "scope": "cover",
           "severity": "warning",
         },
       }
@@ -140,6 +192,7 @@ describe('preflight', () => {
           rule: 'page-count-below-min',
           severity: 'error',
           fix: 'add-pages',
+          scope: 'pages',
           location: {},
           measured: 18,
           threshold: 20,
@@ -574,6 +627,244 @@ describe('photoPages', () => {
     expect([...photoPages(book)]).toEqual([
       ['sharp', [2, 3]],
       ['soft', [2]],
+    ])
+  })
+})
+
+describe('cover rules', () => {
+  /** A fitting spine text: no advance. */
+  const fits: PreflightCoverOptions = {
+    layout: 'single',
+    textAdvanceMm: () => 0,
+  }
+
+  /**
+   * `bookWith([])` (200 mm trim, 20 pages: spine 12 mm, wrap 15 mm, cover
+   * 412 mm; front photo box 215 × 230 mm) with a 3000 px front photo and
+   * the spine text `Lake trip`.
+   */
+  function coverBook(
+    front: Partial<Book['cover']['front']> = {},
+    spine: { text?: string; manualMm?: number } = {},
+  ): Book {
+    const book = bookWith([])
+    return {
+      ...book,
+      assets: {
+        ...book.assets,
+        front: { widthPx: 3000, heightPx: 3000 },
+        small: { widthPx: 1000, heightPx: 1000 },
+        mid: { widthPx: 1600, heightPx: 1600 },
+      },
+      cover: {
+        ...book.cover,
+        front: { ...book.cover.front, assetId: 'front', ...front },
+        spine: { ...book.cover.spine, text: spine.text ?? 'Lake trip' },
+        style: {
+          ...book.cover.style,
+          spineWidthMm: spine.manualMm ?? book.cover.style.spineWidthMm,
+        },
+        print: {
+          spineWidthSource: spine.manualMm === undefined ? 'profile' : 'manual',
+        },
+      },
+    }
+  }
+
+  function coverRules(
+    book: Book,
+    cover: PreflightCoverOptions = fits,
+    assetStatus?: ReadonlyMap<string, PreflightAssetStatus>,
+  ) {
+    return preflight(book, generic, {
+      cover,
+      ...(assetStatus === undefined ? {} : { assetStatus }),
+    }).map((found) => found.rule)
+  }
+
+  it('a clean cover has no issues', () => {
+    expect(coverRules(coverBook())).toEqual([])
+  })
+
+  it('runs only when the caller asks, and only for 1 per sheet', () => {
+    const book = coverBook({ assetId: undefined })
+
+    expect(rules(book)).toEqual([])
+    expect(coverRules(book, { ...fits, layout: '2up' })).toEqual([])
+    expect(coverRules(book, { ...fits, layout: '4up' })).toEqual([])
+    expect(coverRules(book)).toEqual(['cover-front-empty'])
+  })
+
+  it('cover-front-empty: no front photo, an info row without a location', () => {
+    expect(
+      preflight(coverBook({ assetId: undefined }), generic, { cover: fits }),
+    ).toEqual([
+      {
+        rule: 'cover-front-empty',
+        severity: 'info',
+        fix: 'edit-cover',
+        scope: 'cover',
+        location: {},
+      },
+    ])
+  })
+
+  it('cover-asset-missing: an unknown asset or a missing file, with no dpi row', () => {
+    expect(coverRules(coverBook({ assetId: 'gone' }))).toEqual([
+      'cover-asset-missing',
+    ])
+    expect(
+      coverRules(
+        coverBook({ assetId: 'small' }),
+        fits,
+        new Map([['small', 'missing']]),
+      ),
+    ).toEqual(['cover-asset-missing'])
+    expect(
+      coverRules(coverBook(), fits, new Map([['other', 'missing']])),
+    ).toEqual([])
+  })
+
+  it('cover-asset-modified: a changed file is still rated', () => {
+    expect(
+      coverRules(
+        coverBook({ assetId: 'small' }),
+        fits,
+        new Map([['small', 'modified']]),
+      ),
+    ).toEqual(['cover-asset-modified', 'cover-dpi-below-min'])
+    expect(coverRules(coverBook(), fits, new Map([['front', 'ok']]))).toEqual(
+      [],
+    )
+  })
+
+  it('cover-dpi-below-min: the editor front ppi under the profile minimum', () => {
+    // coverPanelPpi(1000², 215 × 230 mm, 1) = round(1000 / 230 × 25.4) = 110.
+    expect(
+      preflight(coverBook({ assetId: 'small' }), generic, { cover: fits }),
+    ).toMatchObject([
+      {
+        rule: 'cover-dpi-below-min',
+        severity: 'error',
+        scope: 'cover',
+        measured: 110,
+        threshold: 150,
+      },
+    ])
+  })
+
+  it('cover-dpi-below-warn: only the worse dpi row, the crop zoom counts', () => {
+    // 1600 px: 177 ppi; 3000 px at zoom 2: round(3000 / 230 × 25.4 / 2) = 166.
+    expect(
+      preflight(coverBook({ assetId: 'mid' }), generic, { cover: fits }),
+    ).toMatchObject([
+      { rule: 'cover-dpi-below-warn', measured: 177, threshold: 200 },
+    ])
+    expect(
+      preflight(coverBook({ crop: { zoom: 2, center: CENTER } }), generic, {
+        cover: fits,
+      }),
+    ).toMatchObject([{ rule: 'cover-dpi-below-warn', measured: 166 }])
+    // Zoom 1.1 keeps 3000 px at 301 ppi: no row.
+    expect(
+      coverRules(coverBook({ crop: { zoom: 1.1, center: CENTER } })),
+    ).toEqual([])
+  })
+
+  it('rates a front photo without pixel sizes as unknown, no dpi row', () => {
+    const book = coverBook({ assetId: 'unsized' })
+
+    expect(
+      coverRules({ ...book, assets: { ...book.assets, unsized: {} } }),
+    ).toEqual([])
+  })
+
+  it('cover-not-srgb: a colour warning on the front photo only', () => {
+    const colors = [
+      { assetId: 'sharp', family: 'display-p3' },
+      { assetId: 'front', family: 'adobe-rgb' },
+    ] as const
+
+    expect(
+      preflight(coverBook(), generic, { cover: { ...fits, colors } }),
+    ).toEqual([
+      {
+        rule: 'cover-not-srgb',
+        severity: 'warning',
+        fix: 'edit-cover',
+        scope: 'cover',
+        location: {},
+        family: 'adobe-rgb',
+      },
+    ])
+    expect(coverRules(coverBook(), { ...fits, colors: [colors[0]] })).toEqual(
+      [],
+    )
+  })
+
+  it('spine-text-small: a 4 mm spine sets 2 mm (5.7 pt) type under 6 pt', () => {
+    expect(
+      preflight(coverBook({}, { manualMm: 4 }), generic, { cover: fits }),
+    ).toEqual([
+      {
+        rule: 'spine-text-small',
+        severity: 'warning',
+        fix: 'edit-cover',
+        scope: 'cover',
+        location: {},
+        measured: (2 * 72) / 25.4,
+        threshold: 6,
+      },
+    ])
+    // A 5 mm spine: 2.5 mm = 7.1 pt.
+    expect(coverRules(coverBook({}, { manualMm: 5 }))).toEqual([])
+  })
+
+  it('spine-text-cut: the text advance past trimH − 2·safe', () => {
+    const seen: [string, number][] = []
+    const advance = (length: number): PreflightCoverOptions => ({
+      layout: 'single',
+      textAdvanceMm: (text, sizeMm) => {
+        seen.push([text, sizeMm])
+        return length
+      },
+    })
+
+    expect(
+      coverRules(coverBook({}, { text: '  Lake trip ' }), advance(190.01)),
+    ).toEqual(['spine-text-cut'])
+    // 12 mm spine on a 412 mm cover: min(412 × 12 / 848, 6) mm.
+    expect(seen).toEqual([['Lake trip', (412 * 12) / 848]])
+    expect(coverRules(coverBook(), advance(190))).toEqual([])
+  })
+
+  it('an empty spine text gets neither spine row', () => {
+    const book = coverBook({}, { text: '  ', manualMm: 4 })
+
+    expect(
+      coverRules(book, { layout: 'single', textAdvanceMm: () => 1000 }),
+    ).toEqual([])
+  })
+
+  it('lists the cover issues after the interior ones, in rule order', () => {
+    const book = coverBook({ assetId: 'small' }, { manualMm: 4 })
+    const withPhoto: Book = {
+      ...book,
+      spreads: bookWith([photo({ assetId: 'blurry' })]).spreads,
+    }
+
+    expect(
+      coverRules(withPhoto, {
+        layout: 'single',
+        colors: [{ assetId: 'small', family: 'display-p3' }],
+        textAdvanceMm: () => 500,
+      }),
+    ).toEqual([
+      'dpi-below-min',
+      'cover-dpi-below-min',
+      'cover-not-srgb',
+      'spine-text-small',
+      'spine-text-cut',
     ])
   })
 })
