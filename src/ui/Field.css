@@ -169,13 +169,19 @@
   gap: calc(var(--spacing) * 2);
   font-family: var(--font-ui);
   font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1;
   color: var(--foreground);
   cursor: pointer;
 }
 
 .pb-check[data-disabled='true'] {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.7;
+}
+
+.pb-check[data-disabled='true'] .pb-check__box {
+  opacity: 0.5;
 }
 
 .pb-check__input {
@@ -203,7 +209,7 @@
 
 .pb-check__input:checked + .pb-check__box,
 .pb-check__input:indeterminate + .pb-check__box {
-  background: var(--primary);
+  background: var(--color-mark);
 }
 
 .pb-check__input:focus-visible + .pb-check__box {
@@ -215,9 +221,7 @@
   box-shadow: 0 0 0 1px var(--destructive);
 }
 
-.pb-check__bar {
-  width: calc(var(--spacing) * 2);
-  height: 2px;
-  border-radius: var(--radius-sm);
-  background: currentColor;
+.pb-check__input[aria-invalid='true']:checked + .pb-check__box {
+  background: var(--destructive-solid);
+  color: var(--destructive-foreground);
 }
