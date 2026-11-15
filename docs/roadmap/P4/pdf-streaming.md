@@ -3,6 +3,7 @@
 Tag: contingency
 Milestone: P4
 Title: only if `pdf-export` peak memory is too high
+Status: done
 
 ## Scope
 
@@ -16,3 +17,7 @@ Title: only if `pdf-export` peak memory is too high
 - **Test:** unit / PBT for the pure logic; Playwright e2e for the interaction on the `?fixture=` editor; perf scenario per RULES
 - **Depends:** pdf-export
 - **Done when:** the 40-spread export of the `pdf-export` measure (159 distinct ~4.4 MB JPEGs, 78 sheets) grows peak ArrayBuffers by < 1 GB (before: +1.4 GB), with the booklet (imposed) peak measured too; concatenated chunks form a valid PDF with correct xref offsets for random page counts (unit / PBT); no long task from our code on the main thread during export, `PERF_BUDGETS` unchanged; `PrintButton.test.tsx` passes 20/20 in a loop; `e2e/print-dialog.spec.ts` and `e2e/print-perf.spec.ts` green.
+
+## Done note
+
+needed: #624 measured +1.4 GB; export now streams per sheet (paint +57 MB, 2-up impose +838 MB peak)
