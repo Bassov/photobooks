@@ -23,6 +23,7 @@ import {
   PAINTER_SPREAD_COUNT,
 } from '../testing/painterFixture'
 import { paintBookPdf, type PhotoByteSource } from './paintPdf'
+import { pdfChunks } from './pdfChunks.test-helpers'
 import { CROP_MARK_LENGTH_MM, PT_PER_MM } from './pdfGeometry'
 
 /** A JPEG header only (SOI, comment, SOF0, EOI): enough to embed, unique per `tag`. */
@@ -92,13 +93,15 @@ async function paint(
   bytes: Record<string, Uint8Array> = FIXTURE_BYTES,
   marks = true,
 ) {
+  const file = pdfChunks()
   const result = await paintBookPdf({
     book,
     profile,
     photos: sourceOf(bytes),
     marks,
+    onChunk: file.onChunk,
   })
-  return { result, doc: await PDFDocument.load(result.pdf) }
+  return { result, doc: await PDFDocument.load(file.bytes()) }
 }
 
 function imageStreams(doc: PDFDocument): PDFRawStream[] {
@@ -510,6 +513,7 @@ describe('paintBookPdf marks', () => {
       profile,
       photos: sourceOf(bytes),
       marks: false,
+      onChunk: () => undefined,
       onSheet: (painted, sheets) => calls.push([painted, sheets]),
     })
 
@@ -564,6 +568,18 @@ describe('paintBookPdf below the profile minimum', () => {
       expect(contentOf(doc, page)).toBe('')
     }
     expect(drawnImages(doc, doc.getPage(3))).toHaveLength(1)
+  })
+
+  it('writes one empty page for a book with no pages and no minimum', async () => {
+    const { result, doc } = await paint(
+      bookOf(0),
+      withMin(pagesProfile, 0),
+      bytes,
+      false,
+    )
+
+    expect(result.sheets).toBe(0)
+    expect(doc.getPageCount()).toBe(1)
   })
 
   it('keeps a book at the minimum as it is', async () => {
@@ -628,5 +644,48 @@ describe('paintBookPdf below the profile minimum', () => {
       ),
       { seed: gates.pbt.seed, numRuns: 30 },
     )
+  })
+})
+
+describe('paintBookPdf streaming', () => {
+  it('writes each photo out before it reads the next, then the pages', async () => {
+    const { book } = makePainterFixture()
+    const latin1 = new TextDecoder('latin1')
+    const events: string[] = []
+
+    await paintBookPdf({
+      book,
+      profile: pagesProfile,
+      photos: (assetId) => {
+        events.push(`read ${assetId}`)
+        return Promise.resolve(FIXTURE_BYTES[assetId])
+      },
+      marks: false,
+      onChunk: (chunk) => {
+        const text = latin1.decode(chunk)
+        const photo = PAINTER_ASSET_IDS.find((assetId) =>
+          text.includes(assetId),
+        )
+        events.push(photo === undefined ? 'chunk' : `chunk ${photo}`)
+      },
+      onSheet: (painted) => {
+        events.push(`sheet ${String(painted)}`)
+      },
+    })
+
+    const photos = events.slice(0, 2 * PAINTER_ASSET_IDS.length)
+    const read = photos
+      .filter((event) => event.startsWith('read '))
+      .map((event) => event.slice('read '.length))
+    expect([...read].sort()).toEqual([...PAINTER_ASSET_IDS].sort())
+    expect(photos).toEqual(
+      read.flatMap((assetId) => [`read ${assetId}`, `chunk ${assetId}`]),
+    )
+    const rest = events.slice(photos.length)
+    expect(rest.filter((event) => event.startsWith('read'))).toEqual([])
+    expect(rest.filter((event) => event.startsWith('chunk '))).toEqual([])
+    // Each painted sheet is written before it is reported.
+    expect(rest[0]).toBe('chunk')
+    expect(rest[1]).toBe('sheet 1')
   })
 })

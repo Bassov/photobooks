@@ -6,6 +6,7 @@ import type {
   PDFPage,
   PDFRef,
 } from '@cantoo/pdf-lib'
+import { type PdfChunkSink, type PdfStream, streamPdf } from './pdfStream'
 import { resolveSpread } from '../geometry/resolveSpread'
 import type { ResolvedItem, ResolvedSpread } from '../geometry/types'
 import type { PrintProfile } from '../print/profileSchema'
@@ -51,6 +52,8 @@ export interface PaintPdfInput {
    * on = the profile bleed and crop marks, off = trim size, no marks.
    */
   marks: boolean
+  /** The PDF file's bytes, in order: each photo once, then each page. */
+  onChunk: PdfChunkSink
   /** Called after each PDF page, `painted` 1..`sheets`. */
   onSheet?: (painted: number, sheets: number) => void
 }
@@ -61,7 +64,8 @@ export interface SkippedPhoto {
 }
 
 export interface PaintPdfResult {
-  pdf: Uint8Array
+  /** Bytes of the PDF file, every chunk together. */
+  bytes: number
   /** PDF pages written, blank padding pages included. */
   sheets: number
   /** Photos left as paper, each once. */
@@ -70,8 +74,11 @@ export interface PaintPdfResult {
 
 type PdfLib = typeof import('@cantoo/pdf-lib')
 
+/** A written photo XObject: its bytes are gone, its size stays. */
 interface Embedded {
-  image: PDFImage
+  ref: PDFRef
+  width: number
+  height: number
   orientation: number | undefined
 }
 
@@ -80,7 +87,9 @@ interface Embedded {
  * per `profile`: one page per book page or per spread, blank pages after the
  * book up to the profile's minimum page count. With `marks`, bleed from the
  * book inside the profile's range and crop marks; without, trim size only.
- * JPEGs go in as their original bytes, each asset once.
+ * JPEGs go in as their original bytes, each asset once. The file streams to
+ * `onChunk`: each photo as soon as it is embedded (one photo's bytes held at
+ * a time), each page once painted.
  */
 export async function paintBookPdf(
   input: PaintPdfInput,
@@ -90,6 +99,7 @@ export async function paintBookPdf(
   const { book, profile } = input
   const doc = await lib.PDFDocument.create()
   if (book.title !== undefined && book.title !== '') doc.setTitle(book.title)
+  const stream = streamPdf(lib, doc.context, input.onChunk)
 
   const assetIds = resolveAll(book)
     .flatMap((spread) => spread.items)
@@ -98,6 +108,7 @@ export async function paintBookPdf(
   const { embedded, skipped } = await embedPhotos(
     lib,
     doc,
+    stream,
     [...new Set(assetIds)],
     input,
   )
@@ -106,11 +117,7 @@ export async function paintBookPdf(
       const photo = embedded.get(assetId)
       return photo === undefined
         ? 1
-        : orientedAspect(
-            photo.image.width,
-            photo.image.height,
-            photo.orientation,
-          )
+        : orientedAspect(photo.width, photo.height, photo.orientation)
     },
   })
 
@@ -131,6 +138,7 @@ export async function paintBookPdf(
   const total = sheets.length + blanks.length
   let painted = 0
   const added = () => {
+    stream.flush()
     painted += 1
     input.onSheet?.(painted, total)
   }
@@ -146,8 +154,10 @@ export async function paintBookPdf(
     addSheetPage(lib, doc, sheet, marks, bleedMm)
     added()
   }
+  // As pdf-lib's save: a PDF has at least one page.
+  if (total === 0) doc.addPage()
 
-  return { pdf: await doc.save(), sheets: total, skipped }
+  return { bytes: stream.finish(), sheets: total, skipped }
 }
 
 function resolveAll(
@@ -191,9 +201,11 @@ function addSheetPage(
   }
 }
 
+/** Embeds and writes each photo before the next one is read. */
 async function embedPhotos(
   lib: PdfLib,
   doc: PDFDocument,
+  stream: PdfStream,
   assetIds: string[],
   input: PaintPdfInput,
 ): Promise<{
@@ -220,8 +232,11 @@ async function embedPhotos(
       continue
     }
     await tagColor(lib, doc, image, bytes, iccRefs)
+    stream.flush()
     embedded.set(assetId, {
-      image,
+      ref: image.ref,
+      width: image.width,
+      height: image.height,
       // The raw JPEG keeps its EXIF orientation; PDF viewers ignore it.
       orientation: jpeg ? input.book.assets[assetId]?.orientation : undefined,
     })
@@ -321,14 +336,14 @@ function paintSheet(
     )
   }
   // One page resource per image, however many frames show it.
-  const names = new Map<PDFImage, PDFName>()
+  const names = new Map<PDFRef, PDFName>()
   for (const item of paintOrder(spread.items)) {
     const photo = embedded.get(item.assetId)
     // The other page of a spread is out of this sheet's bleed: skip it.
     if (photo === undefined || !frameTouches(item, bleed)) continue
     const name =
-      names.get(photo.image) ?? page.node.newXObject('Image', photo.image.ref)
-    names.set(photo.image, name)
+      names.get(photo.ref) ?? page.node.newXObject('Image', photo.ref)
+    names.set(photo.ref, name)
     const image = imageMatrix(item, photo.orientation)
     const look = frameLook(item.rectMm, item.style)
     ops.push(

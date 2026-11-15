@@ -58,12 +58,31 @@ function doneOf(message: unknown) {
   return paint.done
 }
 
+/** The posted chunks joined: the PDF file. */
+function fileOf(messages: unknown[]): Uint8Array {
+  const chunks = messages.flatMap((message) =>
+    typeof message === 'object' && message !== null && 'chunk' in message
+      ? [new Uint8Array(message.chunk as ArrayBuffer)]
+      : [],
+  )
+  const file = new Uint8Array(chunks.reduce((n, chunk) => n + chunk.length, 0))
+  let at = 0
+  for (const chunk of chunks) {
+    file.set(chunk, at)
+    at += chunk.length
+  }
+  return file
+}
+
+const withoutChunks = <T extends { message: object }>(posts: T[]) =>
+  posts.filter(({ message }) => !('chunk' in message))
+
 describe('runPdfPaint', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
-  it('reads the photo blobs and posts the PDF bytes, transferred', async () => {
+  it('reads the photo blobs and posts the PDF in chunks, transferred', async () => {
     const posts = await run({
       book: structuredClone(photoBook()),
       photos: { a: new Blob([JPEG]) },
@@ -71,11 +90,19 @@ describe('runPdfPaint', () => {
     })
 
     // One page, padded with blank pages to Generic's 20-page minimum.
-    expect(posts).toHaveLength(21)
-    const { pdf, sheets, skipped } = doneOf(posts[20]?.message)
-    expect(posts[20]?.transfer).toEqual([pdf])
+    expect(withoutChunks(posts)).toHaveLength(21)
+    const last = posts.at(-1)
+    const { bytes, sheets, skipped } = doneOf(last?.message)
+    expect(last?.transfer).toEqual([])
     expect(sheets).toBe(20)
     expect(skipped).toEqual([{ assetId: 'gone', reason: 'missing' }])
+    for (const { message, transfer } of posts) {
+      if ('chunk' in message) expect(transfer).toEqual([message.chunk])
+    }
+    // The photo's chunk comes before the first page.
+    expect('chunk' in (posts[0]?.message ?? {})).toBe(true)
+    const pdf = fileOf(posts.map(({ message }) => message))
+    expect(pdf.length).toBe(bytes)
     const doc = await PDFDocument.load(pdf)
     expect(doc.getPageCount()).toBe(20)
     // Crop marks widen the media past the 3 mm bleed box.
@@ -92,7 +119,9 @@ describe('runPdfPaint', () => {
       marks: false,
     })
 
-    const doc = await PDFDocument.load(doneOf(posts.at(-1)?.message).pdf)
+    const doc = await PDFDocument.load(
+      fileOf(posts.map(({ message }) => message)),
+    )
     const page = doc.getPage(0)
     expect(page.getMediaBox()).toEqual(page.getTrimBox())
   })
@@ -141,7 +170,7 @@ describe('runPdfPaint', () => {
           })
 
           const { sheets } = doneOf(posts.at(-1)?.message)
-          expect(posts.slice(0, -1)).toEqual(
+          expect(withoutChunks(posts).slice(0, -1)).toEqual(
             Array.from({ length: sheets }, (_, index) => ({
               message: { progress: { painted: index + 1, sheets } },
               transfer: [],
@@ -165,11 +194,16 @@ describe('runPdfPaint', () => {
     })
 
     await vi.waitFor(() => {
-      expect(posts).toHaveLength(21)
+      expect(posts.at(-1)?.[0]).toHaveProperty('done')
     })
-    expect(posts[0]).toEqual([{ progress: { painted: 1, sheets: 20 } }, []])
-    const [message, transfer] = posts[20] ?? []
-    expect(transfer).toEqual([doneOf(message).pdf])
+    const [chunk, chunkTransfer] = posts[0] ?? []
+    expect(chunkTransfer).toEqual([(chunk as { chunk: ArrayBuffer }).chunk])
+    expect(posts[1]).toEqual([{ progress: { painted: 1, sheets: 20 } }, []])
+    const [message, transfer] = posts.at(-1) ?? []
+    expect(transfer).toEqual([])
+    expect(fileOf(posts.map(([data]) => data)).length).toBe(
+      doneOf(message).bytes,
+    )
   })
 
   it('posts one failure when painting throws', async () => {
@@ -188,10 +222,10 @@ describe('runPdfPaint', () => {
   })
 })
 
-async function pagePdf(pages: number): Promise<ArrayBuffer> {
+async function pagePdf(pages: number): Promise<Blob> {
   const doc = await PDFDocument.create()
   for (let n = 0; n < pages; n += 1) doc.addPage([300, 400])
-  return new Uint8Array(await doc.save()).buffer
+  return new Blob([await doc.save()])
 }
 
 async function impose(request: Parameters<typeof runPdfImpose>[0]) {
@@ -215,18 +249,23 @@ describe('runPdfImpose', () => {
     vi.unstubAllGlobals()
   })
 
-  it('posts progress per sheet, then the imposed PDF, transferred', async () => {
+  it('posts progress per sheet and the imposed PDF in chunks, transferred', async () => {
     const posts = await impose({ pdf: await pagePdf(13), layout: '2up' })
 
-    expect(posts.slice(0, -1)).toEqual(
+    expect(withoutChunks(posts).slice(0, -1)).toEqual(
       [1, 2, 3, 4].map((imposed) => ({
         message: { progress: { imposed, sheets: 4 } },
         transfer: [],
       })),
     )
-    const { pdf, sheets } = imposedOf(posts[4]?.message)
-    expect(posts[4]?.transfer).toEqual([pdf])
+    const { bytes, sheets } = imposedOf(posts.at(-1)?.message)
+    expect(posts.at(-1)?.transfer).toEqual([])
+    for (const { message, transfer } of posts) {
+      if ('chunk' in message) expect(transfer).toEqual([message.chunk])
+    }
     expect(sheets).toBe(4)
+    const pdf = fileOf(posts.map(({ message }) => message))
+    expect(pdf.length).toBe(bytes)
     const doc = await PDFDocument.load(pdf)
     expect(doc.getPageCount()).toBe(8)
     expect(doc.getPage(0).getSize()).toEqual({ width: 600, height: 400 })
@@ -244,20 +283,28 @@ describe('runPdfImpose', () => {
     })
 
     await vi.waitFor(() => {
-      expect(posts).toHaveLength(2)
+      expect(posts.at(-1)?.[0]).toHaveProperty('done')
     })
-    expect(posts[0]).toEqual([{ progress: { imposed: 1, sheets: 1 } }, []])
-    const [message, transfer] = posts[1] ?? []
-    const { pdf, sheets } = imposedOf(message)
+    // The sheet, then the page tree and the xref with the trailer.
+    expect(posts.map(([data]) => Object.keys(data as object)[0])).toEqual([
+      'chunk',
+      'progress',
+      'chunk',
+      'chunk',
+      'done',
+    ])
+    expect(posts[1]).toEqual([{ progress: { imposed: 1, sheets: 1 } }, []])
+    const [message, transfer] = posts.at(-1) ?? []
+    const { sheets } = imposedOf(message)
     expect(sheets).toBe(1)
-    expect(transfer).toEqual([pdf])
-    const doc = await PDFDocument.load(pdf)
+    expect(transfer).toEqual([])
+    const doc = await PDFDocument.load(fileOf(posts.map(([data]) => data)))
     expect(doc.getPage(0).getSize()).toEqual({ width: 600, height: 800 })
   })
 
   it('posts one failure when the page PDF does not load', async () => {
     const posts = await impose({
-      pdf: new Uint8Array([1, 2, 3]).buffer,
+      pdf: new Blob([new Uint8Array([1, 2, 3])]),
       layout: '2up',
     })
 

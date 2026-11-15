@@ -35,9 +35,11 @@ export { createMemoryDirectory } from './fsa/memoryDirectory'
 export {
   EXPORTS_DIR,
   exportErrorCode,
-  writeExport,
+  openExport,
   type ExportDirectoryHandle,
   type ExportFileHandle,
+  type ExportStream,
+  type ExportWritable,
   type ExportWriteErrorCode,
   type ExportWriteResult,
 } from './fsa/writeExport'

@@ -68,6 +68,11 @@ export function createMemorySiteDirectory(
             ops.push(`write ${path}`)
             return Promise.resolve()
           },
+          abort: () => {
+            chunks.length = 0
+            ops.push(`abort ${path}`)
+            return Promise.resolve()
+          },
         }
         return Promise.resolve(writable)
       },

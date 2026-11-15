@@ -17,9 +17,10 @@ import type {
 import { sheetCount } from '../../core/print/imposition'
 import type { PrintProfile } from '../../core/print/profileSchema'
 import {
-  writeExport,
+  openExport,
   type ExportDirectoryHandle,
   type ExportFileHandle,
+  type ExportStream,
 } from '../../project'
 import { getBookPrintProfiles, getBookStoreSnapshot } from '../bookStore'
 import { readSource } from '../export/startExportSite'
@@ -59,7 +60,7 @@ export interface PrintRunDeps {
   runWorker: PdfWorkerRunner
   library: () => Promise<ExportDirectoryHandle | null>
   libraryLabel: string
-  write: typeof writeExport
+  open: typeof openExport
   dispatch: PrintStore['dispatch']
 }
 
@@ -131,30 +132,39 @@ function skippedOf(book: Book, assetIds: readonly string[]): PrintSkipped {
   return { count: assetIds.length, pages: [...all].sort((a, b) => a - b) }
 }
 
-/** Resolves once the worker's last message (`done` / `checked` / `failed`) arrives. */
+/**
+ * Resolves once the worker's last message (`done` / `checked` / `failed`)
+ * arrives; `chunk`s go to `onChunk` in order.
+ */
 function lastMessage(
   runWorker: PdfWorkerRunner,
   request: PdfWorkerRequest,
   onProgress: (progress: PdfProgress) => void,
+  onChunk: (chunk: ArrayBuffer) => void,
 ): Promise<PdfMessage> {
   return new Promise((resolve) => {
     runWorker(request, (message) => {
-      if ('progress' in message) {
+      if ('chunk' in message) {
+        onChunk(message.chunk)
+      } else if ('progress' in message) {
         onProgress(message.progress)
-        return
+      } else {
+        resolve(message)
       }
-      resolve(message)
     })
   })
 }
 
-/** A booklet's imposed PDF from the page PDF (worker `impose`); null when it failed. */
+/**
+ * A booklet's imposed PDF from the page PDF (worker `impose`), streamed to
+ * `output`; its sheets, null when it failed.
+ */
 async function imposed(
   deps: PrintRunDeps,
-  pdf: ArrayBuffer,
-  layout: PrintLayout,
-): Promise<{ pdf: ArrayBuffer; sheets: number } | null> {
-  if (layout === 'single') return null
+  pdf: Blob,
+  layout: Exclude<PrintLayout, 'single'>,
+  output: (chunk: ArrayBuffer) => void,
+): Promise<{ bytes: number; sheets: number } | null> {
   const sheets = sheetCount(pagesOf(deps.job.book.spreads.length), layout)
   deps.dispatch({ type: 'imposing', imposed: 0, sheets })
   const message = await lastMessage(
@@ -165,14 +175,25 @@ async function imposed(
         deps.dispatch({ type: 'imposing', ...progress })
       }
     },
+    output,
   )
   return 'done' in message && 'sheets' in message.done ? message.done : null
 }
 
+/** The output without a library: writes go nowhere, saving fails as `access`. */
+const NO_LIBRARY: ExportStream = {
+  write: () => undefined,
+  close: () => Promise.resolve({ ok: false, code: 'access' }),
+  abort: () => Promise.resolve(),
+}
+
 /**
  * One Print run (Designer pdf-export §2.2–2.4): paint in the PDF worker,
- * impose a booklet there too, then write `<library>/exports/{pdfFileName}`.
- * A second run while one is going does nothing.
+ * impose a booklet there too, streaming the file to
+ * `<library>/exports/{pdfFileName}` as its chunks arrive. A booklet's page
+ * PDF gathers as a Blob for the impose worker. A refused write shows once
+ * the PDF is built, as `saving` ends. A second run while one is going does
+ * nothing.
  */
 export async function runPrint(deps: PrintRunDeps): Promise<void> {
   const { job, dispatch, libraryLabel } = deps
@@ -191,7 +212,21 @@ export async function runPrint(deps: PrintRunDeps): Promise<void> {
   const fail = (code: 'access' | 'full' | 'other') => {
     dispatch({ type: 'failed', code, library: libraryLabel })
   }
+  const single = pdfFileName(book.title ?? '', book.settings.trim)
+  // A booklet adds its layout (`lake-trip-A5-2up.pdf`).
+  const file =
+    layout === 'single'
+      ? single
+      : `${single.slice(0, -'.pdf'.length)}-${layout}.pdf`
+  let output = NO_LIBRARY
   try {
+    const library = await deps.library()
+    if (library !== null) output = deps.open(library, file)
+    const write = (chunk: ArrayBuffer) => {
+      output.write(new Uint8Array(chunk))
+    }
+    // Each page PDF chunk becomes a Blob part at once: no joined copy.
+    const pages: Blob[] = []
     const { photos } = await deps.resolvePhotos(book)
     const painted = await lastMessage(
       deps.runWorker,
@@ -201,30 +236,35 @@ export async function runPrint(deps: PrintRunDeps): Promise<void> {
           dispatch({ type: 'progress', painted: progress.painted })
         }
       },
+      layout === 'single'
+        ? write
+        : (chunk) => {
+            pages.push(new Blob([chunk]))
+          },
     )
     if (!('done' in painted && 'skipped' in painted.done)) {
+      await output.abort()
       fail('other')
       return
     }
     const { skipped } = painted.done
-    const booklet = await imposed(deps, painted.done.pdf, layout)
+    const booklet =
+      layout === 'single'
+        ? null
+        : await imposed(
+            deps,
+            new Blob(pages, { type: 'application/pdf' }),
+            layout,
+            write,
+          )
     if (layout !== 'single' && booklet === null) {
+      await output.abort()
       fail('other')
       return
     }
-    const { pdf, sheets } = booklet ?? painted.done
+    const { bytes, sheets } = booklet ?? painted.done
     dispatch({ type: 'saving' })
-    const library = await deps.library()
-    if (library === null) {
-      fail('access')
-      return
-    }
-    // A booklet adds its layout (`lake-trip-A5-2up.pdf`).
-    const file = pdfFileName(book.title ?? '', book.settings.trim).replace(
-      /\.pdf$/,
-      layout === 'single' ? '.pdf' : `-${layout}.pdf`,
-    )
-    const written = await deps.write(library, file, new Uint8Array(pdf))
+    const written = await output.close()
     if (!written.ok) {
       fail(written.code)
       return
@@ -234,7 +274,7 @@ export async function runPrint(deps: PrintRunDeps): Promise<void> {
       file,
       layout,
       sheets,
-      bytes: pdf.byteLength,
+      bytes,
       skipped: skippedOf(
         book,
         skipped.map(({ assetId }) => assetId),
@@ -243,6 +283,7 @@ export async function runPrint(deps: PrintRunDeps): Promise<void> {
       library: libraryLabel,
     })
   } catch {
+    await output.abort()
     fail('other')
   }
 }
@@ -274,6 +315,7 @@ export async function checkPrint(
         },
       },
       () => undefined,
+      () => undefined,
     )
     return 'checked' in checked ? checked.checked.rows : []
   } catch {
@@ -304,7 +346,7 @@ export const runPdfWorker: PdfWorkerRunner = (request, onMessage) => {
   const worker = createPdfWorker()
   worker.onmessage = (event: MessageEvent<PdfMessage>) => {
     onMessage(event.data)
-    if (!('progress' in event.data)) {
+    if (!('progress' in event.data || 'chunk' in event.data)) {
       worker.terminate()
     }
   }
@@ -312,8 +354,8 @@ export const runPdfWorker: PdfWorkerRunner = (request, onMessage) => {
     onMessage({ failed: { message: 'PDF worker error' } })
     worker.terminate()
   }
-  // The page PDF moves to the impose worker instead of being copied.
-  worker.postMessage(request, 'impose' in request ? [request.impose.pdf] : [])
+  // Photos and a booklet's page PDF are Blobs: they clone without a read.
+  worker.postMessage(request)
 }
 
 function libraryLabel(): string {
@@ -350,7 +392,7 @@ function runJob(job: PrintJob): void {
     library: async () =>
       (await getOpenLibraryHandle()) as ExportDirectoryHandle | null,
     libraryLabel: libraryLabel(),
-    write: writeExport,
+    open: openExport,
     dispatch: printStore.dispatch,
   })
 }
