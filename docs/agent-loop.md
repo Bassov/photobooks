@@ -11,7 +11,7 @@ Headless workers read this section only (it ends at `## Reference`). The rest is
 - **3–4 Apply:** loop **A** (`pnpm check:fast`) to green, no commit; then **B** once (`pnpm test:e2e:changed:quiet`, then `pnpm stryker:diff` on `src/` changes, ≤2 runs → `## Stryker C-session`).
 - **5** phase commit. **6** `openspec-implementation-reviewer` once (lite and docs-only too); rework via A, +1 delta review if code changed. **7–8** B again only if prod/tests/UI changed; commit.
 - **9 QA:** UI in scope → `pnpm agent manual-qa` + skill `ui-review`; security surface → Security Review.
-- **10–11:** `pnpm -s agent finalize <slug>`; fix what it prints, re-run, commit.
+- **10–11:** `pnpm -s agent finalize <slug>` (lite too); fix what it prints, re-run, commit.
 - **12:** `pnpm -s agent finish --title "…" --body-file …`, print the PR URL, exit. CI wait and merge belong to the orchestrator.
 
 Reviewer briefs: `pnpm agent review-brief --out <file> --base origin/main`; pass the brief path only. Stop only for: dirty tree, milestone review cut, intent vs spec/issue conflict. Else record assumptions and continue.
@@ -86,7 +86,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 
 - Write OpenSpec artifacts via `pnpm agent instructions` / run card.
 - **How:** `openspec/config.yaml` `rules.*` (incl. prep/contingency fast-track).
-- **Lite track (`[lite]` items):** no `openspec/changes/<slug>`; the roadmap item and the PR body are the plan. Skip stages 1–2 and archive: in 10–11 `pnpm -s agent finalize <slug>` (no change dir → no delta-spec/archive; it proceeds to roadmap done, C1, C2, stamp; if it errors on the missing change, run `pnpm roadmap done <slug>`, `check:integrity`, `quality:self-check`, `stamp-green` by hand). Everything else stays: A, B (changed specs), `ui-review` + evidenced browser smoke when UI is in scope, stage 6 implementation reviewer on the diff, thin finish. The PR body MUST carry the plan (scope, touch-set, Done when).
+- **Lite track (`[lite]` items):** no `openspec/changes/<slug>`; the roadmap item and the PR body are the plan. Skip stages 1–2 and the archive step, never 10–11: `pnpm -s agent finalize <slug>` still runs (no change dir → no delta-spec/archive; it proceeds to roadmap done, C1, C2, stamp; C1 `item-done` fails without `Status: done`; if it errors on the missing change, run `pnpm roadmap done <slug>`, `check:integrity`, `quality:self-check`, `stamp-green` by hand). Everything else stays: A, B (changed specs), `ui-review` + evidenced browser smoke when UI is in scope, stage 6 implementation reviewer on the diff, thin finish. The PR body MUST carry the plan (scope, touch-set, Done when).
 - **Lite by default (cfix/bug items):** a cfix/bug item (brief `Kind cfix`, or title `Bug:` / `Fix:`) runs `[lite]` when the code map shows it touches ≤3 source files (tests, e2e, test helpers, docs and its own roadmap file not counted) and needs no spec delta / new domain behaviour. At prep, right after the code map, re-tag it `[lite]` if it meets this rule; if it grows past it (or past the escalation below), re-tag it back to `[feature]` and run the normal track. A re-tag edits the item file `Tag:` and the item's own `docs/roadmap.md` line together (`roadmap check` fails on a mismatch); no other index edits. Gates stay the same: A, B, stage 6 implementation review, `ui-review` + browser smoke when UI is in scope, CI.
 - **Escalation:** apply passes ~200 changed lines or needs a spec delta / domain behavior → stop, re-tag the item `[feature]`/`[prep]` (or `roadmap add --after`) and run the normal track.
 
@@ -135,6 +135,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 ### 10–11 · Finalize
 
 - `pnpm -s agent finalize <slug>`: delta-spec sync check → archive → roadmap done (item file only) → `check:integrity` → `quality:self-check` → `stamp-green`. Prints only failures + one OK line; fix what it prints, re-run, commit.
+- Rule (lite too): the branch closes its own item. C1 `item-done` (`scripts/check-item-done.mjs`; finalize, pre-push, CI) fails a `feat|fix/<slug>` branch whose item file lacks `Status: done`.
 - **How:** `operations.archive`.
 
 ### 12 · Thin finish
