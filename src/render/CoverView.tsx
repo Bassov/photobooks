@@ -13,6 +13,8 @@ import {
   type CoverGeometry,
   type CoverGeometryBook,
 } from '../core/print/coverGeometry'
+// The print's own placement (`coverPhotoRect`): zod-free like the geometry.
+import { coverPhotoAnchor } from '../core/pdf/pdfGeometry'
 import { coverLayout, type CoverLayout, type PctBox } from './coverLayout'
 import './CoverView.css'
 
@@ -199,6 +201,8 @@ export const CoverPainter = memo(function CoverPainter({
   const { style: look } = cover
   const mini = edit === undefined
   const layout = coverLayout(geometry)
+  // `coverPhotoRect`'s anchor; its cover fit is the CSS `background-size`.
+  const anchor = coverPhotoAnchor(cover.front.crop)
   const id = (name: string): string | undefined => (mini ? undefined : name)
   const vars: Record<string, number> = {
     '--spine-frac': layout.spineFrac,
@@ -258,6 +262,7 @@ export const CoverPainter = memo(function CoverPainter({
               bottom: pct(-layout.photoOverflowYPct),
               right: pct(-layout.photoOverflowXPct),
               backgroundImage: `url(${frontUrl})`,
+              backgroundPosition: `${pct(anchor.x * 100)} ${pct(anchor.y * 100)}`,
             }}
           />
         )}

@@ -214,6 +214,95 @@ export function cropMarkSegments(trim: RectMm, bleedMm: number): Segment[] {
   ])
 }
 
+/** The cover sheet (mm, origin at its top-left) and its spine. */
+export interface CoverSheetSize {
+  sheetW: number
+  sheetH: number
+  spine: number
+  rects: { spine: { x: number } }
+}
+
+/**
+ * The cover sheet's crop marks plus a fold mark above and below each spine
+ * edge, as long and as far out as the crop marks (sheet mm).
+ */
+export function coverSheetMarks(
+  sheet: CoverSheetSize,
+  bleedMm: number,
+): Segment[] {
+  const { sheetW, sheetH } = sheet
+  const start = cropMarkOffsetMm(bleedMm)
+  const end = start + CROP_MARK_LENGTH_MM
+  const folds = [sheet.rects.spine.x, sheet.rects.spine.x + sheet.spine]
+  return [
+    ...cropMarkSegments({ x: 0, y: 0, width: sheetW, height: sheetH }, bleedMm),
+    ...folds.flatMap((x) => [
+      { from: { x, y: -start }, to: { x, y: -end } },
+      { from: { x, y: sheetH + start }, to: { x, y: sheetH + end } },
+    ]),
+  ]
+}
+
+/** A front photo crop (book schema `crop`): zoom ≥ 1 and the image point kept in place. */
+export interface CoverPhotoCrop {
+  zoom: number
+  center: { x: number; y: number }
+}
+
+/**
+ * The front photo's anchor as box fractions: the image point at these
+ * fractions sits on the box point at the same fractions (CSS
+ * `background-position` percentages); uncropped 45 % / 50 % (kit v7).
+ */
+export function coverPhotoAnchor(crop?: CoverPhotoCrop): {
+  x: number
+  y: number
+} {
+  return crop?.center ?? { x: 0.45, y: 0.5 }
+}
+
+/** Scale about the anchor that moves an edge `have` away out to `need`. */
+function grow(need: number, have: number): number {
+  return have > 0 ? need / have : 1
+}
+
+/**
+ * The cover's front photo (oriented aspect `imageAspect`) in the units of
+ * `box`, as CoverView paints it (Designer cover-pdf C6): cover fit times the
+ * crop zoom, placed at `coverPhotoAnchor`. With `bleedBox` (the box grown by
+ * the bleed) it is scaled about the anchor point by the least k ≥ 1 that
+ * covers that too.
+ */
+export function coverPhotoRect(
+  box: RectMm,
+  imageAspect: number,
+  crop?: CoverPhotoCrop,
+  bleedBox?: RectMm,
+): RectMm {
+  const zoom = crop?.zoom ?? 1
+  const height = Math.max(box.width / imageAspect, box.height) * zoom
+  const width = height * imageAspect
+  const anchor = coverPhotoAnchor(crop)
+  const x = box.x + (box.width - width) * anchor.x
+  const y = box.y + (box.height - height) * anchor.y
+  if (bleedBox === undefined) return { x, y, width, height }
+  const px = box.x + box.width * anchor.x
+  const py = box.y + box.height * anchor.y
+  const k = Math.max(
+    1,
+    grow(px - bleedBox.x, px - x),
+    grow(bleedBox.x + bleedBox.width - px, x + width - px),
+    grow(py - bleedBox.y, py - y),
+    grow(bleedBox.y + bleedBox.height - py, y + height - py),
+  )
+  return {
+    x: px - (px - x) * k,
+    y: py - (py - y) * k,
+    width: width * k,
+    height: height * k,
+  }
+}
+
 /** Frame-local mm (origin at the frame's top-left) → spread mm, rotated about its centre. */
 export function frameMatrix(
   item: Pick<ResolvedItem, 'rectMm' | 'rotation'>,
