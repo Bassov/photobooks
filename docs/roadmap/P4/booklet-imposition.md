@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P4
 Title: home printing
+Status: done
 
 ## Scope
 
