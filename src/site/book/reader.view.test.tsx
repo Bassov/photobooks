@@ -876,6 +876,45 @@ describe('BookReader with WebGL', () => {
     expect(root.dataset.faces).toBe('done')
   })
 
+  it('marks the faces only when the latest draw lands, not an older one', async () => {
+    const made = fakeGl()
+    const lands: (() => void)[] = []
+    made.draws.draw.mockImplementation(
+      (_out, _w, _h, prep) =>
+        new Promise((resolve) => {
+          lands.push(() => {
+            resolve(prep())
+          })
+        }),
+    )
+    await glMount(made)
+    const root = screen.getByTestId('ps-reader-gl')
+    await act(async () => {
+      lands[0]?.()
+      await Promise.resolve()
+    })
+    expect(root.dataset.faces).toBe('done')
+
+    key('End')
+    expect(root.dataset.faces).toBeUndefined()
+    // the jump's draw, then a texture landing asks for a newer one
+    const jump = lands.at(-1)
+    act(() => {
+      made.book.onChange()
+    })
+    expect(lands.at(-1)).not.toBe(jump)
+    await act(async () => {
+      jump?.()
+      await Promise.resolve()
+    })
+    expect(root.dataset.faces).toBeUndefined()
+    await act(async () => {
+      lands.at(-1)?.()
+      await Promise.resolve()
+    })
+    expect(root.dataset.faces).toBe('done')
+  })
+
   it('reports faces still loading, redraws when a texture lands', async () => {
     const { made } = await glMount(fakeGl(true))
     expect(screen.getByTestId('ps-reader-gl').dataset.faces).toBe('loading')
@@ -916,6 +955,9 @@ describe('BookReader with WebGL', () => {
     expect(leaf.dataset.theta).toBe(th.toFixed(1))
     expect(leaf.getAttribute('aria-hidden')).toBe('true')
     frame(plan.ms)
+    // the landed leaf rests: fenced like a jump
+    expect(made.book.set).toHaveBeenLastCalledWith(5, 0)
+    expect(made.draws.draw.mock.calls.at(-1)?.slice(4)).toEqual([false])
     expect(made.faces.focus).toHaveBeenLastCalledWith(5)
     expect(screen.queryByTestId('ps-leaf')).toBeNull()
   })
@@ -938,9 +980,12 @@ describe('BookReader with WebGL', () => {
     HTMLCanvasElement.prototype.animate = animate
     const { made } = await glMount()
     key('End')
-    // a jump: the view changes at θ 0, drawn in its task
+    // a jump: the view changes at θ 0, fenced (no GPU wait in its task)
     expect(made.book.set).toHaveBeenLastCalledWith(11, 0)
-    expect(made.draws.draw.mock.calls.at(-1)?.slice(4)).toEqual([true])
+    expect(made.draws.draw.mock.calls.at(-1)?.slice(4)).toEqual([false])
+    // the fade starts once the new pixels land
+    expect(animate).not.toHaveBeenCalled()
+    await flush()
     expect(animate).toHaveBeenCalledExactlyOnceWith(
       [{ opacity: 1 }, { opacity: 0 }],
       { duration: 240, easing: 'linear', fill: 'forwards' },

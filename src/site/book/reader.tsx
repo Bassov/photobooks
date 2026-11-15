@@ -391,38 +391,54 @@ function ReaderGl({
   const lastPose = useRef<{ gl: ReaderGlBook; a: number; th: number } | null>(
     null,
   )
+  /** the crossfade (ms) waiting for its new pixels */
+  const fadeDue = useRef<number | null>(null)
+  const drawSeq = useRef(0)
   useLayoutEffect(() => {
     const c = canvas.current
     const o = over.current
     if (!gl || !c || !o) return
+    // a crossfade: snapshot the old pixels now, fade them out from the task
+    // the new ones land in
     if (fade && fade.id !== lastFade.current) {
       lastFade.current = fade.id
+      fadeDue.current = fade.ms
       o.width = c.width
       o.height = c.height
       o.getContext('2d')?.drawImage(c, 0, 0)
-      const an = o.animate([{ opacity: 1 }, { opacity: 0 }], {
-        duration: fade.ms,
-        easing: 'linear',
-        fill: 'forwards',
-      })
-      an.onfinish = () => {
-        cb.current.onFade()
-      }
     }
     const size = backingSize(box, window.devicePixelRatio)
     gl.book.set(a, th)
     gl.book.frame(W, H, s, box)
-    // a turn draws in this task; the boot and texture landings are fenced
-    // (the pixels and the size land a frame or more later, no GPU wait)
+    // a leaf mid-turn draws in this task; the boot, texture landings and rest
+    // poses (a jump, a reduced-motion turn, the landed leaf) are fenced: the
+    // pixels and the size land a frame or more later, no GPU wait
     const was = lastPose.current
-    const turned = was?.gl === gl && (was.a !== a || was.th !== th)
+    const turned =
+      was?.gl === gl && (was.a !== a || was.th !== th) && th > 0 && th < 180
     lastPose.current = { gl, a, th }
+    // data-faces describes the pixels on the canvas: gone until this draw
+    // (not an older one in flight) lands
+    const seq = ++drawSeq.current
+    root.current?.removeAttribute('data-faces')
     void gl.draws
       .draw(c, size.w, size.h, () => gl.book.loading, turned)
       .then((loading) => {
+        if (seq !== drawSeq.current) return
         root.current?.setAttribute('data-gl', 'ready')
         // data-faces: "done" once every face drawn so far has its canvas (tests wait on it)
         root.current?.setAttribute('data-faces', loading ? 'loading' : 'done')
+        const ms = fadeDue.current
+        if (ms === null || !over.current) return
+        fadeDue.current = null
+        const an = over.current.animate([{ opacity: 1 }, { opacity: 0 }], {
+          duration: ms,
+          easing: 'linear',
+          fill: 'forwards',
+        })
+        an.onfinish = () => {
+          cb.current.onFade()
+        }
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the box by value; tick is a texture landing
   }, [gl, tick, a, th, W, H, s, box.x, box.y, box.w, box.h, fade])
