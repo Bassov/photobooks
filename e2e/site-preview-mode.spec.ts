@@ -4,6 +4,7 @@ import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewpor
 import { addSpreads } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import { pixelsAt, topAt } from './fixtures/paintProbe'
+import { readerLanded } from './fixtures/readerLanded'
 import {
   browserAssertNoLoaf,
   browserBeginLoafScenarioWindow,
@@ -51,8 +52,8 @@ async function next(page: Page): Promise<void> {
   const reader = page.getByTestId('site-preview').getByTestId('ps-reader')
   const view = Number(await reader.getAttribute('data-view'))
   await page.keyboard.press('ArrowRight')
-  await expect(reader).toHaveAttribute('data-view', String(view + 1))
-  await expect(reader).toHaveAttribute('data-turn', 'rest')
+  // pixels too: the landed page's GL draw is fenced past data-view
+  await readerLanded(reader, view + 1)
 }
 
 async function noDocumentScroll(page: Page): Promise<void> {

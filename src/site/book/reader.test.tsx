@@ -311,6 +311,7 @@ describe('BookReader with WebGL', () => {
       made.book.onChange()
     })
     key('End')
+    await flush()
     expect(animate).toHaveBeenCalledTimes(1)
     act(() => {
       fade.onfinish?.()

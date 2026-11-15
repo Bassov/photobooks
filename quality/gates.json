@@ -176,6 +176,10 @@
       {
         "name": "roadmap",
         "argv": ["pnpm", "-s", "roadmap", "check"]
+      },
+      {
+        "name": "item-done",
+        "argv": ["node", "scripts/check-item-done.mjs"]
       }
     ],
     "afterUnit": [

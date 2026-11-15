@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P4
 Title: Bug: /next-roadmap-item lint-no-wait-for-timeout
+Status: done
 
 Process item P-20261115-0213-2 (self-improve retro, lane process). Why: `page.waitForTimeout` was banned only in reviewer prose, so workers learned about it a whole CI + review cycle late (#594, #612 RESUMEd for it alone; #580 let it through).
 

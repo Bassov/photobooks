@@ -12,7 +12,7 @@ import * as React from "react"
 import { CoverFace, ENDPAPER, SpreadArt, TitlePage } from "../site/art"
 import { pagesOf, SPREAD_R, src, viewLabel, viewsOf, type SiteBook } from "../site/sample"
 import { faceLook, OpenBook } from "./gl/open"
-import { drawInto, glWanted, loadThree, type Three } from "./gl/three"
+import { fencedDraws, glWanted, loadThree, type FencedDraws } from "./gl/three"
 import { paperLayers } from "./paper"
 import "./reader.css"
 
@@ -207,13 +207,13 @@ type GlProps = {
 function ReaderGl({ b, a, th, W, H, box, s, board, bend, label, fade, onFade, onFail }: GlProps) {
   const root = React.useRef<HTMLDivElement>(null), canvas = React.useRef<HTMLCanvasElement>(null), over = React.useRef<HTMLCanvasElement>(null)
   const probe = React.useRef<HTMLSpanElement>(null)
-  const [gl, setGl] = React.useState<{ T: Three; book: OpenBook } | null>(null)
+  const [gl, setGl] = React.useState<{ book: OpenBook; draws: FencedDraws } | null>(null)
   const [tick, setTick] = React.useState(0)
   const cb = React.useRef({ onFail, onFade })
   cb.current = { onFail, onFade }
   const pagePx = W >= 1600 ? 2048 : 1024
   React.useEffect(() => {
-    let dead = false, book: OpenBook | undefined
+    let dead = false, book: OpenBook | undefined, draws: FencedDraws | undefined
     const look = faceLook(root.current!, probe.current)
     void (async () => {
       try {
@@ -221,34 +221,53 @@ function ReaderGl({ b, a, th, W, H, box, s, board, bend, label, fade, onFade, on
         book = await OpenBook.create(T, b, { board, bend, pagePx, ...look })
         if (dead) { book.dispose(); return }
         book.onChange = () => setTick((t) => t + 1)
-        setGl({ T, book })
+        // fenced: the main thread never waits for the GPU (see `fencedDraws`)
+        draws = fencedDraws(T, book.scene, book.cam, true)
+        setGl({ book, draws })
       } catch (e) {
         if (!dead) { console.warn("BookReader: GL failed, CSS fallback", e); cb.current.onFail() }
       }
     })()
-    return () => { dead = true; book?.dispose(); setGl(null) }
+    return () => { dead = true; draws?.stop(); book?.dispose(); setGl(null) }
   }, [b, board, bend, pagePx])
 
   const lastFade = React.useRef<number | null>(null)
+  const lastPose = React.useRef<{ gl: object; a: number; th: number } | null>(null)
+  /** the crossfade (ms) waiting for its new pixels */
+  const fadeDue = React.useRef<number | null>(null), drawSeq = React.useRef(0)
   React.useLayoutEffect(() => {
     const c = canvas.current, o = over.current
     if (!gl || !c || !o) return
+    // a crossfade: snapshot the old pixels now, fade them out from the task the new ones land in
     if (fade && fade.id !== lastFade.current) {
       lastFade.current = fade.id
+      fadeDue.current = fade.ms
       o.width = c.width; o.height = c.height
       o.getContext("2d")?.drawImage(c, 0, 0)
-      const an = o.animate([{ opacity: 1 }, { opacity: 0 }], { duration: fade.ms, easing: "linear", fill: "forwards" })
-      an.onfinish = () => cb.current.onFade()
     }
     // capped so a wide reader's backing store stays within 4096 px
     const k = Math.min(Math.max(2, window.devicePixelRatio || 1), 4096 / Math.max(box.w, box.h)), cw = Math.round(box.w * k), ch = Math.round(box.h * k)
-    if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch }
     gl.book.set(a, th)
     gl.book.frame(W, H, s, box)
-    drawInto(gl.T, gl.book.scene, gl.book.cam, c, true)
-    root.current?.setAttribute("data-gl", "ready")
-    // data-faces: "done" once every face drawn so far has its canvas, not the paper placeholder (tests wait on it)
-    root.current?.setAttribute("data-faces", gl.book.loading ? "loading" : "done")
+    // a leaf mid-turn draws in this task; the boot, texture landings and rest poses (a jump, a reduced-motion turn, the
+    // landed leaf) are fenced: the pixels and the size land a frame or more later, no GPU wait (a synchronous copy blocks
+    // hundreds of ms a draw on software GL)
+    const was = lastPose.current, turned = was?.gl === gl && (was.a !== a || was.th !== th) && th > 0 && th < 180
+    lastPose.current = { gl, a, th }
+    // data-faces describes the pixels on the canvas: gone until this draw (not an older one in flight) lands
+    const seq = ++drawSeq.current
+    root.current?.removeAttribute("data-faces")
+    void gl.draws.draw(c, cw, ch, () => gl.book.loading, turned).then((loading) => {
+      if (seq !== drawSeq.current) return
+      root.current?.setAttribute("data-gl", "ready")
+      // data-faces: "done" once every face drawn so far has its canvas, not the paper placeholder (tests wait on it)
+      root.current?.setAttribute("data-faces", loading ? "loading" : "done")
+      const ms = fadeDue.current
+      if (ms === null || !over.current) return
+      fadeDue.current = null
+      const an = over.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration: ms, easing: "linear", fill: "forwards" })
+      an.onfinish = () => cb.current.onFade()
+    })
   }, [gl, tick, a, th, W, H, s, box.x, box.y, box.w, box.h, fade])
 
   const place: React.CSSProperties = { position: "absolute", left: box.x, top: box.y, width: box.w, height: box.h, pointerEvents: "none" }

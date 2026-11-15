@@ -297,6 +297,11 @@ test.describe('site room (P5)', () => {
         'data-gl',
         'ready',
       )
+      // the latest (fenced) draw has landed, not only the first one
+      await expect(page.getByTestId('ps-reader-gl')).toHaveAttribute(
+        'data-faces',
+        'done',
+      )
       // the closed cover: right of the room's centre line
       const [centre] = await pixelsAt(page.getByTestId('site-room'), [
         { x: vw / 2 + 100, y: vh / 2 - 40 },
