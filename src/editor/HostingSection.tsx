@@ -587,7 +587,7 @@ function Help({ cors }: { cors: boolean }) {
           variant="ghost"
           size="sm"
           className={cn(
-            'absolute right-1 top-1 text-muted-foreground!',
+            'absolute right-1 top-1 text-muted-foreground! data-[hovered]:text-foreground!',
             XS_GHOST,
           )}
           onPress={() => {

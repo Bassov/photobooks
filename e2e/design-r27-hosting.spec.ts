@@ -23,6 +23,8 @@ test.use({
 const CARD_TOP = 121.44
 const INK = [57, 55, 56]
 const MUTED = [83, 81, 82]
+/** Ghost hover fill (kit and prod), unchanged by the hover ink. */
+const HOVER_FILL = 'rgb(207, 207, 207)'
 
 async function openHosting(page: Page) {
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -181,7 +183,16 @@ test('M114 / M115 / M120: manual form and help position, the muted CORS Copy but
     expect(Math.abs(y - kit), `${what} ${String(y)}`).toBeLessThanOrEqual(0.3)
   }
   // M120: Copy keeps the kit ghost grey, not the Change foreground.
-  await expectXsGhost(page.getByTestId('hosting-cors-copy'), 56.97, MUTED)
+  const copy = page.getByTestId('hosting-cors-copy')
+  await expectXsGhost(copy, 56.97, MUTED)
+  // M120 (hover): the kit ghost turns the ink to the foreground on its
+  // unchanged grey hover fill.
+  await copy.hover()
+  await expect(copy).toHaveAttribute('data-hovered', 'true')
+  await expect(copy).toHaveCSS('background-color', HOVER_FILL)
+  await expectXsGhost(copy, 56.97, INK)
+  const [corner] = await pixelsAt(copy, [{ x: 2, y: 14 }])
+  expect(`rgb(${(corner ?? []).slice(0, 3).join(', ')})`).toBe(HOVER_FILL)
 })
 
 test('M117: the Settings nav head icon is 12×12', async ({ page }) => {
