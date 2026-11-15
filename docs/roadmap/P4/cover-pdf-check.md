@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P4
 Title: Bug: /next-roadmap-item cover-pdf-check
+Status: done
 
 ## Scope
 
