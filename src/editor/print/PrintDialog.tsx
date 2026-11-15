@@ -11,6 +11,7 @@ import { Checkbox } from '../../ui/Checkbox'
 import { Dialog, DialogTitle } from '../../ui/Dialog'
 import { Icon } from '../../ui/Icon'
 import { ProgressBar } from '../../ui/ProgressBar'
+import { SegmentedControl } from '../../ui/SegmentedControl'
 import { getBookPrintProfiles, getBookStoreSnapshot } from '../bookStore'
 import {
   CircleAlertGlyph,
@@ -22,13 +23,16 @@ import { printStore, type PrintState } from './printStore'
 import {
   printBleedLabel,
   printCheckLabel,
+  PRINT_LAYOUTS,
   printDoneText,
+  printDuplexText,
   printFailText,
   printRunText,
   printSavedText,
   printSizeText,
   printSkippedText,
   printSummary,
+  type PrintLayout,
 } from './printText'
 import {
   checkOpenBook,
@@ -162,6 +166,7 @@ export function PrintDialog({
     isOutcome(opened) ? opened : null,
   )
   const [bleed, setBleed] = useState(true)
+  const [layout, setLayout] = useState<PrintLayout>('single')
   const [rows, setRows] = useState<PreflightRow[] | null>(null)
   const [book] = useState(() => {
     const { book: open } = getBookStoreSnapshot()
@@ -171,9 +176,15 @@ export function PrintDialog({
       size: printSizeText(open.settings.trim),
       profile: profile.name,
       bleedMm: printBleedMm(open.settings.bleedMm, profile),
-      ...printCounts(open, printProfiles),
+      counts: Object.fromEntries(
+        PRINT_LAYOUTS.map(({ id }) => [
+          id,
+          printCounts(open, printProfiles, id),
+        ]),
+      ) as Record<PrintLayout, { pages: number; sheets: number }>,
     }
   })
+  const counts = book.counts[layout]
 
   // D6: the check runs when the dialog opens on Options.
   useEffect(() => {
@@ -201,13 +212,13 @@ export function PrintDialog({
   }
 
   const exportNow = () => {
-    startPrint(bleed)
+    startPrint(bleed, layout)
     setStep('run')
   }
 
   const retry = () => {
     printStore.dispatch({ type: 'seen' })
-    retryPrint(bleed)
+    retryPrint(bleed, layout)
     setStep('run')
   }
 
@@ -240,9 +251,17 @@ export function PrintDialog({
                 <span className="text-muted-foreground">Printer</span>
                 <span>{book.profile}</span>
               </div>
-              <div className={ROW} data-testid="print-imposition">
-                <span className="text-muted-foreground">Imposition</span>
-                <span>1 per sheet</span>
+              <div
+                className="flex flex-col gap-1.5"
+                data-testid="print-imposition"
+              >
+                <span className={LABEL}>Imposition (duplex)</span>
+                <SegmentedControl
+                  label="Imposition"
+                  items={PRINT_LAYOUTS}
+                  value={layout}
+                  onChange={setLayout}
+                />
               </div>
               <Checkbox
                 checked={bleed}
@@ -253,8 +272,8 @@ export function PrintDialog({
               </Checkbox>
               <div className={LABEL} data-testid="print-summary">
                 {printSummary(
-                  book.pages,
-                  book.sheets,
+                  counts.pages,
+                  counts.sheets,
                   bleed ? book.bleedMm : null,
                 )}
               </div>
@@ -319,11 +338,21 @@ export function PrintDialog({
               PDF ready
             </DialogTitle>
             <p className={TEXT} data-testid="print-done">
-              {printDoneText(outcome.file, outcome.sheets, outcome.bytes)}
+              {printDoneText(
+                outcome.file,
+                outcome.sheets,
+                outcome.bytes,
+                outcome.layout,
+              )}
             </p>
             <p className={`mt-1.5 mb-0 ${LABEL}`} data-testid="print-saved">
               {printSavedText(outcome.library)}
             </p>
+            {outcome.layout === 'single' ? null : (
+              <p className={`mt-3 mb-0 ${BODY}`} data-testid="print-duplex">
+                {printDuplexText(outcome.layout)}
+              </p>
+            )}
             {outcome.skipped.count > 0 ? (
               <ul
                 className="mt-3 mb-0 list-none p-0"

@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { PreflightRow } from '../../core'
 import {
+  imposePercent,
+  PRINT_LAYOUTS,
   printBleedLabel,
   printCheckLabel,
   printDoneText,
+  printDuplexText,
   printFailText,
   printPercent,
   printRunningTitle,
@@ -50,6 +53,9 @@ describe('printText', () => {
     expect(printSummary(20, 20, null)).toBe(
       'PDF · 20 pages · trim size, no marks',
     )
+    expect(printSummary(8, 1, null)).toBe(
+      'PDF · 8 pages on 1 sheet · trim size, no marks',
+    )
     expect(printSummary(20, 11, 3)).toBe(
       'PDF · 20 pages on 11 sheets · bleed 3 mm',
     )
@@ -69,29 +75,85 @@ describe('printText', () => {
     )
   })
 
-  it('maps painted sheets to 0–95 %', () => {
-    expect(printPercent(0, 20)).toBe(0)
-    expect(printPercent(10, 20)).toBe(48)
-    expect(printPercent(20, 20)).toBe(95)
-    expect(printPercent(0, 0)).toBe(95)
+  it('maps painted sheets to 0–95 %, a booklet to 0–80 %', () => {
+    expect(printPercent(0, 20, 'single')).toBe(0)
+    expect(printPercent(10, 20, 'single')).toBe(48)
+    expect(printPercent(20, 20, 'single')).toBe(95)
+    expect(printPercent(0, 0, 'single')).toBe(95)
+    expect(printPercent(10, 20, '2up')).toBe(40)
+    expect(printPercent(20, 20, '4up')).toBe(80)
+    expect(printPercent(0, 0, '2up')).toBe(80)
   })
 
-  it('shows the page being painted, then saving', () => {
-    const run = { painted: 10, sheets: 20, percent: 48, saving: false }
+  it('maps imposed sheets to 80–95 %', () => {
+    expect(imposePercent(0, 4)).toBe(80)
+    expect(imposePercent(1, 4)).toBe(84)
+    expect(imposePercent(4, 4)).toBe(95)
+    expect(imposePercent(0, 0)).toBe(95)
+  })
+
+  it('shows the page being painted, a booklet imposing, then saving', () => {
+    const run = {
+      painted: 10,
+      sheets: 20,
+      percent: 48,
+      saving: false,
+      imposing: null,
+    }
     expect(printRunText(run)).toBe('Page 11 of 20 · 48%')
     expect(printRunText({ ...run, painted: 20, percent: 95 })).toBe(
       'Page 20 of 20 · 95%',
     )
+    const imposing = { ...run, painted: 20, percent: 84 }
+    expect(
+      printRunText({ ...imposing, imposing: { imposed: 1, sheets: 4 } }),
+    ).toBe('Imposing sheets · 2 of 4 · 84%')
+    expect(
+      printRunText({ ...imposing, imposing: { imposed: 4, sheets: 4 } }),
+    ).toBe('Imposing sheets · 4 of 4 · 84%')
     expect(printRunText({ ...run, percent: 97, saving: true })).toBe(
       'Saving · 97%',
+    )
+    expect(
+      printRunText({
+        ...run,
+        percent: 97,
+        saving: true,
+        imposing: { imposed: 4, sheets: 4 },
+      }),
+    ).toBe('Saving · 97%')
+  })
+
+  it('lists the imposition choices', () => {
+    expect(PRINT_LAYOUTS).toEqual([
+      { id: 'single', label: '1 per sheet' },
+      { id: '2up', label: '2-up' },
+      { id: '4up', label: '4-up' },
+    ])
+  })
+
+  it('tells how to print and fold each booklet', () => {
+    expect(printDuplexText('2up')).toBe(
+      'Print on both sides, flip on the short edge. Stack the sheets in order, fold in half and staple on the fold.',
+    )
+    expect(printDuplexText('4up')).toBe(
+      'Print on both sides, flip on the long edge. Cut each sheet across, put the top half on the bottom half, fold and staple.',
     )
   })
 
   it('writes the done, saved and skipped lines', () => {
-    expect(printDoneText('lake-trip-A5.pdf', 20, 12_345_678)).toBe(
+    expect(printDoneText('lake-trip-A5.pdf', 20, 12_345_678, 'single')).toBe(
       'lake-trip-A5.pdf · 20 pages · 12.3 MB',
     )
-    expect(printDoneText('a.pdf', 1, 40_000)).toBe('a.pdf · 1 page · 0.0 MB')
+    expect(printDoneText('a.pdf', 1, 40_000, 'single')).toBe(
+      'a.pdf · 1 page · 0.0 MB',
+    )
+    expect(printDoneText('a-2up.pdf', 4, 2_000_000, '2up')).toBe(
+      'a-2up.pdf · 4 sheets · 2.0 MB',
+    )
+    expect(printDoneText('a-4up.pdf', 1, 2_000_000, '4up')).toBe(
+      'a-4up.pdf · 1 sheet · 2.0 MB',
+    )
     expect(printSavedText('Photobooks')).toBe('Saved in Photobooks/exports.')
     expect(printSkippedText(1)).toBe(
       '1 photo couldn’t be read and prints as blank paper',

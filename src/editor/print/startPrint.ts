@@ -10,9 +10,11 @@ import { createPdfWorker } from '../../core/pdf/createPdfWorker'
 import { blankSheets, pdfSheets } from '../../core/pdf/pdfGeometry'
 import type {
   PdfCheckMessage,
+  PdfImposeMessage,
   PdfPaintMessage,
   PdfWorkerRequest,
 } from '../../core/pdf/pdf.worker'
+import { sheetCount } from '../../core/print/imposition'
 import type { PrintProfile } from '../../core/print/profileSchema'
 import {
   writeExport,
@@ -26,15 +28,18 @@ import {
   getProjectSessionSnapshot,
 } from '../projectSession'
 import { printStore, type PrintSkipped, type PrintStore } from './printStore'
+import type { PrintLayout } from './printText'
 
-/** What Export PDF prints: the book as it was at the click (D7) and the bleed choice (D4). */
+/** What Export PDF prints: the book as it was at the click (D7), the bleed choice (D4) and the imposition. */
 export interface PrintJob {
   book: Book
   printProfiles: readonly PrintProfile[]
   marks: boolean
+  layout: PrintLayout
 }
 
-type PdfMessage = PdfPaintMessage | PdfCheckMessage
+type PdfMessage = PdfPaintMessage | PdfCheckMessage | PdfImposeMessage
+type PdfProgress = Extract<PdfMessage, { progress: unknown }>['progress']
 
 export type PdfWorkerRunner = (
   request: PdfWorkerRequest,
@@ -58,16 +63,50 @@ export interface PrintRunDeps {
   dispatch: PrintStore['dispatch']
 }
 
-/** Physical pages and PDF pages of the job's book (D5): the painter's sheets without blank padding. */
+/**
+ * Physical pages and PDF pages of the job's book (D5): the painter's sheets
+ * without blank padding; a booklet's paper sheets.
+ */
 export function printCounts(
   book: Book,
   printProfiles: readonly PrintProfile[],
+  layout: PrintLayout,
 ): { pages: number; sheets: number } {
   const profile = bookPrintProfile(book, printProfiles)
+  const pages = pagesOf(book.spreads.length)
   return {
-    pages: pagesOf(book.spreads.length),
-    sheets: pdfSheets(book.spreads.length, book.settings.trim, profile.output)
-      .length,
+    pages,
+    sheets:
+      layout === 'single'
+        ? pdfSheets(book.spreads.length, book.settings.trim, profile.output)
+            .length
+        : sheetCount(pages, layout),
+  }
+}
+
+/** Profile id of a booklet's page PDF. */
+export const BOOKLET_PROFILE_ID = 'booklet-pages'
+
+/**
+ * A booklet paints one PDF page per book page and pads with blank paper
+ * itself: the book's profile with `pages` output and no page minimum.
+ */
+export function bookletPaintJob(
+  book: Book,
+  printProfiles: readonly PrintProfile[],
+): Pick<PrintJob, 'book' | 'printProfiles'> {
+  const profile = bookPrintProfile(book, printProfiles)
+  return {
+    book: { ...book, printProfile: { id: BOOKLET_PROFILE_ID, overrides: {} } },
+    printProfiles: [
+      ...printProfiles,
+      {
+        ...profile,
+        id: BOOKLET_PROFILE_ID,
+        output: 'pages',
+        pageCount: { ...profile.pageCount, min: 0 },
+      },
+    ],
   }
 }
 
@@ -96,12 +135,12 @@ function skippedOf(book: Book, assetIds: readonly string[]): PrintSkipped {
 function lastMessage(
   runWorker: PdfWorkerRunner,
   request: PdfWorkerRequest,
-  onProgress: (painted: number) => void,
+  onProgress: (progress: PdfProgress) => void,
 ): Promise<PdfMessage> {
   return new Promise((resolve) => {
     runWorker(request, (message) => {
       if ('progress' in message) {
-        onProgress(message.progress.painted)
+        onProgress(message.progress)
         return
       }
       resolve(message)
@@ -109,16 +148,43 @@ function lastMessage(
   })
 }
 
+/** A booklet's imposed PDF from the page PDF (worker `impose`); null when it failed. */
+async function imposed(
+  deps: PrintRunDeps,
+  pdf: ArrayBuffer,
+  layout: PrintLayout,
+): Promise<{ pdf: ArrayBuffer; sheets: number } | null> {
+  if (layout === 'single') return null
+  const sheets = sheetCount(pagesOf(deps.job.book.spreads.length), layout)
+  deps.dispatch({ type: 'imposing', imposed: 0, sheets })
+  const message = await lastMessage(
+    deps.runWorker,
+    { impose: { pdf, layout } },
+    (progress) => {
+      if ('imposed' in progress) {
+        deps.dispatch({ type: 'imposing', ...progress })
+      }
+    },
+  )
+  return 'done' in message && 'sheets' in message.done ? message.done : null
+}
+
 /**
  * One Print run (Designer pdf-export §2.2–2.4): paint in the PDF worker,
- * then write `<library>/exports/{pdfFileName}`. A second run while one is
- * going does nothing.
+ * impose a booklet there too, then write `<library>/exports/{pdfFileName}`.
+ * A second run while one is going does nothing.
  */
 export async function runPrint(deps: PrintRunDeps): Promise<void> {
   const { job, dispatch, libraryLabel } = deps
-  const { book, printProfiles, marks } = job
+  const { marks, layout } = job
+  const { book, printProfiles } =
+    layout === 'single' ? job : bookletPaintJob(job.book, job.printProfiles)
   if (
-    !dispatch({ type: 'start', sheets: paintedSheets(book, printProfiles) })
+    !dispatch({
+      type: 'start',
+      sheets: paintedSheets(book, printProfiles),
+      layout,
+    })
   ) {
     return
   }
@@ -130,22 +196,34 @@ export async function runPrint(deps: PrintRunDeps): Promise<void> {
     const painted = await lastMessage(
       deps.runWorker,
       { paint: { book, printProfiles, photos, marks } },
-      (count) => {
-        dispatch({ type: 'progress', painted: count })
+      (progress) => {
+        if ('painted' in progress) {
+          dispatch({ type: 'progress', painted: progress.painted })
+        }
       },
     )
-    if (!('done' in painted)) {
+    if (!('done' in painted && 'skipped' in painted.done)) {
       fail('other')
       return
     }
+    const { skipped } = painted.done
+    const booklet = await imposed(deps, painted.done.pdf, layout)
+    if (layout !== 'single' && booklet === null) {
+      fail('other')
+      return
+    }
+    const { pdf, sheets } = booklet ?? painted.done
     dispatch({ type: 'saving' })
     const library = await deps.library()
     if (library === null) {
       fail('access')
       return
     }
-    const file = pdfFileName(book.title ?? '', book.settings.trim)
-    const { pdf, sheets, skipped } = painted.done
+    // A booklet adds its layout (`lake-trip-A5-2up.pdf`).
+    const file = pdfFileName(book.title ?? '', book.settings.trim).replace(
+      /\.pdf$/,
+      layout === 'single' ? '.pdf' : `-${layout}.pdf`,
+    )
     const written = await deps.write(library, file, new Uint8Array(pdf))
     if (!written.ok) {
       fail(written.code)
@@ -154,6 +232,7 @@ export async function runPrint(deps: PrintRunDeps): Promise<void> {
     dispatch({
       type: 'done',
       file,
+      layout,
       sheets,
       bytes: pdf.byteLength,
       skipped: skippedOf(
@@ -233,7 +312,8 @@ export const runPdfWorker: PdfWorkerRunner = (request, onMessage) => {
     onMessage({ failed: { message: 'PDF worker error' } })
     worker.terminate()
   }
-  worker.postMessage(request)
+  // The page PDF moves to the impose worker instead of being copied.
+  worker.postMessage(request, 'impose' in request ? [request.impose.pdf] : [])
 }
 
 function libraryLabel(): string {
@@ -243,19 +323,20 @@ function libraryLabel(): string {
 let lastJob: PrintJob | null = null
 
 /** Export PDF: snapshot the book now and run (from the click). */
-export function startPrint(marks: boolean): void {
+export function startPrint(marks: boolean, layout: PrintLayout): void {
   lastJob = {
     book: getBookStoreSnapshot().book,
     printProfiles: getBookPrintProfiles(),
     marks,
+    layout,
   }
   runJob(lastJob)
 }
 
 /** Try again (D10): the same snapshot and options; a new export without one. */
-export function retryPrint(marks: boolean): void {
+export function retryPrint(marks: boolean, layout: PrintLayout): void {
   if (lastJob === null) {
-    startPrint(marks)
+    startPrint(marks, layout)
     return
   }
   runJob(lastJob)

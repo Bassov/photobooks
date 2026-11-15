@@ -30,6 +30,7 @@ function settlePrintStore(): void {
 const pill = () => screen.getByTestId('print')
 const done = {
   file: 'lake-trip-A5.pdf',
+  layout: 'single' as const,
   sheets: 20,
   bytes: 2_000_000,
   skipped: { count: 0, pages: [] },

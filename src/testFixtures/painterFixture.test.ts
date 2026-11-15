@@ -231,6 +231,18 @@ describe('loadPainterFixture', () => {
     }
   })
 
+  it('keeps the first n spreads with spreads=n only', () => {
+    loadPainterFixture('?fixture=painter&spreads=5')
+    const { spreads } = getBookStoreSnapshot().book
+    expect(spreads.map((spread) => spread.id)).toEqual(
+      Array.from({ length: 5 }, (_, i) => `painter-spread-${String(i)}`),
+    )
+    for (const query of ['', '&spreads=0', '&spreads=x']) {
+      loadPainterFixture(`?fixture=painter${query}`)
+      expect(getBookStoreSnapshot().book.spreads).toHaveLength(40)
+    }
+  })
+
   it('adds the kit sample print profile with printProfiles=kit only', () => {
     loadPainterFixture('?fixture=painter')
     expect(getPrintProfiles()).toEqual([])

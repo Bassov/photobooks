@@ -4,7 +4,7 @@ import { animationsSettled } from './fixtures/animationsSettled'
 import { pixelsAt, topAt } from './fixtures/paintProbe'
 
 // pdf-export-kit (Designer pdf-export §2.1–2.4, PE1–PE3): the kit #/demo Print
-// dialog. Options with a read-only "1 per sheet" row (2-up / 4-up hidden), the
+// dialog. Options with the Imposition (duplex) control (booklet-imposition), the
 // D5 summary, the Check block (checking / clean / issues, never blocking), the
 // run (Hide / Esc hide it), PDF ready with Open PDF and the saved path, and
 // the failed step. Values are the Spec's, measured in the DOM.
@@ -220,11 +220,14 @@ test('PE1 options: 1 per sheet row, profile bleed label, D5 summary', async ({
   await expect(dialog(page).getByTestId('print-profile')).toHaveText(
     'PrinterGeneric',
   )
+  // booklet-imposition: the Imposition (duplex) control, 1 per sheet first.
   await expect(dialog(page).getByTestId('print-imposition')).toHaveText(
-    'Imposition1 per sheet',
+    'Imposition (duplex)1 per sheet2-up4-up',
   )
-  await expect(dialog(page).getByText(/2-up|4-up/)).toHaveCount(0)
-  await expect(dialog(page).getByRole('radio')).toHaveCount(0)
+  await expect(dialog(page).getByRole('radio')).toHaveCount(3)
+  await expect(
+    dialog(page).getByRole('radio', { name: '1 per sheet' }),
+  ).toBeChecked()
   const bleed = dialog(page).getByRole('checkbox', {
     name: 'Add 3 mm bleed and crop marks',
   })
@@ -234,6 +237,37 @@ test('PE1 options: 1 per sheet row, profile bleed label, D5 summary', async ({
   await dialog(page).getByTestId('print-bleed').click()
   await expect(bleed).not.toBeChecked()
   await expect(summary).toHaveText('PDF · 20 pages · trim size, no marks')
+})
+
+test('booklet-imposition: 4-up counts sheets, imposes and says how to fold', async ({
+  page,
+}) => {
+  await openPrint(page)
+  await dialog(page).getByRole('radio', { name: '4-up' }).click()
+  await expect(dialog(page).getByTestId('print-summary')).toHaveText(
+    'PDF · 20 pages on 3 sheets · bleed 3 mm',
+  )
+  await dialog(page).getByRole('radio', { name: '2-up' }).click()
+  await expect(dialog(page).getByTestId('print-summary')).toHaveText(
+    'PDF · 20 pages on 5 sheets · bleed 3 mm',
+  )
+  await freeze(page)
+  await dialog(page).getByTestId('print-go').click()
+  // 88 % of the 1.4 s stand-in run: painted, imposing sheet 3 of 5.
+  await advance(page, 1400 * 0.88)
+  await expect(dialog(page).getByTestId('print-run-text')).toHaveText(
+    'Imposing sheets · 3 of 5 · 86%',
+  )
+  await release(page)
+  await expect(dialog(page)).toHaveAttribute('data-step', 'done', {
+    timeout: 10_000,
+  })
+  await expect(dialog(page).getByTestId('print-done')).toHaveText(
+    /^lake-trip-A5-2up\.pdf · 5 sheets · /,
+  )
+  await expect(dialog(page).getByTestId('print-duplex')).toHaveText(
+    'Print on both sides, flip on the short edge. Stack the sheets in order, fold in half and staple on the fold.',
+  )
 })
 
 test('PE1 bleed label and Printer row follow the book profile', async ({
@@ -598,9 +632,13 @@ test('PE4 #/feature/pdf-export: every state is reachable', async ({ page }) => {
     ['No problems', 'opts', 'idle', 'clean'],
     ['Issues', 'opts', 'idle', 'issues'],
     ['No bleed', 'opts', 'idle', 'issues'],
+    ['2-up', 'opts', 'idle', 'issues'],
+    ['4-up, no bleed', 'opts', 'idle', 'issues'],
     ['Exporting', 'run', 'running', ''],
+    ['Imposing', 'run', 'running', ''],
     ['Hidden, 48 %', null, 'running', ''],
     ['PDF ready', 'done', 'done', ''],
+    ['PDF ready, 2-up', 'done', 'done', ''],
     ['PDF ready, skipped photos', 'done', 'done', ''],
     ['Failed', 'failed', 'failed', ''],
   ]
@@ -628,7 +666,20 @@ test('PE4 #/feature/pdf-export: every state is reachable', async ({ page }) => {
   await expect(dlg.getByTestId('print-run-text')).toHaveText(
     'Page 11 of 20 · 48%',
   )
+  await tab('4-up, no bleed')
+  await expect(dlg.getByTestId('print-summary')).toHaveText(
+    'PDF · 20 pages on 3 sheets · trim size, no marks',
+  )
+  await tab('Imposing')
+  await expect(dlg.getByTestId('print-run-text')).toHaveText(
+    'Imposing sheets · 3 of 5 · 86%',
+  )
+  await tab('PDF ready, 2-up')
+  await expect(dlg.getByTestId('print-duplex')).toContainText(
+    'flip on the short edge',
+  )
   await tab('PDF ready')
+  await expect(dlg.getByTestId('print-duplex')).toHaveCount(0)
   await expect(dlg.getByTestId('print-skipped')).toHaveCount(0)
   await tab('PDF ready, skipped photos')
   await expect(dlg.getByTestId('print-skipped')).toHaveText(

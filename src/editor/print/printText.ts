@@ -1,5 +1,6 @@
 import type { ExportWriteErrorCode } from '../../project'
 import type { PreflightRow } from '../../core'
+import type { ImpositionLayout } from '../../core/print/imposition'
 import { fmtN } from '../../core/print/profileText'
 import { PAGE_SIZE_PRESETS } from '../pageSizePresets'
 
@@ -7,16 +8,47 @@ import { PAGE_SIZE_PRESETS } from '../pageSizePresets'
 
 /** Painting fills 0–95 %; the last 5 % is writing the file. */
 const PAINT_SHARE = 95
+/** A booklet paints up to 80 % and imposes from 80 to 95 %. */
+const BOOKLET_PAINT_SHARE = 80
 /** The percent shown while the file is written. */
 export const PRINT_SAVING_PERCENT = 97
+
+/** Imposition choices of the Print dialog (booklet-imposition). */
+export type PrintLayout = 'single' | ImpositionLayout
+
+export const PRINT_LAYOUTS: { id: PrintLayout; label: string }[] = [
+  { id: 'single', label: '1 per sheet' },
+  { id: '2up', label: '2-up' },
+  { id: '4up', label: '4-up' },
+]
 
 function plural(count: number, one: string, many = `${one}s`): string {
   return `${String(count)} ${count === 1 ? one : many}`
 }
 
-/** `round(95 · painted / sheets)`; no sheets counts as painted. */
-export function printPercent(painted: number, sheets: number): number {
-  return sheets > 0 ? Math.round((PAINT_SHARE * painted) / sheets) : PAINT_SHARE
+function share(part: number, whole: number, of: number): number {
+  return whole > 0 ? Math.round((of * part) / whole) : of
+}
+
+/** `round(95 · painted / sheets)` (a booklet: 80); no sheets counts as painted. */
+export function printPercent(
+  painted: number,
+  sheets: number,
+  layout: PrintLayout,
+): number {
+  return share(
+    painted,
+    sheets,
+    layout === 'single' ? PAINT_SHARE : BOOKLET_PAINT_SHARE,
+  )
+}
+
+/** A booklet's imposing: 80–95 %. */
+export function imposePercent(imposed: number, sheets: number): number {
+  return (
+    BOOKLET_PAINT_SHARE +
+    share(imposed, sheets, PAINT_SHARE - BOOKLET_PAINT_SHARE)
+  )
 }
 
 /** "A5 · 14.8 × 21 cm" / "Custom · 19 × 23 cm" (either orientation matches a preset). */
@@ -44,7 +76,7 @@ export function printSummary(
   sheets: number,
   bleedMm: number | null,
 ): string {
-  const on = sheets === pages ? '' : ` on ${String(sheets)} sheets`
+  const on = sheets === pages ? '' : ` on ${plural(sheets, 'sheet')}`
   const marks =
     bleedMm === null ? ' · trim size, no marks' : ` · bleed ${fmtN(bleedMm)} mm`
   return `PDF · ${String(pages)} pages${on}${marks}`
@@ -61,25 +93,44 @@ export function printCheckLabel(rows: readonly PreflightRow[]): string {
   return parts.length === 0 ? 'Check' : `Check · ${parts.join(', ')}`
 }
 
-/** §2.2: "Page {i} of {sheets} · {p}%" while painting, "Saving · {p}%" after. */
+/**
+ * §2.2: "Page {i} of {sheets} · {p}%" while painting, a booklet's
+ * "Imposing sheets · {i} of {n} · {p}%" next, "Saving · {p}%" after.
+ */
 export function printRunText(run: {
   painted: number
   sheets: number
   percent: number
   saving: boolean
+  imposing: { imposed: number; sheets: number } | null
 }): string {
-  if (run.saving) return `Saving · ${String(run.percent)}%`
+  const percent = `${String(run.percent)}%`
+  if (run.saving) return `Saving · ${percent}`
+  if (run.imposing !== null) {
+    const { imposed, sheets } = run.imposing
+    const sheet = Math.min(imposed + 1, sheets)
+    return `Imposing sheets · ${String(sheet)} of ${String(sheets)} · ${percent}`
+  }
   const page = Math.min(run.painted + 1, run.sheets)
-  return `Page ${String(page)} of ${String(run.sheets)} · ${String(run.percent)}%`
+  return `Page ${String(page)} of ${String(run.sheets)} · ${percent}`
 }
 
-/** §2.3: "lake-trip-A5.pdf · 40 pages · 12.3 MB" (MB = 10^6 bytes). */
+/** §2.3: "lake-trip-A5.pdf · 40 pages · 12.3 MB" (MB = 10^6 bytes); a booklet counts paper sheets. */
 export function printDoneText(
   file: string,
   sheets: number,
   bytes: number,
+  layout: PrintLayout,
 ): string {
-  return `${file} · ${plural(sheets, 'page')} · ${(bytes / 1_000_000).toFixed(1)} MB`
+  const count = plural(sheets, layout === 'single' ? 'page' : 'sheet')
+  return `${file} · ${count} · ${(bytes / 1_000_000).toFixed(1)} MB`
+}
+
+/** How to print and fold a booklet on a home duplex printer. */
+export function printDuplexText(layout: ImpositionLayout): string {
+  return layout === '2up'
+    ? 'Print on both sides, flip on the short edge. Stack the sheets in order, fold in half and staple on the fold.'
+    : 'Print on both sides, flip on the long edge. Cut each sheet across, put the top half on the bottom half, fold and staple.'
 }
 
 export function printSavedText(library: string): string {
