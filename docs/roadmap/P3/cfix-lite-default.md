@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P3
 Title: Bug: /next-roadmap-item cfix-lite-default
+Status: done
 
 ## Scope
 
