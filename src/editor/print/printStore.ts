@@ -5,7 +5,12 @@ import {
   type JobClock,
   type JobStore,
 } from '../export/jobStore'
-import { printPercent, PRINT_SAVING_PERCENT } from './printText'
+import {
+  imposePercent,
+  printPercent,
+  PRINT_SAVING_PERCENT,
+  type PrintLayout,
+} from './printText'
 
 /** Photos the painter left as blank paper (Designer pdf-export §2.3). */
 export interface PrintSkipped {
@@ -16,6 +21,8 @@ export interface PrintSkipped {
 
 export interface PrintOutcome {
   file: string
+  layout: PrintLayout
+  /** PDF pages; a booklet's paper sheets. */
   sheets: number
   bytes: number
   skipped: PrintSkipped
@@ -36,13 +43,18 @@ export type PrintState =
       percent: number
       /** Painting is over; the file is being written. */
       saving: boolean
+      layout: PrintLayout
+      /** A booklet's sheets imposed so far, once painting is over. */
+      imposing: { imposed: number; sheets: number } | null
     }
   | ({ kind: 'done' } & PrintOutcome)
   | { kind: 'failed'; code: ExportWriteErrorCode; library: string }
 
 export type PrintEvent =
-  | { type: 'start'; sheets: number }
+  /** `layout` absent → 1 per sheet. */
+  | { type: 'start'; sheets: number; layout?: PrintLayout }
   | { type: 'progress'; painted: number }
+  | { type: 'imposing'; imposed: number; sheets: number }
   | { type: 'saving' }
   | ({ type: 'done' } & PrintOutcome)
   | { type: 'failed'; code: ExportWriteErrorCode; library: string }
@@ -65,15 +77,29 @@ export function reducePrint(state: PrintState, event: PrintEvent): PrintState {
             sheets: event.sheets,
             percent: 0,
             saving: false,
+            layout: event.layout ?? 'single',
+            imposing: null,
           }
     case 'progress':
       return state.kind === 'running' &&
         !state.saving &&
+        state.imposing === null &&
         event.painted > state.painted
         ? {
             ...state,
             painted: event.painted,
-            percent: printPercent(event.painted, state.sheets),
+            percent: printPercent(event.painted, state.sheets, state.layout),
+          }
+        : state
+    case 'imposing':
+      return state.kind === 'running' &&
+        !state.saving &&
+        event.imposed > (state.imposing?.imposed ?? -1)
+        ? {
+            ...state,
+            painted: state.sheets,
+            percent: imposePercent(event.imposed, event.sheets),
+            imposing: { imposed: event.imposed, sheets: event.sheets },
           }
         : state
     case 'saving':
@@ -87,8 +113,17 @@ export function reducePrint(state: PrintState, event: PrintEvent): PrintState {
         : state
     case 'done': {
       if (state.kind !== 'running') return state
-      const { file, sheets, bytes, skipped, handle, library } = event
-      return { kind: 'done', file, sheets, bytes, skipped, handle, library }
+      const { file, layout, sheets, bytes, skipped, handle, library } = event
+      return {
+        kind: 'done',
+        file,
+        layout,
+        sheets,
+        bytes,
+        skipped,
+        handle,
+        library,
+      }
     }
     case 'failed':
       return state.kind === 'running'

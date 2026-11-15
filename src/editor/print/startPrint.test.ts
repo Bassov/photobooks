@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeFrame, makeSpread } from '../../core/testing/fixtures'
 import {
   runPdfCheck,
+  runPdfImpose,
   runPdfPaint,
+  type PdfCheckMessage,
+  type PdfImposeMessage,
+  type PdfPaintMessage,
   type PdfWorkerRequest,
 } from '../../core/pdf/pdf.worker'
 import type {
@@ -20,7 +24,11 @@ import {
   type PrintEvent,
   type PrintState,
 } from './printStore'
+import type { PrintLayout } from './printText'
+import { bookPrintProfile } from '../../core'
 import {
+  BOOKLET_PROFILE_ID,
+  bookletPaintJob,
   checkOpenBook,
   checkPrint,
   openPrintedPdf,
@@ -49,18 +57,30 @@ vi.mock('../projectSession', async (importOriginal) => ({
   getProjectSessionSnapshot: () => ({ libraryLabel: 'Photobooks' }),
 }))
 
+/** The worker's request dispatch. */
+function inWorker(
+  request: PdfWorkerRequest,
+  post: (data: PdfCheckMessage | PdfImposeMessage | PdfPaintMessage) => void,
+) {
+  return 'check' in request
+    ? runPdfCheck(request.check, post)
+    : 'impose' in request
+      ? runPdfImpose(request.impose, post)
+      : runPdfPaint(request.paint, post)
+}
+
 /** The PDF worker in-process: messages go back asynchronously, like `postMessage`. */
 class InProcessWorker {
   onmessage: ((event: { data: unknown }) => void) | null = null
   onerror: (() => void) | null = null
   terminated = false
-  postMessage(request: PdfWorkerRequest) {
+  transfer: Transferable[] = []
+  postMessage(request: PdfWorkerRequest, transfer: Transferable[]) {
+    this.transfer = transfer
     const post = (data: unknown) => {
       this.onmessage?.({ data })
     }
-    void ('check' in request
-      ? runPdfCheck(request.check, post)
-      : runPdfPaint(request.paint, post))
+    void inWorker(request, post)
   }
   terminate() {
     this.terminated = true
@@ -104,9 +124,7 @@ const inProcess: PdfWorkerRunner = (request, onMessage) => {
   const post = (message: Parameters<typeof onMessage>[0]) => {
     onMessage(message)
   }
-  void ('check' in request
-    ? runPdfCheck(request.check, post)
-    : runPdfPaint(request.paint, post))
+  void inWorker(request, post)
 }
 
 /** A library folder whose `exports/` keeps the written bytes. */
@@ -152,10 +170,11 @@ function recorder() {
 async function print(
   marks: boolean,
   overrides: Partial<Parameters<typeof runPrint>[0]> = {},
+  layout: PrintLayout = 'single',
 ) {
   const { library, files } = memoryLibrary()
   const store = recorder()
-  const job: PrintJob = { book: photoBook(), printProfiles: [], marks }
+  const job: PrintJob = { book: photoBook(), printProfiles: [], marks, layout }
   await runPrint({
     job,
     resolvePhotos: resolvePrintPhotos,
@@ -234,9 +253,71 @@ describe('runPrint', () => {
 
     const types = store.events.map((event) => event.type)
     expect(types[0]).toBe('start')
-    expect(store.events[0]).toEqual({ type: 'start', sheets: 20 })
+    expect(store.events[0]).toEqual({
+      type: 'start',
+      sheets: 20,
+      layout: 'single',
+    })
     expect(types.filter((type) => type === 'progress')).toHaveLength(20)
+    expect(types).not.toContain('imposing')
     expect(types.slice(-2)).toEqual(['saving', 'done'])
+  })
+
+  it('imposes a 2-up booklet of the book pages, unpadded, two PDF pages a sheet', async () => {
+    const { store, files } = await print(false, {}, '2up')
+
+    const types = store.events.map((event) => event.type)
+    expect(store.events[0]).toEqual({ type: 'start', sheets: 2, layout: '2up' })
+    expect(types.filter((type) => type === 'progress')).toHaveLength(2)
+    expect(store.events.filter((event) => event.type === 'imposing')).toEqual([
+      { type: 'imposing', imposed: 0, sheets: 1 },
+      { type: 'imposing', imposed: 1, sheets: 1 },
+    ])
+    expect(types.slice(-2)).toEqual(['saving', 'done'])
+    expect(store.state()).toMatchObject({
+      kind: 'done',
+      file: 'lake-trip-A5-2up.pdf',
+      layout: '2up',
+      sheets: 1,
+      skipped: { count: 1, pages: [2] },
+    })
+    const { doc, page } = await firstPage(files.get('lake-trip-A5-2up.pdf'))
+    expect(doc.getPageCount()).toBe(2)
+    expect(page.getWidth()).toBeCloseTo(2 * 148 * MM, 3)
+    expect(page.getHeight()).toBeCloseTo(210 * MM, 3)
+  })
+
+  it('imposes a 4-up booklet two cells high', async () => {
+    const { store, files } = await print(false, {}, '4up')
+
+    expect(store.state()).toMatchObject({
+      kind: 'done',
+      file: 'lake-trip-A5-4up.pdf',
+      layout: '4up',
+      sheets: 1,
+    })
+    const { doc, page } = await firstPage(files.get('lake-trip-A5-4up.pdf'))
+    expect(doc.getPageCount()).toBe(2)
+    expect(page.getHeight()).toBeCloseTo(2 * 210 * MM, 3)
+  })
+
+  it('fails with other when imposing fails, before saving', async () => {
+    const { store } = await print(
+      false,
+      {
+        runWorker: (request, onMessage) => {
+          if ('impose' in request) {
+            onMessage({ failed: { message: 'boom' } })
+            return
+          }
+          inProcess(request, onMessage)
+        },
+      },
+      '2up',
+    )
+
+    expect(store.state()).toMatchObject({ kind: 'failed', code: 'other' })
+    expect(store.events.map((event) => event.type)).not.toContain('saving')
   })
 
   it('fails with the write error code', async () => {
@@ -302,7 +383,7 @@ describe('runPrint', () => {
     })
 
     const { store } = await print(true, {
-      job: { book, printProfiles: [], marks: true },
+      job: { book, printProfiles: [], marks: true, layout: 'single' },
     })
 
     expect(store.state()).toMatchObject({
@@ -321,7 +402,36 @@ describe('runPrint', () => {
 
 describe('printCounts', () => {
   it('counts physical pages and the profile output sheets (D5)', () => {
-    expect(printCounts(photoBook(), [])).toEqual({ pages: 2, sheets: 2 })
+    expect(printCounts(photoBook(), [], 'single')).toEqual({
+      pages: 2,
+      sheets: 2,
+    })
+  })
+
+  it('counts a booklet in paper sheets: 4 pages each 2-up, 8 each 4-up', () => {
+    const book = makeBook({
+      spreads: Array.from({ length: 8 }, (_, i) =>
+        makeSpread({ id: `s-${String(i)}` }),
+      ),
+    })
+    expect(printCounts(book, [], '2up')).toEqual({ pages: 14, sheets: 4 })
+    expect(printCounts(book, [], '4up')).toEqual({ pages: 14, sheets: 2 })
+  })
+})
+
+describe('bookletPaintJob', () => {
+  it('paints the book profile per page without its page minimum', () => {
+    const book = photoBook()
+    const job = bookletPaintJob(book, [])
+    const profile = bookPrintProfile(job.book, job.printProfiles)
+
+    expect(job.book.printProfile?.id).toBe(BOOKLET_PROFILE_ID)
+    expect(profile).toEqual({
+      ...bookPrintProfile(book),
+      id: BOOKLET_PROFILE_ID,
+      output: 'pages',
+      pageCount: { ...bookPrintProfile(book).pageCount, min: 0 },
+    })
   })
 })
 
@@ -383,7 +493,7 @@ describe('the open book', () => {
     const { library, files } = memoryLibrary()
     vi.mocked(getOpenLibraryHandle).mockResolvedValue(library)
 
-    startPrint(false)
+    startPrint(false, 'single')
 
     expect(printStore.getSnapshot().kind).toBe('running')
     await vi.waitFor(() => {
@@ -392,11 +502,28 @@ describe('the open book', () => {
     expect([...files.keys()]).toEqual(['lake-trip-A5.pdf'])
     expect(workers).toHaveLength(1)
     expect(workers[0]?.terminated).toBe(true)
+    expect(workers[0]?.transfer).toEqual([])
+  })
+
+  it('imposes a booklet in a second worker, moving the page PDF to it', async () => {
+    const { library, files } = memoryLibrary()
+    vi.mocked(getOpenLibraryHandle).mockResolvedValue(library)
+
+    startPrint(false, '4up')
+
+    await vi.waitFor(() => {
+      expect(printStore.getSnapshot().kind).toBe('done')
+    })
+    expect([...files.keys()]).toEqual(['lake-trip-A5-4up.pdf'])
+    expect(workers).toHaveLength(2)
+    expect(workers.every((worker) => worker.terminated)).toBe(true)
+    const [moved] = workers[1]?.transfer ?? []
+    expect(moved).toBeInstanceOf(ArrayBuffer)
   })
 
   it('tries the same snapshot again after a failure', async () => {
     vi.mocked(getOpenLibraryHandle).mockResolvedValue(null)
-    startPrint(true)
+    startPrint(true, 'single')
     await vi.waitFor(() => {
       expect(printStore.getSnapshot()).toMatchObject({
         kind: 'failed',
@@ -414,11 +541,12 @@ describe('the open book', () => {
     vi.mocked(getOpenLibraryHandle).mockResolvedValue(library)
     printStore.dispatch({ type: 'seen' })
 
-    retryPrint(true)
+    retryPrint(true, '2up')
 
     await vi.waitFor(() => {
       expect(printStore.getSnapshot().kind).toBe('done')
     })
+    // The failed job's snapshot and options, not the new ones.
     expect([...files.keys()]).toEqual(['lake-trip-A5.pdf'])
   })
 
@@ -458,7 +586,7 @@ describe('the open book', () => {
     const fresh = await import('./startPrint')
     const { printStore: freshStore } = await import('./printStore')
 
-    fresh.retryPrint(true)
+    fresh.retryPrint(true, '2up')
 
     expect(freshStore.getSnapshot().kind).toBe('running')
     await vi.waitFor(() => {

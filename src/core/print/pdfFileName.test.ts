@@ -23,6 +23,14 @@ describe('pdfFileName', () => {
     )
   })
 
+  it('adds the booklet layout', () => {
+    const a5 = { widthMm: 148, heightMm: 210 }
+    expect(pdfFileName('Lake trip', a5, '2up')).toBe('lake-trip-A5-2up.pdf')
+    expect(
+      pdfFileName('Lake trip', { widthMm: 190, heightMm: 230 }, '4up'),
+    ).toBe('lake-trip-19x23cm-4up.pdf')
+  })
+
   it.each(PDF_NAME_PRESETS)('names the $id trim $id', ({ id, wCm, hCm }) => {
     expect(pdfFileName('b', { widthMm: wCm * 10, heightMm: hCm * 10 })).toBe(
       `b-${id}.pdf`,
