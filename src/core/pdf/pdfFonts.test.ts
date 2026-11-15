@@ -4,6 +4,7 @@ import { PDFDocument } from '@cantoo/pdf-lib'
 import { fc } from '@fast-check/vitest'
 import fontkit from '@pdf-lib/fontkit'
 import { describe, expect, it } from 'vitest'
+import type { BookFontFamily } from '../../fonts/bookFonts'
 import { loadPdfFonts, type OutlineCommand, simpleGlyph } from './pdfFonts'
 import { bookFontFiles } from './pdfText.test-helpers'
 
@@ -192,6 +193,28 @@ describe('loadPdfFonts', () => {
 
     expect(read).toHaveLength(1)
     expect(read[0]).toMatch(/^lora-latin/)
+  })
+
+  it('refuses a family it has no face for, or did not load', async () => {
+    const lib = await import('@cantoo/pdf-lib')
+    const { loaded } = await fonts('Summer', 400)
+
+    expect(() =>
+      loaded.width('a', { family: 'Inter Variable', weight: 400, sizeMm: 3 }),
+    ).toThrow('inter-latin-wght-normal.woff2 not loaded')
+    await expect(
+      loadPdfFonts(
+        lib,
+        await PDFDocument.create(),
+        [
+          {
+            font: { family: 'Nope' as BookFontFamily, weight: 400 },
+            text: 'a',
+          },
+        ],
+        bookFontFiles,
+      ),
+    ).rejects.toThrow('no Nope face')
   })
 
   it('scales the vertical metrics with the size', async () => {

@@ -50,7 +50,7 @@ interface LoadedFace {
 /** The fontkit 1.x internals `openFace` works around. */
 interface FontInternals {
   variationCoords: number[] | null
-  fvar?: { axis: { axisTag: string; defaultValue: number }[] }
+  fvar: { axis: { axisTag: string; defaultValue: number }[] }
   _glyphs: Record<number, Glyph>
 }
 
@@ -171,22 +171,20 @@ function openFace(
 ): Font {
   const font = fontkit.create(bytes)
   const internals = font as unknown as FontInternals
-  const axes = internals.fvar?.axis ?? []
-  if (axes.length > 0) {
-    internals.variationCoords = axes.map((axis) =>
-      axis.axisTag.trim() === 'wght' ? weight : axis.defaultValue,
-    )
-    // fontkit 1.x decodes WOFF2 composite glyphs through a stub that breaks
-    // under a variation: decode them at the default instance first, then
-    // drop the cached glyph so every outline and advance takes the weight.
-    Object.defineProperty(font, '_variationProcessor', {
-      value: null,
-      configurable: true,
-    })
-    font.getGlyph(0)
-    Reflect.deleteProperty(font, '_variationProcessor')
-    internals._glyphs = {}
-  }
+  // Every book font is variable (`wght`).
+  internals.variationCoords = internals.fvar.axis.map((axis) =>
+    axis.axisTag.trim() === 'wght' ? weight : axis.defaultValue,
+  )
+  // fontkit 1.x decodes WOFF2 composite glyphs through a stub that breaks
+  // under a variation: decode them at the default instance first, then
+  // drop the cached glyph so every outline and advance takes the weight.
+  Object.defineProperty(font, '_variationProcessor', {
+    value: null,
+    configurable: true,
+  })
+  font.getGlyph(0)
+  Reflect.deleteProperty(font, '_variationProcessor')
+  internals._glyphs = {}
   const createSubset = font.createSubset.bind(font)
   font.createSubset = () => streamOnly(outlineSubset(createSubset()))
   return font
