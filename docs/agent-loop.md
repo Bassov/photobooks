@@ -7,7 +7,7 @@ Headless workers read this section only (it ends at `## Reference`). The rest is
 **Flow** (numbers = `### N` headings below):
 
 - **0 Prep:** `pnpm -s agent preflight [--slug <slug>]` prints the run card; read it once and do not re-run it (`--json` only when you need a machine field). Clean tree; `feat|fix/<slug>` from `origin/main`; never merge/rebase `origin/main` on the happy path.
-- **1–2 Plan:** artifacts via `pnpm -s agent instructions <artifact>`; `openspec-planning-reviewer` once. `[lite]`: no change dir, no plan review, no archive; item + PR body are the plan; past ~200 lines or a spec delta → re-tag `[feature]`.
+- **1–2 Plan:** artifacts via `pnpm -s agent instructions <artifact>`; `openspec-planning-reviewer` once. `[lite]`: no change dir, no plan review, no archive; item + PR body are the plan; past ~200 lines or a spec delta → re-tag `[feature]`. A cfix/bug item with ≤3 source files and no spec delta is `[lite]` by default (Stage 1 "Lite by default").
 - **3–4 Apply:** loop **A** (`pnpm check:fast`) to green, no commit; then **B** once (`pnpm test:e2e:changed:quiet`, then `pnpm stryker:diff` on `src/` changes, ≤2 runs → `## Stryker C-session`).
 - **5** phase commit. **6** `openspec-implementation-reviewer` once (lite and docs-only too); rework via A, +1 delta review if code changed. **7–8** B again only if prod/tests/UI changed; commit.
 - **9 QA:** UI in scope → `pnpm agent manual-qa` + skill `ui-review`; security surface → Security Review.
@@ -87,6 +87,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 - Write OpenSpec artifacts via `pnpm agent instructions` / run card.
 - **How:** `openspec/config.yaml` `rules.*` (incl. prep/contingency fast-track).
 - **Lite track (`[lite]` items):** no `openspec/changes/<slug>`; the roadmap item and the PR body are the plan. Skip stages 1–2 and archive: in 10–11 `pnpm -s agent finalize <slug>` (no change dir → no delta-spec/archive; it proceeds to roadmap done, C1, C2, stamp; if it errors on the missing change, run `pnpm roadmap done <slug>`, `check:integrity`, `quality:self-check`, `stamp-green` by hand). Everything else stays: A, B (changed specs), `ui-review` + evidenced browser smoke when UI is in scope, stage 6 implementation reviewer on the diff, thin finish. The PR body MUST carry the plan (scope, touch-set, Done when).
+- **Lite by default (cfix/bug items):** a cfix/bug item (brief `Kind cfix`, or title `Bug:` / `Fix:`) runs `[lite]` when the code map shows it touches ≤3 source files (tests, e2e, test helpers, docs and its own roadmap file not counted) and needs no spec delta / new domain behaviour. At prep, right after the code map, re-tag it `[lite]` if it meets this rule; if it grows past it (or past the escalation below), re-tag it back to `[feature]` and run the normal track. A re-tag edits the item file `Tag:` and the item's own `docs/roadmap.md` line together (`roadmap check` fails on a mismatch); no other index edits. Gates stay the same: A, B, stage 6 implementation review, `ui-review` + browser smoke when UI is in scope, CI.
 - **Escalation:** apply passes ~200 changed lines or needs a spec delta / domain behavior → stop, re-tag the item `[feature]`/`[prep]` (or `roadmap add --after`) and run the normal track.
 
 ### 2 · Plan review
@@ -100,6 +101,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 - **No commit.** No B / reviewers / manual-qa yet.
 - **How:** `operations.apply` + skill `write-tests`.
 - Visual Done-when / bug → assert paint with `e2e/fixtures/paintProbe.ts` (`topAt` stack, `pixelsAt`), not only DOM presence.
+- Negative timing checks use `page.clock` (install + `runFor`), never `page.waitForTimeout` (lint error).
 
 ### 4 · First B
 

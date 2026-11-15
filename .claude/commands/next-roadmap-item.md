@@ -13,6 +13,7 @@ Run ONE roadmap item end to end. `/next-roadmap-item <slug>` → `pnpm -s agent 
 
 **Code map first (right after preflight, before any own grep/read):** if the brief has a `## Code map`, start from it and ask `code-scout` only what it leaves open; else ONE `code-scout` call with all questions (files to change, callers of the changed symbols, their unit tests and e2e specs). After that, own grep/sed only for pinpoint checks (≤4 search calls per run).
 
+- Track: after the code map, a cfix/bug item with ≤3 source files and no spec delta is `[lite]` by default: re-tag it `[lite]` (item `Tag:` + its index line); past that (or ~200 lines) re-tag it `[feature]` (`docs/agent-loop.md` Stage 1 "Lite by default").
 - Batch independent reads in parallel; one Write per OpenSpec artifact; validate once per stage.
 - Contingency: only when its gate failed (`pnpm -s roadmap show <slug>`). Prep/contingency fast-track and oversize → `pnpm roadmap add … --after`.
 - Out-of-scope fails: fix here unless the same failure is on unmodified `origin/main`; else `pnpm roadmap add … --after` or a bug issue — filing never greens a red PR.
