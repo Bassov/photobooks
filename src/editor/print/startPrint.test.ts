@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeFrame, makeSpread } from '../../core/testing/fixtures'
 import {
   runPdfCheck,
+  runPdfImpose,
   runPdfPaint,
   type PdfWorkerRequest,
 } from '../../core/pdf/pdf.worker'
@@ -60,7 +61,9 @@ class InProcessWorker {
     }
     void ('check' in request
       ? runPdfCheck(request.check, post)
-      : runPdfPaint(request.paint, post))
+      : 'impose' in request
+        ? runPdfImpose(request.impose, post)
+        : runPdfPaint(request.paint, post))
   }
   terminate() {
     this.terminated = true
@@ -103,6 +106,11 @@ function photoBook() {
 const inProcess: PdfWorkerRunner = (request, onMessage) => {
   const post = (message: Parameters<typeof onMessage>[0]) => {
     onMessage(message)
+  }
+  // The runner's messages carry no imposition progress: `impose` fails here.
+  if ('impose' in request) {
+    post({ failed: { message: 'impose is not a print runner request' } })
+    return
   }
   void ('check' in request
     ? runPdfCheck(request.check, post)
