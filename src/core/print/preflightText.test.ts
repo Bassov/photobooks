@@ -288,6 +288,12 @@ describe('preflightRows', () => {
     ])
   })
 
+  it('names no family for a cover-not-srgb issue without one', () => {
+    expect(texts([issue('cover-not-srgb')])).toEqual([
+      'Front cover photo isn’t sRGB (), colours may shift',
+    ])
+  })
+
   it('words one non-sRGB photo in the singular', () => {
     const [row] = preflightRows({
       issues: [],

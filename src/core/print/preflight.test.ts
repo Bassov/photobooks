@@ -771,6 +771,22 @@ describe('cover rules', () => {
     ).toEqual([])
   })
 
+  it('rates a tall front photo by its width across the 215 mm box', () => {
+    // coverPanelPpi(1000 × 3000, 215 × 230 mm, 1) = round(1000 / 215 × 25.4) = 118.
+    const book = coverBook({ assetId: 'tall' })
+
+    expect(
+      preflight(
+        {
+          ...book,
+          assets: { ...book.assets, tall: { widthPx: 1000, heightPx: 3000 } },
+        },
+        generic,
+        { cover: fits },
+      ),
+    ).toMatchObject([{ rule: 'cover-dpi-below-min', measured: 118 }])
+  })
+
   it('rates a front photo without pixel sizes as unknown, no dpi row', () => {
     const book = coverBook({ assetId: 'unsized' })
 
@@ -800,6 +816,14 @@ describe('cover rules', () => {
     expect(coverRules(coverBook(), { ...fits, colors: [colors[0]] })).toEqual(
       [],
     )
+  })
+
+  it('spine-text-small: type at exactly the minimum is fine', () => {
+    const lab = profileWith({ minFontPt: (2 * 72) / 25.4 })
+
+    expect(
+      preflight(coverBook({}, { manualMm: 4 }), lab, { cover: fits }),
+    ).toEqual([])
   })
 
   it('spine-text-small: a 4 mm spine sets 2 mm (5.7 pt) type under 6 pt', () => {

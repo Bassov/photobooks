@@ -179,7 +179,7 @@ function ruleText(
     case 'cover-not-srgb':
       return `Front cover photo isn’t ${SPACE_LABEL[profile.colorSpace]} (${familyList(issues.flatMap(({ family }) => family ?? []))}), colours may shift`
     case 'spine-text-small':
-      return `Spine text is ${fmtN(Number(first?.measured))} pt, below ${profile.name}’s ${threshold} pt minimum`
+      return `Spine text is ${fmtN(Number(measured))} pt, below ${profile.name}’s ${threshold} pt minimum`
     case 'spine-text-cut':
       return 'Spine text is longer than the spine and ends in “…”'
     case 'cover-front-empty':

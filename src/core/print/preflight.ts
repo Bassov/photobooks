@@ -163,11 +163,6 @@ export function preflight(
   return issues
 }
 
-/** Spine type size (mm) as CoverView draws it: kit 12 px of 848, at most half the spine. */
-const SPINE_FONT_OF_COVER = 12 / 848
-
-const PT_PER_MM = 72 / 25.4
-
 function coverIssues(
   book: Book,
   profile: PrintProfile,
@@ -186,11 +181,9 @@ function coverIssues(
   if (text === '') {
     return issues
   }
-  const sizeMm = Math.min(
-    geometry.coverW * SPINE_FONT_OF_COVER,
-    geometry.spine / 2,
-  )
-  const pt = sizeMm * PT_PER_MM
+  // Type size as CoverView draws it: kit 12 px of 848, at most half the spine.
+  const sizeMm = Math.min((geometry.coverW * 12) / 848, geometry.spine / 2)
+  const pt = (sizeMm * 72) / 25.4
   if (pt < profile.minFontPt) {
     issues.push(
       issue(
@@ -224,38 +217,37 @@ function frontIssues(
     return [issue('cover-asset-missing', {})]
   }
   const found = status === 'modified' ? [issue('cover-asset-modified', {})] : []
-  if (asset.widthPx !== undefined && asset.heightPx !== undefined) {
-    // The editor's front ppi (`coverPanelPpi` in src/render/coverLayout.ts):
-    // cover fit on the photo box, divided by the crop zoom.
-    const perMm = Math.min(
-      asset.widthPx / panel.width,
-      asset.heightPx / panel.height,
+  // The editor's front ppi (`coverPanelPpi` in src/render/coverLayout.ts):
+  // cover fit on the photo box, divided by the crop zoom. An unknown pixel
+  // size is NaN, which `lowDpi` rates as no issue.
+  const perMm = Math.min(
+    Number(asset.widthPx) / panel.width,
+    Number(asset.heightPx) / panel.height,
+  )
+  const low = lowDpi(
+    Math.round((perMm * 25.4) / (crop?.zoom ?? 1)),
+    profile.dpi,
+  )
+  if (low !== undefined) {
+    found.push(
+      low.level === 'min'
+        ? issue(
+            'cover-dpi-below-min',
+            {},
+            {
+              measured: low.dpi,
+              threshold: profile.dpi.min,
+            },
+          )
+        : issue(
+            'cover-dpi-below-warn',
+            {},
+            {
+              measured: low.dpi,
+              threshold: profile.dpi.warn,
+            },
+          ),
     )
-    const low = lowDpi(
-      Math.round((perMm * 25.4) / (crop?.zoom ?? 1)),
-      profile.dpi,
-    )
-    if (low !== undefined) {
-      found.push(
-        low.level === 'min'
-          ? issue(
-              'cover-dpi-below-min',
-              {},
-              {
-                measured: low.dpi,
-                threshold: profile.dpi.min,
-              },
-            )
-          : issue(
-              'cover-dpi-below-warn',
-              {},
-              {
-                measured: low.dpi,
-                threshold: profile.dpi.warn,
-              },
-            ),
-      )
-    }
   }
   const color = cover.colors?.find((warning) => warning.assetId === assetId)
   if (color !== undefined) {
