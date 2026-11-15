@@ -12,6 +12,7 @@ import {
   clearPerfScenario,
   collectFrameStatsArtifact,
   enablePerfScenario,
+  waitFrames,
 } from './perf/perfFixture'
 import { PERF_BUDGETS } from './perf/budgets'
 
@@ -462,7 +463,7 @@ test.describe('frame-budget gates', () => {
     await page.mouse.down()
     for (let step = 1; step <= 40; step += 1) {
       await page.mouse.move(grab.x, grab.y + step * 3)
-      await page.waitForTimeout(16)
+      await waitFrames(page)
     }
     await page.mouse.up()
     // One commit at the gesture end; then two frames settle.

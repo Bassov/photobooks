@@ -3,9 +3,10 @@ import { routeCloudflare, TOKEN } from './fixtures/cloudflareRelay'
 import { expect, test } from './fixtures/coverage'
 import { pixelsAt } from './fixtures/paintProbe'
 
-// Designer parity connect-own-hosting (M114, M115, M117) at 1440×900: the
-// setup card top, the xs ghost Change / CORS Copy buttons and two icon boxes
-// match the kit (#/feature/site-settings hosting scenarios).
+// Designer parity connect-own-hosting (M114, M115, M117, M120) at 1440×900:
+// the setup card top, the manual help position, the xs ghost Change / CORS
+// Copy buttons and two icon boxes match the kit (#/feature/site-settings
+// hosting scenarios).
 
 // The Designer's parity browser flags: hinted text snaps glyph advances to
 // whole px, which would move the label widths off the kit numbers.
@@ -21,6 +22,9 @@ test.use({
 
 const CARD_TOP = 121.44
 const INK = [57, 55, 56]
+const MUTED = [83, 81, 82]
+/** Ghost hover fill (kit and prod), unchanged by the hover ink. */
+const HOVER_FILL = 'rgb(207, 207, 207)'
 
 async function openHosting(page: Page) {
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -76,8 +80,8 @@ async function darkest(l: Locator) {
   return px.reduce((a, p) => (sum(p) < sum(a) ? p : a))
 }
 
-/** Kit ghost xs: 28 high, padding 0 8, 12px/500 foreground ink. */
-async function expectXsGhost(button: Locator, width: number) {
+/** Kit ghost xs: 28 high, padding 0 8, 12px/500 in `ink`. */
+async function expectXsGhost(button: Locator, width: number, ink = INK) {
   const b = await box(button)
   near(b.width, width, 'width')
   near(b.height, 28, 'height')
@@ -85,13 +89,13 @@ async function expectXsGhost(button: Locator, width: number) {
     const s = getComputedStyle(el)
     return [s.paddingLeft, s.paddingRight, s.fontSize, s.fontWeight, s.color]
   })
-  expect(style).toEqual(['8px', '8px', '12px', '500', `rgb(${INK.join(', ')})`])
-  // The label paints the foreground ink, not the lighter ghost grey.
-  const ink = await darkest(button)
-  for (const [i, c] of INK.entries()) {
+  expect(style).toEqual(['8px', '8px', '12px', '500', `rgb(${ink.join(', ')})`])
+  // The label paints that ink: Change the foreground, Copy the ghost grey.
+  const painted = await darkest(button)
+  for (const [i, c] of ink.entries()) {
     expect(
-      Math.abs((ink[i] ?? 0) - c),
-      `ink ${ink.join()}`,
+      Math.abs((painted[i] ?? 0) - c),
+      `ink ${painted.join()}`,
     ).toBeLessThanOrEqual(2)
   }
 }
@@ -148,7 +152,7 @@ test('M114 / M115 / M117: setup steps 1–3, Change and Checking… match the ki
   near(await cardTop(page, 'hosting-connected'), CARD_TOP, 'connected')
 })
 
-test('M114 / M115: manual form position and the CORS Copy button', async ({
+test('M114 / M115 / M120: manual form and help position, the muted CORS Copy button', async ({
   page,
 }) => {
   await routeCloudflare(page)
@@ -156,7 +160,39 @@ test('M114 / M115: manual form position and the CORS Copy button', async ({
   await page.getByTestId('hosting-manual').click()
   await expect(page.getByTestId('hosting-form')).toBeVisible()
   near(await cardTop(page, 'hosting-form'), CARD_TOP, 'manual form')
-  await expectXsGhost(page.getByTestId('hosting-cors-copy'), 56.97)
+  // M114: the pane's 19.5 px line height (the guided link's line box) puts
+  // the help where the kit has it (y rel. the Settings `main`, like the
+  // Designer); the form card keeps its height.
+  const main = await box(page.getByTestId('settings').locator('main'))
+  const h2 = await box(
+    page.getByRole('heading', { name: 'How to get a token' }),
+  )
+  const help = await box(
+    page.getByTestId('hosting-help').filter({ visible: true }),
+  )
+  for (const [what, y, kit] of [
+    ['h2', h2.y - main.y, 550.91],
+    ['help', help.y - main.y, 582.33],
+    ['help height', help.height, 386.25],
+    [
+      'form height',
+      (await box(page.getByTestId('hosting-form'))).height,
+      367.39,
+    ],
+  ] as const) {
+    expect(Math.abs(y - kit), `${what} ${String(y)}`).toBeLessThanOrEqual(0.3)
+  }
+  // M120: Copy keeps the kit ghost grey, not the Change foreground.
+  const copy = page.getByTestId('hosting-cors-copy')
+  await expectXsGhost(copy, 56.97, MUTED)
+  // M120 (hover): the kit ghost turns the ink to the foreground on its
+  // unchanged grey hover fill.
+  await copy.hover()
+  await expect(copy).toHaveAttribute('data-hovered', 'true')
+  await expect(copy).toHaveCSS('background-color', HOVER_FILL)
+  await expectXsGhost(copy, 56.97, INK)
+  const [corner] = await pixelsAt(copy, [{ x: 2, y: 14 }])
+  expect(`rgb(${(corner ?? []).slice(0, 3).join(', ')})`).toBe(HOVER_FILL)
 })
 
 test('M117: the Settings nav head icon is 12×12', async ({ page }) => {

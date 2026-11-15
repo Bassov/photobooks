@@ -59,13 +59,14 @@ test.describe('390 × 844 portrait', () => {
   }
 
   test('a tap on a home book opens it at the cover', async ({ page }) => {
+    await page.clock.install()
     await page.goto('/site.html')
     await page.getByTestId('ss9-book').first().tap()
     await expect(page.getByTestId('site-room')).toHaveAttribute(
       'data-mode',
       'port',
     )
-    await page.waitForTimeout(OPEN_SETTLED_MS)
+    await page.clock.runFor(OPEN_SETTLED_MS)
     await expect(label(page)).toHaveText('Cover')
     expect(new URL(page.url()).hash).toBe('')
   })

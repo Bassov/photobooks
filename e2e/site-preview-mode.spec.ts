@@ -10,6 +10,7 @@ import {
   clearPerfScenario,
   collectFrameStatsArtifact,
   enablePerfScenario,
+  waitFrames,
 } from './perf/perfFixture'
 
 // Designer spec site-preview-mode: Preview opens the site's book room of the
@@ -376,7 +377,7 @@ test.describe('frame-budget gates', () => {
     expect(await previewChunk()).toBeGreaterThan(0)
     await page.keyboard.press('Escape')
     await expect(preview).toHaveCount(0)
-    await page.waitForTimeout(250)
+    await waitFrames(page, 16)
     await clearPerfScenario(page)
     await page.evaluate(browserBeginLoafScenarioWindow)
 

@@ -165,19 +165,25 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
 - [x] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
 - [ ] [feature] [publish-core](roadmap/P3/publish-core.md) — Bug: /next-roadmap-item publish-core
+- [ ] [feature] [e2e-related-local](roadmap/P3/e2e-related-local.md) — Bug: /next-roadmap-item e2e-related-local
 - [ ] [feature] [design-r26-icon-classes](roadmap/P3/design-r26-icon-classes.md) — Bug: /next-roadmap-item design-r26-icon-classes
 - [ ] [feature] [design-r27-hosting-buttons](roadmap/P3/design-r27-hosting-buttons.md) — Bug: /next-roadmap-item design-r27-hosting-buttons
+- [ ] [feature] [design-r28-hosting](roadmap/P3/design-r28-hosting.md) — Bug: /next-roadmap-item design-r28-hosting
+- [ ] [feature] [design-r29-hosting-copy](roadmap/P3/design-r29-hosting-copy.md) — Bug: /next-roadmap-item design-r29-hosting-copy
 - [ ] [feature] [recents-home-captions](roadmap/P3/recents-home-captions.md) — Bug: /next-roadmap-item recents-home-captions
 - [ ] [feature] [publish-site-flaky-2](roadmap/P3/publish-site-flaky-2.md) — Bug: /next-roadmap-item publish-site-flaky-2
+- [ ] [lite] [code-scout-first](roadmap/P3/code-scout-first.md) — Bug: /next-roadmap-item code-scout-first
 - [ ] [feature] [startpublish-raf-flaky](roadmap/P3/startpublish-raf-flaky.md) — Bug: /next-roadmap-item startpublish-raf-flaky
 - [ ] [feature] [gl-faces-probe-flaky](roadmap/P3/gl-faces-probe-flaky.md) — Bug: /next-roadmap-item gl-faces-probe-flaky
 - [ ] [feature] [design-r25-publish-cache](roadmap/P3/design-r25-publish-cache.md) — Bug: /next-roadmap-item design-r25-publish-cache
 - [ ] [feature] [design-r27-button-styles](roadmap/P3/design-r27-button-styles.md) — Bug: /next-roadmap-item design-r27-button-styles
+- [ ] [feature] [site-settings-opfs-flake](roadmap/P3/site-settings-opfs-flake.md) — Bug: /next-roadmap-item site-settings-opfs-flake
 - [ ] [feature] [in-app-publish-kit](roadmap/P3/in-app-publish-kit.md) — Bug: /next-roadmap-item in-app-publish-kit
 - [x] [feature] [uikit-qa-split-1](roadmap/P3/uikit-qa-split-1.md) — Bug: /next-roadmap-item uikit-qa-split-1
 - [ ] [feature] [uikit-qa-split-2](roadmap/P3/uikit-qa-split-2.md) — Bug: /next-roadmap-item uikit-qa-split-2
 - [ ] [feature] [uikit-qa-split-3](roadmap/P3/uikit-qa-split-3.md) — Bug: /next-roadmap-item uikit-qa-split-3
 - [ ] [feature] [uikit-qa-split-4](roadmap/P3/uikit-qa-split-4.md) — Bug: /next-roadmap-item uikit-qa-split-4
+- [ ] [feature] [uikit-qa-split-5](roadmap/P3/uikit-qa-split-5.md) — Bug: /next-roadmap-item uikit-qa-split-5
 - [ ] [feature] [in-app-publish-core](roadmap/P3/in-app-publish-core.md) — Bug: /next-roadmap-item in-app-publish-core
 - [ ] [feature] [publish-site-flaky](roadmap/P3/publish-site-flaky.md) — Bug: /next-roadmap-item publish-site-flaky
 - [ ] [feature] [perf-workflow-merge-base](roadmap/P3/perf-workflow-merge-base.md) — Bug: /next-roadmap-item perf-workflow-merge-base
@@ -217,6 +223,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [pdf-color-tagging](roadmap/P4/pdf-color-tagging.md) — keep photo colors
 - [ ] [feature] [pdf-frame-looks](roadmap/P4/pdf-frame-looks.md) — Bug: /next-roadmap-item pdf-frame-looks
 - [ ] [feature] [pdf-min-pages](roadmap/P4/pdf-min-pages.md) — Bug: /next-roadmap-item pdf-min-pages
+- [ ] [lite] [lint-no-wait-for-timeout](roadmap/P4/lint-no-wait-for-timeout.md) — Bug: /next-roadmap-item lint-no-wait-for-timeout
 - [ ] [feature] [pdf-export-marks](roadmap/P4/pdf-export-marks.md) — Bug: /next-roadmap-item pdf-export-marks
 - [ ] [feature] [pdf-export](roadmap/P4/pdf-export.md) — print PDF
 - [ ] [feature] [site-final-data](roadmap/P4/site-final-data.md) — Bug: /next-roadmap-item site-final-data
@@ -227,6 +234,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [static-export-viewer](roadmap/P4/static-export-viewer.md) — Bug: /next-roadmap-item static-export-viewer
 - [ ] [prep] [pdf-captions](roadmap/P4/pdf-captions.md) — text in the PDF
 - [ ] [feature] [site-final-painter](roadmap/P4/site-final-painter.md) — Bug: /next-roadmap-item site-final-painter
+- [ ] [feature] [ratchet-merge-base-ci](roadmap/P4/ratchet-merge-base-ci.md) — Bug: /next-roadmap-item ratchet-merge-base-ci
 - [ ] [feature] [site-final-gl](roadmap/P4/site-final-gl.md) — Bug: /next-roadmap-item site-final-gl
 - [ ] [contingency] [pdf-streaming](roadmap/P4/pdf-streaming.md) — only if `pdf-export` peak memory is too high
 - [ ] [feature] [booklet-imposition](roadmap/P4/booklet-imposition.md) — home printing

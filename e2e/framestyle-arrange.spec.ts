@@ -7,6 +7,7 @@ import {
   browserBeginLoafScenarioWindow,
   clearPerfScenario,
   enablePerfScenario,
+  waitFrames,
 } from './perf/perfFixture'
 
 // framestyle-arrange-unhide (M78): one book-level style restyles every frame
@@ -188,12 +189,12 @@ test.describe('Frame style frame-budget gates', () => {
     await clearPerfScenario(page)
     for (let at = 0; at < 4; at += 1) {
       await slider.press('ArrowRight')
-      await page.waitForTimeout(120)
+      await waitFrames(page, 8)
     }
     await expect(page.getByTestId('style-mat').locator('output')).toHaveText(
       '5 mm',
     )
-    await page.waitForTimeout(300)
+    await waitFrames(page, 20)
     await page.evaluate(browserAssertNoLoafThenClear)
   })
 })

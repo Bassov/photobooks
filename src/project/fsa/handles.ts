@@ -35,6 +35,29 @@ export function fromFileSystemDirectoryHandle(
   return wrapDirectory(root)
 }
 
+/** Snapshot reads per `getText` before an overlapping writer wins. */
+const MAX_SNAPSHOT_READS = 4
+
+/**
+ * A `File` from `getFile()` is a snapshot: when a writable closes over the
+ * file (autosave, another module's commit, a second tab) before `text()`
+ * finishes, Chromium rejects the read with `NotReadableError`. Take a fresh
+ * snapshot and read again; it holds the whole newly committed file.
+ */
+async function readFreshText(file: FileSystemFileHandle): Promise<string> {
+  for (let read = 1; ; read += 1) {
+    try {
+      return await (await file.getFile()).text()
+    } catch (error) {
+      const overlapped =
+        error instanceof DOMException && error.name === 'NotReadableError'
+      if (!overlapped || read === MAX_SNAPSHOT_READS) {
+        throw error
+      }
+    }
+  }
+}
+
 function wrapDirectory(
   handle: FileSystemDirectoryHandle,
 ): LibraryDirectoryHandle {
@@ -49,8 +72,8 @@ function wrapDirectory(
         options?.create === undefined ? undefined : { create: options.create }
       const file = await handle.getFileHandle(name, fileOptions)
       return {
-        async getText() {
-          return (await file.getFile()).text()
+        getText() {
+          return readFreshText(file)
         },
         async writeText(text) {
           const writable = await file.createWritable()

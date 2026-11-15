@@ -11,6 +11,7 @@ import {
   applyCpuThrottling,
   browserAssertNoLoaf,
   browserBeginLoafScenarioWindow,
+  waitFrames,
 } from './perf/perfFixture'
 
 const COUNT = 200
@@ -276,7 +277,7 @@ test.describe('frame-budget gates', () => {
       await strip.evaluate((node) => {
         node.scrollLeft += 160
       })
-      await page.waitForTimeout(32)
+      await waitFrames(page, 2)
     }
     const cx = box.x + box.width / 2
     const cy = box.y + box.height / 2
@@ -292,7 +293,7 @@ test.describe('frame-budget gates', () => {
       await strip.evaluate((node) => {
         node.scrollLeft -= 160
       })
-      await page.waitForTimeout(32)
+      await waitFrames(page, 2)
     }
 
     await page.evaluate(browserAssertNoLoaf, 0)

@@ -7,8 +7,10 @@ import { ERR } from './hostingStyles'
 /* Settings → Hosting bits shared by the manual form, the connected card and the guided setup (kit
    demo-parts/hostingBits.tsx). */
 
-/** Kit ghost `size="xs"` (Change, CORS Copy) on a `ghost sm` Button: unlayered Button.css beats plain utilities. */
-export const XS_GHOST = 'h-7! px-2! text-xs! font-medium text-foreground!'
+/** Kit ghost `size="xs"` (Change, CORS Copy) on a `ghost sm` Button: unlayered Button.css beats plain utilities.
+    No ink: Change paints `text-foreground!`, Copy the kit ghost `text-muted-foreground!` and
+    `data-[hovered]:text-foreground!` (an !important rest ink needs an !important hover ink). */
+export const XS_GHOST = 'h-7! px-2! text-xs! font-medium'
 
 /** Both labels sit in one grid cell, so the button keeps its width (the D36 Share rule). */
 export function Swap({

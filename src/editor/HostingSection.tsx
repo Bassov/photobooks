@@ -202,7 +202,9 @@ export function HostingSection({
               }}
             />
           </div>
-          <div hidden={mode !== 'manual'}>
+          {/* The kit pane inherits a 19.5 px line height: the inline-block
+              "Set up automatically instead" link's line box and the help. */}
+          <div hidden={mode !== 'manual'} className="leading-[19.5px]">
             <HostingForm
               row={row}
               rule={rule}
@@ -584,7 +586,10 @@ function Help({ cors }: { cors: boolean }) {
         <Button
           variant="ghost"
           size="sm"
-          className={cn('absolute right-1 top-1', XS_GHOST)}
+          className={cn(
+            'absolute right-1 top-1 text-muted-foreground! data-[hovered]:text-foreground!',
+            XS_GHOST,
+          )}
           onPress={() => {
             // `navigator.clipboard` is missing outside secure contexts.
             void Promise.resolve()

@@ -4,7 +4,7 @@ import {
   assertDocumentFitsViewport,
   assertNamedScrollport,
 } from './fixtures/assertDocumentFitsViewport'
-import { dispatchCtrlWheel } from './fixtures/dispatchCtrlWheel'
+import { dispatchCtrlWheel, settleCamera } from './fixtures/dispatchCtrlWheel'
 import {
   browserAssertNoLoaf,
   browserAssertNoLoafAndHandlerP95,
@@ -793,12 +793,11 @@ test.describe('frame-budget gates', () => {
 
       // Phase 3: continuous zoom-out burst+paint only. Full gesture-end remount
       // LoAF is the sibling under continuous zoom settle remount (stabilized).
-      await dispatchCtrlWheel(page, 300, 36, { settleMs: 0 })
+      await dispatchCtrlWheel(page, 300, 36, { settle: false })
       await page.evaluate(browserAssertNoLoafAndHandlerP95, {
         label: 'wheel-zoom',
         budgetMs: PERF_BUDGETS.handlerP95Ms * PERF_BUDGETS.cpuThrottleRate,
       })
-      await page.waitForTimeout(200)
       await expect
         .poll(async () =>
           page.getByTestId('pasteboard-world').evaluate((el) => {
@@ -1147,7 +1146,7 @@ async function dispatchPinch(page: Page): Promise<void> {
     fire('pointerup', 1, cx - 90)
     fire('pointerup', 2, cx + 90)
   })
-  await page.waitForTimeout(200)
+  await settleCamera(page)
 }
 
 /** First spread's top-left lead at the scrollport: past the world's top margin. */

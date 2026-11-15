@@ -161,7 +161,10 @@ function StepHead({
         <Button
           variant="ghost"
           size="sm"
-          className={cn(XS_GHOST, 'data-[hovered]:bg-[#CFCFCF]!')}
+          className={cn(
+            XS_GHOST,
+            'text-foreground! data-[hovered]:bg-[#CFCFCF]!',
+          )}
           onPress={onChange}
           data-testid={`hosting-step-${String(n)}-change`}
         >

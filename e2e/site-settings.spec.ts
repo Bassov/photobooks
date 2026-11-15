@@ -5,6 +5,7 @@ import {
   installReactCommitProbe,
   reactCommitsOutside,
 } from './fixtures/reactCommits'
+import { OPFS_MID_WRITE, readOpfsText } from './fixtures/opfsText'
 import { topAt } from './fixtures/paintProbe'
 import { exportToDone, useOpfsFolder } from './fixtures/siteExport'
 import { PERF_BUDGETS } from './perf/budgets'
@@ -37,24 +38,19 @@ async function openLibraryEditor(page: Page): Promise<void> {
   })
 }
 
-/** `library.json` `site` of the OPFS test library. */
+/** `library.json` `site` of the OPFS test library (`OPFS_MID_WRITE` mid-save). */
 async function storedSite(page: Page): Promise<unknown> {
-  return page.evaluate(async () => {
-    const root = await navigator.storage.getDirectory()
-    const dir = await root.getDirectoryHandle('photobooks-e2e-library')
-    const file = await (await dir.getFileHandle('library.json')).getFile()
-    return (JSON.parse(await file.text()) as { site?: unknown }).site ?? null
-  })
+  const text = await readOpfsText(page, [
+    'photobooks-e2e-library',
+    'library.json',
+  ])
+  if (text === OPFS_MID_WRITE) return OPFS_MID_WRITE
+  return (JSON.parse(text) as { site?: unknown }).site ?? null
 }
 
 /** `dist/index.html` of an OPFS export folder. */
 async function exportedHome(page: Page, name: string): Promise<string> {
-  return page.evaluate(async (name) => {
-    const root = await navigator.storage.getDirectory()
-    const folder = await root.getDirectoryHandle(name)
-    const dist = await folder.getDirectoryHandle('dist')
-    return (await (await dist.getFileHandle('index.html')).getFile()).text()
-  }, name)
+  return readOpfsText(page, [name, 'dist', 'index.html'])
 }
 
 test('the site fields save on commit, survive a reload and feed Preview and export', async ({
