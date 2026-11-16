@@ -1,5 +1,5 @@
 import type { ExportWriteErrorCode } from '../../project'
-import type { PreflightRow } from '../../core'
+import { pageList, type PreflightRow } from '../../core'
 import type { ImpositionLayout } from '../../core/print/imposition'
 import { fmtN } from '../../core/print/profileText'
 import { PAGE_SIZE_PRESETS } from '../pageSizePresets'
@@ -30,17 +30,19 @@ function share(part: number, whole: number, of: number): number {
   return whole > 0 ? Math.round((of * part) / whole) : of
 }
 
-/** `round(95 · painted / sheets)` (a booklet: 80); no sheets counts as painted. */
+/**
+ * `round(95 · painted / (sheets + 1))`: 1 per sheet paints the cover as one
+ * more unit (cover-pdf §2.2); a booklet `round(80 · painted / sheets)`, no
+ * sheets counting as painted.
+ */
 export function printPercent(
   painted: number,
   sheets: number,
   layout: PrintLayout,
 ): number {
-  return share(
-    painted,
-    sheets,
-    layout === 'single' ? PAINT_SHARE : BOOKLET_PAINT_SHARE,
-  )
+  return layout === 'single'
+    ? share(painted, sheets + 1, PAINT_SHARE)
+    : share(painted, sheets, BOOKLET_PAINT_SHARE)
 }
 
 /** A booklet's imposing: 80–95 %. */
@@ -66,20 +68,52 @@ export function printSizeText(trim: {
   return `${preset?.name ?? 'Custom'} · ${w} × ${h} cm`
 }
 
-export function printBleedLabel(bleedMm: number): string {
-  return `Add ${fmtN(bleedMm)} mm bleed and crop marks`
+/** A cover bleed other than the page bleed, else null. */
+function otherCoverBleed(
+  bleedMm: number,
+  coverBleedMm: number | null,
+): number | null {
+  return coverBleedMm === null || coverBleedMm === bleedMm ? null : coverBleedMm
 }
 
-/** D5: `PDF · {pages} pages` [` on {sheets} sheets`] + ` · bleed {b} mm` / ` · trim size, no marks`. */
+/** cover-pdf §2.1.2: the cover bleed is named only when it differs (`coverBleedMm` null = no cover file). */
+export function printBleedLabel(
+  bleedMm: number,
+  coverBleedMm: number | null = null,
+): string {
+  const cover = otherCoverBleed(bleedMm, coverBleedMm)
+  const named = cover === null ? '' : ` (cover ${fmtN(cover)} mm)`
+  return `Add ${fmtN(bleedMm)} mm bleed${named} and crop marks`
+}
+
+/**
+ * D5, cover-pdf §2.1.3: `PDF · {pages} pages` [` on {sheets} sheets`]
+ * [` + cover`] + ` · bleed {b} mm` [`, cover {c} mm`] / ` · trim size, no
+ * marks`. `coverBleedMm`: the cover file's bleed, null = no cover file.
+ */
 export function printSummary(
   pages: number,
   sheets: number,
   bleedMm: number | null,
+  coverBleedMm: number | null = null,
 ): string {
   const on = sheets === pages ? '' : ` on ${plural(sheets, 'sheet')}`
-  const marks =
-    bleedMm === null ? ' · trim size, no marks' : ` · bleed ${fmtN(bleedMm)} mm`
-  return `PDF · ${String(pages)} pages${on}${marks}`
+  const plus = coverBleedMm === null ? '' : ' + cover'
+  if (bleedMm === null) {
+    return `PDF · ${String(pages)} pages${on}${plus} · trim size, no marks`
+  }
+  const cover = otherCoverBleed(bleedMm, coverBleedMm)
+  const coverMarks = cover === null ? '' : `, cover ${fmtN(cover)} mm`
+  return `PDF · ${String(pages)} pages${on}${plus} · bleed ${fmtN(bleedMm)} mm${coverMarks}`
+}
+
+/** cover-pdf §2.1.1 Cover row: the cover sheet with 1 per sheet, else "None with booklets". */
+export function printCoverText(
+  sheet: { sheetW: number; sheetH: number; spine: number } | null,
+): string {
+  if (sheet === null) return 'None with booklets'
+  const { sheetW, sheetH, spine } = sheet
+  return `${fmtN(sheetW / 10)} × ${fmtN(sheetH / 10)} cm · spine ${fmtN(spine)} mm`
 }
 
 /** "Check" / "Check · 2 errors, 3 warnings" (zero counts left out; info isn't counted). */
@@ -94,14 +128,16 @@ export function printCheckLabel(rows: readonly PreflightRow[]): string {
 }
 
 /**
- * §2.2: "Page {i} of {sheets} · {p}%" while painting, a booklet's
- * "Imposing sheets · {i} of {n} · {p}%" next, "Saving · {p}%" after.
+ * §2.2: "Page {i} of {sheets} · {p}%" while painting, then 1 per sheet's
+ * "Cover · {p}%" (cover-pdf) or a booklet's "Imposing sheets · {i} of {n} ·
+ * {p}%", "Saving · {p}%" after.
  */
 export function printRunText(run: {
   painted: number
   sheets: number
   percent: number
   saving: boolean
+  layout: PrintLayout
   imposing: { imposed: number; sheets: number } | null
 }): string {
   const percent = `${String(run.percent)}%`
@@ -110,6 +146,9 @@ export function printRunText(run: {
     const { imposed, sheets } = run.imposing
     const sheet = Math.min(imposed + 1, sheets)
     return `Imposing sheets · ${String(sheet)} of ${String(sheets)} · ${percent}`
+  }
+  if (run.layout === 'single' && run.painted >= run.sheets) {
+    return `Cover · ${percent}`
   }
   const page = Math.min(run.painted + 1, run.sheets)
   return `Page ${String(page)} of ${String(run.sheets)} · ${percent}`
@@ -123,7 +162,16 @@ export function printDoneText(
   layout: PrintLayout,
 ): string {
   const count = plural(sheets, layout === 'single' ? 'page' : 'sheet')
-  return `${file} · ${count} · ${(bytes / 1_000_000).toFixed(1)} MB`
+  return `${file} · ${count} · ${megabytes(bytes)}`
+}
+
+/** cover-pdf §2.3: "lake-trip-A5-cover.pdf · cover · 2.9 MB". */
+export function printDoneCoverText(file: string, bytes: number): string {
+  return `${file} · cover · ${megabytes(bytes)}`
+}
+
+function megabytes(bytes: number): string {
+  return `${(bytes / 1_000_000).toFixed(1)} MB`
 }
 
 /** How to print and fold a booklet on a home duplex printer. */
@@ -140,6 +188,16 @@ export function printSavedText(library: string): string {
 /** §2.3 skipped-photos row (the page list follows, muted). */
 export function printSkippedText(count: number): string {
   return `${plural(count, 'photo')} couldn’t be read and print${count === 1 ? 's' : ''} as blank paper`
+}
+
+/** The skipped row's muted list: `cover` leads the pages (" · cover, pages 2, 6"). */
+export function printSkippedPages(
+  pages: readonly number[],
+  cover: boolean,
+): string {
+  const list = pageList(pages)
+  if (!cover) return list
+  return list === '' ? ' · cover' : ` · cover, ${list.slice(' · '.length)}`
 }
 
 /** §2.4 failed texts. */

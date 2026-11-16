@@ -14,8 +14,9 @@ const outcome: PrintOutcome = {
   layout: 'single',
   sheets: 20,
   bytes: 1_200_000,
-  skipped: { count: 0, pages: [] },
+  skipped: { count: 0, pages: [], cover: false },
   handle,
+  cover: { file: 'a-cover.pdf', bytes: 300_000, handle },
   library: 'Photobooks',
 }
 const running: PrintState = {
@@ -90,11 +91,12 @@ describe('reducePrint', () => {
     ).toBe(PRINT_IDLE)
   })
 
-  it('turns painted sheets into 95 % and never goes back', () => {
+  it('turns painted sheets and the cover into 95 % and never goes back', () => {
+    // cover-pdf §2.2: 20 sheets + the cover = 21 units.
     expect(reducePrint(running, { type: 'progress', painted: 20 })).toEqual({
       ...running,
       painted: 20,
-      percent: 95,
+      percent: 90,
     })
     expect(reducePrint(running, { type: 'progress', painted: 10 })).toBe(
       running,

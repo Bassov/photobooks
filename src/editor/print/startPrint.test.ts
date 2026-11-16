@@ -3,9 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeFrame, makeSpread } from '../../core/testing/fixtures'
 import {
   runPdfCheck,
+  runPdfCover,
   runPdfImpose,
   runPdfPaint,
   type PdfCheckMessage,
+  type PdfCoverMessage,
+  type PdfCoverWorkerRequest,
   type PdfImposeMessage,
   type PdfPaintMessage,
   type PdfWorkerRequest,
@@ -16,6 +19,7 @@ import {
   type ExportFileHandle,
 } from '../../project'
 import { resetBookStore } from '../bookStore'
+import { bookFontFiles } from '../../core/pdf/pdfText.test-helpers'
 import { getOpenLibraryHandle } from '../projectSession'
 import {
   PRINT_IDLE,
@@ -59,14 +63,19 @@ vi.mock('../projectSession', async (importOriginal) => ({
 
 /** The worker's request dispatch. */
 function inWorker(
-  request: PdfWorkerRequest,
-  post: (data: PdfCheckMessage | PdfImposeMessage | PdfPaintMessage) => void,
+  request: PdfWorkerRequest | PdfCoverWorkerRequest,
+  post: (
+    data:
+      PdfCheckMessage | PdfImposeMessage | PdfPaintMessage | PdfCoverMessage,
+  ) => void,
 ) {
   return 'check' in request
     ? runPdfCheck(request.check, post)
     : 'impose' in request
       ? runPdfImpose(request.impose, post)
-      : runPdfPaint(request.paint, post)
+      : 'cover' in request
+        ? runPdfCover(request.cover, post)
+        : runPdfPaint(request.paint, post)
 }
 
 /** The PDF worker in-process: messages go back asynchronously, like `postMessage`. */
@@ -74,9 +83,12 @@ class InProcessWorker {
   onmessage: ((event: { data: unknown }) => void) | null = null
   onerror: (() => void) | null = null
   terminated = false
-  request: PdfWorkerRequest | null = null
+  request: PdfWorkerRequest | PdfCoverWorkerRequest | null = null
   transfer: Transferable[] = []
-  postMessage(request: PdfWorkerRequest, transfer: Transferable[] = []) {
+  postMessage(
+    request: PdfWorkerRequest | PdfCoverWorkerRequest,
+    transfer: Transferable[] = [],
+  ) {
     this.request = request
     this.transfer = transfer
     const post = (data: unknown) => {
@@ -222,6 +234,12 @@ function settlePrintStore() {
 beforeEach(() => {
   settlePrintStore()
   workers.length = 0
+  // The cover painter's book fonts, as the app serves them.
+  vi.stubGlobal('location', { href: 'https://app.test/assets/pdf.worker.js' })
+  vi.stubGlobal('fetch', async (url: URL) => {
+    const file = url.pathname.split('/').at(-1) ?? ''
+    return new Response(new Blob([new Uint8Array(await bookFontFiles(file))]))
+  })
   resetBookStore({
     book: photoBook(),
     sessionMeta: new Map(),
@@ -232,6 +250,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
   settlePrintStore()
 })
 
@@ -245,12 +264,22 @@ describe('runPrint', () => {
       file: 'lake-trip-A5.pdf',
       sheets: 20,
       library: 'Photobooks',
-      skipped: { count: 1, pages: [2] },
+      skipped: { count: 1, pages: [2], cover: false },
+      cover: { file: 'lake-trip-A5-cover.pdf' },
     })
     const bytes = files.get('lake-trip-A5.pdf')
     expect(state.kind === 'done' && state.bytes).toBe(bytes?.byteLength)
     const { doc, page } = await firstPage(bytes)
     expect(doc.getPageCount()).toBe(20)
+    // cover-pdf C1: the one-page cover sheet beside the pages.
+    const coverBytes = files.get('lake-trip-A5-cover.pdf')
+    expect(state.kind === 'done' && state.cover?.bytes).toBe(
+      coverBytes?.byteLength,
+    )
+    const cover = await firstPage(coverBytes)
+    expect(cover.doc.getPageCount()).toBe(1)
+    // Generic A5, 20 printed pages: 338 mm sheet + 2 × 3 mm cover bleed.
+    expect(cover.page.getBleedBox().width).toBeCloseTo(344 * MM, 2)
     const trim = page.getTrimBox()
     const bleed = page.getBleedBox()
     expect(trim.width).toBeCloseTo(148 * MM, 3)
@@ -282,6 +311,84 @@ describe('runPrint', () => {
     expect(types.slice(-2)).toEqual(['saving', 'done'])
   })
 
+  it('paints the cover after the pages and closes both files under saving', async () => {
+    const requests: string[] = []
+    const { log } = await print(true, {
+      runWorker: (request, onMessage) => {
+        requests.push(Object.keys(request).join())
+        inProcess(request, onMessage)
+      },
+    })
+
+    expect(requests).toEqual(['paint', 'cover'])
+    const saving = log.indexOf('saving')
+    expect(
+      log.slice(saving).filter((entry) => !entry.startsWith('write')),
+    ).toEqual(['saving', 'close', 'close', 'done'])
+  })
+
+  it('fails and writes neither file when the cover fails', async () => {
+    const { store, files, log } = await print(true, {
+      runWorker: (request, onMessage) => {
+        if ('cover' in request) {
+          onMessage({ chunk: new Uint8Array([1]).buffer })
+          onMessage({ failed: { message: 'boom' } })
+          return
+        }
+        inProcess(request, onMessage)
+      },
+    })
+
+    expect(store.state()).toMatchObject({ kind: 'failed', code: 'other' })
+    expect(store.events.map((event) => event.type)).not.toContain('saving')
+    expect(log.slice(-2)).toEqual(['abort', 'failed'])
+    expect(log).not.toContain('close')
+    expect(files.size).toBe(0)
+  })
+
+  it('fails with the cover write error code after the pages are written', async () => {
+    const { library, files } = memoryLibrary()
+    const { store } = await print(true, {
+      open: (folder, name) =>
+        name.endsWith('-cover.pdf')
+          ? {
+              write: vi.fn(),
+              close: () => Promise.resolve({ ok: false, code: 'full' }),
+              abort: vi.fn(),
+            }
+          : openExport(
+              folder.then(() => library),
+              name,
+            ),
+    })
+
+    expect(store.state()).toMatchObject({ kind: 'failed', code: 'full' })
+    expect([...files.keys()]).toEqual(['lake-trip-A5.pdf'])
+  })
+
+  it('counts a gone front cover photo in the skipped row once', async () => {
+    const book = photoBook()
+    const { store } = await print(true, {
+      job: {
+        book: {
+          ...book,
+          cover: {
+            ...book.cover,
+            front: { ...book.cover.front, assetId: 'gone' },
+          },
+        },
+        printProfiles: [],
+        marks: true,
+        layout: 'single',
+      },
+    })
+
+    expect(store.state()).toMatchObject({
+      kind: 'done',
+      skipped: { count: 1, pages: [2], cover: true },
+    })
+  })
+
   it('imposes a 2-up booklet of the book pages, unpadded, two PDF pages a sheet', async () => {
     const { store, files } = await print(false, {}, '2up')
 
@@ -298,8 +405,11 @@ describe('runPrint', () => {
       file: 'lake-trip-A5-2up.pdf',
       layout: '2up',
       sheets: 1,
-      skipped: { count: 1, pages: [2] },
+      skipped: { count: 1, pages: [2], cover: false },
+      cover: null,
     })
+    // C1: a booklet has no cover file.
+    expect([...files.keys()]).toEqual(['lake-trip-A5-2up.pdf'])
     const { doc, page } = await firstPage(files.get('lake-trip-A5-2up.pdf'))
     expect(doc.getPageCount()).toBe(2)
     expect(page.getWidth()).toBeCloseTo(2 * 148 * MM, 3)
@@ -359,7 +469,12 @@ describe('runPrint', () => {
   it('writes the chunks as they arrive, in order, and closes after saving', async () => {
     const chunks = [new Uint8Array([1, 2]), new Uint8Array([3])]
     const { store, files, log } = await print(true, {
-      runWorker: (_request, onMessage) => {
+      runWorker: (request, onMessage) => {
+        if ('cover' in request) {
+          onMessage({ chunk: new Uint8Array([9]).buffer })
+          onMessage({ done: { bytes: 1, skipped: [] } })
+          return
+        }
         for (const chunk of chunks) onMessage({ chunk: chunk.slice().buffer })
         onMessage({ progress: { painted: 1, sheets: 20 } })
         onMessage({ done: { bytes: 3, sheets: 20, skipped: [] } })
@@ -367,13 +482,19 @@ describe('runPrint', () => {
     })
 
     expect(files.get('lake-trip-A5.pdf')).toEqual(new Uint8Array([1, 2, 3]))
+    expect(files.get('lake-trip-A5-cover.pdf')).toEqual(new Uint8Array([9]))
     expect(log.filter((entry) => entry.startsWith('write'))).toEqual([
       'write 2',
+      'write 1',
       'write 1',
     ])
     expect(log.indexOf('saving')).toBeLessThan(log.indexOf('close'))
     expect(log.slice(-2)).toEqual(['close', 'done'])
-    expect(store.state()).toMatchObject({ kind: 'done', bytes: 3 })
+    expect(store.state()).toMatchObject({
+      kind: 'done',
+      bytes: 3,
+      cover: { bytes: 1 },
+    })
   })
 
   it('aborts the file when painting fails after some chunks', async () => {
@@ -444,7 +565,7 @@ describe('runPrint', () => {
 
     expect(store.state()).toMatchObject({
       kind: 'done',
-      skipped: { count: 2, pages: [1, 2, 4] },
+      skipped: { count: 2, pages: [1, 2, 4], cover: false },
     })
   })
 
@@ -542,6 +663,20 @@ describe('resolvePrintPhotos', () => {
     expect(Object.keys(noRecord.photos)).toEqual([])
     expect(new Set(noRecord.missing)).toEqual(new Set(['a', 'gone']))
   })
+
+  it('reads the front cover photo too', async () => {
+    const book = makeBook({
+      assets: { a: {} },
+      cover: {
+        ...makeBook().cover,
+        front: { ...makeBook().cover.front, assetId: 'a' },
+      },
+    })
+
+    const resolved = await resolvePrintPhotos(book)
+
+    expect(Object.keys(resolved.photos)).toEqual(['a'])
+  })
 })
 
 describe('the open book', () => {
@@ -555,9 +690,13 @@ describe('the open book', () => {
     await vi.waitFor(() => {
       expect(printStore.getSnapshot().kind).toBe('done')
     })
-    expect([...files.keys()]).toEqual(['lake-trip-A5.pdf'])
-    expect(workers).toHaveLength(1)
-    expect(workers[0]?.terminated).toBe(true)
+    expect([...files.keys()]).toEqual([
+      'lake-trip-A5.pdf',
+      'lake-trip-A5-cover.pdf',
+    ])
+    expect(workers).toHaveLength(2)
+    expect(workers.every((worker) => worker.terminated)).toBe(true)
+    expect(workers[1]?.request).toHaveProperty('cover')
     expect(workers[0]?.transfer).toEqual([])
   })
 
@@ -614,8 +753,11 @@ describe('the open book', () => {
     await vi.waitFor(() => {
       expect(printStore.getSnapshot().kind).toBe('done')
     })
-    // The failed job's snapshot and options, not the new ones.
-    expect([...files.keys()]).toEqual(['lake-trip-A5.pdf'])
+    // The failed job's snapshot and options, not the new ones: both files.
+    expect([...files.keys()]).toEqual([
+      'lake-trip-A5.pdf',
+      'lake-trip-A5-cover.pdf',
+    ])
   })
 
   it('checks the open book', async () => {
