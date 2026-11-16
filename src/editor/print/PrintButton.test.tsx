@@ -33,8 +33,9 @@ const done = {
   layout: 'single' as const,
   sheets: 20,
   bytes: 2_000_000,
-  skipped: { count: 0, pages: [] },
+  skipped: { count: 0, pages: [], cover: false },
   handle: { kind: 'file', name: 'lake-trip-A5.pdf' } as ExportFileHandle,
+  cover: null,
   library: 'Photobooks',
 }
 
@@ -85,12 +86,13 @@ describe('PrintButton', () => {
     })
 
     await waitFor(() => {
-      expect(pill().getAttribute('title')).toBe('Exporting PDF · 43%')
+      // 95 · 9 / (20 sheets + the cover).
+      expect(pill().getAttribute('title')).toBe('Exporting PDF · 41%')
     })
     expect(pill().getAttribute('data-state')).toBe('running')
-    expect(pill().style.getPropertyValue('--site-job-progress')).toBe('0.43')
+    expect(pill().style.getPropertyValue('--site-job-progress')).toBe('0.41')
     expect(screen.getByTestId('print-status').textContent).toBe(
-      'Exporting PDF, 43%',
+      'Exporting PDF, 41%',
     )
   })
 

@@ -117,10 +117,10 @@
   background: var(--cover-back);
 }
 
+/* Fill = the inline `backFill` (cover-pdf C5). */
 .cover-spine {
   position: relative;
   height: 100%;
-  background: var(--cover-spine);
 }
 
 .cover-front {

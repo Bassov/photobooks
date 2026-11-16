@@ -17,6 +17,16 @@ export interface PrintSkipped {
   count: number
   /** Ascending pages the skipped photos print on. */
   pages: number[]
+  /** The front cover photo is one of them (cover-pdf §2.3). */
+  cover: boolean
+}
+
+/** The cover sheet file written beside the pages (cover-pdf C1). */
+interface PrintCoverFile {
+  file: string
+  bytes: number
+  /** The written file (Open cover). */
+  handle: ExportFileHandle
 }
 
 export interface PrintOutcome {
@@ -26,8 +36,10 @@ export interface PrintOutcome {
   sheets: number
   bytes: number
   skipped: PrintSkipped
-  /** The written file (Open PDF). */
+  /** The written file (Open PDF / Open pages). */
   handle: ExportFileHandle
+  /** 1 per sheet's cover file; null for a booklet. */
+  cover: PrintCoverFile | null
   /** Library folder label of the "Saved in …/exports." line. */
   library: string
 }
@@ -37,7 +49,7 @@ export type PrintState =
   | { kind: 'idle' }
   | {
       kind: 'running'
-      /** Sheets painted so far, 0..`sheets`. */
+      /** Sheets painted so far, 0..`sheets`; 1 per sheet's cover paints at `sheets`. */
       painted: number
       sheets: number
       percent: number
@@ -113,7 +125,8 @@ export function reducePrint(state: PrintState, event: PrintEvent): PrintState {
         : state
     case 'done': {
       if (state.kind !== 'running') return state
-      const { file, layout, sheets, bytes, skipped, handle, library } = event
+      const { file, layout, sheets, bytes, skipped, handle, cover, library } =
+        event
       return {
         kind: 'done',
         file,
@@ -122,6 +135,7 @@ export function reducePrint(state: PrintState, event: PrintEvent): PrintState {
         bytes,
         skipped,
         handle,
+        cover,
         library,
       }
     }

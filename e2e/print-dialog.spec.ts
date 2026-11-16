@@ -157,6 +157,10 @@ test.describe('pdf-export dialog', () => {
       'Page sizeSquare 30×30 · 30 × 30 cm',
     )
     await expect(page.getByTestId('print-profile')).toHaveText('PrinterGeneric')
+    // cover-pdf §2.1.1: 2 × 300 mm + spine + 2 × 15 mm wrap, 300 + 30 high.
+    await expect(page.getByTestId('print-cover')).toHaveText(
+      /^Cover\d+(\.\d)? × 33 cm · spine \d+(\.\d)? mm$/,
+    )
     await expect(page.getByTestId('print-imposition')).toHaveText(
       'Imposition (duplex)1 per sheet2-up4-up',
     )
@@ -166,9 +170,11 @@ test.describe('pdf-export dialog', () => {
     await expect(page.getByTestId('print-bleed')).toBeChecked()
     await expect(dialog(page)).toContainText('Add 3 mm bleed and crop marks')
     const summary = page.getByTestId('print-summary')
-    await expect(summary).toHaveText(/^PDF · \d+ pages · bleed 3 mm$/)
+    await expect(summary).toHaveText(/^PDF · \d+ pages \+ cover · bleed 3 mm$/)
     await toggleBleed(page)
-    await expect(summary).toHaveText(/^PDF · \d+ pages · trim size, no marks$/)
+    await expect(summary).toHaveText(
+      /^PDF · \d+ pages \+ cover · trim size, no marks$/,
+    )
 
     await expect(check(page)).toHaveAttribute('data-state', 'issues')
     await expect(check(page)).toContainText(/^Check · \d+ errors?/)
@@ -186,6 +192,25 @@ test.describe('pdf-export dialog', () => {
       (await box(page.getByTestId('print-check-list'))).height,
     ).toBeLessThanOrEqual(118.5)
     await assertDocumentFitsViewport(page)
+
+    // C8: booklets keep the row, so nothing below it moves.
+    const imposition = (await box(page.getByTestId('print-imposition'))).y
+    await dialog(page).getByRole('radio', { name: '2-up' }).check()
+    await expect(page.getByTestId('print-cover')).toHaveText(
+      'CoverNone with booklets',
+    )
+    expect((await box(page.getByTestId('print-imposition'))).y).toBe(imposition)
+  })
+
+  test('A5: the Cover row names the cover sheet and spine', async ({
+    page,
+  }) => {
+    await openLibraryBook(page, 'Lake trip', { widthMm: 148, heightMm: 210 })
+    await openPrint(page)
+
+    await expect(page.getByTestId('print-cover')).toHaveText(
+      'Cover33.8 × 24 cm · spine 12 mm',
+    )
   })
 
   test('options and done steps sit like the kit', async ({
@@ -194,52 +219,28 @@ test.describe('pdf-export dialog', () => {
     const ids = [
       'print-size',
       'print-profile',
+      'print-cover',
       'print-imposition',
       'print-summary',
       'print-check',
     ]
-    // The kit has the cover-pdf Cover row (options) and cover file line
-    // (done); prod gains them in CP4 (roadmap item cover-pdf). Until then the
-    // kit rows below them are compared with the kit's measured shift taken
-    // out; cover-pdf drops `shiftBelow` and compares the kit as is.
-    await kitAt(page, 'No problems')
-    const kitOpts = await offsets(page, [...ids, 'print-cover'])
-    const coverRowShift =
-      (kitOpts['print-imposition'] ?? 0) - (kitOpts['print-cover'] ?? 0)
-    const kitOptsLook = await frameLook(page, 'print-go')
-    await kitAt(page, 'PDF ready')
-    const kitDone = await offsets(page, [
+    const doneIds = [
       'print-done',
+      'print-done-cover',
       'print-saved',
       'print-open',
-    ])
-    const coverLineShift = (await box(page.getByTestId('print-done-cover')))
-      .height
+      'print-open-cover',
+    ]
+    await kitAt(page, 'No problems')
+    const kitOpts = await offsets(page, ids)
+    const kitOptsLook = await frameLook(page, 'print-go')
+    await kitAt(page, 'PDF ready')
+    const kitDone = await offsets(page, doneIds)
     const kitDoneLook = await frameLook(page, 'print-close')
-    const shiftBelow = (
-      tops: Record<string, number>,
-      below: string[],
-      shift: number,
-    ) =>
-      Object.fromEntries(
-        Object.entries(tops)
-          .filter(([key]) => key !== 'print-cover')
-          .map(([key, top]) => [key, below.includes(key) ? top - shift : top]),
-      )
-    const kitOptsNow = shiftBelow(
-      kitOpts,
-      ['print-imposition', 'print-summary', 'print-check'],
-      coverRowShift,
-    )
-    const kitDoneNow = shiftBelow(
-      kitDone,
-      ['print-saved', 'print-open'],
-      coverLineShift,
-    )
 
     await openPrintFixture(page, folderFor(testInfo))
     await openPrint(page)
-    nearAll(await offsets(page, ids), kitOptsNow, 1)
+    nearAll(await offsets(page, ids), kitOpts, TOL)
     const optsLook = await frameLook(page, 'print-go')
     expect(optsLook.width).toBeCloseTo(kitOptsLook.width, 0)
     expect(optsLook.button[1]).toBe(kitOptsLook.button[1])
@@ -253,17 +254,13 @@ test.describe('pdf-export dialog', () => {
     await expect(dialog(page)).toHaveAttribute('data-step', 'done', {
       timeout: 30_000,
     })
-    nearAll(
-      await offsets(page, ['print-done', 'print-saved', 'print-open']),
-      kitDoneNow,
-      1,
-    )
+    nearAll(await offsets(page, doneIds), kitDone, TOL)
     const doneLook = await frameLook(page, 'print-close')
     expect(doneLook.bg).toEqual(kitDoneLook.bg)
     expect(doneLook.ink).toEqual(kitDoneLook.ink)
   })
 
-  test('Export → Hide → the pill fills → PDF ready → Open PDF', async ({
+  test('Export → Hide → the pill fills → Cover → PDF ready → Open pages / Open cover', async ({
     page,
   }, testInfo) => {
     const folder = folderFor(testInfo)
@@ -280,8 +277,9 @@ test.describe('pdf-export dialog', () => {
     )
     const half = Math.floor(sheets / 2)
     await releasePdf(page, half)
+    // cover-pdf §2.2: the cover is one more unit.
     await expect(runText).toHaveText(
-      `Page ${String(half + 1)} of ${String(sheets)} · ${String(Math.round((95 * half) / sheets))}%`,
+      `Page ${String(half + 1)} of ${String(sheets)} · ${String(Math.round((95 * half) / (sheets + 1)))}%`,
     )
     await page.getByTestId('print-hide').click()
     await expect(dialog(page)).toHaveCount(0)
@@ -299,6 +297,18 @@ test.describe('pdf-export dialog', () => {
         return [left?.[0], right?.[0]]
       })
       .toEqual([190, 215])
+
+    // The rest of the pages and the paint `done`: the cover paints (held).
+    await releasePdf(page, sheets - half + 1)
+    const coverPercent = Math.round((95 * sheets) / (sheets + 1))
+    await expect(pill(page)).toHaveAttribute(
+      'title',
+      `Exporting PDF · ${String(coverPercent)}%`,
+    )
+    await pill(page).click()
+    await expect(dialog(page)).toHaveAttribute('data-step', 'run')
+    await expect(runText).toHaveText(`Cover · ${String(coverPercent)}%`)
+    await page.getByTestId('print-hide').click()
 
     await releasePdf(page)
     await expect(pill(page)).toHaveAttribute('data-state', 'done', {
@@ -324,13 +334,42 @@ test.describe('pdf-export dialog', () => {
       Number.parseFloat(mb),
       1,
     )
+    // C1: the one-page cover sheet beside the pages.
+    const coverLine = page.getByTestId('print-done-cover')
+    const coverFile = file.replace(/\.pdf$/, '-cover.pdf')
+    await expect(coverLine).toHaveText(
+      /^[a-z0-9-]+-sq30-cover\.pdf · cover · \d+\.\d MB$/,
+    )
+    const [coverName, , coverMb = ''] = (
+      (await coverLine.textContent()) ?? ''
+    ).split(' · ')
+    expect(coverName).toBe(coverFile)
+    const coverBytes = await readExportBytes(page, folder, coverFile)
+    expect(coverBytes.byteLength / 1_000_000).toBeCloseTo(
+      Number.parseFloat(coverMb),
+      1,
+    )
+    expect((await PDFDocument.load(coverBytes)).getPageCount()).toBe(1)
     await expect(page.getByTestId('print-saved')).toHaveText(
       `Saved in ${folder}/exports.`,
     )
 
-    const popup = page.waitForEvent('popup')
+    // Each button opens its own file.
+    await expect(page.getByTestId('print-open')).toHaveText('Open pages')
+    const pagesPopup = page.waitForEvent('popup')
     await page.getByTestId('print-open').click()
-    expect((await popup).url()).toMatch(/^blob:/)
+    const pagesTab = await pagesPopup
+    expect(pagesTab.url()).toMatch(/^blob:/)
+    const coverPopup = page.waitForEvent('popup')
+    await page.getByTestId('print-open-cover').click()
+    const coverTab = await coverPopup
+    expect(coverTab.url()).toMatch(/^blob:/)
+    expect(coverTab.url()).not.toBe(pagesTab.url())
+    const opened = await page.evaluate(
+      async (url) => (await fetch(url)).arrayBuffer().then((b) => b.byteLength),
+      coverTab.url(),
+    )
+    expect(opened).toBe(coverBytes.byteLength)
     await page.getByTestId('print-close').click()
     await expect(dialog(page)).toHaveCount(0)
   })
@@ -417,6 +456,12 @@ test.describe('booklet-imposition', () => {
       )
       // Front and back of every paper sheet.
       expect(pdf.getPageCount()).toBe(2 * Number.parseInt(run.sheets, 10))
+      // C1: a booklet writes no cover file and opens one PDF.
+      const cover = file.replace(`-${run.id}.pdf`, '-cover.pdf')
+      expect(await readExport(page, folder, cover)).toBeNull()
+      await expect(page.getByTestId('print-done-cover')).toHaveCount(0)
+      await expect(page.getByTestId('print-open')).toHaveText('Open PDF')
+      await expect(page.getByTestId('print-open-cover')).toHaveCount(0)
     })
   }
 

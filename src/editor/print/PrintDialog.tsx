@@ -4,7 +4,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react'
-import { bookPrintProfile, pageList, type PreflightRow } from '../../core'
+import { bookPrintProfile, coverGeometry, type PreflightRow } from '../../core'
 import { printBleedMm } from '../../core/pdf/pdfGeometry'
 import { Button } from '../../ui/Button'
 import { Checkbox } from '../../ui/Checkbox'
@@ -23,13 +23,16 @@ import { printStore, type PrintState } from './printStore'
 import {
   printBleedLabel,
   printCheckLabel,
+  printCoverText,
   PRINT_LAYOUTS,
+  printDoneCoverText,
   printDoneText,
   printDuplexText,
   printFailText,
   printRunText,
   printSavedText,
   printSizeText,
+  printSkippedPages,
   printSkippedText,
   printSummary,
   type PrintLayout,
@@ -176,6 +179,9 @@ export function PrintDialog({
       size: printSizeText(open.settings.trim),
       profile: profile.name,
       bleedMm: printBleedMm(open.settings.bleedMm, profile),
+      // cover-pdf C2/C3: the cover sheet and its bleed as the painter has them.
+      cover: printCoverText(coverGeometry(profile, open)),
+      coverBleedMm: profile.coverBleedMm,
       counts: Object.fromEntries(
         PRINT_LAYOUTS.map(({ id }) => [
           id,
@@ -185,6 +191,11 @@ export function PrintDialog({
     }
   })
   const counts = book.counts[layout]
+  // C1/C9: only 1 per sheet writes a cover file, so only it shows cover rows.
+  const single = layout === 'single'
+  const coverBleedMm = single ? book.coverBleedMm : null
+  const shown =
+    rows === null || single ? rows : rows.filter((row) => row.scope !== 'cover')
 
   // D6: the check runs when the dialog opens on Options.
   useEffect(() => {
@@ -251,6 +262,13 @@ export function PrintDialog({
                 <span className="text-muted-foreground">Printer</span>
                 <span>{book.profile}</span>
               </div>
+              {/* C8: always present, so switching the imposition moves nothing below. */}
+              <div className={ROW} data-testid="print-cover">
+                <span className="text-muted-foreground">Cover</span>
+                <span className="tabular-nums">
+                  {single ? book.cover : printCoverText(null)}
+                </span>
+              </div>
               <div
                 className="flex flex-col gap-1.5"
                 data-testid="print-imposition"
@@ -268,16 +286,17 @@ export function PrintDialog({
                 onChange={setBleed}
                 data-testid="print-bleed"
               >
-                {printBleedLabel(book.bleedMm)}
+                {printBleedLabel(book.bleedMm, coverBleedMm)}
               </Checkbox>
               <div className={LABEL} data-testid="print-summary">
                 {printSummary(
                   counts.pages,
                   counts.sheets,
                   bleed ? book.bleedMm : null,
+                  coverBleedMm,
                 )}
               </div>
-              <CheckBlock rows={rows} />
+              <CheckBlock rows={shown} />
             </div>
             <div className={FOOTER}>
               <Button
@@ -345,6 +364,14 @@ export function PrintDialog({
                 outcome.layout,
               )}
             </p>
+            {outcome.cover === null ? null : (
+              <p
+                className={`m-0 ${BODY} text-muted-foreground`}
+                data-testid="print-done-cover"
+              >
+                {printDoneCoverText(outcome.cover.file, outcome.cover.bytes)}
+              </p>
+            )}
             <p className={`mt-1.5 mb-0 ${LABEL}`} data-testid="print-saved">
               {printSavedText(outcome.library)}
             </p>
@@ -361,7 +388,10 @@ export function PrintDialog({
                 <CheckLine
                   icon={SEVERITY_ICON.warning}
                   tone="warning"
-                  pages={pageList(outcome.skipped.pages)}
+                  pages={printSkippedPages(
+                    outcome.skipped.pages,
+                    outcome.skipped.cover,
+                  )}
                 >
                   {printSkippedText(outcome.skipped.count)}
                 </CheckLine>
@@ -376,8 +406,24 @@ export function PrintDialog({
                 data-testid="print-open"
               >
                 <ExternalLinkGlyph />
-                Open PDF
+                {outcome.cover === null ? 'Open PDF' : 'Open pages'}
               </Button>
+              {outcome.cover === null ? null : (
+                <Button
+                  variant="ghost"
+                  size="md"
+                  className="print-open px-4"
+                  onPress={() => {
+                    if (outcome.cover !== null) {
+                      void openPrintedPdf(outcome.cover.handle)
+                    }
+                  }}
+                  data-testid="print-open-cover"
+                >
+                  <ExternalLinkGlyph />
+                  Open cover
+                </Button>
+              )}
               <Button
                 size="md"
                 className="px-4"

@@ -1,6 +1,7 @@
 import {
   bookPrintProfile,
   pagesOf,
+  pdfCoverFileName,
   pdfFileName,
   photoPages,
   type Book,
@@ -10,8 +11,11 @@ import { createPdfWorker } from '../../core/pdf/createPdfWorker'
 import { blankSheets, pdfSheets } from '../../core/pdf/pdfGeometry'
 import type {
   PdfCheckMessage,
+  PdfCoverMessage,
+  PdfCoverWorkerRequest,
   PdfImposeMessage,
   PdfPaintMessage,
+  PdfPaintRequest,
   PdfWorkerRequest,
 } from '../../core/pdf/pdf.worker'
 import { sheetCount } from '../../core/print/imposition'
@@ -38,11 +42,15 @@ export interface PrintJob {
   layout: PrintLayout
 }
 
-type PdfMessage = PdfPaintMessage | PdfCheckMessage | PdfImposeMessage
+type PdfMessage =
+  PdfPaintMessage | PdfCoverMessage | PdfCheckMessage | PdfImposeMessage
 type PdfProgress = Extract<PdfMessage, { progress: unknown }>['progress']
+type ExportStream = ReturnType<typeof openExport>
+/** The worker's requests, the cover sheet (cover-pdf) joined. */
+type PrintWorkerRequest = PdfWorkerRequest | PdfCoverWorkerRequest
 
 export type PdfWorkerRunner = (
-  request: PdfWorkerRequest,
+  request: PrintWorkerRequest,
   onMessage: (message: PdfMessage) => void,
 ) => void
 
@@ -121,14 +129,23 @@ function paintedSheets(book: Book, printProfiles: readonly PrintProfile[]) {
   )
 }
 
-function skippedOf(book: Book, assetIds: readonly string[]): PrintSkipped {
+/** The skipped row: page and cover photos, a photo on both counted once. */
+function skippedOf(
+  book: Book,
+  assetIds: readonly string[],
+  coverIds: readonly string[],
+): PrintSkipped {
   const missing = new Set(assetIds)
   const all = new Set(
     [...photoPages(book)]
       .filter(([id]) => missing.has(id))
       .flatMap(([, pages]) => pages),
   )
-  return { count: assetIds.length, pages: [...all].sort((a, b) => a - b) }
+  return {
+    count: new Set([...assetIds, ...coverIds]).size,
+    pages: [...all].sort((a, b) => a - b),
+    cover: coverIds.length > 0,
+  }
 }
 
 /**
@@ -137,7 +154,7 @@ function skippedOf(book: Book, assetIds: readonly string[]): PrintSkipped {
  */
 function lastMessage(
   runWorker: PdfWorkerRunner,
-  request: PdfWorkerRequest,
+  request: PrintWorkerRequest,
   onProgress: (progress: PdfProgress) => void,
   onChunk: (chunk: ArrayBuffer) => void,
 ): Promise<PdfMessage> {
@@ -180,12 +197,38 @@ async function imposed(
 }
 
 /**
- * One Print run (Designer pdf-export §2.2–2.4): paint in the PDF worker,
- * impose a booklet there too, streaming the file to
- * `<library>/exports/{pdfFileName}` as its chunks arrive. A booklet's page
- * PDF gathers as a Blob for the impose worker. A refused write shows once
- * the PDF is built, as `saving` ends. A second run while one is going does
- * nothing.
+ * 1 per sheet's cover sheet from the same paint request (worker `cover`),
+ * streamed to `output`; its bytes and skipped photo ids, null when it failed.
+ */
+async function paintedCover(
+  deps: PrintRunDeps,
+  request: PdfPaintRequest,
+  output: ExportStream,
+): Promise<{ bytes: number; skipped: string[] } | null> {
+  const message = await lastMessage(
+    deps.runWorker,
+    { cover: request },
+    () => undefined,
+    (chunk) => {
+      output.write(new Uint8Array(chunk))
+    },
+  )
+  return 'done' in message && 'skipped' in message.done
+    ? {
+        bytes: message.done.bytes,
+        skipped: message.done.skipped.map(({ assetId }) => assetId),
+      }
+    : null
+}
+
+/**
+ * One Print run (Designer pdf-export §2.2–2.4, cover-pdf C1/C10): paint in
+ * the PDF worker, impose a booklet there too, streaming the file to
+ * `<library>/exports/{pdfFileName}` as its chunks arrive; 1 per sheet then
+ * paints the cover sheet into `{pdfCoverFileName}`. A booklet's page PDF
+ * gathers as a Blob for the impose worker. A refused write shows once the
+ * PDFs are built, as `saving` ends; either file failing fails the run. A
+ * second run while one is going does nothing.
  */
 export async function runPrint(deps: PrintRunDeps): Promise<void> {
   const { job, dispatch, libraryLabel } = deps
@@ -204,14 +247,21 @@ export async function runPrint(deps: PrintRunDeps): Promise<void> {
   const fail = (code: 'access' | 'full' | 'other') => {
     dispatch({ type: 'failed', code, library: libraryLabel })
   }
-  const single = pdfFileName(book.title ?? '', book.settings.trim)
+  const title = book.title ?? ''
+  const single = pdfFileName(title, book.settings.trim)
   // A booklet adds its layout (`lake-trip-A5-2up.pdf`).
   const file =
     layout === 'single'
       ? single
       : `${single.slice(0, -'.pdf'.length)}-${layout}.pdf`
   // No library folder, or a refused one, shows as `access` on close.
-  const output = deps.open(deps.library(), file)
+  const library = deps.library()
+  const output = deps.open(library, file)
+  // 1 per sheet's cover file opens once the pages are painted.
+  let coverOutput: ExportStream | null = null
+  const abortAll = async () => {
+    await Promise.all([output.abort(), coverOutput?.abort()])
+  }
   try {
     const write = (chunk: ArrayBuffer) => {
       output.write(new Uint8Array(chunk))
@@ -219,9 +269,10 @@ export async function runPrint(deps: PrintRunDeps): Promise<void> {
     // Each page PDF chunk becomes a Blob part at once: no joined copy.
     const pages: Blob[] = []
     const { photos } = await deps.resolvePhotos(book)
+    const request = { book, printProfiles, photos, marks }
     const painted = await lastMessage(
       deps.runWorker,
-      { paint: { book, printProfiles, photos, marks } },
+      { paint: request },
       (progress) => {
         if ('painted' in progress) {
           dispatch({ type: 'progress', painted: progress.painted })
@@ -233,23 +284,32 @@ export async function runPrint(deps: PrintRunDeps): Promise<void> {
             pages.push(new Blob([chunk]))
           },
     )
-    if (!('done' in painted && 'skipped' in painted.done)) {
-      await output.abort()
+    if (!(
+      'done' in painted &&
+      'sheets' in painted.done &&
+      'skipped' in painted.done
+    )) {
+      await abortAll()
       fail('other')
       return
     }
     const { skipped } = painted.done
-    const booklet =
-      layout === 'single'
-        ? null
-        : await imposed(
-            deps,
-            new Blob(pages, { type: 'application/pdf' }),
-            layout,
-            write,
-          )
-    if (layout !== 'single' && booklet === null) {
-      await output.abort()
+    const coverFile = pdfCoverFileName(title, book.settings.trim)
+    let cover: { bytes: number; skipped: string[] } | null = null
+    let booklet: { bytes: number; sheets: number } | null = null
+    if (layout === 'single') {
+      coverOutput = deps.open(library, coverFile)
+      cover = await paintedCover(deps, request, coverOutput)
+    } else {
+      booklet = await imposed(
+        deps,
+        new Blob(pages, { type: 'application/pdf' }),
+        layout,
+        write,
+      )
+    }
+    if (cover === null && booklet === null) {
+      await abortAll()
       fail('other')
       return
     }
@@ -257,7 +317,13 @@ export async function runPrint(deps: PrintRunDeps): Promise<void> {
     dispatch({ type: 'saving' })
     const written = await output.close()
     if (!written.ok) {
+      await coverOutput?.abort()
       fail(written.code)
+      return
+    }
+    const coverWritten = await coverOutput?.close()
+    if (coverWritten?.ok === false) {
+      fail(coverWritten.code)
       return
     }
     dispatch({
@@ -269,12 +335,17 @@ export async function runPrint(deps: PrintRunDeps): Promise<void> {
       skipped: skippedOf(
         book,
         skipped.map(({ assetId }) => assetId),
+        cover?.skipped ?? [],
       ),
       handle: written.file,
+      cover:
+        cover === null || coverWritten === undefined
+          ? null
+          : { file: coverFile, bytes: cover.bytes, handle: coverWritten.file },
       library: libraryLabel,
     })
   } catch {
-    await output.abort()
+    await abortAll()
     fail('other')
   }
 }
@@ -314,12 +385,15 @@ export async function checkPrint(
   }
 }
 
-/** The placed photos' source files; unreadable ones are `missing`. */
+/** The placed photos' and the front cover photo's source files; unreadable ones are `missing`. */
 export async function resolvePrintPhotos(book: Book): Promise<PrintPhotos> {
   const photos: Record<string, Blob> = {}
   const missing: string[] = []
+  const front = book.cover.front.assetId
+  const ids = new Set(photoPages(book).keys())
+  if (front !== undefined) ids.add(front)
   await Promise.all(
-    [...photoPages(book).keys()].map(async (assetId) => {
+    [...ids].map(async (assetId) => {
       const asset = book.assets[assetId]
       try {
         if (asset === undefined) throw new Error('no asset')

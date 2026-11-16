@@ -33,13 +33,22 @@ vi.mock('./startPrint', async (importOriginal) => ({
 }))
 
 const handle = { kind: 'file', name: 'lake-trip-A5.pdf' } as ExportFileHandle
+const coverHandle = {
+  kind: 'file',
+  name: 'lake-trip-A5-cover.pdf',
+} as ExportFileHandle
 const outcome = {
   file: 'lake-trip-A5.pdf',
   layout: 'single' as const,
   sheets: 20,
   bytes: 3_456_789,
-  skipped: { count: 0, pages: [] },
+  skipped: { count: 0, pages: [], cover: false },
   handle,
+  cover: {
+    file: 'lake-trip-A5-cover.pdf',
+    bytes: 2_940_000,
+    handle: coverHandle,
+  },
   library: 'Photobooks',
 }
 
@@ -48,7 +57,16 @@ const row = (
   severity: PreflightRow['severity'],
   text: string,
   pageList = '',
-): PreflightRow => ({ id, severity, count: 1, text, pages: [], pageList })
+  scope: PreflightRow['scope'] = 'pages',
+): PreflightRow => ({
+  id,
+  severity,
+  count: 1,
+  text,
+  pages: [],
+  pageList,
+  scope,
+})
 
 function settlePrintStore(): void {
   printStore.dispatch({ type: 'failed', code: 'other', library: '' })
@@ -103,6 +121,10 @@ describe('PrintDialog options', () => {
     expect(screen.getByTestId('print-profile').textContent).toBe(
       'PrinterGeneric',
     )
+    // cover-pdf §2.1.1: 19 × 23 cm, 20 pages → 2 × 190 + 12 + 2 × 15 mm wide.
+    expect(screen.getByTestId('print-cover').textContent).toBe(
+      'Cover42.2 × 26 cm · spine 12 mm',
+    )
     const imposition = screen.getByRole('radiogroup', { name: 'Imposition' })
     expect(screen.getByTestId('print-imposition').textContent).toBe(
       'Imposition (duplex)1 per sheet2-up4-up',
@@ -113,11 +135,13 @@ describe('PrintDialog options', () => {
     expect(imposition.querySelectorAll('input:disabled')).toHaveLength(0)
     expect(screen.getByText('Add 3 mm bleed and crop marks')).not.toBeNull()
     const summary = screen.getByTestId('print-summary')
-    expect(summary.textContent).toBe('PDF · 20 pages · bleed 3 mm')
+    expect(summary.textContent).toBe('PDF · 20 pages + cover · bleed 3 mm')
 
     fireEvent.click(screen.getByTestId('print-bleed'))
 
-    expect(summary.textContent).toBe('PDF · 20 pages · trim size, no marks')
+    expect(summary.textContent).toBe(
+      'PDF · 20 pages + cover · trim size, no marks',
+    )
     await waitFor(() => {
       expect(check().getAttribute('data-state')).toBe('clean')
     })
@@ -129,6 +153,9 @@ describe('PrintDialog options', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: '2-up' }))
     expect(summary.textContent).toBe('PDF · 20 pages on 5 sheets · bleed 3 mm')
+    expect(screen.getByTestId('print-cover').textContent).toBe(
+      'CoverNone with booklets',
+    )
     fireEvent.click(screen.getByRole('radio', { name: '4-up' }))
     expect(summary.textContent).toBe('PDF · 20 pages on 3 sheets · bleed 3 mm')
     fireEvent.click(screen.getByTestId('print-go'))
@@ -190,6 +217,37 @@ describe('PrintDialog options', () => {
     expect(step()).toBe('run')
   })
 
+  it('shows the cover rows with 1 per sheet only, counting the shown rows', async () => {
+    vi.mocked(checkOpenBook).mockResolvedValue([
+      row('dpi-below-warn', 'warning', '2 photos below 200 ppi'),
+      row(
+        'cover-dpi-below-min',
+        'error',
+        'Front cover photo is 120 ppi, below 150 ppi',
+        '',
+        'cover',
+      ),
+    ])
+    show()
+
+    await waitFor(() => {
+      expect(check().getAttribute('data-state')).toBe('issues')
+    })
+    const rules = () =>
+      screen
+        .getAllByTestId('print-check-row')
+        .map((li) => li.getAttribute('data-rule'))
+    expect(rules()).toEqual(['dpi-below-warn', 'cover-dpi-below-min'])
+    expect(check().textContent).toContain('Check · 1 error, 1 warning')
+    expect(screen.getByTestId('print-check-note')).not.toBeNull()
+
+    fireEvent.click(screen.getByRole('radio', { name: '4-up' }))
+
+    expect(rules()).toEqual(['dpi-below-warn'])
+    expect(check().textContent).toContain('Check · 1 warning')
+    expect(screen.queryByTestId('print-check-note')).toBeNull()
+  })
+
   it('leaves the note out without errors', async () => {
     vi.mocked(checkOpenBook).mockResolvedValue([
       row('dpi-below-warn', 'warning', '2 photos below 200 ppi'),
@@ -239,7 +297,15 @@ describe('PrintDialog run', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('print-run-text').textContent).toBe(
-        'Page 11 of 20 · 48%',
+        'Page 11 of 20 · 45%',
+      )
+    })
+    act(() => {
+      printStore.dispatch({ type: 'progress', painted: 20 })
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('print-run-text').textContent).toBe(
+        'Cover · 90%',
       )
     })
     act(() => {
@@ -255,6 +321,13 @@ describe('PrintDialog run', () => {
     expect(step()).toBe('done')
     expect(screen.getByTestId('print-done').textContent).toBe(
       'lake-trip-A5.pdf · 20 pages · 3.5 MB',
+    )
+    expect(screen.getByTestId('print-done-cover').textContent).toBe(
+      'lake-trip-A5-cover.pdf · cover · 2.9 MB',
+    )
+    expect(screen.getByTestId('print-open').textContent).toBe('Open pages')
+    expect(screen.getByTestId('print-open-cover').textContent).toBe(
+      'Open cover',
     )
     expect(screen.getByTestId('print-saved').textContent).toBe(
       'Saved in Photobooks/exports.',
@@ -282,12 +355,16 @@ describe('PrintDialog run', () => {
         file: 'lake-trip-A5-2up.pdf',
         layout: '2up',
         sheets: 5,
+        cover: null,
       })
     })
 
     expect(screen.getByTestId('print-done').textContent).toBe(
       'lake-trip-A5-2up.pdf · 5 sheets · 3.5 MB',
     )
+    expect(screen.queryByTestId('print-done-cover')).toBeNull()
+    expect(screen.queryByTestId('print-open-cover')).toBeNull()
+    expect(screen.getByTestId('print-open').textContent).toBe('Open PDF')
     expect(screen.getByTestId('print-duplex').textContent).toMatch(
       /^Print on both sides, flip on the short edge\./,
     )
@@ -301,15 +378,17 @@ describe('PrintDialog run', () => {
 })
 
 describe('PrintDialog done', () => {
-  it('lists skipped photos and opens the PDF', () => {
-    const skipped = { count: 2, pages: [3, 6] }
+  it('lists skipped photos, the cover first, and opens both files', () => {
+    const skipped = { count: 3, pages: [3, 6], cover: true }
     const onClose = show('done', { kind: 'done', ...outcome, skipped })
 
     expect(screen.getByTestId('print-skipped').textContent).toBe(
-      '2 photos couldn’t be read and print as blank paper · pages 3, 6',
+      '3 photos couldn’t be read and print as blank paper · cover, pages 3, 6',
     )
     fireEvent.click(screen.getByTestId('print-open'))
     expect(openPrintedPdf).toHaveBeenCalledWith(handle)
+    fireEvent.click(screen.getByTestId('print-open-cover'))
+    expect(openPrintedPdf).toHaveBeenLastCalledWith(coverHandle)
     fireEvent.click(screen.getByTestId('print-close'))
     expect(onClose).toHaveBeenCalledTimes(1)
   })

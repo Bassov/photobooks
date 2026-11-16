@@ -115,7 +115,7 @@ function CoverSheet({
       style={{
         aspectRatio: layout.sheetAspectRatio,
         width: layout.sheetFitWidth,
-        background: `linear-gradient(90deg, ${backFill} ${pct(layout.spineFromPct)}, var(--cover-spine) ${pct(layout.spineFromPct)} ${pct(layout.spineToPct)}, var(--cover-front-empty) ${pct(layout.spineToPct)})`,
+        background: `linear-gradient(90deg, ${backFill} ${pct(layout.spineToPct)}, var(--cover-front-empty) ${pct(layout.spineToPct)})`,
       }}
       onDragOver={(event) => {
         const over = overFront(event, layout.frontDropFrom)
@@ -235,7 +235,8 @@ export const CoverPainter = memo(function CoverPainter({
       <div
         className="cover-spine"
         data-testid={id('cover-spine')}
-        style={{ width: pct(layout.spinePct) }}
+        // Designer cover-pdf C5: the spine is the back cloth, as it prints.
+        style={{ width: pct(layout.spinePct), backgroundColor: look.backFill }}
       >
         {mini ? null : <PanelLabel text="Spine" />}
         <span

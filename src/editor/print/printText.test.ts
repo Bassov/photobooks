@@ -5,6 +5,8 @@ import {
   PRINT_LAYOUTS,
   printBleedLabel,
   printCheckLabel,
+  printCoverText,
+  printDoneCoverText,
   printDoneText,
   printDuplexText,
   printFailText,
@@ -13,6 +15,7 @@ import {
   printRunText,
   printSavedText,
   printSizeText,
+  printSkippedPages,
   printSkippedText,
   printStatusText,
   printSummary,
@@ -43,9 +46,35 @@ describe('printText', () => {
     )
   })
 
-  it('labels the bleed checkbox from the profile bleed', () => {
+  it('labels the bleed checkbox, naming a different cover bleed', () => {
     expect(printBleedLabel(3)).toBe('Add 3 mm bleed and crop marks')
     expect(printBleedLabel(2.5)).toBe('Add 2.5 mm bleed and crop marks')
+    expect(printBleedLabel(3, 3)).toBe('Add 3 mm bleed and crop marks')
+    expect(printBleedLabel(3, 5)).toBe(
+      'Add 3 mm bleed (cover 5 mm) and crop marks',
+    )
+  })
+
+  it('writes the Cover row: the sheet with 1 per sheet, else none', () => {
+    expect(printCoverText({ sheetW: 338, sheetH: 240, spine: 12 })).toBe(
+      '33.8 × 24 cm · spine 12 mm',
+    )
+    expect(printCoverText({ sheetW: 422, sheetH: 260, spine: 12.4 })).toBe(
+      '42.2 × 26 cm · spine 12.4 mm',
+    )
+    expect(printCoverText(null)).toBe('None with booklets')
+  })
+
+  it('adds the cover to the 1 per sheet summary (cover-pdf §2.1.3)', () => {
+    expect(printSummary(20, 20, 3, 3)).toBe(
+      'PDF · 20 pages + cover · bleed 3 mm',
+    )
+    expect(printSummary(20, 20, 3, 5)).toBe(
+      'PDF · 20 pages + cover · bleed 3 mm, cover 5 mm',
+    )
+    expect(printSummary(20, 20, null, 5)).toBe(
+      'PDF · 20 pages + cover · trim size, no marks',
+    )
   })
 
   it('summarises pages, sheets and the bleed choice (D5)', () => {
@@ -75,11 +104,12 @@ describe('printText', () => {
     )
   })
 
-  it('maps painted sheets to 0–95 %, a booklet to 0–80 %', () => {
+  it('maps painted sheets + the cover to 0–95 %, a booklet to 0–80 %', () => {
     expect(printPercent(0, 20, 'single')).toBe(0)
-    expect(printPercent(10, 20, 'single')).toBe(48)
-    expect(printPercent(20, 20, 'single')).toBe(95)
-    expect(printPercent(0, 0, 'single')).toBe(95)
+    expect(printPercent(10, 20, 'single')).toBe(45)
+    expect(printPercent(20, 20, 'single')).toBe(90)
+    expect(printPercent(21, 20, 'single')).toBe(95)
+    expect(printPercent(0, 0, 'single')).toBe(0)
     expect(printPercent(10, 20, '2up')).toBe(40)
     expect(printPercent(20, 20, '4up')).toBe(80)
     expect(printPercent(0, 0, '2up')).toBe(80)
@@ -92,19 +122,27 @@ describe('printText', () => {
     expect(imposePercent(0, 0)).toBe(95)
   })
 
-  it('shows the page being painted, a booklet imposing, then saving', () => {
+  it('shows the page being painted, the cover or a booklet imposing, then saving', () => {
     const run = {
       painted: 10,
       sheets: 20,
-      percent: 48,
+      percent: 45,
       saving: false,
+      layout: 'single' as const,
       imposing: null,
     }
-    expect(printRunText(run)).toBe('Page 11 of 20 · 48%')
-    expect(printRunText({ ...run, painted: 20, percent: 95 })).toBe(
-      'Page 20 of 20 · 95%',
+    expect(printRunText(run)).toBe('Page 11 of 20 · 45%')
+    expect(printRunText({ ...run, painted: 19, percent: 86 })).toBe(
+      'Page 20 of 20 · 86%',
     )
-    const imposing = { ...run, painted: 20, percent: 84 }
+    expect(printRunText({ ...run, painted: 20, percent: 90 })).toBe(
+      'Cover · 90%',
+    )
+    const booklet = { ...run, layout: '2up' as const }
+    expect(printRunText({ ...booklet, painted: 20, percent: 80 })).toBe(
+      'Page 20 of 20 · 80%',
+    )
+    const imposing = { ...booklet, painted: 20, percent: 84 }
     expect(
       printRunText({ ...imposing, imposing: { imposed: 1, sheets: 4 } }),
     ).toBe('Imposing sheets · 2 of 4 · 84%')
@@ -161,6 +199,17 @@ describe('printText', () => {
     expect(printSkippedText(2)).toBe(
       '2 photos couldn’t be read and print as blank paper',
     )
+    expect(printDoneCoverText('lake-trip-A5-cover.pdf', 2_940_000)).toBe(
+      'lake-trip-A5-cover.pdf · cover · 2.9 MB',
+    )
+  })
+
+  it('lists the skipped photos’ pages with the cover first', () => {
+    expect(printSkippedPages([2, 6], false)).toBe(' · pages 2, 6')
+    expect(printSkippedPages([2, 6], true)).toBe(' · cover, pages 2, 6')
+    expect(printSkippedPages([3], true)).toBe(' · cover, page 3')
+    expect(printSkippedPages([], true)).toBe(' · cover')
+    expect(printSkippedPages([], false)).toBe('')
   })
 
   it('explains each failure', () => {
