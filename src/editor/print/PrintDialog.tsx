@@ -197,17 +197,17 @@ export function PrintDialog({
   const shown =
     rows === null || single ? rows : rows.filter((row) => row.scope !== 'cover')
 
-  // D6: the check runs when the dialog opens on Options.
+  // D6: the check runs when the dialog opens on Options; C9: and per layout.
   useEffect(() => {
     if (initialStep !== 'opts') return
     let live = true
-    void checkOpenBook().then((checked) => {
+    void checkOpenBook(layout).then((checked) => {
       if (live) setRows(checked)
     })
     return () => {
       live = false
     }
-  }, [initialStep])
+  }, [initialStep, layout])
 
   // The run ends while the dialog shows it: move to PDF ready / failed in place.
   if (step === 'run' && isOutcome(run)) {

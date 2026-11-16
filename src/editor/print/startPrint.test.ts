@@ -617,6 +617,7 @@ describe('checkPrint', () => {
     const rows = await checkPrint({
       book: photoBook(),
       printProfiles: [],
+      layout: 'single',
       resolvePhotos: resolvePrintPhotos,
       runWorker: inProcess,
     })
@@ -629,6 +630,7 @@ describe('checkPrint', () => {
     const failed = await checkPrint({
       book: photoBook(),
       printProfiles: [],
+      layout: 'single',
       resolvePhotos: resolvePrintPhotos,
       runWorker: (_request, onMessage) => {
         onMessage({ failed: { message: 'boom' } })
@@ -637,6 +639,7 @@ describe('checkPrint', () => {
     const thrown = await checkPrint({
       book: photoBook(),
       printProfiles: [],
+      layout: 'single',
       resolvePhotos: () => Promise.reject(new Error('gone')),
       runWorker: inProcess,
     })
@@ -761,7 +764,7 @@ describe('the open book', () => {
   })
 
   it('checks the open book', async () => {
-    const rows = await checkOpenBook()
+    const rows = await checkOpenBook('single')
 
     expect(rows.map((row) => row.id)).toContain('asset-missing')
   })
@@ -773,7 +776,7 @@ describe('the open book', () => {
         this.onerror?.()
       })
 
-    const rows = await checkOpenBook()
+    const rows = await checkOpenBook('single')
 
     expect(rows).toEqual([])
     expect(workers[0]?.terminated).toBe(true)
@@ -782,7 +785,10 @@ describe('the open book', () => {
 
   it('turns a worker error into a failed message', () => {
     const onMessage = vi.fn()
-    runPdfWorker({ check: { book: photoBook(), photos: {} } }, onMessage)
+    runPdfWorker(
+      { check: { book: photoBook(), photos: {}, layout: 'single' } },
+      onMessage,
+    )
     workers[0]?.onerror?.()
 
     expect(onMessage).toHaveBeenCalledWith({
@@ -806,7 +812,10 @@ describe('the open book', () => {
 
   it('keeps the worker for progress and chunk messages', () => {
     const onMessage = vi.fn()
-    runPdfWorker({ check: { book: photoBook(), photos: {} } }, onMessage)
+    runPdfWorker(
+      { check: { book: photoBook(), photos: {}, layout: 'single' } },
+      onMessage,
+    )
     workers[0]?.onmessage?.({ data: { progress: { painted: 1, sheets: 2 } } })
     workers[0]?.onmessage?.({ data: { chunk: new ArrayBuffer(1) } })
 

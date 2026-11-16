@@ -246,6 +246,8 @@ describe('PrintDialog options', () => {
     expect(rules()).toEqual(['dpi-below-warn'])
     expect(check().textContent).toContain('Check · 1 warning')
     expect(screen.queryByTestId('print-check-note')).toBeNull()
+    // C9: the worker checks the cover per layout.
+    expect(vi.mocked(checkOpenBook).mock.calls).toEqual([['single'], ['4up']])
   })
 
   it('leaves the note out without errors', async () => {

@@ -193,13 +193,21 @@ test.describe('pdf-export dialog', () => {
     ).toBeLessThanOrEqual(118.5)
     await assertDocumentFitsViewport(page)
 
-    // C8: booklets keep the row, so nothing below it moves.
-    const imposition = (await box(page.getByTestId('print-imposition'))).y
+    // C8: booklets keep the row, so nothing below it moves in the dialog
+    // (C9: the centred dialog itself shrinks by the cover rows booklets drop).
+    const { 'print-imposition': imposition } = await offsets(page, [
+      'print-imposition',
+    ])
     await dialog(page).getByRole('radio', { name: '2-up' }).check()
     await expect(page.getByTestId('print-cover')).toHaveText(
       'CoverNone with booklets',
     )
-    expect((await box(page.getByTestId('print-imposition'))).y).toBe(imposition)
+    await expect(
+      check(page).locator('[data-rule="cover-front-empty"]'),
+    ).toHaveCount(0)
+    expect(await offsets(page, ['print-imposition'])).toEqual({
+      'print-imposition': imposition,
+    })
   })
 
   test('A5: the Cover row names the cover sheet and spine', async ({
