@@ -65,8 +65,9 @@
   border-radius: var(--radius-full);
 }
 
+/* Kit `pl-1` / `pl-1.5` / `pl-2`: the dot reads as part of the padding. */
 .pb-badge[data-dot='true'].pb-badge--sm {
-  padding-left: 5px;
+  padding-left: var(--spacing);
 }
 
 .pb-badge[data-dot='true'].pb-badge--md {

@@ -19,6 +19,19 @@ export interface LibraryMeta {
   printProfiles?: readonly PrintProfile[]
   /** Profile of new books; an id that no longer resolves means Generic. */
   defaultPrintProfileId?: string
+  /** Settings → Site; absent when no field is set. */
+  site?: SiteSettings
+}
+
+/**
+ * Site settings (Designer spec site-settings S2–S4): trimmed, inner
+ * whitespace collapsed, title / author ≤ 80 and intro ≤ 160 characters;
+ * an empty value is absent.
+ */
+export interface SiteSettings {
+  title?: string
+  author?: string
+  intro?: string
 }
 
 export interface BookSummary {

@@ -1,3 +1,4 @@
+import './lib/zodJitless'
 import '../styles/app.css'
 import { configureProjectSession } from './editor/projectSession'
 import { createBrowserProjectSessionDeps } from './editor/session/browserProjectSessionPlatform'

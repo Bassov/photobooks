@@ -13,6 +13,8 @@ import {
   type CoverGeometry,
   type CoverGeometryBook,
 } from '../core/print/coverGeometry'
+// The print's own placement (`coverPhotoRect`): zod-free like the geometry.
+import { coverPhotoAnchor } from '../core/pdf/pdfGeometry'
 import { coverLayout, type CoverLayout, type PctBox } from './coverLayout'
 import './CoverView.css'
 
@@ -113,7 +115,7 @@ function CoverSheet({
       style={{
         aspectRatio: layout.sheetAspectRatio,
         width: layout.sheetFitWidth,
-        background: `linear-gradient(90deg, ${backFill} ${pct(layout.spineFromPct)}, var(--cover-spine) ${pct(layout.spineFromPct)} ${pct(layout.spineToPct)}, var(--cover-front-empty) ${pct(layout.spineToPct)})`,
+        background: `linear-gradient(90deg, ${backFill} ${pct(layout.spineToPct)}, var(--cover-front-empty) ${pct(layout.spineToPct)})`,
       }}
       onDragOver={(event) => {
         const over = overFront(event, layout.frontDropFrom)
@@ -199,6 +201,8 @@ export const CoverPainter = memo(function CoverPainter({
   const { style: look } = cover
   const mini = edit === undefined
   const layout = coverLayout(geometry)
+  // `coverPhotoRect`'s anchor; its cover fit is the CSS `background-size`.
+  const anchor = coverPhotoAnchor(cover.front.crop)
   const id = (name: string): string | undefined => (mini ? undefined : name)
   const vars: Record<string, number> = {
     '--spine-frac': layout.spineFrac,
@@ -231,7 +235,8 @@ export const CoverPainter = memo(function CoverPainter({
       <div
         className="cover-spine"
         data-testid={id('cover-spine')}
-        style={{ width: pct(layout.spinePct) }}
+        // Designer cover-pdf C5: the spine is the back cloth, as it prints.
+        style={{ width: pct(layout.spinePct), backgroundColor: look.backFill }}
       >
         {mini ? null : <PanelLabel text="Spine" />}
         <span
@@ -258,6 +263,7 @@ export const CoverPainter = memo(function CoverPainter({
               bottom: pct(-layout.photoOverflowYPct),
               right: pct(-layout.photoOverflowXPct),
               backgroundImage: `url(${frontUrl})`,
+              backgroundPosition: `${pct(anchor.x * 100)} ${pct(anchor.y * 100)}`,
             }}
           />
         )}

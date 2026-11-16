@@ -5,11 +5,12 @@ export type Route = { name: "index" } | { name: "components" } | { name: "featur
 export function parse(hash = location.hash): Route {
   const h = hash.replace(/^#\/?/, "")
   const m = /^(?:feature|f)\/(.+)$/.exec(h)
-  if (m) return { name: "feature", slug: decodeURIComponent(m[1]) }
+  if (m) return { name: "feature", slug: decodeURIComponent(m[1].split("?")[0]) }
   const s = /^screen\/(.+)$/.exec(h)
   if (s) return { name: "screen", id: decodeURIComponent(s[1]) }
   const f = /^full\/(.+)$/.exec(h)
-  if (f) return { name: "full", id: decodeURIComponent(f[1]) }
+  // `#/full/<id>?books=12` (and #/feature/…): the query belongs to the page (personal-site), not to the id
+  if (f) return { name: "full", id: decodeURIComponent(f[1].split("?")[0]) }
   const g = /^guide(?:\/(.+))?$/.exec(h)
   if (g) return g[1] ? { name: "guide", chapter: decodeURIComponent(g[1]) } : { name: "guide" }
   if (h === "components") return { name: "components" }

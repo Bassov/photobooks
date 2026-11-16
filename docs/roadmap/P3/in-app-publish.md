@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P3
 Title: publish button (Security Review)
+Status: done
 
 ## Scope
 

@@ -33,6 +33,16 @@ export {
 } from './fsa/fsaLibraryStorage'
 export { createMemoryDirectory } from './fsa/memoryDirectory'
 export {
+  EXPORTS_DIR,
+  exportErrorCode,
+  openExport,
+  type ExportDirectoryHandle,
+  type ExportFileHandle,
+  type ExportWritable,
+  type ExportWriteErrorCode,
+  type ExportWriteResult,
+} from './fsa/writeExport'
+export {
   fromFileSystemDirectoryHandle,
   type LibraryDirectoryHandle,
   type LibraryFileHandle,

@@ -3,7 +3,11 @@ import { expect, test } from './fixtures/coverage'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import { PERF_BUDGETS } from './perf/budgets'
-import { applyCpuThrottling, clearPerfScenario } from './perf/perfFixture'
+import {
+  applyCpuThrottling,
+  clearPerfScenario,
+  waitFrames,
+} from './perf/perfFixture'
 
 const spreadView = (page: Page) => page.getByTestId('spread-view').first()
 const frames = (page: Page) => spreadView(page).getByTestId('spread-frame')
@@ -171,7 +175,7 @@ test('dragging a frame across a 12-column grid with snapping stays within frame-
   await clearSpread(page)
   await drawFrame(page, [0.25, 0.3], [0.7, 0.8])
   await expect(frames(page)).toHaveCount(1)
-  await page.waitForTimeout(300)
+  await waitFrames(page, 20)
   const spread = await box(spreadView(page))
   const frame = await box(frames(page).first())
   const cx = frame.x + frame.width / 2
@@ -192,7 +196,7 @@ test('dragging a frame across a 12-column grid with snapping stays within frame-
       ),
       cy,
     )
-    await page.waitForTimeout(8)
+    await waitFrames(page)
   }
   await page.mouse.up()
 

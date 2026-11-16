@@ -56,7 +56,7 @@ describe('renderSitePage', () => {
         .querySelector(`meta[name="${name}"], meta[property="${name}"]`)
         ?.getAttribute('content')
     expect(meta('description')).toBe('by A. Photographer · 6 pages')
-    expect(meta('theme-color')).toBe('#E1E1E1')
+    expect(meta('theme-color')).toBe('#f4f3f0')
     expect(meta('og:title')).toBe('Sea')
     expect(meta('og:type')).toBe('book')
     expect(meta('og:image')).toBe('../../a.jpg')
@@ -67,6 +67,23 @@ describe('renderSitePage', () => {
     expect(
       doc.querySelector('script[type="module"]')?.getAttribute('src'),
     ).toBe('../../viewer/site.js')
+  })
+
+  it('preloads each font before the stylesheets, as anonymous CORS fonts', () => {
+    const html = renderSitePage(bookInput(), {
+      ...ASSETS,
+      css: ['../../viewer/fonts/fonts.css', ...ASSETS.css],
+      preload: ['../../viewer/fonts/a.woff2', '../../viewer/fonts/b.woff2'],
+    })
+
+    const head = html.slice(0, html.indexOf('</head>'))
+    const links = [...head.matchAll(/<link [^>]*>/g)].map(([link]) => link)
+    expect(links).toStrictEqual([
+      '<link rel="preload" href="../../viewer/fonts/a.woff2" as="font" type="font/woff2" crossorigin=""/>',
+      '<link rel="preload" href="../../viewer/fonts/b.woff2" as="font" type="font/woff2" crossorigin=""/>',
+      '<link rel="stylesheet" href="../../viewer/fonts/fonts.css"/>',
+      '<link rel="stylesheet" href="../../viewer/site.css"/>',
+    ])
   })
 
   it('writes no canonical for an empty site URL and no og:image without one', () => {
@@ -111,7 +128,65 @@ describe('renderSitePage', () => {
     ).toBe('website')
     expect(
       doc.querySelector('meta[name="description"]')?.getAttribute('content'),
-    ).toBe('A. Photographer · 2 photobooks')
+    ).toBe('Travel books from three summers, printed and bound by hand.')
+    expect(
+      doc.querySelector('meta[name="theme-color"]')?.getAttribute('content'),
+    ).toBe('#f4f3f0')
+    expect(
+      [...doc.querySelectorAll('noscript a')].map((a) =>
+        a.getAttribute('href'),
+      ),
+    ).toStrictEqual([
+      './site.html?book=alps',
+      './site.html?book=sea',
+      './site.html?book=lake',
+    ])
+  })
+
+  it('writes the home description from the author without an intro, and no noscript list when empty', () => {
+    const input = sampleSiteInput('?empty=1')
+    const doc = parse(
+      renderSitePage(
+        { ...input, site: { title: 'T', author: 'Alex' } },
+        { css: [] },
+      ),
+    )
+
+    expect(
+      doc.querySelector('meta[name="description"]')?.getAttribute('content'),
+    ).toBe('Photobooks by Alex.')
+    expect(doc.querySelector('noscript')).toBeNull()
+  })
+
+  it('prerenders the room on the closed cover with its foot row (D42)', () => {
+    const doc = parse(
+      renderSitePage(sampleSiteInput('?book=alps'), { css: [] }),
+    )
+    const room = doc.querySelector('[data-testid="site-room"]')
+    const text = (id: string) =>
+      room?.querySelector(`[data-testid="${id}"]`)?.textContent
+
+    expect(
+      doc.querySelector('meta[name="theme-color"]')?.getAttribute('content'),
+    ).toBe('#f4f3f0')
+    expect(room?.getAttribute('data-mode')).toBe('desk')
+    expect(
+      room?.querySelector('[data-testid="site-closed-cover"]'),
+    ).not.toBeNull()
+    expect(room?.querySelector('[data-testid="ps-reader"]')).toBeNull()
+    expect(text('site-about')).toBe('Alps2024 · 20 pages · 19 × 23 cm')
+    expect(text('site-label')).toBe('Cover')
+    expect(
+      [
+        ...(room?.querySelectorAll('[data-testid="site-actions"] button') ??
+          []),
+      ].map((b) => b.getAttribute('data-testid')),
+    ).toStrictEqual(['site-share', 'site-fullscreen-btn', 'site-play'])
+    expect(
+      room
+        ?.querySelector('[data-testid="site-all-books"]')
+        ?.getAttribute('href'),
+    ).toBe('./site.html')
   })
 
   it('escapes `<` in #site-data so a title never closes the script', () => {
@@ -154,9 +229,9 @@ describe('renderSitePage', () => {
     })
 
     expect(onRecoverableError).not.toHaveBeenCalled()
-    expect(
-      root.querySelector('[data-testid="site-page-indicator"]')?.textContent,
-    ).toBe('Cover')
+    expect(root.querySelector('[data-testid="site-label"]')?.textContent).toBe(
+      'Cover',
+    )
   })
 
   test.prop(

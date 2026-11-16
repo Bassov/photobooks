@@ -175,12 +175,15 @@ export function LightboxPager({
     }
   }, [index, count])
 
-  // Photos are sized for the settled zoom (not per wheel frame).
+  // Photos are sized for the settled zoom (not per wheel frame). A discrete
+  // change (keys, chip, double-click) is final at once: a next one inside
+  // its animation must not drop it.
   const fitted = sizes[index] === undefined ? undefined : box.w
   const z = zoom.zoom.z
+  const settled = !zoom.live || (zoom.anim && !zoom.dragging)
   useEffect(() => {
-    if (!zoom.live && fitted !== undefined) onZoomSettle?.(z, fitted)
-  }, [zoom.live, z, fitted, onZoomSettle])
+    if (settled && fitted !== undefined) onZoomSettle?.(z, fitted)
+  }, [settled, z, fitted, onZoomSettle])
 
   const visible = [index - 1, index, index + 1].filter(
     (i) => i >= 0 && i < count,

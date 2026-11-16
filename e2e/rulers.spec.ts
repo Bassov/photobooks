@@ -5,7 +5,11 @@ import {
 } from './fixtures/assertDocumentFitsViewport'
 import { dispatchCtrlWheel } from './fixtures/dispatchCtrlWheel'
 import { openSessionEditor } from './fixtures/openSessionEditor'
-import { applyCpuThrottling, clearPerfScenario } from './perf/perfFixture'
+import {
+  applyCpuThrottling,
+  clearPerfScenario,
+  waitFrames,
+} from './perf/perfFixture'
 import type { Page } from '@playwright/test'
 
 /** Ruler origins (strip start + mm 0 offset) must sit on the active spread's top-left. */
@@ -122,7 +126,7 @@ test.describe('frame-budget gates', () => {
         el.scrollTop = (i % 2) * 40
         el.scrollLeft = (i % 3) * 20
       }, step)
-      await page.waitForTimeout(32)
+      await waitFrames(page, 2)
     }
     await dispatchCtrlWheel(page, 120, 2)
     await dispatchCtrlWheel(page, -120, 2)

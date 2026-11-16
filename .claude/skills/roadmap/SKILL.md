@@ -16,7 +16,7 @@ Run `pnpm -s roadmap <cmd>` (`-s` drops pnpm's banner; `--json` for JSON). Error
 
 - `next [--slug S] --skip <claimed slugs>` prints the current item: slug, tag, milestone goal, title, file and full scope. Do not open the index or item file to find work. Claimed set includes open PRs, remote/local `feat|fix/*`, and worktree checkouts.
 - `claim <slug>` validates an open slug for an explicit hold. `show <slug>` prints any active item. `list --open [--milestone M]` only for a real overview need.
-- `[lite]` (`next --tag lite`): small, no new domain behavior; no OpenSpec change/archive, see `docs/agent-loop.md` Stage 1.
+- `[lite]` (`next --tag lite`): small, no new domain behavior; no OpenSpec change/archive, see `docs/agent-loop.md` Stage 1. A cfix/bug item with ≤3 source files and no spec delta is `[lite]` by default (Stage 1 "Lite by default").
 - `next` skips `[contingency]`; work one only when its gate failed. Read a `Notes:` goal line's file once per milestone.
 
 ## Scope and size
@@ -30,7 +30,7 @@ Run `pnpm -s roadmap <cmd>` (`-s` drops pnpm's banner; `--json` for JSON). Error
 
 ## Close
 
-- The item PR closes its own item in its item file only. Right after the OpenSpec archive, on the change branch: `done <slug> [--note "how it shipped"]` (writes `Status: done`; `next` / `check` read it). Commit it with the archive. Item PRs never touch `docs/roadmap.md` and never run `sync`.
+- The item PR closes its own item in its item file only. `pnpm agent finalize` runs `done <slug> [--note "how it shipped"]` on the change branch (lite too; rule: `docs/agent-loop.md` 10–11) (writes `Status: done`; `next` / `check` read it). Commit it with the archive. Item PRs never touch `docs/roadmap.md` and never run `sync`.
 - Unneeded `[contingency]`: `done <slug> --note "not needed (gate passed in <gate-item>)"` in the gate item's PR (note required).
 - `check` warns `sync:` for done items whose index line is still `[ ]`; that is expected until the owner runs `sync` / `archive <M>` on `main`.
 - `archive <M>` (**retire**: drop index block + delete `docs/roadmap/<M>/`; git history is SoT) stays an owner step at the milestone review cut, in a small docs PR. Until then `check` warns that the milestone is fully done.

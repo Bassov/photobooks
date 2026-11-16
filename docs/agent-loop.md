@@ -7,18 +7,19 @@ Headless workers read this section only (it ends at `## Reference`). The rest is
 **Flow** (numbers = `### N` headings below):
 
 - **0 Prep:** `pnpm -s agent preflight [--slug <slug>]` prints the run card; read it once and do not re-run it (`--json` only when you need a machine field). Clean tree; `feat|fix/<slug>` from `origin/main`; never merge/rebase `origin/main` on the happy path.
-- **1–2 Plan:** artifacts via `pnpm -s agent instructions <artifact>`; `openspec-planning-reviewer` once. `[lite]`: no change dir, no plan review, no archive; item + PR body are the plan; past ~200 lines or a spec delta → re-tag `[feature]`.
+- **1–2 Plan:** artifacts via `pnpm -s agent instructions <artifact>`; `openspec-planning-reviewer` once. `[lite]`: no change dir, no plan review, no archive; item + PR body are the plan; past ~200 lines or a spec delta → re-tag `[feature]`. A cfix/bug item with ≤3 source files and no spec delta is `[lite]` by default (Stage 1 "Lite by default").
 - **3–4 Apply:** loop **A** (`pnpm check:fast`) to green, no commit; then **B** once (`pnpm test:e2e:changed:quiet`, then `pnpm stryker:diff` on `src/` changes, ≤2 runs → `## Stryker C-session`).
 - **5** phase commit. **6** `openspec-implementation-reviewer` once (lite and docs-only too); rework via A, +1 delta review if code changed. **7–8** B again only if prod/tests/UI changed; commit.
 - **9 QA:** UI in scope → `pnpm agent manual-qa` + skill `ui-review`; security surface → Security Review.
-- **10–11:** `pnpm -s agent finalize <slug>`; fix what it prints, re-run, commit.
+- **10–11:** `pnpm -s agent finalize <slug>` (lite too); fix what it prints, re-run, commit.
 - **12:** `pnpm -s agent finish --title "…" --body-file …`, print the PR URL, exit. CI wait and merge belong to the orchestrator.
 
 Reviewer briefs: `pnpm agent review-brief --out <file> --base origin/main`; pass the brief path only. Stop only for: dirty tree, milestone review cut, intent vs spec/issue conflict. Else record assumptions and continue.
 
 **Output caps** (every byte a tool prints stays in context for the rest of the run):
 
-- Files: `Grep -n` first (≤30 hits), then `Read` with offset/limit ≤60 lines. Never Read a whole file over ~100 lines, never `cat` a directory or several files, no `sed -n` sweeps, no re-read of the item, a rule file or a file you just edited.
+- Code reading: before editing, map the code with ONE `code-scout` call (all questions in one prompt). Own grep/sed only for pinpoint checks; batch the remaining reads in one Bash call.
+- Files: find the place with `git grep -n` first; read a file under ~400 lines whole in one call, a bigger one in ranges of ≥150 lines; put several ranges or files in one Bash call. Read a file once per run: no re-read of what is in context or a file you just edited (use `git diff`).
 - Specs and JSON reports (Stryker, Playwright, coverage): Grep the field you need; never dump them.
 - Commands: `pnpm -s`, the `:quiet` scripts, vitest `--reporter=dot`; pipe long output through `| tail -40` or redirect to `.cache/agent/<name>.log` and Grep it.
 - No TodoWrite in `-p`. Claude Code runs prettier after each Edit/Write; do not run it by hand.
@@ -45,12 +46,12 @@ How for each stage lives elsewhere (do not duplicate here):
 
 ## Buckets (entry commands)
 
-| Bucket | Entry                                                  | When                                         |
-| ------ | ------------------------------------------------------ | -------------------------------------------- |
-| **A**  | `pnpm check:fast` (`pnpm check`)                       | Apply loops; hand-push; finish if stamp miss |
-| **B**  | `pnpm test:e2e:changed:quiet` then `pnpm stryker:diff` | Stages 4 / 7 / 9                             |
-| **C1** | `pnpm check:integrity`                                 | Stage 11; hand-push; CI                      |
-| **C2** | `pnpm quality:self-check`                              | Stage 11 only                                |
+| Bucket | Entry                                                                                                                                                                                                                                               | When                                         |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| **A**  | `pnpm check:fast` (`pnpm check`)                                                                                                                                                                                                                    | Apply loops; hand-push; finish if stamp miss |
+| **B**  | `pnpm test:e2e:changed:quiet` (changed specs, then ≤12 specs using test ids in the `src/` hunks: `scripts/e2e-related.mjs`) then `pnpm stryker:diff`; a related spec fails → fix the product or update the spec in this PR, never skip or weaken it | Stages 4 / 7 / 9                             |
+| **C1** | `pnpm check:integrity`                                                                                                                                                                                                                              | Stage 11; hand-push; CI                      |
+| **C2** | `pnpm quality:self-check`                                                                                                                                                                                                                           | Stage 11 only                                |
 
 **B lanes:** `test:e2e:changed:quiet` is the functional lane (`E2E_LANE=functional`, no `frame-budget gates` describes). Run frame-budget only when the touch-set hits `src/render|perf|photo|assets`, filmstrip, pasteboard, `e2e/perf`, `e2e/*frame*` or a spec with a `frame-budget gates` describe: `E2E_LANE=perf E2E_COVERAGE=0 pnpm test:e2e:quiet -g "frame-budget gates"` (or `pnpm perf`). CI mirrors this: `e2e` (functional) and the scoped required `perf` job (`perf.yml`: 3 runs; red if a scenario fails in ≥2 runs or any frame blocks >50 ms; out of scope → green "not in scope"). Thresholds stay as in #249. A red nightly `perf` run on main → `pnpm roadmap add` a flake/perf item (no new GH issue). A PR scenario that is red on the latest main push run and whose spec / sources the PR leaves alone is reported "pre-existing on main" and does not fail `perf` (`scripts/perf-baseline.mjs`): do not prove "red on main too" or wait for the main fix; if you touch it, fix it.
 
@@ -85,7 +86,8 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 
 - Write OpenSpec artifacts via `pnpm agent instructions` / run card.
 - **How:** `openspec/config.yaml` `rules.*` (incl. prep/contingency fast-track).
-- **Lite track (`[lite]` items):** no `openspec/changes/<slug>`; the roadmap item and the PR body are the plan. Skip stages 1–2 and archive: in 10–11 `pnpm -s agent finalize <slug>` (no change dir → no delta-spec/archive; it proceeds to roadmap done, C1, C2, stamp; if it errors on the missing change, run `pnpm roadmap done <slug>`, `check:integrity`, `quality:self-check`, `stamp-green` by hand). Everything else stays: A, B (changed specs), `ui-review` + evidenced browser smoke when UI is in scope, stage 6 implementation reviewer on the diff, thin finish. The PR body MUST carry the plan (scope, touch-set, Done when).
+- **Lite track (`[lite]` items):** no `openspec/changes/<slug>`; the roadmap item and the PR body are the plan. Skip stages 1–2 and the archive step, never 10–11: `pnpm -s agent finalize <slug>` still runs (no change dir → no delta-spec/archive; it proceeds to roadmap done, C1, C2, stamp; C1 `item-done` fails without `Status: done`; if it errors on the missing change, run `pnpm roadmap done <slug>`, `check:integrity`, `quality:self-check`, `stamp-green` by hand). Everything else stays: A, B (changed specs), `ui-review` + evidenced browser smoke when UI is in scope, stage 6 implementation reviewer on the diff, thin finish. The PR body MUST carry the plan (scope, touch-set, Done when).
+- **Lite by default (cfix/bug items):** a cfix/bug item (brief `Kind cfix`, or title `Bug:` / `Fix:`) runs `[lite]` when the code map shows it touches ≤3 source files (tests, e2e, test helpers, docs and its own roadmap file not counted) and needs no spec delta / new domain behaviour. At prep, right after the code map, re-tag it `[lite]` if it meets this rule; if it grows past it (or past the escalation below), re-tag it back to `[feature]` and run the normal track. A re-tag edits the item file `Tag:` and the item's own `docs/roadmap.md` line together (`roadmap check` fails on a mismatch); no other index edits. Gates stay the same: A, B, stage 6 implementation review, `ui-review` + browser smoke when UI is in scope, CI.
 - **Escalation:** apply passes ~200 changed lines or needs a spec delta / domain behavior → stop, re-tag the item `[feature]`/`[prep]` (or `roadmap add --after`) and run the normal track.
 
 ### 2 · Plan review
@@ -99,11 +101,12 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 - **No commit.** No B / reviewers / manual-qa yet.
 - **How:** `operations.apply` + skill `write-tests`.
 - Visual Done-when / bug → assert paint with `e2e/fixtures/paintProbe.ts` (`topAt` stack, `pixelsAt`), not only DOM presence.
+- Negative timing checks use `page.clock` (install + `runFor`), never `page.waitForTimeout` (lint error).
 
 ### 4 · First B
 
 - Run **B** once vs `origin/main` (full current diff). Fix; re-run failed slice; re-A if code changed (still no phase commit).
-- Skip the e2e half of B when pointless (CI still runs e2e + perf); never skip `stryker:diff` on `src/` changes (`agent finish` runs it, 2-run cap). In-scope once: `audit:ci` / `test:lhci`.
+- Never skip `stryker:diff` on `src/` changes (`agent finish` runs it, 2-run cap). In-scope once: `audit:ci` / `test:lhci`.
 
 ### 5 · Phase commit
 
@@ -132,6 +135,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 ### 10–11 · Finalize
 
 - `pnpm -s agent finalize <slug>`: delta-spec sync check → archive → roadmap done (item file only) → `check:integrity` → `quality:self-check` → `stamp-green`. Prints only failures + one OK line; fix what it prints, re-run, commit.
+- Rule (lite too): the branch closes its own item. C1 `item-done` (`scripts/check-item-done.mjs`; finalize, pre-push, CI) fails a `feat|fix/<slug>` branch whose item file lacks `Status: done`.
 - **How:** `operations.archive`.
 
 ### 12 · Thin finish

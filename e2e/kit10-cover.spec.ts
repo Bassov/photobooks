@@ -10,14 +10,16 @@ import {
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
 import { openSessionEditor } from './fixtures/openSessionEditor'
-import { topAt } from './fixtures/paintProbe'
+import { pixelsAt, topAt } from './fixtures/paintProbe'
 
 // uikit/src/index.css + sandbox/v7.tsx: list selection #CACACA, field #D7D7D7;
-// CoverSpread fills back #3E3C3B, spine #353332, empty front #8E8E8E.
+// CoverSpread fills back and spine with backFill #3E3C3B (cover-pdf C5),
+// empty front #8E8E8E.
 const SEL = 'rgb(202, 202, 202)'
 const FIELD = 'rgb(215, 215, 215)'
 const BACK = 'rgb(62, 60, 59)'
-const SPINE = 'rgb(53, 51, 50)'
+const SPINE = BACK
+const BACK_RGB = [62, 60, 59, 255]
 const FRONT_EMPTY = 'rgb(142, 142, 142)'
 
 test.beforeAll(() => {
@@ -59,6 +61,12 @@ test('step 09: selecting the cover shows back · spine · front and the Cover in
   expect(s.x).toBeLessThan(f.x)
   expect(Math.abs(b.width - f.width)).toBeLessThan(1)
   expect(s.width).toBeLessThan(b.width / 4)
+  // By paint: the spine is the back cloth (backFill), not #353332.
+  const spinePixels = await pixelsAt(
+    spine,
+    [0.3, 0.5, 0.7].map((y) => ({ x: s.width / 2, y: s.height * y })),
+  )
+  expect(spinePixels).toEqual([BACK_RGB, BACK_RGB, BACK_RGB])
 
   // Nothing (e.g. the empty-pasteboard guidance) sits on top of the front;
   // only the sheet's own guides (cover-safe-front, hinge, veil) may.

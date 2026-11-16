@@ -134,9 +134,15 @@
   grid-column: 3;
   margin-inline: calc(var(--spacing) * 2);
 }
+/* End-aligned, the group would overflow the bar's left edge on narrow
+   viewports and push zoom off-screen; capped at the bar's content width, the
+   site-job pills at its tail clip on the right instead. */
 .editor-top-end {
   grid-column: 4 / 6;
   justify-self: end;
+  max-width: calc(100vw - var(--spacing) * 6);
+  overflow: clip;
+  overflow-clip-margin: var(--spacing);
 }
 
 .book-lock-banner {

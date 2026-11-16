@@ -3,14 +3,24 @@ import { defaultCover } from '../core/cover'
 import { pagesOf } from '../core/pages'
 import { makeBook } from '../core/testing/fixtures'
 import { bookFormatFromTrim } from '../render/bookObjectLayout'
-import type { ImageRef, SiteMeta, SitePageInput } from './siteInput'
+import type {
+  ImageRef,
+  SiteCatalogBook,
+  SiteMeta,
+  SitePageInput,
+} from './siteInput'
+import { siteBookFacts } from './siteModel'
 
 /**
  * Sample library `site.html` shows without `#site-data` (hosted preview,
  * Lighthouse, e2e): `?book=<id>` opens a book page, `?empty=1` the empty
  * catalog. Photos are the two app fixtures in `public/photos/hi`.
  */
-const SITE: SiteMeta = { title: 'Sample photobooks', author: 'A. Photographer' }
+const SITE: SiteMeta = {
+  title: 'Sample photobooks',
+  author: 'A. Photographer',
+  intro: 'Travel books from three summers, printed and bound by hand.',
+}
 
 /** `photo-a` (covers, first spread) is the light one: phones load it first. */
 const IMAGES: Record<string, ImageRef> = {
@@ -88,22 +98,98 @@ function sampleBook(
   })
 }
 
-const BOOKS = [
-  sampleBook('alps', 'Alps', 11, { widthMm: 190, heightMm: 230 }),
-  sampleBook('sea', 'Sea', 4, { widthMm: 280, heightMm: 210 }),
+/**
+ * A square book whose spread 2 is a panorama across the gutter and whose
+ * page 3 (the right page of spread 1) is blank: phone slides skip it.
+ */
+function lakeBook(): Book {
+  const trim = { widthMm: 210, heightMm: 210 }
+  const book = sampleBook('lake', 'Lake', 5, trim)
+  const panorama: Frame = {
+    id: 'lake-pano',
+    rect: { x: 0, y: 30, width: 2 * trim.widthMm, height: 150 },
+    z: 0,
+    assetId: 'photo-b',
+  }
+  const spreads = book.spreads.map((spread, i) =>
+    i === 1
+      ? { ...spread, frames: spread.frames.slice(0, 1) }
+      : i === 2
+        ? { ...spread, frames: [panorama] }
+        : spread,
+  )
+  return {
+    ...book,
+    cover: {
+      ...book.cover,
+      style: { ...book.cover.style, backFill: '#c9c2b4' },
+    },
+    settings: { ...book.settings, pageColor: '#f7f4ee' },
+    spreads,
+  }
+}
+
+/** Sample books with the UTC publish time they show the year of. */
+const BOOKS: readonly { book: Book; publishedAtMs: number }[] = [
+  {
+    book: sampleBook('alps', 'Alps', 11, { widthMm: 190, heightMm: 230 }),
+    publishedAtMs: Date.UTC(2024, 8, 1),
+  },
+  {
+    book: sampleBook('sea', 'Sea', 4, { widthMm: 280, heightMm: 210 }),
+    publishedAtMs: Date.UTC(2023, 6, 15),
+  },
+  { book: lakeBook(), publishedAtMs: Date.UTC(2025, 5, 20) },
 ]
+
+/** Unlisted (`?book=crop`): one page, the 3:2 photo filling a portrait frame. */
+function cropBook(): Book {
+  const trim = { widthMm: 190, heightMm: 230 }
+  const base = sampleBook('crop', 'Crop', 1, trim)
+  const frame: Frame = {
+    id: 'crop-f0',
+    rect: { x: 15, y: 15, width: 160, height: 200 },
+    z: 0,
+    assetId: 'photo-b',
+  }
+  return { ...base, spreads: [{ id: 'crop-s0', frames: [frame] }] }
+}
+
+const UNLISTED = [cropBook()]
+
+const entryOf = (book: Book, publishedAtMs: number): SiteCatalogBook => ({
+  id: book.id,
+  href: `site.html?book=${book.id}`,
+  title: book.title ?? '',
+  pages: pagesOf(book.spreads.length),
+  fmt: bookFormatFromTrim(
+    book.settings.trim.widthMm,
+    book.settings.trim.heightMm,
+  ),
+  cover: IMAGES['photo-a'] ?? null,
+  ink: '#F5F5F5',
+  place: 'top',
+  ...siteBookFacts(book, publishedAtMs),
+})
+
+/** The publish time of the unlisted books. */
+const UNLISTED_AT = Date.UTC(2025, 0, 1)
 
 export function sampleSiteInput(search: string): SitePageInput {
   const params = new URLSearchParams(search)
-  const book = BOOKS.find((entry) => entry.id === params.get('book'))
-  if (book !== undefined) {
+  const found = [
+    ...BOOKS,
+    ...UNLISTED.map((book) => ({ book, publishedAtMs: UNLISTED_AT })),
+  ].find(({ book }) => book.id === params.get('book'))
+  if (found !== undefined) {
     return {
       kind: 'book',
       site: SITE,
       path: '',
       catalogHref: 'site.html',
-      book,
+      book: found.book,
       images: IMAGES,
+      entry: entryOf(found.book, found.publishedAtMs),
     }
   }
   const shown = params.get('empty') === '1' ? [] : BOOKS
@@ -111,18 +197,6 @@ export function sampleSiteInput(search: string): SitePageInput {
     kind: 'catalog',
     site: SITE,
     path: '',
-    books: shown.map((entry) => ({
-      id: entry.id,
-      href: `site.html?book=${entry.id}`,
-      title: entry.title ?? '',
-      pages: pagesOf(entry.spreads.length),
-      fmt: bookFormatFromTrim(
-        entry.settings.trim.widthMm,
-        entry.settings.trim.heightMm,
-      ),
-      cover: IMAGES['photo-a'] ?? null,
-      ink: '#F5F5F5',
-      place: 'top',
-    })),
+    books: shown.map(({ book, publishedAtMs }) => entryOf(book, publishedAtMs)),
   }
 }

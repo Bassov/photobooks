@@ -1,100 +1,250 @@
 import * as React from "react"
-import { CircleCheck, Loader2, FolderOpen, Folder, TriangleAlert } from "lucide-react"
+import { CircleAlert, CircleCheck, ExternalLink, Folder, Info, Loader2, TriangleAlert, type LucideIcon } from "lucide-react"
 import { Badge } from "@/components/uui/Badge"
 import { P } from "@/data"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Segmented, SelectRow } from "@/components/app/controls"
+import { Segmented } from "@/components/app/controls"
 import { AppModal } from "@/components/app/ui"
 import { FolderPicker } from "@/features/screens"
-import type { Book } from "@/sandbox/store"
-import { PRESETS, pagesOf, fmtN } from "@/sandbox/v7"
-import { slug, useRun } from "./session"
+import { useStudio, type Book, type Studio } from "@/sandbox/store"
+import { PRESETS, WRAP, pagesOf, fmtN, spineCm, useCoverPhoto, useCoverText } from "@/sandbox/v7"
+import { SAMPLE_HOSTING, slug, useRun, useSession, type HostingRecord } from "./session"
 import { CATALOG, profileBleed, type KitProfile } from "./printProfiles"
+import { checkLabel, coverCheckRows, coverFileName, libraryLabel, openSamplePdf, pageList, printBleedLabel, printCheckRows, printDuplexText, printFailText, printProgress, printSummary, takePrintFail, type CheckSeverity, type KitCover, type PrintFail, type PrintLayout } from "./printCheck"
 
-export type RunStep = "opts" | "run" | "done"
-/** #/demo Publish dialog: options → progress → link. */
-export function PublishDialog({ title, onClose, onOpenSite = () => {}, initialStep = "opts", initialSize = "2048", initialDownload = false }: {
-  title: string; onClose: () => void; onOpenSite?: () => void; initialStep?: RunStep; initialSize?: "1600" | "2048" | "3200"; initialDownload?: boolean
+export type RunStep = "opts" | "run" | "done" | "failed"
+export type PublishStep = "connect" | "opts" | "run" | "done" | "failed"
+export type PublishFail = "offline" | "timeout" | "other" | "cors" | "key" | "denied" | "bucket" | "build"
+export type PublishRun = { phase: ExportPhase; p: number; fail: PublishFail; sent: number; total: number; start: (fail?: PublishFail) => void; seen: () => void }
+/** Kit stand-in for the publish worker (in-app-publish §3), shaped like `useExportRun`: the run outlives the dialog, "done" shows
+ *  for 4 s, "failed" stays until `seen()`. `start(fail)` fails at once (a stored hosting record that can't connect). */
+export function usePublishRun(ms = 1400): PublishRun {
+  const [phase, setPhase] = React.useState<ExportPhase>("idle")
+  const [fail, setFail] = React.useState<PublishFail>("timeout")
+  const p = useRun(phase === "run", ms, () => setPhase("done"))
+  React.useEffect(() => { if (phase !== "done") return; const t = setTimeout(() => setPhase("idle"), 4000); return () => clearTimeout(t) }, [phase])
+  return {
+    phase, p: phase === "run" ? p : 0, fail, sent: 0, total: 40,
+    start: (f) => { if (f) { setFail(f); setPhase("failed") } else setPhase("run") },
+    seen: () => setPhase((x) => (x === "failed" ? "idle" : x)),
+  }
+}
+/** The failure a stored, not-connecting hosting record gives a publish (publish-credentials codes → in-app-publish §2 codes). */
+export function publishFailOf(h: HostingRecord | null): PublishFail | undefined {
+  if (!h || h.ok) return undefined
+  return ({ InvalidAccessKeyId: "key", AccessDenied: "denied", NoSuchBucket: "bucket", Cors: "cors", Offline: "offline", Timeout: "timeout" } as const)[h.code ?? "Timeout"]
+}
+const RETRYABLE: ReadonlySet<PublishFail> = new Set(["offline", "timeout", "other", "build"])
+const publishFailText = (f: PublishFail, bucket: string) => ({
+  offline: "You're offline. Connect to the internet and try again.",
+  timeout: "Cloudflare didn't answer in 30 seconds.",
+  other: "Cloudflare answered 503 SlowDown.",
+  cors: "Cloudflare blocked the upload from this page. Check the CORS policy in Settings → Hosting.",
+  key: "Cloudflare doesn't recognise this key. It may have been deleted or rolled. Replace the token in Settings → Hosting.",
+  denied: `This token can't write to “${bucket}”. Give it Object Read & Write on this bucket.`,
+  bucket: `There's no bucket “${bucket}” in this account.`,
+  build: "Something went wrong while preparing the site. Try again.",
+})[f]
+const publishPhase = (v: number) => (v < 50 ? "Rendering web images" : v < 95 ? "Uploading changed files" : "Finishing")
+/** #/demo Publish dialog (Designer in-app-publish §2): connect (no stored hosting) | options → running (Hide keeps it
+ *  running in the pill) → done (book link) / failed. Every step closes on Esc / outside click; the run step hides. */
+export function PublishDialog({ title, otherBooks, initialStep, fail, run, onHide, onOpenSite = () => {}, onOpenHosting = () => {} }: {
+  title: string; otherBooks: string[]; initialStep?: PublishStep; fail?: PublishFail; run?: PublishRun; onHide: () => void; onOpenSite?: () => void; onOpenHosting?: () => void
 }) {
-  const [step, setStep] = React.useState<RunStep>(initialStep)
-  const [size, setSize] = React.useState<string>(initialSize)
-  const [dl, setDl] = React.useState(initialDownload)
-  const v = useRun(step === "run", 1400, () => setStep("done"))
-  const link = `https://aleksandr.photos/${slug(title)}`
+  const own = usePublishRun()
+  const r = run ?? own
+  const stored = useSession().useDemo().hosting // publish-credentials D11: the host of the stored site address
+  const [step, setStep] = React.useState<PublishStep>(initialStep ?? (stored ? "opts" : "connect"))
+  // the run ends while the dialog is open: move to Done / Failed in place
+  React.useEffect(() => { if (step === "run" && (r.phase === "done" || r.phase === "failed")) setStep(r.phase) }, [step, r.phase])
+  const go = () => { const f = publishFailOf(stored); r.start(f); setStep(f ? "failed" : "run") }
+  const site = (stored ?? SAMPLE_HOSTING).publicBaseUrl
+  const why = fail ?? r.fail
+  const retry = RETRYABLE.has(why)
+  const sent = retry && r.sent > 0 ? ` ${r.sent} of ${r.total} files went up. Try again to send the rest.` : ""
+  const heading = "heading flex items-center gap-2 text-xl leading-tight [&_svg]:size-5"
+  const text = "mt-1 text-sm text-muted-foreground"
+  const btns = "mt-5 flex justify-end gap-2"
+  // a step change unmounts the pressed button: each later step's main button takes focus, so Esc still reaches the dialog
+  const hosting = <Button size="md" className="px-4" onPress={onOpenHosting} autoFocus data-testid="publish-open-hosting">Open Settings → Hosting</Button>
   return (
-    <AppModal isOpen width={480} onOpenChange={(o) => { if (!o && step !== "run") onClose() }} isDismissable={step !== "run"}>
+    <AppModal isOpen width={480} onOpenChange={(o) => { if (!o) onHide() }}>
       <div className="px-6 pb-5 pt-5" data-testid="publish-dialog" data-step={step}>
+        {step === "connect" && <>
+          <div className="heading text-xl leading-tight">Publish to your site</div>
+          <p className={text}>Connect your hosting first. Publish uploads your books to your own Cloudflare R2 bucket, which you connect once in Settings.</p>
+          <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onHide}>Cancel</Button>{hosting}</div>
+        </>}
         {step === "opts" && <>
           <div className="heading text-xl leading-tight">Publish to your site</div>
-          <p className="mt-1 text-sm text-muted-foreground">“{title}” goes to aleksandr.photos with the other published books.</p>
-          <div className="mt-4 flex flex-col gap-3">
-            <SelectRow label="Web image size" value={size} onChange={setSize} items={[["1600", "1600 px · smaller site"], ["2048", "2048 px · recommended"], ["3200", "3200 px · sharp on large screens"]]} />
-            <Checkbox isSelected={dl} onChange={setDl}>Let visitors download a PDF</Checkbox>
-          </div>
-          <div className="mt-5 flex justify-end gap-2"><Button variant="ghost" size="md" className="px-4" onPress={onClose}>Cancel</Button><Button size="md" className="gap-1.5 px-4 [&_svg]:size-4" onPress={() => setStep("run")} data-testid="publish-go">Publish</Button></div>
+          <p className={text} data-testid="publish-host-line">“{title}” goes to <span className="font-medium text-foreground">{new URL(site).host}</span>{otherBooks.length ? " with the other published books." : "."}</p>
+          <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onHide}>Cancel</Button><Button size="md" className="px-4" onPress={go} data-testid="publish-go">Publish</Button></div>
         </>}
         {step === "run" && <>
-          <div className="heading flex items-center gap-2 text-xl leading-tight"><Loader2 className="size-5 animate-spin" />Publishing…</div>
-          <p className="mt-1 text-sm text-muted-foreground">{v < 50 ? "Rendering web images" : v < 90 ? "Uploading changed files" : "Finishing"} · {v}%</p>
-          <Progress aria-label="Publishing" value={v} className="mt-4" barClassName="h-1.5 bg-secondary" data-testid="publish-progress" />
+          <div className={heading}><Loader2 className="animate-spin motion-reduce:animate-none" />Publishing…</div>
+          <p className={text}>{publishPhase(r.p)} · {r.p}%</p>
+          <Progress aria-label="Publishing" value={r.p} className="mt-4" barClassName="h-1.5 bg-secondary" data-testid="publish-progress" />
+          <p className="mt-3 text-xs text-muted-foreground">You can keep editing. Changes from now on go into the next publish.</p>
+          <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onHide} autoFocus data-testid="publish-hide">Hide</Button></div>
         </>}
         {step === "done" && <>
-          <div className="heading flex items-center gap-2 text-xl leading-tight"><CircleCheck className="size-5" />Published</div>
-          <p className="mt-1 text-sm text-muted-foreground">The book is live. Anyone with the link can see it.</p>
-          <div className="mt-4 truncate rounded-md bg-field px-3 py-2 font-mono text-sm" data-testid="publish-link">{link}</div>
-          <div className="mt-5 flex justify-end gap-2"><Button variant="ghost" size="md" className="px-4" onPress={onClose}>Done</Button>
-            <Button size="md" className="gap-1.5 px-4 [&_svg]:size-4" onPress={onOpenSite} data-testid="publish-open-site">Open site</Button></div>
+          <div className={heading}><CircleCheck />Published</div>
+          <p className={text}>The book is live. Anyone with the link can see it.</p>
+          <div className="mt-4 select-all truncate rounded-md bg-field px-3 py-2 font-mono text-sm" data-testid="publish-link">{`${site}/books/${slug(title)}/`}</div>
+          <p className="mt-2 text-xs text-muted-foreground" data-testid="publish-summary">14 changed files uploaded · 3.2 MB. 186 were already up to date.</p>
+          <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onHide}>Done</Button>
+            <Button size="md" className="px-4" onPress={onOpenSite} autoFocus data-testid="publish-open-site">Open site</Button></div>
+        </>}
+        {step === "failed" && <>
+          <div className={heading}><TriangleAlert />Publish didn't finish</div>
+          <p className={text} data-testid="publish-error">{publishFailText(why, stored?.bucket ?? SAMPLE_HOSTING.bucket)}{sent}</p>
+          <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onHide}>Close</Button>
+            {retry ? <Button size="md" className="px-4" onPress={go} autoFocus data-testid="publish-retry">Try again</Button> : hosting}</div>
         </>}
       </div>
     </AppModal>
   )
 }
-/** #/demo Print dialog: options → progress → PDF ready. */
-export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0], initialStep = "opts", initialImposition = "2up", initialBleed = true }: {
+/** booklet-imposition: the Imposition (duplex) control (pdf-export D3 kept it hidden until then). */
+const IMPOSITION: boolean = true
+const SEVERITY_ROW: Record<CheckSeverity, [LucideIcon, string]> = {
+  error: [CircleAlert, "font-medium text-destructive-solid"], warning: [TriangleAlert, "text-warning-fg"], info: [Info, "text-muted-foreground"],
+}
+/** §2.1 check row: icon 16 centred on the first line, page list muted. */
+function CheckLine({ icon: Icon, className, children, pages = [], cover = false, rule }: { icon: LucideIcon; className: string; children: React.ReactNode; pages?: number[]; cover?: boolean; rule?: string }) {
+  return <li className={`flex items-start gap-2 text-sm ${className}`} data-testid="print-check-row" data-rule={rule}><span className="flex h-lh shrink-0 items-center"><Icon className="size-4" /></span><span>{children}{(pages.length > 0 || cover) && <span className="font-normal text-muted-foreground">{pageList(pages, cover)}</span>}</span></li>
+}
+/** cover-pdf §2.1.4: the spine text's advance (mm) at `sizeMm` in the canvas spine face (Lora, italic). */
+function spineAdvanceMm(text: string, sizeMm: number) {
+  const ctx = document.createElement("canvas").getContext("2d")
+  if (!ctx) return 0
+  ctx.font = `italic 100px ${getComputedStyle(document.documentElement).getPropertyValue("--font-heading").trim() || "serif"}`
+  return (ctx.measureText(text).width / 100) * sizeMm
+}
+export type PrintRun = { phase: ExportPhase; p: number; text: string; fail: PrintFail; start: (sheets: number, paper?: number) => boolean; seen: () => void }
+/** Kit stand-in for the PDF worker (pdf-export D1, D7), shaped like `useExportRun`: the run outlives the dialog (Hide / Esc),
+ *  "PDF ready" shows for 4 s, "PDF not exported" stays until `seen()` (the pill opened the dialog). `start` fails at once on a
+ *  `__printDemo.fail()` seed and says whether it runs. 1 per sheet paints the cover sheet after the pages (cover-pdf §2.2). */
+export function usePrintRun(ms = 1400): PrintRun {
+  const [phase, setPhase] = React.useState<ExportPhase>("idle")
+  const [fail, setFail] = React.useState<PrintFail>("other")
+  const [sheets, setSheets] = React.useState(1)
+  const [paper, setPaper] = React.useState(0)
+  const v = useRun(phase === "run", ms, () => setPhase("done"))
+  React.useEffect(() => { if (phase !== "done") return; const t = setTimeout(() => setPhase("idle"), 4000); return () => clearTimeout(t) }, [phase])
+  return {
+    phase, ...printProgress(phase === "run" ? v : 0, sheets, paper, !paper), fail,
+    start: (n, booklet = 0) => { setSheets(n); setPaper(booklet); const f = takePrintFail(); if (f) { setFail(f); setPhase("failed") } else setPhase("run"); return !f },
+    seen: () => setPhase((x) => (x === "failed" ? "idle" : x)),
+  }
+}
+/** #/demo Print dialog (Designer pdf-export §2.1–2.4): options + Check → exporting (Hide) → PDF ready / failed.
+ *  `run`: the editor's print run (the pill shows it after Hide); a feature page leaves it out. `holdCheck` keeps the Check checking.
+ *  cover-pdf: 1 per sheet also writes `…-cover.pdf` (Cover row, cover Check rows, two Open buttons); `cover` seeds the cover inputs. */
+export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0], initialStep = "opts", initialImposition = "single", initialBleed = true, run: given, holdCheck, cover: seed }: {
   book: Book; spreads: number; title: string; onClose: () => void; /** the book's print profile (printer-presets; default Generic) */ profile?: KitProfile
-  initialStep?: RunStep; initialImposition?: "single" | "2up" | "4up"; initialBleed?: boolean
+  initialStep?: RunStep; initialImposition?: PrintLayout; initialBleed?: boolean; run?: PrintRun; holdCheck?: boolean; cover?: Partial<KitCover>
 }) {
-  const bleedMm = fmtN(profileBleed(profile))
+  const bleedMm = profileBleed(profile)
+  const own = usePrintRun()
+  const r = given ?? own
   const [step, setStep] = React.useState<RunStep>(initialStep)
+  // the run ends while the dialog is open: move to PDF ready / failed in place
+  React.useEffect(() => { if (step === "run" && (r.phase === "done" || r.phase === "failed")) setStep(r.phase) }, [step, r.phase])
   // v0.8.1 (P2-5): print uses the book's real size and page count
   const size = `${fmtN(book.w)} × ${fmtN(book.h)} cm`
   const known = PRESETS.find((p) => (p.w === book.w && p.h === book.h) || (p.w === book.h && p.h === book.w))
   const preset = known?.id ?? "custom"
-  const [imp, setImp] = React.useState<string>(initialImposition)
+  const [impPicked, setImp] = React.useState<PrintLayout>(initialImposition)
+  const imp: PrintLayout = IMPOSITION ? impPicked : "single"
   const [bleed, setBleed] = React.useState(initialBleed)
-  const [shown, setShown] = React.useState(false)
-  const v = useRun(step === "run", 1400, () => setStep("done"))
   const pages = pagesOf(spreads)
   const per = imp === "4up" ? 8 : imp === "2up" ? 4 : 1
   const sheets = Math.ceil(pages / per)
   const file = `${slug(title)}-${known ? preset : `${fmtN(book.w)}x${fmtN(book.h)}cm`}${imp !== "single" ? `-${imp}` : ""}.pdf`
+  const library = libraryLabel(useSession().useDemo().path)
+  // the check (D6): a stand-in for the PDF worker over the studio doc; it runs on open and again when the profile changes
+  const st = useStudio() as Studio | null
+  const [checking, setChecking] = React.useState(true)
+  React.useEffect(() => { setChecking(true); if (holdCheck) return; const t = setTimeout(() => setChecking(false), 800); return () => clearTimeout(t) }, [profile.id, holdCheck])
+  // the cover sheet as the canvas paints it (cover-editor): closed cover + the wrap on every side; the kit's cover bleed = page bleed
+  const coverPhoto = useCoverPhoto(), coverText = useCoverText()
+  const cover: KitCover = { photo: coverPhoto || null, spine: coverText.spine, spineMm: spineCm(pages) * 10, ...seed }
+  const single = imp === "single"
+  const coverRow = single ? `${fmtN(2 * book.w + cover.spineMm / 10 + 2 * WRAP)} × ${fmtN(book.h + 2 * WRAP)} cm · spine ${fmtN(cover.spineMm)} mm` : "None with booklets"
+  const all = React.useMemo(() => (st ? printCheckRows(st.doc, st.book, st.missing, profile, coverCheckRows(cover, book, st.missing, profile, spineAdvanceMm)) : []),
+    // the cover inputs as primitives: `cover` is rebuilt every render
+    [st?.doc, st?.book, st?.missing, profile, book, cover.photo, cover.spine, cover.spineMm, cover.ppi, cover.modified])
+  // C9: booklets write no cover file, so no cover rows (label, list and note count the visible rows only)
+  const rows = single ? all : all.filter((r) => r.scope === "pages")
+  const errors = rows.some((r) => r.severity === "error")
+  const skipped = rows.find((r) => r.rule === "asset-missing")
+  const coverSkipped = single && rows.some((r) => r.rule === "cover-asset-missing")
+  const skippedN = new Set([...(st?.doc.spreads.flatMap((s) => s.frames.map((f) => f.photo)) ?? []), coverSkipped && cover.photo].filter((id) => id && st?.missing.has(id))).size
+  const coverFile = coverFileName(file)
+  // a booklet paints every page, then imposes its paper sheets
+  const go = () => setStep((imp === "single" ? r.start(sheets) : r.start(pages, sheets)) ? "run" : "failed")
+  const heading = "heading flex items-center gap-2 text-xl leading-tight [&_svg]:size-5"
+  const text = "mt-1 text-sm text-muted-foreground"
+  const btns = "mt-5 flex justify-end gap-2"
+  // a step change unmounts the pressed button: each later step's main button takes focus, so Esc still reaches the dialog
   return (
-    <AppModal isOpen width={500} onOpenChange={(o) => { if (!o && step !== "run") onClose() }} isDismissable={step !== "run"}>
+    <AppModal isOpen width={500} onOpenChange={(o) => { if (!o) onClose() }}>
       <div className="px-6 pb-5 pt-5" data-testid="print-dialog" data-step={step}>
         {step === "opts" && <>
           <div className="heading text-xl leading-tight">Print</div>
-          <p className="mt-1 text-sm text-muted-foreground">A PDF for a print shop or a home duplex printer.</p>
+          <p className={text}>A PDF for a print shop or a home duplex printer.</p>
           <div className="mt-4 flex flex-col gap-3">
             <div className="flex items-center justify-between text-sm" data-testid="print-size"><span className="text-muted-foreground">Page size</span><span className="tabular-nums">{known ? known.name : "Custom"} · {size}</span></div>
             <div className="flex items-center justify-between text-sm" data-testid="print-profile"><span className="text-muted-foreground">Printer</span><span>{profile.name}</span></div>
-            <div className="flex flex-col gap-1.5"><span className="text-xs text-muted-foreground">Imposition (duplex)</span><Segmented label="Imposition" value={imp} onChange={setImp} items={[{ id: "single", label: "1 per sheet" }, { id: "2up", label: "2-up" }, { id: "4up", label: "4-up" }]} /></div>
-            <Checkbox isSelected={bleed} onChange={setBleed}>Add {bleedMm} mm bleed and crop marks</Checkbox>
-            <div className="text-xs text-muted-foreground" data-testid="print-summary">PDF · {pages} pages on {sheets} sheet{sheets > 1 ? "s" : ""}{imp !== "single" ? " printed both sides" : ""}{bleed ? ` · bleed ${bleedMm} mm` : ""}</div>
+            {/* C8: always present, so switching the imposition changes only its text and nothing below moves */}
+            <div className="flex items-center justify-between text-sm" data-testid="print-cover"><span className="text-muted-foreground">Cover</span><span className="tabular-nums">{coverRow}</span></div>
+            {IMPOSITION
+              ? <div className="flex flex-col gap-1.5" data-testid="print-imposition"><span className="text-xs text-muted-foreground">Imposition (duplex)</span><Segmented label="Imposition" value={imp} onChange={(v) => setImp(v as PrintLayout)} items={[{ id: "single", label: "1 per sheet" }, { id: "2up", label: "2-up" }, { id: "4up", label: "4-up" }]} /></div>
+              : <div className="flex items-center justify-between text-sm" data-testid="print-imposition"><span className="text-muted-foreground">Imposition</span><span>1 per sheet</span></div>}
+            <Checkbox isSelected={bleed} onChange={setBleed} data-testid="print-bleed">{printBleedLabel(bleedMm, single ? bleedMm : null)}</Checkbox>
+            <div className="text-xs text-muted-foreground" data-testid="print-summary">{printSummary(pages, sheets, bleed ? bleedMm : null, single ? bleedMm : null)}</div>
+            <div className="flex flex-col gap-1.5" data-testid="print-check" data-state={checking ? "checking" : rows.length ? "issues" : "clean"}>
+              <span className="text-xs text-muted-foreground">{checking ? "Check" : checkLabel(rows)}</span>
+              <ul className="scroll-thin flex max-h-[118.25px] flex-col gap-1.5 overflow-y-auto" data-testid="print-check-list">
+                {checking ? <CheckLine icon={Loader2} className="text-muted-foreground [&_svg]:animate-spin motion-reduce:[&_svg]:animate-none">Checking the book…</CheckLine>
+                  : !rows.length ? <CheckLine icon={CircleCheck} className="text-foreground">No problems found</CheckLine>
+                    : rows.map((r) => <CheckLine key={r.rule} icon={SEVERITY_ROW[r.severity][0]} className={SEVERITY_ROW[r.severity][1]} pages={r.pages} rule={r.rule}>{r.text}</CheckLine>)}
+              </ul>
+              {!checking && errors && <p className="text-xs text-muted-foreground" data-testid="print-check-note">Print shops may refuse a PDF with errors. You can still export it, for example to proof it.</p>}
+            </div>
           </div>
-          <div className="mt-5 flex justify-end gap-2"><Button variant="ghost" size="md" className="px-4" onPress={onClose}>Cancel</Button><Button size="md" className="gap-1.5 px-4 [&_svg]:size-4" onPress={() => setStep("run")} data-testid="print-go">Export PDF</Button></div>
+          <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onClose}>Cancel</Button><Button size="md" className="px-4" onPress={go} data-testid="print-go">Export PDF</Button></div>
         </>}
         {step === "run" && <>
-          <div className="heading flex items-center gap-2 text-xl leading-tight"><Loader2 className="size-5 animate-spin" />Exporting PDF…</div>
-          <p className="mt-1 text-sm text-muted-foreground">{v < 60 ? "Rendering pages at 300 dpi" : "Imposing sheets"} · {v}%</p>
-          <Progress aria-label="Exporting" value={v} className="mt-4" barClassName="h-1.5 bg-secondary" data-testid="print-progress" />
+          <div className={heading}><Loader2 className="animate-spin motion-reduce:animate-none" />Exporting PDF…</div>
+          <p className={`${text} tabular-nums`} data-testid="print-run-text">{r.text}</p>
+          <Progress aria-label="Exporting PDF" value={r.p} className="mt-4" barClassName="h-1.5 bg-secondary" data-testid="print-progress" />
+          <p className="mt-3 text-xs text-muted-foreground">You can keep editing. Changes from now on aren’t in this PDF.</p>
+          <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onClose} autoFocus data-testid="print-hide">Hide</Button></div>
         </>}
         {step === "done" && <>
-          <div className="heading flex items-center gap-2 text-xl leading-tight"><CircleCheck className="size-5" />PDF ready</div>
-          <p className="mt-1 text-sm text-muted-foreground" data-testid="print-done">{file} · {sheets} sheets</p>
-          {shown && <p className="mt-2 text-xs text-muted-foreground" role="status">Shown in ~/Documents/Photobooks exports</p>}
-          <div className="mt-5 flex justify-end gap-2"><Button variant="ghost" size="md" className="gap-1.5 px-4 [&_svg]:size-4" onPress={() => setShown(true)} data-testid="print-show"><FolderOpen />Show in folder</Button><Button size="md" className="px-4" onPress={onClose} data-testid="print-close">Done</Button></div>
+          <div className={heading}><CircleCheck />PDF ready</div>
+          <p className={text} data-testid="print-done">{file} · {sheets} {single ? "pages" : "sheets"} · {(sheets * 1.92).toFixed(1)} MB</p>
+          {/* C10: the cover file, a SAMPLE size (one sheet with the front photo) */}
+          {single && <p className="text-sm text-muted-foreground" data-testid="print-done-cover">{coverFile} · cover · 2.9 MB</p>}
+          <p className="mt-1.5 text-xs text-muted-foreground" data-testid="print-saved">Saved in {library}/exports.</p>
+          {!single && <p className="mt-3 text-sm" data-testid="print-duplex">{printDuplexText(imp)}</p>}
+          {(skipped || coverSkipped) && <ul className="mt-3" data-testid="print-skipped"><CheckLine icon={TriangleAlert} className={SEVERITY_ROW.warning[1]} pages={skipped?.pages} cover={coverSkipped}>{skippedN} {skippedN === 1 ? "photo" : "photos"} couldn’t be read and print{skippedN === 1 ? "s" : ""} as blank paper</CheckLine></ul>}
+          <div className={btns}>
+            {single ? <>
+              <Button variant="ghost" size="md" className="gap-1.5 px-4 [&_svg]:size-4" onPress={() => openSamplePdf(file)} data-testid="print-open"><ExternalLink />Open pages</Button>
+              <Button variant="ghost" size="md" className="gap-1.5 px-4 [&_svg]:size-4" onPress={() => openSamplePdf(coverFile)} data-testid="print-open-cover"><ExternalLink />Open cover</Button>
+            </> : <Button variant="ghost" size="md" className="gap-1.5 px-4 [&_svg]:size-4" onPress={() => openSamplePdf(file)} data-testid="print-open"><ExternalLink />Open PDF</Button>}
+            <Button size="md" className="px-4" onPress={onClose} autoFocus data-testid="print-close">Done</Button></div>
+        </>}
+        {step === "failed" && <>
+          <div className={heading}><TriangleAlert />PDF not exported</div>
+          <p className={text} data-testid="print-error">{printFailText(r.fail, library)}</p>
+          <div className={btns}><Button variant="ghost" size="md" className="px-4" onPress={onClose}>Close</Button>
+            <Button size="md" className="px-4" onPress={go} autoFocus data-testid="print-retry">Try again</Button></div>
         </>}
       </div>
     </AppModal>

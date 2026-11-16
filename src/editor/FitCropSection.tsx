@@ -157,7 +157,7 @@ export function FitCropSection({
           <Button
             variant="ghost"
             size="sm"
-            className="flex-1"
+            className="flex-1 text-muted-foreground"
             data-testid="crop-reset"
             isDisabled={atCover}
             onPress={() => {

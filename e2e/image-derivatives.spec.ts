@@ -11,6 +11,7 @@ import {
   browserTakeLoafScripts,
   clearPerfScenario,
   enablePerfScenario,
+  waitFrames,
 } from './perf/perfFixture'
 
 /** Fixture library: every decodable sample, served same-origin. */
@@ -248,7 +249,7 @@ test.describe('frame-budget gates', () => {
         cx + Math.sin(tick / 10) * box.width * 0.3,
         cy + Math.cos(tick / 10) * box.height * 0.3,
       )
-      await page.waitForTimeout(8)
+      await waitFrames(page)
     }
     await page.mouse.up()
     const dragEnd = await page.evaluate(() => performance.now())

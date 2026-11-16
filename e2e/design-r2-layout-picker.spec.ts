@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { layoutTile } from './fixtures/layoutTiles'
+import { OPFS_MID_WRITE, readOpfsText } from './fixtures/opfsText'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 // Design review r2 M21: the Spread inspector Layout picker = kit `#/demo`
@@ -635,14 +636,13 @@ test('saving the same layout twice keeps one template and flashes its tile', asy
   await expect.poll(paper).toEqual({ ring: PAPER_IDLE, transform: 'none' })
 })
 
-/** `library.json` of the `?testLibrary=1` OPFS library, parsed. */
+/** `library.json` of the `?testLibrary=1` OPFS library, parsed (`OPFS_MID_WRITE` mid-save). */
 async function readTestLibraryJson(page: Page): Promise<unknown> {
-  return page.evaluate(async () => {
-    const root = await navigator.storage.getDirectory()
-    const dir = await root.getDirectoryHandle('photobooks-e2e-library')
-    const file = await (await dir.getFileHandle('library.json')).getFile()
-    return JSON.parse(await file.text()) as unknown
-  })
+  const text = await readOpfsText(page, [
+    'photobooks-e2e-library',
+    'library.json',
+  ])
+  return text === OPFS_MID_WRITE ? text : (JSON.parse(text) as unknown)
 }
 
 test('a new user has My templates 0; a saved spread appears in My templates and All and persists in library.json', async ({

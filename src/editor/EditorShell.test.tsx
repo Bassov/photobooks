@@ -362,7 +362,7 @@ describe('EditorShell viewport containment', () => {
     expect(screen.getByTestId('site-preview-bar')).toBeTruthy()
     const scroll = await screen.findByTestId('site-preview-scroll')
     expect(scroll.className).toContain('site')
-    expect(screen.getByTestId('site-page-indicator').textContent).toBe('Cover')
+    expect(screen.getByTestId('site-label').textContent).toBe('Cover')
     expect(screen.queryByTestId('editor-status')).not.toBeNull()
     expect(screen.getByTestId('editor-shell').hasAttribute('inert')).toBe(true)
     expect(document.activeElement).toBe(screen.getByTestId('site-preview'))

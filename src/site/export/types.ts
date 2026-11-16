@@ -21,6 +21,8 @@ export interface SiteViewerBundle {
   entry: string
   /** Stylesheets every page links, in order; each one of `files`. */
   css?: readonly string[]
+  /** Font files every page preloads; each one of `files`. */
+  preload?: readonly string[]
   files: readonly SiteFile[]
 }
 

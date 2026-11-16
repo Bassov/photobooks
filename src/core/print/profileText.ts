@@ -3,7 +3,7 @@ import type { PrintProfileIssue } from '../printProfile'
 import type { PrintProfile } from './profileSchema'
 
 /** Kit number format: at most one decimal, no trailing zero. */
-function fmtN(n: number): string {
+export function fmtN(n: number): string {
   return (Math.round(n * 10) / 10).toString()
 }
 

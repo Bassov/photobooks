@@ -15,7 +15,11 @@ import {
 } from './fixtures/photoDirectoryPicker'
 import { pointOf } from './fixtures/locatorBox'
 import { PERF_BUDGETS } from './perf/budgets'
-import { applyCpuThrottling, clearPerfScenario } from './perf/perfFixture'
+import {
+  applyCpuThrottling,
+  clearPerfScenario,
+  waitFrames,
+} from './perf/perfFixture'
 
 test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
@@ -211,7 +215,7 @@ test('straightening for 5 s stays within frame-budget gates', async ({
   const { clientX: mid, clientY: y } = await pointOf(track)
   const halfWidth = (await track.evaluate((el) => el.clientWidth)) / 2
   await page.mouse.move(mid, y)
-  await page.waitForTimeout(300)
+  await waitFrames(page, 20)
 
   await applyCpuThrottling(page)
   await clearPerfScenario(page)
@@ -221,7 +225,7 @@ test('straightening for 5 s stays within frame-budget gates', async ({
   while (Date.now() - start < 5_000) {
     tick += 1
     await page.mouse.move(mid + Math.sin(tick / 8) * (halfWidth - 4), y)
-    await page.waitForTimeout(8)
+    await waitFrames(page)
   }
   await page.mouse.up()
 

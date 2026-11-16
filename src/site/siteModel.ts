@@ -2,53 +2,41 @@ import type { Book } from '../core'
 // Not the barrel: it would pull the zod schemas into the viewer entry.
 import { getSpreadSizeMm } from '../core/geometry/spreadSize'
 import { pageLabel, pagesOf, pagesText } from '../core/pages'
-import {
-  bookObjectWidthForHeight,
-  type BookObjectFmt,
-} from '../render/bookObjectLayout'
+import { resolveParentFrames } from '../core/parentSpreads'
+import { displayBookTitle } from '../project/bookTitle'
+import type { LibraryMeta } from '../project/types'
+import type { SiteBookFacts, SiteCatalogBook, SiteMeta } from './siteInput'
 
-/** Viewports below this width use the narrow site layout (spec §4). */
-const NARROW_BELOW = 768
-/** Widest stage, and the stage width the server renders at. */
-export const STAGE_MAX = 760
-const STAGE_MIN = 280
-const CATALOG_MAX = 1100
-const BOOK_OBJECT_MAX_H = 200
 /**
- * Book page height around the stage: header + top pad + title block + stage
- * margin + pager margin + pager + bottom pad (wide 94.85 title block; narrow
- * adds Share under the meta).
+ * Room view label (D40): view 0 `Cover`, view v the pages of spread v − 1
+ * (`Page 1 of N`, `Pages 2–3 of N`, a single last page `Page N of N`), view
+ * n + 1 `Back cover`.
  */
-const WIDE_CHROME_H = 64 + 16 + 94.85 + 32 + 24 + 36 + 32
-const NARROW_CHROME_H = 56 + 8 + 138.85 + 20 + 16 + 36 + 20
-/** The title block's "All books" link + gap (32 + 4), absent in a preview. */
-const ALL_BOOKS_H = 32 + 4
-
-/** Slides of a book with `n` spreads: the cover, then every spread. */
-export function slideCount(n: number): number {
-  return n + 1
-}
-
-/** Pager text: `Cover`, then `Page 1 · 1 / n`, `Pages 2–3 · 2 / n` … */
-export function slideLabel(slide: number, n: number): string {
-  if (slide === 0) return 'Cover'
-  const label = pageLabel(slide - 1, n)
+export function viewLabel(view: number, n: number): string {
+  if (view <= 0) return 'Cover'
+  if (view > n) return 'Back cover'
+  const label = pageLabel(view - 1, n)
   const pages = label.includes('–') ? `Pages ${label}` : `Page ${label}`
-  return `${pages} · ${String(slide)} / ${String(n)}`
+  return `${pages} of ${String(pagesOf(n))}`
 }
 
-/**
- * A single first / last page sits on its own side of the spread box (the
- * cover, spread index -1, counts as two pages).
- */
-export function slideSide(
+/** The page side of a single-page spread (first: right, last: left); none for two pages. */
+export function spreadSide(
   book: Book,
-  slide: number,
+  spread: number,
 ): 'left' | 'right' | undefined {
-  if (getSpreadSizeMm(book, slide - 1).pageCount === 2) {
-    return undefined
-  }
-  return slide === 1 ? 'right' : 'left'
+  if (getSpreadSizeMm(book, spread).pageCount === 2) return undefined
+  return spread === 0 ? 'right' : 'left'
+}
+
+/** `{n} × {m} cm` from millimetres, one decimal at most. */
+const cm = (mm: number) => String(Math.round(mm) / 10)
+
+/** The room's meta line: `2024 · 20 pages · 19 × 23 cm`. */
+export function roomMeta(
+  b: Pick<SiteCatalogBook, 'year' | 'pageCount' | 'trimMm'>,
+): string {
+  return `${String(b.year)} · ${pagesText(b.pageCount)} · ${cm(b.trimMm.w)} × ${cm(b.trimMm.h)} cm`
 }
 
 /** `#p{first page}` of slide `slide`; the cover (and out of range) has none. */
@@ -68,59 +56,6 @@ export function slideForHash(hash: string, n: number): number {
   return Math.floor(page / 2) + 1
 }
 
-export function isNarrow(vw: number): boolean {
-  return vw < NARROW_BELOW
-}
-
-function sidePad(vw: number): number {
-  return isNarrow(vw) ? 20 : 32
-}
-
-/** Catalog columns by content width (spec §3). */
-export function catalogColumns(contentW: number): 2 | 3 | 4 {
-  if (contentW >= 940) return 4
-  if (contentW >= 680) return 3
-  return 2
-}
-
-/** Catalog column width at viewport width `vw`. */
-export function catalogColumnWidth(vw: number): number {
-  const content = Math.min(CATALOG_MAX, vw) - 2 * sidePad(vw)
-  const cols = catalogColumns(content)
-  const gap = isNarrow(vw) ? 20 : 32
-  return Math.max(0, (content - gap * (cols - 1)) / cols)
-}
-
-/** Book object height: as tall as fits the column, at most 200. */
-export function bookObjectHeight(colW: number, fmt: BookObjectFmt): number {
-  return Math.min(BOOK_OBJECT_MAX_H, colW / bookObjectWidthForHeight(1, fmt))
-}
-
-/**
- * Stage width: at most 760, the content width and the height left for the
- * spread; at least 280 unless the content is narrower. Without the "All
- * books" link (`allBooks: false`) the spread gets its 36 px.
- */
-export function stageWidth({
-  vw,
-  vh,
-  ratio,
-  allBooks = true,
-}: {
-  vw: number
-  vh: number
-  ratio: number
-  allBooks?: boolean
-}): number {
-  const content = Math.max(0, vw - 2 * sidePad(vw))
-  const chrome =
-    (isNarrow(vw) ? NARROW_CHROME_H : WIDE_CHROME_H) -
-    (allBooks ? 0 : ALL_BOOKS_H)
-  const availH = vh - chrome
-  const fit = Math.min(STAGE_MAX, availH * ratio)
-  return Math.min(content, Math.max(STAGE_MIN, fit))
-}
-
 /** Spread width / height: two trim pages side by side. */
 export function spreadRatio(trim: {
   widthMm: number
@@ -129,22 +64,38 @@ export function spreadRatio(trim: {
   return (2 * trim.widthMm) / trim.heightMm
 }
 
-/** `sizes` of a photo spanning `share` of the spread width. */
-export function frameSizes(share: number): string {
-  const s = String(Math.round(share * 10_000) / 10_000)
-  const wide = Math.round(STAGE_MAX * Number(s))
-  return `(max-width: ${String(NARROW_BELOW - 1)}px) calc((100vw - 40px) * ${s}), min(${String(wide)}px, calc((100vw - 64px) * ${s}))`
-}
-
 export function siteTitle(title: string): string {
   return title.trim() === '' ? 'Photobooks' : title
 }
 
-/** Catalog meta line under "Books". */
-export function catalogMeta(author: string | undefined, books: number): string {
-  if (books === 0) return 'No published books yet.'
-  const count = `${String(books)} photobook${books === 1 ? '' : 's'}`
-  return author === undefined || author === '' ? count : `${author} · ${count}`
+/**
+ * The site's meta from `library.json` (site-settings S3, S7): the title
+ * falls back to "Photobooks"; `url` (Publish only) loses trailing slashes.
+ */
+export function siteMetaOf(meta: LibraryMeta, url?: string): SiteMeta {
+  const { title = '', ...rest } = meta.site ?? {}
+  return {
+    title: siteTitle(title),
+    ...rest,
+    ...(url === undefined ? {} : { url: url.replace(/\/+$/, '') }),
+  }
+}
+
+/** The home's head (D37): the author, else the site title. */
+export function homeHead(site: { title: string; author?: string }): string {
+  const author = site.author?.trim() ?? ''
+  return author === '' ? siteTitle(site.title) : author
+}
+
+/** The home's lead (D37): the intro, else `Photobooks by {author}.`, else none. */
+export function homeLead(site: {
+  author?: string
+  intro?: string
+}): string | undefined {
+  const intro = site.intro?.trim() ?? ''
+  if (intro !== '') return intro
+  const author = site.author?.trim() ?? ''
+  return author === '' ? undefined : `Photobooks by ${author}.`
 }
 
 /** Book meta line under the title. */
@@ -153,4 +104,122 @@ export function bookMeta(author: string | undefined, pages: number): string {
   return author === undefined || author === ''
     ? count
     : `by ${author} · ${count}`
+}
+
+const INK_ON_DARK = '#F1F3F6'
+const INK_ON_LIGHT = '#2E2C2D'
+/** Below this cloth luminance the spine text is light (the stand rule). */
+const DARK_CLOTH_BELOW = 0.23
+const DEFAULT_PAPER = '#FBFAF7'
+/** The stand's `ENDPAPER`; books have no endpaper colour of their own. */
+const ENDPAPER = '#E9E4DA'
+
+/** WCAG relative luminance of an sRGB `#rrggbb`. */
+export function relativeLuminance(hex: string): number {
+  const [r = 0, g = 0, b = 0] = [1, 3, 5].map((at) => {
+    const c = Number.parseInt(hex.slice(at, at + 2), 16) / 255
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+/** D38: the physical book the site shows, from a published revision. */
+export function siteBookFacts(
+  book: Book,
+  publishedAtMs: number,
+): SiteBookFacts {
+  const cloth = book.cover.style.backFill
+  const spineText = book.cover.spine.text.trim()
+  return {
+    year: new Date(publishedAtMs).getUTCFullYear(),
+    trimMm: { w: book.settings.trim.widthMm, h: book.settings.trim.heightMm },
+    pageCount: pagesOf(book.spreads.length),
+    spine: {
+      cloth,
+      ink:
+        relativeLuminance(cloth) < DARK_CLOTH_BELOW
+          ? INK_ON_DARK
+          : INK_ON_LIGHT,
+      text: spineText === '' ? displayBookTitle(book.title) : spineText,
+    },
+    paper: book.settings.pageColor ?? DEFAULT_PAPER,
+    endpaper: ENDPAPER,
+  }
+}
+
+/** One phone slide (D40): a page of spread `spread`, or the whole spread. */
+export interface SiteSlide {
+  spread: number
+  side: 'left' | 'right' | 'both'
+}
+
+/**
+ * Phone slides (D40): a slide per page with a frame on it (parent frames
+ * included), blank pages skipped; a two-page spread is one `both` slide
+ * when a frame crosses the gutter. Endpapers are not spreads.
+ */
+export function siteSlides(book: Book): SiteSlide[] {
+  const { widthMm: pageW, heightMm: pageH } = book.settings.trim
+  return book.spreads.flatMap((spread, index): SiteSlide[] => {
+    const rects = resolveParentFrames(book, spread).map(
+      ({ frame }) => frame.rect,
+    )
+    const on = (x0: number, x1: number) =>
+      rects.some(
+        (r) =>
+          r.x < x1 && r.x + r.width > x0 && r.y < pageH && r.y + r.height > 0,
+      )
+    if (getSpreadSizeMm(book, index).pageCount === 1) {
+      const side = index === 0 ? 'right' : 'left'
+      return on(0, pageW) ? [{ spread: index, side }] : []
+    }
+    if (on(pageW, pageW)) {
+      return [{ spread: index, side: 'both' }]
+    }
+    return [
+      ...(on(0, pageW) ? [{ spread: index, side: 'left' as const }] : []),
+      ...(on(pageW, 2 * pageW)
+        ? [{ spread: index, side: 'right' as const }]
+        : []),
+    ]
+  })
+}
+
+/** A phone room slide: the cover (no `page`) or a `siteSlides` entry, with its view and label. */
+export interface RoomSlide {
+  view: number
+  label: string
+  page?: SiteSlide
+}
+
+/** The page number of a one-page slide: page 1 on spread 0, else 2s (left) / 2s + 1 (right). */
+function slidePage(s: SiteSlide): number {
+  if (s.spread === 0) return 1
+  return 2 * s.spread + (s.side === 'right' ? 1 : 0)
+}
+
+/** Phone slides (D40): the cover, then `siteSlides`, labelled `Page 4 of 20` / `Pages 6–7 of 20`. */
+export function roomSlides(book: Book): RoomSlide[] {
+  const n = book.spreads.length
+  const total = String(pagesOf(n))
+  return [
+    { view: 0, label: 'Cover' },
+    ...siteSlides(book).map((page) => ({
+      view: page.spread + 1,
+      label:
+        page.side === 'both'
+          ? viewLabel(page.spread + 1, n)
+          : `Page ${String(slidePage(page))} of ${total}`,
+      page,
+    })),
+  ]
+}
+
+/** The first slide showing view `view`; past the last one (the back cover), the last slide. */
+export function slideOfView(
+  slides: readonly RoomSlide[],
+  view: number,
+): number {
+  const i = slides.findIndex((s) => s.view >= view)
+  return i < 0 ? slides.length - 1 : i
 }

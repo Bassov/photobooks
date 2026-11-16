@@ -104,7 +104,7 @@ export function PhotoSection({ target }: { target: CropTarget }) {
           <Button
             variant="ghost"
             size="sm"
-            className="w-full"
+            className="w-full text-muted-foreground"
             data-testid="photo-remove"
             onPress={() => {
               dispatchBookOp({

@@ -3,15 +3,65 @@ type FakeFileContent = string | Uint8Array | ArrayBuffer
 interface FakeDir {
   files: Map<string, FakeFileContent>
   dirs: Map<string, FakeDir>
+  /** Bumped on every replace/remove; stale `File` snapshots stop reading. */
+  versions: Map<string, number>
+  snapshotHooks: Map<string, () => void>
 }
 
 function createFakeDir(): FakeDir {
-  return { files: new Map(), dirs: new Map() }
+  return {
+    files: new Map(),
+    dirs: new Map(),
+    versions: new Map(),
+    snapshotHooks: new Map(),
+  }
+}
+
+function replaceFile(
+  node: FakeDir,
+  name: string,
+  content: FakeFileContent | undefined,
+): void {
+  if (content === undefined) {
+    node.files.delete(name)
+  } else {
+    node.files.set(name, content)
+  }
+  node.versions.set(name, (node.versions.get(name) ?? 0) + 1)
+}
+
+/**
+ * Chromium rule: a `File` from `getFile()` is a snapshot; once the file is
+ * replaced (a writable closes over it) reading the snapshot rejects
+ * `NotReadableError`.
+ */
+function snapshotFile(node: FakeDir, name: string): File {
+  const version = node.versions.get(name) ?? 0
+  const file = fileFromContent(name, node.files.get(name) ?? '')
+  const guard =
+    <T>(read: () => Promise<T>) =>
+    (): Promise<T> =>
+      (node.versions.get(name) ?? 0) === version
+        ? read()
+        : Promise.reject(
+            new DOMException(
+              'The requested file could not be read',
+              'NotReadableError',
+            ),
+          )
+  Object.assign(file, {
+    text: guard(() => Blob.prototype.text.call(file)),
+    arrayBuffer: guard(() => Blob.prototype.arrayBuffer.call(file)),
+  })
+  node.snapshotHooks.get(name)?.()
+  return file
 }
 
 export interface FakeBrowserDirectoryHandle extends FileSystemDirectoryHandle {
   /** Writes or replaces a file entry (string or binary). */
   writeFile: (name: string, content: FakeFileContent) => void
+  /** Runs `hook` right after every `getFile()` snapshot of `name`. */
+  onSnapshot: (name: string, hook: (() => void) | undefined) => void
   setPermission: (state: PermissionState) => void
   enqueueQueryResults: (...states: PermissionState[]) => void
   enqueueRequestResults: (...states: PermissionState[]) => void
@@ -80,7 +130,14 @@ function toHandle(
     kind: 'directory' as const,
     name,
     writeFile(child: string, content: FakeFileContent) {
-      node.files.set(child, content)
+      replaceFile(node, child, content)
+    },
+    onSnapshot(child: string, hook: (() => void) | undefined) {
+      if (hook === undefined) {
+        node.snapshotHooks.delete(child)
+      } else {
+        node.snapshotHooks.set(child, hook)
+      }
     },
     setPermission(state: PermissionState) {
       permission.sticky = state
@@ -131,9 +188,7 @@ function toHandle(
         kind: 'file' as const,
         name: child,
         getFile() {
-          return Promise.resolve(
-            fileFromContent(child, node.files.get(child) ?? ''),
-          )
+          return Promise.resolve(snapshotFile(node, child))
         },
         createWritable() {
           let content = ''
@@ -143,7 +198,7 @@ function toHandle(
               return Promise.resolve()
             },
             close() {
-              node.files.set(child, content)
+              replaceFile(node, child, content)
               return Promise.resolve()
             },
           })
@@ -151,7 +206,7 @@ function toHandle(
       })
     },
     removeEntry(child: string) {
-      node.files.delete(child)
+      replaceFile(node, child, undefined)
       node.dirs.delete(child)
       return Promise.resolve()
     },

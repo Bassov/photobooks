@@ -94,7 +94,7 @@ export const ICON_NAMES = [
 
 export type IconName = (typeof ICON_NAMES)[number]
 
-export const ICON_SIZES = [14, 16, 20] as const
+export const ICON_SIZES = [12, 14, 16, 20] as const
 export type IconSize = (typeof ICON_SIZES)[number]
 
 export type IconNode = readonly (readonly [string, Record<string, string>])[]

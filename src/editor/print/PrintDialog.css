@@ -1,0 +1,43 @@
+/* Designer pdf-export §2: the kit PrintDialog frame is 500 wide (the
+   Export site frame otherwise). */
+.pb-dialog.export-site-dialog.print-dialog {
+  width: min(500px, calc(100vw - 2rem));
+  max-width: 500px;
+}
+
+/* §2.1: at most five one-line rows (118.25 px); the list scrolls inside. */
+.print-check-list {
+  max-height: 118.25px;
+  overflow-y: auto;
+}
+
+/* The 16 px icon centres on the first 18.85 px line. */
+.print-check-row > .pb-icon {
+  flex-shrink: 0;
+  margin-top: 1.42px;
+}
+
+.print-check-row--checking {
+  color: var(--muted-foreground);
+}
+
+.print-check-row--clean {
+  color: var(--foreground);
+}
+
+.print-check-row--error {
+  color: var(--destructive-solid);
+  font-weight: 500;
+}
+
+.print-check-row--warning {
+  color: var(--warning-fg);
+}
+
+.print-check-row--info {
+  color: var(--muted-foreground);
+}
+
+.print-open.pb-button {
+  gap: calc(var(--spacing) * 1.5);
+}

@@ -195,11 +195,22 @@ test('editor top bar follows kit v0.10 structure and tokens', async ({
   const present = page.getByTestId('present')
   await expect(present).toHaveText('Preview')
   await expect(present).toHaveCSS('background-color', 'rgb(215, 215, 215)')
-  // Print / Publish are not wired in the editor: hidden, not stubbed.
-  for (const name of ['Print', 'Publish']) {
-    await expect(bar.getByRole('button', { name })).toHaveCount(0)
-  }
-  // Kit toolbar ends with Preview · Settings (uikit/src/demo-parts/editor.tsx:97).
+  // Print (pdf-export D1): one icon-only 40 × 32 pill, quiet like Settings.
+  const print = bar.getByRole('button', { name: 'Print', exact: true })
+  await expect(print).toHaveCount(1)
+  await expect(print).toHaveText('')
+  const printBox = await print.boundingBox()
+  expect(printBox?.width).toBeCloseTo(40, 0)
+  expect(printBox?.height).toBeCloseTo(32, 0)
+  const settingsBg = await page
+    .getByTestId('editor-settings-open')
+    .evaluate((el) => getComputedStyle(el).backgroundColor)
+  await expect(print).toHaveCSS('background-color', settingsBg)
+  // Publish: the same field pill, 14 px sides (in-app-publish §1).
+  const publish = page.getByTestId('publish')
+  await expect(publish).toHaveCSS('background-color', 'rgb(215, 215, 215)')
+  await expect(publish).toHaveCSS('padding', '0px 14px')
+  // Kit toolbar: Preview · Settings · Export site · Print · Publish (demo-parts/editor.tsx).
   await expect(
     bar.getByRole('button', { name: 'Settings', exact: true }),
   ).toBeVisible()

@@ -39,6 +39,7 @@ import {
   deleteBookInLibrary,
   duplicateBookInLibrary,
   exposeProjectSessionTestApi,
+  getOpenLibraryHandle,
   getProjectSessionSnapshot,
   holdExternalBookLockForTests,
   isLibraryBacked,
@@ -391,6 +392,18 @@ describe('projectSession', () => {
     expect(getProjectSessionSnapshot().saving).toBe(false)
     resolveHash('x'.repeat(64))
     setImportRunning(false)
+  })
+
+  it('getOpenLibraryHandle returns the bound library folder only', async () => {
+    expect(await getOpenLibraryHandle()).toBeNull()
+
+    await attachMemoryLibraryForTests()
+    await adoptCurrentBookInLibrary()
+
+    expect(await getOpenLibraryHandle()).toEqual({
+      id: 'test-library-handle',
+      name: 'Memory Library',
+    })
   })
 
   it('adoptCurrentBookInLibrary persists the in-memory book', async () => {

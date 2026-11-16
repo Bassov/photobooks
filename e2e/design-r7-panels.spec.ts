@@ -280,22 +280,22 @@ test.describe('M53 the preview starts from the cover', () => {
     return stage
   }
 
-  const activeSlide = (stage: Locator) => stage.getByTestId('site-spread')
+  // the room's reader shows the current view only
+  const activeSlide = (stage: Locator) => stage.getByTestId('ps-reader')
 
   test('the first item is the cover; next goes to page 1', async ({ page }) => {
     const stage = await openPreview(page)
-    const indicator = page.getByTestId('site-page-indicator')
+    const indicator = page.getByTestId('site-label')
     await expect(indicator).toHaveText('Cover')
     const first = activeSlide(stage)
-    await expect(first.locator('.cover-spread')).toHaveCount(1)
-    await expect(first.locator('.cover-spread')).toBeVisible()
+    await expect(first).toHaveAttribute('data-view', '0')
     await expect(first.getByTestId('spread-view')).toHaveCount(0)
 
     await page.keyboard.press('ArrowRight')
-    await expect(indicator).toHaveText(/ · 1 \/ 3$/)
+    await expect(indicator).toHaveText(/^Page 1 of \d+$/)
     const next = activeSlide(stage)
-    await expect(next.locator('.cover-spread')).toHaveCount(0)
-    await expect(next.getByTestId('spread-view')).toHaveAttribute(
+    await expect(next).toHaveAttribute('data-turn', 'rest')
+    await expect(next.getByTestId('spread-view').first()).toHaveAttribute(
       'data-spread-id',
       'spread-1',
     )

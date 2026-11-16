@@ -551,8 +551,9 @@ describe('Checkbox details', () => {
     expect(box.checked).toBe(true)
     expect(box.getAttribute('aria-invalid')).toBeNull()
     expect(box.disabled).toBe(false)
-    expect(document.querySelector('.pb-check__box svg')).not.toBeNull()
-    expect(document.querySelector('.pb-check__bar')).toBeNull()
+    const tick = document.querySelector('.pb-check__box svg')
+    expect(tick?.getAttribute('data-icon')).toBe('check')
+    expect(tick?.getAttribute('data-size')).toBe('16')
     expect(document.querySelector('label')?.className).toContain('c')
     expect(document.querySelector('label')?.hasAttribute('data-disabled')).toBe(
       false,
@@ -567,14 +568,15 @@ describe('Checkbox details', () => {
     expect(document.querySelector('.pb-check__box')?.children).toHaveLength(0)
   })
 
-  it('draws a bar when indeterminate and clears the flag afterwards', () => {
+  it('draws a 16 px minus when indeterminate and clears the flag afterwards', () => {
     const { rerender } = render(
       <Checkbox checked onChange={noop} isIndeterminate>
         L
       </Checkbox>,
     )
-    expect(document.querySelector('.pb-check__bar')).not.toBeNull()
-    expect(document.querySelector('.pb-check__box svg')).toBeNull()
+    const minus = document.querySelector('.pb-check__box svg')
+    expect(minus?.getAttribute('data-icon')).toBe('minus')
+    expect(minus?.getAttribute('data-size')).toBe('16')
     rerender(
       <Checkbox checked onChange={noop}>
         L

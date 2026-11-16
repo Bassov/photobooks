@@ -1,23 +1,24 @@
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react'
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 import type { Book } from '../core'
+import { pagesOf } from '../core/pages'
+import { displayBookTitle } from '../project/bookTitle'
+import { bookFormatFromTrim } from '../render/bookObjectLayout'
 import { CoverView } from '../render/CoverView'
-import { SiteBookPage } from '../site/SiteBookPage'
-import type { SitePageInput } from '../site/siteInput'
-import { siteTitle } from '../site/siteModel'
-import { useViewport } from '../site/useViewport'
-import '../site/siteViewer.css'
+import { siteBookFacts, siteMetaOf } from '../site/siteModel'
+import { SiteRoom, type BookInput } from '../site/SiteRoom'
+import '../site/siteSystem.css'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
 import { SitePreviewFrame } from './SitePreviewBar'
+import { getSiteSettings, subscribeSiteSettings } from './siteSettingsStore'
 import { useTierPreviewUrl } from './useTierPreviewUrl'
 
 const readBook = (): Book => getBookStoreSnapshot().book
+
+/** the room's cover title ink (no published cover photo in the preview) */
+const INK = '#F5F5F5'
+/** the year the room's meta shows: nothing is published yet */
+const OPENED_AT = Date.now()
 
 function PreviewCover({ book, widthPx }: { book: Book; widthPx: number }) {
   const { url, tier } = useTierPreviewUrl(
@@ -55,27 +56,45 @@ export function PreviewSlide({
 }
 
 /**
- * Preview site: the site's book page of the current book (nothing published)
- * in the preview frame's scroll box, sized by that box. Opens on the cover.
+ * Preview site: the reading room of the current book (nothing published) in
+ * the preview frame's box, sized by that box: no home, "All books" or Share,
+ * the head name is plain text (D45). Opens on the cover.
  */
 export default function SitePreview({ onExit }: { onExit: () => void }) {
-  const scrollRef = useRef<HTMLDivElement>(null)
   const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
+  const site = useSyncExternalStore(
+    subscribeSiteSettings,
+    getSiteSettings,
+    getSiteSettings,
+  )
   const n = book.spreads.length
   const [ownSlide, setSlide] = useState(0)
-  const slide = Math.min(ownSlide, n)
-  const viewport = useViewport(scrollRef, { height: 'element' })
+  const slide = Math.min(ownSlide, n + 1)
 
   const input = useMemo(
-    (): Extract<SitePageInput, { kind: 'book' }> => ({
+    (): BookInput => ({
       kind: 'book',
-      site: { title: '' },
+      site: siteMetaOf({ site }),
       path: '',
       catalogHref: '',
       book,
       images: {},
+      entry: {
+        id: book.id,
+        href: '',
+        title: displayBookTitle(book.title),
+        pages: pagesOf(n),
+        fmt: bookFormatFromTrim(
+          book.settings.trim.widthMm,
+          book.settings.trim.heightMm,
+        ),
+        cover: null,
+        ink: INK,
+        place: 'top',
+        ...siteBookFacts(book, OPENED_AT),
+      },
     }),
-    [book],
+    [book, n, site],
   )
   const renderSlide = useCallback(
     (s: number, widthPx: number) => (
@@ -86,20 +105,21 @@ export default function SitePreview({ onExit }: { onExit: () => void }) {
   const embedded = useMemo(() => ({ slide, onSlide: setSlide }), [slide])
 
   return (
-    <SitePreviewFrame onExit={onExit} slide={slide} n={n} onSlide={setSlide}>
+    // the room's views: the cover, the spreads, the back cover
+    <SitePreviewFrame
+      onExit={onExit}
+      slide={slide}
+      n={n + 1}
+      onSlide={setSlide}
+    >
       <div
-        ref={scrollRef}
-        className="site min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
+        className="site relative min-h-0 flex-1 overflow-hidden"
         // Beats the unlayered `.site { min-height: 100dvh }`.
         style={{ minHeight: 0 }}
         data-testid="site-preview-scroll"
       >
-        <header className="site-header">
-          <span className="site-title">{siteTitle('')}</span>
-        </header>
-        <SiteBookPage
+        <SiteRoom
           input={input}
-          viewport={viewport}
           embedded={embedded}
           allBooks={false}
           share={false}

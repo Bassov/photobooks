@@ -7,12 +7,16 @@ import {
 } from "@/demo-parts"
 import { LAKE_BOOK, LAKE_TITLE, docBlank, docAdded, docFilled, COVER_DONE, dbook, SHELF } from "@/demo-parts/fixtures"
 import { pickPrint, profileById } from "@/demo-parts/printProfiles"
-import { ExportSiteDialog, type ExportRun } from "@/demo-parts/dialogs"
+import { ExportSiteDialog, type ExportRun, type PrintRun, type PublishRun } from "@/demo-parts/dialogs"
+import { printProgress } from "@/demo-parts/printCheck"
+import { pagesOf } from "@/sandbox/v7"
 import type { PrintInit, SettingsSection } from "@/demo-parts/settings"
-import type { SessionState } from "@/demo-parts/session"
+import { SAMPLE_HOSTING, type SessionState } from "@/demo-parts/session"
+import type { HostingDraft, HostingInit } from "@/demo-parts/hosting"
 import type { Doc } from "@/sandbox/model"
 import { WithScenarios } from "./parts"
-import { PhotographerSite } from "./site-photographer"
+import { BooksCount, COUNTS } from "./site-book/many"
+import { PersonalSite } from "./site/home"
 import type { FeatureDef, Notes } from "./types"
 
 /** Stage height = the #/demo viewport height (+ the 40 px scenario strip), so every slot sits at its #/demo size. */
@@ -21,6 +25,20 @@ const PATH = "~/Pictures/Photobooks"
 /* static-export: books from earlier exports (newest first) and a run frozen at 42 % */
 const EXPORTED = ["Fog", "Summer ’25"]
 const RUN_42: ExportRun = { phase: "run", p: 42, fail: "unknown", folder: "Sites", start: () => {}, seen: () => {} }
+const PUB_42: PublishRun = { phase: "run", p: 42, fail: "timeout", sent: 0, total: 40, start: () => {}, seen: () => {} }
+/* pdf-export: the Lake trip dialog, a run frozen half way (Page 12 of 20 · 50%: 20 pages + the cover), a failed one and a book with
+   no frames (a clean check) */
+const Print = (p: Partial<React.ComponentProps<typeof PrintDialog>>) => <PrintDialog book={LAKE_BOOK} spreads={10} title={LAKE_TITLE} onClose={() => {}} {...p} />
+const printRun = (phase: PrintRun["phase"], v: number, fail: PrintRun["fail"] = "access", paper = 0): PrintRun => ({ phase, ...printProgress(v, pagesOf(10), paper, !paper), fail, start: () => true, seen: () => {} })
+/* cover-pdf "Cover check": a 182 ppi front photo, a 4 mm manual spine (2 mm = 5.7 pt type) and a spine text longer than the spine */
+const COVER_CHECK = { ppi: 182, spineMm: 4, spine: Array.from({ length: 12 }, () => "Lake trip · ten days on the water").join(" · ") }
+const PRINT_50 = printRun("run", 50)
+/* booklet-imposition: a 2-up run imposing its 5 paper sheets (Imposing sheets · 3 of 5) */
+const PRINT_IMPOSING = printRun("run", 88, "access", 5)
+const PRINT_FAILED = printRun("failed", 0)
+const docNoFrames = (): Doc => ({ ...docFilled(), spreads: docFilled().spreads.map((s) => ({ ...s, frames: [] })) })
+const placedPhotos = () => docFilled().spreads.flatMap((s) => s.frames.flatMap((f) => (f.photo ? [f.photo] : [])))
+const PUB_FAILED: PublishRun = { phase: "failed", p: 0, fail: "timeout", sent: 12, total: 40, start: () => {}, seen: () => {} }
 
 type Sc = [id: string, label: string, render: () => React.ReactNode]
 function page(items: Sc[], notes: Notes, h = H): FeatureDef {
@@ -40,8 +58,18 @@ const onSite = (site: RootInit["site"], entry: "catalog" | "book" = "catalog"): 
   const books = SHELF().map((b) => ({ ...b, published: true }))
   return { session: { stage: "site", path: PATH, books, open: books[0].id, back: "editor", siteEntry: entry }, site }
 }
-const settingsAt = (section: SettingsSection, s: Partial<SessionState> = {}, print?: PrintInit) =>
-  root({ session: { stage: "settings", path: PATH, books: SHELF(), back: "library", ...s }, settings: { section, print } })
+const settingsAt = (section: SettingsSection, s: Partial<SessionState> = {}, print?: PrintInit, hosting?: HostingInit) =>
+  root({ session: { stage: "settings", path: PATH, books: SHELF(), back: "library", ...s }, settings: { section, print, hosting } })
+/* publish-credentials: a valid draft (key and secret are low-entropy fakes) and the hosting seeds */
+const DRAFT: HostingDraft = { account: SAMPLE_HOSTING.accountId, bucket: SAMPLE_HOSTING.bucket, key: `${"ab".repeat(14)}9f2c`, secret: "5e".repeat(32), url: SAMPLE_HOSTING.publicBaseUrl }
+const hostingAt = (s: Partial<SessionState>, h?: HostingInit) => settingsAt("hosting", s, undefined, h)
+/* connect-own-hosting: a record setup just made (fresh, so "New address" shows), whose setup token couldn't be deleted */
+const setUpNow = (): SessionState["hosting"] => {
+  const now = Date.now()
+  return { ...SAMPLE_HOSTING, bucket: "pb-books-basov-photo", accessKeyTail: "7d1e", checkedAtMs: now, origin: "setup", provisionedAtMs: now, setupTokenLeft: true }
+}
+/* site-settings: no values (the placeholders are the fallbacks, S3) */
+const SITE_EMPTY: SessionState["site"] = { title: "", author: "", intro: "" }
 /* editor seeds (EditorView = the #/demo editor with an explicit studio state) */
 const ed = (p: React.ComponentProps<typeof EditorView>) => () => <EditorView book={LAKE_BOOK} {...p} />
 /* cover-editor: 60 spreads = 120 pages, the widest generic spine (32 mm) */
@@ -50,6 +78,14 @@ const docThick = (): Doc => ({ ...docAdded(), spreads: Array.from({ length: 6 },
 const docThreeOneLocked = (): Doc => {
   const d = docFilled()
   return { ...d, spreads: d.spreads.map((s, i) => (i === 2 ? { ...s, frames: s.frames.map((f, j) => (j === 2 ? { ...f, locked: true } : f)) } : s)) }
+}
+
+/** personal-site (D35): the scenario is the book count (site-book/many `BooksCount`; the route hash is left alone);
+   #/full shows the site alone and takes `?books=` from the URL */
+function PersonalSitePage() {
+  if (location.hash.startsWith("#/full/")) return <PersonalSite />
+  return <WithScenarios items={COUNTS.map((c) => [`${c}`, `${c} book${c === 1 ? "" : "s"}`])} initial="6"
+    render={(v) => <div key={v} className="h-full" data-scenario={v}><BooksCount.Provider value={+v}><PersonalSite /></BooksCount.Provider></div>} />
 }
 
 export const PAGES: Record<string, FeatureDef> = {
@@ -90,7 +126,7 @@ export const PAGES: Record<string, FeatureDef> = {
     ["preview", "Preview", root(inEditor({ editor: { preview: true } }))],
   ], {
     what: "The editor chrome: top bar with Library, tools, undo / redo, snap and grid toggles, zoom, save status and the book title (opens Book settings), then Preview · Settings · Export site · Print · Publish. Spread list left, inspector right, photos dock below.",
-    where: "#/demo steps 8–26 and 39–40 (the whole editor); Export site in steps 52–55.",
+    where: "#/demo steps 8–26 and 39–40 (the whole editor); Export site in steps 57–60.",
     edge: ["Preview opens the book as the site shows it, full screen; Esc or Close returns", "Settings opens app settings with “Back to the book”"],
   }),
   /* ------------------------------------------------------------ filmstrip */
@@ -201,38 +237,47 @@ export const PAGES: Record<string, FeatureDef> = {
   "site-settings": page([
     ...(([["library", "Library"], ["hosting", "Hosting"], ["site", "Site"], ["print", "Print presets"], ["interface", "Interface"]] as const).map(([id, l]) =>
       [id, l, settingsAt(id, id === "print" ? { defaultPrintProfileId: "lulu-photo-book" } : {})] as Sc)),
+    ["site-empty", "No values", settingsAt("site", { site: SITE_EMPTY })],
     ["print-empty", "No custom profiles", settingsAt("print", { printProfiles: [] })],
     ["print-edit", "Edit profile", settingsAt("print", {}, { edit: "custom-lulu-copy" })],
     ["print-invalid", "Invalid values", settingsAt("print", {}, { edit: "new", draft: { name: "", trimMin: "300", trimMax: "200", pMax: "121" } })],
+    ["hosting-empty", "Not connected", hostingAt({ hosting: null })],
+    ["hosting-setup-checking", "Checking token", hostingAt({ hosting: null }, { setup: "checking" })],
+    ["hosting-setup-r2off", "R2 off", hostingAt({ hosting: null }, { setup: "r2off" })],
+    ["hosting-setup-address", "Choose address", hostingAt({ hosting: null }, { setup: "address" })],
+    ["hosting-setup-nozone", "No domain", hostingAt({ hosting: null }, { setup: "nozone" })],
+    ["hosting-setup-running", "Setting up", hostingAt({ hosting: null }, { setup: "running" })],
+    ["hosting-setup-failed", "Setup failed", hostingAt({ hosting: null }, { setup: "failed" })],
+    ["hosting-setup-done", "Set up", () => hostingAt({ hosting: setUpNow() })()],
+    ["hosting-manual", "Manual form", hostingAt({ hosting: null }, { mode: "manual" })],
+    ["hosting-invalid", "Format errors", hostingAt({ hosting: null }, { mode: "manual", draft: { ...DRAFT, account: "0f3a9c51e2b74d0a8c66f1e9d3b", bucket: "Aleksandr_Books", url: "https://pub-41c2a0.r2.dev" } })],
+    ["hosting-checking", "Checking", hostingAt({ hosting: null }, { mode: "manual", draft: DRAFT, checking: true })],
+    ["hosting-cors", "Check failed", hostingAt({ hosting: null }, { mode: "manual", draft: DRAFT, fail: "Cors" })],
+    ["hosting-recheck-failed", "Re-check failed", hostingAt({ hosting: { ...SAMPLE_HOSTING, checkedAtMs: SAMPLE_HOSTING.checkedAtMs + 11 * 60_000, ok: false, code: "InvalidAccessKeyId" } })],
+    ["hosting-replace", "Replace token", hostingAt({}, { replace: true })],
+    ["hosting-forget", "Forget token", hostingAt({}, { forget: true })],
   ], {
-    what: "App settings with a back bar: Library (folder, Change library folder…), Hosting, Site, Print presets (default for new books, print shops, custom profiles and their editor), Interface.",
+    what: "App settings with a back bar: Library (folder, Change library folder…), Hosting (guided Cloudflare setup or the R2 token form, connected card, help), Site (title, author, intro = the home lead, edited in place), Print presets (default for new books, print shops, custom profiles and their editor), Interface.",
     where: "#/demo steps 40 (editor → Settings, back bar “Back to the book”) and 49 (library → Settings, back bar “Library”); Print presets only here.",
-    edge: ["Change library folder… confirms first; books are not moved", "Profile editor: errors show as you type and disable Save", "Deleting the default profile makes Generic the default"],
+    edge: ["Change library folder… confirms first; books are not moved", "Profile editor: errors show as you type and disable Save", "Deleting the default profile makes Generic the default", "The secret is never shown again", "Connect checks a real write before saving", "The setup token is never stored", "Only a key for one bucket is kept", "Saved on commit (blur / Enter); Esc reverts", "Intro ≤ 160 = ≤ 3 lines on the 1440 home"],
   }),
   /* ------------------------------------------------------------ site */
-  "site-viewer": page([
-    ["catalog", "Catalog", root(onSite({}))],
-    ["book", "Book", root(onSite({ page: "book" }, "book"))],
-  ], {
-    what: "The published site: a catalog of published books, then one book’s viewer with spreads, Share and Fullscreen. A bar above it returns to the editor.",
-    where: "#/demo steps 56–59 (Publish → Open site).",
-    edge: ["Share copies the book link", "Esc leaves fullscreen"],
-  }),
   "site-lightbox": page([
     ["lightbox", "Fullscreen", root(onSite({ page: "book", lb: true }, "book"))],
     ["spread", "Spread 2", root(onSite({ page: "book", slide: 3, lb: true }, "book"))],
     ["zoomed", "Zoomed 2×", root(onSite({ page: "book", slide: 3, lb: true, lbZoom: 2 }, "book"))],
   ], {
-    what: "Fullscreen viewing of one book on the site; arrows step through spreads.",
-    where: "#/demo step 59.",
+    what: "Fullscreen viewing of one book from the reading room (Fullscreen in the foot); arrows step through spreads.",
+    where: "#/demo step 64.",
     keys: [["← / →, Space", "previous / next spread"], ["Esc", "close"]],
     edge: ["Double-click or pinch zooms; drag pans", "Arrows hide on touch screens"],
   }),
-  "site-photographer": {
-    Demo: PhotographerSite, h: SLOT.app.h, notes: {
-      what: "Proposal for the published site as a photographer's site of books: home with the books on a shelf, one page per book with text, facts and all spreads, the kit Fullscreen viewer. Sample books and texts.",
-      where: "Standalone demo; not in #/demo yet. Full window: #/full/site-photographer.",
-      edge: ["Click a book, a spread or the closed book; Esc leaves fullscreen", "Narrow window (< 768) = one column"],
+  "personal-site": {
+    Demo: PersonalSitePage, h: SLOT.app.h, notes: {
+      what: "The personal site: a bookcase home (the newest book of each shelf face-out) and a reading room with the open book. Sample books.",
+      where: "#/demo Open site and Preview (the session's published books). Full window: #/full/personal-site?books=1|3|6|12|30|100 (&book=<id> opens a book).",
+      keys: [["← / →", "turn"], ["Esc / Back", "close the book"]],
+      edge: ["The page scrolls down the case", "Phone reads in Page turn; &reader=carousel gives the carousel", "Room foot: Share · Fullscreen · Play; phones: Share only"],
     },
   },
   "site-preview-mode": page([
@@ -240,31 +285,47 @@ export const PAGES: Record<string, FeatureDef> = {
     ["spread", "Spread 2", root(inEditor({ editor: { preview: { slide: 2 } } }, lakePreview))],
     ["fullscreen", "Fullscreen", root(inEditor({ editor: { preview: { lb: true } } }, lakePreview))],
   ], {
-    what: "Preview from the editor: the site's book page of the current book under a 48 px bar, without publishing; Fullscreen = the site lightbox",
+    what: "Preview from the editor: the reading room of the current book under a 48 px bar, without publishing; Fullscreen = the site lightbox",
     where: "#/demo step editor-preview (top bar → Preview).",
-    keys: [["← / →", "previous / next spread"], ["Home / End", "cover / last spread"], ["Esc", "closes Fullscreen, then the preview"]],
-    edge: ["Share and All books hidden; opens on the cover; the editor is unchanged after Esc"],
+    keys: [["← / →", "turn"], ["Home / End", "cover / last spread"], ["Esc", "closes Fullscreen, then the preview"]],
+    edge: ["Share, All books and the home hidden; opens at page 1; the editor is unchanged after Esc"],
   }),
   /* ------------------------------------------------------------ print */
   "pdf-export": page([
-    ["opts", "Options", ed({ doc: docFilled, cur: 1, overlay: <PrintDialog book={LAKE_BOOK} spreads={10} title={LAKE_TITLE} onClose={() => {}} /> })],
-    ["4up", "4-up, no bleed", ed({ doc: docFilled, cur: 1, overlay: <PrintDialog book={LAKE_BOOK} spreads={10} title={LAKE_TITLE} onClose={() => {}} initialImposition="4up" initialBleed={false} /> })],
-    ["run", "Exporting", ed({ doc: docFilled, cur: 1, overlay: <PrintDialog book={LAKE_BOOK} spreads={10} title={LAKE_TITLE} onClose={() => {}} initialStep="run" /> })],
-    ["done", "PDF ready", ed({ doc: docFilled, cur: 1, overlay: <PrintDialog book={LAKE_BOOK} spreads={10} title={LAKE_TITLE} onClose={() => {}} initialStep="done" /> })],
+    ["opts-checking", "Checking", ed({ doc: docFilled, cur: 1, overlay: <Print holdCheck /> })],
+    ["opts-clean", "No problems", ed({ doc: docNoFrames, cur: 1, extras: { cover: "p01" }, overlay: <Print /> })],
+    ["opts-issues", "Issues", ed({ doc: docFilled, cur: 1, overlay: <Print /> })],
+    ["opts-cover-check", "Cover check", ed({ doc: docFilled, cur: 1, extras: { cover: "p01" }, overlay: <Print cover={COVER_CHECK} /> })],
+    ["no-bleed", "No bleed", ed({ doc: docFilled, cur: 1, overlay: <Print initialBleed={false} /> })],
+    ["opts-2up", "2-up", ed({ doc: docFilled, cur: 1, overlay: <Print initialImposition="2up" /> })],
+    ["opts-4up-no-bleed", "4-up, no bleed", ed({ doc: docFilled, cur: 1, overlay: <Print initialImposition="4up" initialBleed={false} /> })],
+    ["run", "Exporting", ed({ doc: docFilled, cur: 1, print: { phase: "run", p: PRINT_50.p }, overlay: <Print initialStep="run" run={PRINT_50} /> })],
+    ["run-imposing", "Imposing", ed({ doc: docFilled, cur: 1, print: { phase: "run", p: PRINT_IMPOSING.p }, overlay: <Print initialStep="run" initialImposition="2up" run={PRINT_IMPOSING} /> })],
+    ["run-hidden", "Hidden, 50 %", ed({ doc: docFilled, cur: 1, print: { phase: "run", p: PRINT_50.p } })],
+    ["done", "PDF ready", ed({ doc: docFilled, cur: 1, print: { phase: "done", p: 0 }, overlay: <Print initialStep="done" /> })],
+    ["done-2up", "PDF ready, 2-up", ed({ doc: docFilled, cur: 1, print: { phase: "done", p: 0 }, overlay: <Print initialStep="done" initialImposition="2up" /> })],
+    ["done-skipped", "PDF ready, skipped photos", ed({ doc: docFilled, cur: 1, missing: placedPhotos().slice(0, 2), print: { phase: "done", p: 0 }, overlay: <Print initialStep="done" /> })],
+    ["failed", "Failed", ed({ doc: docFilled, cur: 1, print: { phase: "failed", p: 0 }, overlay: <Print initialStep="failed" run={PRINT_FAILED} /> })],
   ], {
-    what: "Print dialog over the editor: page size, the book’s printer profile, imposition for duplex (1 per sheet, 2-up, 4-up) and “Add 3 mm bleed and crop marks”; Export PDF shows progress, then PDF ready with Show in folder.",
-    where: "#/demo steps 27–31 (top bar → Print).",
-    edge: ["Sheet count follows the imposition", "Exporting runs to PDF ready on its own"],
+    what: "Print: the Print pill opens a dialog with page size, profile, Imposition (1 per sheet, 2-up, 4-up), bleed and a Check that never blocks; Export PDF shows hideable progress, then PDF ready with Open pages · Open cover, or a booklet's folding steps.",
+    where: "#/demo steps 48–52 (top bar → Print → Export PDF → Hide → the pill).",
+    keys: [["Esc", "closes the dialog (Hide while running); the PDF keeps building in the pill"]],
+    edge: ["The pill is icon-only 40 × 32 in every state: a fill while running, a check for 4 s, a warning until opened", "Print runs beside Export site and Publish", "Below a 1424 px window Export site is icon-only"],
   }),
   /* ------------------------------------------------------------ publish */
   "in-app-publish": page([
-    ["opts", "Options", ed({ doc: docFilled, cur: 1, overlay: <PublishDialog title={LAKE_TITLE} onClose={() => {}} /> })],
-    ["run", "Publishing", ed({ doc: docFilled, cur: 1, overlay: <PublishDialog title={LAKE_TITLE} onClose={() => {}} initialStep="run" /> })],
-    ["done", "Published", ed({ doc: docFilled, cur: 1, overlay: <PublishDialog title={LAKE_TITLE} onClose={() => {}} initialStep="done" /> })],
+    ["connect", "No hosting", root({ ...inEditor({ editor: { dialog: "publish" } }), session: { ...inEditor().session, hosting: null } })],
+    ["opts", "Options", ed({ doc: docFilled, cur: 1, overlay: <PublishDialog title={LAKE_TITLE} otherBooks={EXPORTED} onHide={() => {}} /> })],
+    ["run", "Publishing", ed({ doc: docFilled, cur: 1, publish: { phase: "run", p: 42 }, overlay: <PublishDialog title={LAKE_TITLE} otherBooks={EXPORTED} initialStep="run" run={PUB_42} onHide={() => {}} /> })],
+    ["run-hidden", "Hidden, 42 %", ed({ doc: docFilled, cur: 1, publish: { phase: "run", p: 42 } })],
+    ["done", "Published", ed({ doc: docFilled, cur: 1, publish: { phase: "done", p: 0 }, overlay: <PublishDialog title={LAKE_TITLE} otherBooks={EXPORTED} initialStep="done" onHide={() => {}} /> })],
+    ["failed-timeout", "Failed, timeout", ed({ doc: docFilled, cur: 1, publish: { phase: "failed", p: 0 }, overlay: <PublishDialog title={LAKE_TITLE} otherBooks={EXPORTED} initialStep="failed" run={PUB_FAILED} onHide={() => {}} /> })],
+    ["failed-key", "Failed, key", ed({ doc: docFilled, cur: 1, publish: { phase: "failed", p: 0 }, overlay: <PublishDialog title={LAKE_TITLE} otherBooks={EXPORTED} initialStep="failed" fail="key" run={PUB_FAILED} onHide={() => {}} /> })],
   ], {
-    what: "Publish dialog over the editor: web image size (1600 / 2048 / 3200 px) and “Let visitors download a PDF”; Publish shows progress, then Published with Open site.",
-    where: "#/demo steps 49–51 (top bar → Publish).",
-    edge: ["Open site goes to the site catalog (#/demo step 56)"],
+    what: "Publish dialog over the editor: options, then progress that can be hidden (the pill shows NN%), then Published with Open site; without hosting it points to Settings → Hosting; failures retry.",
+    where: "#/demo steps 53–56 (top bar → Publish → Publish → Esc → the pill).",
+    keys: [["Esc", "closes the dialog (Hide while running); the upload keeps running in the pill"]],
+    edge: ["Only changed files upload", "Try again sends only the rest", "The pill keeps its width in every state: NN% over a fill while running, a check for 4 s, a warning until opened", "Publish and Export site wait for each other", "Below a 1424 px window Export site is icon-only; Publish keeps its label"],
   }),
   /* ------------------------------------------------------------ static export */
   "static-export": page([
@@ -276,8 +337,8 @@ export const PAGES: Record<string, FeatureDef> = {
     ["failed", "Failed", ed({ doc: docFilled, cur: 1, exportSite: { phase: "failed", p: 0 }, overlay: <ExportSiteDialog title={LAKE_TITLE} otherBooks={EXPORTED} folder="Sites" initialStep="failed" fail="access" onHide={() => {}} /> })],
   ], {
     what: "Export site: the top-bar pill after Settings opens a dialog that writes the site of your books to a folder on this computer (Folder, Books, Export), shows progress, then Site exported with how to serve it. Nothing is uploaded.",
-    where: "#/demo steps 52–55 (top bar → Export site → Choose folder… → Export → Hide → Exported).",
+    where: "#/demo steps 57–60 (top bar → Export site → Choose folder… → Export → Hide → Exported).",
     keys: [["Esc", "closes the dialog (Hide while running); the export keeps running in the pill"]],
-    edge: ["The pill keeps its width in every state: NN% over a fill while running, “Exported” for 4 s, “Failed” until opened", "Below a 1280 px window the pill is icon-only, 40 × 32", "Picker folder “Family” holds a foreign dist: “isn’t a Photobooks export”, Choose folder… goes back to Options"],
+    edge: ["The pill keeps its width in every state: NN% over a fill while running, “Exported” for 4 s, “Failed” until opened", "Below a 1424 px window the pill is icon-only, 40 × 32", "Picker folder “Family” holds a foreign dist: “isn’t a Photobooks export”, Choose folder… goes back to Options"],
   }),
 }

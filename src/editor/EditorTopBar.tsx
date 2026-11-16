@@ -40,9 +40,12 @@ import {
 import { BAR, FIELD, SUB, T } from './editorChromeTokens'
 import { ChromeButton } from './ChromeButton'
 import { ExportSiteButton } from './export/ExportSiteButton'
+import { PrintButton } from './print/PrintButton'
 import { PanelToggles } from './EditorFrame'
 import { EditorSettings } from './EditorSettings'
 import { EditorToolGroup } from './EditorToolGroup'
+import { PublishButton } from './publish/PublishButton'
+import type { SettingsSectionId } from './settingsScreenModel'
 import { GridToggle } from './GridToggle'
 import { SnapToggle } from './SnapToggle'
 import {
@@ -227,7 +230,7 @@ function ZoomChrome() {
         <Button
           variant="ghost"
           size="sm"
-          className="editor-zoom-menu gap-1 px-2 text-sm tabular-nums"
+          className="editor-zoom-menu gap-1 px-2 text-sm tabular-nums text-muted-foreground"
           aria-label="Zoom"
           data-testid="zoom-menu"
         >
@@ -302,7 +305,9 @@ export function EditorTopBar({
 
   useEffect(() => installEditorHistoryShortcut(), [])
 
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  // The section Settings opens on (Publish → Hosting), `null` while closed.
+  const [settingsSection, setSettingsSection] =
+    useState<SettingsSectionId | null>(null)
   const libraryReady = project.libraryOpen
   const writeBlocked = project.accessPhase === 'locked-elsewhere'
   const pickerBusy = chromeImport.pickerBusy
@@ -408,23 +413,31 @@ export function EditorTopBar({
             aria-label="Settings"
             title="Settings"
             onClick={() => {
-              setSettingsOpen(true)
+              setSettingsSection('library')
             }}
           >
             <Icon name="settings" size={16} />
           </ChromeButton>
           <ExportSiteButton disabled={spreadCount === 0 || writeBlocked} />
+          <PrintButton disabled={spreadCount === 0 || writeBlocked} />
+          <PublishButton
+            disabled={spreadCount === 0 || writeBlocked}
+            onOpenHosting={() => {
+              setSettingsSection('hosting')
+            }}
+          />
         </div>
       </div>
-      {settingsOpen ? (
+      {settingsSection === null ? null : (
         <EditorSettings
           libraryPath={project.libraryLabel ?? 'Library'}
           changeDisabled={chromeBusy}
+          initialSection={settingsSection}
           onClose={() => {
-            setSettingsOpen(false)
+            setSettingsSection(null)
           }}
         />
-      ) : null}
+      )}
     </header>
   )
 }

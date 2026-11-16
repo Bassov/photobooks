@@ -1,6 +1,7 @@
 import {
   applyBookOp,
   overrideParentFrame,
+  removeSpread,
   type Book,
   type BookOp,
 } from '../core'
@@ -10,6 +11,7 @@ import {
 } from '../core/testing/painterFixture'
 import { resetBookStore } from '../editor/bookStore'
 import { seedPrintProfilesFromQuery } from '../editor/printProfilesStore'
+import { seedSiteSettingsFromQuery } from '../editor/siteSettingsStore'
 import { retainAssetSource } from '../photo/assetSources'
 import { painterSourceFile } from './painterSourceFile'
 
@@ -38,6 +40,16 @@ function withPixelSize(book: Book, px: number): Book {
     }
   }
   return { ...book, assets }
+}
+
+/** Only the first `count` spreads (booklet-imposition: short books); none or all → unchanged. */
+function withSpreadCount(book: Book, count: number): Book {
+  if (!(count > 0)) {
+    return book
+  }
+  return book.spreads
+    .slice(count)
+    .reduce((next, spread) => removeSpread(next, spread.id), book)
 }
 
 /** Master A with a horizontal guide at mid height and a vertical one on the right page. */
@@ -118,13 +130,15 @@ function withLiveCaptions(book: Book, count: number): Book {
  * `&overrides=<n>` then has the first n spreads override its logo,
  * `&guides=a` gives Master A two guides and `&captions=<n>` puts n live
  * captions on spread 2; `&px=<n>` records an n px wide source on every
- * painter asset, and `&printProfiles=kit` adds the kit's sample profile.
+ * painter asset, `&printProfiles=kit` adds the kit's sample profile and
+ * `&spreads=<n>` keeps the first n spreads.
  */
 export function loadPainterFixture(search = window.location.search): void {
   const fixture = makePainterFixture()
   const params = new URLSearchParams(search)
+  const sized = withSpreadCount(fixture.book, Number(params.get('spreads')))
   const captioned = withLiveCaptions(
-    withPixelSize(fixture.book, Number(params.get('px') ?? 0)),
+    withPixelSize(sized, Number(params.get('px') ?? 0)),
     Number(params.get('captions') ?? 0),
   )
   const base =
@@ -147,4 +161,5 @@ export function loadPainterFixture(search = window.location.search): void {
     retainAssetSource(assetId, painterSourceFile(assetId), { cover: true })
   }
   seedPrintProfilesFromQuery(search)
+  seedSiteSettingsFromQuery(search)
 }

@@ -3,7 +3,10 @@ import { resolveSpread } from '../geometry/resolveSpread'
 import { getSinglePageSide, getSpreadPageCount } from '../geometry/spreadSize'
 import type { RectMm, ResolvedItem } from '../geometry/types'
 import { pagesOf } from '../pages'
+import type { ColorWarning } from '../pdf/colorPreflight'
 import type { Book } from '../schema'
+import { coverGeometry } from './coverGeometry'
+import type { ImpositionLayout } from './imposition'
 import type { PrintProfile } from './profileSchema'
 
 export const PREFLIGHT_SEVERITIES = ['error', 'warning', 'info'] as const
@@ -21,8 +24,19 @@ export const PREFLIGHT_RULE_IDS = [
   'empty-text-frame',
   'safe-zone-intrusion',
   'bleed-hazard',
+  'cover-asset-missing',
+  'cover-asset-modified',
+  'cover-dpi-below-min',
+  'cover-dpi-below-warn',
+  'cover-not-srgb',
+  'spine-text-small',
+  'spine-text-cut',
+  'cover-front-empty',
 ] as const
 export type PreflightRuleId = (typeof PREFLIGHT_RULE_IDS)[number]
+
+/** What a rule checks: the interior pages or the cover sheet. */
+export type PreflightScope = 'pages' | 'cover'
 
 export const PREFLIGHT_FIX_IDS = [
   'add-pages',
@@ -32,12 +46,14 @@ export const PREFLIGHT_FIX_IDS = [
   'fill-or-remove-frame',
   'move-into-safe-zone',
   'extend-to-bleed',
+  'edit-cover',
 ] as const
 export type PreflightFixId = (typeof PREFLIGHT_FIX_IDS)[number]
 
 export interface PreflightRuleSpec {
   severity: PreflightSeverity
   fix: PreflightFixId
+  scope: PreflightScope
 }
 
 /**
@@ -45,18 +61,30 @@ export interface PreflightRuleSpec {
  * (not at module load) so that its mutants are reachable.
  */
 export function preflightRules(): Record<PreflightRuleId, PreflightRuleSpec> {
+  const pages = (severity: PreflightSeverity, fix: PreflightFixId) =>
+    ({ severity, fix, scope: 'pages' }) as const
+  const cover = (severity: PreflightSeverity, fix: PreflightFixId) =>
+    ({ severity, fix, scope: 'cover' }) as const
   return {
-    'page-count-below-min': { severity: 'error', fix: 'add-pages' },
-    'page-count-above-max': { severity: 'error', fix: 'remove-pages' },
-    'page-count-step': { severity: 'error', fix: 'add-pages' },
-    'asset-missing': { severity: 'error', fix: 'relink-asset' },
-    'asset-modified': { severity: 'warning', fix: 'relink-asset' },
-    'dpi-below-min': { severity: 'error', fix: 'reduce-photo-scale' },
-    'dpi-below-warn': { severity: 'warning', fix: 'reduce-photo-scale' },
-    'empty-image-frame': { severity: 'warning', fix: 'fill-or-remove-frame' },
-    'empty-text-frame': { severity: 'info', fix: 'fill-or-remove-frame' },
-    'safe-zone-intrusion': { severity: 'warning', fix: 'move-into-safe-zone' },
-    'bleed-hazard': { severity: 'warning', fix: 'extend-to-bleed' },
+    'page-count-below-min': pages('error', 'add-pages'),
+    'page-count-above-max': pages('error', 'remove-pages'),
+    'page-count-step': pages('error', 'add-pages'),
+    'asset-missing': pages('error', 'relink-asset'),
+    'asset-modified': pages('warning', 'relink-asset'),
+    'dpi-below-min': pages('error', 'reduce-photo-scale'),
+    'dpi-below-warn': pages('warning', 'reduce-photo-scale'),
+    'empty-image-frame': pages('warning', 'fill-or-remove-frame'),
+    'empty-text-frame': pages('info', 'fill-or-remove-frame'),
+    'safe-zone-intrusion': pages('warning', 'move-into-safe-zone'),
+    'bleed-hazard': pages('warning', 'extend-to-bleed'),
+    'cover-asset-missing': cover('error', 'relink-asset'),
+    'cover-asset-modified': cover('warning', 'relink-asset'),
+    'cover-dpi-below-min': cover('error', 'reduce-photo-scale'),
+    'cover-dpi-below-warn': cover('warning', 'reduce-photo-scale'),
+    'cover-not-srgb': cover('warning', 'edit-cover'),
+    'spine-text-small': cover('warning', 'edit-cover'),
+    'spine-text-cut': cover('warning', 'edit-cover'),
+    'cover-front-empty': cover('info', 'edit-cover'),
   }
 }
 
@@ -76,14 +104,28 @@ export interface PreflightIssue extends PreflightRuleSpec {
   measured?: number
   /** The profile limit it was checked against. */
   threshold?: number
+  /** The photo's RGB space (`cover-not-srgb`). */
+  family?: ColorWarning['family']
 }
 
 /** Relink scan result (`src/assets` match status) per asset id. */
 export type PreflightAssetStatus = 'ok' | 'missing' | 'modified'
 
+/** The cover sheet check (Designer cover-pdf C9). */
+export interface PreflightCoverOptions {
+  /** Booklets (`2up` / `4up`) print no cover: no cover issues. */
+  layout: 'single' | ImpositionLayout
+  /** `colorWarnings` of the book's photos; only the front photo's counts. */
+  colors?: readonly ColorWarning[]
+  /** Advance width (mm) of one line of spine text at `sizeMm`. */
+  textAdvanceMm: (text: string, sizeMm: number) => number
+}
+
 export interface PreflightOptions {
   /** Ids absent from the map are taken as present and unchanged. */
   assetStatus?: ReadonlyMap<string, PreflightAssetStatus>
+  /** Adds the cover rules; absent → interior rules only. */
+  cover?: PreflightCoverOptions
 }
 
 /** Rounding slack (mm) so that an edge placed on a line counts as on it. */
@@ -99,7 +141,8 @@ function issue(
 
 /**
  * Print checks of the book's spreads against `profile` (pure: no DOM, no IO).
- * Order: page count, then spread by spread, item by item, in rule order.
+ * Order: page count, then spread by spread, item by item, in rule order, then
+ * the cover when `options.cover` asks for it.
  */
 export function preflight(
   book: Book,
@@ -107,6 +150,142 @@ export function preflight(
   options: PreflightOptions = {},
 ): PreflightIssue[] {
   const issues = pageCountIssues(book, profile)
+  for (const { item, sheet, box, spreadId, page } of printedItems(book)) {
+    const location: PreflightLocation = { spreadId, page, itemId: item.frameId }
+    issues.push(
+      ...itemIssues(book, profile, options, item, location),
+      ...placementIssues(book, profile, item, box, sheet, location),
+    )
+  }
+  if (options.cover?.layout === 'single') {
+    issues.push(...coverIssues(book, profile, options, options.cover))
+  }
+  return issues
+}
+
+function coverIssues(
+  book: Book,
+  profile: PrintProfile,
+  options: PreflightOptions,
+  cover: PreflightCoverOptions,
+): PreflightIssue[] {
+  const geometry = coverGeometry(profile, book)
+  const issues = frontIssues(
+    book,
+    profile,
+    options,
+    cover,
+    geometry.rects.frontPhoto,
+  )
+  const text = book.cover.spine.text.trim()
+  if (text === '') {
+    return issues
+  }
+  // Type size as CoverView draws it: kit 12 px of 848, at most half the spine.
+  const sizeMm = Math.min((geometry.coverW * 12) / 848, geometry.spine / 2)
+  const pt = (sizeMm * 72) / 25.4
+  if (pt < profile.minFontPt) {
+    issues.push(
+      issue(
+        'spine-text-small',
+        {},
+        { measured: pt, threshold: profile.minFontPt },
+      ),
+    )
+  }
+  if (cover.textAdvanceMm(text, sizeMm) > geometry.trimH - 2 * geometry.safe) {
+    issues.push(issue('spine-text-cut', {}))
+  }
+  return issues
+}
+
+/** Front photo checks, in rule order; `cover-front-empty` without one. */
+function frontIssues(
+  book: Book,
+  profile: PrintProfile,
+  options: PreflightOptions,
+  cover: PreflightCoverOptions,
+  panel: RectMm,
+): PreflightIssue[] {
+  const { assetId, crop } = book.cover.front
+  if (assetId === undefined) {
+    return [issue('cover-front-empty', {})]
+  }
+  const asset = book.assets[assetId]
+  const status = options.assetStatus?.get(assetId)
+  if (asset === undefined || status === 'missing') {
+    return [issue('cover-asset-missing', {})]
+  }
+  const found = status === 'modified' ? [issue('cover-asset-modified', {})] : []
+  // The editor's front ppi (`coverPanelPpi` in src/render/coverLayout.ts):
+  // cover fit on the photo box, divided by the crop zoom. An unknown pixel
+  // size is NaN, which `lowDpi` rates as no issue.
+  const perMm = Math.min(
+    Number(asset.widthPx) / panel.width,
+    Number(asset.heightPx) / panel.height,
+  )
+  const low = lowDpi(
+    Math.round((perMm * 25.4) / (crop?.zoom ?? 1)),
+    profile.dpi,
+  )
+  if (low !== undefined) {
+    found.push(
+      low.level === 'min'
+        ? issue(
+            'cover-dpi-below-min',
+            {},
+            {
+              measured: low.dpi,
+              threshold: profile.dpi.min,
+            },
+          )
+        : issue(
+            'cover-dpi-below-warn',
+            {},
+            {
+              measured: low.dpi,
+              threshold: profile.dpi.warn,
+            },
+          ),
+    )
+  }
+  const color = cover.colors?.find((warning) => warning.assetId === assetId)
+  if (color !== undefined) {
+    found.push({ ...issue('cover-not-srgb', {}), family: color.family })
+  }
+  return found
+}
+
+/**
+ * Printed pages of each placed photo (asset id → ascending, unique pages),
+ * by the same page rule as `preflight` issue locations.
+ */
+export function photoPages(book: Book): Map<string, number[]> {
+  const pages = new Map<string, Set<number>>()
+  for (const { item, page } of printedItems(book)) {
+    if (item.assetId !== undefined) {
+      const set = pages.get(item.assetId) ?? new Set<number>()
+      pages.set(item.assetId, set.add(page))
+    }
+  }
+  return new Map(
+    [...pages].map(([assetId, set]) => [
+      assetId,
+      [...set].sort((a, b) => a - b),
+    ]),
+  )
+}
+
+interface PrintedItem {
+  item: ResolvedItem
+  sheet: Sheet
+  box: RectMm
+  spreadId: string
+  page: number
+}
+
+/** Resolved items that reach a page, spread by spread, item by item. */
+function* printedItems(book: Book): Generator<PrintedItem> {
   for (const [index, spread] of book.spreads.entries()) {
     const resolved = resolveSpread(book, spread.id, {
       getAspectRatio: (assetId) => {
@@ -126,36 +305,19 @@ export function preflight(
         trimWidthMm: book.settings.trim.widthMm,
       }
       for (const item of resolved.items) {
-        issues.push(
-          ...spreadItemIssues(book, profile, options, item, sheet, spread.id),
-        )
+        const box = boundsOf(item)
+        if (prints(box, sheet)) {
+          yield {
+            item,
+            sheet,
+            box,
+            spreadId: spread.id,
+            page: pageAt(box, sheet),
+          }
+        }
       }
     }
   }
-  return issues
-}
-
-function spreadItemIssues(
-  book: Book,
-  profile: PrintProfile,
-  options: PreflightOptions,
-  item: ResolvedItem,
-  sheet: Sheet,
-  spreadId: string,
-): PreflightIssue[] {
-  const box = boundsOf(item)
-  if (!prints(box, sheet)) {
-    return []
-  }
-  const location: PreflightLocation = {
-    spreadId,
-    page: pageAt(box, sheet),
-    itemId: item.frameId,
-  }
-  return [
-    ...itemIssues(book, profile, options, item, location),
-    ...placementIssues(book, profile, item, box, sheet, location),
-  ]
 }
 
 function pageCountIssues(book: Book, profile: PrintProfile): PreflightIssue[] {
