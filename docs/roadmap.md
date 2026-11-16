@@ -251,6 +251,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [booklet-imposition](roadmap/P4/booklet-imposition.md) — home printing
 - [ ] [feature] [cover-pdf-paint](roadmap/P4/cover-pdf-paint.md) — Bug: /next-roadmap-item cover-pdf-paint
 - [ ] [feature] [cover-pdf](roadmap/P4/cover-pdf.md) — Bug: /next-roadmap-item cover-pdf
+- [ ] [lite] [roadmap-status-sweep](roadmap/P4/roadmap-status-sweep.md) — Bug: /next-roadmap-item roadmap-status-sweep
 - [ ] [feature] [design-r21-kit-presets](roadmap/P4/design-r21-kit-presets.md) — Bug: /next-roadmap-item design-r21-kit-presets
 - [ ] [feature] [cover-editor-core](roadmap/P4/cover-editor-core.md) — Bug: /next-roadmap-item cover-editor-core
 - [ ] [feature] [cover-editor-kit](roadmap/P4/cover-editor-kit.md) — Bug: /next-roadmap-item cover-editor-kit
