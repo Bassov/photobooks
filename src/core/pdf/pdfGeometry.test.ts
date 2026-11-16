@@ -5,6 +5,9 @@ import {
   compose,
   CROP_MARK_LENGTH_MM,
   cropMarkOffsetMm,
+  coverPhotoAnchor,
+  coverPhotoRect,
+  coverSheetMarks,
   cropMarkSegments,
   frameMatrix,
   frameTouches,
@@ -189,6 +192,96 @@ describe('cropMarkSegments', () => {
       from: { x: 600, y: 204 },
       to: { x: 600, y: 209 },
     })
+  })
+})
+
+describe('coverSheetMarks', () => {
+  it('adds a fold mark above and below each spine edge (A5 Generic: 163 and 175 mm)', () => {
+    const sheet = {
+      sheetW: 338,
+      sheetH: 240,
+      spine: 12,
+      rects: { spine: { x: 163 } },
+    }
+    const segments = coverSheetMarks(sheet, 3)
+    expect(segments.slice(0, 8)).toEqual(
+      cropMarkSegments({ x: 0, y: 0, width: 338, height: 240 }, 3),
+    )
+    expect(segments.slice(8)).toEqual([
+      { from: { x: 163, y: -3 }, to: { x: 163, y: -8 } },
+      { from: { x: 163, y: 243 }, to: { x: 163, y: 248 } },
+      { from: { x: 175, y: -3 }, to: { x: 175, y: -8 } },
+      { from: { x: 175, y: 243 }, to: { x: 175, y: 248 } },
+    ])
+  })
+
+  it('starts the fold marks where the crop marks start', () => {
+    const sheet = {
+      sheetW: 100,
+      sheetH: 50,
+      spine: 4,
+      rects: { spine: { x: 40 } },
+    }
+    const [, , , , , , , , top] = coverSheetMarks(sheet, 1)
+    expect(top).toEqual({
+      from: { x: 40, y: -cropMarkOffsetMm(1) },
+      to: { x: 40, y: -cropMarkOffsetMm(1) - CROP_MARK_LENGTH_MM },
+    })
+  })
+})
+
+describe('coverPhotoRect', () => {
+  // A5 Generic front photo box: front board plus the 15 mm wrap.
+  const box = { x: 175, y: 0, width: 163, height: 240 }
+
+  it('is the canvas cover fit at 45 % / 50 % without a crop', () => {
+    expect(coverPhotoAnchor()).toEqual({ x: 0.45, y: 0.5 })
+    // 3:2 landscape: height-limited, 360 mm wide, 45 % of the overflow left.
+    expect(coverPhotoRect(box, 1.5)).toEqual({
+      x: 175 - (360 - 163) * 0.45,
+      y: 0,
+      width: 360,
+      height: 240,
+    })
+    // 1:2 portrait: width-limited, 326 mm high, centred.
+    expect(coverPhotoRect(box, 0.5)).toEqual({
+      x: 175,
+      y: -43,
+      width: 163,
+      height: 326,
+    })
+  })
+
+  it('scales by the crop zoom about the crop centre', () => {
+    const crop = { zoom: 2, center: { x: 0.25, y: 0.75 } }
+    expect(coverPhotoAnchor(crop)).toEqual({ x: 0.25, y: 0.75 })
+    expect(coverPhotoRect(box, 1.5, crop)).toEqual({
+      x: 175 - (720 - 163) * 0.25,
+      y: -(480 - 240) * 0.75,
+      width: 720,
+      height: 480,
+    })
+  })
+
+  it('grows about the anchor point just enough to cover the bleed box', () => {
+    // Portrait fit is flush with the board's outer edge: 3 mm bleed needs k.
+    const bleed = { x: 175, y: -3, width: 166, height: 246 }
+    const rect = coverPhotoRect(box, 0.5, undefined, bleed)
+    // Anchor point x = 175 + 0.45 · 163; the right edge is 0.55 · 163 away.
+    const k = (0.55 * 163 + 3) / (0.55 * 163)
+    expect(rect.width).toBeCloseTo(163 * k, 9)
+    expect(rect.x).toBeCloseTo(175 + 0.45 * 163 * (1 - k), 9)
+    expect(rect.x + rect.width).toBeCloseTo(341, 9)
+    // An anchor on the outer edge cannot grow that way: it stays finite.
+    const edge = { zoom: 1, center: { x: 1, y: 0.5 } }
+    const pinned = coverPhotoRect(box, 0.5, edge, bleed)
+    expect(pinned.x + pinned.width).toBeCloseTo(338, 9)
+    expect(pinned.height).toBeCloseTo(326, 9)
+    // Already covering (zoomed in): unchanged.
+    const zoomed = { zoom: 2, center: { x: 0.5, y: 0.5 } }
+    expect(coverPhotoRect(box, 1.5, zoomed, bleed)).toEqual(
+      coverPhotoRect(box, 1.5, zoomed),
+    )
   })
 })
 

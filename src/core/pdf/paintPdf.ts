@@ -92,10 +92,10 @@ export interface PaintPdfResult {
   skipped: SkippedPhoto[]
 }
 
-type PdfLib = typeof import('@cantoo/pdf-lib')
+export type PdfLib = typeof import('@cantoo/pdf-lib')
 
 /** A written photo XObject: its bytes are gone, its size stays. */
-interface Embedded {
+export interface Embedded {
   ref: PDFRef
   width: number
   height: number
@@ -225,7 +225,7 @@ function addSheetPage(
 }
 
 /** Embeds and writes each photo before the next one is read. */
-async function embedPhotos(
+export async function embedPhotos(
   lib: PdfLib,
   doc: PDFDocument,
   stream: PdfStream,
@@ -304,12 +304,12 @@ async function tagColor(
   )
 }
 
-function cm(lib: PdfLib, m: Matrix): PDFOperator {
+export function cm(lib: PdfLib, m: Matrix): PDFOperator {
   return lib.concatTransformationMatrix(...m)
 }
 
 /** `#rrggbb` → 0–1 channels. */
-function rgb(hex: string): [number, number, number] {
+export function rgb(hex: string): [number, number, number] {
   const value = Number.parseInt(hex.slice(1, 7), 16)
   return [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff].map(
     (channel) => channel / 255,

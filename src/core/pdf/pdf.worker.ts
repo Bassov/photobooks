@@ -11,6 +11,7 @@ import { colorWarnings } from './colorPreflight'
 import type { ImpositionLayout } from '../print/imposition'
 import { readSourceColor } from './iccProfile'
 import { imposePdf } from './imposePdf'
+import { paintCoverPdf } from './paintCoverPdf'
 import { paintBookPdf, type SkippedPhoto } from './paintPdf'
 
 export interface PdfPaintRequest {
@@ -39,6 +40,14 @@ export type PdfWorkerRequest =
   | { check: PdfCheckRequest }
   | { impose: PdfImposeRequest }
 
+/**
+ * The one-page cover PDF of the same paint request (Designer cover-pdf);
+ * the print dialog's item joins it to `PdfWorkerRequest`.
+ */
+export interface PdfCoverWorkerRequest {
+  cover: PdfPaintRequest
+}
+
 /** The next bytes of the PDF file, transferred; chunks come in file order. */
 export interface PdfChunkMessage {
   chunk: ArrayBuffer
@@ -50,6 +59,12 @@ export type PdfPaintMessage =
   | { progress: { painted: number; sheets: number } }
   /** After the last chunk; `bytes` = every chunk together. */
   | { done: { bytes: number; sheets: number; skipped: SkippedPhoto[] } }
+  | { failed: { message: string } }
+
+export type PdfCoverMessage =
+  | PdfChunkMessage
+  /** After the last chunk; `skipped` = the front photo when it is gone. */
+  | { done: { bytes: number; skipped: SkippedPhoto[] } }
   | { failed: { message: string } }
 
 export type PdfCheckMessage =
@@ -88,6 +103,41 @@ async function fetchBookFont(file: string): Promise<Uint8Array> {
 /** Bytes read from the head of each photo: JPEG APP2 / PNG iCCP sit there. */
 export const COLOR_READ_BYTES = 256 * 1024
 
+/** The painter input of a paint / cover request, without its sinks. */
+function paintInput(request: PdfPaintRequest) {
+  return {
+    book: request.book,
+    profile: bookPrintProfile(request.book, request.printProfiles),
+    photos: async (assetId: string) => {
+      const blob = request.photos[assetId]
+      return blob === undefined
+        ? undefined
+        : new Uint8Array(await blob.arrayBuffer())
+    },
+    fonts: fetchBookFont,
+    marks: request.marks,
+  }
+}
+
+/**
+ * Paints the book's one-page cover PDF: `chunk` messages as the file grows,
+ * then exactly one `done` / `failed` message.
+ */
+export async function runPdfCover(
+  request: PdfPaintRequest,
+  post: (message: PdfCoverMessage, transfer: Transferable[]) => void,
+): Promise<void> {
+  try {
+    const { bytes, skipped } = await paintCoverPdf({
+      ...paintInput(request),
+      onChunk: postChunk(post),
+    })
+    post({ done: { bytes, skipped } }, [])
+  } catch (error) {
+    post({ failed: { message: String(error) } }, [])
+  }
+}
+
 /**
  * Paints the book's PDF: `chunk` messages as the file grows, a `progress`
  * message per page (posted, never awaited), then exactly one `done` /
@@ -99,16 +149,7 @@ export async function runPdfPaint(
 ): Promise<void> {
   try {
     const result = await paintBookPdf({
-      book: request.book,
-      profile: bookPrintProfile(request.book, request.printProfiles),
-      photos: async (assetId) => {
-        const blob = request.photos[assetId]
-        return blob === undefined
-          ? undefined
-          : new Uint8Array(await blob.arrayBuffer())
-      },
-      fonts: fetchBookFont,
-      marks: request.marks,
+      ...paintInput(request),
       onChunk: postChunk(post),
       onSheet: (painted, sheets) => {
         post({ progress: { painted, sheets } }, [])
@@ -183,14 +224,17 @@ async function sourceColor(assetId: string, pages: number[], blob: Blob) {
   return { assetId, pages, family }
 }
 
-type PdfWorkerMessage = PdfPaintMessage | PdfCheckMessage | PdfImposeMessage
+type PdfWorkerMessage =
+  PdfPaintMessage | PdfCoverMessage | PdfCheckMessage | PdfImposeMessage
+
+type PdfAnyRequest = PdfWorkerRequest | PdfCoverWorkerRequest
 
 const workerScope = globalThis as typeof globalThis & {
-  onmessage: ((event: MessageEvent<PdfWorkerRequest>) => void) | null
+  onmessage: ((event: MessageEvent<PdfAnyRequest>) => void) | null
   postMessage: (message: PdfWorkerMessage, transfer: Transferable[]) => void
 }
 
-workerScope.onmessage = (event: MessageEvent<PdfWorkerRequest>) => {
+workerScope.onmessage = (event: MessageEvent<PdfAnyRequest>) => {
   const post = (message: PdfWorkerMessage, transfer: Transferable[]) => {
     workerScope.postMessage(message, transfer)
   }
@@ -199,5 +243,7 @@ workerScope.onmessage = (event: MessageEvent<PdfWorkerRequest>) => {
     ? runPdfCheck(request.check, post)
     : 'impose' in request
       ? runPdfImpose(request.impose, post)
-      : runPdfPaint(request.paint, post))
+      : 'cover' in request
+        ? runPdfCover(request.cover, post)
+        : runPdfPaint(request.paint, post))
 }

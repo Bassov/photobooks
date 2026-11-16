@@ -9,9 +9,12 @@ import { ADOBE_RGB_ICC, colorJpeg } from '../testing/colorFixtures'
 import {
   COLOR_READ_BYTES,
   runPdfCheck,
+  runPdfCover,
   runPdfImpose,
   runPdfPaint,
   type PdfCheckMessage,
+  type PdfCoverMessage,
+  type PdfCoverWorkerRequest,
   type PdfImposeMessage,
   type PdfPaintMessage,
   type PdfWorkerRequest,
@@ -285,6 +288,81 @@ async function impose(request: Parameters<typeof runPdfImpose>[0]) {
   })
   return posts
 }
+
+describe('runPdfCover', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function coverBook(assetId: string) {
+    const book = photoBook()
+    return {
+      ...book,
+      cover: { ...book.cover, front: { text: '', assetId } },
+    }
+  }
+
+  it('answers a cover message with a one-page PDF and the skipped front photo', async () => {
+    const posts: unknown[][] = []
+    vi.stubGlobal('postMessage', (...args: unknown[]) => posts.push(args))
+    const scope = globalThis as unknown as {
+      onmessage: (event: { data: PdfCoverWorkerRequest }) => void
+    }
+
+    scope.onmessage({
+      data: { cover: { book: coverBook('gone'), photos: {}, marks: true } },
+    })
+
+    await vi.waitFor(() => {
+      expect(posts.at(-1)?.[0]).toHaveProperty('done')
+    })
+    const [chunk, chunkTransfer] = posts[0] ?? []
+    expect(chunkTransfer).toEqual([(chunk as { chunk: ArrayBuffer }).chunk])
+    const messages = posts.map(([data]) => data)
+    expect(messages.filter((data) => !('chunk' in (data as object)))).toEqual([
+      {
+        done: {
+          bytes: expect.any(Number),
+          skipped: [{ assetId: 'gone', reason: 'missing' }],
+        },
+      },
+    ])
+    const file = fileOf(messages)
+    expect(file.length).toBe(
+      (messages.at(-1) as { done: { bytes: number } }).done.bytes,
+    )
+    expect((await PDFDocument.load(file)).getPageCount()).toBe(1)
+  })
+
+  it('embeds the front photo from the request and posts one failure when painting throws', async () => {
+    const painted: [PdfCoverMessage, Transferable[]][] = []
+    await runPdfCover(
+      {
+        book: coverBook('a'),
+        photos: { a: new Blob([JPEG]) },
+        marks: false,
+      },
+      (message, transfer) => painted.push([message, transfer]),
+    )
+    expect(painted.at(-1)).toEqual([
+      { done: { bytes: expect.any(Number), skipped: [] } },
+      [],
+    ])
+
+    const failed: [PdfCoverMessage, Transferable[]][] = []
+    await runPdfCover(
+      {
+        book: { ...coverBook('a'), cover: null } as never,
+        photos: {},
+        marks: true,
+      },
+      (message, transfer) => failed.push([message, transfer]),
+    )
+    expect(failed).toEqual([
+      [{ failed: { message: expect.stringMatching(/TypeError/) } }, []],
+    ])
+  })
+})
 
 function imposedOf(message: unknown) {
   const impose = message as PdfImposeMessage | undefined

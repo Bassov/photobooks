@@ -67,6 +67,26 @@ describe('CoverView', () => {
     )
   })
 
+  it('anchors the front photo where the print places it (coverPhotoAnchor)', () => {
+    const book = coverBook()
+    const { container, rerender } = render(
+      <CoverView book={book} frontUrl="a1.jpg" />,
+    )
+    const photo = () =>
+      container.querySelector<HTMLElement>('.cover-front-photo')
+    expect(photo()?.style.backgroundPosition).toBe('45% 50%')
+
+    const crop = { zoom: 1, center: { x: 0.25, y: 0.75 } }
+    const front = { ...book.cover.front, crop }
+    rerender(
+      <CoverView
+        book={{ ...book, cover: { ...book.cover, front } }}
+        frontUrl="a1.jpg"
+      />,
+    )
+    expect(photo()?.style.backgroundPosition).toBe('25% 75%')
+  })
+
   it('sizes the mini cover to widthPx and leaves an empty front bare', () => {
     const { container } = render(<CoverView book={makeBook()} widthPx={480} />)
 
