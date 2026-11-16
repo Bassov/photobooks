@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P4
 Title: Bug: /next-roadmap-item design-r31-cover-check
+Status: done
 
 Designer parity cover-pdf (2026-11-16, Must M122): the Print dialog Check block never shows cover rows (Spec cover-pdf 2.1.4 / C9, CP4). The PDF worker check calls `preflight` without `cover`, and the front photo never reaches `colorWarnings`, so spine-text-cut, cover-front-empty and cover-not-srgb never appear. Kit reference: `#/feature/pdf-export` scenarios "Cover check" and "No bleed".
 
