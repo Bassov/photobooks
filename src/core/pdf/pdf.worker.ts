@@ -2,6 +2,7 @@ import {
   photoPages,
   preflight,
   type PreflightAssetStatus,
+  type PreflightCoverOptions,
 } from '../print/preflight'
 import { preflightRows, type PreflightRow } from '../print/preflightText'
 import type { PrintProfile } from '../print/profileSchema'
@@ -11,7 +12,13 @@ import { colorWarnings } from './colorPreflight'
 import type { ImpositionLayout } from '../print/imposition'
 import { readSourceColor } from './iccProfile'
 import { imposePdf } from './imposePdf'
-import { paintCoverPdf } from './paintCoverPdf'
+import { paintCoverPdf, titleFace } from './paintCoverPdf'
+import {
+  loadPdfFonts,
+  type FontFileSource,
+  type FontNeed,
+  type PdfFonts,
+} from './pdfFonts'
 import { paintBookPdf, type SkippedPhoto } from './paintPdf'
 
 export interface PdfPaintRequest {
@@ -27,6 +34,8 @@ export interface PdfPaintRequest {
 export interface PdfCheckRequest extends Omit<PdfPaintRequest, 'marks'> {
   /** Relink scan result by asset id; absent ids are present and unchanged. */
   assetStatus?: Readonly<Record<string, PreflightAssetStatus>>
+  /** The dialog's layout: only 1 per sheet prints a cover, so checks it (C9). */
+  layout: 'single' | ImpositionLayout
 }
 
 export interface PdfImposeRequest {
@@ -175,11 +184,21 @@ export async function runPdfCheck(
     const profile = bookPrintProfile(book, request.printProfiles)
     const issues = preflight(book, profile, {
       assetStatus: new Map(Object.entries(request.assetStatus ?? {})),
+      ...(request.layout === 'single'
+        ? { cover: await coverCheck(request, profile) }
+        : {}),
     })
     const sources = await Promise.all(
       [...photoPages(book)].flatMap(([assetId, pages]) => {
         const blob = request.photos[assetId]
-        return blob === undefined ? [] : [sourceColor(assetId, pages, blob)]
+        return blob === undefined
+          ? []
+          : [
+              sourceColor(assetId, blob).then((source) => ({
+                ...source,
+                pages,
+              })),
+            ]
       }),
     )
     const colors = sources.flatMap((source) =>
@@ -218,10 +237,49 @@ export async function runPdfImpose(
   }
 }
 
-async function sourceColor(assetId: string, pages: number[], blob: Blob) {
+/**
+ * The cover rules' input at 1 per sheet: the front photo's colour and the
+ * spine text measured in the book font the cover painter sets it in.
+ */
+async function coverCheck(
+  request: PdfCheckRequest,
+  profile: PrintProfile,
+): Promise<PreflightCoverOptions> {
+  const { cover } = request.book
+  const fronts = Object.entries(request.photos).filter(
+    ([assetId]) => assetId === cover.front.assetId,
+  )
+  const sources = await Promise.all(
+    fronts.map(([assetId, blob]) => sourceColor(assetId, blob)),
+  )
+  const face = titleFace(cover.style.titleFont)
+  // An empty spine text loads no font file.
+  const fonts = await spineFonts(
+    { font: face, text: cover.spine.text.trim() },
+    fetchBookFont,
+  )
+  return {
+    layout: 'single',
+    colors: colorWarnings(sources, profile),
+    textAdvanceMm: (line, sizeMm) => fonts.width(line, { ...face, sizeMm }),
+  }
+}
+
+/** The book font faces of `need`, opened in a throwaway PDF to measure. */
+async function spineFonts(
+  need: FontNeed,
+  source: FontFileSource,
+): Promise<PdfFonts> {
+  // Loaded on a cover check only, as the cover painter does.
+  const lib = await import('@cantoo/pdf-lib')
+  const doc = await lib.PDFDocument.create()
+  return loadPdfFonts(lib, doc, [need], source)
+}
+
+async function sourceColor(assetId: string, blob: Blob) {
   const head = await blob.slice(0, COLOR_READ_BYTES).arrayBuffer()
   const { family } = await readSourceColor(new Uint8Array(head))
-  return { assetId, pages, family }
+  return { assetId, family }
 }
 
 type PdfWorkerMessage =

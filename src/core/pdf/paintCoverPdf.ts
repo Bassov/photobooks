@@ -64,7 +64,7 @@ interface CoverText {
 }
 
 /** Title and spine font (CoverView `data-title-font`); the back is `sans`. */
-function titleFace(titleFont: CoverStyle['titleFont']) {
+export function titleFace(titleFont: CoverStyle['titleFont']) {
   return {
     family: titleFont === 'sans' ? 'Inter Variable' : 'Lora Variable',
     weight: 400,

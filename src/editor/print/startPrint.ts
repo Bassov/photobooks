@@ -353,6 +353,8 @@ export async function runPrint(deps: PrintRunDeps): Promise<void> {
 export interface PrintCheckDeps {
   book: Book
   printProfiles: readonly PrintProfile[]
+  /** 1 per sheet adds the cover rows (C9). */
+  layout: PrintLayout
   resolvePhotos: (book: Book) => Promise<PrintPhotos>
   runWorker: PdfWorkerRunner
 }
@@ -361,7 +363,7 @@ export interface PrintCheckDeps {
 export async function checkPrint(
   deps: PrintCheckDeps,
 ): Promise<PreflightRow[]> {
-  const { book, printProfiles } = deps
+  const { book, printProfiles, layout } = deps
   try {
     const { photos, missing } = await deps.resolvePhotos(book)
     const checked = await lastMessage(
@@ -371,6 +373,7 @@ export async function checkPrint(
           book,
           printProfiles,
           photos,
+          layout,
           assetStatus: Object.fromEntries(
             missing.map((id) => [id, 'missing' as const]),
           ),
@@ -462,11 +465,12 @@ function runJob(job: PrintJob): void {
   })
 }
 
-/** The open book's Check rows. */
-export function checkOpenBook(): Promise<PreflightRow[]> {
+/** The open book's Check rows for `layout`. */
+export function checkOpenBook(layout: PrintLayout): Promise<PreflightRow[]> {
   return checkPrint({
     book: getBookStoreSnapshot().book,
     printProfiles: getBookPrintProfiles(),
+    layout,
     resolvePhotos: resolvePrintPhotos,
     runWorker: runPdfWorker,
   })

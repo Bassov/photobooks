@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import { fc } from '@fast-check/vitest'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { genericPrintProfile } from '../print/genericProfile'
+import type { Book } from '../schema'
 import { makeBook, makeFrame, makeSpread } from '../testing/fixtures'
 import { ADOBE_RGB_ICC, colorJpeg } from '../testing/colorFixtures'
 import {
@@ -13,6 +14,7 @@ import {
   runPdfImpose,
   runPdfPaint,
   type PdfCheckMessage,
+  type PdfCheckRequest,
   type PdfCoverMessage,
   type PdfCoverWorkerRequest,
   type PdfImposeMessage,
@@ -503,6 +505,7 @@ describe('runPdfCheck', () => {
       book: colorBook(),
       photos: { adobe, plain },
       assetStatus: { plain: 'modified' },
+      layout: '2up',
     })
 
     expect(posts).toHaveLength(1)
@@ -538,6 +541,7 @@ describe('runPdfCheck', () => {
       }),
       printProfiles: [custom],
       photos: {},
+      layout: '2up',
     })
 
     expect(rowsOf(posts[0]?.message).map(({ text }) => text)).toEqual([
@@ -552,7 +556,9 @@ describe('runPdfCheck', () => {
       onmessage: (event: { data: PdfWorkerRequest }) => void
     }
 
-    scope.onmessage({ data: { check: { book: colorBook(), photos: {} } } })
+    scope.onmessage({
+      data: { check: { book: colorBook(), photos: {}, layout: '4up' } },
+    })
 
     await vi.waitFor(() => {
       expect(posts).toHaveLength(1)
@@ -564,10 +570,142 @@ describe('runPdfCheck', () => {
     expect(transfer).toEqual([])
   })
 
+  describe('cover (C9)', () => {
+    /** ≈ 520 mm of 6 mm type: past any trim height. */
+    const LONG = 'Lake trip '.repeat(20).trim()
+
+    /** `colorBook` with a 6000 px `adobe` / `plain` front and a spine text on a 12 mm spine. */
+    function coverBook(
+      front: string | undefined,
+      text: string,
+      titleFont: Book['cover']['style']['titleFont'] = 'serif',
+    ): Book {
+      const book = colorBook()
+      return {
+        ...book,
+        assets: {
+          ...book.assets,
+          adobe: { widthPx: 6000, heightPx: 6000 },
+          plain: { widthPx: 6000, heightPx: 6000 },
+        },
+        cover: {
+          ...book.cover,
+          front: {
+            text: '',
+            ...(front === undefined ? {} : { assetId: front }),
+          },
+          spine: { ...book.cover.spine, text },
+          // A 12 mm spine: the 1-page book's own is too thin for type.
+          style: { ...book.cover.style, titleFont, spineWidthMm: 12 },
+          print: { spineWidthSource: 'manual' },
+        },
+      }
+    }
+
+    const photos = {
+      adobe: new Blob([new Uint8Array(colorJpeg('adobe', ADOBE_RGB_ICC))]),
+      plain: new Blob([new Uint8Array(colorJpeg('plain'))]),
+    }
+
+    async function coverRows(
+      book: Book,
+      layout: PdfCheckRequest['layout'] = 'single',
+    ) {
+      const posts = await check({ book, photos, layout })
+      return rowsOf(posts[0]?.message)
+        .filter((row) => row.scope === 'cover')
+        .map(({ id, text }) => ({ id, text }))
+    }
+
+    function serveFonts(fetched: string[] = []) {
+      vi.stubGlobal('location', {
+        href: 'https://app.test/assets/pdf.worker.js',
+      })
+      vi.stubGlobal('fetch', async (url: URL) => {
+        fetched.push(url.pathname.split('/').at(-1) ?? '')
+        const file = url.pathname.split('/').at(-1) ?? ''
+        return new Response(
+          new Blob([new Uint8Array(await bookFontFiles(file))]),
+        )
+      })
+    }
+
+    it('spine text longer than the spine at 1 per sheet: spine-text-cut, measured in the book font', async () => {
+      const fetched: string[] = []
+      serveFonts(fetched)
+
+      expect(await coverRows(coverBook('plain', LONG))).toEqual([
+        {
+          id: 'spine-text-cut',
+          text: 'Spine text is longer than the spine and ends in “…”',
+        },
+      ])
+      expect(await coverRows(coverBook('plain', 'Lake trip'))).toEqual([])
+      expect(fetched).toEqual([
+        'lora-latin-wght-normal.woff2',
+        'lora-latin-wght-normal.woff2',
+      ])
+    })
+
+    it('measures a sans title font in Inter', async () => {
+      const fetched: string[] = []
+      serveFonts(fetched)
+
+      const rows = await coverRows(coverBook('plain', LONG, 'sans'))
+
+      expect(rows.map(({ id }) => id)).toEqual(['spine-text-cut'])
+      expect(fetched).toEqual(['inter-latin-wght-normal.woff2'])
+    })
+
+    it('booklets get no cover rows and load no font', async () => {
+      const fetched: string[] = []
+      serveFonts(fetched)
+
+      expect(await coverRows(coverBook(undefined, LONG), '2up')).toEqual([])
+      expect(await coverRows(coverBook('adobe', LONG), '4up')).toEqual([])
+      expect(fetched).toEqual([])
+    })
+
+    it('no front photo: cover-front-empty, without a font for a blank spine', async () => {
+      const fetched: string[] = []
+      serveFonts(fetched)
+
+      const rows = await coverRows(coverBook(undefined, '   '))
+
+      expect(rows.map(({ id }) => id)).toEqual(['cover-front-empty'])
+      expect(fetched).toEqual([])
+    })
+
+    it('a non-sRGB front photo: cover-not-srgb', async () => {
+      const rows = await coverRows(coverBook('adobe', ''))
+
+      expect(rows.map(({ id }) => id)).toEqual(['cover-not-srgb'])
+      expect(await coverRows(coverBook('plain', ''))).toEqual([])
+    })
+
+    it('a front photo without its file gets no colour row; other files stay unread', async () => {
+      const stray = new HeadOnlyBlob([
+        new Uint8Array(colorJpeg('stray', ADOBE_RGB_ICC)),
+      ])
+
+      const posts = await check({
+        book: coverBook('adobe', ''),
+        photos: { stray },
+        layout: 'single',
+      })
+
+      expect(
+        rowsOf(posts[0]?.message).filter((row) => row.scope === 'cover'),
+      ).toEqual([])
+      expect(stray.slices).toEqual([])
+    })
+  })
+
   it('posts one failure when the check throws', async () => {
     const posts = await check({
       book: { ...colorBook(), spreads: null } as never,
       photos: {},
+      layout: '2up',
     })
 
     expect(posts).toEqual([
