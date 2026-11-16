@@ -12,6 +12,7 @@
 | --------------------------------------- |
 | `src/editor/print/PrintDialog.tsx`      |
 | `src/editor/print/PrintDialog.test.tsx` |
+| `src/editor/print/PrintButton.test.tsx` |
 | `src/editor/print/printText.ts`         |
 | `src/editor/print/printText.test.ts`    |
 | `src/editor/print/printStore.ts`        |
