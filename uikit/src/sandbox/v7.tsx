@@ -86,7 +86,8 @@ export function CoverSpread({ big, slide }: { big?: boolean; slide?: number }) {
     <div className={`${big ? "absolute" : "relative h-full w-full"} flex`} style={{ boxShadow: big ? shadowBig : slide ? undefined : shadowSm, containerType: "inline-size", "--spine-frac": SP / CW, "--spine-len-frac": (bk.h - 2 * SAFE) / CW, ...(big && { left: pct(WRAP, SHW), top: pct(WRAP, SHH), width: pct(CW, SHW), height: pct(bk.h, SHH) }) } as React.CSSProperties} data-testid={big ? "canvas-cover" : undefined}>
       <div className="relative h-full" style={{ width: pct(bk.w, CW), background: "#3E3C3B" }}>
         <div className="absolute right-[12%] bottom-[10%] left-[12%]" style={{ color: "#E8E6E3", fontSize: fs(11, 3) }} data-testid={big ? "cover-back-text" : undefined}>{ct.back}</div></div>
-      <div className="relative h-full" style={{ width: pct(SP, CW), background: "#353332" }} data-testid={big ? "cover-spine" : undefined}>
+      {/* cover-pdf C5: the spine is cloth = the back fill, as it prints; the hinge hatching keeps its edges visible */}
+      <div className="relative h-full" style={{ width: pct(SP, CW), background: "#3E3C3B" }} data-testid={big ? "cover-spine" : undefined}>
         {/* D5: centred on the spine whatever its length; at most 12 px at 848 and half the spine; trim height − 2 × safe long, then an ellipsis */}
         <span className="absolute top-1/2 left-1/2 overflow-hidden text-ellipsis whitespace-nowrap" style={{ ...serif, color: "#E8E6E3", lineHeight: 1.5, fontSize: big || slide ? "min(calc(100cqw * 12 / 848), calc(100cqw * var(--spine-frac) * .5))" : 3, maxWidth: "calc(100cqw * var(--spine-len-frac))", transform: "translate(-50%, -50%) rotate(90deg)" }} data-testid={big ? "cover-spine-text" : undefined}><em>{ct.spine}</em></span></div>
       <div className={`relative h-full ${big ? "" : "overflow-hidden"}`} style={{ width: pct(bk.w, CW), backgroundColor: cov ? undefined : "#8E8E8E" }} data-testid={big ? "cover-front" : undefined} data-photo-id={cov || undefined}>
@@ -95,10 +96,10 @@ export function CoverSpread({ big, slide }: { big?: boolean; slide?: number }) {
         <div className="absolute top-[9%] right-[10%] left-[10%] text-white" style={{ ...serif, fontSize: fs(34, 7), textShadow: "0 1px 8px rgb(0 0 0/.35)" }} data-testid={big ? "cover-front-text" : undefined}><em>{ct.front}</em></div></div>
     </div>)
   if (!big) return cover
-  const a = pct(WRAP + bk.w, SHW), b = pct(WRAP + bk.w + SP, SHW), boardY = { top: pct(WRAP + SAFE, SHH), height: pct(bk.h - 2 * SAFE, SHH) }
+  const b = pct(WRAP + bk.w + SP, SHW), boardY = { top: pct(WRAP + SAFE, SHH), height: pct(bk.h - 2 * SAFE, SHH) }
   const strip = (s: React.CSSProperties) => <div className="absolute" style={{ ...s, background: "rgb(200 202 203/.72)" }} />
   return (
-    <div ref={ref} className="relative size-full" style={{ background: `linear-gradient(90deg, #3E3C3B ${a}, #353332 ${a} ${b}, #8E8E8E ${b})` }} data-testid="cover-sheet">
+    <div ref={ref} className="relative size-full" style={{ background: `linear-gradient(90deg, #3E3C3B ${b}, #8E8E8E ${b})` }} data-testid="cover-sheet">
       {cover}
       {([["back", WRAP + bk.w - HINGE], ["front", WRAP + bk.w + SP]] as const).map(([s, x]) =>
         <div key={s} className="pointer-events-none absolute" style={{ left: pct(x, SHW), top: pct(WRAP, SHH), width: pct(HINGE, SHW), height: pct(bk.h, SHH), background: "repeating-linear-gradient(-45deg, rgb(255 255 255/.24) 0 1px, transparent 1px 6px)" }} data-testid={`cover-hinge-${s}`} />)}

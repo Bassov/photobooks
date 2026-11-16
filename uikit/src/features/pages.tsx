@@ -26,9 +26,12 @@ const PATH = "~/Pictures/Photobooks"
 const EXPORTED = ["Fog", "Summer ’25"]
 const RUN_42: ExportRun = { phase: "run", p: 42, fail: "unknown", folder: "Sites", start: () => {}, seen: () => {} }
 const PUB_42: PublishRun = { phase: "run", p: 42, fail: "timeout", sent: 0, total: 40, start: () => {}, seen: () => {} }
-/* pdf-export: the Lake trip dialog, a run frozen half way (Page 11 of 20 · 48%), a failed one and a book with no frames (a clean check) */
+/* pdf-export: the Lake trip dialog, a run frozen half way (Page 12 of 20 · 50%: 20 pages + the cover), a failed one and a book with
+   no frames (a clean check) */
 const Print = (p: Partial<React.ComponentProps<typeof PrintDialog>>) => <PrintDialog book={LAKE_BOOK} spreads={10} title={LAKE_TITLE} onClose={() => {}} {...p} />
-const printRun = (phase: PrintRun["phase"], v: number, fail: PrintRun["fail"] = "access", paper = 0): PrintRun => ({ phase, ...printProgress(v, pagesOf(10), paper), fail, start: () => true, seen: () => {} })
+const printRun = (phase: PrintRun["phase"], v: number, fail: PrintRun["fail"] = "access", paper = 0): PrintRun => ({ phase, ...printProgress(v, pagesOf(10), paper, !paper), fail, start: () => true, seen: () => {} })
+/* cover-pdf "Cover check": a 182 ppi front photo, a 4 mm manual spine (2 mm = 5.7 pt type) and a spine text longer than the spine */
+const COVER_CHECK = { ppi: 182, spineMm: 4, spine: Array.from({ length: 12 }, () => "Lake trip · ten days on the water").join(" · ") }
 const PRINT_50 = printRun("run", 50)
 /* booklet-imposition: a 2-up run imposing its 5 paper sheets (Imposing sheets · 3 of 5) */
 const PRINT_IMPOSING = printRun("run", 88, "access", 5)
@@ -290,20 +293,21 @@ export const PAGES: Record<string, FeatureDef> = {
   /* ------------------------------------------------------------ print */
   "pdf-export": page([
     ["opts-checking", "Checking", ed({ doc: docFilled, cur: 1, overlay: <Print holdCheck /> })],
-    ["opts-clean", "No problems", ed({ doc: docNoFrames, cur: 1, overlay: <Print /> })],
+    ["opts-clean", "No problems", ed({ doc: docNoFrames, cur: 1, extras: { cover: "p01" }, overlay: <Print /> })],
     ["opts-issues", "Issues", ed({ doc: docFilled, cur: 1, overlay: <Print /> })],
+    ["opts-cover-check", "Cover check", ed({ doc: docFilled, cur: 1, extras: { cover: "p01" }, overlay: <Print cover={COVER_CHECK} /> })],
     ["no-bleed", "No bleed", ed({ doc: docFilled, cur: 1, overlay: <Print initialBleed={false} /> })],
     ["opts-2up", "2-up", ed({ doc: docFilled, cur: 1, overlay: <Print initialImposition="2up" /> })],
     ["opts-4up-no-bleed", "4-up, no bleed", ed({ doc: docFilled, cur: 1, overlay: <Print initialImposition="4up" initialBleed={false} /> })],
     ["run", "Exporting", ed({ doc: docFilled, cur: 1, print: { phase: "run", p: PRINT_50.p }, overlay: <Print initialStep="run" run={PRINT_50} /> })],
     ["run-imposing", "Imposing", ed({ doc: docFilled, cur: 1, print: { phase: "run", p: PRINT_IMPOSING.p }, overlay: <Print initialStep="run" initialImposition="2up" run={PRINT_IMPOSING} /> })],
-    ["run-hidden", "Hidden, 48 %", ed({ doc: docFilled, cur: 1, print: { phase: "run", p: PRINT_50.p } })],
+    ["run-hidden", "Hidden, 50 %", ed({ doc: docFilled, cur: 1, print: { phase: "run", p: PRINT_50.p } })],
     ["done", "PDF ready", ed({ doc: docFilled, cur: 1, print: { phase: "done", p: 0 }, overlay: <Print initialStep="done" /> })],
     ["done-2up", "PDF ready, 2-up", ed({ doc: docFilled, cur: 1, print: { phase: "done", p: 0 }, overlay: <Print initialStep="done" initialImposition="2up" /> })],
     ["done-skipped", "PDF ready, skipped photos", ed({ doc: docFilled, cur: 1, missing: placedPhotos().slice(0, 2), print: { phase: "done", p: 0 }, overlay: <Print initialStep="done" /> })],
     ["failed", "Failed", ed({ doc: docFilled, cur: 1, print: { phase: "failed", p: 0 }, overlay: <Print initialStep="failed" run={PRINT_FAILED} /> })],
   ], {
-    what: "Print: the Print pill opens a dialog with page size, profile, Imposition (1 per sheet, 2-up, 4-up), bleed and a Check that never blocks; Export PDF shows hideable progress, then PDF ready with Open PDF and booklet folding steps.",
+    what: "Print: the Print pill opens a dialog with page size, profile, Imposition (1 per sheet, 2-up, 4-up), bleed and a Check that never blocks; Export PDF shows hideable progress, then PDF ready with Open pages · Open cover, or a booklet's folding steps.",
     where: "#/demo steps 48–52 (top bar → Print → Export PDF → Hide → the pill).",
     keys: [["Esc", "closes the dialog (Hide while running); the PDF keeps building in the pill"]],
     edge: ["The pill is icon-only 40 × 32 in every state: a fill while running, a check for 4 s, a warning until opened", "Print runs beside Export site and Publish", "Below a 1424 px window Export site is icon-only"],

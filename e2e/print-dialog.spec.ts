@@ -198,8 +198,14 @@ test.describe('pdf-export dialog', () => {
       'print-summary',
       'print-check',
     ]
+    // The kit has the cover-pdf Cover row (options) and cover file line
+    // (done); prod gains them in CP4 (roadmap item cover-pdf). Until then the
+    // kit rows below them are compared with the kit's measured shift taken
+    // out; cover-pdf drops `shiftBelow` and compares the kit as is.
     await kitAt(page, 'No problems')
-    const kitOpts = await offsets(page, ids)
+    const kitOpts = await offsets(page, [...ids, 'print-cover'])
+    const coverRowShift =
+      (kitOpts['print-imposition'] ?? 0) - (kitOpts['print-cover'] ?? 0)
     const kitOptsLook = await frameLook(page, 'print-go')
     await kitAt(page, 'PDF ready')
     const kitDone = await offsets(page, [
@@ -207,11 +213,33 @@ test.describe('pdf-export dialog', () => {
       'print-saved',
       'print-open',
     ])
+    const coverLineShift = (await box(page.getByTestId('print-done-cover')))
+      .height
     const kitDoneLook = await frameLook(page, 'print-close')
+    const shiftBelow = (
+      tops: Record<string, number>,
+      below: string[],
+      shift: number,
+    ) =>
+      Object.fromEntries(
+        Object.entries(tops)
+          .filter(([key]) => key !== 'print-cover')
+          .map(([key, top]) => [key, below.includes(key) ? top - shift : top]),
+      )
+    const kitOptsNow = shiftBelow(
+      kitOpts,
+      ['print-imposition', 'print-summary', 'print-check'],
+      coverRowShift,
+    )
+    const kitDoneNow = shiftBelow(
+      kitDone,
+      ['print-saved', 'print-open'],
+      coverLineShift,
+    )
 
     await openPrintFixture(page, folderFor(testInfo))
     await openPrint(page)
-    nearAll(await offsets(page, ids), kitOpts, 1)
+    nearAll(await offsets(page, ids), kitOptsNow, 1)
     const optsLook = await frameLook(page, 'print-go')
     expect(optsLook.width).toBeCloseTo(kitOptsLook.width, 0)
     expect(optsLook.button[1]).toBe(kitOptsLook.button[1])
@@ -227,7 +255,7 @@ test.describe('pdf-export dialog', () => {
     })
     nearAll(
       await offsets(page, ['print-done', 'print-saved', 'print-open']),
-      kitDone,
+      kitDoneNow,
       1,
     )
     const doneLook = await frameLook(page, 'print-close')

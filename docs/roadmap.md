@@ -244,6 +244,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [pdf-captions](roadmap/P4/pdf-captions.md) — text in the PDF
 - [ ] [feature] [site-final-painter](roadmap/P4/site-final-painter.md) — Bug: /next-roadmap-item site-final-painter
 - [ ] [feature] [ratchet-merge-base-ci](roadmap/P4/ratchet-merge-base-ci.md) — Bug: /next-roadmap-item ratchet-merge-base-ci
+- [ ] [feature] [cover-pdf-kit](roadmap/P4/cover-pdf-kit.md) — Bug: /next-roadmap-item cover-pdf-kit
 - [ ] [feature] [cover-pdf-check](roadmap/P4/cover-pdf-check.md) — Bug: /next-roadmap-item cover-pdf-check
 - [ ] [feature] [site-final-gl](roadmap/P4/site-final-gl.md) — Bug: /next-roadmap-item site-final-gl
 - [ ] [contingency] [pdf-streaming](roadmap/P4/pdf-streaming.md) — only if `pdf-export` peak memory is too high

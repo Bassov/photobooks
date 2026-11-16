@@ -9,10 +9,10 @@ import { Segmented } from "@/components/app/controls"
 import { AppModal } from "@/components/app/ui"
 import { FolderPicker } from "@/features/screens"
 import { useStudio, type Book, type Studio } from "@/sandbox/store"
-import { PRESETS, pagesOf, fmtN } from "@/sandbox/v7"
+import { PRESETS, WRAP, pagesOf, fmtN, spineCm, useCoverPhoto, useCoverText } from "@/sandbox/v7"
 import { SAMPLE_HOSTING, slug, useRun, useSession, type HostingRecord } from "./session"
 import { CATALOG, profileBleed, type KitProfile } from "./printProfiles"
-import { checkLabel, libraryLabel, openSamplePdf, pageList, printCheckRows, printDuplexText, printFailText, printProgress, printSummary, takePrintFail, type CheckSeverity, type PrintFail, type PrintLayout } from "./printCheck"
+import { checkLabel, coverCheckRows, coverFileName, libraryLabel, openSamplePdf, pageList, printBleedLabel, printCheckRows, printDuplexText, printFailText, printProgress, printSummary, takePrintFail, type CheckSeverity, type KitCover, type PrintFail, type PrintLayout } from "./printCheck"
 
 export type RunStep = "opts" | "run" | "done" | "failed"
 export type PublishStep = "connect" | "opts" | "run" | "done" | "failed"
@@ -113,13 +113,20 @@ const SEVERITY_ROW: Record<CheckSeverity, [LucideIcon, string]> = {
   error: [CircleAlert, "font-medium text-destructive-solid"], warning: [TriangleAlert, "text-warning-fg"], info: [Info, "text-muted-foreground"],
 }
 /** §2.1 check row: icon 16 centred on the first line, page list muted. */
-function CheckLine({ icon: Icon, className, children, pages = [], rule }: { icon: LucideIcon; className: string; children: React.ReactNode; pages?: number[]; rule?: string }) {
-  return <li className={`flex items-start gap-2 text-sm ${className}`} data-testid="print-check-row" data-rule={rule}><span className="flex h-lh shrink-0 items-center"><Icon className="size-4" /></span><span>{children}{pages.length > 0 && <span className="font-normal text-muted-foreground">{pageList(pages)}</span>}</span></li>
+function CheckLine({ icon: Icon, className, children, pages = [], cover = false, rule }: { icon: LucideIcon; className: string; children: React.ReactNode; pages?: number[]; cover?: boolean; rule?: string }) {
+  return <li className={`flex items-start gap-2 text-sm ${className}`} data-testid="print-check-row" data-rule={rule}><span className="flex h-lh shrink-0 items-center"><Icon className="size-4" /></span><span>{children}{(pages.length > 0 || cover) && <span className="font-normal text-muted-foreground">{pageList(pages, cover)}</span>}</span></li>
+}
+/** cover-pdf §2.1.4: the spine text's advance (mm) at `sizeMm` in the canvas spine face (Lora, italic). */
+function spineAdvanceMm(text: string, sizeMm: number) {
+  const ctx = document.createElement("canvas").getContext("2d")
+  if (!ctx) return 0
+  ctx.font = `italic 100px ${getComputedStyle(document.documentElement).getPropertyValue("--font-heading").trim() || "serif"}`
+  return (ctx.measureText(text).width / 100) * sizeMm
 }
 export type PrintRun = { phase: ExportPhase; p: number; text: string; fail: PrintFail; start: (sheets: number, paper?: number) => boolean; seen: () => void }
 /** Kit stand-in for the PDF worker (pdf-export D1, D7), shaped like `useExportRun`: the run outlives the dialog (Hide / Esc),
  *  "PDF ready" shows for 4 s, "PDF not exported" stays until `seen()` (the pill opened the dialog). `start` fails at once on a
- *  `__printDemo.fail()` seed and says whether it runs. */
+ *  `__printDemo.fail()` seed and says whether it runs. 1 per sheet paints the cover sheet after the pages (cover-pdf §2.2). */
 export function usePrintRun(ms = 1400): PrintRun {
   const [phase, setPhase] = React.useState<ExportPhase>("idle")
   const [fail, setFail] = React.useState<PrintFail>("other")
@@ -128,16 +135,17 @@ export function usePrintRun(ms = 1400): PrintRun {
   const v = useRun(phase === "run", ms, () => setPhase("done"))
   React.useEffect(() => { if (phase !== "done") return; const t = setTimeout(() => setPhase("idle"), 4000); return () => clearTimeout(t) }, [phase])
   return {
-    phase, ...printProgress(phase === "run" ? v : 0, sheets, paper), fail,
+    phase, ...printProgress(phase === "run" ? v : 0, sheets, paper, !paper), fail,
     start: (n, booklet = 0) => { setSheets(n); setPaper(booklet); const f = takePrintFail(); if (f) { setFail(f); setPhase("failed") } else setPhase("run"); return !f },
     seen: () => setPhase((x) => (x === "failed" ? "idle" : x)),
   }
 }
 /** #/demo Print dialog (Designer pdf-export §2.1–2.4): options + Check → exporting (Hide) → PDF ready / failed.
- *  `run`: the editor's print run (the pill shows it after Hide); a feature page leaves it out. `holdCheck` keeps the Check checking. */
-export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0], initialStep = "opts", initialImposition = "single", initialBleed = true, run: given, holdCheck }: {
+ *  `run`: the editor's print run (the pill shows it after Hide); a feature page leaves it out. `holdCheck` keeps the Check checking.
+ *  cover-pdf: 1 per sheet also writes `…-cover.pdf` (Cover row, cover Check rows, two Open buttons); `cover` seeds the cover inputs. */
+export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0], initialStep = "opts", initialImposition = "single", initialBleed = true, run: given, holdCheck, cover: seed }: {
   book: Book; spreads: number; title: string; onClose: () => void; /** the book's print profile (printer-presets; default Generic) */ profile?: KitProfile
-  initialStep?: RunStep; initialImposition?: PrintLayout; initialBleed?: boolean; run?: PrintRun; holdCheck?: boolean
+  initialStep?: RunStep; initialImposition?: PrintLayout; initialBleed?: boolean; run?: PrintRun; holdCheck?: boolean; cover?: Partial<KitCover>
 }) {
   const bleedMm = profileBleed(profile)
   const own = usePrintRun()
@@ -161,10 +169,21 @@ export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0
   const st = useStudio() as Studio | null
   const [checking, setChecking] = React.useState(true)
   React.useEffect(() => { setChecking(true); if (holdCheck) return; const t = setTimeout(() => setChecking(false), 800); return () => clearTimeout(t) }, [profile.id, holdCheck])
-  const rows = React.useMemo(() => (st ? printCheckRows(st.doc, st.book, st.missing, profile) : []), [st?.doc, st?.book, st?.missing, profile])
+  // the cover sheet as the canvas paints it (cover-editor): closed cover + the wrap on every side; the kit's cover bleed = page bleed
+  const coverPhoto = useCoverPhoto(), coverText = useCoverText()
+  const cover: KitCover = { photo: coverPhoto || null, spine: coverText.spine, spineMm: spineCm(pages) * 10, ...seed }
+  const single = imp === "single"
+  const coverRow = single ? `${fmtN(2 * book.w + cover.spineMm / 10 + 2 * WRAP)} × ${fmtN(book.h + 2 * WRAP)} cm · spine ${fmtN(cover.spineMm)} mm` : "None with booklets"
+  const all = React.useMemo(() => (st ? printCheckRows(st.doc, st.book, st.missing, profile, coverCheckRows(cover, book, st.missing, profile, spineAdvanceMm)) : []),
+    // the cover inputs as primitives: `cover` is rebuilt every render
+    [st?.doc, st?.book, st?.missing, profile, book, cover.photo, cover.spine, cover.spineMm, cover.ppi, cover.modified])
+  // C9: booklets write no cover file, so no cover rows (label, list and note count the visible rows only)
+  const rows = single ? all : all.filter((r) => r.scope === "pages")
   const errors = rows.some((r) => r.severity === "error")
   const skipped = rows.find((r) => r.rule === "asset-missing")
-  const skippedN = new Set(st?.doc.spreads.flatMap((s) => s.frames.map((f) => f.photo)).filter((id) => id && st.missing.has(id))).size
+  const coverSkipped = single && rows.some((r) => r.rule === "cover-asset-missing")
+  const skippedN = new Set([...(st?.doc.spreads.flatMap((s) => s.frames.map((f) => f.photo)) ?? []), coverSkipped && cover.photo].filter((id) => id && st?.missing.has(id))).size
+  const coverFile = coverFileName(file)
   // a booklet paints every page, then imposes its paper sheets
   const go = () => setStep((imp === "single" ? r.start(sheets) : r.start(pages, sheets)) ? "run" : "failed")
   const heading = "heading flex items-center gap-2 text-xl leading-tight [&_svg]:size-5"
@@ -180,11 +199,13 @@ export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0
           <div className="mt-4 flex flex-col gap-3">
             <div className="flex items-center justify-between text-sm" data-testid="print-size"><span className="text-muted-foreground">Page size</span><span className="tabular-nums">{known ? known.name : "Custom"} · {size}</span></div>
             <div className="flex items-center justify-between text-sm" data-testid="print-profile"><span className="text-muted-foreground">Printer</span><span>{profile.name}</span></div>
+            {/* C8: always present, so switching the imposition changes only its text and nothing below moves */}
+            <div className="flex items-center justify-between text-sm" data-testid="print-cover"><span className="text-muted-foreground">Cover</span><span className="tabular-nums">{coverRow}</span></div>
             {IMPOSITION
               ? <div className="flex flex-col gap-1.5" data-testid="print-imposition"><span className="text-xs text-muted-foreground">Imposition (duplex)</span><Segmented label="Imposition" value={imp} onChange={(v) => setImp(v as PrintLayout)} items={[{ id: "single", label: "1 per sheet" }, { id: "2up", label: "2-up" }, { id: "4up", label: "4-up" }]} /></div>
               : <div className="flex items-center justify-between text-sm" data-testid="print-imposition"><span className="text-muted-foreground">Imposition</span><span>1 per sheet</span></div>}
-            <Checkbox isSelected={bleed} onChange={setBleed} data-testid="print-bleed">Add {fmtN(bleedMm)} mm bleed and crop marks</Checkbox>
-            <div className="text-xs text-muted-foreground" data-testid="print-summary">{printSummary(pages, sheets, bleed ? bleedMm : null)}</div>
+            <Checkbox isSelected={bleed} onChange={setBleed} data-testid="print-bleed">{printBleedLabel(bleedMm, single ? bleedMm : null)}</Checkbox>
+            <div className="text-xs text-muted-foreground" data-testid="print-summary">{printSummary(pages, sheets, bleed ? bleedMm : null, single ? bleedMm : null)}</div>
             <div className="flex flex-col gap-1.5" data-testid="print-check" data-state={checking ? "checking" : rows.length ? "issues" : "clean"}>
               <span className="text-xs text-muted-foreground">{checking ? "Check" : checkLabel(rows)}</span>
               <ul className="scroll-thin flex max-h-[118.25px] flex-col gap-1.5 overflow-y-auto" data-testid="print-check-list">
@@ -206,11 +227,17 @@ export function PrintDialog({ book, spreads, title, onClose, profile = CATALOG[0
         </>}
         {step === "done" && <>
           <div className={heading}><CircleCheck />PDF ready</div>
-          <p className={text} data-testid="print-done">{file} · {sheets} {imp === "single" ? "pages" : "sheets"} · {(sheets * 1.92).toFixed(1)} MB</p>
+          <p className={text} data-testid="print-done">{file} · {sheets} {single ? "pages" : "sheets"} · {(sheets * 1.92).toFixed(1)} MB</p>
+          {/* C10: the cover file, a SAMPLE size (one sheet with the front photo) */}
+          {single && <p className="text-sm text-muted-foreground" data-testid="print-done-cover">{coverFile} · cover · 2.9 MB</p>}
           <p className="mt-1.5 text-xs text-muted-foreground" data-testid="print-saved">Saved in {library}/exports.</p>
-          {imp !== "single" && <p className="mt-3 text-sm" data-testid="print-duplex">{printDuplexText(imp)}</p>}
-          {skipped && <ul className="mt-3" data-testid="print-skipped"><CheckLine icon={TriangleAlert} className={SEVERITY_ROW.warning[1]} pages={skipped.pages}>{skippedN} {skippedN === 1 ? "photo" : "photos"} couldn’t be read and print{skippedN === 1 ? "s" : ""} as blank paper</CheckLine></ul>}
-          <div className={btns}><Button variant="ghost" size="md" className="gap-1.5 px-4 [&_svg]:size-4" onPress={() => openSamplePdf(file)} data-testid="print-open"><ExternalLink />Open PDF</Button>
+          {!single && <p className="mt-3 text-sm" data-testid="print-duplex">{printDuplexText(imp)}</p>}
+          {(skipped || coverSkipped) && <ul className="mt-3" data-testid="print-skipped"><CheckLine icon={TriangleAlert} className={SEVERITY_ROW.warning[1]} pages={skipped?.pages} cover={coverSkipped}>{skippedN} {skippedN === 1 ? "photo" : "photos"} couldn’t be read and print{skippedN === 1 ? "s" : ""} as blank paper</CheckLine></ul>}
+          <div className={btns}>
+            {single ? <>
+              <Button variant="ghost" size="md" className="gap-1.5 px-4 [&_svg]:size-4" onPress={() => openSamplePdf(file)} data-testid="print-open"><ExternalLink />Open pages</Button>
+              <Button variant="ghost" size="md" className="gap-1.5 px-4 [&_svg]:size-4" onPress={() => openSamplePdf(coverFile)} data-testid="print-open-cover"><ExternalLink />Open cover</Button>
+            </> : <Button variant="ghost" size="md" className="gap-1.5 px-4 [&_svg]:size-4" onPress={() => openSamplePdf(file)} data-testid="print-open"><ExternalLink />Open PDF</Button>}
             <Button size="md" className="px-4" onPress={onClose} autoFocus data-testid="print-close">Done</Button></div>
         </>}
         {step === "failed" && <>
