@@ -69,7 +69,18 @@ function Toc({
   current: string
   onGo: (id: string) => void
 }) {
-  const link = (id: string, label: string, num: string, coming?: boolean) => (
+  const nav = React.useRef<HTMLElement>(null)
+  // Keep the current link visible inside the list (8 px in from the edge it crossed). Not scrollIntoView: it scrolls the page too.
+  React.useEffect(() => {
+    const el = nav.current,
+      a = el?.querySelector<HTMLElement>(`[data-guide-link="${current}"]`)
+    if (!el || !a) return
+    const box = el.getBoundingClientRect(),
+      r = a.getBoundingClientRect()
+    if (r.top < box.top + 8) el.scrollTop -= box.top + 8 - r.top
+    else if (r.bottom > box.bottom - 8) el.scrollTop += r.bottom - (box.bottom - 8)
+  }, [current])
+  const link =(id: string, label: string, num: string, coming?: boolean) => (
     <a
       key={id}
       href={href.guide(id)}
@@ -99,6 +110,7 @@ function Toc({
   )
   return (
     <nav
+      ref={nav}
       aria-label="Guide chapters"
       data-testid="guide-toc"
       className="scroll-thin sticky top-[96px] flex max-h-[calc(100vh-120px)] flex-col self-start overflow-y-auto"
@@ -129,8 +141,8 @@ function Hero({ onGo }: { onGo: (id: string) => void }) {
       </h1>
       <p className="max-w-[640px] text-lead text-muted-foreground">
         Photobooks turns the photos already on your computer into a printed
-        photobook and a personal website. Nothing is uploaded: every book lives
-        in a library folder you choose.
+        photobook and a personal website. Your books live in a library folder
+        you choose; only what you publish goes online, to your own hosting.
       </p>
       <div className="mt-7 grid grid-cols-5 gap-2">
         {PARTS.map((p) => {
@@ -218,8 +230,17 @@ function Figure({ c, width }: { c: Chapter; width: number }) {
         ))}
       </div>
       <figcaption className="mt-2 text-xs text-muted-foreground">
-        Kit <code className="font-mono text-xs">#/demo</code>, step{' '}
-        <code className="font-mono text-xs">{f.step}</code>
+        {'step' in f ? (
+          <>
+            Kit <code className="font-mono text-xs">#/demo</code>, step{' '}
+            <code className="font-mono text-xs">{f.step}</code>
+          </>
+        ) : (
+          <>
+            Kit page <code className="font-mono text-xs">{f.feature}</code>,
+            state <code className="font-mono text-xs">{f.scenario}</code>
+          </>
+        )}
       </figcaption>
     </figure>
   )

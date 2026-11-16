@@ -1,4 +1,4 @@
-/* Product guide copy (Designer spec product-walkthrough, 2026-11-12). Markup in step texts: `key` → Kbd, *italic*.
+/* Product guide copy (Designer spec product-walkthrough, 2026-11-12, update 2026-11-16). Markup in step texts: `key` → Kbd, *italic*.
  * Quoted control labels are the exact kit labels; keys and gestures exist in both the kit and prod. */
 
 export type PartId = 1 | 2 | 3 | 4 | 5
@@ -6,7 +6,8 @@ export type Step = { text: string; coming?: string }
 /** A selector (Playwright syntax) or a rect [x, y, w, h] in the 1440 × 900 #/demo viewport. */
 export type Clip = string[] | [number, number, number, number] | null
 export type Callout = { n: number; sel: string }
-export type Figure = { step: string; clip: Clip; callouts: Callout[] }
+/** A `#/demo` walk step, or a kit feature page (`#/feature/<feature>`) in its scenario tab labelled `scenario`. */
+export type Figure = ({ step: string } | { feature: string; scenario: string }) & { clip: Clip; callouts: Callout[] }
 export type Chapter = {
   id: string
   n: number
@@ -40,7 +41,7 @@ export const PARTS: { id: PartId; name: string; text: string }[] = [
     name: 'Print',
     text: 'A PDF for a shop, or sheets to fold at home.',
   },
-  { id: 5, name: 'Share', text: 'Your books as a website.' },
+  { id: 5, name: 'Share', text: 'A bookcase site on your own address.' },
 ]
 
 const s = (text: string, coming?: string): Step =>
@@ -372,7 +373,9 @@ export const CHAPTERS: Chapter[] = [
       s(
         'Drop a photo on the front; type the front title, spine and back text.',
       ),
-      s('The spine width follows the page count.'),
+      s(
+        "The spine width follows the page count and the printer, and the spine takes the cover's Fill colour.",
+      ),
       s('Keep faces and text off the "Wrap" band: it folds around the board.'),
       s('Endpapers: a set pattern for now (other fills are coming), and "Same on back endpaper".'),
     ],
@@ -415,16 +418,21 @@ export const CHAPTERS: Chapter[] = [
     title: 'Check before printing',
     layout: 'two',
     demo: true,
-    solves: 'catch blurry photos and missing files before you pay for a print.',
+    solves:
+      'catch blurry photos, missing files and cover problems before you pay for a print.',
     steps: [
       s('The "Low-res" chip in the Photos dock marks photos too small to print sharp.'),
       s('Missing photos are hatched: "Relink…" finds them in another folder.'),
       s('"Preview" shows the book as the site shows it; `Esc` returns.'),
+      s(
+        '"Print" checks the pages and the cover: low-res or non-sRGB photos, empty frames, spine text too small or cut. The Check never blocks "Export PDF".',
+      ),
     ],
     figure: {
-      step: 'editor-missing-photos',
-      clip: ['[data-testid="canvas"]', '[data-testid="demo-relink"]'],
-      callouts: [{ n: 2, sel: '[data-testid="demo-relink"]' }],
+      feature: 'pdf-export',
+      scenario: 'Cover check',
+      clip: ['[role=dialog]'],
+      callouts: [{ n: 4, sel: '[data-testid="print-check"]' }],
     },
     kit: ['site-preview-mode'],
   },
@@ -434,19 +442,31 @@ export const CHAPTERS: Chapter[] = [
     part: 4,
     toc: 'Print at a shop',
     title: 'Print at a shop',
-    coming: 'pdf-export',
     layout: 'two',
-    demo: false,
-    solves: "a print-ready PDF at the shop's size, with bleed.",
+    demo: true,
+    solves:
+      "print-ready PDFs at the shop's size, with bleed, for the pages and the cover.",
     steps: [
-      s('"Print" in the top bar.'),
-      s('"1 per sheet", bleed and crop marks.'),
-      s('A progress bar shows while the PDF renders.'),
       s(
-        '"Show in folder", then send the PDF to the shop of your printer profile.',
+        '"Print" in the top bar: the page size, the "Printer" of the book, and the "Cover" sheet with its spine width.',
+      ),
+      s(
+        'Keep "1 per sheet" and the bleed box ("Add 3 mm bleed and crop marks" with Generic; your printer profile sets the bleed).',
+      ),
+      s(
+        '"Export PDF". It builds in the background: "Hide" and keep editing, and the Print button shows the progress.',
+      ),
+      s(
+        "\"PDF ready\": two files in your library's ``exports`` folder, the pages and the cover (back, spine and front on one sheet). \"Open pages\" / \"Open cover\", then send both to the shop.",
       ),
     ],
-    figure: { step: 'print-options', clip: ['[role=dialog]'], callouts: [] },
+    // the #/demo walk exports 4-up, which has no cover file: the 1-per-sheet PDF ready is the kit page state
+    figure: {
+      feature: 'pdf-export',
+      scenario: 'PDF ready',
+      clip: ['[role=dialog]'],
+      callouts: [{ n: 4, sel: '[data-testid="print-done-cover"]' }],
+    },
     kit: ['pdf-export'],
   },
   {
@@ -455,21 +475,23 @@ export const CHAPTERS: Chapter[] = [
     part: 4,
     toc: 'Print at home and bind',
     title: 'Print at home and bind',
-    coming: 'booklet-imposition',
     layout: 'wide',
-    demo: false,
+    demo: true,
     solves:
-      'a small book without a print shop. The app puts the pages on sheets in folding order, so after printing you only fold, nest and staple.',
+      'a small book without a print shop. The app puts the pages on sheets in folding order, so after printing you only stack, fold and staple.',
     steps: [
       s(
-        '"Print" → "2-up". Each sheet holds 4 pages, two per side; "4-up" holds 8 for small books.',
+        '"Print" → "2-up": each sheet holds 4 pages, two per side. "4-up" holds 8 for small books, cut across. Booklets have no separate cover file: page 1 is the front.',
       ),
-      s('Save the PDF and print it with the steps below.'),
+      s(
+        '"Export PDF". "PDF ready" repeats the folding steps; print with the steps below.',
+      ),
     ],
     figure: {
-      step: 'print-options-4up-no-bleed',
+      feature: 'pdf-export',
+      scenario: '2-up',
       clip: ['[role=dialog]'],
-      callouts: [],
+      callouts: [{ n: 1, sel: '[data-testid="print-imposition"]' }],
     },
     kit: ['pdf-export'],
   },
@@ -479,23 +501,114 @@ export const CHAPTERS: Chapter[] = [
     part: 5,
     toc: 'Your site',
     title: 'Your site',
+    layout: 'stack',
+    demo: true,
+    solves: 'show your books online as a bookcase, without a website builder.',
+    steps: [
+      s(
+        '"Preview" in the top bar opens the book as it reads on your site; `Esc` returns.',
+      ),
+      s(
+        'Your site\'s home is a bookcase of your published books. The newest book on each shelf faces out.',
+      ),
+      s(
+        'Click a book: it opens on its cover. Turn pages with `←` `→`. "Play", "Fullscreen" and "Share" sit under the book. On a phone, swipe.',
+      ),
+      s('"Export site" writes the same site to a folder, for any web host.'),
+    ],
+    figure: { step: 'site-catalog', clip: null, callouts: [] },
+    kit: ['personal-site', 'static-export', 'site-lightbox'],
+  },
+  {
+    id: 'site-texts',
+    n: 18,
+    part: 5,
+    toc: 'Site title and intro',
+    title: 'Site title, author and intro',
     layout: 'two',
     demo: true,
-    solves: 'show your books online without a website builder.',
+    solves: 'the bookcase says who made it, in your words.',
     steps: [
-      s('Preview: the book as its site page.'),
+      s('Settings → Site.'),
+      s('"Site title": in the browser tab and in link previews.'),
+      s('"Author": your name, at the top of every page.'),
+      s('"Intro": the first lines of your home page, up to 160 characters.'),
       s(
-        '"Export site" writes a folder you can open or upload to any web host.',
+        'A field saves when you leave it or press `Enter` (`Esc` undoes). Changes go live the next time you publish.',
       ),
-      s('Visitors open a book, turn pages, go fullscreen and share a link.'),
-      s('"Publish" to your own hosting from the app.', 'in-app-publish'),
     ],
-    figure: { step: 'site-book', clip: null, callouts: [] },
-    kit: ['static-export', 'site-viewer', 'site-lightbox', 'in-app-publish'],
+    figure: {
+      feature: 'site-settings',
+      scenario: 'Site',
+      clip: ['[data-testid="site-settings"]'],
+      callouts: [],
+    },
+    kit: ['site-settings'],
+  },
+  {
+    id: 'hosting',
+    n: 19,
+    part: 5,
+    toc: 'Connect your hosting',
+    title: 'Connect your hosting',
+    layout: 'two',
+    demo: true,
+    solves:
+      'your site on your own address, in your own Cloudflare account. Photobooks keeps no copy of your books.',
+    steps: [
+      s(
+        'Settings → Hosting. You need a Cloudflare account with a domain. R2 asks for a card; its free tier holds about 25 books.',
+      ),
+      s(
+        '"Create a setup token" opens Cloudflare with the permissions filled in. Paste the token under "Setup token".',
+      ),
+      s('"Choose the site address", like ``books.`` + your domain.'),
+      s(
+        '"Set up hosting" creates the bucket, connects the address, makes a key for this bucket only, tests an upload and deletes the setup token. Keep the page open: it takes about a minute.',
+      ),
+      s('Already have a bucket? "Enter R2 keys yourself".'),
+    ],
+    figure: {
+      feature: 'site-settings',
+      scenario: 'Setting up',
+      clip: ['[data-testid="hosting-setup"]'],
+      callouts: [],
+    },
+    kit: ['site-settings'],
+  },
+  {
+    id: 'publish',
+    n: 20,
+    part: 5,
+    toc: 'Publish',
+    title: 'Publish',
+    layout: 'two',
+    demo: true,
+    solves:
+      'one button puts the open book on your site; next time only the changes go up.',
+    steps: [
+      s(
+        '"Publish" in the top bar. With no hosting yet it offers "Open Settings → Hosting".',
+      ),
+      s(
+        '"Publish to your site" names the address the book goes to; press "Publish".',
+      ),
+      s(
+        'Keep editing: "Hide" (or `Esc`) leaves the upload in the Publish button as a percentage.',
+      ),
+      s('"Published": the book\'s link. "Open site" opens your bookcase.'),
+      s('A dropped connection retries by itself; "Try again" sends only the rest.'),
+    ],
+    figure: {
+      step: 'publish-done',
+      clip: ['[role=dialog]'],
+      callouts: [{ n: 4, sel: '[data-testid="publish-link"]' }],
+    },
+    kit: ['in-app-publish'],
   },
   {
     id: 'settings',
-    n: 18,
+    n: 21,
     part: 5,
     toc: 'Settings and shortcuts',
     title: 'Settings and shortcuts',
@@ -504,9 +617,9 @@ export const CHAPTERS: Chapter[] = [
     solves: 'the few app-wide choices, and the keys that save time.',
     steps: [
       s(
-        'Settings (gear in the top bar): library folder, cache, Print presets.',
+        'Settings (gear in the top bar): Library folder and cache, Hosting, Site, Print presets.',
       ),
-      s('Site intro text.', 'site-settings'),
+      s('"Back to the book" returns to the editor.'),
     ],
     kit: ['site-settings'],
   },
@@ -534,22 +647,29 @@ export const SHORTCUTS: { keys: string; text: string }[] = [
 
 export const PAGE_COUNTS = [20, 22, 24, 32, 40]
 
-export const ASSEMBLY: { title: string; text: string }[] = [
+export const LAYOUTS = [
+  { id: '2up', label: '2-up' },
+  { id: '4up', label: '4-up' },
+] as const
+
+/** `only`: the step applies to that layout alone; the panel dims it for the other one. */
+export const ASSEMBLY: { title: string; text: string; only?: '4up' }[] = [
   {
     title: 'Print both sides',
-    text: 'In the print dialog choose two-sided, *flip on short edge*. Print one sheet first to check.',
+    text: 'Two-sided: *flip on short edge* for 2-up, *flip on long edge* for 4-up. Print one sheet first to check.',
   },
   {
-    title: 'Fold each sheet',
-    text: 'Fold in half so page 1 is on the outside. Crease with a ruler.',
+    title: 'Cut across',
+    text: '4-up only: cut each sheet across the middle. Its top half goes outside its bottom half.',
+    only: '4up',
   },
   {
-    title: 'Nest the sheets',
+    title: 'Stack in order',
     text: 'Sheet 1 outside, the last sheet in the middle. Pages now read in order.',
   },
   {
-    title: 'Staple on the fold',
-    text: 'Two staples a quarter in from top and bottom, or sew three holes.',
+    title: 'Fold and staple',
+    text: 'Fold the stack in half and crease it with a ruler. Two staples on the fold, a quarter in from top and bottom.',
   },
   {
     title: 'Trim the edge',
@@ -564,7 +684,7 @@ export const PRINT_NOTES: { title: string; text: string }[] = [
   },
   {
     title: 'Size',
-    text: 'A5 book → A4 sheets; A4 or 21 × 21 cm book → A3. Home printers leave a white edge: trim it.',
+    text: '2-up: an A5 book prints on A4. 4-up: an A6 book prints on A4. Home printers leave a white edge: turn bleed off and trim.',
   },
   {
     title: 'Thickness',
@@ -590,18 +710,13 @@ export const CHAPTER_OF: Record<string, string> = {
   inspector: 'layouts',
   'cover-editor': 'cover',
   'site-settings': 'settings',
-  'site-viewer': 'site',
   'site-lightbox': 'site',
-  'site-photographer': 'site',
+  'personal-site': 'site',
   'site-preview-mode': 'check',
   'pdf-export': 'print-shop',
   'static-export': 'site',
-  'in-app-publish': 'site',
+  'in-app-publish': 'publish',
 }
 
 /** Kit feature pages not in prod yet → the roadmap item that ships them. That PR removes its line here. */
-export const NOT_IN_APP: Record<string, string> = {
-  'pdf-export': 'pdf-export',
-  'in-app-publish': 'in-app-publish',
-  'site-settings': 'site-settings',
-}
+export const NOT_IN_APP: Record<string, string> = {}

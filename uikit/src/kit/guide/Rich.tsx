@@ -1,10 +1,11 @@
 import { cn } from "@/lib/utils"
 import { Kbd } from "@/components/app/ui"
 
-/** Guide copy markup: `key` → Kbd, *text* → italic, **text** → bold. Everything else is plain text. */
+/** Guide copy markup: ``code`` → code, `key` → Kbd, *text* → italic, **text** → bold. Everything else is plain text. */
 export function Rich({ text }: { text: string }) {
-  return text.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/).map((t, i) =>
-    t.startsWith("`") ? <Kbd key={i} className="mx-px align-[1px]">{t.slice(1, -1)}</Kbd>
+  return text.split(/(``[^`]+``|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/).map((t, i) =>
+    t.startsWith("``") ? <code key={i} className="font-mono text-xs">{t.slice(2, -2)}</code>
+    : t.startsWith("`") ? <Kbd key={i} className="mx-px align-[1px]">{t.slice(1, -1)}</Kbd>
     : t.startsWith("**") ? <b key={i} className="font-semibold">{t.slice(2, -2)}</b>
     : t.startsWith("*") && t.length > 2 ? <i key={i}>{t.slice(1, -1)}</i>
     : t)

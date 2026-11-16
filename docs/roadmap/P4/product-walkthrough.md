@@ -17,3 +17,7 @@ Status: done
 
 - `uikit/scripts/guide-qa.mjs` passes: 18 sections + one h1, no console errors, every image loads; every `MANIFEST` slug in `CHAPTER_OF` and every `#/feature/` link resolves; `saddleSheets(20)` / `saddleSheets(22)`; the Pages switch doesn't move the assembly row; TOC link 16 → `#print-home` at y 72 ±1 and current; no horizontal scroll at 1280.
 - `#/demo` walk captures stay pixel-identical (0 changed steps); uikit typecheck green; no `src/**` changes.
+
+## Done
+
+- 2026-11-16 update (Designer spec "Update 2026-11-16"): 21 chapters all In the app (new `site-texts`, `hosting`, `publish`), figures from kit feature-page states (q80, 20 images, 2469 KB), chapter 16 panel on a copy of prod `imposition()` with 2-up/4-up, TOC keeps its current link visible. `guide-qa.mjs` 27/27; `#/demo` walk 81/81 steps byte-identical to `origin/main`.
