@@ -244,9 +244,11 @@ test('MS2: master inspector rects match the Designer Spec (±0.5 px)', async ({
   )
   await page.keyboard.press('Tab')
   await expect(masterField(page, 'link')).toBeFocused()
+  await expect(masterField(page, 'link')).toHaveCSS('outline-style', 'solid')
+  await expect(masterField(page, 'link')).toHaveCSS('outline-width', '2px')
   await expect(masterField(page, 'link')).toHaveCSS(
-    'outline',
-    'rgb(83, 81, 82) solid 2px',
+    'outline-color',
+    'rgb(83, 81, 82)',
   )
   await page.keyboard.press('Enter')
   await expect(masterField(page, 'link')).toHaveAttribute(
