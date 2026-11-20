@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item site-reader-gl-ready
+Status: done
 
 ## Scope
 
