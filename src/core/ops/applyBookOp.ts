@@ -39,6 +39,7 @@ import {
   moveFrame,
   moveFrames,
   resizeFrame,
+  resizeFrameKeepPhoto,
   rotateFrame,
   type AlignEdge,
   type DistributeAxis,
@@ -224,6 +225,14 @@ export type BookOp =
       spreadId: string
       frameId: string
       rect: Frame['rect']
+    }
+  | {
+      type: 'resizeFrameKeepPhoto'
+      spreadId: string
+      frameId: string
+      rect: Frame['rect']
+      /** The shown photo's aspect; absent = the asset record's. */
+      aspectRatio?: number
     }
   | {
       type: 'rotateFrame'
@@ -587,6 +596,14 @@ function applyRaw(book: Book, op: BookOp): Book {
       return moveFrames(book, op.spreadId, op.frameIds, op.dx, op.dy)
     case 'resizeFrame':
       return resizeFrame(book, op.spreadId, op.frameId, op.rect)
+    case 'resizeFrameKeepPhoto':
+      return resizeFrameKeepPhoto(
+        book,
+        op.spreadId,
+        op.frameId,
+        op.rect,
+        op.aspectRatio,
+      )
     case 'rotateFrame':
       return rotateFrame(book, op.spreadId, op.frameId, op.rotationDeg)
     case 'reorderFrame':

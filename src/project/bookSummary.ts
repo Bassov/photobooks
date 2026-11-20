@@ -13,6 +13,8 @@ export function bookSummaryFromBook(
     spreadCount: book.spreads.length,
     pageWidthMm: book.settings.trim.widthMm,
     pageHeightMm: book.settings.trim.heightMm,
+    coverBackFill: book.cover.style.backFill,
+    coverTitleFont: book.cover.style.titleFont,
   }
   if (options?.editedAtMs !== undefined) {
     summary.editedAtMs = options.editedAtMs

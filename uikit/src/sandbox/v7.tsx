@@ -90,16 +90,19 @@ export function CoverSpread({ big, slide }: { big?: boolean; slide?: number }) {
       <div className="relative h-full" style={{ width: pct(SP, CW), background: "#3E3C3B" }} data-testid={big ? "cover-spine" : undefined}>
         {/* D5: centred on the spine whatever its length; at most 12 px at 848 and half the spine; trim height − 2 × safe long, then an ellipsis */}
         <span className="absolute top-1/2 left-1/2 overflow-hidden text-ellipsis whitespace-nowrap" style={{ ...serif, color: "#E8E6E3", lineHeight: 1.5, fontSize: big || slide ? "min(calc(100cqw * 12 / 848), calc(100cqw * var(--spine-frac) * .5))" : 3, maxWidth: "calc(100cqw * var(--spine-len-frac))", transform: "translate(-50%, -50%) rotate(90deg)" }} data-testid={big ? "cover-spine-text" : undefined}><em>{ct.spine}</em></span></div>
-      <div className={`relative h-full ${big ? "" : "overflow-hidden"}`} style={{ width: pct(bk.w, CW), backgroundColor: cov ? undefined : "#8E8E8E" }} data-testid={big ? "cover-front" : undefined} data-photo-id={cov || undefined}>
+      {/* Designer P1: a front without a photo is the cloth (back fill), D38 ink (#3E3C3B is dark → #F5F5F5, no shadow) */}
+      <div className={`group/front relative h-full ${big ? "" : "overflow-hidden"}`} style={{ width: pct(bk.w, CW), backgroundColor: cov ? undefined : "#3E3C3B" }} data-testid={big ? "cover-front" : undefined} data-photo-id={cov || undefined}>
+        {/* P1 drop box: hover only, inset 44/14/14/14, r4, white .08 fill + 1 px .35 inset ring, 11/14 text */}
+        {big && !cov && <div className="pointer-events-none absolute inset-[44px_14px_14px] hidden items-center justify-center rounded-xs text-center group-hover/front:flex" style={{ background: "rgb(255 255 255/.08)", boxShadow: "inset 0 0 0 1px rgb(255 255 255/.35)", color: "rgb(245 245 245/.85)", fontSize: 11, lineHeight: "14px" }} data-testid="cover-front-drop">Drop a photo for the front</div>}
         {/* D4: the photo box is the front board + the wrap on its top, outer and bottom edges; mini covers clip it to the board */}
         {cov && <div className="cover-front-photo absolute left-0 bg-cover" style={{ top: `-${pct(WRAP, bk.h)}`, bottom: `-${pct(WRAP, bk.h)}`, right: `-${pct(WRAP, bk.w)}`, backgroundImage: ph(cov), backgroundPosition: "45% 50%" }} />}
-        <div className="absolute top-[9%] right-[10%] left-[10%] text-white" style={{ ...serif, fontSize: fs(34, 7), textShadow: "0 1px 8px rgb(0 0 0/.35)" }} data-testid={big ? "cover-front-text" : undefined}><em>{ct.front}</em></div></div>
+        <div className="absolute top-[9%] right-[10%] left-[10%] text-white" style={{ ...serif, fontSize: fs(34, 7), ...(cov ? { textShadow: "0 1px 8px rgb(0 0 0/.35)" } : { color: "#F5F5F5" }) }} data-testid={big ? "cover-front-text" : undefined}><em>{ct.front}</em></div></div>
     </div>)
   if (!big) return cover
-  const b = pct(WRAP + bk.w + SP, SHW), boardY = { top: pct(WRAP + SAFE, SHH), height: pct(bk.h - 2 * SAFE, SHH) }
+  const boardY = { top: pct(WRAP + SAFE, SHH), height: pct(bk.h - 2 * SAFE, SHH) }
   const strip = (s: React.CSSProperties) => <div className="absolute" style={{ ...s, background: "rgb(200 202 203/.72)" }} />
   return (
-    <div ref={ref} className="relative size-full" style={{ background: `linear-gradient(90deg, #3E3C3B ${b}, #8E8E8E ${b})` }} data-testid="cover-sheet">
+    <div ref={ref} className="relative size-full" style={{ background: "#3E3C3B" }} data-testid="cover-sheet">
       {cover}
       {([["back", WRAP + bk.w - HINGE], ["front", WRAP + bk.w + SP]] as const).map(([s, x]) =>
         <div key={s} className="pointer-events-none absolute" style={{ left: pct(x, SHW), top: pct(WRAP, SHH), width: pct(HINGE, SHW), height: pct(bk.h, SHH), background: "repeating-linear-gradient(-45deg, rgb(255 255 255/.24) 0 1px, transparent 1px 6px)" }} data-testid={`cover-hinge-${s}`} />)}

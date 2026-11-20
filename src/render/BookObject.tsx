@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { bookObjectLayout, type BookObjectFmt } from './bookObjectLayout'
+import { COVER_TITLE_FACES, type CoverTitleFont } from './coverTitleFace'
 
 export type { BookObjectFmt }
 
@@ -12,6 +13,8 @@ export function BookObject({
   fmt = 'portrait',
   h,
   ink = '#2E2C2D',
+  fill = '#E8E8E8',
+  titleFont,
   place = 'top',
 }: {
   src?: string
@@ -21,9 +24,15 @@ export function BookObject({
   fmt?: BookObjectFmt
   h: number
   ink?: string
+  /** Cover cloth under the photo (Designer P1: the whole cover when there is none). */
+  fill?: string
+  /** The book's Title font; absent keeps the kit display italic. */
+  titleFont?: CoverTitleFont | undefined
   place?: 'top' | 'bottom'
 }) {
   const layout = bookObjectLayout(h, fmt)
+  const face =
+    titleFont === undefined ? undefined : COVER_TITLE_FACES[titleFont]
   const placeStyle = {
     color: ink,
     [place]: '9%',
@@ -43,10 +52,10 @@ export function BookObject({
         style={layout.pageBlock}
       />
       <div
-        className="absolute inset-0 overflow-hidden rounded-[2px_4px_4px_2px]"
+        className="pb-book-object-shell absolute inset-0 overflow-hidden rounded-[2px_4px_4px_2px]"
         data-testid="book-object-cover-shell"
         style={{
-          background: '#E8E8E8',
+          background: fill,
           boxShadow: layout.coverShadow,
         }}
       >
@@ -75,7 +84,19 @@ export function BookObject({
             className="pb-book-object-title leading-none tracking-[-0.02em]"
             style={{ fontSize: layout.titleSize }}
           >
-            <em>{title}</em>
+            <em
+              style={
+                face === undefined
+                  ? undefined
+                  : {
+                      fontFamily: face.family,
+                      fontStyle: face.style,
+                      fontWeight: face.weight,
+                    }
+              }
+            >
+              {title}
+            </em>
           </div>
           {sub ? (
             <div

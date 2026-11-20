@@ -7,6 +7,7 @@ import {
   bookObjectWidthForHeight,
 } from '../render/bookObjectLayout'
 import { BookObject } from '../render/BookObject'
+import { coverInk } from '../render/coverTitleFace'
 import type { LibraryGridBook } from './libraryBookFilter'
 import { formatLibraryBookMeta } from './libraryEditedLabel'
 import { useCachedCoverUrl } from './useCachedCoverUrl'
@@ -58,9 +59,13 @@ export function BookTile({
           />
           <div className="pb-lib-obj relative">
             <BookObject
+              {...(book.backFill === undefined
+                ? {}
+                : { fill: book.backFill, ink: coverInk(book.backFill) })}
               {...(coverUrl === undefined
                 ? {}
                 : { src: coverUrl, ink: '#F5F5F5' })}
+              titleFont={book.titleFont}
               {...(book.coverPos === undefined ? {} : { pos: book.coverPos })}
               title={book.displayTitle}
               fmt={SHELF_FMT}

@@ -50,6 +50,12 @@ export function bookObjectDisplayHeight(
   return baseH
 }
 
+/**
+ * Designer P5: the book tokens at every size, no scaled blur; a hovered
+ * library card sets `--book-shadow` to `--shadow-book-hover`.
+ */
+const BOOK_SHADOW = 'var(--book-shadow, var(--shadow-book))'
+
 /** Pure geometry for kit BookObject chrome (mm-free CSS px at height `h`). */
 export function bookObjectLayout(h: number, fmt: BookObjectFmt) {
   const w = h * RATIO[fmt]
@@ -66,9 +72,9 @@ export function bookObjectLayout(h: number, fmt: BookObjectFmt) {
       right: pageRight,
       background:
         'repeating-linear-gradient(90deg,#F4F4F4 0 1px,#DBDBDB 1px 2px)',
-      boxShadow: `0 ${String(40 * s)}px ${String(60 * s)}px -${String(36 * s)}px rgb(35 34 35/.55)`,
+      boxShadow: BOOK_SHADOW,
     },
-    coverShadow: `0 1px 2px rgb(35 34 35/.25), 0 ${String(30 * s)}px ${String(60 * s)}px -${String(30 * s)}px rgb(35 34 35/.6)`,
+    coverShadow: BOOK_SHADOW,
     spineWidth: Math.max(8, 18 * s),
     titleSize: Math.round(Math.min(w, h) * 0.14),
     subSize: Math.max(8, Math.round(h * 0.022)),

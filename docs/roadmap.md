@@ -270,6 +270,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 **Review cut:** someone else gets their own library and site. **Kit-first:** Designer drafts the P5 kit pages (onboarding / account, own library + site, hosting / connect) before items are sliced (call D6); `printer-presets` and `connect-own-hosting` have a partial kit (Settings → Print presets / Hosting rows). `onboarding-others` is held in `docs/backlog/` until then.
 
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
+- [ ] [feature] [direct-crop-core](roadmap/P5/direct-crop-core.md) — Bug: /next-roadmap-item direct-crop-core
 - [ ] [feature] [direct-crop-kit](roadmap/P5/direct-crop-kit.md) — Bug: /next-roadmap-item direct-crop-kit
 - [ ] [feature] [connect-own-hosting-kit](roadmap/P5/connect-own-hosting-kit.md) — Bug: /next-roadmap-item connect-own-hosting-kit
 - [ ] [feature] [connect-own-hosting-relay](roadmap/P5/connect-own-hosting-relay.md) — Bug: /next-roadmap-item connect-own-hosting-relay
@@ -278,13 +279,16 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [a5-fit-parity](roadmap/P5/a5-fit-parity.md) — Bug: /next-roadmap-item a5-fit-parity
 - [ ] [feature] [polish-type](roadmap/P5/polish-type.md) — Bug: /next-roadmap-item polish-type
 - [ ] [feature] [polish-surface](roadmap/P5/polish-surface.md) — Bug: /next-roadmap-item polish-surface
+- [ ] [feature] [cover-empty-cloth](roadmap/P5/cover-empty-cloth.md) — Bug: /next-roadmap-item cover-empty-cloth
 - [ ] [feature] [connect-own-hosting-core](roadmap/P5/connect-own-hosting-core.md) — Bug: /next-roadmap-item connect-own-hosting-core
 - [ ] [feature] [connect-own-hosting](roadmap/P5/connect-own-hosting.md) — bring your own hosting (Security Review)
 - [ ] [lite] [cycle-layouts-core](roadmap/P5/cycle-layouts-core.md) — Bug: /next-roadmap-item cycle-layouts-core
 - [ ] [feature] [prepush-scoped-units](roadmap/P5/prepush-scoped-units.md) — Bug: /next-roadmap-item prepush-scoped-units
 - [ ] [lite] [ratchet-merge-base](roadmap/P5/ratchet-merge-base.md) — Bug: /next-roadmap-item ratchet-merge-base
+- [ ] [lite] [ci-flakes](roadmap/P5/ci-flakes.md) — Bug: /next-roadmap-item ci-flakes
 - [ ] [feature] [printer-presets-core](roadmap/P5/printer-presets-core.md) — Bug: /next-roadmap-item printer-presets-core
 - [ ] [feature] [printer-presets-kit](roadmap/P5/printer-presets-kit.md) — Bug: /next-roadmap-item printer-presets-kit
+- [ ] [feature] [frame-copy-paste-kit](roadmap/P5/frame-copy-paste-kit.md) — Bug: /next-roadmap-item frame-copy-paste-kit
 - [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
 - [ ] [lite] [roadmap-status-sync](roadmap/P5/roadmap-status-sync.md) — Bug: /next-roadmap-item roadmap-status-sync
 - [ ] [feature] [printer-presets-kit-book](roadmap/P5/printer-presets-kit-book.md) — Bug: /next-roadmap-item printer-presets-kit-book

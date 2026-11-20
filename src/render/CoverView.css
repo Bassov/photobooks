@@ -123,10 +123,31 @@
   height: 100%;
 }
 
+/* Fill: the photo, else the inline `backFill` (Designer P1, empty = cloth). */
 .cover-front {
   position: relative;
   height: 100%;
-  background-color: var(--cover-front-empty);
+}
+
+/* Designer P1: the empty front's drop box, only on hover / drag-over; screen
+   px, inset 44 / 14 / 14 / 14 of the front panel. Its light-on-cloth paint is
+   book content, inline (CoverView.tsx DROP_PAINT). */
+.cover-front-drop {
+  position: absolute;
+  inset: 44px 14px 14px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-2xs);
+  line-height: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.cover-front:hover > .cover-front-drop,
+.cover-sheet[data-drop-target='true'] .cover-front-drop {
+  display: flex;
 }
 
 /* Designer cover-editor D4: the photo box is the front board plus the wrap on

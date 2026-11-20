@@ -17,6 +17,8 @@ describe('bookSummaryFromBook', () => {
       spreadCount: 2,
       pageWidthMm: 200,
       pageHeightMm: 250,
+      coverBackFill: '#3e3c3b',
+      coverTitleFont: 'serif-italic',
     })
     expect(bookSummaryFromBook(book, { editedAtMs: 42 })).toEqual({
       id: 'b1',
@@ -24,6 +26,8 @@ describe('bookSummaryFromBook', () => {
       spreadCount: 2,
       pageWidthMm: 200,
       pageHeightMm: 250,
+      coverBackFill: '#3e3c3b',
+      coverTitleFont: 'serif-italic',
       editedAtMs: 42,
     })
   })
