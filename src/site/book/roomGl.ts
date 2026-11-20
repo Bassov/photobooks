@@ -20,7 +20,7 @@ import {
   type Three,
 } from './gl/three'
 import { glBook, type GlBook } from './gl/types'
-import { glInput, photoOf } from './glCover'
+import { glInput, photoOf, titleFont } from './glCover'
 
 export interface RoomGlInput {
   entry: SiteCatalogBook
@@ -75,6 +75,9 @@ async function glOf(
   const [T, photo] = await Promise.all([
     loadThree(),
     photoOf(i.entry.cover?.src).catch(() => null),
+    document.fonts
+      .load(titleFont(i.entry, 16), i.entry.title)
+      .catch(() => undefined),
   ])
   const faces = createFaceSource({
     book: i.book,

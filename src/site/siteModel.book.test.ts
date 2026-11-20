@@ -53,6 +53,7 @@ describe('siteBookFacts (D38)', () => {
       trimMm: { w: 210, h: 297 },
       pageCount: 4,
       spine: { cloth: '#3e3c3b', ink: '#F1F3F6', text: 'Lake' },
+      titleFont: 'serif-italic',
       paper: '#FBFAF7',
       endpaper: '#E9E4DA',
     })

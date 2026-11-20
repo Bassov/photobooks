@@ -3,6 +3,7 @@
    centre lands on the centre of the host's W×H box at `s` px per cm, like the CSS book did. */
 import { ENDPAPER } from "../../site/art"
 import { pagesOf, src, type SiteBook } from "../../site/sample"
+import { titleFace } from "../../site/titleFace"
 import { maxAnisotropy, type Any, type Three } from "./three"
 
 export const BT = 0.25, SQ = 0.3
@@ -66,8 +67,9 @@ export async function coverCanvas(b: SiteBook, px: number, f: TitleFont) {
   g.addColorStop(0, "rgba(0,0,0,.30)"); g.addColorStop(0.45, "rgba(0,0,0,.06)"); g.addColorStop(0.7, "rgba(255,255,255,.26)"); g.addColorStop(1, "rgba(0,0,0,.05)")
   x.fillStyle = g
   x.fillRect(0, 0, W * 0.05, H)
-  const fs = f.k * Math.min(W, H), font = `${f.style} ${f.weight} ${fs}px ${f.family}`
-  await document.fonts.load(font, b.title).catch(() => [])
+  // D38: the book's serif Title font over the probe's (the site sans)
+  const t = titleFace(b.titleFont) ?? f, fs = f.k * Math.min(W, H), font = `${t.style} ${t.weight} ${fs}px ${t.family}`
+  await document.fonts.load(font, b.title).catch(() => undefined)
   x.font = font
   if ("letterSpacing" in x) x.letterSpacing = `${f.ls * fs}px`
   x.fillStyle = b.ink
