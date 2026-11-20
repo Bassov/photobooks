@@ -270,6 +270,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 **Review cut:** someone else gets their own library and site. **Kit-first:** Designer drafts the P5 kit pages (onboarding / account, own library + site, hosting / connect) before items are sliced (call D6); `printer-presets` and `connect-own-hosting` have a partial kit (Settings → Print presets / Hosting rows). `onboarding-others` is held in `docs/backlog/` until then.
 
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
+- [ ] [feature] [direct-crop-core](roadmap/P5/direct-crop-core.md) — Bug: /next-roadmap-item direct-crop-core
 - [ ] [feature] [direct-crop-kit](roadmap/P5/direct-crop-kit.md) — Bug: /next-roadmap-item direct-crop-kit
 - [ ] [feature] [connect-own-hosting-kit](roadmap/P5/connect-own-hosting-kit.md) — Bug: /next-roadmap-item connect-own-hosting-kit
 - [ ] [feature] [connect-own-hosting-relay](roadmap/P5/connect-own-hosting-relay.md) — Bug: /next-roadmap-item connect-own-hosting-relay
