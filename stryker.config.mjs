@@ -67,6 +67,8 @@ const config = {
 if (shard !== null) {
   config.mutate = shardMutate(config.mutate, shard)
   config.thresholds = { ...config.thresholds, break: null }
+  // Hours-long CI job without a TTY: log progress so a slow shard is visible.
+  config.reporters = [...config.reporters, 'progress-append-only']
 }
 
 export default config

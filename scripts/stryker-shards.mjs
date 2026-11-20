@@ -4,12 +4,24 @@
  * the base excludes (`!…`) always apply. The last shard is the catch-all: the
  * base includes minus every other shard, so a new `src/` dir is never dropped.
  * Sizes are balanced by source lines (~10–13k each; `src/editor/` is flat and
- * split by first letter, case-sensitive).
+ * split by first letter, case-sensitive). `src/core/` is split in two: its
+ * PBT-heavy tests make each mutant slow (one 7.6k-mutant core shard ran past
+ * 2.5 h).
  */
 
 /** @type {readonly { name: string, include: readonly string[] | null }[]} */
 export const SHARDS = Object.freeze([
-  { name: 'core', include: ['src/core/**/*.{ts,tsx}'] },
+  {
+    name: 'core',
+    include: [
+      'src/core/*.{ts,tsx}',
+      'src/core/{ops,templates,selectors,text}/**/*.{ts,tsx}',
+    ],
+  },
+  {
+    name: 'core-pdf-print',
+    include: ['src/core/{pdf,print,geometry,grid}/**/*.{ts,tsx}'],
+  },
   {
     name: 'site-publish',
     include: ['src/site/**/*.{ts,tsx}', 'src/publish/**/*.{ts,tsx}'],

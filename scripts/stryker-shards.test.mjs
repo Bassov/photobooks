@@ -50,7 +50,7 @@ describe('shardMutate', () => {
       SHARDS.length - 1,
     )
     expect(last[0]).toBe('src/**/*.ts')
-    expect(last).toContain('!src/core/**/*.{ts,tsx}')
+    expect(last).toContain('!src/core/{pdf,print,geometry,grid}/**/*.{ts,tsx}')
     expect(last).toContain('!src/editor/[q-z]*.{ts,tsx}')
     expect(last.at(-1)).toBe('!src/x.test.ts')
   })
