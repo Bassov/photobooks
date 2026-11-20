@@ -250,6 +250,20 @@ describe('photoGesture', () => {
     expect(clicks).toBe(1)
   })
 
+  it('stops swallowing once the gesture task is over', async () => {
+    setup(2)
+    let clicks = 0
+    dom.button.addEventListener('click', () => {
+      clicks += 1
+    })
+    fire('pointerdown', dom.grabber, 125, 125)
+    fire('pointermove', window, 115, 125)
+    fire('pointerup', window, 115, 125)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    fire('click', dom.grabber, 115, 125)
+    expect(clicks).toBe(1)
+  })
+
   it('pans in the frame axes of a rotated frame and along a tall photo', () => {
     // Turned 90°, a screen move up is a move left in the frame.
     setup(2, { rotationDeg: 90 })
