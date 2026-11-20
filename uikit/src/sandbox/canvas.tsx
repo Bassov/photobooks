@@ -368,7 +368,7 @@ function FrameChrome({ f, sc, pinned, rotate, op, rotating, onHandle, onPan, onS
       {shown && (
         <div data-testid="photo-layer" className={ENTER}>
           <div className="absolute inset-0"><PhotoImg f={f} wpx={wpx} hpx={hpx} ghost /></div>
-          <div ref={ext} data-testid="photo-ghost" onPointerDown={onPan} onDoubleClick={onPin}className="pointer-events-auto absolute cursor-move"
+          <div ref={ext} data-testid="photo-ghost" onPointerDown={onPan} onDoubleClick={onPin} className="pointer-events-auto absolute cursor-move"
             style={{ left: ix, top: iy, width: iw, height: ih, boxShadow: "0 0 0 1px rgb(255 255 255 / .9), 0 0 0 2px rgb(0 0 0 / .28)" }} />
         </div>
       )}
