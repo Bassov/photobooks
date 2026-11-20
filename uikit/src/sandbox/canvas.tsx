@@ -9,7 +9,7 @@ import { P } from "@/data"
 import {
   SW, SH, PAGE, type Doc, type Frame, type Spread, type Rect, type SnapLine, type Anchor, anchors, snapRect, resolveGrid, effectiveGrid,
   allGuides, clamp, round, effectiveDpi, orientedSize, photoOf, uid, framesFromTemplate,
-  parentOf, pageNumbersOf, foliosOf, printSafe, type Guide,
+  parentOf, pageNumbersOf, foliosOf, printSafe, type Guide, photoRect, keepPhoto, scalePhoto, panPhoto,
 } from "./model"
 import { useStudio, mapSpread, mapFrames, useKeys, type Studio } from "./store"
 import { anchorPhoto, fillTokens } from "./meta"
@@ -195,7 +195,6 @@ function FrameEl(p: FrameProps) {
       data-override={f.overrides ? "true" : undefined}
       className={cn("group/frame absolute", p.inherited && "pointer-events-none", dragLive && "opacity-40", p.hidden && "opacity-0")}
       style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined, zIndex: crop || p.editing ? 30 : undefined }}>
-      {crop && <div className="pointer-events-none absolute inset-0 overflow-visible"><PhotoImg f={f} wpx={f.w * sc} hpx={f.h * sc} ghost /></div>}
       <FrameBody f={f} s={p.s} sc={sc} missing={missing} inherited={p.inherited} editing={p.editing} onEditDone={p.onEditDone} />
       {f.kind === "image" && f.caption && <div data-testid="frame-caption" className="pointer-events-none absolute inset-x-0 truncate" style={{ top: f.h * sc + 1.5 * sc, fontSize: TEXT.caption.size * sc, fontFamily: TEXT.caption.font, color: "#535152", lineHeight: 1.3 }}>{f.caption}</div>}
       {!p.selected && !p.inherited && <div className="pointer-events-none absolute inset-0 outline-1 outline-select/0 transition-[outline-color] group-hover/frame:outline-select/70 [outline-style:solid]" />}
@@ -302,21 +301,99 @@ function PrintOverlay({ sc }: { sc: number }) {
   )
 }
 
+const HANDLE_PTS: [string, number, number, string][] = [["nw", 0, 0, "nwse-resize"], ["n", 50, 0, "ns-resize"], ["ne", 100, 0, "nesw-resize"], ["w", 0, 50, "ew-resize"], ["e", 100, 50, "ew-resize"], ["sw", 0, 100, "nesw-resize"], ["s", 50, 100, "ns-resize"], ["se", 100, 100, "nwse-resize"]]
+const SelOutline = () => <div className="pointer-events-none absolute inset-0 shadow-ring-white outline-2 outline-offset-1 outline-select [outline-style:solid]" data-testid="sel-outline" />
+function FrameHandles({ pts, onHandle }: { pts: typeof HANDLE_PTS; onHandle: (e: React.PointerEvent, h: string) => void }) {
+  return pts.map(([h, x, y, c]) => (
+    <span key={h} onPointerDown={(e) => onHandle(e, h)} data-handle={h} data-testid="sel-handle"
+      className="pointer-events-auto absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-2xs bg-white" style={{ left: `${x}%`, top: `${y}%`, cursor: c, boxShadow: "0 0 0 1.5px #232223" }} />
+  ))
+}
+function RotateKnob({ onHandle }: { onHandle: (e: React.PointerEvent, h: string) => void }) {
+  return (
+    <>
+      <span data-testid="rotate-stem" className="pointer-events-none absolute left-1/2 top-[-22px] h-[20px] w-px bg-select" />
+      <span onPointerDown={(e) => onHandle(e, "rot")} data-handle="rot" data-testid="rotate-knob" className="pointer-events-auto absolute left-1/2 top-[-28px] size-3 -translate-x-1/2 cursor-grab rounded-full bg-white" style={{ boxShadow: "0 0 0 1.5px #232223" }} />
+    </>
+  )
+}
 function Handles({ r, sc, rotate, onHandle }: { r: Rect & { rot?: number }; sc: number; rotate: boolean; onHandle: (e: React.PointerEvent, h: string) => void }) {
-  const pts: [string, number, number, string][] = [["nw", 0, 0, "nwse-resize"], ["n", 50, 0, "ns-resize"], ["ne", 100, 0, "nesw-resize"], ["w", 0, 50, "ew-resize"], ["e", 100, 50, "ew-resize"], ["sw", 0, 100, "nesw-resize"], ["s", 50, 100, "ns-resize"], ["se", 100, 100, "nwse-resize"]]
   return (
     <div className="pointer-events-none absolute z-40" style={{ left: r.x * sc, top: r.y * sc, width: r.w * sc, height: r.h * sc, transform: r.rot ? `rotate(${r.rot}deg)` : undefined }} data-testid="handles">
-      <div className="pointer-events-none absolute inset-0 shadow-ring-white outline-2 outline-offset-1 outline-select [outline-style:solid]" data-testid="sel-outline" />
-      {pts.map(([h, x, y, c]) => (
-        <span key={h} onPointerDown={(e) => onHandle(e, h)} data-handle={h} data-testid="sel-handle"
-          className="pointer-events-auto absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-2xs bg-white" style={{ left: `${x}%`, top: `${y}%`, cursor: c, boxShadow: "0 0 0 1.5px #232223" }} />
-      ))}
-      {rotate && (
-        <>
-          <span className="pointer-events-none absolute left-1/2 top-[-22px] h-[20px] w-px bg-select" />
-          <span onPointerDown={(e) => onHandle(e, "rot")} data-handle="rot" className="pointer-events-auto absolute left-1/2 top-[-28px] size-3 -translate-x-1/2 cursor-grab rounded-full bg-white" style={{ boxShadow: "0 0 0 1.5px #232223" }} />
-        </>
+      <SelOutline />
+      <FrameHandles pts={HANDLE_PTS} onHandle={onHandle} />
+      {rotate && <RotateKnob onHandle={onHandle} />}
+    </div>
+  )
+}
+
+/* Designer walkthrough-ux-review §A (direct crop): chrome of a selected single photo frame. Frame handles crop (the photo
+   stays on the page), the centre grabber pans, the photo layer (ghost .3 + extent outline + 4 round corner handles) shows
+   on grabber / photo-handle hover, during a photo gesture or pinned (double-click / Crop), and hides 400 ms after the
+   pointer is > 12 px outside the photo. DOM order = hit order, bottom up: ghost, grabber, rotate knob, frame handles,
+   photo handles. Sizes are plain px: the kit draws the spread at `sc`, so they are screen px at every zoom.
+   The rotate knob is part of this chrome as in prod (Spec table), whatever `features.rotateHandle` says. */
+export type Corner = "nw" | "ne" | "sw" | "se"
+const CORNERS: [Corner, number, number, string][] = [["nw", 0, 0, "nwse-resize"], ["ne", 1, 0, "nesw-resize"], ["sw", 0, 1, "nesw-resize"], ["se", 1, 1, "nwse-resize"]]
+const ENTER = "animate-in fade-in duration-(--duration-fast) ease-out motion-reduce:animate-none"
+function FrameChrome({ f, sc, pinned, rotate, op, rotating, onHandle, onPan, onScale, onPin }: {
+  f: Frame; sc: number; pinned: boolean; rotate: boolean; op: Corner | "pan" | null; rotating: boolean
+  onHandle: (e: React.PointerEvent, h: string) => void; onPan: (e: React.PointerEvent) => void; onScale: (e: React.PointerEvent, c: Corner) => void
+  /** double-click on the grabber or the ghost pins the layer, as on the frame */
+  onPin: () => void
+}) {
+  const [hover, setHover] = React.useState(false)
+  const ext = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    if (!hover) return
+    let t: number | undefined
+    const mv = (e: PointerEvent) => {
+      const b = ext.current?.getBoundingClientRect(); if (!b) return
+      const d = Math.hypot(Math.max(b.left - e.clientX, 0, e.clientX - b.right), Math.max(b.top - e.clientY, 0, e.clientY - b.bottom))
+      if (d <= 12) { window.clearTimeout(t); t = undefined } else if (t === undefined) t = window.setTimeout(() => setHover(false), 400)
+    }
+    window.addEventListener("pointermove", mv)
+    return () => { window.removeEventListener("pointermove", mv); window.clearTimeout(t) }
+  }, [hover])
+  const img = photoRect(f)!, wpx = f.w * sc, hpx = f.h * sc
+  const ix = (img.x - f.x) * sc, iy = (img.y - f.y) * sc, iw = img.w * sc, ih = img.h * sc
+  // the visible photo's centre, ≥ 20 px inside the frame edges
+  const gx = clamp((Math.max(0, ix) + Math.min(wpx, ix + iw)) / 2, 20, wpx - 20), gy = clamp((Math.max(0, iy) + Math.min(hpx, iy + ih)) / 2, 20, hpx - 20)
+  const shown = pinned || hover || !!op, frameKeys = !pinned && !op
+  // a side < 40 px hides its mid handles (corners stay)
+  const pts = HANDLE_PTS.filter(([h]) => !((h === "n" || h === "s") && wpx < 40) && !((h === "w" || h === "e") && hpx < 40))
+  const show = () => setHover(true)
+  return (
+    <div className="pointer-events-none absolute z-40" style={{ left: f.x * sc, top: f.y * sc, width: wpx, height: hpx, transform: f.rot ? `rotate(${f.rot}deg)` : undefined }} data-testid="handles" data-pinned={pinned || undefined}>
+      {shown && (
+        <div data-testid="photo-layer" className={ENTER}>
+          <div className="absolute inset-0"><PhotoImg f={f} wpx={wpx} hpx={hpx} ghost /></div>
+          <div ref={ext} data-testid="photo-ghost" onPointerDown={onPan} onDoubleClick={onPin} className="pointer-events-auto absolute cursor-move"
+            style={{ left: ix, top: iy, width: iw, height: ih, boxShadow: "0 0 0 1px rgb(255 255 255 / .9), 0 0 0 2px rgb(0 0 0 / .28)" }} />
+        </div>
       )}
+      {!pinned && <SelOutline />}
+      {wpx >= 64 && hpx >= 64 && (
+        <span data-testid="crop-grabber" title="Drag to move the photo" onPointerEnter={show} onPointerDown={onPan} onDoubleClick={onPin}
+          className="pointer-events-auto absolute size-7 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full bg-[rgb(255_255_255/.72)] transition-[background-color,scale] duration-(--duration-fast) ease-out hover:scale-110 hover:bg-white motion-reduce:transition-none"
+          style={{ left: gx, top: gy, boxShadow: "0 0 0 1.5px var(--select), 0 1px 3px rgb(0 0 0 / .25)" }}>
+          <span className="pointer-events-none absolute left-1/2 top-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-select" />
+        </span>
+      )}
+      {rotate && frameKeys && <RotateKnob onHandle={onHandle} />}
+      {rotating && <span data-testid="rotate-chip" className="absolute whitespace-nowrap rounded-md bg-field px-1.5 text-2xs font-semibold leading-4 text-foreground" style={{ left: wpx / 2 + 16, top: -30 }}>{Math.round(f.rot)}°</span>}
+      {frameKeys && <FrameHandles pts={pts} onHandle={onHandle} />}
+      {shown && CORNERS.map(([c, x, y, cur]) => {
+        const on = op === c
+        return (
+          <span key={c} role="button" tabIndex={0} aria-label={`Scale photo from ${c}`} data-testid="photo-handle" data-corner={c} data-active={on || undefined}
+            onPointerEnter={show} onPointerDown={(e) => onScale(e, c)}
+            className={cn("pointer-events-auto absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A3839] focus-visible:[outline-style:solid]", ENTER)}
+            style={{ left: ix + x * iw, top: iy + y * ih, cursor: cur, background: on ? "var(--crop)" : "var(--paper)",
+              boxShadow: on ? "0 0 0 1.5px var(--paper), 0 0 0 3px var(--crop)" : "0 0 0 1.5px var(--crop), 0 1px 2px rgb(0 0 0 / .25)" }} />
+        )
+      })}
+      {op && !pinned && <span data-testid="crop-tag" className="absolute -top-6 left-0 whitespace-nowrap rounded-md bg-field px-1.5 py-0.5 text-2xs font-semibold text-foreground">Crop · {Math.round(f.zoom * 100)}%</span>}
     </div>
   )
 }
@@ -380,16 +457,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
       if (f.kind !== "text") { drawFrame(e, "text"); return }
       e.preventDefault(); st.setSel([f.id]); st.setView({ tool: "select" }); setEditing(f.id); return
     }
-    if (st.cropId === f.id) { // pan inside the frame
-      e.stopPropagation()
-      const p0 = { ox: f.ox, oy: f.oy }, ph = photoOf(f.photo)!
-      const o = orientedSize(ph, f.qt); const scl = Math.max(f.w / o.w, f.h / o.h) * f.zoom
-      const ow = o.w * scl - f.w, oh = o.h * scl - f.h
-      const start = gesture(e, (p) => {
-        st.preview((d) => mapFrames(d, si, [f.id], (x) => ({ ...x, ox: ow > 0 ? clamp(p0.ox + (p.x - start.x) * 2 / ow, -1, 1) : 0, oy: oh > 0 ? clamp(p0.oy + (p.y - start.y) * 2 / oh, -1, 1) : 0 })))
-      }, (m) => m && st.commit("Pan photo"))
-      return
-    }
+    if (st.cropId === f.id) { panFrom(e, f); return } // pan inside the frame
     e.stopPropagation()
     let sel = st.sel
     if (e.shiftKey && ft.multi) sel = sel.includes(f.id) ? sel.filter((x) => x !== f.id) : [...sel, f.id]
@@ -447,6 +515,28 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   }
   // Plain press on the paper over an uncovered parent item: it stays click-through, the status names it (PO2)
   const parentAt = (e: React.PointerEvent) => parentFrames.filter((f) => frameContains(f, pt(e))).at(-1)
+  /* Direct crop (Designer walkthrough-ux-review §A) on a single unlocked photo frame: photo gestures are one step each */
+  // Select tool only: a Text / Frame press over the photo draws (Designer text-frames), as before
+  const direct = (f: Frame) => !!ft.crop && view.tool === "select" && f.kind === "image" && !!f.photo && !st.missing.has(f.photo) && !f.locked
+  const [photoOp, setPhotoOp] = React.useState<{ id: string; op: Corner | "pan" } | null>(null)
+  const [rotating, setRotating] = React.useState(false)
+  const photoGesture = (e: React.PointerEvent, f: Frame, op: Corner | "pan", move: (p: { x: number; y: number }, from: { x: number; y: number }, ev: PointerEvent) => Partial<Frame>, label: string) => {
+    if (e.button !== 0) return
+    e.stopPropagation(); st.setCur(si); setPhotoOp({ id: f.id, op })
+    const from = gesture(e, (p, ev) => st.preview((d) => mapFrames(d, si, [f.id], (x) => ({ ...x, ...move(p, from, ev) }))),
+      (m) => { setPhotoOp(null); if (m) st.commit(label) }, () => { setPhotoOp(null); st.cancelPreview() })
+  }
+  const panFrom = (e: React.PointerEvent, f: Frame) => photoGesture(e, f, "pan", (p, from) => panPhoto(f, p.x - from.x, p.y - from.y), "Pan photo")
+  // corner drag: aspect locked about the opposite corner (Alt: the centre); the scale is the drag projected on the diagonal
+  const scaleFrom = (e: React.PointerEvent, f: Frame, c: Corner) => {
+    const img = photoRect(f)!
+    const cx = c.includes("w") ? img.x : img.x + img.w, cy = c.includes("n") ? img.y : img.y + img.h
+    photoGesture(e, f, c, (p, from, ev) => {
+      const o = ev.altKey ? { x: img.x + img.w / 2, y: img.y + img.h / 2 } : { x: 2 * img.x + img.w - cx, y: 2 * img.y + img.h - cy }
+      const vx = cx - o.x, vy = cy - o.y, qx = vx + p.x - from.x, qy = vy + p.y - from.y
+      return scalePhoto(f, (qx * vx + qy * vy) / (vx * vx + vy * vy), o)
+    }, "Scale photo")
+  }
   const onHandle = (e: React.PointerEvent, h: string) => {
     e.stopPropagation()
     const f = selFrames[0]; if (!f || f.locked) return
@@ -454,12 +544,15 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
     const A = anc([f.id])
     if (h === "rot") {
       const c = { x: f.x + f.w / 2, y: f.y + f.h / 2 }
+      setRotating(true)
       gesture(e, (p, ev) => {
         let ang = Math.atan2(p.y - c.y, p.x - c.x) * 180 / Math.PI + 90
         if (ang > 180) ang -= 360
-        ang = ev.shiftKey ? Math.round(ang / 15) * 15 : Math.abs(ang) < 2 ? 0 : round(ang)
+        // Shift: 15° steps; else a snap to 0 / 90 / 180 / 270 within ±2°
+        const q = Math.round(ang / 90) * 90
+        ang = ev.shiftKey ? Math.round(ang / 15) * 15 : Math.abs(ang - q) <= 2 ? q : round(ang)
         st.preview((d) => mapFrames(d, si, [f.id], (x) => ({ ...x, rot: ang })))
-      }, (m) => m && st.commit("Rotate frame"))
+      }, (m) => { setRotating(false); if (m) st.commit("Rotate frame") }, () => { setRotating(false); st.cancelPreview() })
       return
     }
     const start = gesture(e, (p, ev) => {
@@ -470,6 +563,8 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
       if (h.includes("w")) { x = o.x + dx; w = o.w - dx }
       if (h.includes("n")) { y = o.y + dy; hh = o.h - dy }
       if (ev.shiftKey && h.length === 2) { const r = o.w / o.h; if (w / hh > r) w = hh * r; else hh = w / r; if (h.includes("w")) x = o.x + o.w - w; if (h.includes("n")) y = o.y + o.h - hh }
+      // Shift on a side handle keeps the frame aspect about the frame's centre line
+      if (ev.shiftKey && h.length === 1) { const r = o.w / o.h; if (h === "n" || h === "s") { w = hh * r; x = o.x + (o.w - w) / 2 } else { hh = w / r; y = o.y + (o.h - hh) / 2 } }
       let ls: SnapLine[] = []
       if (snapOn && !ev.altKey && !o.rot) {
         const ex = (h.includes("e") ? ["r"] : h.includes("w") ? ["l"] : []) as ("l" | "r")[]
@@ -481,8 +576,11 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
       }
       setLines(ls)
       w = Math.max(10, w); hh = Math.max(10, hh)
-      st.preview((d) => mapSpread(d, si, (sp) => ({ ...sp, template: null, frames: sp.frames.map((q) => (q.id === f.id ? { ...q, x: round(x, 2), y: round(y, 2), w: round(w, 2), h: round(hh, 2) } : q)) })))
-    }, (m) => m && st.commit("Resize frame"))
+      const r = { x: round(x, 2), y: round(y, 2), w: round(w, 2), h: round(hh, 2) }
+      // direct crop: the photo keeps its page rect; Fill scales it about the fixed edge point only when it would stop covering
+      const crop = direct(f) ? keepPhoto(f, r, { x: h.includes("e") ? r.x : h.includes("w") ? r.x + r.w : r.x + r.w / 2, y: h.includes("s") ? r.y : h.includes("n") ? r.y + r.h : r.y + r.h / 2 }) : {}
+      st.preview((d) => mapSpread(d, si, (sp) => ({ ...sp, template: null, frames: sp.frames.map((q) => (q.id === f.id ? { ...q, ...r, ...crop } : q)) })))
+    }, (m) => m && st.commit(direct(f) ? "Crop frame" : "Resize frame"))
   }
   const onBgDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return
@@ -559,8 +657,26 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   const live = marquee ? hitsOf(marquee).filter((id) => !st.sel.includes(id)) : []
   const onDouble = (f: Frame) => {
     if (f.kind === "text" && ft.textEdit) { setEditing(f.id); return }
-    if (f.kind === "image" && f.photo && ft.crop) { st.setCropId(f.id); st.setSel([f.id]); st.setStatus("Crop: drag to move the photo, wheel or slider to zoom, Esc to finish") }
+    if (f.kind === "image" && f.photo && ft.crop) { st.setCropId(f.id); st.setSel([f.id]); st.setStatus("Crop: drag to move the photo, corners or wheel to zoom, Tab + arrows to nudge, Esc to finish") }
   }
+  // Pinned crop: Tab cycles the 4 photo handles, arrows nudge the photo 1 screen px (Shift 10) in one coalesced step
+  const pinned = st.cropId ? s.frames.find((x) => x.id === st.cropId && direct(x)) : undefined
+  useKeys((e) => {
+    if (!pinned) return
+    if (e.key === "Tab") {
+      const hs = [...(ref.current?.querySelectorAll<HTMLElement>('[data-testid="photo-handle"]') ?? [])]
+      if (!hs.length) return
+      e.preventDefault()
+      const i = hs.indexOf(document.activeElement as HTMLElement), n = hs.length
+      hs[i < 0 ? (e.shiftKey ? n - 1 : 0) : (i + (e.shiftKey ? n - 1 : 1)) % n].focus()
+      return
+    }
+    const a = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] } as Record<string, [number, number] | undefined>)[e.key]
+    if (!a || e.metaKey || e.ctrlKey || e.altKey) return
+    e.preventDefault()
+    const k = (e.shiftKey ? 10 : 1) / sc
+    st.update((d) => mapFrames(d, si, [pinned.id], (x) => ({ ...x, ...panPhoto(x, a[0] * k, a[1] * k) })), "Nudge photo", "nudge-crop")
+  }, [pinned?.id, sc, si, st])
   // Designer text-frames: Enter on one selected text frame (Select tool) edits it, caret at the end (TextEdit's mount)
   const enterText = active && si === st.cur && view.tool === "select" && !editing && st.sel.length === 1 && ft.textEdit
     ? s.frames.find((f) => f.id === st.sel[0] && f.kind === "text") : undefined
@@ -583,6 +699,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   })
   const showSel = active && selFrames.length > 0 && !st.cropId && !view.preview
   const single = selFrames.length === 1 ? selFrames[0] : null
+  const chromeF = pinned ?? (showSel && single && ft.handles && editing !== single.id && direct(single) ? single : undefined)
   const folios = view.pageNumbers || pageNumbersOf(par) ? foliosOf(doc, s, si, printSafe(doc, st.book)) : []
   return (
     <div ref={ref} {...dropProps} onPointerDownCapture={onOverridePress} onPointerDown={onBgDown} onWheel={onWheel} data-testid="spread" data-spread={si} data-current={si === st.cur || undefined}
@@ -615,14 +732,16 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
       {s.frames.filter((f) => live.includes(f.id)).map((f) => (
         <div key={f.id} data-testid="marquee-hit" className="pointer-events-none absolute z-40 shadow-ring-white outline-2 outline-offset-1 outline-select [outline-style:solid]" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined }} />
       ))}
-      {showSel && single && ft.handles && !single.locked && editing !== single.id && <Handles r={single} sc={sc} rotate={!!ft.rotateHandle} onHandle={onHandle} />}
+      {showSel && single && ft.handles && !single.locked && editing !== single.id && !direct(single) && <Handles r={single} sc={sc} rotate={!!ft.rotateHandle} onHandle={onHandle} />}
+      {chromeF && <FrameChrome key={chromeF.id} f={chromeF} sc={sc} pinned={chromeF === pinned} rotate op={photoOp?.id === chromeF.id ? photoOp.op : null} rotating={rotating}
+        onHandle={onHandle} onPan={(e) => panFrom(e, chromeF)} onScale={(e, c) => scaleFrom(e, chromeF, c)} onPin={() => onDouble(chromeF)} />}
       {showSel && (!ft.handles || selFrames.length > 1 || single?.locked) && selFrames.filter((f) => f.id !== editing).map((f) => (
         <div key={f.id} data-testid="sel-outline" className="pointer-events-none absolute z-40 shadow-ring-white outline-2 outline-offset-1 outline-select [outline-style:solid]" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined }} />
       ))}
       {showSel && selFrames.length > 1 && (() => { const b = bbox(selFrames); return <div className="pointer-events-none absolute z-40 outline-1 outline-dashed outline-mark" style={{ left: b.x * sc - 4, top: b.y * sc - 4, width: b.w * sc + 8, height: b.h * sc + 8 }} /> })()}
       {/* proto: floating contextual toolbar for a single selected frame */}
       {active && si === st.cur && <TemplatePreview sc={sc} />}
-      {st.cropId && s.frames.some((f) => f.id === st.cropId) && (() => { const f = s.frames.find((x) => x.id === st.cropId)!; return <div data-testid="crop-overlay" className="pointer-events-none absolute z-40 outline-2 outline-crop [outline-style:solid]" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc }}><span className="absolute -top-6 left-0 rounded-md bg-field px-1.5 py-0.5 text-2xs font-semibold text-foreground">Crop · {Math.round(f.zoom * 100)}%</span></div> })()}
+      {st.cropId && s.frames.some((f) => f.id === st.cropId) && (() => { const f = s.frames.find((x) => x.id === st.cropId)!; return <div data-testid="crop-overlay" className="pointer-events-none absolute z-40 outline-2 outline-crop [outline-style:solid]" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc }}><span data-testid="crop-tag" className="absolute -top-6 left-0 whitespace-nowrap rounded-md bg-field px-1.5 py-0.5 text-2xs font-semibold text-foreground">Crop · {Math.round(f.zoom * 100)}%</span></div> })()}
     </div>
   )
 }
