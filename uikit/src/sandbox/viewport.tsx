@@ -5,10 +5,11 @@ import { Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { SW, SH, PAGE, clamp, round, uid, spread, allGuides, type Guide } from "./model"
 import { hideParentGuide, isOverridePress } from "./parent-overrides"
-import { useStudio, mapSpread, removeFrames, deleteLabel, useKeys } from "./store"
+import { useStudio, mapSpread, removeFrames, deleteLabel, useKeys, type Studio } from "./store"
+import { FRAMES_TYPE, COPIED_MS, countLabel, duplicateFrames, duplicateSpread, framesPayload, parsePayload, pasteFrames, pastedRects, clipboardMirror, setClipboardMirror } from "./clipboard"
 import { SpreadSurface, GuideLine, PHOTO_TYPE, FRAME_LOCKED_STATUS, readItems, marqueeStarters, grayPick } from "./canvas"
 import { bestTemplate } from "./templates"
-import { CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, setMaster, guidesOfMaster, useMasters, coverW, pagesOf, spineCm, WRAP, SUB, setCoverPhoto } from "./v7"
+import { CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, setMaster, guidesOfMaster, useMasters, coverW, pagesOf, pagesName, spineCm, WRAP, SUB, setCoverPhoto } from "./v7"
 import type { Node } from "./store"
 
 /* Stack gap = 104 / 588 of the spread height (prod M49), so it scales with zoom. Page labels keep 11 px on screen,
@@ -77,10 +78,88 @@ function useSize<T extends HTMLElement>(key?: unknown) {
   return [ref, s] as const
 }
 
+/* Frame copy / paste (Designer frame-copy-paste FC1): the keys act on the canvas selection of an interior spread in Pages
+   mode; a field, the spread list, the filmstrip, a dialog or the Site preview keep their own (native) keys. */
+const OWN_KEYS = 'input,textarea,[contenteditable=true],[data-testid="spreads-panel"],[data-filmstrip],[role="dialog"]'
+const canvasTarget = (t: EventTarget | null) => !(t as HTMLElement | null)?.closest?.(OWN_KEYS) && !document.querySelector('[data-testid="site-preview"]')
+const onPages = (st: Studio) => !!st.features.handles && st.mode === "pages" && (!st.node || st.node.k === "book" || st.node.k === "none")
+const selectedIds = (st: Studio) => (st.doc.spreads[st.cur]?.frames ?? []).filter((f) => st.sel.includes(f.id)).map((f) => f.id)
+
+/** Document copy / cut / paste on the frame selection (D1, D9); Ctrl/⌘+Shift+V's keydown makes the next paste exact (`inPlace`). */
+function useFrameClipboard(inPlace: React.RefObject<boolean>) {
+  const st = useStudio()
+  const live = React.useRef(st)
+  live.current = st
+  React.useEffect(() => {
+    const flash = (text: string) => {
+      live.current.setStatus(text)
+      setTimeout(() => { if (live.current.status === text) live.current.setStatus("") }, COPIED_MS)
+    }
+    const onCopy = (e: ClipboardEvent) => {
+      const s = live.current
+      if (!canvasTarget(e.target) || !onPages(s)) return
+      const all = selectedIds(s)
+      if (!all.length) return
+      e.preventDefault()
+      const cut = e.type === "cut", ids = cut ? all.filter((id) => !s.doc.spreads[s.cur].frames.find((f) => f.id === id)?.locked) : all
+      if (!ids.length) { s.setStatus(FRAME_LOCKED_STATUS); return }
+      const p = framesPayload(s.doc, s.cur, ids)
+      e.clipboardData?.setData(FRAMES_TYPE, JSON.stringify(p))
+      setClipboardMirror(p)
+      if (!cut) { flash(ids.length > 1 ? `Copied ${ids.length} frames` : "Copied frame"); return }
+      s.update((d) => removeFrames(d, s.cur, ids), countLabel("Cut", ids.length))
+      s.setCropId(null)
+      s.setSel(s.sel.filter((id) => !ids.includes(id)))
+    }
+    const onPaste = (e: ClipboardEvent) => {
+      const exact = inPlace.current
+      inPlace.current = false
+      const s = live.current
+      if (!canvasTarget(e.target) || !onPages(s) || !s.doc.spreads[s.cur]) return
+      // D1: the event's payload only — text copied elsewhere since the last frame copy pastes nothing here. Chromium's
+      // Ctrl+Shift+V (paste and match style) event carries plain text only: with no text on it, the last frame copy pastes
+      const data = e.clipboardData, own = data?.getData(FRAMES_TYPE)
+      const p = own ? parsePayload(own) : exact && !data?.types.includes("text/plain") ? clipboardMirror() : null
+      if (!p) return
+      e.preventDefault()
+      const { doc, ids } = pasteFrames(s.doc, s.cur, p, pastedRects(s.doc, s.cur, p, { inPlace: exact }))
+      s.update(() => doc, countLabel("Paste", ids.length))
+      s.setCropId(null)
+      s.setSel(ids)
+    }
+    document.addEventListener("copy", onCopy); document.addEventListener("cut", onCopy); document.addEventListener("paste", onPaste)
+    return () => { document.removeEventListener("copy", onCopy); document.removeEventListener("cut", onCopy); document.removeEventListener("paste", onPaste) }
+  }, [])
+}
+
 export function useEditorKeys() {
   const st = useStudio()
+  const inPlace = React.useRef(false)
+  useFrameClipboard(inPlace)
   useKeys((e) => {
     const mod = e.metaKey || e.ctrlKey
+    // Ctrl/⌘+V and +Shift+V: the paste event that follows does the work
+    if (mod && e.key.toLowerCase() === "v") { inPlace.current = e.shiftKey; return }
+    if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "d") {
+      // the spread list's Ctrl+D duplicates the spread (prod spreadsKeyAction); the canvas one, the selected frames (D8)
+      const row = /^p(\d+)$/.exec((e.target as HTMLElement).closest?.('[data-testid="spreads-panel"] [data-item]')?.getAttribute("data-item") ?? "")
+      if (row && st.mode === "pages") {
+        e.preventDefault()
+        const i = +row[1]
+        st.update((d) => duplicateSpread(d, i), "Duplicate spread", undefined, i + 1)
+        st.setStatus(`${pagesName(i)} duplicated`)
+        return
+      }
+      const ids = selectedIds(st)
+      if (ids.length && canvasTarget(e.target) && onPages(st)) {
+        e.preventDefault()
+        const { doc, ids: made } = duplicateFrames(st.doc, st.cur, ids)
+        st.update(() => doc, countLabel("Duplicate", made.length))
+        st.setCropId(null)
+        st.setSel(made)
+        return
+      }
+    }
     if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) st.redo(); else st.undo(); return }
     if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); st.redo(); return }
     if (e.key === "Escape") { if (st.cropId) st.setCropId(null); else if (st.sel.length) st.setSel([]); else st.setNode({ k: "none" }); return }
