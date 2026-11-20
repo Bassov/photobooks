@@ -285,3 +285,52 @@ export function effectiveDpi(f: Frame): number | null {
   return Math.round(25.4 / s)
 }
 export const fmtMm = (v: number) => `${round(v)}`
+
+/* ---------------------------------------------------------------- direct crop (Designer walkthrough-ux-review §A)
+   The photo's page rect (spread mm, mat and straighten aside) is the crop's other form: PhotoImg's
+   `left = (w − dw) / 2 + ox · (dw − w) / 2` solved for ox. Frame crop keeps that rect; corner scale and pan move it. */
+type Pt = { x: number; y: number }
+const scales = (o: { w: number; h: number }, r: Rect) => ({ cover: Math.max(r.w / o.w, r.h / o.h), fit: Math.min(r.w / o.w, r.h / o.h) })
+/** the photo's rect in spread mm (null for an empty frame) */
+export function photoRect(f: Frame): Rect | null {
+  const p = photoOf(f.photo); if (!p) return null
+  const o = orientedSize(p, f.qt), b = scales(o, f)
+  const s = (f.fit === "fit" ? b.fit : b.cover) * f.zoom, w = o.w * s, h = o.h * s
+  return { x: f.x + (f.w - w) / 2 * (1 - f.ox), y: f.y + (f.h - h) / 2 * (1 - f.oy), w, h }
+}
+/** crop fields that show `img` in frame rect `r`: zoom ≥ 1 over the mode's base, ox / oy clamped (Fill keeps covering);
+ *  Fit becomes Fill once the photo covers the frame */
+export function cropFor(f: Frame, r: Rect, img: Rect): Pick<Frame, "zoom" | "ox" | "oy" | "fit"> {
+  const o = orientedSize(photoOf(f.photo)!, f.qt), b = scales(o, r)
+  const s = img.w / o.w
+  const fit = f.fit === "fit" && s < b.cover - 1e-9 ? "fit" : "fill"
+  const base = fit === "fit" ? b.fit : b.cover, zoom = Math.max(1, s / base)
+  const w = o.w * base * zoom, h = o.h * base * zoom
+  const off = (pos: number, start: number, len: number, size: number) => Math.abs(len - size) < 1e-9 ? 0 : clamp(1 - 2 * (pos - start) / (len - size), -1, 1)
+  return { zoom, ox: off(img.x + img.w / 2 - w / 2, r.x, r.w, w), oy: off(img.y + img.h / 2 - h / 2, r.y, r.h, h), fit }
+}
+const scaleAbout = (r: Rect, k: number, a: Pt): Rect => ({ x: a.x + (r.x - a.x) * k, y: a.y + (r.y - a.y) * k, w: r.w * k, h: r.h * k })
+/** Frame handle crop: the frame becomes `r`, the photo keeps its page rect. Fill scales it up about `anchor`
+ *  (the fixed edge point of the drag) only by what covering `r` needs; Fit only up to its fit size. */
+export function keepPhoto(f: Frame, r: Rect, anchor: Pt): Pick<Frame, "zoom" | "ox" | "oy" | "fit"> {
+  const img = photoRect(f)!, o = orientedSize(photoOf(f.photo)!, f.qt), b = scales(o, r)
+  let k = Math.max(1, (f.fit === "fit" ? b.fit : b.cover) * o.w / img.w)
+  if (f.fit !== "fit") {
+    // per side: the photo edge must pass the frame edge, measured from the anchor
+    const need = (photo: number, frame: number) => (frame > photo && photo > 1e-9 ? frame / photo : 1)
+    k = Math.max(k, need(anchor.x - img.x, anchor.x - r.x), need(img.x + img.w - anchor.x, r.x + r.w - anchor.x),
+      need(anchor.y - img.y, anchor.y - r.y), need(img.y + img.h - anchor.y, r.y + r.h - anchor.y))
+  }
+  return cropFor(f, r, scaleAbout(img, k, anchor))
+}
+/** Photo corner drag: scale by `k` about `about`, aspect locked; Fill min = cover, Fit min = fit, max 4 × cover */
+export function scalePhoto(f: Frame, k: number, about: Pt): Pick<Frame, "zoom" | "ox" | "oy" | "fit"> {
+  const img = photoRect(f)!, o = orientedSize(photoOf(f.photo)!, f.qt), b = scales(o, f)
+  const s0 = img.w / o.w, s = clamp(s0 * k, f.fit === "fit" ? b.fit : b.cover, b.cover * 4)
+  return cropFor(f, f, scaleAbout(img, s / s0, about))
+}
+/** Pan by (dx, dy) mm, clamped like the crop pan */
+export function panPhoto(f: Frame, dx: number, dy: number): Pick<Frame, "zoom" | "ox" | "oy" | "fit"> {
+  const img = photoRect(f)!
+  return cropFor(f, f, { ...img, x: img.x + dx, y: img.y + dy })
+}
