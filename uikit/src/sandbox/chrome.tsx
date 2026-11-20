@@ -536,7 +536,7 @@ function ThumbResizer() {
   const keys: Record<string, () => Thumb> = { ArrowUp: () => clamp(h + 8), ArrowDown: () => clamp(h - 8), Home: () => THUMB_MIN, End: () => max, Enter: () => "auto" }
   return (
     <div role="separator" aria-orientation="horizontal" aria-label="Resize photos" aria-valuemin={THUMB_MIN} aria-valuemax={max} aria-valuenow={h} tabIndex={0}
-      className="group/rs absolute inset-x-0 -top-[5px] z-10 h-[9px] cursor-ns-resize touch-none outline-none" data-dragging={dragging || undefined} data-testid="thumb-resizer"
+      className="group/rs absolute inset-x-0 -top-[5px] h-[9px] cursor-ns-resize touch-none outline-none" data-dragging={dragging || undefined} data-testid="thumb-resizer"
       onPointerDown={(e) => { if (e.button !== 0) return; e.currentTarget.setPointerCapture(e.pointerId); drag.current = { y: e.clientY, h, last: h }; setDragging(true) }}
       // 4 px steps; state only while moving, localStorage once on release
       onPointerMove={(e) => { const d = drag.current; if (!d) return; const v = clamp(Math.round((d.h + d.y - e.clientY) / 4) * 4); if (v !== d.last) { d.last = v; set(v, false) } }}
@@ -717,8 +717,9 @@ export function EditorFrame({ top, left, right, dock, canvas, overlay, className
                 if (st.sel.length) return
                 st.setNode({ k: "none" })
               }}>{canvas}</div>
-            {/* open: no clip, above the canvas, so the dock's resize edge (5 px over the top) is hittable */}
-            {dock && <div className={cn("e7-pan shrink-0", pn.b ? "relative z-20" : "overflow-hidden")} style={{ height: pn.b ? undefined : 0 }} aria-hidden={!pn.b || undefined} inert={!pn.b || undefined} data-hidden-panel={!pn.b || undefined} data-testid="panel-b">{dock}</div>}
+            {/* open: no clip, so the dock's resize edge (5 px over the top) paints over the canvas (later in DOM, no z-index:
+                a z-index would lift the dock over the menu underlay and keep its chips hovered) */}
+            {dock && <div className={cn("e7-pan shrink-0", !pn.b && "overflow-hidden")} style={{ height: pn.b ? undefined : 0 }} aria-hidden={!pn.b || undefined} inert={!pn.b || undefined} data-hidden-panel={!pn.b || undefined} data-testid="panel-b">{dock}</div>}
           </main>
           {right && <div className="e7-pan shrink-0 overflow-hidden" style={{ width: pn.r ? 300 : 0 }} aria-hidden={!pn.r || undefined} inert={!pn.r || undefined} data-hidden-panel={!pn.r || undefined} data-testid="panel-r">
             <div className="e7 scroll-thin h-full w-75 overflow-y-auto overflow-x-hidden" style={{ background: BAR }} data-testid="inspector">{right}</div></div>}
