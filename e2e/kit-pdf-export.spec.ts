@@ -876,8 +876,9 @@ test('cover-pdf C5: the kit cover spine paints the back fill', async ({
   // what paints: a spine pixel off the text, and the sheet behind it
   const [px] = await pixelsAt(spine, [{ x: 2, y: 4 }])
   expect(px?.slice(0, 3)).toEqual([62, 60, 59])
+  // Designer P1: the whole sheet is cloth (no grey front half).
   await expect(page.getByTestId('cover-sheet').first()).toHaveCSS(
-    'background-image',
-    /^linear-gradient\(90deg, rgb\(62, 60, 59\) [\d.]+%, rgb\(142, 142, 142\) [\d.]+%\)$/,
+    'background-color',
+    'rgb(62, 60, 59)',
   )
 })

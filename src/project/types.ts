@@ -1,4 +1,4 @@
-import type { Book, PrintProfile, SavedTemplate } from '../core'
+import type { Book, CoverStyle, PrintProfile, SavedTemplate } from '../core'
 import type { PublishedRevision } from './publish'
 
 export type PublishStatus = 'draft' | 'published'
@@ -47,6 +47,10 @@ export interface BookSummary {
   coverCacheKey?: string
   /** Cover-front crop center (0..1), for the shelf card's object-position. */
   coverCenter?: { x: number; y: number }
+  /** `cover.style.backFill`: the shelf card's cloth when the front has no photo. */
+  coverBackFill?: string
+  /** `cover.style.titleFont`: the shelf card's title face. */
+  coverTitleFont?: CoverStyle['titleFont']
 }
 
 export type StorageFailureCode =

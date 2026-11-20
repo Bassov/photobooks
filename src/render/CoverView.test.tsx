@@ -119,14 +119,54 @@ describe('CoverView', () => {
     expect(photo()?.style.backgroundPosition).toBe('25% 75%')
   })
 
-  it('sizes the mini cover to widthPx and leaves an empty front bare', () => {
-    const { container } = render(<CoverView book={makeBook()} widthPx={480} />)
+  it('sizes the mini cover to widthPx and paints an empty front as cloth', () => {
+    const book = makeBook()
+    const { container } = render(<CoverView book={book} widthPx={480} />)
 
     const spread = container.querySelector<HTMLElement>('.cover-spread')
     expect(spread?.style.width).toBe('480px')
     expect(container.querySelector('.cover-front-photo')).toBeNull()
+    expect(container.querySelector('.cover-front-drop')).toBeNull()
     const front = container.querySelector<HTMLElement>('.cover-front')
     expect(front?.hasAttribute('data-tier')).toBe(false)
+    // Designer P1: the cloth, D38 ink on it (the default cloth is dark).
+    expect(book.cover.style.backFill).toBe('#3e3c3b')
+    expect(front?.style.backgroundColor).toBe('#3e3c3b')
+    expect(front?.style.getPropertyValue('--cover-title-ink')).toBe('#F5F5F5')
+    expect(front?.style.getPropertyValue('--cover-title-shadow')).toBe('none')
+  })
+
+  it('inks a light empty front dark and leaves a photo front unpainted', () => {
+    const book = makeBook()
+    const light = {
+      ...book,
+      cover: {
+        ...book.cover,
+        style: { ...book.cover.style, backFill: '#E8E6E3' },
+      },
+    }
+    const { container, rerender } = render(<CoverView book={light} />)
+    const front = () => container.querySelector<HTMLElement>('.cover-front')
+    expect(front()?.style.getPropertyValue('--cover-title-ink')).toBe('#2E2C2D')
+
+    rerender(<CoverView book={light} frontUrl="a1.jpg" />)
+    expect(front()?.style.backgroundColor).toBe('')
+    expect(front()?.style.getPropertyValue('--cover-title-ink')).toBe('')
+  })
+
+  it('gives the editor empty front its drop box, not a photo front', () => {
+    stubSheetRect(642, 330)
+    const edit = { onDragOver: vi.fn(), onDrop: vi.fn() }
+    const { rerender } = render(<CoverView book={coverBook()} edit={edit} />)
+
+    expect(screen.getByTestId('cover-front-drop').textContent).toBe(
+      'Drop a photo for the front',
+    )
+    // Designer P1: the sheet is the cloth, no grey front half.
+    expect(screen.getByTestId('cover-sheet').style.background).toBe('#3e3c3b')
+
+    rerender(<CoverView book={coverBook()} frontUrl="a1.jpg" edit={edit} />)
+    expect(screen.queryByTestId('cover-front-drop')).toBeNull()
   })
 
   it('draws the sheet layers and the chip while the band is tall enough', () => {
