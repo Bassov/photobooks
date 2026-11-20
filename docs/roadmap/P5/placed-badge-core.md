@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item placed-badge-core
+Status: done
 
 Core part of the Designer "placed badge" (tool 4; Owner Q-25 2026-11-20: click + count, cycle through places; three items: core, kit, prod). Designer spec `placed-badge/spec.md` "Places (order = spread-list order)" and Must PB2. The later prod item jumps from a filmstrip badge to every place a photo sits in; core supplies the ordered list.
 
