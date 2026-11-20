@@ -9,7 +9,35 @@ import { hideCopies } from "./parent-overrides"
 export type View = {
   grid: boolean; snap: boolean; guides: boolean; rulers: boolean; overlays: boolean; preview: boolean
   dpi: boolean; snapFrames: boolean; snapGrid: boolean; snapGuides: boolean; pageNumbers: boolean
-  tool: "select" | "frame" | "text" | "hand"; zoom: number; thumb: number; unplacedOnly: boolean; sort: "date" | "name" | "added"
+  tool: "select" | "frame" | "text" | "hand"; zoom: number; thumb: Thumb; unplacedOnly: boolean; sort: "date" | "name" | "added"
+}
+/** Filmstrip thumb height (Designer walkthrough-ux-review §B): px, or "auto" = follows the window height. */
+export type Thumb = number | "auto"
+export const THUMB_MIN = 56
+/** auto = clamp(76, floor(0.085 · innerHeight), 160): 900 → 76, 1440 → 122, 2160 → 160 */
+export const thumbAuto = (ih: number) => Math.min(160, Math.max(76, Math.floor(0.085 * ih)))
+/** manual max = min(240, floor(0.5 · (innerHeight − 48)) − 64) */
+export const thumbMax = (ih: number) => Math.max(THUMB_MIN, Math.min(240, Math.floor(0.5 * (ih - 48)) - 64))
+/** effective height for this window; a stored value above the window's max re-clamps here and is never written back */
+export const thumbPx = (t: Thumb, ih: number) => t === "auto" ? thumbAuto(ih) : Math.min(thumbMax(ih), Math.max(THUMB_MIN, t))
+export const THUMB_KEY = "photobooks.filmstrip.thumb.v2"
+export function readThumb(): Thumb {
+  try {
+    const raw = localStorage.getItem(THUMB_KEY)
+    const n = Number(raw)
+    return raw && raw !== "auto" && Number.isFinite(n) ? n : "auto"
+  } catch { return "auto" }
+}
+export function writeThumb(t: Thumb) { try { localStorage.setItem(THUMB_KEY, String(t)) } catch { /* private mode: session-only */ } }
+/** window.innerHeight, live */
+export function useInnerHeight() {
+  const [ih, setIh] = React.useState(() => window.innerHeight)
+  React.useEffect(() => {
+    const on = () => setIh(window.innerHeight)
+    window.addEventListener("resize", on)
+    return () => window.removeEventListener("resize", on)
+  }, [])
+  return ih
 }
 export type Features = {
   /** pointer move / resize / rotate with handles */
@@ -69,7 +97,7 @@ export const useStudio = () => React.useContext(Ctx)!
 
 export const DEFAULT_VIEW: View = {
   grid: false, snap: true, guides: true, rulers: false, overlays: false, preview: false, dpi: false,
-  snapFrames: true, snapGrid: true, snapGuides: true, pageNumbers: false, tool: "select", zoom: 1, thumb: 76, unplacedOnly: false, sort: "date",
+  snapFrames: true, snapGrid: true, snapGuides: true, pageNumbers: false, tool: "select", zoom: 1, thumb: "auto", unplacedOnly: false, sort: "date",
 }
 
 export function StudioProvider({ init, view, features = {}, cur: cur0 = 0, sel: sel0 = [], missing: miss0, node: node0 = null, mode: mode0 = "pages", book: book0, children }: {
@@ -91,7 +119,7 @@ export function StudioProvider({ init, view, features = {}, cur: cur0 = 0, sel: 
   const [sel, setSel] = React.useState<string[]>(sel0)
   const [filmSel, setFilmSel] = React.useState<string[]>([])
   const [cropId, setCropId] = React.useState<string | null>(null)
-  const [v, setV] = React.useState<View>({ ...DEFAULT_VIEW, ...view })
+  const [v, setV] = React.useState<View>(() => ({ ...DEFAULT_VIEW, thumb: readThumb(), ...view }))
   const [status, setStatus] = React.useState("")
   const [dragging, setDragging] = React.useState<string[] | null>(null)
   const [saveState, setSaveState] = React.useState<Studio["saveState"]>("saved")
