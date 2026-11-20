@@ -85,6 +85,16 @@ describe('frame ops on a local copy', () => {
       50,
     ],
     [
+      'resizeFrameKeepPhoto',
+      {
+        type: 'resizeFrameKeepPhoto',
+        ...at,
+        rect: { x: 0, y: 0, width: 40, height: 60 },
+      },
+      (f) => f.rect.width,
+      40,
+    ],
+    [
       'setFrameRect',
       {
         type: 'setFrameRect',
