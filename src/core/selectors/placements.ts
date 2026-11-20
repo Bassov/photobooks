@@ -1,4 +1,4 @@
-import type { Book } from '../schema'
+import type { Book, Frame } from '../schema'
 import { spreadFrames } from '../update'
 
 /** One place an asset sits in the book. */
@@ -9,9 +9,13 @@ export type Place =
 
 const COVER_PANELS = ['front', 'spine', 'back'] as const
 
+const byZ = (frames: readonly Frame[]): Frame[] =>
+  [...frames].sort((a, b) => a.z - b.z)
+
 /**
  * Every placed asset in spread-list order: cover front / spine / back, front
- * endpaper, each spread's frames and local copies bottom → top (z), back endpaper.
+ * endpaper, each spread in paint order — local copies first (by z, painted
+ * beneath as part of the parent layer), then own frames (by z) — back endpaper.
  */
 function* bookPlacements(book: Book): Generator<readonly [string, Place]> {
   for (const panel of COVER_PANELS) {
@@ -24,7 +28,10 @@ function* bookPlacements(book: Book): Generator<readonly [string, Place]> {
     yield [book.endpapers.front.assetId, { kind: 'endpaper', side: 'front' }]
   }
   for (const spread of book.spreads) {
-    const frames = [...spreadFrames(spread)].sort((a, b) => a.z - b.z)
+    const frames = [
+      ...byZ(spread.parentOverrides?.frames ?? []),
+      ...byZ(spread.frames),
+    ]
     for (const frame of frames) {
       if (frame.assetId !== undefined) {
         yield [

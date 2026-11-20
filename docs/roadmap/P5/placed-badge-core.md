@@ -9,7 +9,7 @@ Core part of the Designer "placed badge" (tool 4; Owner Q-25 2026-11-20: click +
 
 ## Scope
 
-- [x] `src/core/selectors/placements.ts`: `placementsOfAsset(book, assetId) → Place[]`, `Place = { kind: 'cover', panel } | { kind: 'endpaper', side } | { kind: 'frame', spreadId, frameId }`. Order: cover front / spine / back, endpaper front, every spread in book order with its frames in paint order (z ascending, own frames and override copies alike), endpaper back. One shared traversal with `placementCountByAsset` (same rules, no fork).
+- [x] `src/core/selectors/placements.ts`: `placementsOfAsset(book, assetId) → Place[]`, `Place = { kind: 'cover', panel } | { kind: 'endpaper', side } | { kind: 'frame', spreadId, frameId }`. Order: cover front / spine / back, endpaper front, every spread in book order with its frames in paint order (override copies first by z, painted beneath as part of the parent layer, then own frames by z), endpaper back. One shared traversal with `placementCountByAsset` (same rules, no fork).
 - [x] `src/core/index.ts`: `placementsOfAsset` + `type Place` in the existing placements export block only.
 - [x] `src/core/selectors/placements.test.ts`: unit order cases (cover panels, endpaper front, spreads, frames bottom → top, override copies, endpaper back, unplaced → `[]`) + PBT: `placementsOfAsset(b, a).length === (placementCountByAsset(b).get(a) ?? 0)` for every asset.
 - **Browser check:** none (core selector only; no UI until the prod item).

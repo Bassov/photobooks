@@ -98,7 +98,7 @@ describe('bookHasAnyPlacement', () => {
 })
 
 describe('placementsOfAsset', () => {
-  it('lists places in spread-list order, frames bottom to top', () => {
+  it('lists places in spread-list order, copies beneath own frames', () => {
     const book = makeBook({
       gallery: ['a', 'b'],
       spreads: [
@@ -112,7 +112,7 @@ describe('placementsOfAsset', () => {
           parentOverrides: {
             frames: [
               {
-                ...makeFrame({ id: 'copy', assetId: 'a', z: 1 }),
+                ...makeFrame({ id: 'copy', assetId: 'a', z: 3 }),
                 overridesId: 'p0',
               },
             ],
@@ -136,8 +136,8 @@ describe('placementsOfAsset', () => {
       { kind: 'cover', panel: 'spine' },
       { kind: 'cover', panel: 'back' },
       { kind: 'endpaper', side: 'front' },
-      { kind: 'frame', spreadId: 's0', frameId: 'bottom' },
       { kind: 'frame', spreadId: 's0', frameId: 'copy' },
+      { kind: 'frame', spreadId: 's0', frameId: 'bottom' },
       { kind: 'frame', spreadId: 's0', frameId: 'top' },
       { kind: 'frame', spreadId: 's1', frameId: 'f0' },
       { kind: 'endpaper', side: 'back' },
@@ -147,7 +147,7 @@ describe('placementsOfAsset', () => {
     ])
   })
 
-  it('keeps own frames before copies at equal z', () => {
+  it('lists copies before own frames at equal z (copies paint beneath)', () => {
     const book = makeBook({
       gallery: ['a'],
       spreads: [
@@ -167,7 +167,7 @@ describe('placementsOfAsset', () => {
     })
     expect(
       placementsOfAsset(book, 'a').map((p) => p.kind === 'frame' && p.frameId),
-    ).toEqual(['own', 'copy'])
+    ).toEqual(['copy', 'own'])
   })
 
   it('is empty for an unplaced asset', () => {
