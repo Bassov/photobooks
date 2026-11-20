@@ -344,11 +344,20 @@ test.describe('kit direct crop (Designer walkthrough-ux-review §A)', () => {
       )
     }
     expect(seen).toEqual(['nw', 'ne', 'sw', 'se', 'nw'])
-    const ring = await photoHandle(page, 'nw').evaluate((el) => {
-      const s = getComputedStyle(el)
-      return [s.outlineStyle, s.outlineWidth, s.outlineColor, s.outlineOffset]
-    })
-    expect(ring).toEqual(['solid', '2px', 'rgb(58, 56, 57)', '2px'])
+    // under load the first read can come before the focus-visible style settles
+    await expect
+      .poll(() =>
+        photoHandle(page, 'nw').evaluate((el) => {
+          const s = getComputedStyle(el)
+          return [
+            s.outlineStyle,
+            s.outlineWidth,
+            s.outlineColor,
+            s.outlineOffset,
+          ]
+        }),
+      )
+      .toEqual(['solid', '2px', 'rgb(58, 56, 57)', '2px'])
 
     // arrows nudge the photo 1 screen px along its overflow axis
     const d = await nudgeAlongOverflow(page, frame)

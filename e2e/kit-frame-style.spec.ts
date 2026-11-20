@@ -268,7 +268,11 @@ test('kit-sync W3 opening (#/demo): KS6 no Hide inspector in the inspector head,
       page.locator('[data-testid="canvas"] [data-testid="frame"]').first(),
     )
   await settled(page)
-  await c('[data-testid="canvas"] [data-testid="frame"]')
+  // the drop selected the frame; its centre is the direct-crop grabber now, which takes the click
+  await page
+    .locator('[data-testid="canvas"] [data-testid="frame"]')
+    .first()
+    .click({ force: true })
   const hidePhoto = await hide()
   expect(
     hideSpread === 0 && hidePhoto === 0 && toggle === 1,

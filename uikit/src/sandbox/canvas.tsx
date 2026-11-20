@@ -516,7 +516,8 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   // Plain press on the paper over an uncovered parent item: it stays click-through, the status names it (PO2)
   const parentAt = (e: React.PointerEvent) => parentFrames.filter((f) => frameContains(f, pt(e))).at(-1)
   /* Direct crop (Designer walkthrough-ux-review §A) on a single unlocked photo frame: photo gestures are one step each */
-  const direct = (f: Frame) => !!ft.crop && f.kind === "image" && !!f.photo && !st.missing.has(f.photo) && !f.locked
+  // Select tool only: a Text / Frame press over the photo draws (Designer text-frames), as before
+  const direct = (f: Frame) => !!ft.crop && view.tool === "select" && f.kind === "image" && !!f.photo && !st.missing.has(f.photo) && !f.locked
   const [photoOp, setPhotoOp] = React.useState<{ id: string; op: Corner | "pan" } | null>(null)
   const [rotating, setRotating] = React.useState(false)
   const photoGesture = (e: React.PointerEvent, f: Frame, op: Corner | "pan", move: (p: { x: number; y: number }, from: { x: number; y: number }, ev: PointerEvent) => Partial<Frame>, label: string) => {

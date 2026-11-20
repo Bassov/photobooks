@@ -8,12 +8,16 @@
 
 ## Touch-set & Test Plan
 
-| Path                             | Why               |
-| -------------------------------- | ----------------- |
-| `uikit/src/sandbox/model.ts`     | crop math         |
-| `uikit/src/sandbox/canvas.tsx`   | chrome + gestures |
-| `uikit/src/sandbox/viewport.tsx` | nudge handover    |
-| `uikit/scripts/demo-capture.mjs` | demo steps        |
-| `e2e/kit-direct-crop.spec.ts`    | new e2e           |
+| Path                             | Why                              |
+| -------------------------------- | -------------------------------- |
+| `uikit/src/sandbox/model.ts`     | crop math                        |
+| `uikit/src/sandbox/canvas.tsx`   | chrome + gestures                |
+| `uikit/src/sandbox/viewport.tsx` | nudge handover                   |
+| `uikit/scripts/demo-capture.mjs` | demo steps                       |
+| `e2e/kit-direct-crop.spec.ts`    | new e2e                          |
+| `e2e/kit-book-settings.spec.ts`  | frame centre is the grabber      |
+| `e2e/kit-frame-style.spec.ts`    | frame centre is the grabber      |
+| `e2e/kit-layout-picker.spec.ts`  | frame centre is the grabber      |
+| `e2e/kit-editor-canvas.spec.ts`  | frame drag after the layer hides |
 
 - Tests: e2e `kit-direct-crop.spec.ts`, one test per Done-when line (paint via `elementsFromPoint`). The testids of the existing kit handles are kept.
