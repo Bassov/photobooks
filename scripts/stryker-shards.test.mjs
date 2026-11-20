@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import config from '../stryker.config.mjs'
@@ -83,6 +84,17 @@ describe('shards over the repo', () => {
     const flat = perShard.flat()
     expect(new Set(flat).size).toBe(flat.length)
     expect([...flat].sort()).toEqual([...full].sort())
+  })
+
+  it('match the stryker-full matrix', () => {
+    const workflow = fs.readFileSync(
+      '.github/workflows/stryker-full.yml',
+      'utf8',
+    )
+    const matrix = /shard: \[([^\]]*)\]/.exec(workflow)?.[1] ?? ''
+    expect(matrix.split(',').map((s) => Number(s.trim()))).toEqual(
+      SHARDS.map((_, i) => i),
+    )
   })
 
   it('leave no shard empty', () => {
