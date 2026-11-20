@@ -30,7 +30,7 @@ export function LibraryEmpty({
           sub="Autumn · 2025"
           h={440}
         />
-        <figcaption className="mt-6 flex items-baseline gap-x-3 text-2xs uppercase tracking-[0.18em] text-muted-foreground">
+        <figcaption className="mt-6 flex items-baseline gap-x-3 text-caps-display uppercase text-muted-foreground">
           <span>Example</span>
           <WelcomePhotoCaption
             id="c18b"
@@ -40,7 +40,7 @@ export function LibraryEmpty({
         </figcaption>
       </figure>
       <div className="pb-lib-rise pb-lib-rise--d15 max-w-[420px]">
-        <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+        <div className="text-caps-display uppercase text-muted-foreground">
           Your library is ready
         </div>
         <h1 className="pb-library-headline mt-4">
