@@ -915,6 +915,34 @@ describe('BookReader with WebGL', () => {
     expect(root.dataset.faces).toBe('done')
   })
 
+  it('marks the GL ready when the boot draw lands, though a texture asked for a newer one', async () => {
+    const made = fakeGl()
+    const lands: (() => void)[] = []
+    made.draws.draw.mockImplementation(
+      (_out, _w, _h, prep) =>
+        new Promise((resolve) => {
+          lands.push(() => {
+            resolve(prep())
+          })
+        }),
+    )
+    await glMount(made)
+    const root = screen.getByTestId('ps-reader-gl')
+    const boot = lands.at(-1)
+    act(() => {
+      made.book.onChange()
+    })
+    expect(lands.at(-1)).not.toBe(boot)
+
+    await act(async () => {
+      boot?.()
+      await Promise.resolve()
+    })
+
+    expect(root.dataset.gl).toBe('ready')
+    expect(root.dataset.faces).toBeUndefined()
+  })
+
   it('reports faces still loading, redraws when a texture lands', async () => {
     const { made } = await glMount(fakeGl(true))
     expect(screen.getByTestId('ps-reader-gl').dataset.faces).toBe('loading')
