@@ -24,6 +24,9 @@
 | `uikit/src/sandbox/v7.tsx`          | kit front               |
 | `uikit/src/features/library.tsx`    | kit shadows             |
 | `e2e/cover-empty-cloth.spec.ts`     | paint + drop box        |
+| `e2e/design-r10-library.spec.ts`    | card title face         |
+| `e2e/kit10-cover.spec.ts`           | front = cloth           |
+| `e2e/kit-pdf-export.spec.ts`        | kit sheet = cloth       |
 
 - Reuse: `relativeLuminance`, `COVER_TITLE_FACES`, `pixelsAt`, `openLibraryBook`.
 - Unit: coverInk threshold; CoverView front fill / drop box; BookObject; summary and grid fields; layout shadow strings. e2e per tasks 6.
