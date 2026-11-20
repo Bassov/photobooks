@@ -6,6 +6,7 @@
  * keep the CSS book. `s` = px per cm.
  */
 import { useEffect, useRef, type CSSProperties, type RefObject } from 'react'
+import { siteTitleStyle } from '../../render/coverTitleFace'
 import { shelfBook, thickCm } from '../shelf'
 import type { SiteCatalogBook } from '../siteInput'
 import { imageSrc } from '../siteUrl'
@@ -150,6 +151,7 @@ export function Book3D({
           <div
             className="sd-it sd-b3-title"
             style={{
+              ...siteTitleStyle(b.titleFont),
               color: b.ink,
               fontSize: `calc(var(--cover-k) * ${String(Math.min(W, H))}px)`,
               [b.place]: '9%',

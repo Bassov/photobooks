@@ -1,4 +1,4 @@
-import type { Book } from '../core'
+import type { Book, CoverStyle } from '../core'
 import type { BookObjectFmt } from '../render/bookObjectLayout'
 
 /** Site settings shown on every page. */
@@ -26,6 +26,8 @@ export interface SiteBookFacts {
   trimMm: { w: number; h: number }
   pageCount: number
   spine: { cloth: string; ink: string; text: string }
+  /** The cover's Title font (D38: the front title face); absent in older exports. */
+  titleFont?: CoverStyle['titleFont']
   paper: string
   endpaper: string
 }

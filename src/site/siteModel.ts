@@ -142,6 +142,7 @@ export function siteBookFacts(
           : INK_ON_LIGHT,
       text: spineText === '' ? displayBookTitle(book.title) : spineText,
     },
+    titleFont: book.cover.style.titleFont,
     paper: book.settings.pageColor ?? DEFAULT_PAPER,
     endpaper: ENDPAPER,
   }

@@ -45,13 +45,29 @@ describe('book3dGl panels (D38)', () => {
       ['set fillStyle', '#3e3c3b'],
       ['fillRect', 0, 0, 190, 230],
       ['drawImage', 'object', -135, 0, 460, 230],
-      ['set font', '500 19px "Site Inter Display", system-ui, sans-serif'],
+      [
+        'set font',
+        'italic 400 19px "Lora Cover", "Lora Variable", Georgia, serif',
+      ],
       ['set letterSpacing', '-0.48px'],
       ['set fillStyle', '#F5F5F5'],
       ['set textAlign', 'left'],
       ['set textBaseline', 'top'],
       ['fillText', 'Alps', 15.2, 20.7],
     ])
+  })
+
+  it('sets the title in the book Title font: upright serif, else the site sans', () => {
+    const font = (b: SiteCatalogBook) =>
+      calls(frontPanel(b, null, 190)).find(([name]) => name === 'set font')?.[1]
+    const legacy = alps()
+    delete legacy.titleFont
+
+    expect(font({ ...alps(), titleFont: 'serif' })).toBe(
+      'normal 400 19px "Lora Cover", "Lora Variable", Georgia, serif',
+    )
+    expect(font({ ...alps(), titleFont: 'sans' })).toBe(`500 19px ${FONT}`)
+    expect(font(legacy)).toBe(`500 19px ${FONT}`)
   })
 
   it('sets a bottom title on the foot, and no photo on the cloth only', () => {

@@ -75,8 +75,15 @@ function emptyFirstFrame(book: SiteBookData['book'], at: number) {
   }
 }
 
+const fontLoad = vi.fn(() => Promise.resolve([]))
+
 beforeEach(() => {
   fakeCanvas2d()
+  fontLoad.mockClear()
+  Object.defineProperty(document, 'fonts', {
+    configurable: true,
+    value: { load: fontLoad },
+  })
 })
 
 afterEach(() => {
@@ -138,6 +145,11 @@ describe('room GL books', () => {
     const r = await openReaderGl({ entry, book, images, pagePx: 400 })
 
     expect(gl.photo).toHaveBeenCalledWith(entry.cover?.src)
+    // D38: the cover title's face is loaded before the cover is drawn
+    expect(fontLoad).toHaveBeenCalledWith(
+      'italic 400 16px "Lora Cover", "Lora Variable", Georgia, serif',
+      entry.title,
+    )
     expect(gl.made.map(([k]) => k)).toStrictEqual(['faces', 'open'])
     expect(gl.made[1]?.[1][2]).toStrictEqual({
       bend: true,

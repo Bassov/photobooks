@@ -2,6 +2,7 @@
    object data (true size in cm, page count, spine colours). */
 import { P } from "@/data"
 import { hiPhoto, type Fmt } from "../library"
+import type { TitleFontId } from "./titleFace"
 
 export const AUTHOR = "Aleksandr Basov"
 export const EMAIL = "hello@aleksandr.photos"
@@ -22,6 +23,8 @@ export type SiteBook = {
   /** true size, cm */
   w: number; h: number
   spine: string; spineInk: string
+  /** the cover's Title font (D38: the front title face); absent → the kit default, Serif italic */
+  titleFont?: TitleFontId
   /** `*…*` marks the italic phrase */
   statement: string
   spreads: { template: string; photos: string[] }[]
