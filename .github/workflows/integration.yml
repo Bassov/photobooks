@@ -118,11 +118,11 @@ jobs:
           retention-days: 1
           if-no-files-found: ignore
 
-  # Functional e2e in duration-balanced shards (scripts/e2e-shard.mjs,
-  # weighted by .github/e2e-shard-durations.json): 1-worker shards for the
-  # reader-gl spec locations, 2-worker shards for whole files. Shard count =
-  # the matrix length. `integration` merges the shards' blob reports and
-  # coverage.
+  # Functional e2e in duration-balanced 1-worker shards (scripts/e2e-shard.mjs,
+  # weighted by .github/e2e-shard-durations.json): whole spec files, the
+  # reader-gl specs by location. Two workers per runner made WebGL and
+  # long-task specs fail on timing. Shard count = the matrix length.
+  # `integration` merges the shards' blob reports and coverage.
   e2e:
     name: e2e (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
@@ -131,7 +131,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -176,12 +176,13 @@ jobs:
           PLAYWRIGHT_BLOB_OUTPUT_NAME: report-${{ matrix.shard }}.zip
         run: |
           mapfile -t SHARD_ARGS < e2e-shard/files.txt
-          pnpm exec ts-rig-ci with-playwright-env playwright test --project=chromium --reporter=blob --grep-invert "frame-budget gates" "${SHARD_ARGS[@]}"
+          pnpm exec ts-rig-ci with-playwright-env playwright test --project=chromium --workers=1 --reporter=blob --grep-invert "frame-budget gates" "${SHARD_ARGS[@]}"
 
+      # A shard of kit-only specs (not the instrumented app) has no dumps.
       - name: Merge shard coverage
         if: always() && steps.e2e-functional.outcome == 'success'
         run: |
-          mkdir -p e2e-shard/coverage
+          mkdir -p e2e-shard/coverage .nyc_output
           pnpm exec nyc merge .nyc_output "e2e-shard/coverage/shard-${{ matrix.shard }}.json"
           test -s "e2e-shard/coverage/shard-${{ matrix.shard }}.json"
 

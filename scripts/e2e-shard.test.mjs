@@ -3,12 +3,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  SINGLE_WORKER,
+  SPLIT_BY_LOCATION,
   assignShards,
   coverageGaps,
   main,
   parseShard,
-  planShards,
   secondsPerLocation,
   testsPerFile,
   testsPerLocation,
@@ -79,7 +78,7 @@ describe('secondsPerLocation', () => {
   })
 })
 
-describe('SINGLE_WORKER', () => {
+describe('SPLIT_BY_LOCATION', () => {
   it.each([
     ['site-reader-gl.spec.ts', true],
     ['dir/kit-personal-site-reader-gl.spec.ts', true],
@@ -87,7 +86,7 @@ describe('SINGLE_WORKER', () => {
     ['site-reader.spec.ts', false],
     ['reader-gl.spec.ts.bak', false],
   ])('%s → %s', (file, expected) => {
-    expect(SINGLE_WORKER.test(file)).toBe(expected)
+    expect(SPLIT_BY_LOCATION.test(file)).toBe(expected)
   })
 })
 
@@ -99,42 +98,41 @@ describe('unitWeights', () => {
       ['new.spec.ts:1', 3],
     ])
 
-    const { single, multi } = unitWeights(counts, {
+    const weights = unitWeights(counts, {
       'known.spec.ts:1': 10,
       'known.spec.ts:9': 20,
       'gone.spec.ts:1': 500,
     })
 
-    expect(single.size).toBe(0)
-    expect([...multi]).toEqual([
+    expect([...weights]).toEqual([
       ['known.spec.ts', 30],
       ['new.spec.ts', 30],
     ])
   })
 
-  it('keeps reader-gl locations apart as single-worker units', () => {
+  it('keeps reader-gl locations apart as units of their own', () => {
     const counts = new Map([
       ['site-reader-gl.spec.ts:5', 1],
       ['site-reader-gl.spec.ts:40', 2],
       ['a.spec.ts:1', 1],
     ])
 
-    const { single, multi } = unitWeights(counts, {
+    const weights = unitWeights(counts, {
       'site-reader-gl.spec.ts:5': 90,
       'a.spec.ts:1': 2,
     })
 
-    expect([...single]).toEqual([
+    expect([...weights]).toEqual([
       ['site-reader-gl.spec.ts:5', 90],
       ['site-reader-gl.spec.ts:40', 2 * 46],
+      ['a.spec.ts', 2],
     ])
-    expect([...multi]).toEqual([['a.spec.ts', 2]])
   })
 
   it('weighs each test 1 s when nothing listed has a record', () => {
-    const { multi } = unitWeights(new Map([['new.spec.ts:1', 4]]), {})
+    const weights = unitWeights(new Map([['new.spec.ts:1', 4]]), {})
 
-    expect(multi.get('new.spec.ts')).toBe(4)
+    expect(weights.get('new.spec.ts')).toBe(4)
   })
 })
 
@@ -191,59 +189,6 @@ describe('assignShards', () => {
     )
 
     expect(() => assignShards(weights, n)).toThrow(message)
-  })
-})
-
-describe('planShards', () => {
-  const multi = new Map([
-    ['a.spec.ts', 40],
-    ['b.spec.ts', 40],
-    ['c.spec.ts', 40],
-    ['d.spec.ts', 40],
-  ])
-
-  it('gives the single units the number of 1-worker shards with the shortest longest shard', () => {
-    const single = new Map([
-      ['gl.spec.ts:1', 30],
-      ['gl.spec.ts:2', 30],
-      ['gl.spec.ts:3', 30],
-    ])
-
-    // k=1: 90 | 2w 80/2=40 → 90; k=2: 60 | 3 shards → 40 → 60;
-    // k=3: 30 | 2 shards → 40 → 40.
-    expect(planShards({ single, multi }, 5)).toEqual([
-      { workers: 1, units: ['gl.spec.ts:1'], wall: 30 },
-      { workers: 1, units: ['gl.spec.ts:2'], wall: 30 },
-      { workers: 1, units: ['gl.spec.ts:3'], wall: 30 },
-      { workers: 2, units: ['a.spec.ts', 'c.spec.ts'], wall: 40 },
-      { workers: 2, units: ['b.spec.ts', 'd.spec.ts'], wall: 40 },
-    ])
-  })
-
-  it('keeps fewer 1-worker shards on a tie', () => {
-    const single = new Map([
-      ['gl.spec.ts:1', 10],
-      ['gl.spec.ts:2', 10],
-    ])
-
-    // k=1: 20 | 3 shards → 40 → 40; k=2: 10 | 2 shards → 40 → 40.
-    expect(
-      planShards({ single, multi }, 4).map((shard) => shard.workers),
-    ).toEqual([1, 2, 2, 2])
-  })
-
-  it('caps the 1-worker shards at the single units, one 2-worker shard left', () => {
-    const single = new Map([['gl.spec.ts:1', 500]])
-
-    expect(
-      planShards({ single, multi }, 3).map((shard) => shard.workers),
-    ).toEqual([1, 2, 2])
-  })
-
-  it('runs only 2-worker shards without single units', () => {
-    expect(
-      planShards({ single: new Map(), multi }, 2).map((shard) => shard.wall),
-    ).toEqual([40, 40])
   })
 })
 
@@ -335,7 +280,7 @@ describe('main', () => {
     shard,
   ]
 
-  it('pick prints the workers and the filters of one shard', () => {
+  it('pick prints the filters of one shard', () => {
     const { lines, io } = setup({
       'list.json': listing,
       'durations.json': {
@@ -354,15 +299,11 @@ describe('main', () => {
     )
 
     expect([first, second]).toEqual([0, 0])
-    expect(firstLines).toEqual(['--workers=2', unitFilter('a.spec.ts')])
-    expect(lines).toEqual([
-      '--workers=2',
-      unitFilter('b.spec.ts'),
-      unitFilter('c.spec.ts'),
-    ])
+    expect(firstLines).toEqual([unitFilter('a.spec.ts')])
+    expect(lines).toEqual([unitFilter('b.spec.ts'), unitFilter('c.spec.ts')])
   })
 
-  it('pick gives reader-gl locations a 1-worker shard', () => {
+  it('pick spreads the locations of a reader-gl file over shards', () => {
     const { lines, io } = setup({
       'list.json': report({
         'site-reader-gl.spec.ts': [[[0]], [[0]]],
@@ -377,10 +318,7 @@ describe('main', () => {
 
     main(pick('2/3'), io)
 
-    expect(lines).toEqual([
-      '--workers=1',
-      unitFilter('site-reader-gl.spec.ts:2'),
-    ])
+    expect(lines).toEqual([unitFilter('site-reader-gl.spec.ts:2')])
   })
 
   it('pick reads the committed durations file by default', () => {
@@ -394,10 +332,7 @@ describe('main', () => {
     const code = main(pick('2/2'), { out: io.out })
 
     expect(code).toBe(0)
-    expect(lines).toEqual([
-      '--workers=2',
-      unitFilter('zz-unrecorded-b.spec.ts'),
-    ])
+    expect(lines).toEqual([unitFilter('zz-unrecorded-b.spec.ts')])
   })
 
   it('verify passes when the report has every listed test', () => {

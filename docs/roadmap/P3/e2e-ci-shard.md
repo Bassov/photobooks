@@ -19,4 +19,4 @@ Owner 2026-11-20: shard the integration workflow's e2e so a PR's run finishes in
 
 ## Done note
 
-Review round 1 (PR #652): the reader-gl specs time out with two workers on one runner, so they run on 1-worker shards split by spec location (`file:line`); other files stay whole on 2-worker shards. 15 shards (3 × 1 worker + 12 × 2 workers), durations recorded per location. The report merge moved into the `integration` job itself (no separate `e2e-report` job), which saves one runner queue wait; `integration` still fails on any shard failure, a missing file or a failed coverage upload.
+Review round 1 (PR #652): with two workers on one runner the reader-gl, `gl-faces-probe` (long task) and a kit-editor-canvas dialog test failed on timing, so every shard runs one worker, as main did: 16 shards. Files stay whole, except the reader-gl specs, which split by spec location (`file:line`) because one file outlasts a shard; durations are recorded per location. The report merge moved into the `integration` job itself (no separate `e2e-report` job), which saves one runner queue wait; `integration` still fails on any shard failure, a missing file or a failed coverage upload.
