@@ -733,11 +733,10 @@ function blackOutsideSelection() {
       ].some((c) => c === 'rgb(35, 34, 35)') ||
       /rgb\(35, 34, 35\)(?! 0px 0px 0px 0px)/.test(s.boxShadow)
     if (!hit) continue
-    if (
-      e.closest('[data-testid="sel-outline"],[data-testid="sel-handle"]') ||
-      e.matches('[data-testid="sel-outline"],[data-testid="sel-handle"]')
-    )
-      continue
+    // direct-crop chrome (grabber ring + dot, rotate stem + knob) is canvas selection too
+    const sel =
+      '[data-testid="sel-outline"],[data-testid="sel-handle"],[data-testid="crop-grabber"],[data-testid="rotate-stem"],[data-testid="rotate-knob"]'
+    if (e.closest(sel)) continue
     if (e.closest('[data-testid="panel-b"]') && e.querySelector('svg')) continue
     if (e.closest('[data-photo][data-selected]') && e.tagName === 'SPAN')
       continue

@@ -312,8 +312,8 @@ function FrameHandles({ pts, onHandle }: { pts: typeof HANDLE_PTS; onHandle: (e:
 function RotateKnob({ onHandle }: { onHandle: (e: React.PointerEvent, h: string) => void }) {
   return (
     <>
-      <span className="pointer-events-none absolute left-1/2 top-[-22px] h-[20px] w-px bg-select" />
-      <span onPointerDown={(e) => onHandle(e, "rot")} data-handle="rot" className="pointer-events-auto absolute left-1/2 top-[-28px] size-3 -translate-x-1/2 cursor-grab rounded-full bg-white" style={{ boxShadow: "0 0 0 1.5px #232223" }} />
+      <span data-testid="rotate-stem" className="pointer-events-none absolute left-1/2 top-[-22px] h-[20px] w-px bg-select" />
+      <span onPointerDown={(e) => onHandle(e, "rot")} data-handle="rot" data-testid="rotate-knob" className="pointer-events-auto absolute left-1/2 top-[-28px] size-3 -translate-x-1/2 cursor-grab rounded-full bg-white" style={{ boxShadow: "0 0 0 1.5px #232223" }} />
     </>
   )
 }
@@ -335,7 +335,7 @@ function Handles({ r, sc, rotate, onHandle }: { r: Rect & { rot?: number }; sc: 
    The rotate knob is part of this chrome as in prod (Spec table), whatever `features.rotateHandle` says. */
 export type Corner = "nw" | "ne" | "sw" | "se"
 const CORNERS: [Corner, number, number, string][] = [["nw", 0, 0, "nwse-resize"], ["ne", 1, 0, "nesw-resize"], ["sw", 0, 1, "nesw-resize"], ["se", 1, 1, "nwse-resize"]]
-const ENTER = "animate-in fade-in duration-120 ease-out motion-reduce:animate-none"
+const ENTER = "animate-in fade-in duration-(--duration-fast) ease-out motion-reduce:animate-none"
 function FrameChrome({ f, sc, pinned, rotate, op, rotating, onHandle, onPan, onScale, onPin }: {
   f: Frame; sc: number; pinned: boolean; rotate: boolean; op: Corner | "pan" | null; rotating: boolean
   onHandle: (e: React.PointerEvent, h: string) => void; onPan: (e: React.PointerEvent) => void; onScale: (e: React.PointerEvent, c: Corner) => void
@@ -375,7 +375,7 @@ function FrameChrome({ f, sc, pinned, rotate, op, rotating, onHandle, onPan, onS
       {!pinned && <SelOutline />}
       {wpx >= 64 && hpx >= 64 && (
         <span data-testid="crop-grabber" title="Drag to move the photo" onPointerEnter={show} onPointerDown={onPan} onDoubleClick={onPin}
-          className="pointer-events-auto absolute size-7 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full bg-[rgb(255_255_255/.72)] transition-[background-color,scale] duration-120 ease-out hover:scale-110 hover:bg-white motion-reduce:transition-none"
+          className="pointer-events-auto absolute size-7 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full bg-[rgb(255_255_255/.72)] transition-[background-color,scale] duration-(--duration-fast) ease-out hover:scale-110 hover:bg-white motion-reduce:transition-none"
           style={{ left: gx, top: gy, boxShadow: "0 0 0 1.5px var(--select), 0 1px 3px rgb(0 0 0 / .25)" }}>
           <span className="pointer-events-none absolute left-1/2 top-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-select" />
         </span>
