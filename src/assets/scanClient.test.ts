@@ -275,10 +275,12 @@ describe('scanClient', () => {
   it('reuses one worker across scans and resets counter on resetScanWorker', async () => {
     let constructed = 0
     const ids: string[] = []
+    const args: unknown[][] = []
     class CountingWorker {
       private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
-      constructor() {
+      constructor(...ctorArgs: unknown[]) {
         constructed += 1
+        args.push(ctorArgs)
       }
       addEventListener(
         type: string,
@@ -310,6 +312,9 @@ describe('scanClient', () => {
     await scanMemoryFilesInWorker([])
     expect(constructed).toBe(1)
     expect(ids).toEqual(['scan-1', 'scan-2'])
+    const [url, options] = args[0] ?? []
+    expect(String(url)).toMatch(/scan\.worker\.ts(?:\?|$)/)
+    expect(options).toEqual({ type: 'module' })
 
     resetScanWorker()
     await scanMemoryFilesInWorker([])

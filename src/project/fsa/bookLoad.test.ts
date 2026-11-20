@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { CURRENT_SCHEMA_VERSION, serializeBook } from '../../core'
 import { makeBook } from '../../core/testing/fixtures'
@@ -165,6 +165,33 @@ describe('createBookLoadWorker', () => {
     const client = createBookLoadWorker(factory)
     await expect(client.loadBookText('{}')).rejects.toThrow(/boom/)
     client.terminate()
+  })
+
+  it('constructs a module Worker for bookLoad.worker.ts by default', () => {
+    const calls: unknown[][] = []
+    class CapturingWorker {
+      constructor(...args: unknown[]) {
+        calls.push(args)
+      }
+      addEventListener(): void {
+        // no-op
+      }
+      removeEventListener(): void {
+        // no-op
+      }
+      terminate(): void {
+        // no-op
+      }
+    }
+    vi.stubGlobal('Worker', CapturingWorker)
+
+    createBookLoadWorker().terminate()
+    vi.unstubAllGlobals()
+
+    expect(calls).toHaveLength(1)
+    const [url, options] = calls[0] ?? []
+    expect(String(url)).toMatch(/bookLoad\.worker\.ts(?:\?|$)/)
+    expect(options).toEqual({ type: 'module' })
   })
 })
 
