@@ -282,6 +282,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [cycle-layouts-core](roadmap/P5/cycle-layouts-core.md) — Bug: /next-roadmap-item cycle-layouts-core
 - [ ] [feature] [prepush-scoped-units](roadmap/P5/prepush-scoped-units.md) — Bug: /next-roadmap-item prepush-scoped-units
 - [ ] [lite] [ratchet-merge-base](roadmap/P5/ratchet-merge-base.md) — Bug: /next-roadmap-item ratchet-merge-base
+- [ ] [lite] [ci-flakes](roadmap/P5/ci-flakes.md) — Bug: /next-roadmap-item ci-flakes
 - [ ] [feature] [printer-presets-core](roadmap/P5/printer-presets-core.md) — Bug: /next-roadmap-item printer-presets-core
 - [ ] [feature] [printer-presets-kit](roadmap/P5/printer-presets-kit.md) — Bug: /next-roadmap-item printer-presets-kit
 - [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
