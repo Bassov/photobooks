@@ -30,15 +30,14 @@ export function PhotoChrome({
   const [shown, setShown] = useState(false)
   const extent = useRef<HTMLSpanElement>(null)
   useEffect(() => {
-    if (!shown) {
+    // The extent span is always mounted, so the ref is set once effects run.
+    const node = extent.current
+    if (!shown || node === null) {
       return
     }
     let timer: number | undefined
     const onMove = (event: PointerEvent): void => {
-      const rect = extent.current?.getBoundingClientRect()
-      if (rect === undefined) {
-        return
-      }
+      const rect = node.getBoundingClientRect()
       const away = Math.hypot(
         Math.max(rect.left - event.clientX, 0, event.clientX - rect.right),
         Math.max(rect.top - event.clientY, 0, event.clientY - rect.bottom),
