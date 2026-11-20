@@ -94,10 +94,22 @@ function withLayout(
   return { ...spread, templateId, frames }
 }
 
+/** Photo settings a layout change carries over; it only moves frames. */
+const KEPT_FIELDS = [
+  'assetId',
+  'crop',
+  'fit',
+  'adjust',
+  'caption',
+  'frameStyleId',
+  'locked',
+] as const satisfies readonly (keyof Frame)[]
+
 /**
  * Generated geometry on the previous image frames (by index); an unmoved frame
- * stays the same object. Text frames keep their box and content and stay on
- * top, in their relative order.
+ * stays the same object. A moved frame keeps its photo settings and takes the
+ * template's rect and z; its rotation resets (templates are unrotated). Text
+ * frames keep their box and content and stay on top, in their relative order.
  */
 function rebindFrames(generated: Frame[], previous: Frame[]): Frame[] {
   const images = previous.filter((frame) => !isTextFrame(frame))
@@ -106,7 +118,11 @@ function rebindFrames(generated: Frame[], previous: Frame[]): Frame[] {
     if (prev === undefined) {
       return frame
     }
-    if (prev.z === frame.z && rectsEqual(prev.rect, frame.rect)) {
+    if (
+      prev.z === frame.z &&
+      prev.rotationDeg === undefined &&
+      rectsEqual(prev.rect, frame.rect)
+    ) {
       return prev
     }
     const next: Frame = {
@@ -114,15 +130,22 @@ function rebindFrames(generated: Frame[], previous: Frame[]): Frame[] {
       rect: frame.rect,
       z: frame.z,
     }
-    if (prev.assetId !== undefined) {
-      next.assetId = prev.assetId
-    }
-    if (prev.crop !== undefined) {
-      next.crop = prev.crop
+    for (const key of KEPT_FIELDS) {
+      copyDefined(next, prev, key)
     }
     return next
   })
   return [...laid, ...textsAbove(laid, previous.filter(isTextFrame))]
+}
+
+function copyDefined<K extends keyof Frame>(
+  to: Pick<Frame, K>,
+  from: Pick<Frame, K>,
+  key: K,
+): void {
+  if (from[key] !== undefined) {
+    to[key] = from[key]
+  }
 }
 
 /** Text frames above every laid frame; unchanged when they already are. */

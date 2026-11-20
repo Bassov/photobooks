@@ -101,11 +101,12 @@ export function useEditorKeys() {
       return
     }
     const arrows: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
-    if (arrows[e.key] && st.sel.length && (st.features.handles || st.cropId)) {
+    // pinned crop: the canvas chrome nudges the photo in screen px (canvas.tsx)
+    if (arrows[e.key] && st.cropId) return
+    if (arrows[e.key] && st.sel.length && st.features.handles) {
       e.preventDefault()
       const [dx, dy] = arrows[e.key]; const k = e.shiftKey ? 10 : 1
-      if (st.cropId) st.update((d) => mapSpread(d, st.cur, (s) => ({ ...s, frames: s.frames.map((f) => f.id === st.cropId ? { ...f, ox: clamp(f.ox - dx * 0.05 * k, -1, 1), oy: clamp(f.oy - dy * 0.05 * k, -1, 1) } : f) })), "Nudge photo", "nudge-crop")
-      else if (selFrames.length && !unlocked.length) st.setStatus(FRAME_LOCKED_STATUS)
+      if (selFrames.length && !unlocked.length) st.setStatus(FRAME_LOCKED_STATUS)
       else st.update((d) => mapSpread(d, st.cur, (s) => ({ ...s, frames: s.frames.map((f) => st.sel.includes(f.id) && !f.locked ? { ...f, x: round(f.x + dx * k, 2), y: round(f.y + dy * k, 2) } : f) })), "Nudge", "nudge")
       return
     }

@@ -59,7 +59,11 @@ async function openW3(page: Page) {
     .dragTo(
       page.locator('[data-testid="canvas"] [data-testid="frame"]').first(),
     )
-  await c('[data-testid="canvas"] [data-testid="frame"]')
+  // the drop selected the frame; its centre is the direct-crop grabber now, which takes the click
+  await page
+    .locator('[data-testid="canvas"] [data-testid="frame"]')
+    .first()
+    .click({ force: true })
 }
 
 test('v7 endpapers only when enabled in Book settings', async ({ page }) => {
