@@ -343,5 +343,7 @@ export { applyBookOp, type BookOp } from './ops/applyBookOp'
 export {
   bookHasAnyPlacement,
   placementCountByAsset,
+  placementsOfAsset,
   unplacedAssetIds,
+  type Place,
 } from './selectors/placements'
