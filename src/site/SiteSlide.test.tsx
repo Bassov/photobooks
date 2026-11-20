@@ -150,6 +150,17 @@ describe('CoverFace', () => {
     )
     const title = cover.querySelector<HTMLElement>('.sd-b3-title')
     expect(title?.textContent).toBe('Alps')
+    // D38: the book's Title font (alps: serif-italic)
+    expect(b.titleFont).toBe('serif-italic')
+    expect([
+      title?.style.fontFamily,
+      title?.style.fontStyle,
+      title?.style.fontWeight,
+    ]).toStrictEqual([
+      '"Lora Cover", "Lora Variable", Lora, serif',
+      'italic',
+      '400',
+    ])
     expect(title?.style.color).toBe(b.ink)
     expect(title?.style.fontSize).toBe('calc(var(--cover-k) * 300px)')
     expect(title?.style.bottom).toBe('9%')
@@ -167,5 +178,18 @@ describe('CoverFace', () => {
     const title = container.querySelector<HTMLElement>('.sd-b3-title')
     expect(title?.style.fontSize).toBe('calc(var(--cover-k) * 150px)')
     expect(title?.style.top).toBe('9%')
+  })
+
+  it('keeps the site sans (.sd-it) for a sans Title font', () => {
+    const { entry } = alps()
+    const b = { ...entry, titleFont: 'sans' as const }
+    const { container } = render(<CoverFace b={b} w={300} h={450} />)
+    const title = container.querySelector<HTMLElement>('.sd-b3-title')
+    expect(title?.className).toBe('sd-it sd-b3-title')
+    expect([
+      title?.style.fontFamily,
+      title?.style.fontStyle,
+      title?.style.fontWeight,
+    ]).toStrictEqual(['', '', ''])
   })
 })

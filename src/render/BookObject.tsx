@@ -84,7 +84,7 @@ export function BookObject({
               style={{
                 marginTop: '0.6em',
                 fontSize: layout.subSize,
-                letterSpacing: '0.3em',
+                letterSpacing: 'var(--tracking-display)',
               }}
             >
               {sub}

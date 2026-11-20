@@ -17,6 +17,17 @@
   --text-subhead: 16px; --text-subhead--line-height: 1.4;
   --text-lead: 17px; --text-lead--line-height: 1.4;
   --text-display: 34px; --text-display--line-height: 1.1;
+  /* polish P2 / P3: one type scale, two caps trackings (panel 0.12em, display 0.20em); prod styles/tokens.css mirrors it */
+  --tracking-caps: 0.12em; --tracking-display: 0.2em;
+  --text-caps: 11px; --text-caps--line-height: 14px; --text-caps--font-weight: 600; --text-caps--letter-spacing: var(--tracking-caps);
+  --text-caps-display: 11px; --text-caps-display--line-height: 16px; --text-caps-display--font-weight: 500; --text-caps-display--letter-spacing: var(--tracking-display);
+  --text-meta: 11px; --text-meta--line-height: 16px;
+  --text-small: 12px; --text-small--line-height: 16px;
+  --text-body: 13px; --text-body--line-height: 20px;
+  --text-label: 13px; --text-label--line-height: 20px; --text-label--font-weight: 500;
+  --text-dialog-title: 18px; --text-dialog-title--line-height: 24px;
+  --text-page-title: 26px; --text-page-title--line-height: 32px;
+  --text-hero: 34px; --text-hero--line-height: 40px;
   --shadow-ink-sm: 0 12px 26px -14px rgb(35 34 35 / .6);
   --shadow-ink: 0 14px 30px -14px rgb(35 34 35 / .55);
   /* soft layered shadows (shadcn-like); static: v4 inlines shadow values into utilities */
@@ -135,7 +146,7 @@
 
   --font-ui: "Inter Variable", Inter, sans-serif;
   --font-heading: "Lora Variable", Lora, serif;
-  --heading-weight: 500;
+  --heading-weight: 400;
   /* density (JollyUI default scale, slightly compact chrome via size="sm") */
   --spacing: 0.25rem;
   /* v4.1 type scale (audit: 365 arbitrary text-[Npx] → tokens only; qa fails on text-[Npx]).
@@ -241,7 +252,7 @@ html[data-density="compact"], .density-compact {
     font-feature-settings: "cv11", "ss01";
   }
   .heading { font-family: var(--font-heading); font-weight: var(--heading-weight); letter-spacing: -0.005em; }
-  .eyebrow { font-size: var(--text-2xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); }
+  .eyebrow { font-size: var(--text-2xs); font-weight: 600; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--muted-foreground); }
 }
 
 @layer base {

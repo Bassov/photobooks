@@ -52,7 +52,7 @@ import { hostingCheckedWhen } from './settingsScreenModel'
 const FOOT = 'flex min-h-13 items-center gap-4 px-4 py-2.5'
 const EYEBROW = 'mt-6 flex h-8 max-w-[640px] items-center justify-between px-4'
 const EYEBROW_T =
-  'm-0 text-2xs font-semibold uppercase tracking-[.12em] text-muted-foreground'
+  'm-0 text-2xs font-semibold uppercase tracking-caps text-muted-foreground'
 
 type Mode = 'setup' | 'manual'
 

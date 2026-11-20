@@ -37,6 +37,38 @@ describe('CoverView', () => {
     vi.unstubAllGlobals()
   })
 
+  it('hands the title its Title font face (coverTitleFace) as CSS vars', () => {
+    const book = coverBook()
+    const sans = {
+      ...book,
+      cover: {
+        ...book.cover,
+        style: { ...book.cover.style, titleFont: 'sans' as const },
+      },
+    }
+    const vars = (b: typeof book) => {
+      cleanup()
+      const { container } = render(<CoverView book={b} />)
+      const el = container.querySelector<HTMLElement>('.cover-spread')
+      return [
+        el?.dataset.titleFont,
+        el?.style.getPropertyValue('--cover-title-family'),
+        el?.style.getPropertyValue('--cover-title-style'),
+      ]
+    }
+
+    expect(vars(book)).toStrictEqual([
+      'serif-italic',
+      '"Lora Cover", "Lora Variable", Lora, serif',
+      'italic',
+    ])
+    expect(vars(sans)).toStrictEqual([
+      'sans',
+      'var(--font-sans, sans-serif)',
+      'normal',
+    ])
+  })
+
   it('paints the mini cover without editor chrome at the parent width', () => {
     const { container } = render(
       <CoverView book={coverBook()} frontUrl="a1-2000.jpg" frontTier={2048} />,

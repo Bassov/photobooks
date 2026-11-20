@@ -46,7 +46,7 @@ export function BookObject({ src, pos = "50% 50%", title, sub, fmt = "portrait",
         <div className="absolute inset-y-0 left-0" style={{ width: Math.max(8, 18 * s), background: "linear-gradient(90deg, rgb(0 0 0/.28), rgb(0 0 0/.06) 45%, rgb(255 255 255/.28) 70%, rgb(0 0 0/.05))" }} />
         <div className="absolute inset-x-0 px-3 text-center" style={{ color: ink, [place]: "9%" } as React.CSSProperties}>
           <div className="leading-none tracking-[-0.02em]" style={{ ...serif, fontSize: Math.round(Math.min(w, h) * .14) }}><em>{title}</em></div>
-          {sub && <div className="uppercase" style={{ marginTop: "0.6em", fontSize: Math.max(8, Math.round(h * .022)), letterSpacing: "0.3em" }}>{sub}</div>}
+          {sub && <div className="uppercase" style={{ marginTop: "0.6em", fontSize: Math.max(8, Math.round(h * .022)), letterSpacing: "var(--tracking-display)" }}>{sub}</div>}
         </div>
       </div>
     </div>
@@ -69,7 +69,7 @@ export function WelcomeScreen({ onCreate }: { onCreate: () => void }) {
       </div>
       <header className="absolute inset-x-0 top-0 flex items-center px-14 py-9"><Mark /></header>
       <div className="absolute left-14 top-1/2 w-[min(780px,46%)] -translate-y-1/2">
-        <div className="lib-rise text-xs uppercase tracking-[0.22em] text-muted-foreground">Welcome to Photobooks</div>
+        <div className="lib-rise text-caps-display uppercase text-muted-foreground">Welcome to Photobooks</div>
         <h1 className="lib-rise mt-5 leading-[0.94] tracking-[-0.04em]" style={{ ...serif, fontSize: "clamp(56px, 6.3vw, 112px)", animationDelay: ".1s" }}>A quiet place<br /><em>for your books.</em></h1>
         <p className="lib-rise mt-7 max-w-[440px] text-lead leading-7 text-muted-foreground" style={{ animationDelay: ".25s" }}>One folder on your disk where all your books are saved — your library. Choose where it lives.</p>
         <div className="lib-rise mt-10" style={{ animationDelay: ".4s" }}><Button className={big} onPress={onCreate} data-testid="create-library">Create Library</Button></div>
@@ -103,13 +103,13 @@ export function LibraryEmpty({ onCreate }: { onCreate: () => void }) {
     <div className="relative flex min-h-[520px] flex-1 items-center justify-center px-10 pb-10" style={{ gap: "clamp(48px, 6vw, 110px)" }} data-testid="home-empty">
       <figure className="lib-rise shrink-0" aria-label="Example book" data-testid="example-book">
         <BookObject src={hiPhoto("c18b")} pos="60% 55%" title="Fog" sub="Autumn · 2025" h={440} />
-        <figcaption className="mt-6 flex items-baseline gap-x-3 text-2xs uppercase tracking-[0.18em] text-muted-foreground">
+        <figcaption className="mt-6 flex items-baseline gap-x-3 text-caps-display uppercase text-muted-foreground">
           <span>Example</span>
           <PhotoCaption id="c18b" testid="screen-credit" className="normal-case tracking-normal" />
         </figcaption>
       </figure>
       <div className="lib-rise max-w-[420px]" style={{ animationDelay: ".15s" }}>
-        <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Your library is ready</div>
+        <div className="text-caps-display uppercase text-muted-foreground">Your library is ready</div>
         <h1 className="mt-4 text-[clamp(44px,4vw,64px)] leading-[0.98] tracking-[-0.035em]" style={serif}>Your first story<br /><em>starts here.</em></h1>
         <p className="mt-5 max-w-[380px] text-subhead leading-7 text-muted-foreground [text-wrap:pretty]">Create a book, then add a folder of photos in the editor and arrange the spreads your way.</p>
         <Button className={cn(big, "mt-8")} onPress={onCreate} data-testid="new-book">Create book</Button>

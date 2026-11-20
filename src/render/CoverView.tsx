@@ -16,6 +16,7 @@ import {
 // The print's own placement (`coverPhotoRect`): zod-free like the geometry.
 import { coverPhotoAnchor } from '../core/pdf/pdfGeometry'
 import { coverLayout, type CoverLayout, type PctBox } from './coverLayout'
+import { COVER_TITLE_FACES } from './coverTitleFace'
 import './CoverView.css'
 
 /** Editor chrome: labels, test ids, sheet overlays and the photo drop target. */
@@ -204,10 +205,13 @@ export const CoverPainter = memo(function CoverPainter({
   // `coverPhotoRect`'s anchor; its cover fit is the CSS `background-size`.
   const anchor = coverPhotoAnchor(cover.front.crop)
   const id = (name: string): string | undefined => (mini ? undefined : name)
-  const vars: Record<string, number> = {
+  const face = COVER_TITLE_FACES[look.titleFont]
+  const vars: Record<string, number | string> = {
     '--spine-frac': layout.spineFrac,
     '--spine-len-frac': layout.spineLenFrac,
     '--band-of-trim': layout.bandOfTrim,
+    '--cover-title-family': face.family,
+    '--cover-title-style': face.style,
   }
   const box: CSSProperties = mini
     ? { aspectRatio: layout.aspectRatio, width: widthPx ?? '100%' }

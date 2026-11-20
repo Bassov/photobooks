@@ -21,7 +21,7 @@ const BOX =
 const INPUT =
   'min-w-0 flex-1 border-0 bg-transparent p-0 outline-none [font:inherit]'
 const GROUP =
-  'col-span-2 mt-3 text-2xs font-semibold uppercase leading-[14.84px] tracking-[.12em] text-muted-foreground'
+  'col-span-2 mt-3 text-2xs font-semibold uppercase leading-[14.84px] tracking-caps text-muted-foreground'
 
 /** Kit Field rule: shadow-xs at rest; focus and error are a 1 px inset ring. */
 function ring(error: boolean): string {

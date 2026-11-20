@@ -205,8 +205,16 @@ describe('Book3D', () => {
     expect(book.querySelector('img')?.getAttribute('src')).toBe(
       '/photos/hi/c18b.jpg',
     )
-    expect(book.querySelector('.sd-b3-title')?.textContent).toBe('Alps')
-    expect(book.querySelector('.sd-b3-spine')?.textContent).toBe('Alps')
+    const title = book.querySelector<HTMLElement>('.sd-b3-title')
+    expect(title?.textContent).toBe('Alps')
+    // D38: the front in the book's Title font (serif-italic); the spine keeps the site sans
+    expect([title?.style.fontFamily, title?.style.fontStyle]).toStrictEqual([
+      '"Lora Cover", "Lora Variable", Lora, serif',
+      'italic',
+    ])
+    const spine = book.querySelector<HTMLElement>('.sd-b3-spine .sd-it')
+    expect(spine?.textContent).toBe('Alps')
+    expect(spine?.style.fontFamily).toBe('')
     expect(book.style.getPropertyValue('--board')).toBe('#3e3c3b')
   })
 

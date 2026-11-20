@@ -182,7 +182,7 @@ export function LastPage({ big, sc }: { big?: boolean; sc?: number }) {
 }
 
 export const Sec = ({ title, children, right, tid }: { title: string; children: React.ReactNode; right?: React.ReactNode; tid?: string }) => (
-  <section className="px-4 py-4" data-testid={tid}><div className="mb-3 flex items-center justify-between"><h3 className="text-2xs font-semibold tracking-[0.12em] uppercase" style={{ color: SUB }}>{title}</h3>{right}</div>{children}</section>)
+  <section className="px-4 py-4" data-testid={tid}><div className="mb-3 flex items-center justify-between"><h3 className="text-2xs font-semibold tracking-caps uppercase" style={{ color: SUB }}>{title}</h3>{right}</div>{children}</section>)
 /** layout-grids-parent-inherit GP2/GP3: with `src` (tooltip + description) the value reads grey 400 when inherited, dark 600 + ↺ when `own` */
 export const Field = ({ l, v, u, set, min = 0, max = 99, cap, name, tid = "master-field", own, src, onReset, resetLabel }: { l: string; v: string; u?: string; set?: (n: number) => void; min?: number; max?: number; cap?: string; name?: string; tid?: string; own?: boolean; src?: string; onReset?: () => void; resetLabel?: string }) => {
   const descId = React.useId(), shade = src === undefined ? { color: T } : { color: own ? T : SUB, fontWeight: own ? 600 : 400 }
