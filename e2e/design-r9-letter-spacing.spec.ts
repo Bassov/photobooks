@@ -23,7 +23,9 @@ import {
 //     SIZE, BINDING, PRINT, DEFAULTS), editor-endpaper-selected and the back
 //     endpaper (insp-endpaper FILL, APPLY; FILL 27.23 px, APPLY 42.11 px wide).
 // Kit Section eyebrow (ui.tsx:51 `.eyebrow`, span): 11px, 600, uppercase,
-//     rgb(83, 81, 82), letter-spacing 0.66px (0.06em). Steps: editor-pages-mode
+//     rgb(83, 81, 82), letter-spacing 1.32px (0.12em; was 0.06em until polish
+//     P3, Designer Spec walkthrough-polish-review: one panel caps tracking,
+//     Owner Q-21 2026-11-20). Steps: editor-pages-mode
 //     spread context (LAYOUT, MASTER & SPACING, BACKGROUND, GRID),
 //     editor-frame-selected photo context (FIT & CROP, ROTATE & FLIP, ADJUST,
 //     CAPTION, POSITION & SIZE, FRAME STYLE, ARRANGE).
@@ -39,7 +41,7 @@ const TITLE = {
   color: 'rgb(83, 81, 82)',
 }
 const SEC_TRACKING = 1.32
-const EYEBROW_TRACKING = 0.66
+const EYEBROW_TRACKING = SEC_TRACKING
 
 const KIT = {
   spread: ['Layout', 'Master & spacing', 'Background', 'Grid'],
@@ -173,15 +175,13 @@ test.describe('M57: uppercase section titles match the kit type', () => {
     await expectKitTitles(page, KIT.endpaper, SEC_TRACKING)
   })
 
-  test('spread Disclosure titles keep the kit eyebrow 0.06em', async ({
-    page,
-  }) => {
+  test('spread Disclosure titles: kit eyebrow 0.12em', async ({ page }) => {
     await page.locator('[data-testid^="spread-list-item-"]').first().click()
     await expect(page.getByTestId('inspector-context')).toHaveText('Spread')
     await expectKitTitles(page, KIT.spread, EYEBROW_TRACKING)
   })
 
-  test('photo frame titles keep the kit eyebrow 0.06em', async ({ page }) => {
+  test('photo frame titles: kit eyebrow 0.12em', async ({ page }) => {
     await choosePhotoFolder(page, [photoFixturePaths.samplePng])
     await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(1, {
       timeout: 30_000,

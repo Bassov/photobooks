@@ -25,10 +25,20 @@ import { clearProjectSession } from './fixtures/clearProjectSession'
 //     "Settings" x 98 [99.73]; section title y 72, line-height 31.2px;
 //     paragraph y 107.19; "Library folder" y 179.61 [text 180.61]; "Allowed ·
 //     read and write" rgb(57, 55, 56), y 295.44.
+// Polish P2 / P3 (Designer Spec walkthrough-polish-review, Owner Q-21
+//     2026-11-20): display caps 11px / 500 / 0.20em (2.2px) on the welcome and
+//     library eyebrows and the Example caption, boxes unchanged; the Settings
+//     h1 Lora at 400.
 
 const POS = 0.5
 const MUTED = 'rgb(83, 81, 82)'
 const INK = 'rgb(57, 55, 56)'
+const DISPLAY_CAPS = {
+  size: '11px',
+  weight: '500',
+  tracking: '2.2px',
+  color: MUTED,
+}
 
 test.afterEach(async ({ page }) => {
   await clearProjectSession(page)
@@ -109,6 +119,7 @@ test('M65 welcome: text block, headline gap and italic width match the kit', asy
   const lead = screen.getByText(/^One folder on your disk/)
 
   await expectAt(eyebrow, { x: 56, y: 242.91 })
+  await expectType(eyebrow, DISPLAY_CAPS)
   await expectAt(h1, { y: 279.71 })
   await expectType(h1, {
     size: '90.72px',
@@ -159,10 +170,13 @@ test('M64 empty library: Lora weights, column x, headline gap and credit match t
   await expectAt(fog, { x: 447.27, width: 79.06 })
   await expectAt(page.getByTestId('example-book'), { x: 310.8 })
 
-  await expectAt(empty.getByText('Your library is ready'), {
-    x: 749.19,
-    y: 348.16,
-  })
+  const ready = empty.getByText('Your library is ready')
+  await expectAt(ready, { x: 749.19, y: 348.16 })
+  await expectType(ready, DISPLAY_CAPS)
+  await expectType(
+    page.getByTestId('example-book').locator('figcaption'),
+    DISPLAY_CAPS,
+  )
   const h1 = empty.getByRole('heading', { level: 1 })
   await expectType(h1, {
     size: '57.6px',
@@ -254,6 +268,7 @@ test('M66 settings: crumb x, content offset and badge ink match the kit', async 
   const title = page.getByTestId('settings-section-title')
   await expectAt(title, { x: 252, y: 72 })
   await expect(title).toHaveCSS('line-height', '31.2px')
+  await expect(title).toHaveCSS('font-weight', '400')
   const panel = page.getByTestId('library-settings-panel')
   await expectAt(page.getByTestId('settings-scroll').locator('p').first(), {
     y: 107.19,

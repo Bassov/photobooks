@@ -137,9 +137,10 @@ test('static-export (Designer static-export §1–2): Export site pill rect, dia
   expect(
     dlg.w === 480 &&
       dlg.pad === '20px 24px' &&
-      dlg.h === 'Lora Variable 21px/26.25px 500' &&
+      // walkthrough-polish-review P2: all Lora chrome at 400
+      dlg.h === 'Lora Variable 21px/26.25px 400' &&
       dlg.btns.join() === '36 8px,36 8px',
-    `static-export: dialog 480 wide, padding 20 / 24, heading Lora 21/26.25 500, buttons 36 h r8 — ${JSON.stringify(dlg)}`,
+    `static-export: dialog 480 wide, padding 20 / 24, heading Lora 21/26.25 400, buttons 36 h r8 — ${JSON.stringify(dlg)}`,
   ).toBe(true)
   // Designer review 2: the done step's "To open it…" block sits 16 px under the summary (kit Publish done mt-4)
   await pick(page, 'done')

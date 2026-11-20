@@ -45,7 +45,7 @@ describe('BookObject', () => {
     expect(title?.style.fontSize).toBe(`${String(layout.titleSize)}px`)
     const sub = screen.getByTestId('book-object-sub')
     expect(sub.style.fontSize).toBe(`${String(layout.subSize)}px`)
-    expect(sub.style.letterSpacing).toBe('0.3em')
+    expect(sub.style.letterSpacing).toBe('var(--tracking-display)')
     expect(sub.style.marginTop).toBe('0.6em')
   })
 

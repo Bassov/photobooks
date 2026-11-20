@@ -124,6 +124,72 @@ test('screen settings: v5.2 Settings note says Interface, not Appearance', async
   expect(errs).toEqual([])
 })
 
+// Polish P2 / P3 (Designer Spec walkthrough-polish-review, Owner Q-21 2026-11-20):
+// display caps 11px / 500 / 0.20em, panel caps 0.12em, Lora chrome at 400.
+const DISPLAY_CAPS = ['11px', '500', '2.2px', 'uppercase']
+
+async function caps(l: Locator) {
+  return l.evaluate((el) => {
+    const s = getComputedStyle(el)
+    return [s.fontSize, s.fontWeight, s.letterSpacing, s.textTransform]
+  })
+}
+
+test('polish-type: welcome and library caps at 0.20em; Settings h1 Lora 400', async ({
+  page,
+}) => {
+  const errs = await open(page, '#/feature/open-save-project')
+  const welcome = D(page, '[data-testid="welcome"]')
+  expect(await caps(welcome.getByText('Welcome to Photobooks'))).toEqual(
+    DISPLAY_CAPS,
+  )
+  await createLibrary(page)
+  const empty = D(page, '[data-testid="home-empty"]')
+  expect(await caps(empty.getByText('Your library is ready'))).toEqual(
+    DISPLAY_CAPS,
+  )
+  expect(
+    await caps(D(page, '[data-testid="example-book"] figcaption')),
+  ).toEqual(DISPLAY_CAPS)
+
+  await open(page, '#/screen/settings')
+  await expect(D(page, 'h1').first()).toHaveCSS('font-weight', '400')
+  expect(errs).toEqual([])
+})
+
+test('polish-type: #/demo uppercase titles use the panel caps 0.12em', async ({
+  page,
+}) => {
+  const errs = await open(page, '#/demo')
+  // kit10 walk opening (kit-editor-chrome): dialogs portal outside the demo root
+  const c = (sel: string) => page.locator(sel).first().click()
+  await c('[data-testid="create-library"]')
+  await c('[data-testid="picker-select"]')
+  await c('[data-testid="demo"] [data-testid="new-book"]')
+  await c('[data-testid="create-book"]')
+  await expect(page.locator('[role=dialog]')).toHaveCount(0)
+  await D(page, '[data-item="p1"]').first().click()
+  await expect(
+    D(page, '[data-testid="panel-l"] [data-item="p1"]'),
+  ).toHaveAttribute('aria-selected', 'true')
+  await expect(D(page, '[data-testid="panel-r"]')).toContainText('Layout')
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const out: string[] = []
+        for (const el of document.querySelectorAll('[data-testid="demo"] *')) {
+          const s = getComputedStyle(el)
+          const r = el.getBoundingClientRect()
+          if (s.textTransform !== 'uppercase' || !r.width || !r.height) continue
+          out.push(s.letterSpacing)
+        }
+        return [...new Set(out)]
+      }),
+    )
+    .toEqual(['1.32px'])
+  expect(errs).toEqual([])
+})
+
 test('recents-home: v6 Home: no New book tile; covers in a row share a baseline', async ({
   page,
 }) => {

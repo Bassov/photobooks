@@ -83,7 +83,7 @@ const ROW = "flex min-h-13 items-center gap-4 px-4 py-2"
 const FOOT = "flex min-h-13 items-center gap-4 px-4 py-2.5"
 const MODE_LINK = "mt-3 pl-4 text-xs text-foreground underline decoration-foreground/35 underline-offset-4"
 const EYEBROW = "mt-6 flex h-8 max-w-[640px] items-center justify-between px-4"
-const EYEBROW_T = "text-2xs font-semibold uppercase tracking-[.12em] text-muted-foreground"
+const EYEBROW_T = "text-2xs font-semibold uppercase tracking-caps text-muted-foreground"
 const ORIGIN = "https://photobooks.photobooks-bassov.workers.dev"
 const CORS = `[{
   "AllowedOrigins": ["${ORIGIN}"],

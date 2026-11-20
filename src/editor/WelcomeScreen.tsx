@@ -82,7 +82,7 @@ export function WelcomeScreen() {
             </p>
           ) : needsRegrant ? (
             <>
-              <div className="pb-welcome-rise text-xs uppercase tracking-[0.22em] text-muted-foreground">
+              <div className="pb-welcome-rise text-caps-display uppercase text-muted-foreground">
                 Allow library access
               </div>
               <h1 className="pb-welcome-rise pb-welcome-rise--d1 pb-welcome-headline pb-welcome-headline--regrant mt-5 leading-[0.94] tracking-[-0.04em]">
@@ -103,7 +103,7 @@ export function WelcomeScreen() {
             </>
           ) : (
             <>
-              <div className="pb-welcome-rise text-xs uppercase tracking-[0.22em] text-muted-foreground">
+              <div className="pb-welcome-rise text-caps-display uppercase text-muted-foreground">
                 Welcome to Photobooks
               </div>
               <h1 className="pb-welcome-rise pb-welcome-rise--d1 pb-welcome-headline mt-5 leading-[0.94] tracking-[-0.04em]">

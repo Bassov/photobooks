@@ -27,7 +27,7 @@ const CHEVRON = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 const SECONDARY = 'gap-1.5 px-3 text-sm shadow-xs [&_svg]:size-4'
 const EYEBROW = 'mt-6 flex h-8 max-w-[640px] items-center justify-between px-4'
 const EYEBROW_T =
-  'm-0 text-2xs font-semibold uppercase tracking-[.12em] text-muted-foreground'
+  'm-0 text-2xs font-semibold uppercase tracking-caps text-muted-foreground'
 const PANEL = 'mt-2 max-w-[640px] overflow-hidden rounded-xl bg-chrome'
 /** Kit Delete… red (settings.tsx); the prod destructive token is grey. */
 const DELETE_RED = '#a8403a'

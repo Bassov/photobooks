@@ -87,7 +87,7 @@ export type PrintInit = { edit?: string; draft?: Partial<Draft> }
 type Editing = { p: KitProfile; mode: "new" | "edit"; draft?: Partial<Draft> }
 const SECONDARY = "gap-1.5 px-3 text-sm shadow-xs data-[hovered]:bg-accent [&_svg]:size-4"
 const EYEBROW = "mt-6 flex h-8 max-w-[640px] items-center justify-between px-4"
-const EYEBROW_T = "text-2xs font-semibold uppercase tracking-[.12em] text-muted-foreground"
+const EYEBROW_T = "text-2xs font-semibold uppercase tracking-caps text-muted-foreground"
 function PrintPresets({ row, rule, init }: { row: string; rule: React.ReactNode; init?: PrintInit }) {
   const { set, useDemo } = useSession()
   const { printProfiles: customs, defaultPrintProfileId: def } = useDemo()
