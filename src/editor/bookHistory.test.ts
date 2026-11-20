@@ -201,6 +201,7 @@ describe('step label bookkeeping', () => {
       setFrameRect: 'Edit frame',
       moveFrame: 'Move frame',
       resizeFrame: 'Resize frame',
+      resizeFrameKeepPhoto: 'Resize frame',
       rotateFrame: 'Rotate frame',
       reorderFrame: 'Reorder frame',
       setFrameLocked: 'Lock frame',

@@ -37,6 +37,7 @@ import { overrideBadgeFit } from './overrideBadge'
 import { adjustFilter, frameStyleCss } from './frameLookCss'
 import {
   clearPhotoPreview,
+  grabberPoint,
   PHOTO_LAYER_ATTR,
   turnedPhotoStyle,
 } from './photoLayout'
@@ -58,6 +59,7 @@ import {
 import { spreadFrameControlStyle } from './spreadChromeStyles'
 import { PHOTO_CAPTION_SIZE_MM, textNodeStyle } from './textStyles'
 import { ICON_GLYPHS } from '../ui/icons/glyphs'
+import { PhotoChrome } from './PhotoChrome'
 import './SpreadView.css'
 
 /** Responsive source of one frame photo (published site): `<img>` attributes. */
@@ -579,21 +581,22 @@ function SpreadFrame({
   }
   const selected = control?.pressed === true && !cropActive
   const filter = adjustFilter(item.adjust)
+  const photoBox: CSSProperties = turned
+    ? turnedPhotoStyle(
+        { width: box.width, height: box.height },
+        item.sourceCropRect ?? FULL_CROP,
+        quarterTurns,
+        straightenDeg,
+        { h: flipH, v: flipV },
+      )
+    : {
+        left: crop.left,
+        top: crop.top,
+        width: crop.width,
+        height: crop.height,
+      }
   const imageStyle: CSSProperties = {
-    ...(turned
-      ? turnedPhotoStyle(
-          { width: box.width, height: box.height },
-          item.sourceCropRect ?? FULL_CROP,
-          quarterTurns,
-          straightenDeg,
-          { h: flipH, v: flipV },
-        )
-      : {
-          left: crop.left,
-          top: crop.top,
-          width: crop.width,
-          height: crop.height,
-        }),
+    ...photoBox,
     ...(filter === undefined ? {} : { filter }),
   }
   // A turned photo's transform is its layout; previews go on a wrapper.
@@ -795,7 +798,16 @@ function SpreadFrame({
       handles &&
       item.locked !== true &&
       control.editing !== true ? (
-        <SelectionHandles />
+        <>
+          {previewUrl !== undefined && item.text === undefined ? (
+            <PhotoChrome
+              src={previewUrl}
+              box={photoBox}
+              grabber={grabberPoint(item.sourceCropRect ?? FULL_CROP, turned)}
+            />
+          ) : null}
+          <SelectionHandles />
+        </>
       ) : null}
     </button>
   )

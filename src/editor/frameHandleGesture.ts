@@ -1,6 +1,17 @@
-import { findSpreadFrame, MIN_FRAME_EDGE_MM, type Frame } from '../core'
+import {
+  findBookFrame,
+  findSpreadFrame,
+  MIN_FRAME_EDGE_MM,
+  resizeFrameKeepPhoto,
+  type Book,
+  type Frame,
+} from '../core'
 import { measureHandlerSync } from '../perf/measureHandler'
-import { dispatchBookOp } from './bookStore'
+import {
+  dispatchBookOp,
+  getAssetAspectSnapshot,
+  getBookStoreSnapshot,
+} from './bookStore'
 import { getCropTarget } from './cropMode'
 import { editorKeysSuspended } from './editorKeysGate'
 import { STATUS_FRAME_LOCKED, setEditorStatus } from './editorStatus'
@@ -32,6 +43,7 @@ import {
   type ResizeHandle,
 } from './frameHandleMath'
 import { isTypingTarget } from './isTypingTarget'
+import { photoBoxPainter, type PhotoBoxPainter } from './photoBoxPaint'
 import { handleOwner, paintedOf } from './selectionPeer'
 
 const SPREAD_SELECTOR = '[data-testid="spread-view"]'
@@ -69,6 +81,25 @@ interface Session {
   started: boolean
   saved: { left: string; top: string; width: string; height: string }
   savedTransform: string
+  /** A photo frame keeps its photo on the page (direct crop). */
+  photo: { book: Book; aspect: number; painter: PhotoBoxPainter } | null
+}
+
+function photoSession(
+  button: HTMLElement,
+  frame: Frame,
+  aspect: number,
+): NonNullable<Session['photo']> {
+  return {
+    book: getBookStoreSnapshot().book,
+    aspect,
+    // Layout px per mm: the frame's own box, whatever the camera zoom.
+    painter: photoBoxPainter(
+      button,
+      aspect,
+      button.offsetWidth / frame.rect.width,
+    ),
+  }
 }
 
 function isResizeHandle(id: string): id is ResizeHandle {
@@ -102,6 +133,7 @@ export function installFrameHandleGesture(): () => void {
       style.height = current.saved.height
       style.transform = current.savedTransform
     }
+    current.photo?.painter.restore()
   }
 
   const finish = (): Session | null => {
@@ -187,6 +219,10 @@ export function installFrameHandleGesture(): () => void {
         height: style.height,
       },
       savedTransform: style.transform,
+      photo:
+        frame.assetId === undefined
+          ? null
+          : photoSession(button, frame, getAssetAspectSnapshot(frame.assetId)),
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
@@ -250,6 +286,25 @@ export function installFrameHandleGesture(): () => void {
     setSnapHint(snapped?.hint ?? null, ctx.spreadId)
     for (const el of current.painted) {
       placeBox(el, ctx, current.rect)
+    }
+    // The commit's own op on the gesture's book: the photo stays put.
+    const { photo } = current
+    const kept =
+      photo === null
+        ? undefined
+        : findBookFrame(
+            resizeFrameKeepPhoto(
+              photo.book,
+              ctx.spreadId,
+              current.frameId,
+              current.rect,
+              photo.aspect,
+            ),
+            ctx.spreadId,
+            current.frameId,
+          )
+    if (kept !== undefined) {
+      photo?.painter.paint(kept)
     }
   }
 
@@ -333,8 +388,10 @@ export function installFrameHandleGesture(): () => void {
         rotationDeg: round(current.rotation),
       })
     } else {
+      // Direct crop: the frame reveals or hides the photo, which stays put
+      // (a frame without a photo just takes the rect).
       dispatchBookOp({
-        type: 'resizeFrame',
+        type: 'resizeFrameKeepPhoto',
         spreadId,
         frameId: current.frameId,
         rect: {
@@ -343,6 +400,9 @@ export function installFrameHandleGesture(): () => void {
           width: round(current.rect.width),
           height: round(current.rect.height),
         },
+        ...(current.photo === null
+          ? {}
+          : { aspectRatio: current.photo.aspect }),
       })
     }
   }
