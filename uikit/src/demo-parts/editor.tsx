@@ -9,6 +9,7 @@ import { Std } from "@/features/parts"
 import { TopBar, Dock, FilmChips, SpreadsPanel, StatusLine, EditorFrame } from "@/sandbox/chrome"
 import { ContextInspector } from "@/sandbox/context-inspector"
 import { Viewport } from "@/sandbox/viewport"
+import { resetClipboard } from "@/sandbox/clipboard"
 import { useStudio, StudioProvider, BOOK0, type Book, type Features, type Node } from "@/sandbox/store"
 import { reflowDoc, type Doc } from "@/sandbox/model"
 import { useCoverPhoto, useCoverText, useMasters, setEditorExtras } from "@/sandbox/v7"
@@ -164,6 +165,7 @@ export function DemoEditor({ id, initialDialog = null, initialPreview = false }:
   const { S, set } = useSession()
   const b = S.books.find((x) => x.id === id)!
   React.useState(() => { setEditorExtras(b.extras ?? blankExtras(b.title)); return 0 }) // restore before Std mounts (Std keep)
+  React.useEffect(() => resetClipboard(), []) // __demo.reset() remounts the demo: a new session starts with no frame clipboard / step memory
   const [dlg, setDlg] = React.useState<null | "publish" | "print" | "export">(initialDialog)
   const [preview, setPreview] = React.useState(!!initialPreview)
   const openSite = () => { const oid = S.open; set({ books: S.books.map((x) => (x.id === oid ? { ...x, published: true } : x)), stage: "site", back: "editor", siteEntry: "catalog" }) }

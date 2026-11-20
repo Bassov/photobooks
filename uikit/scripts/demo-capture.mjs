@@ -37,6 +37,7 @@ export async function capture(out, { log = console.log, probe } = {}) {
   // progress dialogs: freeze performance.now at t0, start, jump to t0+half, shoot, then release (real now ≫ t0 → done)
   const midRun = async (go) => { await page.evaluate(() => { window.__pt = Math.floor(performance.now()) }); await c(go); await page.waitForTimeout(300); await page.evaluate(() => { window.__pt += 700 }); await page.waitForTimeout(300) }
   const release = () => page.evaluate(() => { window.__pt = null })
+  let allFrames = 0
   const STEPS = [
     ["welcome", async () => {}],
     ["welcome-folder-picker", () => c('[data-testid="create-library"]')],
@@ -62,9 +63,25 @@ export async function capture(out, { log = console.log, probe } = {}) {
     // the press is off the centre: a press on the grabber pans the photo
     ["editor-frame-mid-drag", async () => { const b = await page.locator(FRAME).first().boundingBox(); const x = Math.round(b.x + b.width / 4), y = Math.round(b.y + b.height / 2); await page.mouse.move(x, y); await page.mouse.down(); for (let i = 1; i <= 6; i++) await page.mouse.move(x - 10 * i, y + 6 * i); return "keep" }],
     ["editor-frame-drag-cancelled", async () => { await page.keyboard.press("Escape"); await page.mouse.up(); await settle(200); await page.locator(FRAME).first().click({ force: true, position: { x: 40, y: 40 } }) }],
+    // Designer frame-copy-paste FC1 on pages 8–9 (spread 1's full-bleed frame clamps back in place): Ctrl+C → "Copied frame"; Ctrl+V → +5/+5 mm;
+    // on pages 6–7 Ctrl+V pastes in place; Ctrl+D → +5/+5 mm; the copy moved 40 mm right, Ctrl+D repeats that move. The five edits are undone after.
+    ["editor-frame-copied", async () => {
+      allFrames = await page.locator('[data-testid="canvas"] [data-testid="frame"]').count()
+      await page.locator('[data-testid="canvas"] [data-spread="4"] [data-testid="frame"]').nth(1).click({ force: true }); await settle(200); await page.keyboard.press("Control+c") }],
+    ["editor-frame-pasted", () => page.keyboard.press("Control+v")],
+    ["editor-frame-pasted-other-spread", async () => {
+      await page.locator('[data-testid="canvas"] [data-spread="3"]').click({ force: true, position: { x: 2, y: 2 } }); await settle(200)
+      await page.keyboard.press("Escape"); await page.keyboard.press("Control+v") }],
+    ["editor-frame-duplicated", () => page.keyboard.press("Control+d")],
+    ["editor-frame-step-repeat", async () => { for (let i = 0; i < 4; i++) await page.keyboard.press("Shift+ArrowRight"); await page.keyboard.press("Control+d") }],
     // Designer walkthrough-ux-review §A (direct crop): grabber hover shows the photo layer; a photo corner drag scales the photo;
     // a frame edge handle crops (the photo stays on the page); both edits are undone before the pinned Crop
-    ["editor-photo-layer-hover", async () => { await page.locator('[data-testid="crop-grabber"]').hover(); return "keep" }],
+    ["editor-photo-layer-hover", async () => {
+      for (let i = 0; i < 5; i++) await page.keyboard.press("Control+z")
+      const all = await page.locator('[data-testid="canvas"] [data-testid="frame"]').count()
+      if (all !== allFrames) throw new Error(`${all} frames after the copy / paste undo, not ${allFrames}`)
+      await page.locator('[data-testid="canvas"] [data-spread="1"] [data-testid="frame"]').first().click({ force: true, position: { x: 40, y: 40 } }); await park(); await settle(500)
+      await page.locator('[data-testid="crop-grabber"]').hover(); return "keep" }],
     ["editor-photo-scaled", async () => {
       const b = await page.locator('[data-testid="photo-handle"][data-corner="se"]').boundingBox(), x = Math.round(b.x + b.width / 2), y = Math.round(b.y + b.height / 2)
       await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 60, y + 40, { steps: 6 }); await page.mouse.up(); return "keep" }],
