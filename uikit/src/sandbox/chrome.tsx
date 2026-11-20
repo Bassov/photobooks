@@ -545,7 +545,7 @@ function ThumbResizer() {
       onDoubleClick={() => set("auto")}
       onKeyDown={(e) => { const k = keys[e.key]; if (!k) return; e.preventDefault(); e.stopPropagation(); set(k()) }}>
       <div className="pointer-events-none absolute inset-x-0 top-[5px] hidden h-px bg-input group-hover/rs:block group-focus-visible/rs:block group-data-[dragging]/rs:block" />
-      <div className="pointer-events-none absolute left-1/2 top-[3px] hidden h-1 w-9 -translate-x-1/2 rounded-[2px] bg-black/24 outline-offset-2 group-hover/rs:block group-focus-visible/rs:block group-focus-visible/rs:outline-2 group-focus-visible/rs:outline-solid group-focus-visible/rs:outline-[#3A3839] group-data-[dragging]/rs:block group-data-[dragging]/rs:bg-select" data-testid="thumb-resizer-pill" />
+      <div className="pointer-events-none absolute left-1/2 top-[3px] hidden h-1 w-9 -translate-x-1/2 rounded-2xs bg-black/24 outline-offset-2 group-hover/rs:block group-focus-visible/rs:block group-focus-visible/rs:outline-2 group-focus-visible/rs:outline-solid group-focus-visible/rs:outline-[#3A3839] group-data-[dragging]/rs:block group-data-[dragging]/rs:bg-select" data-testid="thumb-resizer-pill" />
       {dragging && <div className="pointer-events-none absolute bottom-[calc(100%+25px)] left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-field px-1.5 py-0.5 text-2xs font-medium tabular-nums text-foreground" data-testid="thumb-resizer-chip">{h} px</div>}
     </div>
   )

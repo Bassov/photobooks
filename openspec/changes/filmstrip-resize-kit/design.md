@@ -8,12 +8,13 @@
 
 ## Touch-set & Test Plan
 
-| Path                                      | Why                                                             |
-| ----------------------------------------- | --------------------------------------------------------------- |
-| `uikit/src/sandbox/store.tsx`             | thumb type, helpers, persistence                                |
-| `uikit/src/sandbox/chrome.tsx`            | separator in `Dock`, H in `Filmstrip` + empty row, panel-b clip |
-| `e2e/kit-filmstrip-resize.spec.ts`        | new kit checks                                                  |
-| `docs/roadmap/P5/filmstrip-resize-kit.md` | item                                                            |
+| Path                                      | Why                                                                       |
+| ----------------------------------------- | ------------------------------------------------------------------------- |
+| `uikit/src/sandbox/store.tsx`             | thumb type, helpers, persistence                                          |
+| `uikit/src/sandbox/chrome.tsx`            | separator in `Dock`, H in `Filmstrip` + empty row, panel-b clip           |
+| `e2e/kit-filmstrip-resize.spec.ts`        | new kit checks                                                            |
+| `e2e/kit-filmstrip.spec.ts`               | M88 empty-strip text y: the empty row is H (76), not the 104 px `--thumb` |
+| `docs/roadmap/P5/filmstrip-resize-kit.md` | item                                                                      |
 
 - Reuse: `thumbWidth` (ui.tsx), the `__demo` API as in `kit-filmstrip.spec.ts`.
 - e2e: per roadmap Done when, incl. `elementsFromPoint` paint. Skill `ui-review` before push.
