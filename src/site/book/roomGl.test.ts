@@ -75,8 +75,15 @@ function emptyFirstFrame(book: SiteBookData['book'], at: number) {
   }
 }
 
+const fontLoad = vi.fn(() => Promise.resolve([]))
+
 beforeEach(() => {
   fakeCanvas2d()
+  fontLoad.mockClear()
+  Object.defineProperty(document, 'fonts', {
+    configurable: true,
+    value: { load: fontLoad },
+  })
 })
 
 afterEach(() => {
@@ -138,6 +145,11 @@ describe('room GL books', () => {
     const r = await openReaderGl({ entry, book, images, pagePx: 400 })
 
     expect(gl.photo).toHaveBeenCalledWith(entry.cover?.src)
+    // D38: the cover title's face is loaded before the cover is drawn
+    expect(fontLoad).toHaveBeenCalledWith(
+      'italic 400 16px "Lora Cover", "Lora Variable", Lora, serif',
+      entry.title,
+    )
     expect(gl.made.map(([k]) => k)).toStrictEqual(['faces', 'open'])
     expect(gl.made[1]?.[1][2]).toStrictEqual({
       bend: true,
@@ -152,6 +164,8 @@ describe('room GL books', () => {
   it('opens the page curl over the sheets, with no photo when the cover fails', async () => {
     const { entry, book, images } = alps()
     gl.photo.mockImplementationOnce(() => Promise.reject(new Error('404')))
+    // nor the title face: the cover falls back to the next family
+    fontLoad.mockImplementationOnce(() => Promise.reject(new Error('net')))
     const sheets = [{ kind: 'cover' } as const]
 
     const r = await openCurlGl(

@@ -57,10 +57,21 @@ export async function capture(out, { log = console.log, probe } = {}) {
       await page.fill('[data-testid="cover-text-front"]', "Lake trip 2026"); await page.locator('[data-testid="cover-text-front"]').blur() }],
     ["editor-spread-1", () => c('[data-item="p1"]')],
     ["editor-photo-dropped-in-frame", () => page.locator('[data-testid="filmstrip"] [role="row"]').nth(5).dragTo(page.locator(FRAME).first())],
-    ["editor-frame-selected", () => c(FRAME)],
-    ["editor-frame-mid-drag", async () => { const b = await page.locator(FRAME).first().boundingBox(); const x = Math.round(b.x + b.width / 2), y = Math.round(b.y + b.height / 2); await page.mouse.move(x, y); await page.mouse.down(); for (let i = 1; i <= 6; i++) await page.mouse.move(x - 10 * i, y + 6 * i); return "keep" }],
-    ["editor-frame-drag-cancelled", async () => { await page.keyboard.press("Escape"); await page.mouse.up(); await settle(200); await c(FRAME) }],
-    ["editor-crop-mode", () => c('[data-testid="crop-toggle"]')],
+    // the drop selects the frame; its direct-crop grabber appears under the resting pointer, so park it until the photo layer hides
+    ["editor-frame-selected", async () => { await park(); await settle(500) }],
+    // the press is off the centre: a press on the grabber pans the photo
+    ["editor-frame-mid-drag", async () => { const b = await page.locator(FRAME).first().boundingBox(); const x = Math.round(b.x + b.width / 4), y = Math.round(b.y + b.height / 2); await page.mouse.move(x, y); await page.mouse.down(); for (let i = 1; i <= 6; i++) await page.mouse.move(x - 10 * i, y + 6 * i); return "keep" }],
+    ["editor-frame-drag-cancelled", async () => { await page.keyboard.press("Escape"); await page.mouse.up(); await settle(200); await page.locator(FRAME).first().click({ force: true, position: { x: 40, y: 40 } }) }],
+    // Designer walkthrough-ux-review §A (direct crop): grabber hover shows the photo layer; a photo corner drag scales the photo;
+    // a frame edge handle crops (the photo stays on the page); both edits are undone before the pinned Crop
+    ["editor-photo-layer-hover", async () => { await page.locator('[data-testid="crop-grabber"]').hover(); return "keep" }],
+    ["editor-photo-scaled", async () => {
+      const b = await page.locator('[data-testid="photo-handle"][data-corner="se"]').boundingBox(), x = Math.round(b.x + b.width / 2), y = Math.round(b.y + b.height / 2)
+      await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 60, y + 40, { steps: 6 }); await page.mouse.up(); return "keep" }],
+    ["editor-frame-cropped-by-edge", async () => {
+      const b = await page.locator('[data-testid="sel-handle"][data-handle="e"]').boundingBox(), x = Math.round(b.x + b.width / 2), y = Math.round(b.y + b.height / 2)
+      await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x - 160, y, { steps: 6 }); await page.mouse.up() }],
+    ["editor-crop-mode", async () => { await page.keyboard.press("Control+z"); await page.keyboard.press("Control+z"); await settle(200); await c('[data-testid="crop-toggle"]') }],
     ["editor-spread-selected", async () => { await page.keyboard.press("Escape"); await settle(200); await page.keyboard.press("Escape"); await settle(200); await page.locator('[data-testid="canvas"]').click({ position: { x: 20, y: 20 } }) }],
     // Designer spec user-templates UT1: page 1 lists no two-page template → "No templates yet. Save a page you like."
     ["editor-page1-my-templates", async () => { await c('[data-item="p0"]'); await settle(200); await c('[data-testid="tab-mine"]') }],

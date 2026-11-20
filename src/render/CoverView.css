@@ -260,12 +260,13 @@
 /* Kit `serif` sets the family only: the cover text keeps weight 400. The kit
    ships upright Lora only, so its cover italic is synthesised from the upright
    face; prod's global Lora italic face (book text, export) is narrower. The
-   cover reads an upright-only alias of the same files first (Owner Must M75). */
+   cover reads an upright-only alias of the same files first (Owner Must M75).
+   The face per Title font: coverTitleFace.ts (the site front shares it). */
 .cover-front-text em,
 .cover-spine-text em {
-  font-family: 'Lora Cover', var(--font-heading);
+  font-family: var(--cover-title-family);
   font-weight: 400;
-  font-style: italic;
+  font-style: var(--cover-title-style);
 }
 
 /* Kit CoverTxt: FIELD fill, no border; Inspector front thumbnail. */
@@ -322,17 +323,6 @@
 /* Cover style (schema cover.style): spine direction, title font, material, finish. */
 .cover-spine-text[data-direction='bottom-to-top'] {
   transform: translate(-50%, -50%) rotate(-90deg);
-}
-
-.cover-spread[data-title-font='serif'] .cover-front-text em,
-.cover-spread[data-title-font='serif'] .cover-spine-text em {
-  font-style: normal;
-}
-
-.cover-spread[data-title-font='sans'] .cover-front-text em,
-.cover-spread[data-title-font='sans'] .cover-spine-text em {
-  font-family: var(--font-sans, sans-serif);
-  font-style: normal;
 }
 
 .cover-spread[data-material='linen'] .cover-back,

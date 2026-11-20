@@ -890,7 +890,11 @@ test('kit10 #/demo: kit-sync KS1–KS5 / K1 — stack gap, page numbers, new-spr
   await settled(page)
   // kit-sync K1 (prod M43): Esc during a frame drag clears the "Release to replace" chip and the dimmed drag source
   const fb = await box(page.locator(`${cur} [data-testid="frame"]`).first())
-  const x = fb.x + fb.width / 2
+  // direct crop: the drop leaves the pointer on the frame's grabber, which shows the photo layer (its ghost pans);
+  // leave until it hides, then press off the centre (the grabber)
+  await page.mouse.move(5, 5)
+  await expect(page.getByTestId('photo-ghost')).toHaveCount(0)
+  const x = fb.x + fb.width / 4
   const y = fb.y + fb.height / 2
   await page.mouse.move(x, y)
   await page.mouse.down()
