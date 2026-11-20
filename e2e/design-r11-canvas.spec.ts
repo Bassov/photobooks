@@ -46,8 +46,9 @@ const KIT = {
     image:
       'linear-gradient(to right, rgba(0, 0, 0, 0) 0%, oklab(0 0 0 / 0.06) 50%, rgba(0, 0, 0, 0) 100%)',
   },
+  // Polish P5 (walkthrough-polish-review): one shadow ink rgb(20 20 19).
   pageShadow:
-    'rgba(0, 0, 0, 0.1) 0px 2px 6px 0px, rgba(0, 0, 0, 0.14) 0px 12px 32px 0px',
+    'rgba(20, 20, 19, 0.1) 0px 2px 6px 0px, rgba(20, 20, 19, 0.14) 0px 12px 32px 0px',
   miniShadow: 'rgba(35, 34, 35, 0.18) 0px 1px 2px 0px',
   cover: { x: 252, y: 149.22, width: 848, height: 497.55 },
   front: { size: 34, weight: '400', width: 228 },

@@ -17,7 +17,7 @@ import { openLibraryBook } from './fixtures/openLibraryBook'
 //     bg rgb(215, 215, 215), kept on hover. Off: transparent, hover
 //     rgba(57, 55, 56, 0.08).
 // Preview x 1123 (toggle-r right + 8), 96 × 32, full pill (computed
-//     3.35544e+07px), padding 0 12, bg rgb(215, 215, 215), rgb(57, 55, 56),
+//     9999px since polish P4), padding 0 12, bg rgb(215, 215, 215), rgb(57, 55, 56),
 //     no shadow, the same on hover.
 // Settings (Preview right + 6), 40 × 32, the same pill and colours.
 // Export site (Settings right + 6), the same pill (static-export §1), Print
@@ -31,7 +31,8 @@ const FIELD = 'rgb(215, 215, 215)'
 const HOVER = 'rgb(207, 207, 207)'
 const GHOST_HOVER = 'rgba(57, 55, 56, 0.08)'
 const CLEAR = 'rgba(0, 0, 0, 0)'
-const PILL = '3.35544e+07px'
+// Polish P4: the one pill token `--radius-full` (was calc(infinity * 1px)).
+const PILL = '9999px'
 const TOL = 0.5
 
 const KIT = {

@@ -67,6 +67,8 @@ test('a spine text longer than the spine: the spine-text-cut row at 1 per sheet,
     'Spine text is longer than the spine and ends in “…”',
   )
   await expectPainted(cut)
+  // Polish P7: warning rows in the one warning ink `--warning-ink` #845510.
+  await expect(cut).toHaveCSS('color', 'rgb(132, 85, 16)')
 
   await dialog(page).getByRole('radio', { name: '2-up' }).check()
   await expect(coverRows(page)).toHaveCount(0)

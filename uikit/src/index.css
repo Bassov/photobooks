@@ -49,8 +49,8 @@
   /* v4.2: role shadows alias the base scale so depth changes in one place */
   /* proto: layered soft shadow for cards on the app surface (hairline + contact + ambient) */
   /* proto-4: book cover mockup (physical object) */
-  --shadow-book: 0 1px 2px rgb(0 0 0 / .06), 0 8px 24px rgb(0 0 0 / .08);
-  --shadow-book-hover: 0 2px 4px rgb(0 0 0 / .08), 0 16px 36px rgb(0 0 0 / .14);
+  --shadow-book: 0 1px 2px rgb(20 20 19 / .06), 0 8px 24px rgb(20 20 19 / .08);
+  --shadow-book-hover: 0 2px 4px rgb(20 20 19 / .08), 0 16px 36px rgb(20 20 19 / .14);
   /* proto-3: white-on-white cards: visible hairline edge + contact + ambient shadow */
   --shadow-card: 0 0 0 1px rgb(20 20 19 / .10), 0 1px 2px rgb(20 20 19 / .06), 0 6px 16px -6px rgb(20 20 19 / .12);
   --shadow-card-hover: 0 0 0 1px rgb(20 20 19 / .14), 0 2px 4px rgb(20 20 19 / .08), 0 14px 30px -10px rgb(20 20 19 / .20);
@@ -62,6 +62,7 @@
   --shadow-inset-hairline: inset 0 0 0 1px rgb(0 0 0 / .07);
   --shadow-page: var(--page-shadow);
   --radius-2xs: 2px;
+  --radius-full: 9999px; /* polish P4: the one pill token; `rounded-full` reads it (was calc(infinity * 1px)) */
 }
 
 @custom-variant dark (&:where([data-theme=__no-dark-theme__], [data-theme=__no-dark-theme__] *));
@@ -100,6 +101,7 @@
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
   --color-ink-warning: var(--ink-warning);
+  --color-warning-ink: var(--warning-ink);
   --color-placeholder: var(--placeholder);
   --color-placeholder-border: var(--placeholder-border);
   --color-placeholder-fg: var(--placeholder-fg);
@@ -168,6 +170,8 @@
   --radius: 10px;
   --radius-2xs: 2px; --radius-xs: 4px; --radius-sm: calc(var(--radius) - 4px); --radius-md: calc(var(--radius) - 2px); --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px); /* v4.2: xl (14) = dialogs, popover cards, empty-state cards; 2xl removed */
+  --radius-full: 9999px;
+  /* polish P4 radii by role: 2xs page/thumb · xs badge/chip · sm controls ≤ 28 px · md controls 32–36 px · lg nested segmented track only · xl dialogs, popovers, cards · full the one pill */
   --panel-left: 252px; --panel-right: 300px; --topbar: 56px; --thumb: 104px; --rail: 52px;
 
   /* v3: destructive = a warm brick red tuned to the neutral palette (not a signal red).
@@ -199,7 +203,9 @@
   --paper: #ffffff;
   --shadow-card: 0 1px 2px rgb(0 0 0 / .14), 0 6px 16px -6px rgb(0 0 0 / .22);
   --shadow-card-hover: 0 2px 4px rgb(0 0 0 / .16), 0 14px 30px -10px rgb(0 0 0 / .3);
-  --muted-foreground: #535152; --muted-foreground-on-app: #535152; --accent-text: var(--t-text); --cover-empty: #CFCFCF; --shadow-book: 0 1px 1px rgb(0 0 0 / .10), 0 3px 8px rgb(0 0 0 / .10), 0 10px 22px rgb(0 0 0 / .10); --shadow-book-hover: 0 2px 3px rgb(0 0 0 / .12), 0 8px 16px rgb(0 0 0 / .12), 0 18px 36px rgb(0 0 0 / .14); --page-shadow: 0 2px 6px rgb(0 0 0 / .10), 0 12px 32px rgb(0 0 0 / .14);
+  --muted-foreground: #535152; --muted-foreground-on-app: #535152; --accent-text: var(--t-text); --cover-empty: #CFCFCF;
+  /* polish P5: one shadow ink rgb(20 20 19), alphas unchanged */
+  --shadow-book: 0 1px 1px rgb(20 20 19 / .10), 0 3px 8px rgb(20 20 19 / .10), 0 10px 22px rgb(20 20 19 / .10); --shadow-book-hover: 0 2px 3px rgb(20 20 19 / .12), 0 8px 16px rgb(20 20 19 / .12), 0 18px 36px rgb(20 20 19 / .14); --page-shadow: 0 2px 6px rgb(20 20 19 / .10), 0 12px 32px rgb(20 20 19 / .14);
   /* v0.7.2 grayscale status (P1-4) — overrides the hued status tokens above */
   --destructive: #393738; --destructive-solid: #232223; --destructive-solid-hover: #393738; --destructive-foreground: #F2F2F2;
   --guide: #6b696a; --guide-solid: #535152; --bleed: #393738; --grid: rgb(83 81 82 / .10); --grid-line: rgb(83 81 82 / .6);
@@ -220,7 +226,8 @@ html[data-density="compact"], .density-compact {
 :root, [data-theme] {
   --ink: #232220;
   --ink-muted: #5E5C5D;
-  --ink-warning: #845510;
+  --warning-ink: #845510; /* polish P7: one warning ink (Low-res chip, PRINT warnings, Print Check) */
+  --ink-warning: var(--warning-ink);
   --placeholder: #EDEDED;
   --placeholder-border: #C6C6C6;
   --placeholder-fg: #5E5C5D;

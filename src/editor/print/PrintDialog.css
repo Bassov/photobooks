@@ -31,7 +31,7 @@
 }
 
 .print-check-row--warning {
-  color: var(--warning-fg);
+  color: var(--warning-ink);
 }
 
 .print-check-row--info {
