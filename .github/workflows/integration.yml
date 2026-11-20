@@ -119,7 +119,7 @@ jobs:
           if-no-files-found: ignore
 
   # Functional e2e in duration-balanced shards (scripts/e2e-shard.mjs: whole
-  # spec files, weighted by scripts/e2e-shard-durations.json), 2 workers each.
+  # spec files, weighted by .github/e2e-shard-durations.json), 2 workers each.
   # Shard count = the matrix length. e2e-report merges the shards' blob
   # reports and coverage.
   e2e:

@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   assignShards,
   coverageGaps,
@@ -309,6 +309,33 @@ describe('main', () => {
     expect(readFileSync(io.durationsPath, 'utf8')).toBe(
       '{\n  "a.spec.ts": 0.2,\n  "b.spec.ts": 1.5\n}\n',
     )
+  })
+
+  it('runs as a command and sets the exit code', async () => {
+    setup({ 'list.json': listing, 'report.json': listing })
+    const argv = process.argv
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    process.argv = [
+      argv[0],
+      join(process.cwd(), 'scripts/e2e-shard.mjs'),
+      'verify',
+      '--list',
+      join(dir, 'list.json'),
+      '--report',
+      join(dir, 'report.json'),
+    ]
+
+    try {
+      vi.resetModules()
+      await import('./e2e-shard.mjs')
+
+      expect(log).toHaveBeenCalledWith('e2e shards cover all 3 listed files')
+      expect(process.exitCode).toBe(0)
+    } finally {
+      process.argv = argv
+      process.exitCode = undefined
+      log.mockRestore()
+    }
   })
 
   it('rejects a missing option value and an unknown command', () => {

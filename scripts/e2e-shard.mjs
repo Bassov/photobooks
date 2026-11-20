@@ -4,7 +4,7 @@
  * `--shard` splits by test count, and the reader-gl specs take ~27 s a test
  * against ~1.5 s elsewhere, so count shards end up 1.5× the mean. Here whole
  * spec files go to the least-loaded shard (longest first), weighted by the
- * seconds recorded in `e2e-shard-durations.json`; a file with no record
+ * seconds recorded in `.github/e2e-shard-durations.json`; a file with no record
  * weighs its listed test count × the recorded mean seconds per test.
  *
  * Every shard computes the same split from the same `--list` report, so the
@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url'
 
 const DURATIONS_PATH = join(
   dirname(fileURLToPath(import.meta.url)),
-  'e2e-shard-durations.json',
+  '../.github/e2e-shard-durations.json',
 )
 
 /**
