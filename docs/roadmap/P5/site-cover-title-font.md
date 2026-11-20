@@ -11,10 +11,10 @@ Bug B1 of the Designer walkthrough-polish review (Owner Q-21, 2026-11-20): the s
 book's Title font. `.ss .sd-it` forces the site sans (500, upright) while the book has e.g. `titleFont: serif-italic`.
 Designer D38: the front text uses the cover title font.
 
-- [ ] Prod: the site cover title (CSS `CoverFace`, CSS `Book3D`, GL `glCover` front panel) takes family / weight /
+- [x] Prod: the site cover title (CSS `CoverFace`, CSS `Book3D`, GL `glCover` front panel) takes family / weight /
       style from `cover.style.titleFont` through the one face table CoverView also uses; `sans` keeps the site sans.
-- [ ] Kit: `#/demo` and personal-site cover titles (CSS `CoverFace`, GL `coverCanvas`) follow the same rule.
-- [ ] Tests: SiteSlide / SiteHome unit tests pin the title face from the book; one e2e paint check on Preview.
+- [x] Kit: `#/demo` and personal-site cover titles (CSS `CoverFace`, GL `coverCanvas`) follow the same rule.
+- [x] Tests: SiteSlide / SiteHome unit tests pin the title face from the book; one e2e paint check on Preview.
 - **Browser check:** Preview of a default (`serif-italic`) book: the cover title reads Lora italic; a `sans` book
   reads as before.
 
