@@ -407,6 +407,86 @@ describe('resizeFrameKeepPhoto', () => {
     expect(covers(next, next, 1.5)).toBe(true)
   })
 
+  // Zoom 2: the photo spans x -20…100, y -10…70, past the fixed edge too, so
+  // the anchored scale differs from a clamp that recentres it.
+  const k1 = 100 / 90
+  const k2 = 70 / 60
+  it.each([
+    ['right edge', rectOf(10, 10, 100, 40), { x: 10 + 30 * k1, y: 30 }, k1],
+    ['left edge', rectOf(-30, 10, 100, 40), { x: 70 - 30 * k1, y: 30 }, k1],
+    ['bottom edge', rectOf(10, 10, 60, 70), { x: 40, y: 10 + 20 * k2 }, k2],
+    ['top edge', rectOf(10, -20, 60, 70), { x: 40, y: 50 - 20 * k2 }, k2],
+    // Edges moved by exactly the tolerance still count as fixed.
+    [
+      'right edge, left nudged',
+      rectOf(10 + 2 ** -20, 10, 100 - 2 ** -20, 40),
+      { x: 10 + 30 * k1, y: 30 },
+      k1,
+    ],
+    [
+      'left edge, right nudged',
+      rectOf(-30, 10, 100 + 2 ** -20, 40),
+      { x: 70 - 30 * k1, y: 30 },
+      k1,
+    ],
+  ])(
+    'Fill past a zoomed photo: %s scales about the far edge',
+    (_n, rect, centre, k) => {
+      const next = frameOf(applyBookOp(photoBook(photoFrame()), op(rect)), 'a')
+      const box = photoBox(next, 1.5)
+      expect(box.centre.x).toBeCloseTo(centre.x, 5)
+      expect(box.centre.y).toBeCloseTo(centre.y, 5)
+      expect(box.edges[1]).toBeCloseTo(120 * k, 5)
+      expect(covers(next, next, 1.5)).toBe(true)
+    },
+  )
+
+  it('anchors the Fill scale of a zoomed photo in a rotated frame', () => {
+    // 90° clockwise: local +x points down the page. The local left edge stays
+    // at page y 0, the right one moves from 60 to 100, past the photo (90).
+    const next = frameOf(
+      applyBookOp(
+        photoBook(photoFrame({ rotationDeg: 90 })),
+        op(rectOf(-10, 30, 100, 40)),
+      ),
+      'a',
+    )
+    const box = photoBox(next, 1.5)
+    expect(box.centre.x).toBeCloseTo(40, 6)
+    expect(box.centre.y).toBeCloseTo(30 * k1, 6)
+    expect(box.edges[1]).toBeCloseTo(120 * k1, 6)
+  })
+
+  it('scales a straightened photo by the least cover about the fixed edge', () => {
+    const frame = photoFrame({
+      crop: { zoom: 2, center: { x: 0.5, y: 0.5 }, straightenDeg: 10 },
+    })
+    const next = frameOf(
+      applyBookOp(photoBook(frame), op(rectOf(10, 10, 120, 40))),
+      'a',
+    )
+    // The left edge midpoint (10, 30) keeps its place on the photo.
+    const was = photoCorners(frame, 1.5)
+    const now = photoCorners(next, 1.5)
+    const k =
+      Math.hypot(
+        (now[1]?.x ?? 0) - (now[0]?.x ?? 0),
+        (now[1]?.y ?? 0) - (now[0]?.y ?? 0),
+      ) /
+      Math.hypot(
+        (was[1]?.x ?? 0) - (was[0]?.x ?? 0),
+        (was[1]?.y ?? 0) - (was[0]?.y ?? 0),
+      )
+    expect(k).toBeGreaterThan(1)
+    now.forEach((p, i) => {
+      expect(p.x).toBeCloseTo(10 + k * ((was[i]?.x ?? Number.NaN) - 10), 6)
+      expect(p.y).toBeCloseTo(30 + k * ((was[i]?.y ?? Number.NaN) - 30), 6)
+    })
+    // Least: covered, but a frame corner sits on the photo edge.
+    expect(covers(next, next, 1.5)).toBe(true)
+    expect(covers(next, next, 1.5, -1e-6)).toBe(false)
+  })
+
   it('Fit keeps the photo size past the photo (no cover scale)', () => {
     const frame = photoFrame({ fit: 'fit' })
     const next = frameOf(
@@ -498,6 +578,31 @@ describe('resizeFrameKeepPhoto', () => {
       'a',
     )
     expectSamePhoto(frame, next, aspect)
+  })
+
+  it('keeps the photo of a frame without a crop (zoom 1, centred)', () => {
+    const frame = makeFrame({
+      id: 'a',
+      assetId: 'p',
+      rect: rectOf(10, 10, 60, 40),
+    })
+    const next = frameOf(
+      applyBookOp(photoBook(frame), op(rectOf(20, 15, 40, 30))),
+      'a',
+    )
+    expectSamePhoto(frame, next, 1.5)
+  })
+
+  it('reads a photo without an asset record as square', () => {
+    const frame = photoFrame()
+    const before = makeBook({
+      spreads: [makeSpread({ templateId: 'one-per-page', frames: [frame] })],
+    })
+    const next = frameOf(
+      resizeFrameKeepPhoto(before, 'spread-1', 'a', rectOf(10, 10, 45, 30)),
+      'a',
+    )
+    expectSamePhoto(frame, next, 1)
   })
 
   it('takes the given aspect over the asset record', () => {

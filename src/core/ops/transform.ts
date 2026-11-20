@@ -1,4 +1,5 @@
 import { clampCrop, shownCropRect } from '../geometry/cropRect'
+import { orientedAspect } from '../pdf/pdfGeometry'
 import { spreadFrames, updateSpread, withChangedCopies } from '../update'
 import type { Book, Frame } from '../schema'
 import { MIN_FRAME_EDGE_MM, detached } from './frames'
@@ -165,20 +166,19 @@ interface Vec {
   y: number
 }
 
-/** Edges closer than this (mm) count as not moved by a resize. */
-const FIXED_EDGE_MM = 1e-6
+/** Edges at most this far apart (mm, ~1e-6) count as not moved by a resize. */
+const FIXED_EDGE_MM = 2 ** -20
 
 const COVER: Crop = { zoom: 1, center: { x: 0.5, y: 0.5 } }
 
+/** NaN without a pixel size: `shownCropRect` reads that as a square photo. */
 function assetAspect(book: Book, assetId: string): number {
   const asset = book.assets[assetId]
-  if (asset?.widthPx === undefined || asset.heightPx === undefined) {
-    return 1
-  }
-  // EXIF orientations 5–8 swap the raw width and height.
-  return (asset.orientation ?? 1) >= 5
-    ? asset.heightPx / asset.widthPx
-    : asset.widthPx / asset.heightPx
+  return orientedAspect(
+    asset?.widthPx ?? Number.NaN,
+    asset?.heightPx ?? Number.NaN,
+    asset?.orientation,
+  )
 }
 
 /** Clockwise on a y-down page, like CSS `rotate()`. */
