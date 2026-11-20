@@ -212,7 +212,8 @@ test('dialog box, title and buttons carry the Spec values', async ({
     r: '14px',
     bg: 'rgb(225, 225, 225)',
     pad: '20px 24px 20px 24px',
-    font: '"Lora Variable" 21px 26.25px 500 rgb(57, 55, 56)',
+    // walkthrough-polish-review P2: all Lora chrome at 400
+    font: '"Lora Variable" 21px 26.25px 400 rgb(57, 55, 56)',
     btn: '36 8px 16px rgb(35, 34, 35) rgb(242, 242, 242)',
   })
 })

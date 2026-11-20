@@ -3,6 +3,7 @@ import type { Book } from '../core'
 // Not the barrel: it would pull the zod schemas into the viewer entry.
 import { resolveSpread } from '../core/geometry/resolveSpread'
 import { CoverView } from '../render/CoverView'
+import { siteTitleStyle } from '../render/coverTitleFace'
 import { SpreadView } from '../render/SpreadView'
 import type { ImageRef, SiteCatalogBook } from './siteInput'
 import { spreadSide } from './siteModel'
@@ -155,6 +156,7 @@ export function CoverFace({
       <div
         className="sd-it sd-b3-title"
         style={{
+          ...siteTitleStyle(b.titleFont),
           color: b.ink,
           fontSize: `calc(var(--cover-k) * ${String(Math.min(w, h))}px)`,
           [b.place]: '9%',

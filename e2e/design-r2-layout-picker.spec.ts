@@ -121,7 +121,7 @@ test('the Layout header is the kit Section: uppercase LAYOUT, + action, selected
     transform: 'uppercase',
     size: '11px',
     weight: '600',
-    tracking: '0.66px',
+    tracking: '1.32px', // polish P3: panel caps 0.12em
   })
   expect(await eyebrow.innerText()).toBe('LAYOUT')
   await expect(layout.getByTestId('tpl-save')).toHaveAccessibleName(

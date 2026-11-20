@@ -3,12 +3,21 @@
  * cover photo decode. Shared by the home's closed books (`book3dGl`) and the
  * room's open ones (`roomGl`) without either pulling in the other.
  */
+import { siteTitleFace } from '../../render/coverTitleFace'
 import type { SiteCatalogBook } from '../siteInput'
 import { imageSrc } from '../siteUrl'
 import { ctx, cv } from './gl/canvas'
 import { thickCm, type GlBookInput } from './gl/types'
 
 export const FONT = '"Site Inter Display", system-ui, sans-serif'
+
+/** the front title's canvas font at `size` px: the book's serif Title font, else the site sans (D38) */
+export function titleFont(b: SiteCatalogBook, size: number): string {
+  const face = siteTitleFace(b.titleFont)
+  return face === undefined
+    ? `500 ${String(size)}px ${FONT}`
+    : `${face.style} ${String(face.weight)} ${String(size)}px ${face.family}`
+}
 
 /** the front panel: cloth, the cover photo (cover-fit), the title in the cover type (D38) */
 export function frontPanel(
@@ -28,7 +37,7 @@ export function frontPanel(
     x.drawImage(photo, (W - iw * k) / 2, (H - ih * k) / 2, iw * k, ih * k)
   }
   const size = 0.1 * Math.min(W, H)
-  x.font = `500 ${String(size)}px ${FONT}`
+  x.font = titleFont(b, size)
   x.letterSpacing = `${(-0.025 * size).toFixed(2)}px`
   x.fillStyle = b.ink
   x.textAlign = 'left'

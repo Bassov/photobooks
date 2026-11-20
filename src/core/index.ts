@@ -325,6 +325,7 @@ export {
   distributeFrames,
   moveFrame,
   resizeFrame,
+  resizeFrameKeepPhoto,
   rotateFrame,
   type AlignEdge,
   type DistributeAxis,

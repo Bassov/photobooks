@@ -272,7 +272,11 @@ test('kit-sync W3 (#/demo, Designer kit-sync Spec 7 = prod): layout picker — t
       page.locator('[data-testid="canvas"] [data-testid="frame"]').first(),
     )
   await settled(page)
-  await c('[data-testid="canvas"] [data-testid="frame"]')
+  // the drop selected the frame; its centre is the direct-crop grabber now, which takes the click
+  await page
+    .locator('[data-testid="canvas"] [data-testid="frame"]')
+    .first()
+    .click({ force: true })
   await c('[data-testid="book-title"]')
   await D(page, '[data-testid="size-preset"]').selectOption('sq20') // a 2:1 spread: prod's tile h 69.5
   await settled(page)

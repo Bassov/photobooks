@@ -9,7 +9,7 @@ import { cv } from './gl/canvas'
 import { canvasBox, ClosedBook, type GlPose } from './gl/closed'
 import { drawInto, loadThree, type Three } from './gl/three'
 import { glBook } from './gl/types'
-import { FONT, glInput, photoOf } from './glCover'
+import { FONT, glInput, photoOf, titleFont } from './glCover'
 import { glWanted } from './glWanted'
 
 /** the kit's face-out pose (ry 0, rx 3.5) in GL terms: elev = 20 + (−rx − 14) · 0.8 */
@@ -38,6 +38,7 @@ export async function drawHomeBook(
     deps.three(),
     photoOf(b.cover?.src),
     document.fonts.load(`500 16px ${FONT}`),
+    document.fonts.load(titleFont(b, 16), b.title).catch(() => undefined),
   ])
   const px = Math.min(1024, Math.ceil((b.trimMm.w / 10) * s * k * 1.5))
   const book = new ClosedBook(T, glBook(glInput(b, photo, px)), s, {
