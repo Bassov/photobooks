@@ -3,46 +3,61 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  SINGLE_WORKER,
   assignShards,
   coverageGaps,
-  fileFilter,
-  fileWeights,
   main,
   parseShard,
-  secondsPerFile,
+  planShards,
+  secondsPerLocation,
   testsPerFile,
+  testsPerLocation,
+  unitFilter,
+  unitWeights,
 } from './e2e-shard.mjs'
 
 /**
- * Playwright JSON report: one top-level suite per file, a nested describe,
- * and each test with the given result durations (ms).
- * @param {Record<string, number[][]>} files
+ * Playwright JSON report: one top-level suite per file with its first spec
+ * at line 1 and the rest in a nested describe at lines 2, 3, …; each spec
+ * lists tests as arrays of result durations (ms).
+ * @param {Record<string, number[][][]>} files
  */
 function report(files) {
+  /** @param {number[][]} tests @param {number} line */
+  const spec = (tests, line) => ({
+    line,
+    tests: tests.map((durations) => ({
+      results: durations.map((duration) => ({ duration })),
+    })),
+  })
   return {
-    suites: Object.entries(files).map(([file, tests]) => ({
+    suites: Object.entries(files).map(([file, specs]) => ({
       file,
-      specs: tests.slice(0, 1).map((durations) => ({
-        tests: [{ results: durations.map((duration) => ({ duration })) }],
-      })),
-      suites: [
-        {
-          specs: tests.slice(1).map((durations) => ({
-            tests: [{ results: durations.map((duration) => ({ duration })) }],
-          })),
-        },
-      ],
+      specs: specs.slice(0, 1).map((tests) => spec(tests, 1)),
+      suites: [{ specs: specs.slice(1).map((tests, i) => spec(tests, i + 2)) }],
     })),
   }
 }
 
-describe('testsPerFile', () => {
-  it('counts the tests of each file, nested describes included', () => {
-    const counts = testsPerFile(
-      report({ 'a.spec.ts': [[1], [2], [3]], 'dir/b.spec.ts': [[1]] }),
-    )
+/** One spec with one 0 ms test per entry. */
+const one = [[[0]]]
 
-    expect([...counts]).toEqual([
+describe('testsPerLocation / testsPerFile', () => {
+  const listing = report({
+    'a.spec.ts': [[[1], [2]], [[3]]],
+    'dir/b.spec.ts': [[[1]]],
+  })
+
+  it('counts the tests of each spec location, nested describes included', () => {
+    expect([...testsPerLocation(listing)]).toEqual([
+      ['a.spec.ts:1', 2],
+      ['a.spec.ts:2', 1],
+      ['dir/b.spec.ts:1', 1],
+    ])
+  })
+
+  it('sums the locations per file', () => {
+    expect([...testsPerFile(listing)]).toEqual([
       ['a.spec.ts', 3],
       ['dir/b.spec.ts', 1],
     ])
@@ -53,47 +68,78 @@ describe('testsPerFile', () => {
   })
 })
 
-describe('secondsPerFile', () => {
-  it('sums every attempt per file in tenths of a second, files sorted', () => {
-    const seconds = secondsPerFile(
-      report({ 'z.spec.ts': [[1000]], 'a.spec.ts': [[1234, 2000], [550]] }),
+describe('secondsPerLocation', () => {
+  it('sums every attempt per location in tenths of a second, sorted', () => {
+    const seconds = secondsPerLocation(
+      report({ 'z.spec.ts': [[[1000]]], 'a.spec.ts': [[[1234, 2000], [550]]] }),
     )
 
-    expect(seconds).toEqual({ 'a.spec.ts': 3.8, 'z.spec.ts': 1 })
-    expect(Object.keys(seconds)).toEqual(['a.spec.ts', 'z.spec.ts'])
+    expect(seconds).toEqual({ 'a.spec.ts:1': 3.8, 'z.spec.ts:1': 1 })
+    expect(Object.keys(seconds)).toEqual(['a.spec.ts:1', 'z.spec.ts:1'])
   })
 })
 
-describe('fileWeights', () => {
-  it('uses recorded seconds, else tests × the recorded mean per test', () => {
+describe('SINGLE_WORKER', () => {
+  it.each([
+    ['site-reader-gl.spec.ts', true],
+    ['dir/kit-personal-site-reader-gl.spec.ts', true],
+    ['reader-gl.spec.ts', true],
+    ['site-reader.spec.ts', false],
+    ['reader-gl.spec.ts.bak', false],
+  ])('%s → %s', (file, expected) => {
+    expect(SINGLE_WORKER.test(file)).toBe(expected)
+  })
+})
+
+describe('unitWeights', () => {
+  it('weighs files by their recorded locations, else tests × the recorded mean', () => {
     const counts = new Map([
-      ['known.spec.ts', 2],
-      ['slow.spec.ts', 2],
-      ['new.spec.ts', 3],
+      ['known.spec.ts:1', 2],
+      ['known.spec.ts:9', 1],
+      ['new.spec.ts:1', 3],
     ])
 
-    const weights = fileWeights(counts, {
-      'known.spec.ts': 10,
-      'slow.spec.ts': 30,
-      'gone.spec.ts': 500,
+    const { single, multi } = unitWeights(counts, {
+      'known.spec.ts:1': 10,
+      'known.spec.ts:9': 20,
+      'gone.spec.ts:1': 500,
     })
 
-    expect([...weights]).toEqual([
-      ['known.spec.ts', 10],
-      ['slow.spec.ts', 30],
+    expect(single.size).toBe(0)
+    expect([...multi]).toEqual([
+      ['known.spec.ts', 30],
       ['new.spec.ts', 30],
     ])
   })
 
-  it('weighs each test 1 s when nothing listed has a record', () => {
-    const weights = fileWeights(new Map([['new.spec.ts', 4]]), {})
+  it('keeps reader-gl locations apart as single-worker units', () => {
+    const counts = new Map([
+      ['site-reader-gl.spec.ts:5', 1],
+      ['site-reader-gl.spec.ts:40', 2],
+      ['a.spec.ts:1', 1],
+    ])
 
-    expect(weights.get('new.spec.ts')).toBe(4)
+    const { single, multi } = unitWeights(counts, {
+      'site-reader-gl.spec.ts:5': 90,
+      'a.spec.ts:1': 2,
+    })
+
+    expect([...single]).toEqual([
+      ['site-reader-gl.spec.ts:5', 90],
+      ['site-reader-gl.spec.ts:40', 2 * 46],
+    ])
+    expect([...multi]).toEqual([['a.spec.ts', 2]])
+  })
+
+  it('weighs each test 1 s when nothing listed has a record', () => {
+    const { multi } = unitWeights(new Map([['new.spec.ts:1', 4]]), {})
+
+    expect(multi.get('new.spec.ts')).toBe(4)
   })
 })
 
 describe('assignShards', () => {
-  it('puts the longest files first on the least-loaded shard', () => {
+  it('puts the longest units first on the least-loaded shard', () => {
     const weights = new Map([
       ['a.spec.ts', 1],
       ['b.spec.ts', 8],
@@ -104,8 +150,8 @@ describe('assignShards', () => {
 
     // b 8 → 0; c 5 → 1; d 4 → 1 (9); e 2 → 0 (10); a 1 → 1 (10).
     expect(assignShards(weights, 2)).toEqual([
-      ['b.spec.ts', 'e.spec.ts'],
-      ['a.spec.ts', 'c.spec.ts', 'd.spec.ts'],
+      { units: ['b.spec.ts', 'e.spec.ts'], load: 10 },
+      { units: ['a.spec.ts', 'c.spec.ts', 'd.spec.ts'], load: 10 },
     ])
   })
 
@@ -117,39 +163,105 @@ describe('assignShards', () => {
     ])
     const backward = new Map([...forward].reverse())
 
-    expect(assignShards(forward, 2)).toEqual([
+    expect(assignShards(forward, 2).map((shard) => shard.units)).toEqual([
       ['a.spec.ts', 'c.spec.ts'],
       ['b.spec.ts'],
     ])
     expect(assignShards(backward, 2)).toEqual(assignShards(forward, 2))
   })
 
-  it('places every file exactly once', () => {
+  it('places every unit exactly once', () => {
     const weights = new Map(
       Array.from({ length: 23 }, (_, i) => [`f${String(i)}.spec.ts`, i % 7]),
     )
 
     const shards = assignShards(weights, 5)
 
-    expect(shards.flat().sort()).toEqual([...weights.keys()].sort())
+    expect(shards.flatMap((shard) => shard.units).sort()).toEqual(
+      [...weights.keys()].sort(),
+    )
   })
 
-  it('refuses more shards than files', () => {
-    expect(() => assignShards(new Map([['a.spec.ts', 1]]), 2)).toThrow(
-      '1 spec files for 2 shards',
+  it.each([
+    [1, 2, '1 units for 2 shards'],
+    [1, 0, '1 units for 0 shards'],
+  ])('refuses %i unit(s) for %i shards', (units, n, message) => {
+    const weights = new Map(
+      Array.from({ length: units }, (_, i) => [`f${String(i)}`, 1]),
     )
+
+    expect(() => assignShards(weights, n)).toThrow(message)
   })
 })
 
-describe('fileFilter', () => {
-  it('anchors the path under e2e/ and escapes regex characters', () => {
-    const filter = new RegExp(fileFilter('dir/a.b(1).spec.ts'))
+describe('planShards', () => {
+  const multi = new Map([
+    ['a.spec.ts', 40],
+    ['b.spec.ts', 40],
+    ['c.spec.ts', 40],
+    ['d.spec.ts', 40],
+  ])
 
-    expect(fileFilter('a.spec.ts')).toBe('/e2e/a\\.spec\\.ts$')
+  it('gives the single units the number of 1-worker shards with the shortest longest shard', () => {
+    const single = new Map([
+      ['gl.spec.ts:1', 30],
+      ['gl.spec.ts:2', 30],
+      ['gl.spec.ts:3', 30],
+    ])
+
+    // k=1: 90 | 2w 80/2=40 → 90; k=2: 60 | 3 shards → 40 → 60;
+    // k=3: 30 | 2 shards → 40 → 40.
+    expect(planShards({ single, multi }, 5)).toEqual([
+      { workers: 1, units: ['gl.spec.ts:1'], wall: 30 },
+      { workers: 1, units: ['gl.spec.ts:2'], wall: 30 },
+      { workers: 1, units: ['gl.spec.ts:3'], wall: 30 },
+      { workers: 2, units: ['a.spec.ts', 'c.spec.ts'], wall: 40 },
+      { workers: 2, units: ['b.spec.ts', 'd.spec.ts'], wall: 40 },
+    ])
+  })
+
+  it('keeps fewer 1-worker shards on a tie', () => {
+    const single = new Map([
+      ['gl.spec.ts:1', 10],
+      ['gl.spec.ts:2', 10],
+    ])
+
+    // k=1: 20 | 3 shards → 40 → 40; k=2: 10 | 2 shards → 40 → 40.
+    expect(
+      planShards({ single, multi }, 4).map((shard) => shard.workers),
+    ).toEqual([1, 2, 2, 2])
+  })
+
+  it('caps the 1-worker shards at the single units, one 2-worker shard left', () => {
+    const single = new Map([['gl.spec.ts:1', 500]])
+
+    expect(
+      planShards({ single, multi }, 3).map((shard) => shard.workers),
+    ).toEqual([1, 2, 2])
+  })
+
+  it('runs only 2-worker shards without single units', () => {
+    expect(
+      planShards({ single: new Map(), multi }, 2).map((shard) => shard.wall),
+    ).toEqual([40, 40])
+  })
+})
+
+describe('unitFilter', () => {
+  it('anchors the path under e2e/ and escapes regex characters', () => {
+    const filter = new RegExp(unitFilter('dir/a.b(1).spec.ts'))
+
+    expect(unitFilter('a.spec.ts')).toBe('/e2e/a\\.spec\\.ts$')
     expect(filter.test('/repo/e2e/dir/a.b(1).spec.ts')).toBe(true)
     expect(filter.test('/repo/e2e/dir/aXb(1).spec.ts')).toBe(false)
     expect(filter.test('/repo/e2e/xdir/a.b(1).spec.ts')).toBe(false)
     expect(filter.test('/repo/e2e/dir/a.b(1).spec.ts.bak')).toBe(false)
+  })
+
+  it('keeps the line of a spec location after the file regex', () => {
+    expect(unitFilter('dir/gl.spec.ts:593')).toBe(
+      '/e2e/dir/gl\\.spec\\.ts$:593',
+    )
   })
 })
 
@@ -209,21 +321,32 @@ describe('main', () => {
   }
 
   const listing = report({
-    'a.spec.ts': [[0]],
-    'b.spec.ts': [[0], [0]],
-    'c.spec.ts': [[0]],
+    'a.spec.ts': one,
+    'b.spec.ts': [[[0]], [[0]]],
+    'c.spec.ts': one,
   })
 
-  it('pick prints the filters of one shard', () => {
+  /** @param {string} shard */
+  const pick = (shard) => [
+    'pick',
+    '--list',
+    join(dir, 'list.json'),
+    '--shard',
+    shard,
+  ]
+
+  it('pick prints the workers and the filters of one shard', () => {
     const { lines, io } = setup({
       'list.json': listing,
-      'durations.json': { 'a.spec.ts': 9, 'b.spec.ts': 4, 'c.spec.ts': 4 },
+      'durations.json': {
+        'a.spec.ts:1': 9,
+        'b.spec.ts:1': 2,
+        'b.spec.ts:2': 2,
+        'c.spec.ts:1': 4,
+      },
     })
 
-    const first = main(
-      ['pick', '--list', join(dir, 'list.json'), '--shard', '1/2'],
-      io,
-    )
+    const first = main(pick('1/2'), io)
     const firstLines = lines.splice(0)
     const second = main(
       ['pick', '--shard', '2/2', '--list', join(dir, 'list.json')],
@@ -231,25 +354,50 @@ describe('main', () => {
     )
 
     expect([first, second]).toEqual([0, 0])
-    expect(firstLines).toEqual([fileFilter('a.spec.ts')])
-    expect(lines).toEqual([fileFilter('b.spec.ts'), fileFilter('c.spec.ts')])
+    expect(firstLines).toEqual(['--workers=2', unitFilter('a.spec.ts')])
+    expect(lines).toEqual([
+      '--workers=2',
+      unitFilter('b.spec.ts'),
+      unitFilter('c.spec.ts'),
+    ])
+  })
+
+  it('pick gives reader-gl locations a 1-worker shard', () => {
+    const { lines, io } = setup({
+      'list.json': report({
+        'site-reader-gl.spec.ts': [[[0]], [[0]]],
+        'a.spec.ts': one,
+      }),
+      'durations.json': {
+        'site-reader-gl.spec.ts:1': 100,
+        'site-reader-gl.spec.ts:2': 100,
+        'a.spec.ts:1': 2,
+      },
+    })
+
+    main(pick('2/3'), io)
+
+    expect(lines).toEqual([
+      '--workers=1',
+      unitFilter('site-reader-gl.spec.ts:2'),
+    ])
   })
 
   it('pick reads the committed durations file by default', () => {
     const { lines, io } = setup({
       'list.json': report({
-        'zz-unrecorded-a.spec.ts': [[0], [0]],
-        'zz-unrecorded-b.spec.ts': [[0]],
+        'zz-unrecorded-a.spec.ts': [[[0], [0]]],
+        'zz-unrecorded-b.spec.ts': one,
       }),
     })
 
-    const code = main(
-      ['pick', '--list', join(dir, 'list.json'), '--shard', '2/2'],
-      { out: io.out },
-    )
+    const code = main(pick('2/2'), { out: io.out })
 
     expect(code).toBe(0)
-    expect(lines).toEqual([fileFilter('zz-unrecorded-b.spec.ts')])
+    expect(lines).toEqual([
+      '--workers=2',
+      unitFilter('zz-unrecorded-b.spec.ts'),
+    ])
   })
 
   it('verify passes when the report has every listed test', () => {
@@ -276,7 +424,7 @@ describe('main', () => {
   it('verify fails and names the file a shard dropped', () => {
     const { lines, io } = setup({
       'list.json': listing,
-      'report.json': report({ 'a.spec.ts': [[0]], 'b.spec.ts': [[0], [0]] }),
+      'report.json': report({ 'a.spec.ts': one, 'b.spec.ts': [[[0]], [[0]]] }),
     })
 
     const code = main(
@@ -299,15 +447,18 @@ describe('main', () => {
 
   it('record writes the durations file from a report', () => {
     const { lines, io } = setup({
-      'report.json': report({ 'b.spec.ts': [[1500]], 'a.spec.ts': [[200]] }),
+      'report.json': report({
+        'b.spec.ts': [[[1500]]],
+        'a.spec.ts': [[[200]]],
+      }),
     })
 
     const code = main(['record', '--report', join(dir, 'report.json')], io)
 
     expect(code).toBe(0)
-    expect(lines).toEqual(['wrote 2 files'])
+    expect(lines).toEqual(['wrote 2 locations'])
     expect(readFileSync(io.durationsPath, 'utf8')).toBe(
-      '{\n  "a.spec.ts": 0.2,\n  "b.spec.ts": 1.5\n}\n',
+      '{\n  "a.spec.ts:1": 0.2,\n  "b.spec.ts:1": 1.5\n}\n',
     )
   })
 

@@ -16,3 +16,7 @@ Owner 2026-11-20: shard the integration workflow's e2e so a PR's run finishes in
 - **Done when:** the PR's integration run is green on every shard with ≤10 min from first job start to `integration` done (≤12 min with a measured explanation); PR body has before/after (total wall, longest shard, setup per shard, N, workers, runner-minutes) and names the changed check names.
 - **Browser check:** none (CI-only change); the PR's own integration run and its CI report comment are the check.
 - **UI kit:** none (no matching component)
+
+## Done note
+
+Review round 1 (PR #652): the reader-gl specs time out with two workers on one runner, so they run on 1-worker shards split by spec location (`file:line`); other files stay whole on 2-worker shards. 15 shards (3 × 1 worker + 12 × 2 workers), durations recorded per location. The report merge moved into the `integration` job itself (no separate `e2e-report` job), which saves one runner queue wait; `integration` still fails on any shard failure, a missing file or a failed coverage upload.

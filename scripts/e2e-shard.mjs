@@ -1,19 +1,29 @@
 #!/usr/bin/env node
 /**
  * Duration-balanced e2e shards for the CI functional lane. Playwright's own
- * `--shard` splits by test count, and the reader-gl specs take ~27 s a test
- * against ~1.5 s elsewhere, so count shards end up 1.5× the mean. Here whole
- * spec files go to the least-loaded shard (longest first), weighted by the
- * seconds recorded in `.github/e2e-shard-durations.json`; a file with no record
- * weighs its listed test count × the recorded mean seconds per test.
+ * `--shard` splits by test count, and the reader-gl specs take ~30–130 s a
+ * test against ~1.5 s elsewhere, so count shards end up far from the mean.
  *
- * Every shard computes the same split from the same `--list` report, so the
- * shards cover each listed file exactly once; `verify` checks the merged
+ * Two pools:
+ * - 2-worker shards take whole spec files; a shard runs in about half its
+ *   summed test time.
+ * - 1-worker shards take the reader-gl specs (`SINGLE_WORKER`: their WebGL
+ *   turns time out when two run side by side on one runner), split by spec
+ *   location (`file:line`), since one such file outlasts a whole shard.
+ *
+ * Units go longest first to the least-loaded shard of their pool, weighted by
+ * the seconds per spec location recorded in `.github/e2e-shard-durations.json`
+ * (a location with no record weighs its test count × the recorded mean per
+ * test). The pool sizes are the split of n shards with the shortest longest
+ * shard.
+ *
+ * Every shard computes the same plan from the same `--list` report, so the
+ * shards cover each listed test exactly once; `verify` checks the merged
  * report against the listing.
  *
  * Usage:
  * - `node scripts/e2e-shard.mjs pick --list <list.json> --shard <i>/<n>`:
- *   prints one Playwright file filter per line for shard i.
+ *   prints `--workers=<w>`, then one Playwright file filter per line.
  * - `node scripts/e2e-shard.mjs verify --list <list.json> --report <merged.json>`:
  *   exits 1 unless the report has every listed file with its test count.
  * - `node scripts/e2e-shard.mjs record --report <e2e-results.json>`:
@@ -28,28 +38,33 @@ const DURATIONS_PATH = join(
   '../.github/e2e-shard-durations.json',
 )
 
+/** Spec files that run on 1-worker shards, split by location. */
+export const SINGLE_WORKER = /(^|\/)[^/]*reader-gl\.spec\.ts$/
+
 /**
  * Playwright JSON report shape: a top-level suite per spec file, nested
  * describes in `suites` (omitted on leaves).
  * @typedef {{ results: { duration: number }[] }} Test
- * @typedef {{ specs: { tests: Test[] }[], suites?: Suite[] }} Suite
+ * @typedef {{ line: number, tests: Test[] }} Spec
+ * @typedef {{ specs: Spec[], suites?: Suite[] }} Suite
  * @typedef {{ suites: (Suite & { file: string })[] }} Report
  */
 
 /**
- * Sum of `value(test)` per testDir-relative spec file.
+ * Sum of `value(test)` per spec location `file:line` (testDir-relative file).
  * @param {Report} report
  * @param {(test: Test) => number} value
  * @returns {Map<string, number>}
  */
-function sumPerFile(report, value) {
+function sumPerLocation(report, value) {
   /** @type {Map<string, number>} */
   const sums = new Map()
   /** @param {Suite} suite @param {string} file */
   const walk = (suite, file) => {
     for (const spec of suite.specs) {
+      const location = `${file}:${String(spec.line)}`
       for (const test of spec.tests) {
-        sums.set(file, (sums.get(file) ?? 0) + value(test))
+        sums.set(location, (sums.get(location) ?? 0) + value(test))
       }
     }
     for (const child of suite.suites ?? []) walk(child, file)
@@ -58,92 +73,161 @@ function sumPerFile(report, value) {
   return sums
 }
 
-/**
- * Tests per spec file in a Playwright JSON report (a `--list` run or a real
- * one).
- * @param {Report} report
- */
-export function testsPerFile(report) {
-  return sumPerFile(report, () => 1)
+/** @param {string} location `file:line` */
+function fileOf(location) {
+  return location.slice(0, location.lastIndexOf(':'))
 }
 
 /**
- * Seconds per spec file in a finished JSON report (all attempts, retries too),
- * rounded to 0.1 s, files sorted.
+ * Tests per spec location in a Playwright JSON report (a `--list` run or a
+ * real one).
+ * @param {Report} report
+ */
+export function testsPerLocation(report) {
+  return sumPerLocation(report, () => 1)
+}
+
+/**
+ * Tests per spec file.
+ * @param {Report} report
+ * @returns {Map<string, number>}
+ */
+export function testsPerFile(report) {
+  /** @type {Map<string, number>} */
+  const counts = new Map()
+  for (const [location, tests] of testsPerLocation(report)) {
+    const file = fileOf(location)
+    counts.set(file, (counts.get(file) ?? 0) + tests)
+  }
+  return counts
+}
+
+/**
+ * Seconds per spec location in a finished JSON report (all attempts, retries
+ * too), rounded to 0.1 s, locations sorted.
  * @param {Report} report
  * @returns {Record<string, number>}
  */
-export function secondsPerFile(report) {
-  const ms = sumPerFile(report, (test) =>
+export function secondsPerLocation(report) {
+  const ms = sumPerLocation(report, (test) =>
     test.results.reduce((sum, result) => sum + result.duration, 0),
   )
   return Object.fromEntries(
     [...ms]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([file, total]) => [file, Math.round(total / 100) / 10]),
+      .map(([location, total]) => [location, Math.round(total / 100) / 10]),
   )
 }
 
 /**
- * Weight of each listed file: recorded seconds, else tests × the mean
- * recorded seconds per test of the listed files that have a record.
- * @param {Map<string, number>} counts
+ * Weight of each shard unit: recorded seconds of its locations, else tests ×
+ * the mean recorded seconds per test of the listed locations that have a
+ * record. Units are locations in `SINGLE_WORKER` files, files elsewhere.
+ * @param {Map<string, number>} counts tests per listed location
  * @param {Record<string, number>} durations
- * @returns {Map<string, number>}
+ * @returns {{ single: Map<string, number>, multi: Map<string, number> }}
  */
-export function fileWeights(counts, durations) {
+export function unitWeights(counts, durations) {
   let knownSeconds = 0
   let knownTests = 0
-  for (const [file, tests] of counts) {
-    if (Object.hasOwn(durations, file)) {
-      knownSeconds += durations[file]
+  for (const [location, tests] of counts) {
+    if (Object.hasOwn(durations, location)) {
+      knownSeconds += durations[location]
       knownTests += tests
     }
   }
   const perTest = knownTests > 0 ? knownSeconds / knownTests : 1
-  return new Map(
-    [...counts].map(([file, tests]) => [
-      file,
-      Object.hasOwn(durations, file) ? durations[file] : tests * perTest,
-    ]),
-  )
+  const single = new Map()
+  const multi = new Map()
+  for (const [location, tests] of counts) {
+    const seconds = Object.hasOwn(durations, location)
+      ? durations[location]
+      : tests * perTest
+    const file = fileOf(location)
+    if (SINGLE_WORKER.test(file)) {
+      single.set(location, seconds)
+    } else {
+      multi.set(file, (multi.get(file) ?? 0) + seconds)
+    }
+  }
+  return { single, multi }
 }
 
 /**
  * Longest-first greedy split into n shards; ties go to the lower shard index
- * and files of equal weight are taken by name, so every caller gets the
+ * and units of equal weight are taken by name, so every caller gets the
  * same split.
  * @param {Map<string, number>} weights
  * @param {number} n
- * @returns {string[][]}
+ * @returns {{ units: string[], load: number }[]}
  */
 export function assignShards(weights, n) {
-  if (weights.size < n) {
-    throw new Error(
-      `${String(weights.size)} spec files for ${String(n)} shards`,
-    )
+  if (n < 1 || weights.size < n) {
+    throw new Error(`${String(weights.size)} units for ${String(n)} shards`)
   }
-  const files = [...weights].sort(
+  const units = [...weights].sort(
     ([a, weightA], [b, weightB]) => weightB - weightA || a.localeCompare(b),
   )
-  const loads = Array.from({ length: n }, () => 0)
-  /** @type {string[][]} */
-  const shards = Array.from({ length: n }, () => [])
-  for (const [file, weight] of files) {
-    const target = loads.indexOf(Math.min(...loads))
-    loads[target] += weight
-    shards[target].push(file)
+  const shards = Array.from({ length: n }, () => ({
+    units: /** @type {string[]} */ ([]),
+    load: 0,
+  }))
+  for (const [unit, weight] of units) {
+    const loads = shards.map((shard) => shard.load)
+    const target = shards[loads.indexOf(Math.min(...loads))]
+    target.load += weight
+    target.units.push(unit)
   }
-  return shards.map((shard) => shard.sort())
+  for (const shard of shards) shard.units.sort()
+  return shards
+}
+
+/**
+ * n shards: 1-worker shards for the `single` units first, then 2-worker
+ * shards for `multi`, sized so the longest shard (load ÷ workers) is the
+ * shortest; on a tie, fewer 1-worker shards. Each pool keeps at least one
+ * unit per shard.
+ * @param {{ single: Map<string, number>, multi: Map<string, number> }} weights
+ * @param {number} n
+ * @returns {{ workers: number, units: string[], wall: number }[]}
+ */
+export function planShards({ single, multi }, n) {
+  /** @param {number} k */
+  const plan = (k) => [
+    ...(k > 0 ? assignShards(single, k) : []).map(({ units, load }) => ({
+      workers: 1,
+      units,
+      wall: load,
+    })),
+    ...assignShards(multi, n - k).map(({ units, load }) => ({
+      workers: 2,
+      units,
+      wall: load / 2,
+    })),
+  ]
+  /** @param {{ wall: number }[]} shards */
+  const longest = (shards) => Math.max(...shards.map((shard) => shard.wall))
+  if (single.size === 0) return plan(0)
+  const fewest = Math.max(1, n - multi.size)
+  let best = plan(fewest)
+  for (let k = fewest + 1; k <= Math.min(single.size, n - 1); k++) {
+    const candidate = plan(k)
+    if (longest(candidate) < longest(best)) best = candidate
+  }
+  return best
 }
 
 /**
  * Playwright CLI filter matching exactly one testDir-relative spec file
- * (filters are regexes tested against the absolute path).
- * @param {string} file
+ * (filters are regexes tested against the absolute path), or one spec
+ * location `file:line`.
+ * @param {string} unit
  */
-export function fileFilter(file) {
-  return `/e2e/${file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`
+export function unitFilter(unit) {
+  const match = /^(.*):(\d+)$/.exec(unit)
+  const file = match ? match[1] : unit
+  const filter = `/e2e/${file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`
+  return match ? `${filter}:${match[2]}` : filter
 }
 
 /**
@@ -209,9 +293,10 @@ export function main(argv, io) {
   if (command === 'pick') {
     const { index, total } = parseShard(option(rest, '--shard'))
     const durations = JSON.parse(readFileSync(durationsPath, 'utf8'))
-    const counts = testsPerFile(readJson(option(rest, '--list')))
-    const shard = assignShards(fileWeights(counts, durations), total)[index - 1]
-    for (const file of shard) io.out(fileFilter(file))
+    const counts = testsPerLocation(readJson(option(rest, '--list')))
+    const shard = planShards(unitWeights(counts, durations), total)[index - 1]
+    io.out(`--workers=${String(shard.workers)}`)
+    for (const unit of shard.units) io.out(unitFilter(unit))
     return 0
   }
   if (command === 'verify') {
@@ -227,9 +312,9 @@ export function main(argv, io) {
     return gaps.length === 0 ? 0 : 1
   }
   if (command === 'record') {
-    const seconds = secondsPerFile(readJson(option(rest, '--report')))
+    const seconds = secondsPerLocation(readJson(option(rest, '--report')))
     writeFileSync(durationsPath, `${JSON.stringify(seconds, null, 2)}\n`)
-    io.out(`wrote ${String(Object.keys(seconds).length)} files`)
+    io.out(`wrote ${String(Object.keys(seconds).length)} locations`)
     return 0
   }
   throw new Error(`usage: e2e-shard.mjs pick|verify|record (got ${command})`)

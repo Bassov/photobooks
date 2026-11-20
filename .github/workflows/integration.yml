@@ -118,10 +118,11 @@ jobs:
           retention-days: 1
           if-no-files-found: ignore
 
-  # Functional e2e in duration-balanced shards (scripts/e2e-shard.mjs: whole
-  # spec files, weighted by .github/e2e-shard-durations.json), 2 workers each.
-  # Shard count = the matrix length. e2e-report merges the shards' blob
-  # reports and coverage.
+  # Functional e2e in duration-balanced shards (scripts/e2e-shard.mjs,
+  # weighted by .github/e2e-shard-durations.json): 1-worker shards for the
+  # reader-gl spec locations, 2-worker shards for whole files. Shard count =
+  # the matrix length. `integration` merges the shards' blob reports and
+  # coverage.
   e2e:
     name: e2e (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
@@ -130,7 +131,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -174,8 +175,8 @@ jobs:
           E2E_LANE: functional
           PLAYWRIGHT_BLOB_OUTPUT_NAME: report-${{ matrix.shard }}.zip
         run: |
-          mapfile -t FILES < e2e-shard/files.txt
-          pnpm exec ts-rig-ci with-playwright-env playwright test --project=chromium --workers=2 --reporter=blob --grep-invert "frame-budget gates" "${FILES[@]}"
+          mapfile -t SHARD_ARGS < e2e-shard/files.txt
+          pnpm exec ts-rig-ci with-playwright-env playwright test --project=chromium --reporter=blob --grep-invert "frame-budget gates" "${SHARD_ARGS[@]}"
 
       - name: Merge shard coverage
         if: always() && steps.e2e-functional.outcome == 'success'
@@ -202,15 +203,21 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-  # Merges the e2e shards: Playwright reports (e2e-results JSON for ci-comment,
-  # HTML on failure), a check that every listed spec file ran, and coverage for
-  # Codecov.
-  e2e-report:
-    needs: [e2e]
-    if: always() && needs.e2e.result != 'cancelled' && needs.e2e.result != 'skipped'
+  # Required check name stays `integration`. It merges the e2e shards
+  # (Playwright reports: e2e-results JSON for ci-comment, HTML on failure; a
+  # check that every listed spec file ran; coverage for Codecov) in this job
+  # rather than a separate one, saving a runner queue wait. It fails unless
+  # every e2e shard and the merge succeeded, burn-in succeeded (or was skipped
+  # on non-PR), and e2e-flaky succeeded (empty @flaky list skips e2e-flaky —
+  # skipped is OK).
+  integration:
+    needs: [e2e, e2e-burn-in, e2e-flaky-resolve, e2e-flaky]
+    if: always()
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      e2e_report: ${{ steps.e2e-report.outputs.outcome }}
     steps:
       - uses: actions/checkout@v7
 
@@ -218,6 +225,7 @@ jobs:
         uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.23
 
       - name: Download shard blob reports
+        if: needs.e2e.result != 'cancelled' && needs.e2e.result != 'skipped'
         uses: actions/download-artifact@v8
         with:
           pattern: e2e-blob-*
@@ -225,11 +233,13 @@ jobs:
           merge-multiple: true
 
       - name: Merge shard reports
+        id: e2e-merge
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-results.json
         run: pnpm exec playwright merge-reports --reporter=html,json all-blob-reports
 
       - name: Every listed spec file ran
+        id: e2e-verify
         env:
           E2E_LANE: functional
           PLAYWRIGHT_JSON_OUTPUT_NAME: e2e-shard/list.json
@@ -254,6 +264,7 @@ jobs:
           test -s coverage-e2e/lcov.info
 
       - name: Upload e2e coverage to Codecov
+        id: e2e-codecov
         if: always() && steps.e2e-coverage-merge.outcome == 'success'
         uses: codecov/codecov-action@v7
         with:
@@ -281,6 +292,65 @@ jobs:
           path: playwright-report/
           retention-days: 7
           if-no-files-found: ignore
+
+      # The merge alone, as the old e2e job's outcome for ci-comment: success
+      # when the reports merged, every listed file ran, and coverage reached
+      # Codecov (all shards green) or was not due (a shard failed).
+      - name: E2E report outcome
+        id: e2e-report
+        if: always()
+        env:
+          E2E_RESULT: ${{ needs.e2e.result }}
+          MERGE: ${{ steps.e2e-merge.outcome }}
+          VERIFY: ${{ steps.e2e-verify.outcome }}
+          CODECOV: ${{ steps.e2e-codecov.outcome }}
+        run: |
+          OUTCOME=failure
+          if [ "$MERGE" = success ] && [ "$VERIFY" = success ] &&
+            { [ "$E2E_RESULT" != success ] || [ "$CODECOV" = success ]; }; then
+            OUTCOME=success
+          fi
+          echo "outcome=$OUTCOME" >> "$GITHUB_OUTPUT"
+          echo "e2e report merge=$MERGE verify=$VERIFY codecov=$CODECOV → $OUTCOME"
+
+      - name: Require e2e, burn-in, and e2e-flaky
+        if: always()
+        env:
+          E2E_RESULT: ${{ needs.e2e.result }}
+          E2E_REPORT_OUTCOME: ${{ steps.e2e-report.outputs.outcome }}
+          BURN_IN_RESULT: ${{ needs.e2e-burn-in.result }}
+          FLAKY_RESOLVE_RESULT: ${{ needs.e2e-flaky-resolve.result }}
+          FLAKY_RESULT: ${{ needs.e2e-flaky.result }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$E2E_RESULT" != "success" ]; then
+            echo "e2e shards result=$E2E_RESULT (need success)"
+            exit 1
+          fi
+          if [ "$E2E_REPORT_OUTCOME" != "success" ]; then
+            echo "e2e report merge outcome=$E2E_REPORT_OUTCOME (need success)"
+            exit 1
+          fi
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            if [ "$BURN_IN_RESULT" != "success" ]; then
+              echo "e2e-burn-in job result=$BURN_IN_RESULT (need success on pull_request)"
+              exit 1
+            fi
+          else
+            if [ "$BURN_IN_RESULT" != "success" ] && [ "$BURN_IN_RESULT" != "skipped" ]; then
+              echo "e2e-burn-in job result=$BURN_IN_RESULT (need success or skipped on non-PR)"
+              exit 1
+            fi
+          fi
+          if [ "$FLAKY_RESOLVE_RESULT" != "success" ]; then
+            echo "e2e-flaky-resolve job result=$FLAKY_RESOLVE_RESULT (need success)"
+            exit 1
+          fi
+          if [ "$FLAKY_RESULT" != "success" ] && [ "$FLAKY_RESULT" != "skipped" ]; then
+            echo "e2e-flaky job result=$FLAKY_RESULT (need success or skipped)"
+            exit 1
+          fi
+          echo "integration gate ok (e2e=$E2E_RESULT e2e-report=$E2E_REPORT_OUTCOME burn-in=$BURN_IN_RESULT flaky-resolve=$FLAKY_RESOLVE_RESULT flaky=$FLAKY_RESULT)"
 
   e2e-flaky-resolve:
     runs-on: ubuntu-latest
@@ -340,61 +410,12 @@ jobs:
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-flaky-results.json
 
-  # Required check name stays `integration`: fails unless every e2e shard and
-  # the e2e-report merge (all files ran, coverage) succeeded, burn-in succeeded
-  # (or was skipped on non-PR), and e2e-flaky succeeded (empty @flaky list
-  # skips e2e-flaky — skipped is OK).
-  integration:
-    needs: [e2e, e2e-report, e2e-burn-in, e2e-flaky-resolve, e2e-flaky]
-    if: always()
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Require e2e, burn-in, and e2e-flaky
-        env:
-          E2E_RESULT: ${{ needs.e2e.result }}
-          E2E_REPORT_RESULT: ${{ needs.e2e-report.result }}
-          BURN_IN_RESULT: ${{ needs.e2e-burn-in.result }}
-          FLAKY_RESOLVE_RESULT: ${{ needs.e2e-flaky-resolve.result }}
-          FLAKY_RESULT: ${{ needs.e2e-flaky.result }}
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          if [ "$E2E_RESULT" != "success" ]; then
-            echo "e2e shards result=$E2E_RESULT (need success)"
-            exit 1
-          fi
-          if [ "$E2E_REPORT_RESULT" != "success" ]; then
-            echo "e2e-report job result=$E2E_REPORT_RESULT (need success)"
-            exit 1
-          fi
-          if [ "$EVENT_NAME" = "pull_request" ]; then
-            if [ "$BURN_IN_RESULT" != "success" ]; then
-              echo "e2e-burn-in job result=$BURN_IN_RESULT (need success on pull_request)"
-              exit 1
-            fi
-          else
-            if [ "$BURN_IN_RESULT" != "success" ] && [ "$BURN_IN_RESULT" != "skipped" ]; then
-              echo "e2e-burn-in job result=$BURN_IN_RESULT (need success or skipped on non-PR)"
-              exit 1
-            fi
-          fi
-          if [ "$FLAKY_RESOLVE_RESULT" != "success" ]; then
-            echo "e2e-flaky-resolve job result=$FLAKY_RESOLVE_RESULT (need success)"
-            exit 1
-          fi
-          if [ "$FLAKY_RESULT" != "success" ] && [ "$FLAKY_RESULT" != "skipped" ]; then
-            echo "e2e-flaky job result=$FLAKY_RESULT (need success or skipped)"
-            exit 1
-          fi
-          echo "integration gate ok (e2e=$E2E_RESULT e2e-report=$E2E_REPORT_RESULT burn-in=$BURN_IN_RESULT flaky-resolve=$FLAKY_RESOLVE_RESULT flaky=$FLAKY_RESULT)"
-
   ci-comment:
-    needs: [e2e, e2e-report, e2e-burn-in, e2e-flaky, integration]
+    needs: [e2e, e2e-burn-in, e2e-flaky, integration]
     if: >-
       always() && github.event_name == 'pull_request' &&
       needs.e2e.result != 'cancelled' &&
-      needs.e2e-report.result != 'cancelled' &&
+      needs.integration.result != 'cancelled' &&
       needs.e2e-burn-in.result != 'cancelled'
     runs-on: ubuntu-latest
     permissions:
@@ -426,7 +447,7 @@ jobs:
       - name: Summarize and pack e2e section
         env:
           # Old single e2e job outcome = all shards and the report merge.
-          E2E_STEP_OUTCOME: ${{ needs.e2e.result == 'success' && needs.e2e-report.result || needs.e2e.result }}
+          E2E_STEP_OUTCOME: ${{ needs.e2e.result == 'success' && needs.integration.outputs.e2e_report || needs.e2e.result }}
         run: |
           mkdir -p ci-section
           EXTRA_ARGS=()
