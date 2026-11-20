@@ -38,7 +38,7 @@ export async function drawHomeBook(
     deps.three(),
     photoOf(b.cover?.src),
     document.fonts.load(`500 16px ${FONT}`),
-    document.fonts.load(titleFont(b, 16), b.title).catch(() => []),
+    document.fonts.load(titleFont(b, 16), b.title).catch(() => undefined),
   ])
   const px = Math.min(1024, Math.ceil((b.trimMm.w / 10) * s * k * 1.5))
   const book = new ClosedBook(T, glBook(glInput(b, photo, px)), s, {

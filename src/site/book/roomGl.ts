@@ -75,7 +75,9 @@ async function glOf(
   const [T, photo] = await Promise.all([
     loadThree(),
     photoOf(i.entry.cover?.src).catch(() => null),
-    document.fonts.load(titleFont(i.entry, 16), i.entry.title).catch(() => []),
+    document.fonts
+      .load(titleFont(i.entry, 16), i.entry.title)
+      .catch(() => undefined),
   ])
   const faces = createFaceSource({
     book: i.book,

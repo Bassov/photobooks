@@ -225,6 +225,27 @@ describe('drawHomeBook', () => {
     expect(host.dataset.gl).toBeUndefined()
   })
 
+  it('loads the title face first; a failed load still draws (the fallback face)', async () => {
+    const load = vi.fn((font: string) =>
+      font.includes('Lora')
+        ? Promise.reject(new Error('net'))
+        : Promise.resolve([]),
+    )
+    Object.defineProperty(document, 'fonts', {
+      configurable: true,
+      value: { load },
+    })
+    const host = document.createElement('div')
+
+    await drawHomeBook(host, { ...alps(), cover: null }, 10, deps)
+
+    expect(load).toHaveBeenCalledWith(
+      'italic 400 16px "Lora Cover", "Lora Variable", Georgia, serif',
+      'Alps',
+    )
+    expect(host.dataset.gl).toBe('ready')
+  })
+
   it('draws the cover photo from its src', async () => {
     Object.defineProperty(HTMLImageElement.prototype, 'decode', {
       configurable: true,
