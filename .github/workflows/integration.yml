@@ -118,10 +118,19 @@ jobs:
           retention-days: 1
           if-no-files-found: ignore
 
+  # Functional e2e in duration-balanced shards (scripts/e2e-shard.mjs: whole
+  # spec files, weighted by scripts/e2e-shard-durations.json), 2 workers each.
+  # Shard count = the matrix length. e2e-report merges the shards' blob
+  # reports and coverage.
   e2e:
+    name: e2e (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -145,22 +154,101 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
-      - name: Build app for E2E
-        run: pnpm build
+      - name: Pick shard spec files
+        env:
+          E2E_LANE: functional
+          PLAYWRIGHT_JSON_OUTPUT_NAME: e2e-shard/list.json
+          SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
+        run: |
+          pnpm exec playwright test --project=chromium --grep-invert "frame-budget gates" --list --reporter=json > /dev/null
+          node scripts/e2e-shard.mjs pick --list e2e-shard/list.json --shard "$SHARD" > e2e-shard/files.txt
+          cat e2e-shard/files.txt
 
       # Functional lane: deterministic, no frame assertions. LoAF/frame-budget
-      # scenarios run in the scoped `perf` job (perf.yml).
+      # scenarios run in the scoped `perf` job (perf.yml). The webServer
+      # builds the coverage app (playwright.config.ts).
       - name: E2E functional (coverage)
         id: e2e-functional
-        run: pnpm test:e2e --grep-invert "frame-budget gates"
         env:
           E2E_COVERAGE: '1'
           E2E_LANE: functional
+          PLAYWRIGHT_BLOB_OUTPUT_NAME: report-${{ matrix.shard }}.zip
+        run: |
+          mapfile -t FILES < e2e-shard/files.txt
+          pnpm exec ts-rig-ci with-playwright-env playwright test --project=chromium --workers=2 --reporter=blob --grep-invert "frame-budget gates" "${FILES[@]}"
+
+      - name: Merge shard coverage
+        if: always() && steps.e2e-functional.outcome == 'success'
+        run: |
+          mkdir -p e2e-shard/coverage
+          pnpm exec nyc merge .nyc_output "e2e-shard/coverage/shard-${{ matrix.shard }}.json"
+          test -s "e2e-shard/coverage/shard-${{ matrix.shard }}.json"
+
+      - name: Upload shard blob report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-blob-${{ matrix.shard }}
+          path: blob-report/
+          retention-days: 1
+          if-no-files-found: ignore
+
+      - name: Upload shard coverage
+        if: always() && steps.e2e-functional.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-coverage-${{ matrix.shard }}
+          path: e2e-shard/coverage/
+          retention-days: 1
+          if-no-files-found: error
+
+  # Merges the e2e shards: Playwright reports (e2e-results JSON for ci-comment,
+  # HTML on failure), a check that every listed spec file ran, and coverage for
+  # Codecov.
+  e2e-report:
+    needs: [e2e]
+    if: always() && needs.e2e.result != 'cancelled' && needs.e2e.result != 'skipped'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node and pnpm
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.23
+
+      - name: Download shard blob reports
+        uses: actions/download-artifact@v8
+        with:
+          pattern: e2e-blob-*
+          path: all-blob-reports
+          merge-multiple: true
+
+      - name: Merge shard reports
+        env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-results.json
+        run: pnpm exec playwright merge-reports --reporter=html,json all-blob-reports
+
+      - name: Every listed spec file ran
+        env:
+          E2E_LANE: functional
+          PLAYWRIGHT_JSON_OUTPUT_NAME: e2e-shard/list.json
+        run: |
+          pnpm exec playwright test --project=chromium --grep-invert "frame-budget gates" --list --reporter=json > /dev/null
+          node scripts/e2e-shard.mjs verify --list e2e-shard/list.json --report test-results/e2e-results.json
+
+      - name: Download shard coverage
+        id: e2e-coverage-download
+        if: always() && needs.e2e.result == 'success'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: e2e-coverage-*
+          path: .nyc_output
+          merge-multiple: true
 
       - name: Merge e2e coverage
         id: e2e-coverage-merge
-        if: always() && steps.e2e-functional.outcome == 'success'
+        if: always() && steps.e2e-coverage-download.outcome == 'success'
         run: |
           pnpm coverage:e2e
           test -s coverage-e2e/lcov.info
@@ -186,14 +274,13 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload Playwright report
-        if: failure()
+        if: failure() || needs.e2e.result != 'success'
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
-          path: |
-            playwright-report/
-            test-results/
+          path: playwright-report/
           retention-days: 7
+          if-no-files-found: ignore
 
   e2e-flaky-resolve:
     runs-on: ubuntu-latest
@@ -253,11 +340,12 @@ jobs:
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-flaky-results.json
 
-  # Required check name stays `integration`: fails unless full e2e succeeded,
-  # burn-in succeeded (or was skipped on non-PR), and e2e-flaky succeeded
-  # (empty @flaky list skips e2e-flaky — skipped is OK).
+  # Required check name stays `integration`: fails unless every e2e shard and
+  # the e2e-report merge (all files ran, coverage) succeeded, burn-in succeeded
+  # (or was skipped on non-PR), and e2e-flaky succeeded (empty @flaky list
+  # skips e2e-flaky — skipped is OK).
   integration:
-    needs: [e2e, e2e-burn-in, e2e-flaky-resolve, e2e-flaky]
+    needs: [e2e, e2e-report, e2e-burn-in, e2e-flaky-resolve, e2e-flaky]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -266,13 +354,18 @@ jobs:
       - name: Require e2e, burn-in, and e2e-flaky
         env:
           E2E_RESULT: ${{ needs.e2e.result }}
+          E2E_REPORT_RESULT: ${{ needs.e2e-report.result }}
           BURN_IN_RESULT: ${{ needs.e2e-burn-in.result }}
           FLAKY_RESOLVE_RESULT: ${{ needs.e2e-flaky-resolve.result }}
           FLAKY_RESULT: ${{ needs.e2e-flaky.result }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
           if [ "$E2E_RESULT" != "success" ]; then
-            echo "e2e job result=$E2E_RESULT (need success)"
+            echo "e2e shards result=$E2E_RESULT (need success)"
+            exit 1
+          fi
+          if [ "$E2E_REPORT_RESULT" != "success" ]; then
+            echo "e2e-report job result=$E2E_REPORT_RESULT (need success)"
             exit 1
           fi
           if [ "$EVENT_NAME" = "pull_request" ]; then
@@ -294,13 +387,14 @@ jobs:
             echo "e2e-flaky job result=$FLAKY_RESULT (need success or skipped)"
             exit 1
           fi
-          echo "integration gate ok (e2e=$E2E_RESULT burn-in=$BURN_IN_RESULT flaky-resolve=$FLAKY_RESOLVE_RESULT flaky=$FLAKY_RESULT)"
+          echo "integration gate ok (e2e=$E2E_RESULT e2e-report=$E2E_REPORT_RESULT burn-in=$BURN_IN_RESULT flaky-resolve=$FLAKY_RESOLVE_RESULT flaky=$FLAKY_RESULT)"
 
   ci-comment:
-    needs: [e2e, e2e-burn-in, e2e-flaky, integration]
+    needs: [e2e, e2e-report, e2e-burn-in, e2e-flaky, integration]
     if: >-
       always() && github.event_name == 'pull_request' &&
       needs.e2e.result != 'cancelled' &&
+      needs.e2e-report.result != 'cancelled' &&
       needs.e2e-burn-in.result != 'cancelled'
     runs-on: ubuntu-latest
     permissions:
@@ -331,7 +425,8 @@ jobs:
 
       - name: Summarize and pack e2e section
         env:
-          E2E_STEP_OUTCOME: ${{ needs.e2e.result }}
+          # Old single e2e job outcome = all shards and the report merge.
+          E2E_STEP_OUTCOME: ${{ needs.e2e.result == 'success' && needs.e2e-report.result || needs.e2e.result }}
         run: |
           mkdir -p ci-section
           EXTRA_ARGS=()
