@@ -11,7 +11,7 @@ export interface CoverTitleFace {
 }
 
 /** The upright-only `Lora Cover` alias (CoverView.css); italic is synthesised. */
-const SERIF = '"Lora Cover", "Lora Variable", Georgia, serif'
+const SERIF = '"Lora Cover", "Lora Variable", Lora, serif'
 
 /** The book's Title font → its cover face (the editor cover, the site front, the GL cover). */
 export const COVER_TITLE_FACES: Readonly<

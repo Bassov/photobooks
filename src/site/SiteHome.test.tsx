@@ -209,7 +209,7 @@ describe('Book3D', () => {
     expect(title?.textContent).toBe('Alps')
     // D38: the front in the book's Title font (serif-italic); the spine keeps the site sans
     expect([title?.style.fontFamily, title?.style.fontStyle]).toStrictEqual([
-      '"Lora Cover", "Lora Variable", Georgia, serif',
+      '"Lora Cover", "Lora Variable", Lora, serif',
       'italic',
     ])
     const spine = book.querySelector<HTMLElement>('.sd-b3-spine .sd-it')

@@ -59,7 +59,7 @@ describe('CoverView', () => {
 
     expect(vars(book)).toStrictEqual([
       'serif-italic',
-      '"Lora Cover", "Lora Variable", Georgia, serif',
+      '"Lora Cover", "Lora Variable", Lora, serif',
       'italic',
     ])
     expect(vars(sans)).toStrictEqual([

@@ -157,7 +157,7 @@ describe('CoverFace', () => {
       title?.style.fontStyle,
       title?.style.fontWeight,
     ]).toStrictEqual([
-      '"Lora Cover", "Lora Variable", Georgia, serif',
+      '"Lora Cover", "Lora Variable", Lora, serif',
       'italic',
       '400',
     ])

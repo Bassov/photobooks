@@ -69,7 +69,7 @@ export async function coverCanvas(b: SiteBook, px: number, f: TitleFont) {
   x.fillRect(0, 0, W * 0.05, H)
   // D38: the book's serif Title font over the probe's (the site sans)
   const t = titleFace(b.titleFont) ?? f, fs = f.k * Math.min(W, H), font = `${t.style} ${t.weight} ${fs}px ${t.family}`
-  await document.fonts.load(font, b.title).catch(() => [])
+  await document.fonts.load(font, b.title).catch(() => undefined)
   x.font = font
   if ("letterSpacing" in x) x.letterSpacing = `${f.ls * fs}px`
   x.fillStyle = b.ink

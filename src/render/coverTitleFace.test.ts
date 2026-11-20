@@ -6,7 +6,7 @@ import {
   siteTitleStyle,
 } from './coverTitleFace'
 
-const SERIF = '"Lora Cover", "Lora Variable", Georgia, serif'
+const SERIF = '"Lora Cover", "Lora Variable", Lora, serif'
 
 describe('cover title faces', () => {
   it('maps every Title font to its editor cover face', () => {

@@ -147,7 +147,7 @@ describe('room GL books', () => {
     expect(gl.photo).toHaveBeenCalledWith(entry.cover?.src)
     // D38: the cover title's face is loaded before the cover is drawn
     expect(fontLoad).toHaveBeenCalledWith(
-      'italic 400 16px "Lora Cover", "Lora Variable", Georgia, serif',
+      'italic 400 16px "Lora Cover", "Lora Variable", Lora, serif',
       entry.title,
     )
     expect(gl.made.map(([k]) => k)).toStrictEqual(['faces', 'open'])

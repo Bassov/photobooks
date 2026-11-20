@@ -47,7 +47,7 @@ describe('book3dGl panels (D38)', () => {
       ['drawImage', 'object', -135, 0, 460, 230],
       [
         'set font',
-        'italic 400 19px "Lora Cover", "Lora Variable", Georgia, serif',
+        'italic 400 19px "Lora Cover", "Lora Variable", Lora, serif',
       ],
       ['set letterSpacing', '-0.48px'],
       ['set fillStyle', '#F5F5F5'],
@@ -64,7 +64,7 @@ describe('book3dGl panels (D38)', () => {
     delete legacy.titleFont
 
     expect(font({ ...alps(), titleFont: 'serif' })).toBe(
-      'normal 400 19px "Lora Cover", "Lora Variable", Georgia, serif',
+      'normal 400 19px "Lora Cover", "Lora Variable", Lora, serif',
     )
     expect(font({ ...alps(), titleFont: 'sans' })).toBe(`500 19px ${FONT}`)
     expect(font(legacy)).toBe(`500 19px ${FONT}`)
@@ -240,7 +240,7 @@ describe('drawHomeBook', () => {
     await drawHomeBook(host, { ...alps(), cover: null }, 10, deps)
 
     expect(load).toHaveBeenCalledWith(
-      'italic 400 16px "Lora Cover", "Lora Variable", Georgia, serif',
+      'italic 400 16px "Lora Cover", "Lora Variable", Lora, serif',
       'Alps',
     )
     expect(host.dataset.gl).toBe('ready')
