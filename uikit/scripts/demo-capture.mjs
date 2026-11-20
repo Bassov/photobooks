@@ -80,8 +80,7 @@ export async function capture(out, { log = console.log, probe } = {}) {
       for (let i = 0; i < 5; i++) await page.keyboard.press("Control+z")
       const all = await page.locator('[data-testid="canvas"] [data-testid="frame"]').count()
       if (all !== allFrames) throw new Error(`${all} frames after the copy / paste undo, not ${allFrames}`)
-      await page.locator('[data-testid="canvas"] [data-spread="1"] [data-testid="frame"]').first().click({ force: true, position: { x: 40, y: 40 } }); await park(); await settle(500)
-      await page.locator('[data-testid="crop-grabber"]').hover(); return "keep" }],
+      await page.locator('[data-testid="canvas"] [data-spread="1"] [data-testid="frame"]').first().click({ force: true, position: { x: 40, y: 40 } }); await park(); await settle(500)      await page.locator('[data-testid="crop-grabber"]').hover(); return "keep" }],
     ["editor-photo-scaled", async () => {
       const b = await page.locator('[data-testid="photo-handle"][data-corner="se"]').boundingBox(), x = Math.round(b.x + b.width / 2), y = Math.round(b.y + b.height / 2)
       await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 60, y + 40, { steps: 6 }); await page.mouse.up(); return "keep" }],
