@@ -1,6 +1,8 @@
 import { loadGates } from '@albasov/ts-agent-rig/load-gates'
+import { parseShardIndex, shardMutate } from './scripts/stryker-shards.mjs'
 
 const gates = loadGates()
+const shard = parseShardIndex(process.env.STRYKER_SHARD)
 
 const config = {
   testRunner: 'vitest',
@@ -55,6 +57,16 @@ const config = {
   coverageAnalysis: 'perTest',
   thresholds: gates.stryker.thresholds,
   ignoreStatic: true,
+  // The perTest dry run runs most of the suite (3.8k tests): ~4 min on a
+  // loaded 4-core runner, past the 5-min default.
+  dryRunTimeoutMinutes: 20,
+}
+
+// Nightly shard: one slice of `mutate`; the merge job applies `break` once to
+// the merged score (scripts/stryker-merge.mjs), not per shard.
+if (shard !== null) {
+  config.mutate = shardMutate(config.mutate, shard)
+  config.thresholds = { ...config.thresholds, break: null }
 }
 
 export default config
