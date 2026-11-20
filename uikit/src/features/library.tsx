@@ -22,17 +22,18 @@ const CSS = `
 @keyframes lib-rise { from { opacity: 0; transform: translateY(18px) } to { opacity: 1; transform: none } }
 .lib-rise { animation: lib-rise 1s cubic-bezier(.2,.7,.2,1) both }
 .lib-book { outline: none }
-.lib-book .lib-obj { transition: filter .35s cubic-bezier(.2,.7,.2,1) }
-.lib-book:hover .lib-obj { filter: drop-shadow(0 18px 18px rgb(35 34 35 / .28)) }
+.lib-book .lib-shell { transition: box-shadow .35s cubic-bezier(.2,.7,.2,1) }
+.lib-book:hover .lib-obj { --book-shadow: var(--shadow-book-hover) }
 .lib-book:hover .lib-floor { opacity: 1 }
 .lib-floor { opacity: 0; transition: opacity .35s }
 .lib-book:focus-visible .lib-obj { outline: 2px solid #3A3839; outline-offset: 4px; border-radius: 4px }
-@media (prefers-reduced-motion: reduce) { .lib-rise, .lib-drift { animation: none !important } .lib-book .lib-obj, .lib-floor { transition: none } }
+@media (prefers-reduced-motion: reduce) { .lib-rise, .lib-drift { animation: none !important } .lib-book .lib-shell, .lib-floor { transition: none } }
 `
 export const LibStyle = () => <style>{CSS}</style>
 
 export type Fmt = "portrait" | "landscape" | "square"
 const RATIO: Record<Fmt, number> = { portrait: 4 / 5, landscape: 5 / 4, square: 1 }
+const BOOK_SHADOW = "var(--book-shadow, var(--shadow-book))"
 
 /** A finished-book object: full-bleed cover photo, spine shading, page block, Lora italic title + spaced-caps subtitle. */
 export function BookObject({ src, pos = "50% 50%", title, sub, fmt = "portrait", h, ink = "#2E2C2D", place = "top" }: { src?: string; pos?: string; title: string; sub?: string; fmt?: Fmt; h: number; ink?: string; place?: "top" | "bottom" }) {
@@ -40,8 +41,9 @@ export function BookObject({ src, pos = "50% 50%", title, sub, fmt = "portrait",
   const s = h / 540
   return (
     <div className="relative" style={{ width: w, height: h }} data-testid="book-object" data-format={fmt}>
-      <div className="absolute rounded-r-[3px]" style={{ top: 6 * s + 2, bottom: 6 * s + 2, left: 10 * s, right: -Math.max(4, 7 * s), background: "repeating-linear-gradient(90deg,#F4F4F4 0 1px,#DBDBDB 1px 2px)", boxShadow: `0 ${40 * s}px ${60 * s}px -${36 * s}px rgb(35 34 35/.55)` }} />
-      <div className="absolute inset-0 overflow-hidden rounded-[2px_4px_4px_2px]" style={{ background: "#E8E8E8", boxShadow: `0 1px 2px rgb(35 34 35/.25), 0 ${30 * s}px ${60 * s}px -${30 * s}px rgb(35 34 35/.6)` }}>
+      <div className="absolute rounded-r-[3px]" style={{ top: 6 * s + 2, bottom: 6 * s + 2, left: 10 * s, right: -Math.max(4, 7 * s), background: "repeating-linear-gradient(90deg,#F4F4F4 0 1px,#DBDBDB 1px 2px)", boxShadow: BOOK_SHADOW }} />
+      {/* Designer P5: the book tokens at every size, no scaled blur; a hovered card swaps in --shadow-book-hover */}
+      <div className="lib-shell absolute inset-0 overflow-hidden rounded-[2px_4px_4px_2px]" style={{ background: "#E8E8E8", boxShadow: BOOK_SHADOW }}>
         {src && <div className="absolute inset-0 bg-cover" style={{ backgroundImage: `url(${src})`, backgroundPosition: pos }} />}
         <div className="absolute inset-y-0 left-0" style={{ width: Math.max(8, 18 * s), background: "linear-gradient(90deg, rgb(0 0 0/.28), rgb(0 0 0/.06) 45%, rgb(255 255 255/.28) 70%, rgb(0 0 0/.05))" }} />
         <div className="absolute inset-x-0 px-3 text-center" style={{ color: ink, [place]: "9%" } as React.CSSProperties}>

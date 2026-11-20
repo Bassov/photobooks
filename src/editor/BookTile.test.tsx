@@ -42,6 +42,29 @@ describe('BookTile', () => {
     expect(onOpen).toHaveBeenCalled()
   })
 
+  it('paints a photo-less cover in its cloth with the Title font and D38 ink', () => {
+    render(
+      <BookTile book={{ ...book, backFill: '#E8E6E3', titleFont: 'serif' }} />,
+    )
+    const shell = screen.getByTestId('book-object-cover-shell')
+    expect(shell.style.background).toBe('#E8E6E3')
+    expect(shell.style.boxShadow).toBe('var(--book-shadow, var(--shadow-book))')
+    expect(screen.queryByTestId('book-object-cover')).toBeNull()
+    expect(screen.getByTestId('book-object-ink').style.color).toBe('#2E2C2D')
+    const em = screen.getByTestId('book-object-ink').querySelector('em')
+    expect(em?.style.fontFamily).toContain('Lora Cover')
+    expect(em?.style.fontStyle).toBe('normal')
+    cleanup()
+
+    // The default dark cloth takes the light ink.
+    render(<BookTile book={{ ...book, backFill: '#3E3C3B' }} />)
+    expect(screen.getByTestId('book-object-ink').style.color).toBe('#F5F5F5')
+    expect(
+      screen.getByTestId('book-object-ink').querySelector('em')?.style
+        .fontFamily,
+    ).toBe('')
+  })
+
   it('includes edited meta when editedAtMs is present', () => {
     const now = Date.UTC(2026, 9, 26, 12, 0, 0)
     render(

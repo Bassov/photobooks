@@ -14,13 +14,12 @@ import { pixelsAt, topAt } from './fixtures/paintProbe'
 
 // uikit/src/index.css + sandbox/v7.tsx: list selection #CACACA, field #D7D7D7;
 // CoverSpread fills back and spine with backFill #3E3C3B (cover-pdf C5),
-// empty front #8E8E8E.
+// an empty front too (Designer P1).
 const SEL = 'rgb(202, 202, 202)'
 const FIELD = 'rgb(215, 215, 215)'
 const BACK = 'rgb(62, 60, 59)'
 const SPINE = BACK
 const BACK_RGB = [62, 60, 59, 255]
-const FRONT_EMPTY = 'rgb(142, 142, 142)'
 
 test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
@@ -52,7 +51,7 @@ test('step 09: selecting the cover shows back · spine · front and the Cover in
   const front = page.getByTestId('cover-front')
   await expect(back).toHaveCSS('background-color', BACK)
   await expect(spine).toHaveCSS('background-color', SPINE)
-  await expect(front).toHaveCSS('background-color', FRONT_EMPTY)
+  await expect(front).toHaveCSS('background-color', BACK)
   const box = (panel: typeof back) =>
     panel.evaluate((el) => el.getBoundingClientRect().toJSON() as DOMRect)
   const [b, s, f] = await Promise.all([box(back), box(spine), box(front)])

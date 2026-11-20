@@ -231,7 +231,10 @@ test('M64 library with a book: heading and cover title weights match the kit', a
   const title = page.getByTestId('book-object-ink').locator('em').first()
   await expect(title).toHaveText('Lake trip')
   await expectType(title, { size: '26px', weight: '400', tracking: '-0.52px' })
-  await expectKitItalic(title)
+  // Designer P1: the card title takes the book's Title font (serif-italic:
+  // the upright-only "Lora Cover" alias, italic synthesised as on the cover).
+  await expect(title).toHaveCSS('font-style', 'italic')
+  await expect(title).toHaveCSS('font-family', /^"Lora Cover"/)
   await expectAt(title, { width: 103.33 })
 })
 
