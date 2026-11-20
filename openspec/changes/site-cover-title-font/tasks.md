@@ -10,3 +10,6 @@
 
 1. Library → open a default book → Preview: the cover title is Lora italic, ink as before.
 2. Set the Title font to Sans → Preview: the cover title is the site sans, as before.
+
+manual-qa (2026-11-20): problem (harness) — both scenarios blocked at the welcome screen (`start-session` click intercepted by the welcome header), not a product failure. Covered by e2e `site-cover-title-font.spec.ts` (Preview: Lora Cover italic 400, then sans → Site Inter Display 500 upright, title band paint differs; kit `#/demo` Preview: Lora italic 400), passed locally.
+ui-review: pass — no chrome / token / state change; the front title reuses the editor cover face; ink unchanged.
