@@ -9,3 +9,5 @@
 
 1. 200 %, Page 1 active: click the placed badge of a photo on Pages 2–3 → the pasteboard moves once per axis to the centred frame; click again → nothing moves.
 2. 1060 × 900, default zoom: badge jump → the frame lands ≥ 24 px right of the spread list without a back-jump.
+
+manual-qa (1 run, exit 1): problem — harness: both scenarios blocked at the welcome screen (header intercepts the `start-session` click, known driver issue); not a product result. Behaviour evidence: `e2e/placed-badge.spec.ts` 9/9 locally (scroll-trace tests "M145: at 200 % a jump scrolls each axis once…" and "M145: at 1060 wide…" red on main, green here).
