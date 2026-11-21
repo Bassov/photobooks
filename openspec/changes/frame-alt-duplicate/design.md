@@ -17,6 +17,8 @@
 | `src/render/SpreadView.css`                 |
 | `src/editor/frameGesture.duplicate.test.ts` |
 | `e2e/frame-copy-paste.spec.ts`              |
+| `src/editor/frameGesture.test.ts`           |
+| `e2e/interface-size-pointer.spec.ts`        |
 
 - Reuse: `snapRect`, `framesPayload`, `nextFrameIds`, `selectNew`, `swallowRelease`.
 - Unit: slop click, one op + selection + `lastDuplicate`, multi, Shift, Esc, latch, dragstart, cursor attribute, bare-paper Alt = marquee.
