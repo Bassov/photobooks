@@ -307,6 +307,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [design-r35-filmstrip-wheel-kit](roadmap/P5/design-r35-filmstrip-wheel-kit.md) — Bug: /next-roadmap-item design-r35-filmstrip-wheel-kit
 - [ ] [feature] [fill-book-kit](roadmap/P5/fill-book-kit.md) — Bug: /next-roadmap-item fill-book-kit
 - [ ] [lite] [design-r40-relink-prod](roadmap/P5/design-r40-relink-prod.md) — Bug: /next-roadmap-item design-r40-relink-prod
+- [ ] [feature] [design-r43-badge-jump-prod](roadmap/P5/design-r43-badge-jump-prod.md) — Bug: /next-roadmap-item design-r43-badge-jump-prod
 - [ ] [lite] [design-r38-badge-reveal-kit](roadmap/P5/design-r38-badge-reveal-kit.md) — Bug: /next-roadmap-item design-r38-badge-reveal-kit
 - [ ] [lite] [design-r37-dialog-title-prod](roadmap/P5/design-r37-dialog-title-prod.md) — Bug: /next-roadmap-item design-r37-dialog-title-prod
 - [ ] [lite] [site-reader-gl-ready](roadmap/P5/site-reader-gl-ready.md) — Bug: /next-roadmap-item site-reader-gl-ready
