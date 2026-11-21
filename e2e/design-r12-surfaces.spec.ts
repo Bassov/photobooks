@@ -49,7 +49,7 @@ const KIT = {
 } as const
 
 /** Designer cover-editor at Fit: the closed cover inside the printed sheet. */
-const SHEET_FIT = { y: 166.9, width: 787.73 } as const
+const SHEET_FIT = { y: 180.91, width: 787.73 } as const
 
 const FRONT_TITLE = 'Lake trip 2026'
 
@@ -153,7 +153,9 @@ test.describe('M75: cover text boxes take the kit line-height', () => {
   })
 
   // Designer cover-editor: Fit fits the printed sheet, so the closed cover is
-  // 787.73 wide at y 166.9; the kit M75 px above scale by its width.
+  // 787.73 wide at y 180.91 (kit #/demo re-measured after filmstrip-resize:
+  // the empty dock is 132 px, not 160, so Fit sits 14 px lower than the old
+  // 166.9); the kit M75 px above scale by its width.
   test('at Fit: front and back text sit at the kit y', async ({ page }) => {
     const read = await readCoverText(page)
     near(read.cover.y, SHEET_FIT.y, 'cover y')

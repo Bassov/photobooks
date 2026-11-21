@@ -24,7 +24,11 @@ import { chooseZoom } from './fixtures/zoomMenu'
 // Kit values measured on the rendered kit `uikit#/demo` (v0.10.0) at
 // 1440 × 900, 19 × 23 cm "Lake trip", with getBoundingClientRect:
 //
-// M45 canvas (Viewport at Fit): spread slot x 252, y 141.36, 848 × 513.25.
+// M45 canvas (Viewport at Fit): spread slot x 252, y 155.36, 848 × 513.25.
+//     filmstrip-resize (walkthrough-ux-review §B): the empty dock is 132 px,
+//     not 160, so the port is 720 tall (was 692) and the centred slot moves
+//     from 141.36 (52 + (692 − 513.25) / 2) to 155.36 (52 + (720 − 513.25) /
+//     2); the kit cover at Fit moved the same 14 px (166.9 → 180.91).
 //     Page 1 = SpreadSurface clipped `inset(-60px -60px -60px 50%)`: paper
 //     x 676, 424 × 513.25, page shadow on it; the left half has no paper.
 //     Last page = LastPage: paper x 252, 424 × 513.25 (shadow), right half
@@ -45,7 +49,7 @@ import { chooseZoom } from './fixtures/zoomMenu'
 //     (the lowest step that still holds the pill), two steps 58.1 px (hidden).
 
 const KIT = {
-  slot: { x: 252, y: 141.36, width: 848, height: 513.25 },
+  slot: { x: 252, y: 155.36, width: 848, height: 513.25 },
   page: { width: 424, height: 513.25 },
   firstPageX: 676,
   lastPageX: 252,
