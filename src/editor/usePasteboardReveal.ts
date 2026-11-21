@@ -54,11 +54,16 @@ export function usePasteboardReveal({
   turnFn?: TurnFn
 }): {
   holdCameraScrollRef: RefObject<boolean>
-  beginRevealForNewSpread: (newSpreadId: string | null) => void
+  beginRevealForNewSpread: (
+    newSpreadId: string | null,
+    frameId?: string | null,
+  ) => void
   /** Monotonic layout-turn counter; exposed for tests / diagnostics. */
   revealTick: number
 } {
   const revealSpreadId = useRef<string | null>(null)
+  /** Frame the reveal scrolls to instead of the whole spread (placed-badge jump). */
+  const revealFrameId = useRef<string | null>(null)
   const revealState = useRef<PendingRevealState>({
     tries: 0,
     paintConfirmed: false,
@@ -91,6 +96,7 @@ export function usePasteboardReveal({
     revealSlotRef.current = null
     revealState.current = { tries: 0, paintConfirmed: false }
     revealSpreadId.current = null
+    revealFrameId.current = null
   }
 
   /**
@@ -107,11 +113,15 @@ export function usePasteboardReveal({
     })
   }, [setHold])
 
-  const beginRevealForNewSpread = (newSpreadId: string | null): void => {
+  const beginRevealForNewSpread = (
+    newSpreadId: string | null,
+    frameId: string | null = null,
+  ): void => {
     clearRevealState()
     // Cancel any deferred hold release from a prior reveal.
     holdReleaseGenRef.current += 1
     revealSpreadId.current = newSpreadId
+    revealFrameId.current = frameId
     setHold(newSpreadId !== null)
     // Refs alone do not invalidate layout deps; bump tick so the turn runs.
     setRevealTick((tick) => tick + 1)
@@ -164,6 +174,7 @@ export function usePasteboardReveal({
       stride,
       state: revealState.current,
       index: spreadIds.indexOf(id),
+      frameId: revealFrameId.current,
     })
     revealState.current = state
     if (slot !== null) {

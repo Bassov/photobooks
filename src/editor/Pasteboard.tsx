@@ -434,7 +434,7 @@ export const Pasteboard = memo(function Pasteboard({
 
   useEffect(
     () =>
-      subscribeSpreadRevealRequest((spreadId) => {
+      subscribeSpreadRevealRequest((spreadId, frameId) => {
         const index = getSpreadIdsSnapshot().indexOf(spreadId)
         if (index < 0) {
           return
@@ -442,7 +442,7 @@ export const Pasteboard = memo(function Pasteboard({
         forceMountIndexRef.current = index
         preferredActiveRef.current = spreadId
         setActiveId(spreadId)
-        reveal.beginRevealForNewSpread(spreadId)
+        reveal.beginRevealForNewSpread(spreadId, frameId)
       }),
     [reveal],
   )

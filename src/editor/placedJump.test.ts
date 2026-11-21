@@ -25,6 +25,7 @@ import {
   getActiveSpreadId,
   resetActiveSpreadIdForTests,
   setActiveSpreadId,
+  subscribeSpreadRevealRequest,
 } from './photoRootSession'
 import {
   jumpToPlacement,
@@ -370,60 +371,21 @@ describe('jumpToPlacement', () => {
   })
 })
 
-describe('jumpToPlacement scrolls the frame into view only when needed (B4)', () => {
-  const FRAME_MS = 16
-  const PORT = new DOMRect(0, 0, 1000, 800)
-  let scroll: HTMLElement | null = null
-
-  /** A pasteboard port 1000 × 800 at 0,0 (scrolled 500,500) with frame s2/b. */
-  function mountPort(rects: readonly DOMRect[]): HTMLElement {
-    const port = document.createElement('div')
-    port.dataset.testid = 'pasteboard-scroll'
-    const view = document.createElement('div')
-    view.dataset.spreadId = 's2'
-    const frame = document.createElement('div')
-    frame.dataset.frameId = 'b'
-    view.append(frame)
-    port.append(view)
-    document.body.append(port)
-    let top = 500
-    let left = 500
-    Object.defineProperty(port, 'scrollTop', {
-      get: () => top,
-      set: (v: number) => {
-        top = v
-      },
-    })
-    Object.defineProperty(port, 'scrollLeft', {
-      get: () => left,
-      set: (v: number) => {
-        left = v
-      },
-    })
-    port.getBoundingClientRect = () => PORT
-    let call = 0
-    frame.getBoundingClientRect = () => {
-      const rect = rects[Math.min(call, rects.length - 1)]
-      call += 1
-      return rect ?? PORT
-    }
-    scroll = port
-    return port
-  }
-
-  const at = (port: HTMLElement) =>
-    `${String(port.scrollLeft)},${String(port.scrollTop)}`
+describe('jumpToPlacement asks for one frame-targeted reveal (B4)', () => {
+  const requests: [string, string | null][] = []
+  let unsubscribe: (() => void) | null = null
 
   beforeEach(() => {
-    vi.useFakeTimers()
     seed()
     setActiveSpreadId('s2')
+    requests.length = 0
+    unsubscribe = subscribeSpreadRevealRequest((spreadId, frameId) => {
+      requests.push([spreadId, frameId])
+    })
   })
 
   afterEach(() => {
-    vi.useRealTimers()
-    scroll?.remove()
-    scroll = null
+    unsubscribe?.()
     resetPlacedJumpForTests()
     resetFrameSelection()
     setCoverSelected(false)
@@ -431,113 +393,39 @@ describe('jumpToPlacement scrolls the frame into view only when needed (B4)', ()
     resetBookStore()
   })
 
-  it('leaves a frame inside the port alone', () => {
-    const port = mountPort([new DOMRect(100, 100, 200, 150)])
-
+  it('reveals the frame itself, not its spread, and selects it', () => {
     jumpToPlacement(P)
-    vi.advanceTimersByTime(FRAME_MS * 5)
 
+    expect(requests).toEqual([['s2', 'b']])
     expect(selectedFrame()).toBe('s2/b')
-    expect(at(port)).toBe('500,500')
+    expect(getActiveSpreadId()).toBe('s2')
   })
 
-  it.each([
-    ['above', new DOMRect(100, -10, 200, 150), '500,466'],
-    ['below', new DOMRect(100, 660, 200, 150), '500,534'],
-    ['left of', new DOMRect(-10, 100, 200, 150), '466,500'],
-    ['right of', new DOMRect(810, 100, 200, 150), '534,500'],
-  ])(
-    'moves a frame 10 px %s the port to the 24 px inset once it holds still',
-    (_, rect, after) => {
-      const port = mountPort([rect])
+  it('a re-click on the same place asks the same reveal (it scrolls 0 px)', () => {
+    seed({
+      spreads: [
+        makeSpread({ id: 's0', frames: [makeFrame({ id: 'x', assetId: P })] }),
+      ],
+    })
 
-      jumpToPlacement(P)
-      vi.advanceTimersByTime(FRAME_MS)
-      expect(at(port)).toBe('500,500')
-      vi.advanceTimersByTime(FRAME_MS * 3)
+    jumpToPlacement(P)
+    jumpToPlacement(P)
 
-      expect(at(port)).toBe(after)
-    },
-  )
-
-  it('waits for the reveal to stop moving the frame', () => {
-    const port = mountPort([
-      new DOMRect(100, 900, 200, 150),
-      new DOMRect(100, 700, 200, 150),
-      new DOMRect(100, 100, 200, 150),
+    expect(requests).toEqual([
+      ['s0', 'x'],
+      ['s0', 'x'],
     ])
-
-    jumpToPlacement(P)
-    vi.advanceTimersByTime(FRAME_MS * 6)
-
-    expect(at(port)).toBe('500,500')
   })
 
-  it('gives up when the frame never holds still', () => {
-    const rects = Array.from(
-      { length: 400 },
-      (_, i) => new DOMRect(100, 900 + i, 200, 150),
-    )
-    const port = mountPort(rects)
-
-    jumpToPlacement(P)
-    vi.advanceTimersByTime(FRAME_MS * 400)
-
-    expect(at(port)).toBe('500,500')
-  })
-
-  it('centres a frame larger than the port on that axis (M145)', () => {
-    // 1000 tall in an 800 port, top cut 300 → 100 cut at each end.
-    const port = mountPort([new DOMRect(-10, -300, 200, 1000)])
-
-    jumpToPlacement(P)
-    vi.advanceTimersByTime(FRAME_MS * 4)
-
-    expect(at(port)).toBe('466,300')
-  })
-
-  it('waits for the spread reveal to let go of the scroll', () => {
-    const port = mountPort([new DOMRect(-10, 100, 200, 150)])
-    port.dataset.revealHold = 'true'
-
-    jumpToPlacement(P)
-    vi.advanceTimersByTime(FRAME_MS * 20)
-    expect(at(port)).toBe('500,500')
-
-    delete port.dataset.revealHold
-    vi.advanceTimersByTime(FRAME_MS * 2)
-    expect(at(port)).toBe('466,500')
-  })
-
-  it('a newer jump to the cover drops the pending scroll', () => {
+  it('a jump to the cover asks no reveal', () => {
     const { book } = getBookStoreSnapshot()
     seed({
       cover: { ...book.cover, front: { ...book.cover.front, assetId: 'q' } },
     })
-    const port = mountPort([new DOMRect(100, 900, 200, 150)])
 
-    jumpToPlacement(P)
     jumpToPlacement('q')
-    vi.advanceTimersByTime(FRAME_MS * 5)
 
     expect(isCoverSelected()).toBe(true)
-    expect(at(port)).toBe('500,500')
-  })
-
-  it('leaves the port alone while the frame is not in it', () => {
-    const port = mountPort([new DOMRect(-10, 100, 200, 150)])
-    port.replaceChildren()
-
-    jumpToPlacement(P)
-    expect(() => vi.advanceTimersByTime(FRAME_MS * 5)).not.toThrow()
-
-    expect(at(port)).toBe('500,500')
-  })
-
-  it('does nothing while the frame is not mounted', () => {
-    jumpToPlacement(P)
-
-    expect(() => vi.advanceTimersByTime(FRAME_MS * 40)).not.toThrow()
-    expect(selectedFrame()).toBe('s2/b')
+    expect(requests).toEqual([])
   })
 })

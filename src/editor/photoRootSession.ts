@@ -81,18 +81,27 @@ export function setActiveSpreadId(next: string | null): void {
   }
 }
 
-const spreadRevealListeners = new Set<(spreadId: string) => void>()
+type SpreadRevealListener = (spreadId: string, frameId: string | null) => void
 
-/** Ask the pasteboard (windowed) to scroll a spread into view and make it active. */
-export function requestSpreadReveal(spreadId: string): void {
+const spreadRevealListeners = new Set<SpreadRevealListener>()
+
+/**
+ * Ask the pasteboard (windowed) to scroll a spread into view and make it
+ * active. With `frameId` it scrolls straight to that frame instead (B4 inset
+ * rule of the placed-badge jump).
+ */
+export function requestSpreadReveal(
+  spreadId: string,
+  frameId: string | null = null,
+): void {
   setActiveSpreadId(spreadId)
   for (const listener of spreadRevealListeners) {
-    listener(spreadId)
+    listener(spreadId, frameId)
   }
 }
 
 export function subscribeSpreadRevealRequest(
-  listener: (spreadId: string) => void,
+  listener: SpreadRevealListener,
 ): () => void {
   spreadRevealListeners.add(listener)
   return () => {
