@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P5
 Title: Bug: /next-roadmap-item placed-badge
+Status: done
 
 Prod filmstrip: the "placed" badge becomes the "Show in the book" button (Designer placed-badge spec B1–B9, "Look",
 "Semantics", "Jump", "Prod files", "Tests"; Must PB3). Owner Q-25: click + count + cycle, in three items; core
