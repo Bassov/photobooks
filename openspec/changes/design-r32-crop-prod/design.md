@@ -18,5 +18,6 @@
 | `src/editor/cropMath.test.ts`           | unit: limits keep the photo |
 | `src/editor/cropGesture.test.ts`        | unit: Esc, Tab focus        |
 | `e2e/direct-crop-pinned.spec.ts`        | e2e: M123–M126              |
+| `e2e/crop-in-frame.spec.ts`             | e2e: Esc keeps selection    |
 
 - Reuse: `CROP_Z_BOOST`, `setFrameSource`, `pixelsAt`, `sizedPhotoFrame`.

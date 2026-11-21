@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
+import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
 import {
   ensurePhotoFixtures,
@@ -489,6 +490,7 @@ test('hover photo layer sits over the neighbouring frame: 4 handles hit first, g
     ...[0, 1, 2].map((i) => Math.abs((shown?.[i] ?? 0) - (hidden?.[i] ?? 0))),
   )
   expect(delta).toBeGreaterThan(10)
+  await assertDocumentFitsViewport(page)
 })
 
 test('Fill at cover: an inward photo-corner drag leaves the photo still (M125)', async ({
@@ -574,6 +576,7 @@ test('pinned crop: Tab keeps the camera still, one Esc keeps the frame selected,
   await page.keyboard.press('Escape')
   await expect(frame).not.toHaveAttribute('aria-pressed', 'true')
   await expect(frame.getByTestId('sel-handle')).toHaveCount(0)
+  await assertDocumentFitsViewport(page)
 })
 
 test('a 50 × 30 px frame has no grabber and no mid handles on its 30 px sides', async ({

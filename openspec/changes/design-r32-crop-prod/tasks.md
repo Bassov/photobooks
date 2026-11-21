@@ -11,3 +11,7 @@
 2. Double-click a photo frame → pinned; Esc → frame handles + Photo inspector; Esc → Spread inspector.
 3. Fill frame at cover: drag the se photo handle inward → the photo does not move.
 4. Zoom in so the frame sits right of the left panel, pin, Tab → canvas does not scroll.
+
+manual-qa (2026-11-21): problem (harness) 1–4: `start-session` click intercepted by the welcome header on every retry; no scenario step ran. Covered by e2e instead: 1 → `direct-crop-pinned.spec.ts` "(M123)"; 2 → "(M124, M126)" + `crop-in-frame.spec.ts` Esc; 3 → "(M125)"; 4 → "(M124, M126)" (all green locally).
+
+ui-review: pass. No new tokens / primitives; focus ring unchanged (2 px `#3A3839`, asserted); keyboard path Tab / Esc; reduced motion untouched; happy (ghost paint), interact (Tab keeps scroll), empty (second Esc clears) in e2e + `assertDocumentFitsViewport`.
