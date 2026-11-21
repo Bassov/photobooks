@@ -76,8 +76,18 @@ test('a parent applied to two spreads paints its item on both, inert; None remov
 
   // Interact: with a spread frame selected, clicking the logo selects nothing.
   await page.getByTestId(`spread-list-item-${a}`).click()
-  await canvasSpread(page, a).locator('button.spread-frame').first().click()
+  // Press near the frame's top-left, off the crop grabber at its centre: a
+  // grabber hover would show the photo layer, whose extent may cover the logo.
+  await canvasSpread(page, a)
+    .locator('button.spread-frame')
+    .first()
+    .click({ position: { x: 24, y: 24 } })
   await expect(pressedFrames(page)).toHaveCount(1)
+  await expect(
+    canvasSpread(page, a).locator(
+      '[data-testid="photo-layer"][data-shown="true"]',
+    ),
+  ).toHaveCount(0)
   const { clientX, clientY } = await pointOf(canvasLogo(page, a))
   const hit = await page.evaluate(
     ([x, y]) => {

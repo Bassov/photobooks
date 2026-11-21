@@ -191,6 +191,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [uikit-qa-split-6](roadmap/P3/uikit-qa-split-6.md) — Bug: /next-roadmap-item uikit-qa-split-6
 - [ ] [feature] [in-app-publish-core](roadmap/P3/in-app-publish-core.md) — Bug: /next-roadmap-item in-app-publish-core
 - [ ] [feature] [publish-site-flaky](roadmap/P3/publish-site-flaky.md) — Bug: /next-roadmap-item publish-site-flaky
+- [ ] [feature] [e2e-ci-shard](roadmap/P3/e2e-ci-shard.md) — Bug: /next-roadmap-item e2e-ci-shard
 - [ ] [lite] [deps-dev-outline-longhands](roadmap/P3/deps-dev-outline-longhands.md) — Bug: /next-roadmap-item deps-dev-outline-longhands
 - [ ] [feature] [finalize-reliability](roadmap/P3/finalize-reliability.md) — Bug: /next-roadmap-item finalize-reliability
 - [ ] [feature] [perf-workflow-merge-base](roadmap/P3/perf-workflow-merge-base.md) — Bug: /next-roadmap-item perf-workflow-merge-base
@@ -270,25 +271,40 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 **Review cut:** someone else gets their own library and site. **Kit-first:** Designer drafts the P5 kit pages (onboarding / account, own library + site, hosting / connect) before items are sliced (call D6); `printer-presets` and `connect-own-hosting` have a partial kit (Settings → Print presets / Hosting rows). `onboarding-others` is held in `docs/backlog/` until then.
 
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
+- [ ] [lite] [ci-apt-retry](roadmap/P5/ci-apt-retry.md) — Bug: /next-roadmap-item ci-apt-retry
+- [ ] [lite] [e2e-burn-in-cap](roadmap/P5/e2e-burn-in-cap.md) — Bug: /next-roadmap-item e2e-burn-in-cap
+- [ ] [feature] [rig-pin-0-2-24](roadmap/P5/rig-pin-0-2-24.md) — Bug: /next-roadmap-item rig-pin-0-2-24
 - [ ] [feature] [direct-crop-core](roadmap/P5/direct-crop-core.md) — Bug: /next-roadmap-item direct-crop-core
+- [ ] [feature] [filmstrip-resize-kit](roadmap/P5/filmstrip-resize-kit.md) — Bug: /next-roadmap-item filmstrip-resize-kit
+- [ ] [feature] [filmstrip-resize](roadmap/P5/filmstrip-resize.md) — Bug: /next-roadmap-item filmstrip-resize
 - [ ] [feature] [direct-crop-kit](roadmap/P5/direct-crop-kit.md) — Bug: /next-roadmap-item direct-crop-kit
 - [ ] [feature] [connect-own-hosting-kit](roadmap/P5/connect-own-hosting-kit.md) — Bug: /next-roadmap-item connect-own-hosting-kit
 - [ ] [feature] [connect-own-hosting-relay](roadmap/P5/connect-own-hosting-relay.md) — Bug: /next-roadmap-item connect-own-hosting-relay
+- [ ] [lite] [placed-badge-core](roadmap/P5/placed-badge-core.md) — Bug: /next-roadmap-item placed-badge-core
 - [ ] [feature] [site-cover-title-font](roadmap/P5/site-cover-title-font.md) — Bug: /next-roadmap-item site-cover-title-font
 - [ ] [feature] [design-r24-site-kit](roadmap/P5/design-r24-site-kit.md) — Bug: /next-roadmap-item design-r24-site-kit
+- [ ] [feature] [direct-crop](roadmap/P5/direct-crop.md) — Bug: /next-roadmap-item direct-crop
+- [ ] [feature] [direct-crop-pinned](roadmap/P5/direct-crop-pinned.md) — Bug: /next-roadmap-item direct-crop-pinned
 - [ ] [lite] [a5-fit-parity](roadmap/P5/a5-fit-parity.md) — Bug: /next-roadmap-item a5-fit-parity
 - [ ] [feature] [polish-type](roadmap/P5/polish-type.md) — Bug: /next-roadmap-item polish-type
+- [ ] [feature] [polish-surface](roadmap/P5/polish-surface.md) — Bug: /next-roadmap-item polish-surface
+- [ ] [feature] [cover-empty-cloth](roadmap/P5/cover-empty-cloth.md) — Bug: /next-roadmap-item cover-empty-cloth
 - [ ] [feature] [connect-own-hosting-core](roadmap/P5/connect-own-hosting-core.md) — Bug: /next-roadmap-item connect-own-hosting-core
 - [ ] [feature] [connect-own-hosting](roadmap/P5/connect-own-hosting.md) — bring your own hosting (Security Review)
+- [ ] [lite] [site-reader-gl-ready](roadmap/P5/site-reader-gl-ready.md) — Bug: /next-roadmap-item site-reader-gl-ready
 - [ ] [lite] [cycle-layouts-core](roadmap/P5/cycle-layouts-core.md) — Bug: /next-roadmap-item cycle-layouts-core
+- [ ] [feature] [interface-size-core](roadmap/P5/interface-size-core.md) — Bug: /next-roadmap-item interface-size-core
 - [ ] [feature] [prepush-scoped-units](roadmap/P5/prepush-scoped-units.md) — Bug: /next-roadmap-item prepush-scoped-units
 - [ ] [lite] [ratchet-merge-base](roadmap/P5/ratchet-merge-base.md) — Bug: /next-roadmap-item ratchet-merge-base
 - [ ] [lite] [ci-flakes](roadmap/P5/ci-flakes.md) — Bug: /next-roadmap-item ci-flakes
+- [ ] [feature] [stryker-ci-green](roadmap/P5/stryker-ci-green.md) — Bug: /next-roadmap-item stryker-ci-green
 - [ ] [feature] [printer-presets-core](roadmap/P5/printer-presets-core.md) — Bug: /next-roadmap-item printer-presets-core
 - [ ] [feature] [printer-presets-kit](roadmap/P5/printer-presets-kit.md) — Bug: /next-roadmap-item printer-presets-kit
 - [ ] [lite] [e2e-coverage-per-worker](roadmap/P5/e2e-coverage-per-worker.md) — Bug: /next-roadmap-item e2e-coverage-per-worker
 - [ ] [feature] [frame-copy-paste-kit](roadmap/P5/frame-copy-paste-kit.md) — Bug: /next-roadmap-item frame-copy-paste-kit
 - [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
+- [ ] [feature] [frame-copy-paste-core](roadmap/P5/frame-copy-paste-core.md) — Bug: /next-roadmap-item frame-copy-paste-core
+- [ ] [feature] [frame-menu-kit](roadmap/P5/frame-menu-kit.md) — Bug: /next-roadmap-item frame-menu-kit
 - [ ] [lite] [roadmap-status-sync](roadmap/P5/roadmap-status-sync.md) — Bug: /next-roadmap-item roadmap-status-sync
 - [ ] [feature] [printer-presets-kit-book](roadmap/P5/printer-presets-kit-book.md) — Bug: /next-roadmap-item printer-presets-kit-book
 - [ ] [lite] [deps-dev-knip-relink](roadmap/P5/deps-dev-knip-relink.md) — Bug: /next-roadmap-item deps-dev-knip-relink

@@ -1,7 +1,7 @@
 .specimen-page {
   box-sizing: border-box;
   height: 100%;
-  max-height: 100svh;
+  max-height: var(--app-svh);
   overflow: auto;
   padding: calc(var(--spacing) * 5);
   background: var(--background);

@@ -3,6 +3,7 @@ import {
   bookFormatFromTrim,
   type BookObjectFmt,
 } from '../render/bookObjectLayout'
+import type { CoverTitleFont } from '../render/coverTitleFace'
 
 export type LibrarySortKey = 'edited' | 'title' | 'created'
 
@@ -16,6 +17,9 @@ export interface LibraryGridBook {
   coverCacheKey?: string
   /** CSS object-position of the cover photo, e.g. `30% 40%`. */
   coverPos?: string
+  /** Cover cloth (`backFill`), painted when the front has no photo. */
+  backFill?: string
+  titleFont?: CoverTitleFont
 }
 
 export function toLibraryGridBook(summary: BookSummary): LibraryGridBook {
@@ -30,6 +34,12 @@ export function toLibraryGridBook(summary: BookSummary): LibraryGridBook {
   }
   if (summary.editedAtMs !== undefined) {
     book.editedAtMs = summary.editedAtMs
+  }
+  if (summary.coverBackFill !== undefined) {
+    book.backFill = summary.coverBackFill
+  }
+  if (summary.coverTitleFont !== undefined) {
+    book.titleFont = summary.coverTitleFont
   }
   if (summary.coverCacheKey !== undefined) {
     book.coverCacheKey = summary.coverCacheKey

@@ -1,6 +1,14 @@
+import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
-import { COVER_CROP } from '../core'
-import { cropWheelFactor, panCrop, zoomCrop } from './cropMath'
+import { COVER_CROP, shownCropRect, type Frame } from '../core'
+import {
+  cropWheelFactor,
+  fitCoverZoom,
+  panCrop,
+  scaleCrop,
+  zoomCrop,
+  type PhotoCorner,
+} from './cropMath'
 
 const RECT = { x: 0, y: 0, width: 100, height: 100 }
 const PX = { width: 200, height: 200 }
@@ -72,5 +80,156 @@ describe('panCrop on a turned or straightened photo', () => {
     expect(next.center.x).toBeLessThan(0.5)
     expect(next.center.y).toBeGreaterThan(0.5 - 1e-9)
     expect(next.straightenDeg).toBe(45)
+  })
+})
+
+type Crop = NonNullable<Frame['crop']>
+
+/** The photo's box in frame-local mm, as the painter lays it out. */
+function photoBox(crop: Crop, aspect: number, fit?: Frame['fit']) {
+  const window = shownCropRect(RECT, crop, aspect, fit)
+  const width = RECT.width / window.width
+  const height = RECT.height / window.height
+  return { x: -window.x * width, y: -window.y * height, width, height }
+}
+
+describe('scaleCrop', () => {
+  it('grows the photo about the opposite corner', () => {
+    const next = scaleCrop(
+      RECT,
+      COVER_CROP,
+      1,
+      undefined,
+      'se',
+      { x: 150, y: 150 },
+      false,
+    )
+    expect(next.fit).toBe('fill')
+    expect(next.crop.zoom).toBeCloseTo(1.5)
+    const box = photoBox(next.crop, 1)
+    expect(box.x).toBeCloseTo(0)
+    expect(box.y).toBeCloseTo(0)
+    expect(box.width).toBeCloseTo(150)
+  })
+
+  it('grows about the centre with Alt', () => {
+    const next = scaleCrop(
+      RECT,
+      COVER_CROP,
+      1,
+      'fill',
+      'nw',
+      { x: -25, y: -25 },
+      true,
+    )
+    expect(next.crop.zoom).toBeCloseTo(1.5)
+    expect(next.crop.center.x).toBeCloseTo(0.5)
+    expect(next.crop.center.y).toBeCloseTo(0.5)
+  })
+
+  it('never goes below cover in Fill, even past the anchor', () => {
+    for (const point of [
+      { x: 50, y: 50 },
+      { x: -50, y: -50 },
+    ]) {
+      expect(
+        scaleCrop(RECT, COVER_CROP, 1, 'fill', 'se', point, false),
+      ).toEqual({ fit: 'fill', crop: COVER_CROP })
+    }
+  })
+
+  it('stays Fit exactly at cover', () => {
+    const next = scaleCrop(
+      RECT,
+      COVER_CROP,
+      2,
+      'fit',
+      'se',
+      { x: 200, y: 125 },
+      false,
+    )
+    expect(next.fit).toBe('fit')
+    expect(next.crop.zoom).toBeCloseTo(2)
+  })
+
+  it('keeps Fit below cover and stops at fit', () => {
+    // A 2:1 photo fits a square frame at 100 × 50, top 25.
+    const grown = scaleCrop(
+      RECT,
+      COVER_CROP,
+      2,
+      'fit',
+      'se',
+      { x: 150, y: 100 },
+      false,
+    )
+    expect(grown.fit).toBe('fit')
+    expect(grown.crop.zoom).toBeCloseTo(1.5)
+    const shrunk = scaleCrop(
+      RECT,
+      grown.crop,
+      2,
+      'fit',
+      'se',
+      { x: 10, y: 30 },
+      false,
+    )
+    expect(shrunk).toEqual({ fit: 'fit', crop: { ...shrunk.crop, zoom: 1 } })
+  })
+
+  it('switches Fit to Fill past cover with the same photo size', () => {
+    expect(fitCoverZoom(RECT, COVER_CROP, 2)).toBeCloseTo(2)
+    const next = scaleCrop(
+      RECT,
+      COVER_CROP,
+      2,
+      'fit',
+      'se',
+      { x: 300, y: 175 },
+      false,
+    )
+    expect(next.fit).toBe('fill')
+    expect(next.crop.zoom).toBeCloseTo(1.5)
+    expect(photoBox(next.crop, 2).width).toBeCloseTo(300)
+    expect(photoBox(next.crop, 2).x).toBeCloseTo(0)
+  })
+
+  it('keeps the anchor corner on the page while the clamp is inactive', () => {
+    const corners: PhotoCorner[] = ['nw', 'ne', 'sw', 'se']
+    fc.assert(
+      fc.property(
+        fc.double({ min: 0.5, max: 2, noNaN: true }),
+        fc.double({ min: 1, max: 4, noNaN: true }),
+        fc.constantFrom(...corners),
+        fc.double({ min: 1, max: 2, noNaN: true }),
+        (aspect, zoom, corner, scale) => {
+          const crop = { zoom, center: { x: 0.5, y: 0.5 } }
+          const before = photoBox(crop, aspect)
+          const cx = corner.endsWith('e') ? 1 : 0
+          const cy = corner.startsWith('s') ? 1 : 0
+          const anchor = {
+            x: before.x + (1 - cx) * before.width,
+            y: before.y + (1 - cy) * before.height,
+          }
+          const point = {
+            x: anchor.x + (cx - (1 - cx)) * before.width * scale,
+            y: anchor.y + (cy - (1 - cy)) * before.height * scale,
+          }
+          const next = scaleCrop(
+            RECT,
+            crop,
+            aspect,
+            'fill',
+            corner,
+            point,
+            false,
+          )
+          const after = photoBox(next.crop, aspect)
+          expect(after.width).toBeCloseTo(before.width * scale, 6)
+          expect(after.x + (1 - cx) * after.width).toBeCloseTo(anchor.x, 6)
+          expect(after.y + (1 - cy) * after.height).toBeCloseTo(anchor.y, 6)
+        },
+      ),
+    )
   })
 })

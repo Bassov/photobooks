@@ -133,16 +133,18 @@ test('dropping a photo selects the frame and opens the Photo inspector (M4)', as
   await expect(page.getByTestId('inspector-photo')).toBeVisible()
 })
 
-test('Photo inspector has Rotate & flip, no canvas rotate knob, no meta rows (M7)', async ({
+test('Photo inspector has Rotate & flip, one canvas rotate knob, no meta rows (M7)', async ({
   page,
 }) => {
   await importOnePhoto(page)
   await dragPlaceFirstFilmstripItem(page, 0, { keepSelection: true })
   const frame = page.locator('[data-testid="spread-frame"][data-filled="true"]')
   await expect(frame).toHaveAttribute('aria-pressed', 'true')
-  // uikit/src/sandbox/canvas.tsx:224,443: no rotate knob on the select tool.
+  // Walkthrough-ux-review §A (kit canvas.tsx FrameChrome): a selected photo
+  // frame has one rotate knob, part of the direct-crop chrome (it had none).
   await expect(page.getByTestId('rotate-handle')).toHaveCount(0)
-  await expect(page.locator('.spread-frame-rotate-line')).toHaveCount(0)
+  await expect(frame.getByTestId('rotate-knob')).toHaveCount(1)
+  await expect(page.locator('.spread-frame-rotate-line')).toHaveCount(1)
   // uikit/src/sandbox/inspector.tsx:151-158.
   const rotate = page.getByTestId('inspector-rotate')
   await expect(

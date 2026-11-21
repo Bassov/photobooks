@@ -688,7 +688,7 @@ test('kit v0.10 welcome, empty library and change-folder confirm tokens', async 
   )
   await expect(page.getByTestId('create-library')).toHaveCSS(
     'border-radius',
-    '999px',
+    '9999px',
   )
   await expect(page.getByTestId('welcome-mark')).toBeVisible()
   await assertDocumentFitsViewport(page)

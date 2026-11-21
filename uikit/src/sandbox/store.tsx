@@ -9,7 +9,35 @@ import { hideCopies } from "./parent-overrides"
 export type View = {
   grid: boolean; snap: boolean; guides: boolean; rulers: boolean; overlays: boolean; preview: boolean
   dpi: boolean; snapFrames: boolean; snapGrid: boolean; snapGuides: boolean; pageNumbers: boolean
-  tool: "select" | "frame" | "text" | "hand"; zoom: number; thumb: number; unplacedOnly: boolean; sort: "date" | "name" | "added"
+  tool: "select" | "frame" | "text" | "hand"; zoom: number; thumb: Thumb; unplacedOnly: boolean; sort: "date" | "name" | "added"
+}
+/** Filmstrip thumb height (Designer walkthrough-ux-review §B): px, or "auto" = follows the window height. */
+export type Thumb = number | "auto"
+export const THUMB_MIN = 56
+/** auto = clamp(76, floor(0.085 · innerHeight), 160): 900 → 76, 1440 → 122, 2160 → 160 */
+export const thumbAuto = (ih: number) => Math.min(160, Math.max(76, Math.floor(0.085 * ih)))
+/** manual max = min(240, floor(0.5 · (innerHeight − 48)) − 64) */
+export const thumbMax = (ih: number) => Math.max(THUMB_MIN, Math.min(240, Math.floor(0.5 * (ih - 48)) - 64))
+/** effective height for this window; a stored value above the window's max re-clamps here and is never written back */
+export const thumbPx = (t: Thumb, ih: number) => t === "auto" ? thumbAuto(ih) : Math.min(thumbMax(ih), Math.max(THUMB_MIN, t))
+export const THUMB_KEY = "photobooks.filmstrip.thumb.v2"
+export function readThumb(): Thumb {
+  try {
+    const raw = localStorage.getItem(THUMB_KEY)
+    const n = Number(raw)
+    return raw && raw !== "auto" && Number.isFinite(n) ? n : "auto"
+  } catch { return "auto" }
+}
+export function writeThumb(t: Thumb) { try { localStorage.setItem(THUMB_KEY, String(t)) } catch { /* private mode: session-only */ } }
+/** window.innerHeight, live */
+export function useInnerHeight() {
+  const [ih, setIh] = React.useState(() => window.innerHeight)
+  React.useEffect(() => {
+    const on = () => setIh(window.innerHeight)
+    window.addEventListener("resize", on)
+    return () => window.removeEventListener("resize", on)
+  }, [])
+  return ih
 }
 export type Features = {
   /** pointer move / resize / rotate with handles */
@@ -58,7 +86,10 @@ export type Studio = {
   mode: "pages" | "masters"; setMode: (m: "pages" | "masters") => void
   book: Book; setBook: (b: Book) => void
   panels: { l: boolean; b: boolean }; setPanels: (p: { l: boolean; b: boolean }) => void
+  /** Designer frame-context-menu M3: Replace photo… / Place photo… pick mode on frame `id` of spread `si` (UI: photo-pick-kit) */
+  pick: Pick | null; setPick: (p: Pick | null) => void
 }
+export type Pick = { si: number; id: string; kind: "replace" | "place" }
 export type Node = { k: "cover" } | { k: "endpaper"; w: "front" | "back" } | { k: "master"; id: "A" | "B" } | { k: "last" } | { k: "book" } | { k: "none" } | null
 /** `safe`: the safe margin in mm (Book settings Print · S; folios stay inside it) */
 export type Book = { endp: boolean; endpSame: boolean; w: number; h: number; preset: string; safe: number }
@@ -69,7 +100,7 @@ export const useStudio = () => React.useContext(Ctx)!
 
 export const DEFAULT_VIEW: View = {
   grid: false, snap: true, guides: true, rulers: false, overlays: false, preview: false, dpi: false,
-  snapFrames: true, snapGrid: true, snapGuides: true, pageNumbers: false, tool: "select", zoom: 1, thumb: 76, unplacedOnly: false, sort: "date",
+  snapFrames: true, snapGrid: true, snapGuides: true, pageNumbers: false, tool: "select", zoom: 1, thumb: "auto", unplacedOnly: false, sort: "date",
 }
 
 export function StudioProvider({ init, view, features = {}, cur: cur0 = 0, sel: sel0 = [], missing: miss0, node: node0 = null, mode: mode0 = "pages", book: book0, children }: {
@@ -91,7 +122,8 @@ export function StudioProvider({ init, view, features = {}, cur: cur0 = 0, sel: 
   const [sel, setSel] = React.useState<string[]>(sel0)
   const [filmSel, setFilmSel] = React.useState<string[]>([])
   const [cropId, setCropId] = React.useState<string | null>(null)
-  const [v, setV] = React.useState<View>({ ...DEFAULT_VIEW, ...view })
+  const [pick, setPick] = React.useState<Pick | null>(null)
+  const [v, setV] = React.useState<View>(() => ({ ...DEFAULT_VIEW, thumb: readThumb(), ...view }))
   const [status, setStatus] = React.useState("")
   const [dragging, setDragging] = React.useState<string[] | null>(null)
   const [saveState, setSaveState] = React.useState<Studio["saveState"]>("saved")
@@ -145,7 +177,7 @@ export function StudioProvider({ init, view, features = {}, cur: cur0 = 0, sel: 
     view: v, setView: (p) => setV((o) => ({ ...o, ...p })), features,
     toast: (c, timeout = 5000) => { queue.add(c, { timeout }) }, queue, status, setStatus, dragging, setDragging,
     saveState, setSaveState, missing, setMissing,
-    node, setNode: (n) => { setNodeRaw(n); if (n) setSel([]) }, mode, setMode, book, setBook, panels, setPanels,
+    node, setNode: (n) => { setNodeRaw(n); if (n) setSel([]) }, mode, setMode, book, setBook, panels, setPanels, pick, setPick,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
@@ -172,6 +204,35 @@ export function mapSpreadFreezing(d: Doc, i: number, fn: (s: Spread) => Spread):
  *  A removed override copy hides its parent item on the spread (Designer parent-overrides PO3). */
 export function removeFrames(d: Doc, i: number, ids: string[]): Doc {
   return mapSpreadFreezing(d, i, (s) => hideCopies({ ...s, template: null, frames: s.frames.filter((f) => !ids.includes(f.id)) }, s.frames.filter((f) => ids.includes(f.id))))
+}
+/** z-order moves (inspector Arrange, frame menu): `fwd` / `bwd` step past the next unselected frame. */
+export type ZKind = "front" | "fwd" | "bwd" | "back"
+export const Z_LABEL: Record<ZKind, string> = { front: "Bring to front", fwd: "Bring forward", bwd: "Send backward", back: "Send to back" }
+/** Move frames `ids` of spread `i` in z order; the same doc back when nothing moves. */
+export function zMove(d: Doc, i: number, ids: string[], kind: ZKind): Doc {
+  return mapSpread(d, i, (s) => {
+    const a = [...s.frames]
+    const sel = a.filter((x) => ids.includes(x.id)), rest = a.filter((x) => !ids.includes(x.id))
+    if (kind === "front") return { ...s, frames: [...rest, ...sel] }
+    if (kind === "back") return { ...s, frames: [...sel, ...rest] }
+    // prod reorderFrames: from the moving end, each selected frame steps past the next unselected one
+    const step = kind === "fwd" ? 1 : -1
+    for (let j = kind === "fwd" ? a.length - 2 : 1; j >= 0 && j < a.length; j -= step) {
+      if (ids.includes(a[j].id) && !ids.includes(a[j + step].id)) [a[j], a[j + step]] = [a[j + step], a[j]]
+    }
+    return { ...s, frames: a }
+  })
+}
+/** The z moves that change the order of frames `ids` on spread `s` (prod zMovesFor / setZMovesFor). */
+export function zMovesFor(s: Spread, ids: string[]): ZKind[] {
+  const order = (fs: Frame[]) => fs.map((f) => f.id).join()
+  const d: Doc = { spreads: [s] } as Doc
+  return (["front", "fwd", "bwd", "back"] as const).filter((k) => order(zMove(d, 0, ids, k).spreads[0].frames) !== order(s.frames))
+}
+/** Replace photo… / Place photo…: crop mode ends, the frame stays selected (pick UI: photo-pick-kit). */
+export function startPick(st: Studio, si: number, id: string, kind: Pick["kind"]) {
+  st.setCropId(null)
+  st.setPick({ si, id, kind })
 }
 export const deleteLabel = (fs: Frame[]) => fs.length > 1 ? `Delete ${fs.length} frames` : fs[0]?.overrides ? "Hide parent item" : "Delete frame"
 export function placedSet(d: Doc) {

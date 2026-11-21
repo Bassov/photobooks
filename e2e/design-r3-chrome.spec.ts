@@ -81,7 +81,7 @@ for (const width of [1440, 1280]) {
   })
 }
 
-test('M26 empty dock is the kit 160 px and the 19 × 23 Fit page is 513.25', async ({
+test('M26 empty dock is the kit 132 px and the 19 × 23 Fit page is 513.25', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -91,18 +91,19 @@ test('M26 empty dock is the kit 160 px and the 19 × 23 Fit page is 513.25', asy
   const dock = await spanOf(page.getByTestId('dock'))
   const head = await spanOf(page.locator('.editor-dock-head'))
   const empty = await spanOf(page.getByTestId('filmstrip-empty'))
-  expect(dock.bottom - dock.top).toBe(160)
+  expect(dock.bottom - dock.top).toBe(132)
   expect(dock.bottom).toBe(900)
   expect(head.bottom - head.top).toBe(40)
-  // Kit: strip p-1 pb-2 around a px-2 row of h-(--thumb) = 104, text left.
-  expect(empty.bottom - empty.top).toBe(116)
+  // Kit (walkthrough-ux-review §B): strip p-1 pb-2 around a px-2 row of
+  // height H = auto 76 at 900 high, text left.
+  expect(empty.bottom - empty.top).toBe(88)
   const text = await spanOf(
     page.getByText('No photos yet — add a folder or drop one here.'),
   )
   expect(text.left - dock.left).toBeCloseTo(20, 0)
 
-  // Kit pasteboard 900 − 48 − 160 = 692; Fit is min((928 − 80) / SW,
-  // (692 − 104) / SH): the 38 cm two-page width wins, so the page is
+  // Kit pasteboard 900 − 48 − 132 = 720; Fit is min((928 − 80) / SW,
+  // (720 − 104) / SH): the 38 cm two-page width wins, so the page is
   // 848 × 230 / 380 = 513.25 tall (rendered #/demo, design-r3-canvas-fit).
   await chooseZoom(page, 'Fit spread')
   await expect

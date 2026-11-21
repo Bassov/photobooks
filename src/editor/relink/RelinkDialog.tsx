@@ -211,8 +211,8 @@ export function RelinkDialog(props: {
       className="relink-dialog-panel"
       data-testid="relink-dialog"
       style={{
-        width: 'min(760px, calc(100vw - 2rem))',
-        maxHeight: 'min(520px, calc(100vh - 2rem))',
+        width: 'min(760px, calc(var(--app-vw) - 2rem))',
+        maxHeight: 'min(520px, calc(var(--app-vh) - 2rem))',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',

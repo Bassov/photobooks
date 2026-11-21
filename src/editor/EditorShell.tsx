@@ -27,6 +27,7 @@ import { installCropGesture } from './cropGesture'
 import { installDocumentDragGesture } from './editorGesture'
 import { installFrameGesture } from './frameGesture'
 import { installFrameHandleGesture } from './frameHandleGesture'
+import { installPhotoGesture } from './photoGesture'
 import { installEditorKeys } from './galleryDrop'
 import { setImportProgress } from './importProgressStore'
 import { MastersCanvas } from './MastersCanvas'
@@ -50,6 +51,7 @@ export function EditorShell() {
   useEffect(() => installCropGesture(), [])
   useEffect(() => installFrameGesture(), [])
   useEffect(() => installFrameHandleGesture(), [])
+  useEffect(() => installPhotoGesture(), [])
   useEffect(() => installThumbBackgroundWarm(), [])
 
   const [toastQueue] = useState(() => createToastQueue())

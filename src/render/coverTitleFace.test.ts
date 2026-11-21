@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { COVER_TITLE_FONTS } from '../core/schema'
 import {
   COVER_TITLE_FACES,
+  coverInk,
   siteTitleFace,
   siteTitleStyle,
 } from './coverTitleFace'
@@ -32,6 +33,14 @@ describe('cover title faces', () => {
     expect(siteTitleFace('sans')).toBeUndefined()
     expect(siteTitleFace(undefined)).toBeUndefined()
     expect(siteTitleFace('cursive')).toBeUndefined()
+  })
+
+  it('inks a photo-less front by the D38 cloth luminance', () => {
+    // #3E3C3B (default cloth) ≈ 0.045; #838383 ≈ 0.227 and #848484 ≈ 0.231 bracket 0.23.
+    expect(coverInk('#3E3C3B')).toBe('#F5F5F5')
+    expect(coverInk('#838383')).toBe('#F5F5F5')
+    expect(coverInk('#848484')).toBe('#2E2C2D')
+    expect(coverInk('#E8E6E3')).toBe('#2E2C2D')
   })
 
   it('styles the site title inline, nothing for the site sans', () => {

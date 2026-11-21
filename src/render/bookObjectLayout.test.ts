@@ -23,12 +23,10 @@ describe('bookObjectLayout', () => {
       Math.round(Math.min(layout.width, 440) * 0.14),
     )
     expect(layout.subSize).toBe(Math.max(8, Math.round(440 * 0.022)))
-    expect(layout.pageBlock.boxShadow).toBe(
-      `0 ${String(40 * layout.scale)}px ${String(60 * layout.scale)}px -${String(36 * layout.scale)}px rgb(35 34 35/.55)`,
-    )
-    expect(layout.coverShadow).toBe(
-      `0 1px 2px rgb(35 34 35/.25), 0 ${String(30 * layout.scale)}px ${String(60 * layout.scale)}px -${String(30 * layout.scale)}px rgb(35 34 35/.6)`,
-    )
+    // Designer P5: the book tokens, no blur scaled with the height.
+    const token = 'var(--book-shadow, var(--shadow-book))'
+    expect(layout.pageBlock.boxShadow).toBe(token)
+    expect(layout.coverShadow).toBe(token)
   })
 
   it.each([

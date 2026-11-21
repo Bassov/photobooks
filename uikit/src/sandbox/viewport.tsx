@@ -9,6 +9,7 @@ import { useStudio, mapSpread, removeFrames, deleteLabel, useKeys, type Studio }
 import { FRAMES_TYPE, COPIED_MS, countLabel, duplicateFrames, duplicateSpread, framesPayload, parsePayload, pasteFrames, pastedRects, clipboardMirror, setClipboardMirror } from "./clipboard"
 import { SpreadSurface, GuideLine, PHOTO_TYPE, FRAME_LOCKED_STATUS, readItems, marqueeStarters, grayPick } from "./canvas"
 import { bestTemplate } from "./templates"
+import { FrameMenu } from "./frame-menu"
 import { CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, setMaster, guidesOfMaster, useMasters, coverW, pagesOf, pagesName, spineCm, WRAP, SUB, setCoverPhoto } from "./v7"
 import type { Node } from "./store"
 
@@ -162,7 +163,8 @@ export function useEditorKeys() {
     }
     if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) st.redo(); else st.undo(); return }
     if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); st.redo(); return }
-    if (e.key === "Escape") { if (st.cropId) st.setCropId(null); else if (st.sel.length) st.setSel([]); else st.setNode({ k: "none" }); return }
+    // photo pick mode (frame menu Replace / Place photo…) ends before any other Esc layer
+    if (e.key === "Escape") { if (st.pick) st.setPick(null); else if (st.cropId) st.setCropId(null); else if (st.sel.length) st.setSel([]); else st.setNode({ k: "none" }); return }
     if (mod && e.key === "'") { e.preventDefault(); st.setView({ grid: !st.view.grid }); return }
     if (mod && e.key === ";") { e.preventDefault(); st.setView({ guides: !st.view.guides }); return }
     if (e.shiftKey && e.key.toLowerCase() === "r" && !mod) { st.setView({ rulers: !st.view.rulers }); return }
@@ -339,7 +341,7 @@ export function Viewport({ className, children, pad = 40 }: { className?: string
     guideDrag(e, g.axis, g)
   }
 
-  if (stacked) return <Stack className={className} pad={pad}>{children}</Stack>
+  if (stacked) return <Stack className={className} pad={pad}>{children}<FrameMenu /></Stack>
   return (
     <div ref={ref} onPointerDownCapture={onPanDown} onPointerDown={(e) => grayMarquee(e, ref.current)} onPointerMove={(e) => view.rulers && setCursor(local(e))} onPointerLeave={() => setCursor(null)}
       className={cn("canvas-dots relative min-h-0 flex-1 overflow-hidden",
@@ -365,6 +367,7 @@ export function Viewport({ className, children, pad = 40 }: { className?: string
         </>
       )}
       {children}
+      <FrameMenu />
     </div>
   )
 }

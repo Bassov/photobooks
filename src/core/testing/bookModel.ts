@@ -170,6 +170,33 @@ function reduceModel(model: BookModel, op: BookOp): void {
       model.spreads.splice(to, 0, ...moved)
       return
     }
+    case 'pasteFrames':
+    case 'duplicateFrames': {
+      const spread = model.spreads.find((s) => s.id === op.spreadId)
+      const copied =
+        op.type === 'pasteFrames'
+          ? op.payload.frames.map((frame) => frame.assetId)
+          : op.frameIds.map(
+              (id) => spread?.frames.find((frame) => frame.id === id)?.assetId,
+            )
+      const ids = op.ids ?? []
+      if (
+        spread === undefined ||
+        ids.length !== copied.length ||
+        spread.frames.some((frame) => ids.includes(frame.id))
+      ) {
+        return
+      }
+      copied.forEach((assetId, i) => {
+        const id = ids[i] ?? ''
+        spread.frames.push(
+          assetId !== undefined && model.gallery.includes(assetId)
+            ? { id, assetId }
+            : { id },
+        )
+      })
+      return
+    }
     case 'applyTemplate':
     case 'setTitle':
     case 'setCoverText':
@@ -269,7 +296,11 @@ class OpCommand implements fc.Command<BookModel, BookRun> {
     }
     run.book = this.apply(run.book, op)
     reduceModel(model, op)
-    if (op.type === 'addSpread') {
+    if (
+      op.type === 'addSpread' ||
+      op.type === 'pasteFrames' ||
+      op.type === 'duplicateFrames'
+    ) {
       model.serial += 1
     }
     if (
@@ -394,6 +425,76 @@ export function commandFactories(options: CommandOptions) {
         const spread = pick(model.spreads, s)
         return spread && { type: 'removeSpread', spreadId: spread.id }
       }),
+    pasteFrames: (s: number, f: number, t: number, inPlace: boolean) =>
+      make(
+        `pasteFrames(s${String(s)}f${String(f)},s${String(t)}${inPlace ? ',inPlace' : ''})`,
+        (model) => {
+          const at = frameAt(model, s, f)
+          const target = pick(model.spreads, t)
+          const copied = model.spreads
+            .find((spread) => spread.id === at?.spreadId)
+            ?.frames.find((frame) => frame.id === at?.frameId)
+          if (
+            at === undefined ||
+            target === undefined ||
+            copied === undefined
+          ) {
+            return undefined
+          }
+          const placed = copied.assetId !== undefined && {
+            assetId: copied.assetId,
+            crop: { zoom: 1, center: { x: 0.5, y: 0.5 } },
+          }
+          return {
+            type: 'pasteFrames',
+            spreadId: target.id,
+            payload: {
+              v: 1,
+              bookId: 'book-1',
+              spreadId: at.spreadId,
+              side: null,
+              trim: { widthMm: 300, heightMm: 300 },
+              frames: [
+                {
+                  id: copied.id,
+                  rect: { x: 20, y: 20, width: 80, height: 60 },
+                  z: 0,
+                  ...placed,
+                },
+              ],
+              texts: {},
+              assets: {},
+            },
+            inPlace,
+            ids: [`paste-${String(model.serial)}`],
+          }
+        },
+      ),
+    duplicateFrames: (s: number, f: number, n: number) =>
+      make(
+        `duplicateFrames(s${String(s)}f${String(f)}x${String(n)})`,
+        (model) => {
+          const spread = pick(model.spreads, s)
+          const first = frameAt(model, s, f)
+          if (spread === undefined || first === undefined) {
+            return undefined
+          }
+          const start = spread.frames.findIndex((fr) => fr.id === first.frameId)
+          const frameIds = spread.frames
+            .slice(start, start + 1 + (n % 2))
+            .map((frame) => frame.id)
+          return {
+            type: 'duplicateFrames',
+            spreadId: spread.id,
+            frameIds,
+            dx: 5,
+            dy: 5,
+            ids: frameIds.map(
+              (_, i) => `dup-${String(model.serial)}-${String(i)}`,
+            ),
+          }
+        },
+      ),
     moveSpread: (s: number, to: number) =>
       make(`moveSpread(s${String(s)},${String(to)})`, (model) => {
         const spread = pick(model.spreads, s)
@@ -423,6 +524,10 @@ export function bookCommands(
       idx.map(c.addSpread),
       idx.map(c.removeSpread),
       fc.tuple(idx, idx).map(([s, to]) => c.moveSpread(s, to)),
+      fc
+        .tuple(idx, idx, idx, fc.boolean())
+        .map(([s, f, t, inPlace]) => c.pasteFrames(s, f, t, inPlace)),
+      fc.tuple(idx, idx, idx).map(([s, f, n]) => c.duplicateFrames(s, f, n)),
     ],
     { maxCommands },
   )

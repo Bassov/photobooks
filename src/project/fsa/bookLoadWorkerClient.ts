@@ -63,9 +63,13 @@ export function createBookLoadWorker(
 }
 
 function defaultWorkerFactory(): Worker {
-  return new Worker(new URL('./bookLoad.worker.ts', import.meta.url), {
-    type: 'module',
-  })
+  // @vite-ignore keeps Stryker's wrapped options object parseable by Vite.
+  return new Worker(
+    new URL('./bookLoad.worker.ts', import.meta.url),
+    /* @vite-ignore */ {
+      type: 'module',
+    },
+  )
 }
 
 /** Default production loader: one long-lived worker. */

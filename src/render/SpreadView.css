@@ -125,10 +125,12 @@ button.spread-frame[data-crop-active='true']:not(
   scale: calc(1 / var(--cam-scale, 1));
 }
 
+/* Hit order inside a selected photo frame (direct crop), top down: photo
+   handles 5, frame handles 4, grabber 3, ghost (photo layer) 1, body. */
 .spread-frame-handles {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 4;
   pointer-events: none;
 }
 
@@ -190,6 +192,191 @@ button.spread-frame[data-crop-active='true']:not(
   transform: translateX(-50%);
   border-radius: 50%;
   cursor: grab;
+}
+
+/* Screen px through a live zoom, about the frame's top-centre point. */
+.spread-frame-rotate-line {
+  transform-origin: 50% 22px;
+  scale: calc(1 / var(--cam-scale, 1));
+}
+
+.spread-frame-handle.spread-frame-rotate {
+  transform-origin: 50% 28px;
+  scale: calc(1 / var(--cam-scale, 1));
+}
+
+/* §A rotate chip: the crop-tag look, 10 px right of the 12 px knob, shown
+   only while rotating (src/editor/frameHandleGesture.ts writes the angle). */
+.spread-frame-crop-tag.spread-frame-rotate-chip {
+  display: none;
+  left: calc(50% + 16px);
+  top: -30px;
+  padding: 0 6px;
+  transform-origin: -16px 30px;
+}
+
+button.spread-frame[data-rotating] .spread-frame-rotate-chip {
+  display: block;
+}
+
+/* Pinned crop: Tab focus on a photo handle (kit focus-visible ring). */
+.spread-frame-photo-handle:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Pinned crop: the photo gesture's live tag replaces the overlay tag. */
+button.spread-frame[data-photo-gesture]
+  .spread-frame-crop-tag:not(.spread-frame-photo-tag) {
+  display: none;
+}
+
+/* Designer walkthrough-ux-review §A, direct crop (kit canvas.tsx FrameChrome).
+   The layer and photo handles take no hits until shown; they fade in over
+   --duration-fast (0 under reduced motion) and hide at once. The layer sits
+   under the selection ring (z 1, before ::after). */
+.spread-frame-photo-layer,
+.spread-frame-photo-handles {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.spread-frame-photo-handles {
+  z-index: 5;
+}
+
+.spread-frame-photo-layer[data-shown='true'],
+.spread-frame-photo-handles[data-shown='true'],
+button.spread-frame[data-photo-gesture] .spread-frame-photo-layer,
+button.spread-frame[data-photo-gesture] .spread-frame-photo-handles {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity var(--duration-fast) ease-out;
+}
+
+.spread-frame-photo-ghost,
+.spread-frame-photo-extent,
+.spread-frame-photo-box {
+  position: absolute;
+}
+
+.spread-frame-photo-ghost {
+  opacity: 0.3;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.spread-frame-photo-extent {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--paper) 90%, transparent),
+    0 0 0 2px color-mix(in srgb, black 28%, transparent);
+  cursor: move;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* At the visible photo centre (--grab-x / -y), ≥ 20 px inside the frame. */
+.spread-frame-grabber {
+  position: absolute;
+  left: clamp(20px, var(--grab-x, 50%), calc(100% - 20px));
+  top: clamp(20px, var(--grab-y, 50%), calc(100% - 20px));
+  z-index: 3;
+  width: 28px;
+  height: 28px;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--paper) 72%, transparent);
+  box-shadow:
+    0 0 0 1.5px var(--select),
+    0 1px 3px color-mix(in srgb, black 25%, transparent);
+  cursor: move;
+  pointer-events: auto;
+  touch-action: none;
+  scale: calc(1 / var(--cam-scale, 1));
+  transition:
+    background-color var(--duration-fast) ease-out,
+    scale var(--duration-fast) ease-out;
+}
+
+.spread-frame-grabber:hover {
+  background: var(--paper);
+  scale: calc(1.1 / var(--cam-scale, 1));
+}
+
+.spread-frame-grabber::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: var(--select);
+}
+
+.spread-frame-photo-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow:
+    0 0 0 1.5px var(--crop),
+    0 1px 2px color-mix(in srgb, black 25%, transparent);
+  pointer-events: auto;
+  touch-action: none;
+  scale: calc(1 / var(--cam-scale, 1));
+}
+
+.spread-frame-photo-handle[data-active='true'] {
+  background: var(--crop);
+  box-shadow:
+    0 0 0 1.5px var(--paper),
+    0 0 0 3px var(--crop);
+}
+
+.spread-frame-photo-handle[data-photo-handle='nw'] {
+  left: 0;
+  top: 0;
+  cursor: nwse-resize;
+}
+
+.spread-frame-photo-handle[data-photo-handle='ne'] {
+  left: 100%;
+  top: 0;
+  cursor: nesw-resize;
+}
+
+.spread-frame-photo-handle[data-photo-handle='sw'] {
+  left: 0;
+  top: 100%;
+  cursor: nesw-resize;
+}
+
+.spread-frame-photo-handle[data-photo-handle='se'] {
+  left: 100%;
+  top: 100%;
+  cursor: nwse-resize;
+}
+
+/* A photo gesture: frame handles hide, the "Crop · N%" tag shows. */
+.spread-frame-photo-tag {
+  display: none;
+}
+
+button.spread-frame[data-photo-gesture] .spread-frame-photo-tag {
+  display: block;
+}
+
+button.spread-frame[data-photo-gesture] .spread-frame-handles {
+  display: none;
 }
 
 /* Kit frame dpi badge (sandbox canvas.tsx): field chip, bottom-left. */

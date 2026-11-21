@@ -44,7 +44,7 @@ export function WelcomeScreen() {
   return (
     <div
       data-testid="home-screen"
-      className="relative h-dvh min-h-dvh w-full overflow-hidden"
+      className="relative h-app min-h-app w-full overflow-hidden"
     >
       <button
         type="button"

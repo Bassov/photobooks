@@ -41,6 +41,25 @@ export function turnedPhotoStyle(
   }
 }
 
+/**
+ * Direct-crop grabber point, % of the frame: the centre of the visible photo
+ * (the photo box clipped to the frame); a turned photo uses the frame centre.
+ */
+export function grabberPoint(
+  window: NormalizedRect,
+  turned: boolean,
+): { x: number; y: number } {
+  if (turned) {
+    return { x: 50, y: 50 }
+  }
+  const axis = (start: number, size: number): number => {
+    const from = Math.max(0, (-100 * start) / size)
+    const to = Math.min(100, (100 * (1 - start)) / size)
+    return (from + to) / 2
+  }
+  return { x: axis(window.x, window.width), y: axis(window.y, window.height) }
+}
+
 /** Elements that take a preview transform: turned layers, else bare images. */
 function photoPreviewTargets(root: Element): HTMLElement[] {
   const targets = new Set<HTMLElement>()

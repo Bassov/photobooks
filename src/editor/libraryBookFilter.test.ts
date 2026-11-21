@@ -43,6 +43,8 @@ describe('toLibraryGridBook', () => {
         pageWidthMm: 250,
         pageHeightMm: 200,
         editedAtMs: 99,
+        coverBackFill: '#21324A',
+        coverTitleFont: 'sans',
       }),
     ).toEqual({
       id: '1',
@@ -51,6 +53,8 @@ describe('toLibraryGridBook', () => {
       fmt: 'landscape',
       spreads: 4,
       editedAtMs: 99,
+      backFill: '#21324A',
+      titleFont: 'sans',
     })
   })
 

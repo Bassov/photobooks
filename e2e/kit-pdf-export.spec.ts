@@ -413,8 +413,9 @@ test('PE2 check: rows ordered by severity, styled, capped at 118.25 px', async (
     'rgb(35, 34, 35) 500 13px 18.85px 16 1.42',
     'rgb(35, 34, 35) 500 13px 18.85px 16 1.42',
     'rgb(35, 34, 35) 500 13px 18.85px 16 1.42',
-    'rgb(57, 55, 56) 400 13px 18.85px 16 1.42',
-    'rgb(57, 55, 56) 400 13px 18.85px 16 1.42',
+    // polish-surface P7: warning rows use the one warning ink #845510
+    'rgb(132, 85, 16) 400 13px 18.85px 16 1.42',
+    'rgb(132, 85, 16) 400 13px 18.85px 16 1.42',
     'rgb(83, 81, 82) 400 13px 18.85px 16 1.42',
     'rgb(83, 81, 82) 400 13px 18.85px 16 1.42',
   ])
@@ -819,7 +820,7 @@ test('cover-pdf #/feature/pdf-export: Cover row and the Cover check rows', async
   const firstCover = rules.findIndex(cover)
   expect(rules.slice(firstCover).every(cover)).toBe(true)
   for (const [r, cls] of all.slice(firstCover))
-    expect(cls, r).toContain('text-warning-fg')
+    expect(cls, r).toContain('text-warning-ink')
   // no page list on a cover row (the muted span after the text)
   await expect(coverRows.locator('.text-muted-foreground')).toHaveCount(0)
 
@@ -876,8 +877,9 @@ test('cover-pdf C5: the kit cover spine paints the back fill', async ({
   // what paints: a spine pixel off the text, and the sheet behind it
   const [px] = await pixelsAt(spine, [{ x: 2, y: 4 }])
   expect(px?.slice(0, 3)).toEqual([62, 60, 59])
+  // Designer P1: the whole sheet is cloth (no grey front half).
   await expect(page.getByTestId('cover-sheet').first()).toHaveCSS(
-    'background-image',
-    /^linear-gradient\(90deg, rgb\(62, 60, 59\) [\d.]+%, rgb\(142, 142, 142\) [\d.]+%\)$/,
+    'background-color',
+    'rgb(62, 60, 59)',
   )
 })

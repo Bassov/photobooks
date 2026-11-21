@@ -66,16 +66,117 @@
   outline-offset: -2px;
 }
 
+/* The bottom panel clips only to collapse (EditorFrame `overflow-hidden`,
+   height 0 when closed); open, it lets the separator's upper 5 px and the
+   drag chip reach above the dock edge. */
+.editor-panel-b:not([data-open='false']):has(> .editor-dock) {
+  overflow: visible;
+}
+
+/* walkthrough-ux-review §B dock separator (kit chrome.tsx ThumbResizer):
+   9 px hit zone on the dock top edge (−5 .. +4). */
+.film-resizer {
+  position: absolute;
+  inset-inline: 0;
+  top: -5px;
+  z-index: 5;
+  height: 9px;
+  cursor: ns-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.film-resizer-line,
+.film-resizer-pill {
+  display: none;
+  position: absolute;
+  pointer-events: none;
+}
+
+.film-resizer-line {
+  inset-inline: 0;
+  top: 5px;
+  height: 1px;
+  background: var(--input);
+}
+
+.film-resizer-pill {
+  left: 50%;
+  top: 3px;
+  width: 36px;
+  height: 4px;
+  transform: translateX(-50%);
+  /* Fill rgb(0 0 0 / .24) lives in editorChromeTokens (kit raw chrome colours). */
+  border-radius: var(--radius-2xs);
+  outline-offset: 2px;
+}
+
+.film-resizer:is(:hover, :focus-visible, [data-dragging])
+  :is(.film-resizer-line, .film-resizer-pill) {
+  display: block;
+}
+
+.film-resizer:focus-visible .film-resizer-pill {
+  outline: 2px solid var(--t-ink-hover);
+}
+
+.film-resizer[data-dragging] .film-resizer-pill {
+  background: var(--select);
+}
+
+/* Crop-tag style, 30 px above the edge, only while dragging. */
+.film-resizer-chip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 25px);
+  transform: translateX(-50%);
+  padding: 2px 6px;
+  border-radius: var(--radius-md);
+  background: var(--field);
+  color: var(--foreground);
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  line-height: var(--text-2xs--line-height);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* File name strip under thumbs at H ≥ 90 (kit `bg-chrome px-1 py-0.5 text-2xs`). */
+.editor-dock[data-names] {
+  --film-name-h: calc(var(--text-2xs) * 1.35 + 4px);
+}
+
+/* ::before + order (::after is the hairline overlay in editorChromeTokens). */
+.editor-dock[data-names] .filmstrip-item::before {
+  content: attr(aria-label);
+  order: 1;
+  flex: none;
+  display: block;
+  height: var(--film-name-h);
+  box-sizing: border-box;
+  padding: 2px 4px;
+  overflow: hidden;
+  background: var(--chrome);
+  color: var(--muted-foreground);
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  line-height: 1.35;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .filmstrip-spacer {
   position: relative;
-  height: calc(var(--film-thumb-h, 96px) + 12px);
+  height: calc(var(--film-thumb-h, 96px) + var(--film-name-h, 0px) + 12px);
 }
 
 .filmstrip-window {
   position: absolute;
   top: 4px;
   left: 0;
-  height: calc(var(--film-slot-h, 96px) + 8px);
+  height: calc(var(--film-slot-h, 96px) + var(--film-name-h, 0px) + 8px);
   will-change: transform;
 }
 
@@ -102,7 +203,7 @@
     calc(var(--film-slot-h, 96px) * var(--slot-aspect, 1)),
     1px
   );
-  height: var(--film-slot-h, 96px);
+  height: calc(var(--film-slot-h, 96px) + var(--film-name-h, 0px));
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -205,12 +306,12 @@
   background: var(--muted);
 }
 
-/* Kit: the strip's p-1 pb-2 around a px-2 row of h-(--thumb), text left. */
+/* Kit: the strip's p-1 pb-2 around a px-2 row of height H, text left. */
 .pb-empty.filmstrip-empty {
   display: flex;
   flex-direction: row;
   align-items: center;
-  height: calc(var(--film-empty-h, 104px) + 12px);
+  height: calc(var(--film-empty-h, 76px) + 12px);
   margin: 0;
   padding: 4px 12px 8px;
   font-family: var(--font-ui);

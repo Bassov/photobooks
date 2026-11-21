@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import type { CoverStyle } from '../core'
+import { relativeLuminance } from '../site/siteModel'
 
 export type CoverTitleFont = CoverStyle['titleFont']
 
@@ -35,6 +36,14 @@ export function siteTitleFace(
 ): CoverTitleFace | undefined {
   if (titleFont !== 'serif-italic' && titleFont !== 'serif') return undefined
   return COVER_TITLE_FACES[titleFont]
+}
+
+/** D38: below this cloth luminance the cover text is light. */
+const DARK_CLOTH_BELOW = 0.23
+
+/** D38 title ink on a photo-less front painted in `cloth` (`#rrggbb`). */
+export function coverInk(cloth: string): string {
+  return relativeLuminance(cloth) < DARK_CLOTH_BELOW ? '#F5F5F5' : '#2E2C2D'
 }
 
 /** `siteTitleFace` as inline style over `.ss .sd-it` (empty: the site sans). */

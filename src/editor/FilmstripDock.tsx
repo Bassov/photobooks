@@ -1,13 +1,22 @@
 import {
   startTransition,
   useEffect,
+  useRef,
   useState,
   useSyncExternalStore,
   type CSSProperties,
 } from 'react'
 import { clearDropHover, setDropHover } from './dropHover'
 import { setEditorStatus } from './editorStatus'
-import { FILMSTRIP_EMPTY_HEIGHT, FILMSTRIP_THUMB_HEIGHT } from './filmstripSize'
+import {
+  setFilmstripThumb,
+  THUMB_MIN,
+  THUMB_NAMES_MIN,
+  thumbDragPx,
+  thumbForKey,
+  useFilmstripThumbHeight,
+  useFilmstripThumbMax,
+} from './filmstripSize'
 import {
   isExternalFilesDrag,
   resolveDroppedFolder,
@@ -16,6 +25,7 @@ import {
 } from './filmstripDropFolder'
 import { Button as AriaButton } from 'react-aria-components'
 import { AlertDialog } from '../ui/AlertDialog'
+import { appInnerHeight } from '../ui/uiScale'
 import { Icon } from '../ui/Icon'
 import { Menu, MenuItem, MenuPopover, MenuTrigger } from '../ui/Menu'
 import { ToggleButton } from '../ui/ToggleButton'
@@ -59,6 +69,82 @@ function RemovePlacedDialog({ assetId }: { assetId: string }) {
   )
 }
 
+/**
+ * Dock top-edge separator (walkthrough-ux-review §B, kit chrome.tsx
+ * `ThumbResizer`): 9 px hit zone, 4 px drag steps written to storage once on
+ * release, ↑/↓ ±8, Home / End, Enter or double-click back to `auto`.
+ */
+function ThumbResizer({ height, max }: { height: number; max: number }) {
+  const drag = useRef<{ y: number; start: number; last: number } | null>(null)
+  const [dragging, setDragging] = useState(false)
+  return (
+    <div
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label="Resize photos"
+      aria-valuemin={THUMB_MIN}
+      aria-valuemax={max}
+      aria-valuenow={height}
+      tabIndex={0}
+      className="film-resizer"
+      data-dragging={dragging || undefined}
+      data-testid="thumb-resizer"
+      onPointerDown={(event) => {
+        if (event.button !== 0) {
+          return
+        }
+        event.currentTarget.setPointerCapture(event.pointerId)
+        drag.current = { y: event.clientY, start: height, last: height }
+        setDragging(true)
+      }}
+      onPointerMove={(event) => {
+        const d = drag.current
+        if (d === null) {
+          return
+        }
+        // Same 4 px step: the store hook bails out, nothing re-renders.
+        d.last = thumbDragPx(d.start, d.y - event.clientY, appInnerHeight())
+        setFilmstripThumb(d.last, false)
+      }}
+      onPointerUp={() => {
+        const d = drag.current
+        if (d === null) {
+          return
+        }
+        drag.current = null
+        setDragging(false)
+        if (d.last !== d.start) {
+          setFilmstripThumb(d.last)
+        }
+      }}
+      onPointerCancel={() => {
+        drag.current = null
+        setDragging(false)
+      }}
+      onDoubleClick={() => {
+        setFilmstripThumb('auto')
+      }}
+      onKeyDown={(event) => {
+        const next = thumbForKey(event.key, height, appInnerHeight())
+        if (next === null) {
+          return
+        }
+        event.preventDefault()
+        event.stopPropagation()
+        setFilmstripThumb(next)
+      }}
+    >
+      <div className="film-resizer-line" />
+      <div className="film-resizer-pill" data-testid="thumb-resizer-pill" />
+      {dragging ? (
+        <div className="film-resizer-chip" data-testid="thumb-resizer-chip">
+          {`${String(height)} px`}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 /** Kit bottom dock chrome wrapping the working product Filmstrip. */
 export function FilmstripDock({
   onDropPhotoFolder,
@@ -87,6 +173,8 @@ export function FilmstripDock({
   const [sort, setSort] = useState<GallerySortKey>('added')
   const [unplacedOnly, setUnplacedOnly] = useState(false)
   const [externalDrag, setExternalDrag] = useState(false)
+  const thumbHeight = useFilmstripThumbHeight()
+  const thumbMaxPx = useFilmstripThumbMax()
   // First Intl.Collator use loads ICU data (tens of ms); pay it before the first sort pick.
   useEffect(() => {
     const id = setTimeout(warmNameCollator, 0)
@@ -104,10 +192,11 @@ export function FilmstripDock({
       data-testid="dock"
       style={
         {
-          '--film-thumb-h': `${String(FILMSTRIP_THUMB_HEIGHT)}px`,
-          '--film-empty-h': `${String(FILMSTRIP_EMPTY_HEIGHT)}px`,
+          '--film-thumb-h': `${String(thumbHeight)}px`,
+          '--film-empty-h': `${String(thumbHeight)}px`,
         } as CSSProperties
       }
+      data-names={thumbHeight >= THUMB_NAMES_MIN || undefined}
       onDragOver={(event) => {
         if (
           onDropPhotoFolder === undefined ||
@@ -150,6 +239,7 @@ export function FilmstripDock({
         })
       }}
     >
+      <ThumbResizer height={thumbHeight} max={thumbMaxPx} />
       <div className="editor-dock-head flex h-10 items-center gap-3 px-3">
         <span
           className="editor-dock-meta text-sm tabular-nums"

@@ -49,9 +49,10 @@
     0 14px 32px -8px rgb(20 20 19 / 0.2), 0 4px 8px -4px rgb(20 20 19 / 0.08);
   --shadow-hairline: 0 0 0 1px rgb(0 0 0 / 0.08);
   --shadow-thumb: 0 1px 2px rgb(0 0 0 / 0.14);
-  --shadow-book: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.08);
+  --shadow-book:
+    0 1px 2px rgb(20 20 19 / 0.06), 0 8px 24px rgb(20 20 19 / 0.08);
   --shadow-book-hover:
-    0 2px 4px rgb(0 0 0 / 0.08), 0 16px 36px rgb(0 0 0 / 0.14);
+    0 2px 4px rgb(20 20 19 / 0.08), 0 16px 36px rgb(20 20 19 / 0.14);
   --shadow-card:
     0 0 0 1px rgb(20 20 19 / 0.1), 0 1px 2px rgb(20 20 19 / 0.06),
     0 6px 16px -6px rgb(20 20 19 / 0.12);
@@ -67,6 +68,8 @@
   --shadow-inset-hairline: inset 0 0 0 1px rgb(0 0 0 / 0.07);
   --shadow-page: var(--page-shadow);
   --radius-2xs: 2px;
+  /* Polish P4: the one pill token; Tailwind `rounded-full` reads it. */
+  --radius-full: 9999px;
 }
 
 @custom-variant dark (&:where([data-theme=__no-dark-theme__], [data-theme=__no-dark-theme__] *));
@@ -200,6 +203,9 @@
   --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
 
+  /* Polish P4 radii by role: 2xs page / thumb · xs badge / chip · sm controls
+     ≤ 28 px · md controls 32–36 px · lg nested segmented track only · xl
+     dialogs, popovers, cards · full the one pill. */
   --radius: 10px;
   --radius-2xs: 2px;
   --radius-xs: 4px;
@@ -208,7 +214,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
-  --radius-full: 999px;
+  --radius-full: 9999px;
   --overlay-scrim: rgb(0 0 0 / 0.4);
 
   --shadow-xs: 0 1px 2px 0 rgb(20 20 19 / 0.06);
@@ -304,13 +310,15 @@
   --muted-foreground: #535152;
   --muted-foreground-on-app: #535152;
   --accent-text: var(--t-text);
+  /* Polish P5: one shadow ink rgb(20 20 19), alphas unchanged. */
   --shadow-book:
-    0 1px 1px rgb(0 0 0 / 0.1), 0 3px 8px rgb(0 0 0 / 0.1),
-    0 10px 22px rgb(0 0 0 / 0.1);
+    0 1px 1px rgb(20 20 19 / 0.1), 0 3px 8px rgb(20 20 19 / 0.1),
+    0 10px 22px rgb(20 20 19 / 0.1);
   --shadow-book-hover:
-    0 2px 3px rgb(0 0 0 / 0.12), 0 8px 16px rgb(0 0 0 / 0.12),
-    0 18px 36px rgb(0 0 0 / 0.14);
-  --page-shadow: 0 2px 6px rgb(0 0 0 / 0.1), 0 12px 32px rgb(0 0 0 / 0.14);
+    0 2px 3px rgb(20 20 19 / 0.12), 0 8px 16px rgb(20 20 19 / 0.12),
+    0 18px 36px rgb(20 20 19 / 0.14);
+  --page-shadow:
+    0 2px 6px rgb(20 20 19 / 0.1), 0 12px 32px rgb(20 20 19 / 0.14);
 
   /* Grayscale status (kit P1-4) */
   --destructive: #393738;
@@ -354,7 +362,9 @@
   --ink: #232220;
   --ink-muted: #5e5c5d;
   /* Kit v4.1 on-paper block (uikit/src/index.css): low-res / missing ink. */
-  --ink-warning: #845510;
+  /* Polish P7: one warning ink (Low-res chip, PRINT warnings, Print Check). */
+  --warning-ink: #845510;
+  --ink-warning: var(--warning-ink);
   --hatch-missing-a: #e4e4e4;
   --hatch-missing-b: #d7d7d7;
   --placeholder: #ededed;

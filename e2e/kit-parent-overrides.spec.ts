@@ -77,7 +77,8 @@ async function centre(l: Locator) {
   return { x: b.x + b.width / 2, y: b.y + b.height / 2, b }
 }
 
-/** Ctrl+Shift press at (x, y), optionally dragged by (dx, dy) before the release. */
+/** Ctrl+Shift press at (x, y), optionally dragged to `to` before the release. The drag holds Alt after the
+ *  press (snap off), so the move is exact at any canvas fit scale (the dock height changes the fit). */
 async function ctrlShift(
   page: Page,
   x: number,
@@ -88,8 +89,12 @@ async function ctrlShift(
   await page.keyboard.down('Shift')
   await page.mouse.move(x, y)
   await page.mouse.down()
-  if (to) await page.mouse.move(to.x, to.y, { steps: 6 })
+  if (to) {
+    await page.keyboard.down('Alt')
+    await page.mouse.move(to.x, to.y, { steps: 6 })
+  }
   await page.mouse.up()
+  if (to) await page.keyboard.up('Alt')
   await page.keyboard.up('Shift')
   await page.keyboard.up('Control')
 }

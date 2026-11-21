@@ -33,7 +33,12 @@ import { chooseZoom } from './fixtures/zoomMenu'
 // Designer cover-editor: Fit now fits the printed sheet (848 × 522.47 at
 //     y 136.76, 15 mm wrap = 30.14 px), so the closed cover is 787.73 ×
 //     462.18 at 282.14, 166.9 and the labels sit 10 px under the sheet
-//     (y 669.24). The type keeps its kit ratio to the cover: the M75 px above
+//     (y 669.24). filmstrip-resize (walkthrough-ux-review §B): the empty dock
+//     row is the `auto` thumb H (76 at 900), so the empty dock is 132 px, not
+//     160; the port is 28 px taller and Fit sits 14 px lower. Kit #/demo
+//     re-measured (Lake trip 19 × 23, cover): sheet 848 × 522.45 at y 150.77,
+//     cover 787.7 × 462.16 at 282.14, 180.91, labels y 683.22.
+//     The type keeps its kit ratio to the cover: the M75 px above
 //     are on the 848 px cover, so they are asserted as shares of the cover
 //     width (front title 31.58 px at Fit).
 
@@ -46,8 +51,9 @@ const KIT = {
     image:
       'linear-gradient(to right, rgba(0, 0, 0, 0) 0%, oklab(0 0 0 / 0.06) 50%, rgba(0, 0, 0, 0) 100%)',
   },
+  // Polish P5 (walkthrough-polish-review): one shadow ink rgb(20 20 19).
   pageShadow:
-    'rgba(0, 0, 0, 0.1) 0px 2px 6px 0px, rgba(0, 0, 0, 0.14) 0px 12px 32px 0px',
+    'rgba(20, 20, 19, 0.1) 0px 2px 6px 0px, rgba(20, 20, 19, 0.14) 0px 12px 32px 0px',
   miniShadow: 'rgba(35, 34, 35, 0.18) 0px 1px 2px 0px',
   cover: { x: 252, y: 149.22, width: 848, height: 497.55 },
   front: { size: 34, weight: '400', width: 228 },
@@ -58,8 +64,8 @@ const KIT = {
 
 /** Designer cover-editor at Fit: the closed cover inside the printed sheet. */
 const SHEET_FIT = {
-  cover: { x: 282.14, y: 166.9, width: 787.73, height: 462.18 },
-  labels: { y: 669.24, back: 458.53, spine: 663.95, front: 863.95 },
+  cover: { x: 282.14, y: 180.91, width: 787.73, height: 462.18 },
+  labels: { y: 683.22, back: 458.53, spine: 663.95, front: 863.95 },
 } as const
 
 const FRONT_TITLE = 'Lake trip 2026'

@@ -5,7 +5,9 @@ import { resetBookStore } from './bookStore'
 import { resetCameraStore } from './cameraStore'
 import { clearDropHover } from './dropHover'
 import { Filmstrip } from './Filmstrip'
-import { FILMSTRIP_THUMB_HEIGHT } from './filmstripSize'
+import { thumbAuto } from './filmstripSize'
+
+const FILMSTRIP_THUMB_HEIGHT = thumbAuto(window.innerHeight)
 import {
   resetFilmstripGridFocus,
   setFilmstripAnchor,

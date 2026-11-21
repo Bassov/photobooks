@@ -48,7 +48,7 @@ const STYLE_TEXT = `
   margin-bottom: 0; /* no preflight: the UA h1 margin (0.67em) pushed the paragraph ~19px down */
   font-family: ${KIT_DISPLAY_FONT};
   font-weight: 400;
-  font-size: clamp(44px, 4vw, 64px);
+  font-size: clamp(44px, calc(var(--app-vw) * 0.04), 64px);
   line-height: 0.98;
   letter-spacing: -0.035em;
 }
@@ -113,11 +113,11 @@ const STYLE_TEXT = `
   padding: 0;
   outline: none;
 }
-.pb-lib-book .pb-lib-obj {
-  transition: filter 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+.pb-lib-book .pb-book-object-shell {
+  transition: box-shadow 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .pb-lib-book:hover .pb-lib-obj {
-  filter: drop-shadow(0 18px 18px rgb(35 34 35 / 0.28));
+  --book-shadow: var(--shadow-book-hover);
 }
 .pb-lib-book:hover .pb-lib-floor {
   opacity: 1;
@@ -150,7 +150,7 @@ const STYLE_TEXT = `
 }
 @media (prefers-reduced-motion: reduce) {
   .pb-lib-rise { animation: none !important; }
-  .pb-lib-book .pb-lib-obj,
+  .pb-lib-book .pb-book-object-shell,
   .pb-lib-floor { transition: none; }
 }
 /* kit demo-parts/settings.tsx:84 back button box (h-8 gap-1 pl-1.5 pr-2.5);

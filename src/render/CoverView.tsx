@@ -16,7 +16,7 @@ import {
 // The print's own placement (`coverPhotoRect`): zod-free like the geometry.
 import { coverPhotoAnchor } from '../core/pdf/pdfGeometry'
 import { coverLayout, type CoverLayout, type PctBox } from './coverLayout'
-import { COVER_TITLE_FACES } from './coverTitleFace'
+import { COVER_TITLE_FACES, coverInk } from './coverTitleFace'
 import './CoverView.css'
 
 /** Editor chrome: labels, test ids, sheet overlays and the photo drop target. */
@@ -29,6 +29,12 @@ export interface CoverEdit {
 const CHIP_MIN_BAND_PX = 18
 /** Chip line height (px): it is centred in the band. */
 const CHIP_LINE_PX = 14
+/** Designer P1 drop box paint on the empty front's cloth (CoverView.css `.cover-front-drop`). */
+const DROP_PAINT: CSSProperties = {
+  background: 'rgb(255 255 255 / 0.08)',
+  boxShadow: 'inset 0 0 0 1px rgb(255 255 255 / 0.35)',
+  color: 'rgb(245 245 245 / 0.85)',
+}
 
 function pct(value: number): string {
   return `${String(value)}%`
@@ -116,7 +122,8 @@ function CoverSheet({
       style={{
         aspectRatio: layout.sheetAspectRatio,
         width: layout.sheetFitWidth,
-        background: `linear-gradient(90deg, ${backFill} ${pct(layout.spineToPct)}, var(--cover-front-empty) ${pct(layout.spineToPct)})`,
+        // Designer P1: the sheet is cloth; a front photo covers its wrap.
+        background: backFill,
       }}
       onDragOver={(event) => {
         const over = overFront(event, layout.frontDropFrom)
@@ -256,8 +263,27 @@ export const CoverPainter = memo(function CoverPainter({
         data-testid={id('cover-front')}
         data-photo-id={cover.front.assetId}
         data-tier={frontTier}
-        style={{ width: pct(layout.pagePct) }}
+        style={
+          frontUrl === undefined
+            ? ({
+                width: pct(layout.pagePct),
+                // Designer P1: a photo-less front is the cloth, D38 ink.
+                backgroundColor: look.backFill,
+                '--cover-title-ink': coverInk(look.backFill),
+                '--cover-title-shadow': 'none',
+              } as CSSProperties)
+            : { width: pct(layout.pagePct) }
+        }
       >
+        {frontUrl === undefined && !mini ? (
+          <div
+            className="cover-front-drop"
+            data-testid="cover-front-drop"
+            style={DROP_PAINT}
+          >
+            Drop a photo for the front
+          </div>
+        ) : null}
         {frontUrl === undefined ? null : (
           <div
             className="cover-front-photo"

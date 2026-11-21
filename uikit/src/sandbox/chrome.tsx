@@ -20,7 +20,7 @@ import { ToastRegion } from "@/components/ui/toast"
 import { Slider, SliderTrack, SliderFillTrack, SliderThumb } from "@/components/ui/slider"
 import { IconButton, ThumbGrid, ThumbItem, Kbd, AlertDialog, thumbWidth } from "@/components/app/ui"
 import { photos, P, type Photo } from "@/data"
-import { useStudio, placedSet, mapSpread, mapSpreadFreezing } from "./store"
+import { useStudio, placedSet, mapSpread, mapSpreadFreezing, thumbPx, thumbMax, writeThumb, useInnerHeight, THUMB_MIN, type Thumb } from "./store"
 import { PhotoImg, PHOTO_TYPE, FRAME_TYPE } from "./canvas"
 import { SW, SH, spread, parentOf, defaultMasterOf, pageNumbersOf, foliosOf, printSafe, type Frame, type Spread } from "./model"
 import type { Node } from "./store"
@@ -411,6 +411,7 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
   let ids = sortable ? sortedGallery(st.doc.gallery, st.view.sort) : st.doc.gallery
   if (st.view.unplacedOnly) ids = ids.filter((id) => !placed.has(id))
   const items = ids.map((id) => P(id)).filter(Boolean)
+  const thumbH = thumbPx(st.view.thumb, useInnerHeight())
   const [fileOver, setFileOver] = React.useState(false)
   const { dragAndDropHooks } = useDragAndDrop({
     getItems: (keys) => [...keys].map((k) => ({ [PHOTO_TYPE]: String(k), "text/plain": P(String(k)).name })),
@@ -469,14 +470,14 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
   }, [removable, st.filmSel, onRemove])
   return (
     <div className="relative" data-filmstrip>
-      <ThumbGrid aria-label="Photos" layout="grid" selectionMode="multiple" selectionBehavior="replace" items={items} dependencies={[placed]}
+      <ThumbGrid aria-label="Photos" layout="grid" selectionMode="multiple" selectionBehavior="replace" items={items} dependencies={[placed, thumbH]}
         selectedKeys={st.filmSel} onSelectionChange={(k) => st.setFilmSel(k === "all" ? items.map((p) => p.id) : [...k].map(String))}
         dragAndDropHooks={dragAndDropHooks}
         // r15 M88: prod `.pb-empty-title` (18 px / 1.3) around a 13 px / 1.35 span — the 18 px strut sets the baseline
-        renderEmptyState={() => <div className="flex h-(--thumb) items-center px-2 text-sm text-muted-foreground"><div className="text-lg leading-[1.3]"><span className="text-sm leading-[1.35]">{st.view.unplacedOnly && st.doc.gallery.length ? "Every photo is placed. Turn off “Unplaced” to see all." : "No photos yet — add a folder or drop one here."}</span></div></div>}
+        renderEmptyState={() => <div className="flex items-center px-2 text-sm text-muted-foreground" style={{ height: thumbH }} data-testid="film-empty"><div className="text-lg leading-[1.3]"><span className="text-sm leading-[1.35]">{st.view.unplacedOnly && st.doc.gallery.length ? "Every photo is placed. Turn off “Unplaced” to see all." : "No photos yet — add a folder or drop one here."}</span></div></div>}
         className="scroll-thin flex gap-2 overflow-x-auto overflow-y-hidden p-1 pb-2" data-testid="filmstrip">
         {(p) => {
-          const h = st.view.thumb
+          const h = thumbH
           const w = thumbWidth(p.w, p.h, h) // shared aspect rule (app/ui PhotoThumb): true ratio, clamped 5:8…8:5
           const miss = st.missing.has(p.id)
           return (
@@ -522,12 +523,40 @@ export function FilmChips() {
     </MenuTrigger>
   </>
 }
+/** Designer walkthrough-ux-review §B: the dock top edge resizes the filmstrip thumbs. 9 px hit zone (edge −5 .. +4);
+ *  hover / drag / focus show a 1 px --input edge line and a 36 × 4 pill; drag tints the pill --select and shows "N px" 30 px above. */
+function ThumbResizer() {
+  const st = useStudio()
+  const ih = useInnerHeight()
+  const h = thumbPx(st.view.thumb, ih), max = thumbMax(ih)
+  const drag = React.useRef<{ y: number; h: number; last: number } | null>(null)
+  const [dragging, setDragging] = React.useState(false)
+  const set = (t: Thumb, save = true) => { st.setView({ thumb: t }); if (save) writeThumb(t) }
+  const clamp = (v: number) => Math.min(max, Math.max(THUMB_MIN, v))
+  const keys: Record<string, () => Thumb> = { ArrowUp: () => clamp(h + 8), ArrowDown: () => clamp(h - 8), Home: () => THUMB_MIN, End: () => max, Enter: () => "auto" }
+  return (
+    <div role="separator" aria-orientation="horizontal" aria-label="Resize photos" aria-valuemin={THUMB_MIN} aria-valuemax={max} aria-valuenow={h} tabIndex={0}
+      className="group/rs absolute inset-x-0 -top-[5px] h-[9px] cursor-ns-resize touch-none outline-none" data-dragging={dragging || undefined} data-testid="thumb-resizer"
+      onPointerDown={(e) => { if (e.button !== 0) return; e.currentTarget.setPointerCapture(e.pointerId); drag.current = { y: e.clientY, h, last: h }; setDragging(true) }}
+      // 4 px steps; state only while moving, localStorage once on release
+      onPointerMove={(e) => { const d = drag.current; if (!d) return; const v = clamp(Math.round((d.h + d.y - e.clientY) / 4) * 4); if (v !== d.last) { d.last = v; set(v, false) } }}
+      onPointerUp={() => { const d = drag.current; if (!d) return; drag.current = null; setDragging(false); if (d.last !== d.h) writeThumb(d.last) }}
+      onPointerCancel={() => { drag.current = null; setDragging(false) }}
+      onDoubleClick={() => set("auto")}
+      onKeyDown={(e) => { const k = keys[e.key]; if (!k) return; e.preventDefault(); e.stopPropagation(); set(k()) }}>
+      <div className="pointer-events-none absolute inset-x-0 top-[5px] hidden h-px bg-input group-hover/rs:block group-focus-visible/rs:block group-data-[dragging]/rs:block" />
+      <div className="pointer-events-none absolute left-1/2 top-[3px] hidden h-1 w-9 -translate-x-1/2 rounded-2xs bg-black/24 outline-offset-2 group-hover/rs:block group-focus-visible/rs:block group-focus-visible/rs:outline-2 group-focus-visible/rs:outline-solid group-focus-visible/rs:outline-[#3A3839] group-data-[dragging]/rs:block group-data-[dragging]/rs:bg-select" data-testid="thumb-resizer-pill" />
+      {dragging && <div className="pointer-events-none absolute bottom-[calc(100%+25px)] left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-field px-1.5 py-0.5 text-2xs font-medium tabular-nums text-foreground" data-testid="thumb-resizer-chip">{h} px</div>}
+    </div>
+  )
+}
 export function Dock({ children, left, right, templates = false, tabs = true, defaultTab = "photos" }: { children?: React.ReactNode; left?: React.ReactNode; right?: React.ReactNode; templates?: boolean | React.ReactNode; tabs?: boolean; defaultTab?: string }) {
   const st = useStudio()
   const cov = useCoverPhoto(), placed = withCover(placedSet(st.doc), cov, st.doc.gallery)
   const shown = st.view.unplacedOnly ? st.doc.gallery.filter((p) => !placed.has(p)).length : null
   return (
-    <div className="shrink-0" style={{ background: BAR }} data-testid="dock">
+    <div className="relative shrink-0" style={{ background: BAR }} data-testid="dock">
+      {children === undefined && <ThumbResizer />}
       <Tabs defaultSelectedKey={defaultTab} className="gap-0">
         <div className="flex h-10 items-center gap-3 px-3">
           {/* v0.8 §3.1: Photos-only dock → no tab capsule, just the one plain label */}
@@ -688,7 +717,9 @@ export function EditorFrame({ top, left, right, dock, canvas, overlay, className
                 if (st.sel.length) return
                 st.setNode({ k: "none" })
               }}>{canvas}</div>
-            {dock && <div className="e7-pan shrink-0 overflow-hidden" style={{ height: pn.b ? undefined : 0 }} aria-hidden={!pn.b || undefined} inert={!pn.b || undefined} data-hidden-panel={!pn.b || undefined} data-testid="panel-b">{dock}</div>}
+            {/* open: no clip, so the dock's resize edge (5 px over the top) paints over the canvas (later in DOM, no z-index:
+                a z-index would lift the dock over the menu underlay and keep its chips hovered) */}
+            {dock && <div className={cn("e7-pan shrink-0", !pn.b && "overflow-hidden")} style={{ height: pn.b ? undefined : 0 }} aria-hidden={!pn.b || undefined} inert={!pn.b || undefined} data-hidden-panel={!pn.b || undefined} data-testid="panel-b">{dock}</div>}
           </main>
           {right && <div className="e7-pan shrink-0 overflow-hidden" style={{ width: pn.r ? 300 : 0 }} aria-hidden={!pn.r || undefined} inert={!pn.r || undefined} data-hidden-panel={!pn.r || undefined} data-testid="panel-r">
             <div className="e7 scroll-thin h-full w-75 overflow-y-auto overflow-x-hidden" style={{ background: BAR }} data-testid="inspector">{right}</div></div>}

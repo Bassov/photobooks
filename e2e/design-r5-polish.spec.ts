@@ -176,13 +176,49 @@ test.describe('M43 the drag source keeps its photo while dragged', () => {
     await expect(frame).toHaveCount(1, { timeout: 30_000 })
     await frame.click()
     await expect(frame).toHaveAttribute('aria-pressed', 'true')
+    // The click landed on the crop grabber (direct-crop): move off the photo
+    // so its layer hides and a later press reaches the frame body.
+    const r = await clientRect(frame)
+    await page.mouse.move(r.left + r.width / 2, r.bottom + 120, { steps: 4 })
+    await expect(frame.getByTestId('photo-layer')).not.toHaveAttribute(
+      'data-shown',
+      'true',
+    )
     return frame
   }
 
-  /** The kit capture walk: down on the frame centre, six moves of (−10i, +6i). */
-  async function startKitDrag(page: Page, frame: Rect): Promise<void> {
-    const x = Math.round(frame.left + frame.width / 2)
-    const y = Math.round(frame.top + frame.height / 2)
+  async function clientRect(locator: Locator): Promise<{
+    left: number
+    top: number
+    width: number
+    bottom: number
+    height: number
+  }> {
+    return locator.evaluate((el) => {
+      const b = el.getBoundingClientRect()
+      return {
+        left: b.left,
+        top: b.top,
+        width: b.width,
+        height: b.height,
+        bottom: b.bottom,
+      }
+    })
+  }
+
+  /**
+   * The kit capture walk: down on the frame body, six moves of (−10i, +6i).
+   * The press lands 40 px below (or above) the crop grabber, not on it: the
+   * grabber sits above the body in the hit order (direct-crop) and pans.
+   */
+  async function startKitDrag(page: Page, frame: Locator): Promise<void> {
+    const [r, g] = await Promise.all([
+      clientRect(frame),
+      clientRect(frame.getByTestId('crop-grabber')),
+    ])
+    const x = Math.round(g.left + g.width / 2)
+    const gy = g.top + g.height / 2
+    const y = Math.round(gy + 40 < r.bottom - 20 ? gy + 40 : gy - 40)
     await page.mouse.move(x, y)
     await page.mouse.down()
     for (let i = 1; i <= 6; i += 1) {
@@ -208,7 +244,7 @@ test.describe('M43 the drag source keeps its photo while dragged', () => {
     expect(rest.dropHover).toBeNull()
     expectPhotoUnchanged(rest, rest)
 
-    await startKitDrag(page, rest.frame)
+    await startKitDrag(page, frame)
     await expect(frame).toHaveAttribute('data-drag-source', 'true')
     await expect(frame).toHaveAttribute('data-drop-hover', 'true')
     const mid = await readFrame(frame)
@@ -260,7 +296,7 @@ test.describe('M43 the drag source keeps its photo while dragged', () => {
     test.setTimeout(120_000)
     const frame = await placedAndSelected(page)
     const rest = await readFrame(frame)
-    await startKitDrag(page, rest.frame)
+    await startKitDrag(page, frame)
     await expect(frame).toHaveAttribute('data-drag-source', 'true')
     await page.mouse.up()
     await expect(frame).not.toHaveAttribute('data-drag-source', 'true')

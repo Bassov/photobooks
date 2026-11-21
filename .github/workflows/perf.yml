@@ -37,7 +37,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node and pnpm
-        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.23
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.24
 
       - name: Path filter
         id: scope
@@ -70,11 +70,11 @@ jobs:
 
       - name: Install Playwright browsers
         if: steps.scope.outputs.in_scope == 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: node scripts/ci-apt-retry.mjs pnpm exec playwright install --with-deps chromium
 
       - name: Install Playwright system deps
         if: steps.scope.outputs.in_scope == 'true' && steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
+        run: node scripts/ci-apt-retry.mjs pnpm exec playwright install-deps chromium
 
       - name: Build app for E2E
         if: steps.scope.outputs.in_scope == 'true'

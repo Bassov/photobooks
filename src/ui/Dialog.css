@@ -14,8 +14,8 @@
 }
 
 .pb-dialog {
-  width: min(28rem, calc(100vw - var(--spacing) * 8));
-  max-height: calc(100vh - var(--spacing) * 8);
+  width: min(28rem, calc(var(--app-vw) - var(--spacing) * 8));
+  max-height: calc(var(--app-vh) - var(--spacing) * 8);
   overflow: auto;
   padding: calc(var(--spacing) * 6);
   border: 1px solid var(--border);
