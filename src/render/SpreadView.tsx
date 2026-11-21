@@ -29,6 +29,8 @@ export interface FrameControl {
   cropActive?: boolean
   /** Crop zoom (1 = cover) shown in the "Crop · N%" tag. */
   cropZoom?: number
+  /** Pick mode on this frame: the "Replacing" / "Placing" tag. */
+  pickKind?: 'replace' | 'place'
   onDoubleActivate?: (event?: { shiftKey?: boolean }) => void
   /** Text edit mode: the editor overlay types over it (1 px outline, no handles). */
   editing?: boolean
@@ -779,6 +781,15 @@ function SpreadFrame({
           Crop · {Math.round((control.cropZoom ?? 1) * 100)}%
         </span>
       ) : null}
+      {control.pickKind === undefined ? null : (
+        <span
+          className="spread-frame-crop-tag"
+          data-testid="pick-tag"
+          data-camera-frame=""
+        >
+          {control.pickKind === 'replace' ? 'Replacing' : 'Placing'}
+        </span>
+      )}
       {item.locked === true ? (
         <span
           className="spread-frame-lock"

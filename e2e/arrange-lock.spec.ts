@@ -108,7 +108,9 @@ test.describe('Arrange menu, shortcuts and lock', () => {
     await expect(menu(page)).toBeVisible()
     await assertDocumentFitsViewport(page)
     // Already on top: only the moves that can change the stack are offered.
+    // FM4 adds the photo row (Place photo… on an empty frame).
     await expect(menu(page).getByRole('menuitem')).toHaveText([
+      /Place photo…/,
       /Send backward/,
       /Send to back/,
       /Lock/,

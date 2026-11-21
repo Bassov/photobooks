@@ -68,6 +68,12 @@ import {
 } from './galleryView'
 import { FilmstripStatus } from './FilmstripStatus'
 import {
+  getPhotoPick,
+  isPhotoPicking,
+  pickPhoto,
+  subscribePhotoPick,
+} from './photoPick'
+import {
   isFilmstripNavKey,
   navigateFilmstrip,
   pickFilmstripItem,
@@ -175,6 +181,11 @@ const FilmstripGrid = memo(function FilmstripGrid({
         if (id === null) {
           return
         }
+        if (getPhotoPick() !== null) {
+          // Pick mode: the click places / replaces, the selection stays.
+          pickPhoto(id)
+          return
+        }
         applyPick(
           pickFilmstripItem(selectionInput(order), id, {
             shift: event.shiftKey,
@@ -224,6 +235,15 @@ const FilmstripGrid = memo(function FilmstripGrid({
           return
         }
         const from = rowIdOf(event.target) ?? getFilmstripCurrentRow()
+        const picking = getPhotoPick() !== null
+        if (picking && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault()
+          event.stopPropagation()
+          if (from !== null) {
+            pickPhoto(from)
+          }
+          return
+        }
         if (event.key === ' ') {
           // Space selects the focused row; Ctrl / Meta toggles it.
           event.preventDefault()
@@ -249,7 +269,8 @@ const FilmstripGrid = memo(function FilmstripGrid({
           toggle,
         })
         if (move !== null) {
-          if (move.pick !== null) {
+          // Pick mode moves focus only (kit selectionMode "none").
+          if (move.pick !== null && !picking) {
             applyPick(move.pick)
           }
           focusRow(event.currentTarget, move.focus)
@@ -558,6 +579,11 @@ export const Filmstrip = memo(function Filmstrip({
     getFrameSource,
     getFrameSource,
   )
+  const picking = useSyncExternalStore(
+    subscribePhotoPick,
+    isPhotoPicking,
+    isPhotoPicking,
+  )
   const placed = useSyncExternalStore(
     subscribeBookStore,
     getPlacedAssetIdsSnapshot,
@@ -602,6 +628,7 @@ export const Filmstrip = memo(function Filmstrip({
       data-testid="filmstrip"
       data-gallery-count={total}
       data-view-count={viewIds.length}
+      data-picking={picking ? '' : undefined}
       aria-label="Gallery"
       onKeyDown={(event) => {
         if (event.key === 'Escape') {

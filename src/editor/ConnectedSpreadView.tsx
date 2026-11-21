@@ -33,6 +33,7 @@ import {
   isPointerActivation,
 } from './dropTargets'
 import { enterCropMode, getCropTarget, subscribeCropMode } from './cropMode'
+import { photoPickOnSpread, subscribePhotoPick } from './photoPick'
 import {
   frameControlLabel,
   getSpreadFrameSourceKey,
@@ -125,6 +126,14 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     () => cropFrameOnSpread(spreadId),
     () => cropFrameOnSpread(spreadId),
   )
+  const pickKey = useSyncExternalStore(
+    subscribePhotoPick,
+    () => photoPickOnSpread(spreadId),
+    () => photoPickOnSpread(spreadId),
+  )
+  // `kind:frameId` (kind has no colon); '' off this spread.
+  const pickFrameId = pickKey.slice(pickKey.indexOf(':') + 1)
+  const pickKind = pickKey.startsWith('replace:') ? 'replace' : 'place'
   const editingId = useSyncExternalStore(
     subscribeTextEdit,
     () => getSpreadTextEditKey(spreadId),
@@ -233,6 +242,9 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     if (cropFrameId === item.frameId) {
       control.cropActive = true
       control.cropZoom = cropZoomOf(spreadId, item.frameId)
+    }
+    if (pickFrameId === item.frameId) {
+      control.pickKind = pickKind
     }
     // A locked frame keeps its photo: no drag to swap or unplace. Frames in a
     // selection of 2 or more (pressed with no single source) do not either.
