@@ -56,6 +56,9 @@
   overflow-y: hidden;
   /* M50: a wheel over the strip never chains to the page. */
   overscroll-behavior: contain;
+  /* Kit strip p-1: the row starts 4 px in, with room for the thumb ring. */
+  box-sizing: border-box;
+  padding-inline: 4px;
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -148,7 +151,7 @@
   --film-name-h: calc(var(--text-2xs) * 1.35 + 4px);
 }
 
-/* ::before + order (::after is the hairline overlay in editorChromeTokens). */
+/* ::before + order: the name strip sits under the photo. */
 .editor-dock[data-names] .filmstrip-item::before {
   content: attr(aria-label);
   order: 1;
@@ -209,7 +212,8 @@
   align-items: stretch;
   contain: layout paint style;
   outline: none;
-  border-radius: var(--radius-sm);
+  /* Kit thumb rounded-xs; the hairline ring is an outer shadow (editorChromeTokens). */
+  border-radius: var(--radius-xs);
   overflow: hidden;
   background: var(--muted);
 }
@@ -314,7 +318,8 @@
   align-items: center;
   height: calc(var(--film-empty-h, 76px) + 12px);
   margin: 0;
-  padding: 4px 12px 8px;
+  /* + the scroller's 4 px inline padding = kit p-1 + px-2. */
+  padding: 4px 8px 8px;
   font-family: var(--font-ui);
   color: var(--muted-foreground);
   width: 100%;
