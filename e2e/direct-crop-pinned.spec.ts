@@ -135,6 +135,31 @@ function hitAt(page: Page, at: Point): Promise<string | null> {
   )
 }
 
+/**
+ * Waits until the canvas camera is still: the frame rect and the
+ * pasteboard-scroll offsets read the same on two polls in a row.
+ */
+async function cameraSettled(page: Page, frame: Locator): Promise<void> {
+  const scroll = page.getByTestId('pasteboard-scroll')
+  const read = async () => {
+    const f = await box(frame)
+    const s = await scroll.evaluate((el) => [el.scrollLeft, el.scrollTop])
+    return [f.x, f.y, f.width, f.height, ...s].map(Math.round).join(',')
+  }
+  let last = ''
+  await expect
+    .poll(
+      async () => {
+        const now = await read()
+        const still = now === last
+        last = now
+        return still
+      },
+      { intervals: [100] },
+    )
+    .toBe(true)
+}
+
 /** A CSS colour (e.g. `var(--crop)`) resolved to `rgb(…)` in the page. */
 function resolvedColour(page: Page, css: string): Promise<string> {
   return page.evaluate((value) => {
@@ -308,8 +333,10 @@ test('pinned crop: 2 px --crop outline, photo handles over hidden frame handles,
   const ratio0 = await cropRatio()
   const before = await box(image)
   await page.mouse.move(centre(before).x, centre(before).y)
-  await page.mouse.wheel(0, -200)
+  // A small zoom step keeps the frame clear of the inspector edge.
+  await page.mouse.wheel(0, -100)
   await expect(page.getByTestId('zoom-label')).not.toHaveText('Fit')
+  await cameraSettled(page, frame)
   await expect(frame).not.toHaveAttribute('data-crop-active', 'true')
   await expect(tag).toHaveCount(0)
   await expect
@@ -342,8 +369,16 @@ test('pinned crop: 2 px --crop outline, photo handles over hidden frame handles,
   )
   const handles = frame.getByTestId('photo-handle')
   await expect(handles).toHaveCount(4)
+  await cameraSettled(page, frame)
+  const port = await box(page.getByTestId('pasteboard-scroll'))
   for (const handle of await handles.all()) {
-    expect(await hitAt(page, centre(await box(handle)))).toBe('photo-handle')
+    const c = centre(await box(handle))
+    // The camera keeps every handle in the visible canvas, not under a panel.
+    expect(c.x).toBeGreaterThan(port.x)
+    expect(c.x).toBeLessThan(port.x + port.width)
+    expect(c.y).toBeGreaterThan(port.y)
+    expect(c.y).toBeLessThan(port.y + port.height)
+    expect(await hitAt(page, c)).toBe('photo-handle')
   }
   const grabber = frame.getByTestId('crop-grabber')
   expect(await hitAt(page, centre(await box(grabber)))).toBe('crop-grabber')
