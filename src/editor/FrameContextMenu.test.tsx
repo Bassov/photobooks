@@ -161,6 +161,25 @@ describe('FrameContextMenu', () => {
     expect(screen.getByTestId('frame-menu-anchor').style.top).toBe('50px')
   })
 
+  it('at interface scale 1.5 the anchor is the pointer in app px (÷ 1.5)', () => {
+    seed(stackBook(2))
+    render(
+      <>
+        <Canvas frameIds={['f0', 'f1']} />
+        <FrameContextMenu />
+      </>,
+    )
+    const restore = runAtInterfaceScale(1.5)
+    try {
+      openMenu('f0', { clientX: 2431, clientY: 974 })
+      const anchor = screen.getByTestId('frame-menu-anchor')
+      expect(Number.parseFloat(anchor.style.left)).toBeCloseTo(2431 / 1.5, 3)
+      expect(Number.parseFloat(anchor.style.top)).toBeCloseTo(974 / 1.5, 3)
+    } finally {
+      restore()
+    }
+  })
+
   it('a lone locked frame offers only Unlock', () => {
     seed(stackBook(1, true))
     render(
@@ -187,6 +206,7 @@ describe('FrameContextMenu', () => {
     )
     expect(fireEvent.contextMenu(screen.getByText('preview'))).toBe(true)
     expect(fireEvent.contextMenu(document.body)).toBe(true)
+    expect(fireEvent.contextMenu(document)).toBe(true)
     expect(screen.queryByTestId('frame-menu')).toBeNull()
     expect(getFrameSource()).toBeNull()
   })

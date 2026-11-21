@@ -264,3 +264,52 @@ test.describe('1920×1080', () => {
     expect(await rootZoom(page)).toBe('1')
   })
 })
+
+// Round 34 Must M133 (item design-r34-is-prod): the segmented keyboard focus
+// ring is the kit's 2 px #3A3839 (--ring) with a 2 px offset, at any scale.
+for (const [w, h, pct] of [
+  [1440, 900, '100'],
+  [3840, 2160, '150'],
+] as const) {
+  test(`M133: segmented focus ring is 2 px rgb(58,56,57), offset 2, at ${pct} %`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: w, height: h })
+    await storeChoice(page, pct)
+    await openInterface(page)
+    await expect(page.locator('html')).toHaveAttribute('data-ui-scale', pct)
+    const input = radio(page, Number(pct))
+    // Keyboard modality, then focus: :focus-visible as after a Tab.
+    await page.keyboard.press('Shift')
+    await input.focus()
+    expect(await input.evaluate((el) => el.matches(':focus-visible'))).toBe(
+      true,
+    )
+    const seg = page.getByTestId(`interface-size-${pct}`)
+    const ring = await seg.evaluate((el) => {
+      const cs = getComputedStyle(el)
+      return [
+        cs.outlineColor,
+        cs.outlineWidth,
+        cs.outlineOffset,
+        cs.outlineStyle,
+      ]
+    })
+    expect(ring).toEqual(['rgb(58, 56, 57)', '2px', '2px', 'solid'])
+
+    // Paint: 3 app px above the segment (offset 2 + half the 2 px ring) the
+    // row shows the ring ink.
+    const s = Number(pct) / 100
+    const rowBox = page.getByTestId('interface-size-row')
+    const [r, b] = [await box(rowBox), await box(seg)]
+    const [px] = await pixelsAt(rowBox, [
+      { x: b.x - r.x + b.width / 2, y: b.y - r.y - 3 * s },
+    ])
+    for (const [i, want] of [58, 56, 57].entries()) {
+      expect(
+        Math.abs((px?.[i] ?? 0) - want),
+        `ring rgb[${String(i)}]`,
+      ).toBeLessThanOrEqual(3)
+    }
+  })
+}

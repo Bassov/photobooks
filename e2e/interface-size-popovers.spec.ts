@@ -166,9 +166,6 @@ for (const s of [1.25, 1.5]) {
     }) => {
       await page.setViewportSize({ width: W / s, height: H / s })
       await openLibraryBook(page)
-      // A frame on the left page: FrameContextMenu.tsx still puts its anchor
-      // at clientX inside the zoomed #root (× s, lane interface-size-pointer),
-      // so a right-hand frame would push the anchor off the window.
       await applyLayout(page, 'Two portraits', { restorePanel: true })
 
       const zoom = page.getByTestId('zoom-menu')
@@ -195,10 +192,11 @@ for (const s of [1.25, 1.5]) {
         await dismiss(page, zoomMenu)
 
         const f0 = await leftmost(frames, page)
-        await page.mouse.click(f0.x + 20, f0.y + 20, { button: 'right' })
+        const p = { x: f0.x + 20, y: f0.y + 20 }
+        await page.mouse.click(p.x, p.y, { button: 'right' })
         const f = await shot(frameMenu, anchor)
         await dismiss(page, frameMenu)
-        return { z, t, f }
+        return { z, t, f, p }
       }
 
       await atReference(page, s)
@@ -210,9 +208,34 @@ for (const s of [1.25, 1.5]) {
       // Gap trigger → menu: 4 app px at 100 %, 4·s here.
       expect(at.z.pop.y - (at.z.anchor.y + at.z.anchor.h)).toBeCloseTo(4 * s, 0)
       expectR(ref.t, at.t, s, 'tooltip')
-      // The frame menu hangs off a zero-size anchor at the pointer, which
-      // FrameContextMenu.tsx places (lane interface-size-pointer).
+      // The frame menu hangs off a zero-size anchor at the pointer.
       expectR(ref.f, at.f, s, 'frame menu')
+      // Round 34 Must M135 (item design-r34-is-prod): the anchor is at the
+      // pointer at any scale (not s × it), and the menu's top-left sits
+      // off the pointer by the 100 % offset × s (±1 px).
+      for (const [run, k] of [
+        [ref, 1],
+        [at, s],
+      ] as const) {
+        expect(
+          Math.abs(run.f.anchor.x - run.p.x),
+          'anchor x',
+        ).toBeLessThanOrEqual(1)
+        expect(
+          Math.abs(run.f.anchor.y - run.p.y),
+          'anchor y',
+        ).toBeLessThanOrEqual(1)
+        const dx = (run.f.pop.x - run.p.x) / k
+        const dy = (run.f.pop.y - run.p.y) / k
+        expect(
+          Math.abs(dx - (ref.f.pop.x - ref.p.x)),
+          'menu x',
+        ).toBeLessThanOrEqual(1)
+        expect(
+          Math.abs(dy - (ref.f.pop.y - ref.p.y)),
+          'menu y',
+        ).toBeLessThanOrEqual(1)
+      }
     })
 
     test('library: sort menu, book menu and Page size select = R(s)', async ({
