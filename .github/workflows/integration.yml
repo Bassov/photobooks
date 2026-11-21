@@ -66,11 +66,11 @@ jobs:
 
       - name: Install Playwright browsers
         if: steps.burn-in-targets.outputs.has_targets == 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci-apt-retry.sh pnpm exec playwright install --with-deps chromium
 
       - name: Install Playwright system deps
         if: steps.burn-in-targets.outputs.has_targets == 'true' && steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci-apt-retry.sh pnpm exec playwright install-deps chromium
 
       - name: E2E burn-in
         if: steps.burn-in-targets.outputs.has_targets == 'true'
@@ -149,11 +149,11 @@ jobs:
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci-apt-retry.sh pnpm exec playwright install --with-deps chromium
 
       - name: Install Playwright system deps
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci-apt-retry.sh pnpm exec playwright install-deps chromium
 
       - name: Pick shard spec files
         env:
@@ -400,11 +400,11 @@ jobs:
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci-apt-retry.sh pnpm exec playwright install --with-deps chromium
 
       - name: Install Playwright system deps
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci-apt-retry.sh pnpm exec playwright install-deps chromium
 
       - name: E2E @flaky
         run: pnpm test:e2e:flaky
