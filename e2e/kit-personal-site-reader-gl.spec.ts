@@ -225,8 +225,8 @@ test.describe('desktop 1440×900', () => {
       x1 = spine + (b.width / 2) * Math.cos((70 * Math.PI) / 180)
     await page.mouse.move(x0, b.y + b.height / 2)
     await page.mouse.down()
-    for (let i = 1; i <= 10; i++)
-      await page.mouse.move(x0 + ((x1 - x0) * i) / 10, b.y + b.height / 2)
+    // one move: each pointermove draws the held leaf in its own task (a full GL frame)
+    await page.mouse.move(x1, b.y + b.height / 2)
     const leaf = page.getByTestId('ps-leaf')
     await expect(leaf).toHaveAttribute('data-leaf', 'paper')
     const th = Number(await leaf.getAttribute('data-theta'))
@@ -412,13 +412,14 @@ async function geometry(page: Page) {
 const xAt = (g: { spine: number; pw: number }, th: number) =>
   g.spine + g.pw * Math.cos((th * Math.PI) / 180)
 
-/** move the held pointer to θ and wait until the leaf reports it and a frame is drawn */
+/** move the held pointer to θ and wait until the leaf reports it and a frame is drawn; one pointermove: the reader
+   draws the held leaf in the move's own task (a full GL frame, ~0.85 s in CI's software GL), and only the held θ is read */
 async function holdAt(
   page: Page,
   g: { spine: number; pw: number; y: number },
   th: number,
 ) {
-  await page.mouse.move(xAt(g, th), g.y, { steps: 4 })
+  await page.mouse.move(xAt(g, th), g.y)
   const leaf = page.getByTestId('ps-leaf')
   await expect
     .poll(async () =>
@@ -450,7 +451,7 @@ async function sweep(page: Page, g: { spine: number; pw: number; y: number }) {
     await holdAt(page, g, th)
     tops.push(await alphaTop(page))
   }
-  await page.mouse.move(g.spine + 0.8 * g.pw, g.y, { steps: 6 })
+  await page.mouse.move(g.spine + 0.8 * g.pw, g.y)
   await page.mouse.up()
   await expect(page.getByTestId('ps-reader')).toHaveAttribute(
     'data-turn',
@@ -474,14 +475,35 @@ test.describe('desktop 1440×900: GL turn fixes (site-stand-v7 T)', () => {
   test('T1: the landing leaf shows its own page, not the old view (forward at view 9, backward at view 3)', async ({
     page,
   }) => {
-    // eleven settled turns and two held drags
+    // eleven settled turns and two held drags: the backward case first, so view 3 is still reached back from 4 and
+    // view 9 forward from 8, with no walk back down from 10
     test.setTimeout(120_000)
     const errors = collectErrors(page)
     await openBook(page, 'lake-trip')
 
+    // backward: view 3 → 2, held at θ 5; the probe sits on the right page near the spine
+    await goToView(page, 4)
+    await goToView(page, 3)
+    let g = await geometry(page)
+    const right = { x: g.spine + 0.1 * g.pw, y: g.y }
+    const old2 = await rgbAt(page, right.x, right.y)
+    await page.mouse.move(g.spine - 0.8 * g.pw, g.y)
+    await page.mouse.down()
+    await holdAt(page, g, 5)
+    const back = await rgbAt(page, right.x, right.y)
+    await page.mouse.up()
+    await settle(page, 2)
+    await animationsSettled(page.getByTestId('ps-reader'))
+    const bwd = await nearest(page, back, right.x, right.y)
+    console.log(
+      `T1 back: old ${old2.map(Math.round).join(',')} held ${back.map(Math.round).join(',')} ΔRGB to landed ${bwd.toFixed(1)}`,
+    )
+    expect(bwd).toBeLessThanOrEqual(12)
+    expect(dRgb(back, old2)).toBeGreaterThan(12)
+
     // forward: view 9 → 10, held at θ 165 and 175; the probe sits on the left page near the spine
     await goToView(page, 9)
-    let g = await geometry(page)
+    g = await geometry(page)
     const left = { x: g.spine - 0.1 * g.pw, y: g.y }
     const old = await rgbAt(page, left.x, left.y)
     await page.mouse.move(g.spine + 0.8 * g.pw, g.y)
@@ -503,25 +525,6 @@ test.describe('desktop 1440×900: GL turn fixes (site-stand-v7 T)', () => {
     for (const d of fwd) expect(d).toBeLessThanOrEqual(12)
     // and not the old view's left page (this fixture's two pages differ there)
     for (const p of held) expect(dRgb(p, old)).toBeGreaterThan(12)
-
-    // backward: view 3 → 2, held at θ 5; the probe sits on the right page near the spine
-    await goToView(page, 3)
-    g = await geometry(page)
-    const right = { x: g.spine + 0.1 * g.pw, y: g.y }
-    const old2 = await rgbAt(page, right.x, right.y)
-    await page.mouse.move(g.spine - 0.8 * g.pw, g.y)
-    await page.mouse.down()
-    await holdAt(page, g, 5)
-    const back = await rgbAt(page, right.x, right.y)
-    await page.mouse.up()
-    await settle(page, 2)
-    await animationsSettled(page.getByTestId('ps-reader'))
-    const bwd = await nearest(page, back, right.x, right.y)
-    console.log(
-      `T1 back: old ${old2.map(Math.round).join(',')} held ${back.map(Math.round).join(',')} ΔRGB to landed ${bwd.toFixed(1)}`,
-    )
-    expect(bwd).toBeLessThanOrEqual(12)
-    expect(dRgb(back, old2)).toBeGreaterThan(12)
     expect(errors).toEqual([])
   })
 
@@ -761,7 +764,7 @@ test.describe('desktop 1440×900: the leaf at θ 90 (stand-v8)', () => {
       await page.mouse.down()
       await holdAt(page, g, 90)
       const held = await shot(page, clip)
-      await page.mouse.move(g.spine + 0.8 * g.pw, g.y, { steps: 6 })
+      await page.mouse.move(g.spine + 0.8 * g.pw, g.y)
       await page.mouse.up()
       const bare = stillRows(rest, held)
       console.log(
