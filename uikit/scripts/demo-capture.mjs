@@ -67,7 +67,7 @@ export async function capture(out, { log = console.log, probe } = {}) {
     ["editor-frame-mid-drag", async () => { const b = await page.locator(FRAME).first().boundingBox(); const x = Math.round(b.x + b.width / 4), y = Math.round(b.y + b.height / 2); await page.mouse.move(x, y); await page.mouse.down(); for (let i = 1; i <= 6; i++) await page.mouse.move(x - 10 * i, y + 6 * i); return "keep" }],
     ["editor-frame-drag-cancelled", async () => { await page.keyboard.press("Escape"); await page.mouse.up(); await settle(200); await page.locator(FRAME).first().click({ force: true, position: { x: 40, y: 40 } }) }],
     // Designer frame-copy-paste FC1 on pages 8–9 (spread 1's full-bleed frame clamps back in place): Ctrl+C → "Copied frame"; Ctrl+V → +5/+5 mm;
-    // on pages 6–7 Ctrl+V pastes in place; Ctrl+D → +5/+5 mm; the copy moved 40 mm right, Ctrl+D repeats that move. The five edits are undone after.
+    // on pages 6–7 Ctrl+V pastes in place; Ctrl+D → +5/+5 mm; the copy moved 40 mm right, Ctrl+D repeats that move. The five edits (and the Alt-drag copy below) are undone after.
     // Designer frame-context-menu: right-click the filled frame (FM1 menu); Replace photo… → filmstrip ring, "Replacing" tag, status (FM2);
     // a click on thumb 3 replaces the photo (one undo step, undone at the next step so the later shots keep thumb 5's photo)
     ["editor-frame-menu", () => page.locator(FRAME).first().click({ button: "right", force: true, position: { x: 60, y: 60 } })],
@@ -83,10 +83,15 @@ export async function capture(out, { log = console.log, probe } = {}) {
       await page.keyboard.press("Escape"); await page.keyboard.press("Control+v") }],
     ["editor-frame-duplicated", () => page.keyboard.press("Control+d")],
     ["editor-frame-step-repeat", async () => { for (let i = 0; i < 4; i++) await page.keyboard.press("Shift+ArrowRight"); await page.keyboard.press("Control+d") }],
+    // FC2: Alt held at the press on spread 3's first frame = duplicate drag (ringed clone at .85, original stays); release = one step
+    ["editor-frame-alt-drag", async () => {
+      const b = await page.locator('[data-testid="canvas"] [data-spread="3"] [data-testid="frame"]').first().boundingBox(), x = Math.round(b.x + b.width * 0.3), y = Math.round(b.y + b.height * 0.3)
+      await page.mouse.move(x, y); await page.keyboard.down("Alt"); await page.mouse.down(); await page.mouse.move(x + 48, y - 18, { steps: 6 }); return "keep" }],
+    ["editor-frame-alt-dropped", async () => { await page.mouse.up(); await page.keyboard.up("Alt"); await settle(200) }],
     // Designer walkthrough-ux-review §A (direct crop): grabber hover shows the photo layer; a photo corner drag scales the photo;
     // a frame edge handle crops (the photo stays on the page); both edits are undone before the pinned Crop
     ["editor-photo-layer-hover", async () => {
-      for (let i = 0; i < 5; i++) await page.keyboard.press("Control+z")
+      for (let i = 0; i < 6; i++) await page.keyboard.press("Control+z")
       const all = await page.locator('[data-testid="canvas"] [data-testid="frame"]').count()
       if (all !== allFrames) throw new Error(`${all} frames after the copy / paste undo, not ${allFrames}`)
       await page.locator('[data-testid="canvas"] [data-spread="1"] [data-testid="frame"]').first().click({ force: true, position: { x: 40, y: 40 } }); await park(); await settle(500)
