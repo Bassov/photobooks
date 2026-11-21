@@ -442,12 +442,12 @@ describe('jumpToPlacement scrolls the frame into view only when needed (B4)', ()
   })
 
   it.each([
-    ['above', new DOMRect(100, -10, 200, 150), '500,165'],
-    ['below', new DOMRect(100, 660, 200, 150), '500,835'],
-    ['left of', new DOMRect(-10, 100, 200, 150), '90,500'],
-    ['right of', new DOMRect(810, 100, 200, 150), '910,500'],
+    ['above', new DOMRect(100, -10, 200, 150), '500,466'],
+    ['below', new DOMRect(100, 660, 200, 150), '500,534'],
+    ['left of', new DOMRect(-10, 100, 200, 150), '466,500'],
+    ['right of', new DOMRect(810, 100, 200, 150), '534,500'],
   ])(
-    'centres a frame 10 px %s the port once it holds still',
+    'moves a frame 10 px %s the port to the 24 px inset once it holds still',
     (_, rect, after) => {
       const port = mountPort([rect])
 
@@ -475,15 +475,38 @@ describe('jumpToPlacement scrolls the frame into view only when needed (B4)', ()
 
   it('gives up when the frame never holds still', () => {
     const rects = Array.from(
-      { length: 60 },
+      { length: 400 },
       (_, i) => new DOMRect(100, 900 + i, 200, 150),
     )
     const port = mountPort(rects)
 
     jumpToPlacement(P)
-    vi.advanceTimersByTime(FRAME_MS * 60)
+    vi.advanceTimersByTime(FRAME_MS * 400)
 
     expect(at(port)).toBe('500,500')
+  })
+
+  it('centres a frame larger than the port on that axis (M145)', () => {
+    // 1000 tall in an 800 port, top cut 300 → 100 cut at each end.
+    const port = mountPort([new DOMRect(-10, -300, 200, 1000)])
+
+    jumpToPlacement(P)
+    vi.advanceTimersByTime(FRAME_MS * 4)
+
+    expect(at(port)).toBe('466,300')
+  })
+
+  it('waits for the spread reveal to let go of the scroll', () => {
+    const port = mountPort([new DOMRect(-10, 100, 200, 150)])
+    port.dataset.revealHold = 'true'
+
+    jumpToPlacement(P)
+    vi.advanceTimersByTime(FRAME_MS * 20)
+    expect(at(port)).toBe('500,500')
+
+    delete port.dataset.revealHold
+    vi.advanceTimersByTime(FRAME_MS * 2)
+    expect(at(port)).toBe('466,500')
   })
 
   it('a newer jump to the cover drops the pending scroll', () => {
@@ -498,6 +521,16 @@ describe('jumpToPlacement scrolls the frame into view only when needed (B4)', ()
     vi.advanceTimersByTime(FRAME_MS * 5)
 
     expect(isCoverSelected()).toBe(true)
+    expect(at(port)).toBe('500,500')
+  })
+
+  it('leaves the port alone while the frame is not in it', () => {
+    const port = mountPort([new DOMRect(-10, 100, 200, 150)])
+    port.replaceChildren()
+
+    jumpToPlacement(P)
+    expect(() => vi.advanceTimersByTime(FRAME_MS * 5)).not.toThrow()
+
     expect(at(port)).toBe('500,500')
   })
 
