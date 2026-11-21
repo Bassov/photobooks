@@ -10,7 +10,7 @@ Core part of the Designer feature "fill book" (Owner Q-26, item 1 of 3, Must FB2
 
 - [ ] `src/core/ops/fill.ts`: `FillBookPlan`, `planFillBook(book, assetIds, maxPages)` and `fillBook(book, assetIds, saved, maxPages)`. Order E (empty own photo frames of spreads 0 … n−2, reading order) → new spreads in chunks of 2 at index `max(1, n−1)+k` → L (last page's empty frames); leftover = the tail. A shared helper is factored out of `insertSpreadWithAssets`; no nested ops. Cover, endpapers and master items stay `===`.
 - [ ] `src/core/ops/applyBookOp.ts`: op `{ type: 'fillBook', assetIds, templates, maxPages }`; `src/core/index.ts` exports both functions and the type.
-- [ ] `src/core/ops/fill.test.ts`: every unit case of the design spec "## Tests" plus a PBT (plan numbers = what `fillBook` does; every placed photo was unplaced before).
+- [ ] `src/core/ops/fill.test.ts`: every unit case of the design spec "## Tests"; `src/core/ops/fillBook.pbt.test.ts`: the PBT (plan numbers = what `fillBook` does; every placed photo was unplaced before).
 - [ ] OpenSpec: the fill-book requirement lands in a core book-ops capability spec (not `editor-shell`).
 - **Browser check:** none (core only; kit FB1 and prod FB3 are later items; the history label belongs to FB3).
 
