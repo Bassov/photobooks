@@ -654,8 +654,8 @@ test('kit-sync W5 (#/demo, Designer kit-sync Spec 13 = prod FilmstripDock): film
       return +g.getBoundingClientRect().y.toFixed(2)
     })
   expect(
-    emptyY != null && Math.abs(emptyY - 829.3) <= 0.5,
-    `design-r16 M88: empty strip “No photos yet…” text y 829.3 (±0.5, prod .pb-empty-title 18 px / 1.3 around 13 px / 1.35; was 827.58) — ${String(emptyY)}`,
+    emptyY != null && Math.abs(emptyY - 843.3) <= 0.5,
+    `design-r16 M88: empty strip “No photos yet…” text y 843.3 (±0.5, prod .pb-empty-title 18 px / 1.3 around 13 px / 1.35; filmstrip-resize-kit: the empty row follows H = 76, was 829.3 at the 104 px --thumb) — ${String(emptyY)}`,
   ).toBe(true)
   // empty: no photos → the filter keeps the plain empty copy (prod shows the all-placed copy only with photos)
   const click = async (sel: string) => {
