@@ -11,3 +11,5 @@
 1. Right-click a filled photo frame: 14 rows, no highlighted row; Fit photo to frame swaps the label to Fill frame on reopen.
 2. Copy from the menu, right-click empty paper: Paste lands +5 mm and is selected.
 3. Replace photo… then click a filmstrip thumb: the frame shows that photo.
+
+`pnpm agent manual-qa`: problem (harness) — all 3 scenarios stop before the editor: `start-session` click intercepted by the welcome-screen header (known manual-qa blockage). Covered instead by Playwright at 1440×900: 1 = `frame-context-menu.spec.ts` "filled frame: 14 rows…" + "Duplicate, Fit ↔ Fill and Delete…"; 2 = "menu Copy, then the page menu Paste…"; 3 = "Replace photo… picks thumb 3…" — all OK locally.
