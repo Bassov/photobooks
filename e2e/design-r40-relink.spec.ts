@@ -5,8 +5,8 @@ import { pixelsAt } from './fixtures/paintProbe'
 
 // design-r40-relink-prod (Designer walkthrough-ux-review p5, Must M150): the
 // Relink dialog matches the kit RelinkDialog (uikit/src/demo-parts/dialogs.tsx,
-// p5/out/check3.json). Kit offsets are from its borderless panel, so prod
-// offsets are read from the panel's padding box (inside the 1 px border).
+// p5/out/check3.json). design-r44-relink-border-prod (p6, Must M154): the panel
+// is borderless like the kit's, so offsets are read from its outer box.
 
 test.use({ viewport: { width: 1440, height: 900 } })
 
@@ -46,8 +46,17 @@ async function openRelinkWithMissing(page: Page): Promise<void> {
 
 interface Geometry {
   width: number
+  panelBorder: string
   title: { x: number; y: number; size: number; lh: number; ls: number }
-  list: { x: number; right: number; border: string; bg: string; mt: number }
+  sub: { lh: number; h: number }
+  list: {
+    x: number
+    right: number
+    top: number
+    border: string
+    bg: string
+    mt: number
+  }
   rows: { h: number; pad: string; border: string }[]
   nameLh: number
   badge: { pad: string }
@@ -55,14 +64,14 @@ interface Geometry {
   foot: { border: string; bottom: number; right: number }
 }
 
-/** Panel, title, list, row, badge and footer geometry, padding-box relative. */
+/** Panel, title, list, row, badge and footer geometry, outer-box relative. */
 function readGeometry(page: Page): Promise<Geometry> {
   return page.getByTestId('relink-dialog').evaluate((panel): Geometry => {
     const p = panel.getBoundingClientRect()
-    const x0 = p.left + panel.clientLeft
-    const y0 = p.top + panel.clientTop
-    const right0 = x0 + panel.clientWidth
-    const bottom0 = y0 + panel.clientHeight
+    const x0 = p.left
+    const y0 = p.top
+    const right0 = p.right
+    const bottom0 = p.bottom
     const q = (sel: string): HTMLElement => {
       const el = panel.querySelector<HTMLElement>(sel)
       if (el === null) throw new Error(`missing ${sel}`)
@@ -77,6 +86,7 @@ function readGeometry(page: Page): Promise<Geometry> {
     const lr = list.getBoundingClientRect()
     const lcs = getComputedStyle(list)
     const header = q('header').getBoundingClientRect()
+    const sub = q('header p')
     const rows = [
       ...panel.querySelectorAll<HTMLElement>('[data-testid="relink-row"]'),
     ]
@@ -93,6 +103,11 @@ function readGeometry(page: Page): Promise<Geometry> {
     )
     return {
       width: p.width,
+      panelBorder: getComputedStyle(panel).borderTopWidth,
+      sub: {
+        lh: Number.parseFloat(getComputedStyle(sub).lineHeight),
+        h: sub.getBoundingClientRect().height,
+      },
       title: {
         x: t.left - x0,
         y: title.getBoundingClientRect().top - y0,
@@ -103,6 +118,7 @@ function readGeometry(page: Page): Promise<Geometry> {
       list: {
         x: lr.left - x0,
         right: right0 - lr.right,
+        top: lr.top - y0,
         border: lcs.borderTopWidth,
         bg: lcs.backgroundColor,
         mt: lr.top - header.bottom,
@@ -145,8 +161,13 @@ test('the Relink dialog matches the kit RelinkDialog geometry', async ({
   const g = await readGeometry(page)
 
   near(g.width, 560)
-  near(g.title.x, 24)
-  near(g.title.y, 20)
+  // M154: borderless panel, kit offsets from the outer box (±0.5).
+  expect(g.panelBorder).toBe('0px')
+  near(g.title.x, 24, 0.5)
+  near(g.title.y, 20, 0.5)
+  near(g.sub.lh, 18.85, 0.01)
+  near(g.sub.h, 37.69, 0.5)
+  near(g.list.top, 103.94, 0.5)
   expect(g.title.size).toBe(21)
   near(g.title.lh, 26.25, 0.01)
   near(g.title.ls, -0.105, 0.001)
@@ -164,8 +185,8 @@ test('the Relink dialog matches the kit RelinkDialog geometry', async ({
   expect(g.badge.pad).toBe('0px 6px 0px 4px')
   expect(g.dot).toEqual({ w: 5, h: 5 })
   expect(g.foot.border).toBe('0px')
-  near(g.foot.bottom, 20)
-  near(g.foot.right, 24)
+  near(g.foot.bottom, 20, 0.5)
+  near(g.foot.right, 24, 0.5)
 })
 
 test('the Missing badge paints its status dot', async ({ page }) => {

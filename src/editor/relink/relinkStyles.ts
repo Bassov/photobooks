@@ -9,7 +9,8 @@ import type { CSSProperties } from 'react'
 export const relinkSubStyle: CSSProperties = {
   margin: '0.25rem 0 0',
   fontSize: 'var(--text-sm)',
-  lineHeight: 1.4,
+  /* Kit text-sm leading-[1.45] → 18.85 px at 13 px (r44 M154). */
+  lineHeight: 1.45,
   color: 'var(--muted-foreground)',
 }
 
