@@ -11,3 +11,8 @@
 1. `/uikit/#/full/site-settings` at 1440×900 → Interface: one row, 100% selected, hint "Bigger text and controls for 4K screens."
 2. Pick 150% → hint "Window too small for 150%: showing 100%.", nothing grows.
 3. At 1920×1080 pick 125% → the stage grows 1.25×, no scrollbars.
+
+Results (agent manual-qa cannot drive the kit; evidence = kit e2e + `#/demo` walk):
+
+- OK 1–3: `e2e/kit-interface-size.spec.ts` 6/6; `pnpm test:e2e:quiet e2e/kit-` 396/396.
+- OK `#/demo` walk: 94 steps, `91-settings-interface.png` shows the one row at 100 %.
