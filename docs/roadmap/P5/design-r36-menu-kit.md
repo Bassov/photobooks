@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item design-r36-menu-kit
+Status: done
 
 Designer Round 36 parity for the frame context menu in the kit (Musts M141–M143; Spec
 `shared/design/frame-context-menu/spec.md`). Kit-only: prod already matches the Spec (`design-r36-menu-prod` owns src/).
