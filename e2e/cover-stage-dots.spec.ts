@@ -4,8 +4,17 @@ import { openSessionEditor } from './fixtures/openSessionEditor'
 import { pixelsAt, type Point } from './fixtures/paintProbe'
 
 // Designer cover-editor M95 (2026-11-06): the cover, endpaper and masters
-// stages show the pasteboard dot grid of the spread workspace (kit dots
-// 229–230 beside the sheet; prod painted a flat 198–200).
+// stages show the pasteboard dot grid of the spread workspace (prod painted a
+// flat 198–200 before).
+//
+// Polish P9 (2026-11-21): `--dot` is white at alpha .30 (was .55). Over the
+// canvas red ≈ 200 a full-coverage dot pixel is 200 + (255 − 200) × .30 ≈ 216.5,
+// so dots read 216–217 (they read 229–230 at .55). DOT_MIN 212 sits ~4 below
+// the dot and ~12 above the canvas; PHASE_MIN 208 (≈ half coverage) marks the
+// dot pixels of the 16 px phase, clear of the canvas plus a few levels of
+// endpaper-shadow dimming.
+const DOT_MIN = 212
+const PHASE_MIN = 208
 
 /** 16 × 16 px (one dot pitch) in the left side band, at mid height. */
 const block = (height: number): Point[] =>
@@ -31,7 +40,7 @@ async function grid(page: Page): Promise<Grid> {
   const red = (await pixelsAt(canvas, block(box.height))).map(([r = 0]) => r)
   return {
     dot: Math.max(...red),
-    phase: red.flatMap((v, i) => (v >= 215 ? [i] : [])),
+    phase: red.flatMap((v, i) => (v >= PHASE_MIN ? [i] : [])),
     canvas: Math.min(...red),
   }
 }
@@ -45,16 +54,16 @@ test('M95: cover, endpaper and masters stages keep the workspace dot grid', asyn
   page,
 }) => {
   const spread = await grid(page)
-  expect(spread.dot).toBeGreaterThanOrEqual(225)
+  expect(spread.dot).toBeGreaterThanOrEqual(DOT_MIN)
   expect(spread.phase.length).toBeGreaterThan(0)
 
-  // Dots ≥ 225 at the workspace phase (no jump spread ↔ stage) on the
+  // Dots ≥ DOT_MIN at the workspace phase (no jump spread ↔ stage) on the
   // canvas colour (opaque stage: no spread shows through; the endpaper
   // sheet shadow dims the band by a few levels).
   const sameGrid = async () => {
     const now = await grid(page)
     return {
-      dot: now.dot >= 225,
+      dot: now.dot >= DOT_MIN,
       phase: now.phase,
       canvas: Math.abs(now.canvas - spread.canvas) <= 8,
     }
