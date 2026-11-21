@@ -10,15 +10,15 @@ Kit `#/demo` editor: Alt held at the press on a frame = duplicate drag (Designer
 
 ## Scope
 
-- [ ] `uikit/src/sandbox/canvas.tsx` `onFrameDown` / `moveFrames`: Alt-press duplicate session with `altLatch` (true at the
+- [x] `uikit/src/sandbox/canvas.tsx` `onFrameDown` / `moveFrames`: Alt-press duplicate session with `altLatch` (true at the
       press, false on the first pointermove without Alt; snap bypass = `altKey && !altLatch || !snapOn`); no change before the
       3 px slop; clones at opacity .85 with the `0 0 0 2px var(--select)` ring and no handles, originals unchanged without ring;
       Shift axis lock; Esc / lost pointer = nothing dispatched; release = one "Duplicate frame(s)" step, selection = new frames.
       A press on a selected frame duplicates the whole selection; on an unselected frame, selects and duplicates it.
-- [ ] `copy` cursor while Alt is held over an own frame / override copy with the Select tool.
-- [ ] `uikit/src/sandbox/clipboard.ts`: `duplicateFrames` takes the drag delta; a finished Alt-drag sets `lastDuplicate` (D8).
-- [ ] `uikit/scripts/demo-capture.mjs`: steps `editor-frame-alt-drag` (mid-drag) and `editor-frame-alt-dropped`.
-- [ ] New `e2e/kit-frame-alt-duplicate.spec.ts`.
+- [x] `copy` cursor while Alt is held over an own frame / override copy with the Select tool.
+- [x] `uikit/src/sandbox/clipboard.ts`: `duplicateFrames` takes the drag delta; a finished Alt-drag sets `lastDuplicate` (D8).
+- [x] `uikit/scripts/demo-capture.mjs`: steps `editor-frame-alt-drag` (mid-drag) and `editor-frame-alt-dropped`.
+- [x] New `e2e/kit-frame-alt-duplicate.spec.ts`.
 
 ## Done when
 
