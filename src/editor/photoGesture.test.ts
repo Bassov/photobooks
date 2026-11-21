@@ -25,7 +25,11 @@ function load(aspect: number, extra: Partial<Frame> = {}) {
       gallery: ['p'],
       spreads: [
         makeSpread({
-          frames: [makeFrame({ id: 'a', rect: RECT, assetId: 'p', ...extra })],
+          frames: [
+            makeFrame({ id: 'a', rect: RECT, assetId: 'p', ...extra }),
+            // Another photo frame, for crop mode pinned elsewhere.
+            makeFrame({ id: 'b', rect: RECT, assetId: 'p' }),
+          ],
         }),
       ],
     }),
@@ -354,7 +358,23 @@ describe('photoGesture', () => {
     )
   })
 
-  it('ignores locked frames, crop mode, other tools and unknown handles', () => {
+  it('takes corner presses on the pinned frame (crop mode); pans stay with crop mode', () => {
+    setup(2)
+    const spreadId = getBookStoreSnapshot().book.spreads[0]?.id ?? ''
+    enterCropMode(spreadId, 'b')
+    expect(fire('pointerdown', corner('se'), 125, 125).defaultPrevented).toBe(
+      false,
+    )
+    enterCropMode(spreadId, 'a')
+    expect(fire('pointerdown', dom.grabber, 125, 125).defaultPrevented).toBe(
+      false,
+    )
+    const down = fire('pointerdown', corner('se'), 125, 125)
+    expect(down.defaultPrevented).toBe(true)
+    fire('pointerup', window, 125, 125)
+  })
+
+  it('ignores locked frames, other tools and unknown handles', () => {
     setup(2, { locked: true })
     expect(fire('pointerdown', dom.grabber, 125, 125).defaultPrevented).toBe(
       false,
@@ -362,11 +382,6 @@ describe('photoGesture', () => {
     stop()
     dom.spread.remove()
     setup(2)
-    enterCropMode(getBookStoreSnapshot().book.spreads[0]?.id ?? '', 'a')
-    expect(fire('pointerdown', dom.grabber, 125, 125).defaultPrevented).toBe(
-      false,
-    )
-    exitCropMode()
     setEditorTool('text')
     expect(fire('pointerdown', dom.grabber, 125, 125).defaultPrevented).toBe(
       false,

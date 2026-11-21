@@ -6,6 +6,12 @@ const HIDE_DELAY_MS = 400
 const HIDE_SLOP_PX = 12
 
 const CORNERS = ['nw', 'ne', 'sw', 'se'] as const
+const CORNER_NAMES: Record<(typeof CORNERS)[number], string> = {
+  nw: 'top left',
+  ne: 'top right',
+  sw: 'bottom left',
+  se: 'bottom right',
+}
 
 /**
  * Designer walkthrough-ux-review §A (direct crop) on a selected photo frame:
@@ -20,19 +26,26 @@ export function PhotoChrome({
   src,
   box,
   grabber,
+  pinned,
 }: {
   src: string
   /** The photo's box in the frame (the image style without its filter). */
   box: CSSProperties
-  /** Grabber point, % of the frame. */
-  grabber: { x: number; y: number }
+  /** Grabber point, % of the frame; null on a frame side < 64 screen px. */
+  grabber: { x: number; y: number } | null
+  /**
+   * Pinned crop (double-click / Crop): the layer stays shown and the photo
+   * handles take keyboard focus (src/editor/cropGesture.ts cycles them).
+   */
+  pinned: boolean
 }) {
-  const [shown, setShown] = useState(false)
+  const [hovered, setShown] = useState(false)
+  const shown = hovered || pinned
   const extent = useRef<HTMLSpanElement>(null)
   useEffect(() => {
     // The extent span is always mounted, so the ref is set once effects run.
     const node = extent.current
-    if (!shown || node === null) {
+    if (!hovered || node === null) {
       return
     }
     let timer: number | undefined
@@ -56,7 +69,7 @@ export function PhotoChrome({
       window.removeEventListener('pointermove', onMove)
       window.clearTimeout(timer)
     }
-  }, [shown])
+  }, [hovered])
   const show = (): void => {
     setShown(true)
   }
@@ -84,26 +97,28 @@ export function PhotoChrome({
           style={box}
         />
       </span>
-      <span
-        className="spread-frame-grabber"
-        data-testid="crop-grabber"
-        data-photo-pan=""
-        data-camera-frame=""
-        title="Drag to move the photo"
-        aria-hidden
-        style={
-          {
-            '--grab-x': `${String(grabber.x)}%`,
-            '--grab-y': `${String(grabber.y)}%`,
-          } as CSSProperties
-        }
-        onPointerEnter={show}
-      />
+      {grabber === null ? null : (
+        <span
+          className="spread-frame-grabber"
+          data-testid="crop-grabber"
+          data-photo-pan=""
+          data-camera-frame=""
+          title="Drag to move the photo"
+          aria-hidden
+          style={
+            {
+              '--grab-x': `${String(grabber.x)}%`,
+              '--grab-y': `${String(grabber.y)}%`,
+            } as CSSProperties
+          }
+          onPointerEnter={show}
+        />
+      )}
       <span
         className="spread-frame-photo-handles"
         data-testid="photo-handles"
         data-shown={state}
-        aria-hidden
+        aria-hidden={pinned ? undefined : true}
       >
         <span className="spread-frame-photo-box" data-photo-box="" style={box}>
           {CORNERS.map((corner) => (
@@ -113,6 +128,13 @@ export function PhotoChrome({
               data-testid="photo-handle"
               data-photo-handle={corner}
               data-camera-frame=""
+              {...(pinned
+                ? {
+                    role: 'button',
+                    tabIndex: 0,
+                    'aria-label': `Scale photo from ${CORNER_NAMES[corner]}`,
+                  }
+                : {})}
               onPointerEnter={show}
             />
           ))}

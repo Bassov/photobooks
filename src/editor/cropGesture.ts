@@ -8,6 +8,7 @@ import {
   getBookStoreSnapshot,
 } from './bookStore'
 import { cropWheelFactor, panCrop, zoomCrop, type FramePx } from './cropMath'
+import { cycledIndex, pinnedCropKey } from './cropKeys'
 import { exitCropMode, getCropTarget, type CropTarget } from './cropMode'
 import { editorKeysSuspended } from './editorKeysGate'
 
@@ -17,10 +18,9 @@ type Crop = NonNullable<Frame['crop']>
 const DRAG_SLOP_PX = 3
 /** Wheel bursts commit this long after the last notch. */
 const WHEEL_SETTLE_MS = 140
-const NUDGE_PX = 1
-const NUDGE_SHIFT_FACTOR = 10
-
 const CROP_FRAME_SELECTOR = '[data-crop-active="true"]'
+/** Photo corner handles (src/render/PhotoChrome.tsx), focusable when pinned. */
+const PHOTO_HANDLE_SELECTOR = '[data-photo-handle]'
 /** Controls that keep crop mode alive when pressed (inspector section). */
 const CROP_KEEP_SELECTOR = '[data-crop-keep]'
 
@@ -90,38 +90,20 @@ function commit(frame: FrameContext, next: Crop): void {
     clearPreview(frame.element)
     return
   }
-  dispatchBookOp({
-    type: 'setCrop',
-    spreadId: frame.target.spreadId,
-    frameId: frame.target.frameId,
-    crop: next,
-  })
-}
-
-function isArrow(key: string): boolean {
-  return (
-    key === 'ArrowLeft' ||
-    key === 'ArrowRight' ||
-    key === 'ArrowUp' ||
-    key === 'ArrowDown'
+  const { spreadId, frameId } = frame.target
+  // §A: one history step per gesture (pan, wheel burst, key press). The key
+  // names the new crop, so it differs from the last commit's and consecutive
+  // crops never coalesce into one step.
+  dispatchBookOp(
+    { type: 'setCrop', spreadId, frameId, crop: next },
+    `crop-gesture:${spreadId}:${frameId}:${String(next.zoom)}:${String(next.center.x)}:${String(next.center.y)}`,
   )
 }
 
-function arrowVector(key: string): [number, number] {
-  switch (key) {
-    case 'ArrowLeft':
-      return [-1, 0]
-    case 'ArrowRight':
-      return [1, 0]
-    case 'ArrowUp':
-      return [0, -1]
-    default:
-      return [0, 1]
-  }
-}
-
 /**
- * Crop-mode gestures: drag pans, wheel zooms, arrows nudge, Esc exits.
+ * Crop-mode (pinned) gestures: drag pans, wheel zooms, arrows nudge, Tab
+ * cycles the photo handles, Esc exits. Photo handle presses belong to
+ * src/editor/photoGesture.ts (it stops them before this capture listener).
  * Preview is a `transform` on the frame images painted in rAF; one crop op is
  * committed at gesture end. Capture-phase so the pasteboard camera never sees
  * wheel / drag events aimed at the cropped frame.
@@ -307,30 +289,47 @@ export function installCropGesture(): () => void {
     if (cropTarget === null || editorKeysSuspended()) {
       return
     }
-    if (event.key === 'Escape') {
+    const action = pinnedCropKey(event)
+    if (action?.kind === 'exit') {
       flushWheel()
       finishPan(false)
       exitCropMode()
       return
     }
     if (
-      !isArrow(event.key) ||
-      event.ctrlKey ||
-      event.metaKey ||
-      event.altKey ||
+      action === null ||
       event.target instanceof HTMLInputElement ||
       event.target instanceof HTMLTextAreaElement
     ) {
       return
     }
     const element = activeFrameElement()
+    if (action.kind === 'tab') {
+      const handles = [
+        ...(element?.querySelectorAll<HTMLElement>(PHOTO_HANDLE_SELECTOR) ??
+          []),
+      ]
+      if (handles.length === 0) {
+        return
+      }
+      event.preventDefault()
+      const current = handles.findIndex(
+        (handle) => handle === document.activeElement,
+      )
+      const next = cycledIndex(current, handles.length, action.back)
+      for (const [index, handle] of handles.entries()) {
+        if (index === next) {
+          handle.focus()
+        }
+      }
+      return
+    }
     const frame = element === null ? null : frameContext(element, cropTarget)
     if (frame === null) {
       return
     }
     event.preventDefault()
-    const step = NUDGE_PX * (event.shiftKey ? NUDGE_SHIFT_FACTOR : 1)
-    const [vx, vy] = arrowVector(event.key)
+    // Screen px through the camera zoom, one crop op per press.
     commit(
       frame,
       panCrop(
@@ -338,8 +337,8 @@ export function installCropGesture(): () => void {
         frame.crop,
         frame.aspect,
         frame.framePx,
-        vx * step,
-        vy * step,
+        action.dx * frame.toLayout,
+        action.dy * frame.toLayout,
         frame.fit,
       ),
     )

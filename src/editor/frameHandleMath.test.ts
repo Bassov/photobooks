@@ -3,6 +3,7 @@ import {
   pointerAngleDeg,
   resizeRectByHandle,
   rotatedDeg,
+  snapRotationDeg,
 } from './frameHandleMath'
 
 const RECT = { x: 100, y: 100, width: 40, height: 20 }
@@ -172,5 +173,55 @@ describe('rotation helpers', () => {
     expect(rotatedDeg(10, 0, 20, true)).toBe(30)
     expect(rotatedDeg(0, 0, 21, true)).toBe(15)
     expect(rotatedDeg(0, 0, 23, true)).toBe(30)
+  })
+
+  it('snaps a free sweep that ends 2° from a quarter turn', () => {
+    expect(rotatedDeg(0, 0, 88, false)).toBe(90)
+    expect(rotatedDeg(0, 0, 87.9, false)).toBe(87.9)
+  })
+})
+
+describe('snapRotationDeg', () => {
+  it.each([
+    [88, 90],
+    [92, 90],
+    [-2, 0],
+    [2, 0],
+    [1.5, 0],
+    [178, 180],
+    [-178, 180],
+    [-91.5, -90],
+    [272, -90],
+    [-268, 90],
+  ])('snaps %d° to the quarter turn %d°', (deg, want) => {
+    expect(snapRotationDeg(deg, false)).toBe(want)
+  })
+
+  it.each([
+    [2.1, 2.1],
+    [87.9, 87.9],
+    [-45, -45],
+    [190, -170],
+    [-190, 170],
+    [360 + 30, 30],
+    [-180, 180],
+  ])('keeps %d° off the quarter turns as %d°', (deg, want) => {
+    expect(snapRotationDeg(deg, false)).toBeCloseTo(want, 9)
+  })
+
+  it.each([
+    [7.4, 0],
+    [7.5, 15],
+    [-23, -30],
+    [44, 45],
+    [-179, 180],
+    [200, -165],
+  ])('Shift rounds %d° to the 15° step %d°', (deg, want) => {
+    expect(snapRotationDeg(deg, true)).toBe(want)
+  })
+
+  it('never returns -0', () => {
+    expect(Object.is(snapRotationDeg(-1, false), 0)).toBe(true)
+    expect(Object.is(snapRotationDeg(-3, true), 0)).toBe(true)
   })
 })
