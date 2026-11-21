@@ -39,6 +39,12 @@
   outline: none;
 }
 
+/* Kit text input (uikit textfield.tsx px-3, no border): the field-coloured
+   1px border stays for the invalid state, so 1px + 11px = kit's 12px inset. */
+.pb-field__control--text {
+  padding: 0 calc(var(--spacing) * 2.75);
+}
+
 .pb-field__control::placeholder {
   color: var(--muted-foreground);
 }
