@@ -13,3 +13,12 @@
 2. Start a publish and hide the dialog: the pill is light grey #BFBDB9 with an ink progress fill and NN%.
 3. Icons in the top bar and panels look thinner; filmstrip Low-res and placed check glyphs stay crisp at 10 px.
 4. Canvas dots are fainter.
+
+manual-qa (2026-11-21): harness problem — `locator.click: Timeout 30000ms exceeded` on `start-session` (intercepted by the welcome `<header>`); no scenario ran. Covered by e2e instead:
+
+- 1: problem (harness) → e2e `polish-icons-chrome.spec.ts` prod + kit tests (rest / hover / focus-visible computed style + hover pixels), `design-tokens.spec.ts` (Preview / Print stay field) — pass.
+- 2: problem (harness) → e2e `in-app-publish.spec.ts` running look + paint, `kit-in-app-publish.spec.ts` running paint (ink 35 / busy 191) — pass.
+- 3: problem (harness) → e2e `polish-icons-chrome.spec.ts` strokes by rendered size 10 / 12 / 14 / 16 — pass.
+- 4: problem (harness) → e2e `polish-icons-chrome.spec.ts` dot colour rgba(255,255,255,.3) + dot-centre paint +13…19 over #C8CACB — pass.
+
+ui-review: tokens only (`--primary-busy` added to docs/design.md); focus 2 px outline; rest / hover / focus / disabled / running / done / failed covered; one primary action. [low] running text #F2F2F2 on #BFBDB9 is low contrast where the ink fill has not reached (Designer-specified P8; the percent also sits in the status region).
