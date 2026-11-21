@@ -297,6 +297,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [design-r33-forms-prod](roadmap/P5/design-r33-forms-prod.md) — Bug: /next-roadmap-item design-r33-forms-prod
 - [ ] [feature] [connect-own-hosting-core](roadmap/P5/connect-own-hosting-core.md) — Bug: /next-roadmap-item connect-own-hosting-core
 - [ ] [feature] [connect-own-hosting](roadmap/P5/connect-own-hosting.md) — bring your own hosting (Security Review)
+- [ ] [feature] [polish-icons-chrome](roadmap/P5/polish-icons-chrome.md) — Bug: /next-roadmap-item polish-icons-chrome
 - [ ] [lite] [site-reader-gl-ready](roadmap/P5/site-reader-gl-ready.md) — Bug: /next-roadmap-item site-reader-gl-ready
 - [ ] [lite] [cycle-layouts-core](roadmap/P5/cycle-layouts-core.md) — Bug: /next-roadmap-item cycle-layouts-core
 - [ ] [feature] [interface-size-core](roadmap/P5/interface-size-core.md) — Bug: /next-roadmap-item interface-size-core

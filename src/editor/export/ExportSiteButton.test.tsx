@@ -88,6 +88,9 @@ describe('ExportSiteButton', () => {
     expect(pill().getAttribute('aria-label')).toBe('Export site')
     expect(pill().getAttribute('title')).toBe('Exporting site · 42%')
     expect(pill().style.getPropertyValue('--site-job-progress')).toBe('0.42')
+    // Secondary fill (walkthrough-polish-review P8: only Publish is ink).
+    expect(pill().classList.contains('site-job-pill--primary')).toBe(false)
+    expect(pill().style.background).toBe('#D7D7D7')
     expect(screen.getByTestId('export-site-sizer').textContent).toBe(
       'Export site',
     )

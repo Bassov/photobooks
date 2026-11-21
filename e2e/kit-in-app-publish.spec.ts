@@ -246,11 +246,13 @@ test.describe('K2 the Publish pill', () => {
     for (const [name, state] of Object.entries(states)) {
       await tab(page, name)
       await expect(p).toHaveAttribute('data-state', state)
-      near(await width(p), 73.58)
+      near(await width(p), 69.58)
     }
   })
 
-  test('running paints NN% over the #BEBEBE fill', async ({ page }) => {
+  // walkthrough-polish-review P8: Publish is the ink pill; while it runs the
+  // pill is #BFBDB9 and the progress fills in ink (#232223) under NN%.
+  test('running paints NN% over the ink fill on #BFBDB9', async ({ page }) => {
     await scenario(page, 'Hidden, 42 %')
     const p = pill(page)
     await expect(live(p)).toHaveText('42%')
@@ -261,22 +263,29 @@ test.describe('K2 the Publish pill', () => {
       { x: 6, y: 16 },
       { x: Math.round(w - 8), y: 16 },
     ])
-    expect(a).toBe(190)
-    expect(b).toBe(215)
+    expect(a).toBe(35)
+    expect(b).toBe(191)
+    const look = await p.evaluate((el) => {
+      const s = getComputedStyle(el)
+      return { bg: s.backgroundColor, color: s.color, shadow: s.boxShadow }
+    })
+    expect(look.bg).toBe('rgb(191, 189, 185)')
+    expect(look.color).toBe('rgb(242, 242, 242)')
+    expect(look.shadow).not.toContain('rgba(20, 20, 19, 0.06)')
   })
 
-  test('#/demo: Publish hovers like Preview, idle box unchanged', async ({
+  test('#/demo: Publish is the ink pill (hover #3A3839), Preview stays quiet', async ({
     page,
   }) => {
     await seed(page)
     const p = pill(page)
-    near(await width(p), 73.58)
+    near(await width(p), 69.58)
     expect(
       await p.evaluate((el) => {
         const s = getComputedStyle(el)
         return [el.getBoundingClientRect().height, s.padding]
       }),
-    ).toEqual([32, '0px 14px'])
+    ).toEqual([32, '0px 12px'])
     const hovered = async (l: Locator) => {
       await l.hover()
       const [[r = 0, g = 0, b = 0] = []] = await pixelsAt(l, [{ x: 6, y: 16 }])
@@ -284,7 +293,8 @@ test.describe('K2 the Publish pill', () => {
     }
     const preview = await hovered(page.getByTestId('demo-preview'))
     expect(preview).toEqual([215, 215, 215])
-    expect(await hovered(p)).toEqual(preview)
+    // The colour transitions from ink: poll until it settles.
+    await expect.poll(() => hovered(p)).toEqual([58, 56, 57])
   })
 
   test('#/demo: Hide / Esc / outside click keep the run in the pill; P7; done opens Published', async ({
@@ -301,7 +311,7 @@ test.describe('K2 the Publish pill', () => {
     await expect(dialog(page)).toHaveCount(0)
     await expect(pill(page)).toHaveAttribute('data-state', 'running')
     await expect(live(pill(page))).toHaveText('50%')
-    near(await width(pill(page)), 73.58)
+    near(await width(pill(page)), 69.58)
     await expect(page.getByTestId('demo-publish-status')).toHaveText(
       'Publishing, 50%',
     )
@@ -321,7 +331,7 @@ test.describe('K2 the Publish pill', () => {
     await release(page)
     await expect(pill(page)).toHaveAttribute('data-state', 'done')
     await expect(pill(page).locator('svg.lucide-circle-check')).toHaveCount(1)
-    near(await width(pill(page)), 73.58)
+    near(await width(pill(page)), 69.58)
     await expect(page.getByTestId('demo-publish-status')).toHaveText(
       'Published',
     )

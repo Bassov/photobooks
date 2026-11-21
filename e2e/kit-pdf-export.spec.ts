@@ -571,12 +571,14 @@ test.describe('PE4 top bar at 1440', () => {
         return [b?.x ?? 0, b?.width ?? 0, b?.height ?? 0]
       }),
     )
+    // walkthrough-polish-review P8: Publish insets 12 (was 14), the cluster
+    // keeps its right end, so every x moves 4 px right.
     const want = [
-      [1042.64, 95.45],
-      [1144.09, 40],
-      [1190.09, 112.33],
-      [1308.42, 40],
-      [1354.42, 73.58],
+      [1046.64, 95.45],
+      [1148.09, 40],
+      [1194.09, 112.33],
+      [1312.42, 40],
+      [1358.42, 69.58],
     ]
     boxes.forEach(([x = 0, w = 0, h = 0], i) => {
       const [wx = 0, ww = 0] = want[i] ?? []

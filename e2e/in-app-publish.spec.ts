@@ -410,14 +410,21 @@ test('the pill keeps its width in every state; Hide keeps the canvas editable', 
   await page.getByTestId('publish-hide').click()
   await expect(dialog(page)).toHaveCount(0)
   await expect(pill(page)).toHaveAttribute('data-state', 'running')
-  // Painted: the progress fill covers the left share, the field the rest.
+  // Painted: the ink progress fill covers the left share, the running
+  // #BFBDB9 the rest (walkthrough-polish-review P8).
   const { width } = (await pill(page).boundingBox()) ?? { width: 0 }
   const [filled, field] = await pixelsAt(pill(page), [
     { x: width * 0.15, y: 4 },
     { x: width * 0.85, y: 4 },
   ])
-  expect(field).toEqual([215, 215, 215, 255])
+  expect(field).toEqual([191, 189, 185, 255])
   expect(filled).not.toEqual(field)
+  expect(
+    await pill(page).evaluate((el) => {
+      const s = getComputedStyle(el)
+      return [s.backgroundColor, s.color, s.boxShadow]
+    }),
+  ).toEqual(['rgb(191, 189, 185)', 'rgb(242, 242, 242)', 'none'])
   await expect(page.getByTestId('undo')).toBeDisabled()
   await dragFrame(page, 6)
   await expect(page.getByTestId('undo')).toBeEnabled()

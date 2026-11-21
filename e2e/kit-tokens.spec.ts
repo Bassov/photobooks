@@ -740,6 +740,9 @@ function blackOutsideSelection() {
     if (e.closest('[data-testid="panel-b"]') && e.querySelector('svg')) continue
     if (e.closest('[data-photo][data-selected]') && e.tagName === 'SPAN')
       continue
+    // walkthrough-polish-review P8: Publish is the top bar's one primary
+    // (ink) button.
+    if (e.closest('[data-testid="demo-publish"]')) continue
     bad.push(
       `${e.tagName}.${String((e as unknown as { className: unknown }).className).slice(0, 30)}`,
     )

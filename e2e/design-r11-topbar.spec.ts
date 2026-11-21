@@ -22,8 +22,14 @@ import { openLibraryBook } from './fixtures/openLibraryBook'
 // Settings (Preview right + 6), 40 × 32, the same pill and colours.
 // Export site (Settings right + 6), the same pill (static-export §1), Print
 // (Export site right + 6, 40 × 32; pdf-export D1), then Publish (Print
-// right + 6, padding 0 14; in-app-publish §1), which ends the right cluster
-// at the bar's right inset, 1428, where the kit's last item ends.
+// right + 6; in-app-publish §1), which ends the right cluster at the bar's
+// right inset, 1428, where the kit's last item ends. Polish P8 (2026-11-21):
+// Publish is the ink pill, padding 0 12, bg rgb(35, 34, 35),
+// rgb(242, 242, 242), shadow --shadow-xs.
+
+const PUBLISH_BG = 'rgb(35, 34, 35)'
+const PUBLISH_INK = 'rgb(242, 242, 242)'
+const SHADOW_XS = 'rgba(20, 20, 19, 0.06) 0px 1px 2px 0px'
 
 const INK = 'rgb(57, 55, 56)'
 const MUTED = 'rgb(83, 81, 82)'
@@ -206,12 +212,14 @@ test.describe('design-r11-topbar M69', () => {
     const publish = await box(page.getByTestId('publish'))
     near(publish.x, print.right + KIT.previewToSettings, 'publish x')
     near(publish.right, KIT.barEnd, 'right cluster end')
+    // Polish P8: Publish is the one ink pill (bg #232223, text #F2F2F2,
+    // padding 0 12, --shadow-xs); the others keep the secondary fill.
     expect(await look(page.getByTestId('publish'))).toEqual({
-      bg: FIELD,
-      color: INK,
+      bg: PUBLISH_BG,
+      color: PUBLISH_INK,
       radius: PILL,
-      padding: '0px 14px',
-      shadow: 'none',
+      padding: '0px 12px',
+      shadow: SHADOW_XS,
     })
     for (const id of [
       'present',

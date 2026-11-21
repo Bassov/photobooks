@@ -106,6 +106,7 @@ export function PublishButton({
         name={PUBLISH_NAME}
         testId="publish"
         className="publish-pill"
+        primary
         kind={state.kind}
         percent={state.kind === 'running' ? state.percent : 0}
         rest={REST}

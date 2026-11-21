@@ -110,12 +110,14 @@ test.describe('pdf-export top bar', () => {
     page,
   }) => {
     await openLibraryBook(page)
+    // walkthrough-polish-review P8: Publish insets 12 (was 14); the cluster
+    // keeps its right end, so every x moves 4 px right.
     const want: [string, number, number][] = [
-      ['present', 1042.64, 95.45],
-      ['editor-settings-open', 1144.09, 40],
-      ['export-site', 1190.09, 112.33],
-      ['print', 1308.42, 40],
-      ['publish', 1354.42, 73.58],
+      ['present', 1046.64, 95.45],
+      ['editor-settings-open', 1148.09, 40],
+      ['export-site', 1194.09, 112.33],
+      ['print', 1312.42, 40],
+      ['publish', 1358.42, 69.58],
     ]
     for (const [id, x, width] of want) {
       const b = await box(page.getByTestId(id))
