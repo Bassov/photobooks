@@ -6,6 +6,10 @@ import { topAt } from './fixtures/paintProbe'
 // §1, D4 clamp, D8 one row). IS1 kit side (values at 1440×900), IS4 kit side
 // (clamp against the stage, 1280×720 minimum app), IS10 (100 % = no zoom).
 
+// Unhinted text: a text-sized overlay (tooltip) at 15 px is its 12 px width
+// × 1.25 (hinting rounds glyph advances per size). Geometry above is fixed px.
+test.use({ launchOptions: { args: ['--font-render-hinting=none'] } })
+
 const KIT = '/uikit/#/full/site-settings'
 
 const near = (a: number, b: number, d = 0.5) => {
@@ -199,3 +203,160 @@ test.describe('1920×1080', () => {
     await seg(page, 100).click()
   })
 })
+
+// IS5 kit side (spec §4 portal rule): overlays portal outside the zoomed demo
+// and carry the scale themselves.
+test.describe('1920×1080 overlays', () => {
+  test.use({ viewport: { width: 1920, height: 1080 } })
+
+  test('IS5 kit: overlays at 125 % = the 100 % overlays × 1.25, anchored as at 100 %', async ({
+    page,
+  }) => {
+    const at100 = await overlayWalk(page, 100)
+    const at125 = await overlayWalk(page, 125)
+    const k = 1.25
+    // Create book dialog (modal overlay root zoomed): size × s, still centred
+    near(at125.dialog.w, at100.dialog.w * k)
+    near(at125.dialog.h, at100.dialog.h * k)
+    near(at125.dialog.cx, 960)
+    near(at100.dialog.cx, 960)
+    // Page size Select: as wide as its trigger, gap 4 · s, option rows × s
+    for (const m of [at100, at125]) {
+      near(m.select.w, m.select.triggerW)
+      near(m.select.left, 0)
+    }
+    near(at125.select.gap, at100.select.gap * k)
+    near(at125.select.row, at100.select.row * k)
+    // editor tooltip: size × s, gap × s, centred on its trigger
+    near(at125.tip.w, at100.tip.w * k)
+    near(at125.tip.h, at100.tip.h * k)
+    near(at125.tip.gap, at100.tip.gap * k)
+    near(at125.tip.cx, 0)
+    // editor toast (region zoomed): w-[320px] × s, its inset from the corner × s
+    near(at100.toast.w, 320)
+    for (const key of ['w', 'h', 'right', 'bottom'] as const)
+      near(at125.toast[key], at100.toast[key] * k)
+    // library book menu (bottom end): w-44 × s, gap × s, right edge on the trigger's as at 100 %
+    near(at100.menu.w, 176)
+    near(at125.menu.w, 176 * k)
+    near(at125.menu.h, at100.menu.h * k)
+    near(at125.menu.gap, at100.menu.gap * k)
+    near(at125.menu.right, at100.menu.right)
+    near(at125.menu.row, at100.menu.row * k)
+  })
+})
+
+interface Rect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** Waits out the enter animation (it slides / scales the box), then measures. */
+async function settled(l: Locator) {
+  await expect(l).toBeVisible()
+  await expect(l).not.toHaveAttribute('data-entering', /.*/)
+  return box(l)
+}
+
+const below = (o: Rect, t: Rect) => ({
+  w: o.width,
+  h: o.height,
+  gap: o.y - (t.y + t.height),
+})
+
+/** #/demo at `scale`: Create book dialog + its Page size Select, an editor tooltip, the library book menu. */
+async function overlayWalk(page: Page, scale: 100 | 125) {
+  await page.goto('/uikit/#/demo')
+  await page.evaluate(() => {
+    const d = (
+      window as unknown as {
+        __demo: { reset: () => void; go: (s: string) => void }
+      }
+    ).__demo
+    d.reset()
+    d.go('settings')
+  })
+  await page.getByTestId('settings-nav-interface').click()
+  await seg(page, scale).click()
+  await expect
+    .poll(() => css(page.getByTestId('demo'), 'zoom'))
+    .toBe(String(scale / 100))
+  await page.evaluate(() => {
+    ;(window as unknown as { __demo: { go: (s: string) => void } }).__demo.go(
+      'welcome',
+    )
+  })
+  const c = (sel: string) => page.locator(sel).first().click()
+  await c('[data-testid="create-library"]')
+  await c('[data-testid="picker-select"]')
+  await c('[data-testid="demo"] [data-testid="new-book"]')
+
+  const dialog = page.locator('[role=dialog]')
+  // the Modal (the dialog's box: width, radius, shadow)
+  const d = await settled(dialog.locator('..'))
+  const trigger = dialog.getByRole('button', { name: /Page size/ })
+  await trigger.click()
+  const t = await box(trigger)
+  const list = await settled(page.locator('[data-trigger="Select"]'))
+  const select = {
+    ...below(list, t),
+    triggerW: t.width,
+    left: list.x - t.x,
+    row: (await box(page.getByRole('option').first())).height,
+  }
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('option')).toHaveCount(0)
+  await dialog.locator('input').first().fill('Lake trip')
+  await c('[data-testid="create-book"]')
+  await expect(dialog).toHaveCount(0)
+
+  const tipTrigger = page.getByRole('button', { name: 'Snap', exact: true })
+  const tt = await box(tipTrigger)
+  await page.mouse.move(tt.x + tt.width / 2, tt.y + tt.height / 2)
+  const tipBox = await settled(page.locator('[role=tooltip]'))
+  const tip = {
+    ...below(tipBox, tt),
+    cx: tipBox.x + tipBox.width / 2 - (tt.x + tt.width / 2),
+  }
+  await page.mouse.move(0, 0)
+
+  // Delete spread → toast (the region is zoomed as a whole)
+  await c('[data-testid="spread-menu"]')
+  await page.getByRole('menuitem', { name: /Delete/ }).click()
+  const toastBox = await settled(page.getByRole('alertdialog'))
+  const toast = {
+    w: toastBox.width,
+    h: toastBox.height,
+    right: 1920 - (toastBox.x + toastBox.width),
+    bottom: 1080 - (toastBox.y + toastBox.height),
+  }
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Close' })
+    .click()
+  await expect(page.getByRole('alertdialog')).toHaveCount(0)
+
+  await c('[data-testid="editor-library"]')
+  const menuTrigger = page
+    .locator('[data-testid="demo"] [data-testid="book-menu"]')
+    .first()
+  await menuTrigger.click()
+  const mt = await box(menuTrigger)
+  const pop = await settled(page.locator('[data-trigger="MenuTrigger"]'))
+  const menu = {
+    ...below(pop, mt),
+    right: pop.x + pop.width - (mt.x + mt.width),
+    row: (await box(page.getByRole('menuitem').first())).height,
+  }
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('menuitem')).toHaveCount(0)
+  return {
+    dialog: { w: d.width, h: d.height, cx: d.x + d.width / 2 },
+    select,
+    tip,
+    toast,
+    menu,
+  }
+}

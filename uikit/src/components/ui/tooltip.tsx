@@ -15,25 +15,54 @@ import {
 
 import { cn } from "@/lib/utils"
 
+import {
+  POSITIONER,
+  SCALED_EDGE,
+  resolveClass,
+  scaledBox,
+  scaledGaps,
+  useOverlayScale,
+} from "./overlay-scale"
+
 const TooltipTrigger = AriaTooltipTrigger
 
-const Tooltip = ({ className, offset = 4, ...props }: AriaTooltipProps) => (
-  <AriaTooltip
-    offset={offset}
-    className={composeRenderProps(className, (className) =>
-      cn(
-        "z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md",
-        /* Entering */
-        "data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95",
-        /* Exiting — v4.3 (G-02): no exit animation. A tooltip that closed before its enter animation finished
-           could stay mounted in data-exiting (opacity 0, still role=tooltip) because animationend never fired. */
-        /* Placement */
-        "data-[placement=bottom]:slide-in-from-top-2 data-[placement=left]:slide-in-from-right-2 data-[placement=right]:slide-in-from-left-2 data-[placement=top]:slide-in-from-bottom-2",
-        className
-      )
-    )}
-    {...props}
-  />
-)
+const TOOLTIP_BOX = "rounded-md bg-popover shadow-md"
+const TOOLTIP_TEXT = "overflow-hidden px-3 py-1.5 text-sm text-popover-foreground"
+const TOOLTIP_MOTION = [
+  /* Entering */
+  "data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95",
+  /* Exiting — v4.3 (G-02): no exit animation. A tooltip that closed before its enter animation finished
+     could stay mounted in data-exiting (opacity 0, still role=tooltip) because animationend never fired. */
+  /* Placement */
+  "data-[placement=bottom]:slide-in-from-top-2 data-[placement=left]:slide-in-from-right-2 data-[placement=right]:slide-in-from-left-2 data-[placement=top]:slide-in-from-bottom-2",
+]
+
+/* Interface size (overlay-scale.tsx): at s ≠ 1 a zoomed box carries the paint (hairline in its 1 px
+   padding) and an inner text block the padding and the consumer's classes (they set padding / type). */
+const Tooltip = ({ className, offset = 4, crossOffset, containerPadding, children, ...props }: AriaTooltipProps) => {
+  const s = useOverlayScale()
+  const scaled = s !== 1
+  return (
+    <AriaTooltip
+      {...scaledGaps(s, offset, crossOffset, containerPadding)}
+      className={composeRenderProps(className, (className) =>
+        scaled
+          ? cn("z-50", POSITIONER, ...TOOLTIP_MOTION)
+          : cn("z-50 border", TOOLTIP_BOX, TOOLTIP_TEXT, ...TOOLTIP_MOTION, className)
+      )}
+      {...props}
+    >
+      {scaled
+        ? scaledBox(
+            s,
+            composeRenderProps(children, (content, values) => (
+              <div className={cn(TOOLTIP_TEXT, resolveClass(className, values))}>{content}</div>
+            )),
+            cn(TOOLTIP_BOX, SCALED_EDGE)
+          )
+        : children}
+    </AriaTooltip>
+  )
+}
 
 export { Tooltip, TooltipTrigger }

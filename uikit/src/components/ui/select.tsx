@@ -87,7 +87,8 @@ const SelectTrigger = ({ className, children, ...props }: AriaButtonProps) => (
 const SelectPopover = ({ className, ...props }: AriaPopoverProps) => (
   <Popover
     className={composeRenderProps(className, (className) =>
-      cn("w-(--trigger-width)", className)
+      // --trigger-width is screen px; the zoomed box (interface size) divides it back
+      cn("w-[calc(var(--trigger-width)/var(--overlay-scale,1))]", className)
     )}
     {...props}
   />
