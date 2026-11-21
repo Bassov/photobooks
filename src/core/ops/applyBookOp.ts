@@ -52,7 +52,7 @@ import {
   setFramesLocked,
   type ZMove,
 } from './arrange'
-import { fillSpread, insertSpreadWithAssets } from './fill'
+import { fillBook, fillSpread, insertSpreadWithAssets } from './fill'
 import { placeAsset, replaceAsset, swapFrames, unplaceAsset } from './place'
 import {
   resetSpreadGrid,
@@ -130,6 +130,14 @@ export type BookOp =
       assetIds: readonly string[]
       /** The user's saved layouts best fit may pick, in save order. */
       templates: readonly SavedTemplate[]
+    }
+  | {
+      /** Unplaced photos in caller order into empty frames and new spreads. */
+      type: 'fillBook'
+      assetIds: readonly string[]
+      templates: readonly SavedTemplate[]
+      /** Page limit new spreads stop at (the print profile's max). */
+      maxPages: number
     }
   | {
       type: 'setCrop'
@@ -467,6 +475,8 @@ function applyRaw(book: Book, op: BookOp): Book {
       return fillSpread(book, op.spreadId, op.frameId, op.assetIds)
     case 'insertSpreadWithAssets':
       return insertSpreadWithAssets(book, op.index, op.assetIds, op.templates)
+    case 'fillBook':
+      return fillBook(book, op.assetIds, op.templates, op.maxPages)
     case 'setCrop':
       return setCrop(book, op.spreadId, op.frameId, op.crop)
     case 'setFit':
