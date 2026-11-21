@@ -625,13 +625,13 @@ function FillBook() {
                 {missing > 0 && <div className="mt-1.5 text-xs text-muted-foreground" data-testid="fill-book-missing">{plural(missing, "photo")} with missing files {missing === 1 ? "is" : "are"} skipped.</div>}
               </>}
               {p.leftover > 0 && <div className="mt-1.5 flex gap-1.5 text-xs leading-[16.8px] text-warning-ink" data-testid="fill-book-left">
-                <AlertTriangle className="mt-[2.4px] size-3 shrink-0" />
+                <AlertTriangle className="mt-0.5 size-3 shrink-0" />
                 <span>{fits ? `${plural(p.leftover, "photo")} ${p.leftover === 1 ? "stays" : "stay"} in the filmstrip: ${prof.name} prints up to ${max} pages.` : `No empty frames, and the book is at ${max} pages, the most ${prof.name} prints.`}</span>
               </div>}
               {fits && <>{sep}<div className="text-xs text-muted-foreground">The cover and endpapers stay as they are.</div></>}
               <div className="mt-3 flex justify-end gap-2">
-                <Button variant="ghost" size="sm" className="text-[13px]" autoFocus={!fits} onPress={() => setOpen(false)} data-testid="fill-book-cancel">Cancel</Button>
-                <Button size="sm" className="text-[13px] shadow-xs" autoFocus={fits} isDisabled={!fits} onPress={confirm} data-testid="fill-book-confirm">Fill book</Button>
+                <Button variant="ghost" size="sm" className="text-sm" autoFocus={!fits} onPress={() => setOpen(false)} data-testid="fill-book-cancel">Cancel</Button>
+                <Button size="sm" className="text-sm shadow-xs" autoFocus={fits} isDisabled={!fits} onPress={confirm} data-testid="fill-book-confirm">Fill book</Button>
               </div>
             </>}
           </AriaDialog>
