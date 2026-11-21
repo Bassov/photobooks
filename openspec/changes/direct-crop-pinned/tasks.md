@@ -11,3 +11,5 @@
 1. Select a photo frame, drag the rotate knob: the chip follows with the angle; Shift steps 15°; near 90° it snaps.
 2. Double-click the photo: photo layer, grabber and 4 handles stay; Tab cycles the handles; arrows nudge; wheel zooms; Esc exits.
 3. Shrink a frame to ~50 × 30 px: no grabber, no mid handles on the short sides.
+
+manual-qa (`pnpm agent manual-qa`): harness problem for 1–3 — `start-session` click intercepted by the welcome-screen header (known harness issue), no scenario exercised. Evidence instead: `e2e/direct-crop-pinned.spec.ts` (1: rotate chip + Shift / snap tests; 2: pinned crop test; 3: 50 × 30 frame test), all passing locally.
