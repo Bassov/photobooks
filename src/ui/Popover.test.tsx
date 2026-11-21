@@ -13,7 +13,7 @@ import { Menu, MenuItem, MenuPopover, MenuTrigger } from './Menu'
 import { Popover, PopoverDialog, PopoverTrigger } from './Popover'
 import { useScaledGaps } from './scaledOverlay'
 import { Tooltip, TooltipTrigger } from './Tooltip'
-import { applyUiScale, setUiScaleChoice } from './uiScale'
+import { applyUiScale, setUiScaleChoice, type UiScaleStep } from './uiScale'
 
 describe('Popover', () => {
   afterEach(() => {
@@ -95,7 +95,7 @@ describe('positioned overlays at interface scale', () => {
 
   /** React Aria's inline `top` on the positioned element (jsdom rects are 0). */
   const topAt = async (
-    s: number,
+    s: UiScaleStep,
     open: () => void,
     of: () => Promise<HTMLElement | null>,
   ) => {
