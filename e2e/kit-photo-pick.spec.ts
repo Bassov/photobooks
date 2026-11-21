@@ -128,7 +128,7 @@ test('Replace photo…: ring, copy cursor, tag and status; a thumb click replace
   await expect(tag(page)).toHaveText('Replacing')
   await expect(tag(page)).toHaveCSS('font-weight', '600')
   await expect(tag(page)).toHaveCSS('line-height', '16px')
-  await expect(tag(page)).toHaveCSS('border-top-left-radius', '6px')
+  await expect(tag(page)).toHaveCSS('border-top-left-radius', '8px')
   const fb = await rect(f)
   const tb = await rect(tag(page))
   expect(Math.abs(tb.x - fb.x)).toBeLessThanOrEqual(0.5)

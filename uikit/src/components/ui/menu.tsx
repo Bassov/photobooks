@@ -77,7 +77,7 @@ const MenuItem = ({ children, className, variant, ...props }: AriaMenuItemProps 
         "data-[focused]:bg-accent data-[focused]:text-accent-foreground ",
         /* Selection Mode */
         "data-[selection-mode]:pl-8",
-        variant === "destructive" && "text-destructive [&_svg]:text-destructive! data-[focused]:bg-destructive/[.08] data-[focused]:text-destructive",
+        variant === "destructive" && "text-destructive [&_svg]:text-destructive! data-[focused]:bg-destructive/10 data-[focused]:text-destructive",
         className
       )
     )}
@@ -130,7 +130,7 @@ const MenuHeader = ({
 
 const MenuSeparator = ({ className, ...props }: AriaSeparatorProps) => (
   <AriaSeparator
-    className={cn("-mx-1 my-1 h-px bg-muted", className)}
+    className={cn("-mx-1 my-1 h-px bg-border", className)}
     {...props}
   />
 )
