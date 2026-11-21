@@ -42,6 +42,7 @@ import {
   isRelinkDialogOpen,
   subscribeRelink,
 } from './statusStore'
+import './RelinkDialog.css'
 
 function RelinkScanProgress(): ReactElement | null {
   const progress = useSyncExternalStore(
@@ -102,6 +103,7 @@ function RelinkProblemList(): ReactElement {
               color={rowBadgeColor(row.found, row.status)}
               size="sm"
               type="pill-color"
+              dot
             >
               {rowBadgeLabel(row.found, row.status)}
             </Badge>
@@ -211,7 +213,7 @@ export function RelinkDialog(props: {
       className="relink-dialog-panel"
       data-testid="relink-dialog"
       style={{
-        width: 'min(760px, calc(var(--app-vw) - 2rem))',
+        width: 'min(560px, calc(var(--app-vw) - 2rem))',
         maxHeight: 'min(520px, calc(var(--app-vh) - 2rem))',
         overflow: 'hidden',
         display: 'flex',
@@ -219,7 +221,7 @@ export function RelinkDialog(props: {
         padding: 0,
       }}
     >
-      <header style={{ padding: '1.1rem 1.35rem 0.6rem' }}>
+      <header style={{ padding: '1.25rem 1.5rem 0.5rem' }}>
         <DialogTitle>{view.title}</DialogTitle>
         <p style={relinkSubStyle}>
           Rescan a folder to match photos by path, size, and date. Skip keeps

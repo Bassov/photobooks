@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import assert from 'node:assert/strict'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -54,6 +54,57 @@ describe('RelinkDialog', () => {
       'missing',
       'modified',
     ])
+  })
+
+  it('updates rows, dotted badges, progress and Resolve live while open', () => {
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      cb(0)
+      return 1
+    })
+    replaceRelinkStatuses(new Map([['a1', 'missing']]))
+    setRelinkDialogOpen(true)
+    render(<RelinkDialog onRescanFiles={noopRescan} onResolve={noopResolve} />)
+    const badge = (): HTMLElement =>
+      screen.getAllByTestId('relink-row')[0]?.querySelector('.pb-badge') ??
+      document.body
+    expect(badge().querySelector('.pb-badge-dot')).not.toBeNull()
+    // Kit RelinkDialog header: pt-5 px-6 pb-2 (r40 M150).
+    expect(
+      screen.getByTestId('relink-dialog').querySelector('header')?.style
+        .padding,
+    ).toBe('1.25rem 1.5rem 0.5rem')
+
+    act(() => {
+      setRelinkProgress({ total: 4, completed: 1, running: true })
+    })
+    expect(screen.getByTestId('relink-scan-progress').textContent).toContain(
+      '25%',
+    )
+    act(() => {
+      setRelinkProgress({ total: 0, completed: 0, running: true })
+      replaceRelinkStatuses(
+        new Map([
+          ['a1', 'missing'],
+          ['a2', 'modified'],
+        ]),
+      )
+    })
+    expect(screen.getByTestId('relink-scan-progress').textContent).toContain(
+      '0%',
+    )
+    expect(screen.getAllByTestId('relink-row')).toHaveLength(2)
+    act(() => {
+      setRelinkProgress(null)
+      markRelinkFound(['a1'])
+    })
+    expect(screen.queryByTestId('relink-scan-progress')).toBeNull()
+    expect(screen.getByTestId('relink-resolve').textContent).toBe('Resolve 1')
+    expect(badge().getAttribute('data-dot')).toBe('true')
+    act(() => {
+      replaceRelinkStatuses(new Map())
+    })
+    expect(screen.getByTestId('relink-empty')).toBeTruthy()
+    vi.unstubAllGlobals()
   })
 
   it('Skip closes the dialog', () => {
