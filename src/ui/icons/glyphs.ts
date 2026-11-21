@@ -11,6 +11,7 @@ export const ICON_NAMES = [
   'fit',
   'addSpread',
   'duplicate',
+  'copyPlus',
   'delete',
   'grid',
   'guides',
@@ -157,6 +158,13 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
     ['path', { d: 'M12 5v14' }],
   ],
   duplicate: [
+    ['rect', { width: '14', height: '14', x: '8', y: '8', rx: '2', ry: '2' }],
+    ['path', { d: 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2' }],
+  ],
+  // lucide 1.70 CopyPlus: the frame menu's Duplicate row (kit).
+  copyPlus: [
+    ['line', { x1: '15', x2: '15', y1: '12', y2: '18' }],
+    ['line', { x1: '12', x2: '18', y1: '15', y2: '15' }],
     ['rect', { width: '14', height: '14', x: '8', y: '8', rx: '2', ry: '2' }],
     ['path', { d: 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2' }],
   ],
@@ -501,10 +509,11 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
     ['rect', { width: '18', height: '11', x: '3', y: '11', rx: '2', ry: '2' }],
     ['path', { d: 'M7 11V7a5 5 0 0 1 9.9-1' }],
   ],
+  // lucide 1.70 BringToFront (the kit's icon in the frame menu and ARRANGE).
   bringToFront: [
     ['rect', { x: '8', y: '8', width: '8', height: '8', rx: '2' }],
-    ['path', { d: 'M10 4H6a2 2 0 0 0-2 2v4' }],
-    ['path', { d: 'M14 20h4a2 2 0 0 0 2-2v-4' }],
+    ['path', { d: 'M4 10a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2' }],
+    ['path', { d: 'M14 20a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2' }],
   ],
   sendToBack: [
     ['rect', { x: '14', y: '14', width: '8', height: '8', rx: '2' }],

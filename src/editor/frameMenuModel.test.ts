@@ -66,7 +66,7 @@ describe('frameMenuRows', () => {
       ['Cut', 'scissors', 'Ctrl+X'],
       ['Copy', 'copy', 'Ctrl+C'],
       ['Paste', 'clipboardPaste', 'Ctrl+V'],
-      ['Duplicate', 'duplicate', 'Ctrl+D'],
+      ['Duplicate', 'copyPlus', 'Ctrl+D'],
       ['Bring to front', 'bringToFront', 'Shift+Ctrl+]'],
       ['Bring forward', 'arrowUp', 'Ctrl+]'],
       ['Send backward', 'arrowDown', 'Ctrl+['],

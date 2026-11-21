@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
+import { pixelsAt } from './fixtures/paintProbe'
 
 // Designer frame-context-menu FM1, kit `#/demo`: a right-click on a frame opens
 // one fixed order of rows in groups (photo · edit · order · lock + delete);
@@ -168,6 +169,35 @@ test('filled photo frame: 14 rows, 3 separators, 224 × 468.81 px, painted at th
     { x: r1.x + r1.width / 2, y: r1.y + r1.height / 2 },
   )
   expect(top).toBe('frame-menu-replace')
+})
+
+test('paint: separators are --border #CDCDCD, the hovered Delete row a 10 % destructive mix (M141, M142)', async ({
+  page,
+}) => {
+  await fillFrame0(page)
+  await rightClick(hero(page).nth(0))
+  const m = menu(page)
+  await expect(m).toBeVisible()
+  await popover(m)
+  const seps = m.getByRole('separator')
+  for (let i = 0; i < 3; i++) {
+    const s = seps.nth(i)
+    const b = await rect(s)
+    const [px] = await pixelsAt(s, [{ x: b.width / 2, y: 0 }])
+    expect(px?.slice(0, 3)).toEqual([205, 205, 205])
+  }
+  const del = row(page, 'delete')
+  await del.hover()
+  await expect(del).toHaveAttribute('data-focused', 'true')
+  await del.evaluate((el) =>
+    Promise.all(el.getAnimations().map((a) => a.finished)),
+  )
+  const [bg] = await pixelsAt(del, [{ x: 4, y: 2 }])
+  expect(bg).toHaveLength(4)
+  // Spec: rgb(208.2) — 10 % of --destructive over the popover
+  for (const c of bg?.slice(0, 3) ?? []) {
+    expect(Math.abs(c - 208.2)).toBeLessThanOrEqual(1)
+  }
 })
 
 test('Fit ↔ Fill flips the row label; Remove photo empties the frame', async ({

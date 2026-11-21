@@ -56,19 +56,23 @@ function orientationLabel(aspect: number): 'portrait' | 'landscape' | 'square' {
   return 'square'
 }
 
+/** Placed badge title / label (Designer placed-badge spec, Semantics). */
+const PLACED_TITLE = 'Show in the book'
+
 /** Thumb and placed badge (CSS sizes the thumb to 100% of the slot). */
 const FilmstripItemBody = memo(function FilmstripItemBody({
   id,
   name,
   thumbUrl,
-  placed,
+  placements,
   missing,
   lowRes,
 }: {
   id: string
   name: string
   thumbUrl: string | undefined
-  placed: boolean
+  /** Places in the book (`placementCountByAsset`); 0 hides the badge. */
+  placements: number
   missing: boolean
   lowRes: boolean
 }) {
@@ -117,15 +121,27 @@ const FilmstripItemBody = memo(function FilmstripItemBody({
           <Icon name="imageOff" size={16} />
         </div>
       ) : null}
-      {placed ? (
+      {placements > 0 ? (
+        // A span, not a <button>: the native drag of `.filmstrip-drag`
+        // starts on it (B7) and a click focuses the row, the only tab stop.
         <span
           className="filmstrip-placed"
-          role="img"
-          aria-label="Placed in the book"
-          title="Placed in the book"
+          role="button"
+          aria-label={
+            placements > 1
+              ? `${PLACED_TITLE}, placed ${String(placements)} times`
+              : PLACED_TITLE
+          }
+          title={PLACED_TITLE}
           data-testid="filmstrip-placed"
+          data-count={placements > 1 ? '' : undefined}
         >
           <Icon name="check" size={14} />
+          {placements > 1 ? (
+            <span className="filmstrip-placed-count">
+              {placements > 9 ? '9+' : placements}
+            </span>
+          ) : null}
         </span>
       ) : null}
       {lowRes ? (
@@ -258,6 +274,8 @@ export const FilmstripItemView = memo(function FilmstripItemView({
       onBlur={() => {
         noteFilmstripRowBlur(id)
       }}
+      // Enter shows the photo in the book (placed-badge B5).
+      aria-keyshortcuts={placementCount > 0 ? 'Enter' : undefined}
       data-testid="filmstrip-item"
       data-asset-id={id}
       data-aspect={String(aspect)}
@@ -275,7 +293,7 @@ export const FilmstripItemView = memo(function FilmstripItemView({
           id={id}
           name={name}
           thumbUrl={thumbUrl}
-          placed={placementCount > 0}
+          placements={placementCount}
           missing={missing}
           lowRes={lowRes}
         />

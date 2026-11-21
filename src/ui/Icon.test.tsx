@@ -54,8 +54,22 @@ describe('Icon', () => {
     )
   })
 
+  it('draws lucide 1.70 CopyPlus and BringToFront (design-r36)', () => {
+    expect(ICON_GLYPHS.copyPlus).toEqual([
+      ['line', { x1: '15', x2: '15', y1: '12', y2: '18' }],
+      ['line', { x1: '12', x2: '18', y1: '15', y2: '15' }],
+      ...ICON_GLYPHS.copy,
+    ])
+    expect(ICON_GLYPHS.copyPlus).not.toEqual(ICON_GLYPHS.duplicate)
+    expect(ICON_GLYPHS.bringToFront).toEqual([
+      ['rect', { x: '8', y: '8', width: '8', height: '8', rx: '2' }],
+      ['path', { d: 'M4 10a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2' }],
+      ['path', { d: 'M14 20a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2' }],
+    ])
+  })
+
   it('ships the named glyphs from the roadmap set', () => {
-    expect(ICON_NAMES.length).toBe(96)
+    expect(ICON_NAMES.length).toBe(97)
     expect(ICON_NAMES).toEqual(
       expect.arrayContaining([
         'braces',

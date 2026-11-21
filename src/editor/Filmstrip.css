@@ -246,16 +246,76 @@
   object-fit: cover;
 }
 
-/* Used mark: corner check (disc colors in editorChromeTokens). */
+/* Used mark = "Show in the book" button (Designer placed-badge Look; kit
+   chrome.tsx badge). Disc colours and the 10 px check in editorChromeTokens. */
 .filmstrip-placed {
   position: absolute;
   right: calc(var(--spacing) * 1);
   bottom: calc(var(--spacing) * 1);
-  display: grid;
-  place-items: center;
-  width: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  box-sizing: border-box;
+  min-width: 16px;
   height: 16px;
-  pointer-events: none;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition:
+    transform 0.12s ease-out,
+    background-color 0.12s ease-out;
+}
+
+/* 24 × 24 hit area: 4 px around the disc, to the thumb's right / bottom edge. */
+.filmstrip-placed::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+
+.filmstrip-placed[data-count] {
+  padding: 0 4px 0 3px;
+}
+
+.filmstrip-placed-count {
+  font-family: var(--font-sans);
+  font-size: var(--text-3xs);
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.filmstrip-placed:hover {
+  background: var(--placed-badge-hover);
+  transform: scale(1.125);
+}
+
+.filmstrip-placed:active {
+  background: var(--placed-badge-pressed);
+  transform: scale(1);
+}
+
+/* Pick mode (B6): the press is the pick, so no button look; copy cursor. */
+.filmstrip[data-picking] .filmstrip-placed:hover,
+.filmstrip[data-picking] .filmstrip-placed:active {
+  background: var(--placed-badge);
+  transform: none;
+}
+
+.filmstrip[data-picking] .filmstrip-placed {
+  cursor: copy;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filmstrip-placed {
+    transition: background-color 0.12s ease-out;
+  }
+
+  .filmstrip-placed:hover {
+    transform: none;
+  }
 }
 
 /* Kit sandbox filmstrip "Low-res" chip: field chip, top-left, 10 px warning. */

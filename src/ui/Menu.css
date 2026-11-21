@@ -84,6 +84,12 @@
   color: var(--destructive);
 }
 
+/* Kit `[&_svg]:text-destructive!`: the destructive row icon keeps the row ink
+   over the menu's muted `[&_svg]:text-muted-foreground`. */
+.pb-menu-item[data-variant='destructive'] .pb-icon {
+  color: var(--destructive);
+}
+
 .pb-menu-item[data-variant='destructive'][data-focused] {
   background: color-mix(in srgb, var(--destructive) 10%, var(--popover));
   color: var(--destructive);

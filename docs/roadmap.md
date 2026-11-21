@@ -276,6 +276,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [ci-apt-retry](roadmap/P5/ci-apt-retry.md) — Bug: /next-roadmap-item ci-apt-retry
 - [ ] [lite] [e2e-burn-in-cap](roadmap/P5/e2e-burn-in-cap.md) — Bug: /next-roadmap-item e2e-burn-in-cap
 - [ ] [lite] [placed-badge-kit](roadmap/P5/placed-badge-kit.md) — Bug: /next-roadmap-item placed-badge-kit
+- [ ] [feature] [placed-badge](roadmap/P5/placed-badge.md) — Bug: /next-roadmap-item placed-badge
 - [ ] [feature] [rig-pin-0-2-24](roadmap/P5/rig-pin-0-2-24.md) — Bug: /next-roadmap-item rig-pin-0-2-24
 - [ ] [feature] [direct-crop-core](roadmap/P5/direct-crop-core.md) — Bug: /next-roadmap-item direct-crop-core
 - [ ] [feature] [filmstrip-resize-kit](roadmap/P5/filmstrip-resize-kit.md) — Bug: /next-roadmap-item filmstrip-resize-kit
@@ -305,8 +306,10 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [design-r35-filmstrip-end-prod](roadmap/P5/design-r35-filmstrip-end-prod.md) — Bug: /next-roadmap-item design-r35-filmstrip-end-prod
 - [ ] [lite] [design-r35-filmstrip-wheel-kit](roadmap/P5/design-r35-filmstrip-wheel-kit.md) — Bug: /next-roadmap-item design-r35-filmstrip-wheel-kit
 - [ ] [feature] [fill-book-kit](roadmap/P5/fill-book-kit.md) — Bug: /next-roadmap-item fill-book-kit
+- [ ] [lite] [design-r37-dialog-title-prod](roadmap/P5/design-r37-dialog-title-prod.md) — Bug: /next-roadmap-item design-r37-dialog-title-prod
 - [ ] [lite] [site-reader-gl-ready](roadmap/P5/site-reader-gl-ready.md) — Bug: /next-roadmap-item site-reader-gl-ready
 - [ ] [lite] [cycle-layouts-core](roadmap/P5/cycle-layouts-core.md) — Bug: /next-roadmap-item cycle-layouts-core
+- [ ] [lite] [design-r36-menu-kit](roadmap/P5/design-r36-menu-kit.md) — Bug: /next-roadmap-item design-r36-menu-kit
 - [ ] [feature] [interface-size-core](roadmap/P5/interface-size-core.md) — Bug: /next-roadmap-item interface-size-core
 - [ ] [feature] [interface-size-pointer](roadmap/P5/interface-size-pointer.md) — Bug: /next-roadmap-item interface-size-pointer
 - [ ] [feature] [interface-size](roadmap/P5/interface-size.md) — Bug: /next-roadmap-item interface-size
@@ -333,6 +336,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [photo-pick-kit](roadmap/P5/photo-pick-kit.md) — Bug: /next-roadmap-item photo-pick-kit
 - [ ] [feature] [photo-pick](roadmap/P5/photo-pick.md) — Bug: /next-roadmap-item photo-pick
 - [ ] [feature] [frame-context-menu](roadmap/P5/frame-context-menu.md) — Bug: /next-roadmap-item frame-context-menu
+- [ ] [feature] [design-r36-menu-prod](roadmap/P5/design-r36-menu-prod.md) — Bug: /next-roadmap-item design-r36-menu-prod
 - [ ] [lite] [roadmap-status-sync](roadmap/P5/roadmap-status-sync.md) — Bug: /next-roadmap-item roadmap-status-sync
 - [ ] [feature] [printer-presets-kit-book](roadmap/P5/printer-presets-kit-book.md) — Bug: /next-roadmap-item printer-presets-kit-book
 - [ ] [lite] [deps-dev-knip-relink](roadmap/P5/deps-dev-knip-relink.md) — Bug: /next-roadmap-item deps-dev-knip-relink

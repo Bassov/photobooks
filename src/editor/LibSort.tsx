@@ -28,11 +28,7 @@ export function LibSort({
         data-testid="lib-sort"
       >
         <span className="text-muted-foreground">Sort:</span> {cur.label}
-        <Icon
-          name="chevronDown"
-          size={14}
-          className="size-3.5 text-muted-foreground"
-        />
+        <Icon name="chevronDown" size={14} className="size-3.5" />
       </AriaButton>
       <MenuPopover placement="bottom end" className="min-w-44">
         <Menu
