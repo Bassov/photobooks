@@ -11,3 +11,6 @@
 
 1. `#/demo` book, right-click a filled frame → Replace photo… → dock ring, "Replacing" tag, status; click a thumb → photo replaced; Ctrl+Z restores.
 2. Same start, Esc → no change, ring and tag gone.
+
+- OK 1: `e2e/kit-photo-pick.spec.ts` "Replace photo…" + demo walk shots 20–22 (`editor-frame-menu`, `editor-photo-pick`, `editor-photo-picked`; ring, tag, status visible). Agent manual-qa cannot drive the kit.
+- OK 2: `e2e/kit-photo-pick.spec.ts` "Esc cancels with no change".
