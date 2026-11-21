@@ -361,3 +361,19 @@ test('opened at y 840 the menu stays inside the 1440 × 900 window', async ({
   expect(r.y).toBeGreaterThanOrEqual(0)
   expect(r.y + r.height).toBeLessThanOrEqual(900)
 })
+
+test('macOS: the key column shows glyphs, ⇧ before ⌘, no "+"', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'platform', { get: () => 'MacIntel' })
+  })
+  // the same #/demo URL is a hash navigation: reload so the kit reads the platform again
+  await page.reload()
+  await openDemoBook(page)
+  await rightClick(hero(page).nth(4))
+  await expect(row(page, 'cut').locator('kbd')).toHaveText('⌘X')
+  await expect(row(page, 'back').locator('kbd')).toHaveText('⇧⌘[')
+  await expect(row(page, 'lock').locator('kbd')).toHaveText('⇧⌘L')
+  await expect(row(page, 'delete').locator('kbd')).toHaveText('⌫')
+})
