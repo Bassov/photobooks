@@ -154,13 +154,96 @@ export function nudgeBoxIntoInsetPort(
   )
 }
 
+/** Placed-badge jumps keep the frame this far inside the port edges (M145). */
+export const PORT_INSET_PX = 24
+
+/** `scroll + delta` clamped to the scroller's range on one axis. */
+function clampedScroll(at: number, delta: number, max: number): number {
+  return Math.min(Math.max(0, at + delta), Math.max(0, max))
+}
+
+/**
+ * True when `nudgeBoxIntoInsetPort` would move the scroll by at most half a
+ * pixel per axis (the B4 rule holds, or the scroller is clamped at its end).
+ */
+export function insetPortSettled(
+  scroll: HTMLElement,
+  box: DOMRect,
+  inset: number,
+): boolean {
+  if (box.width < 1 || box.height < 1) {
+    return false
+  }
+  const port = scroll.getBoundingClientRect()
+  const { scrollLeft, scrollTop } = scroll
+  const left = clampedScroll(
+    scrollLeft,
+    insetAxisDelta(box.left, box.right, port.left, port.right, inset),
+    scroll.scrollWidth - scroll.clientWidth,
+  )
+  const top = clampedScroll(
+    scrollTop,
+    insetAxisDelta(box.top, box.bottom, port.top, port.bottom, inset),
+    scroll.scrollHeight - scroll.clientHeight,
+  )
+  return Math.abs(left - scrollLeft) <= 0.5 && Math.abs(top - scrollTop) <= 0.5
+}
+
+/** The frame a frame-targeted reveal scrolls to (first match in the slot). */
+function revealFrame(slot: HTMLElement, frameId: string): Element | null {
+  return slot.querySelector(`[data-frame-id="${CSS.escape(frameId)}"]`)
+}
+
+/**
+ * Frame-targeted reveal (placed-badge jump, M145): one inset nudge straight
+ * to the frame, so no axis first scrolls to the spread and then back.
+ */
+function revealLaidOutFrame(
+  scroll: HTMLElement,
+  slot: HTMLElement,
+  frameId: string,
+): boolean {
+  const frame = revealFrame(slot, frameId)
+  const box = frame?.getBoundingClientRect()
+  if (frame === null || box === undefined || box.width < 1 || box.height < 1) {
+    return false
+  }
+  nudgeBoxIntoInsetPort(scroll, box, PORT_INSET_PX)
+  return insetPortSettled(scroll, frame.getBoundingClientRect(), PORT_INSET_PX)
+}
+
+/** Post-paint check: the reveal target still where the reveal put it. */
+function revealHolds(
+  scroll: HTMLElement,
+  slot: HTMLElement,
+  frameId: string | null,
+): boolean {
+  if (frameId !== null) {
+    const frame = revealFrame(slot, frameId)
+    return (
+      frame !== null &&
+      insetPortSettled(scroll, frame.getBoundingClientRect(), PORT_INSET_PX)
+    )
+  }
+  const view = slot.querySelector('[data-testid="spread-view"]')
+  const target = view instanceof HTMLElement ? view : slot
+  return spreadBoxRevealed(
+    scroll.getBoundingClientRect(),
+    target.getBoundingClientRect(),
+  )
+}
+
 export function revealLaidOutSpread(
   scroll: HTMLElement,
   slot: HTMLElement,
+  frameId: string | null = null,
 ): boolean {
   // Keep content-visibility forced for the whole pending reveal; restoring
   // mid-check shifts layout and can clear while the box still overflows.
   slot.style.contentVisibility = 'visible'
+  if (frameId !== null) {
+    return revealLaidOutFrame(scroll, slot, frameId)
+  }
   const view = slot.querySelector('[data-testid="spread-view"]')
   const target = view instanceof HTMLElement ? view : slot
   const box = target.getBoundingClientRect()
@@ -255,6 +338,8 @@ export function turnPendingReveal(input: {
   state: PendingRevealState
   /** Index of the spread being revealed; defaults to the last (add-spread). */
   index?: number
+  /** Scroll straight to this frame of the spread (B4 inset rule), not the spread. */
+  frameId?: string | null
 }): { turn: PendingRevealTurn; state: PendingRevealState } {
   const state = { ...input.state }
   if (input.slot === null) {
@@ -268,7 +353,11 @@ export function turnPendingReveal(input: {
     }
   }
   if (!state.paintConfirmed) {
-    const revealed = revealLaidOutSpread(input.scroll, input.slot)
+    const revealed = revealLaidOutSpread(
+      input.scroll,
+      input.slot,
+      input.frameId ?? null,
+    )
     if (!revealed) {
       state.tries += 1
       // Budget depends on clamp after the nudge, not the pre-reveal scroll.
@@ -299,11 +388,10 @@ export function turnPendingReveal(input: {
       state,
     }
   }
-  const view = input.slot.querySelector('[data-testid="spread-view"]')
-  const target = view instanceof HTMLElement ? view : input.slot
-  const containedAfterPaint = spreadBoxRevealed(
-    input.scroll.getBoundingClientRect(),
-    target.getBoundingClientRect(),
+  const containedAfterPaint = revealHolds(
+    input.scroll,
+    input.slot,
+    input.frameId ?? null,
   )
   if (!containedAfterPaint) {
     state.paintConfirmed = false

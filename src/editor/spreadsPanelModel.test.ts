@@ -43,7 +43,8 @@ describe('spreadsPanelModel', () => {
     off()
     scrollPasteboardToSpread('s2')
     expect(seen).toHaveBeenCalledTimes(1)
-    expect(seen).toHaveBeenCalledWith('s1')
+    // A spread-list reveal targets the spread, not a frame.
+    expect(seen).toHaveBeenCalledWith('s1', null)
     expect(getActiveSpreadId()).toBe('s2')
     resetActiveSpreadIdForTests()
   })

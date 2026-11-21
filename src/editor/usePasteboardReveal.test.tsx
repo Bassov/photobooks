@@ -19,7 +19,10 @@ import { usePasteboardReveal } from './usePasteboardReveal'
 
 interface RevealApi {
   holdCameraScrollRef: RefObject<boolean>
-  beginRevealForNewSpread: (newSpreadId: string | null) => void
+  beginRevealForNewSpread: (
+    newSpreadId: string | null,
+    frameId?: string | null,
+  ) => void
   revealTick: number
 }
 
@@ -166,6 +169,38 @@ describe('usePasteboardReveal', () => {
     resetCameraStore()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+  })
+
+  it('passes the frame target to every turn and drops it with the reveal', () => {
+    const rafQueue = stubRaf()
+    const apiRef: { current: RevealApi | null } = { current: null }
+    const turnFn = vi
+      .fn<typeof reveal.turnPendingReveal>()
+      .mockReturnValueOnce({
+        turn: { kind: 'retry' },
+        state: { tries: 1, paintConfirmed: false },
+      })
+      .mockReturnValue({
+        turn: { kind: 'clear' },
+        state: { tries: 2, paintConfirmed: false },
+      })
+
+    render(
+      <Harness spreadIds={['a', 'b', 'c']} turnFn={turnFn} apiRef={apiRef} />,
+    )
+    act(() => {
+      apiRef.current?.beginRevealForNewSpread('b', 'frame-1')
+    })
+    flushRaf(rafQueue)
+
+    expect(turnFn.mock.calls.map(([input]) => input.frameId)).toEqual([
+      'frame-1',
+      'frame-1',
+    ])
+    act(() => {
+      screen.getByRole('button', { name: 'Begin' }).click()
+    })
+    expect(turnFn.mock.calls.at(-1)?.[0].frameId).toBeNull()
   })
 
   it('on clear restores slot visibility, clears hold, and queues no rAF', () => {

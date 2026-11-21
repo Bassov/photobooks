@@ -6,18 +6,11 @@ import { flashEditorStatus } from './editorStatus'
 import { getSelectedEndpaper, setEndpaperSelected } from './endpaperSelection'
 import { getFrameSource, setFrameSource } from './frameSelection'
 import { setLeftPanelTab } from './leftPanelTabStore'
-import { nudgeBoxIntoInsetPort } from './pasteboardReveal'
 import { getActiveSpreadId, requestSpreadReveal } from './photoRootSession'
 import { commitTextEdit } from './textEditStore'
 
 /** How long the `Placed …` status stays (Designer placed-badge spec, Jump 5). */
 export const PLACED_STATUS_MS = 2500
-
-/** A frame closer than this to the pasteboard port edge is nudged into view. */
-const PORT_INSET_PX = 24
-
-/** Frames to wait for the spread reveal to lay out the target frame. */
-const REVEAL_WAIT_FRAMES = 300
 
 /** Spread-list position of the cover row (the front endpaper row is −1). */
 const COVER_POSITION = -2
@@ -112,57 +105,16 @@ function nextIndex(
 }
 
 let last: { assetId: string; place: Place } | null = null
-/** The frame the pending nudge waits for; a newer jump replaces it. */
-let pendingNudge: object | null = null
-
-/**
- * B4: once the spread reveal has let go of the scroll and the frame's rect
- * held still for a frame, per axis scroll the least that puts the frame
- * 24 px inside the port, or centre it when it is larger (M145).
- */
-function nudgeFrameWhenSettled(spreadId: string, frameId: string): void {
-  const target = {}
-  pendingNudge = target
-  let previous = ''
-  let frames = 0
-  const step = (): void => {
-    frames += 1
-    const scroll = document.querySelector<HTMLElement>(
-      '[data-testid="pasteboard-scroll"]',
-    )
-    const box = scroll
-      ?.querySelector(
-        `[data-spread-id="${CSS.escape(spreadId)}"] [data-frame-id="${CSS.escape(frameId)}"]`,
-      )
-      ?.getBoundingClientRect()
-    const at = box === undefined ? '' : `${String(box.left)},${String(box.top)}`
-    if (pendingNudge !== target) {
-      return
-    }
-    // The spread reveal re-nudges the spread until it lets go of the camera
-    // (`data-reveal-hold`); a frame nudge before that would be undone.
-    const held = scroll?.dataset.revealHold === 'true'
-    if (scroll && box && !held && at === previous) {
-      nudgeBoxIntoInsetPort(scroll, box, PORT_INSET_PX)
-      return
-    }
-    previous = at
-    if (frames < REVEAL_WAIT_FRAMES) {
-      requestAnimationFrame(step)
-    }
-  }
-  requestAnimationFrame(step)
-}
 
 function goTo(place: Place): void {
   if (place.kind === 'frame') {
-    requestSpreadReveal(place.spreadId)
+    // B4 (M145): the reveal scrolls each axis once, straight to the frame:
+    // the least that puts it 24 px inside the port, or centred when larger.
+    requestSpreadReveal(place.spreadId, place.frameId)
     setFrameSource({ spreadId: place.spreadId, frameId: place.frameId })
-    nudgeFrameWhenSettled(place.spreadId, place.frameId)
     return
   }
   // The cover / endpaper rows of the pages list (SpreadsPanel, EndpaperRow).
-  pendingNudge = null
   if (place.kind === 'cover') {
     setCoverSelected(true)
     return

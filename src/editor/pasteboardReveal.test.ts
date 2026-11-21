@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   actionAfterPaintConfirm,
   insetAxisDelta,
+  insetPortSettled,
   isScrollNearMax,
   nudgeBoxIntoInsetPort,
   nudgeBoxIntoPort,
   planRevealAttempt,
+  PORT_INSET_PX,
   REVEAL_TRY_CEILING,
   restoreRevealSlotVisibility,
   revealLaidOutSpread,
@@ -830,5 +832,138 @@ describe('restoreRevealSlotVisibility', () => {
     expect(() => {
       restoreRevealSlotVisibility(null)
     }).not.toThrow()
+  })
+})
+
+describe('frame-targeted reveal (placed-badge jump, M145)', () => {
+  /**
+   * A slot whose spread view never reveals (far below the port) holding frame
+   * `f` at `content` (scroll space): its client box follows the scroll.
+   */
+  function frameSlot(scroll: HTMLElement, content: DOMRect): HTMLElement {
+    const slot = mockSlot(() => rect(PORT.left, PORT.top + 5000, 200, 180))
+    const frame = document.createElement('div')
+    frame.dataset.frameId = 'f'
+    frame.getBoundingClientRect = () =>
+      rect(
+        content.left - scroll.scrollLeft,
+        content.top - scroll.scrollTop,
+        content.width,
+        content.height,
+      )
+    slot.append(frame)
+    return slot
+  }
+
+  const at = (scroll: HTMLElement) => [scroll.scrollLeft, scroll.scrollTop]
+
+  it('scrolls once, the least that puts a fitting frame on the 24 px inset', () => {
+    const scroll = mockScroll({ scrollLeft: 100, scrollTop: 100 })
+    // Client left 30: 10 px under the port's left edge; y already inside.
+    const slot = frameSlot(scroll, rect(130, 300, 200, 100))
+
+    expect(revealLaidOutSpread(scroll, slot, 'f')).toBe(true)
+    expect(at(scroll)).toEqual([66, 100])
+    expect(slot.style.contentVisibility).toBe('visible')
+  })
+
+  it('centres a frame larger than the inset port on that axis', () => {
+    const scroll = mockScroll({ scrollLeft: 100, scrollTop: 100 })
+    const slot = frameSlot(scroll, rect(130, 300, 600, 100))
+
+    expect(revealLaidOutSpread(scroll, slot, 'f')).toBe(true)
+    // Client 30..630 → −10..590: centre 290 = port centre 40 + 250.
+    expect(at(scroll)).toEqual([140, 100])
+  })
+
+  it('leaves the scroll alone for a frame already inside the inset port', () => {
+    const scroll = mockScroll({ scrollLeft: 100, scrollTop: 100 })
+    const slot = frameSlot(scroll, rect(200, 300, 200, 100))
+
+    expect(revealLaidOutSpread(scroll, slot, 'f')).toBe(true)
+    expect(at(scroll)).toEqual([100, 100])
+  })
+
+  it('waits for a frame that is missing or not laid out yet', () => {
+    const scroll = mockScroll({ scrollLeft: 100, scrollTop: 100 })
+    const slot = frameSlot(scroll, rect(130, 300, 0, 100))
+
+    expect(revealLaidOutSpread(scroll, slot, 'f')).toBe(false)
+    expect(revealLaidOutSpread(scroll, slot, 'other')).toBe(false)
+    expect(at(scroll)).toEqual([100, 100])
+  })
+
+  it('settles when the scroller is clamped at its start', () => {
+    const scroll = mockScroll({ scrollLeft: 0, scrollTop: 0 })
+    // Wants −34 px sideways; the scroller stops at 0.
+    const slot = frameSlot(scroll, rect(30, 300, 200, 100))
+
+    expect(revealLaidOutSpread(scroll, slot, 'f')).toBe(true)
+    expect(at(scroll)).toEqual([0, 0])
+  })
+
+  it('settles when the scroller is clamped at its end', () => {
+    const scroll = mockScroll({ scrollLeft: 300, scrollTop: 1600 })
+    // Right edge 20 px past the port and bottom past it: the range ends.
+    const slot = frameSlot(scroll, rect(860, 1600 + 450, 200, 100))
+
+    expect(revealLaidOutSpread(scroll, slot, 'f')).toBe(true)
+    expect(at(scroll)).toEqual([300, 1600])
+    expect(
+      insetPortSettled(scroll, rect(560, 450, 200, 100), PORT_INSET_PX),
+    ).toBe(true)
+  })
+
+  it('insetPortSettled: false while a nudge would move, or the box is empty', () => {
+    const scroll = mockScroll({ scrollLeft: 100, scrollTop: 100 })
+
+    expect(insetPortSettled(scroll, rect(30, 200, 200, 100), 24)).toBe(false)
+    expect(insetPortSettled(scroll, rect(100, 30, 200, 100), 24)).toBe(false)
+    expect(insetPortSettled(scroll, rect(100, 200, 200, 100), 24)).toBe(true)
+    expect(insetPortSettled(scroll, rect(100, 200, 0, 100), 24)).toBe(false)
+    expect(insetPortSettled(scroll, rect(100, 200, 200, 0), 24)).toBe(false)
+    // Half a pixel is settled; a pixel is not.
+    expect(insetPortSettled(scroll, rect(63.5, 200, 200, 100), 24)).toBe(true)
+    expect(insetPortSettled(scroll, rect(63, 200, 200, 100), 24)).toBe(false)
+  })
+
+  it('after paint: completes while the frame holds, retries once it moved', () => {
+    const scroll = mockScroll({ scrollLeft: 100, scrollTop: 100 })
+    const content = rect(200, 300, 200, 100)
+    const slot = frameSlot(scroll, content)
+    const turn = () =>
+      turnPendingReveal({
+        slot,
+        scroll,
+        spreadCount: 4,
+        stride: 100,
+        state: { tries: 0, paintConfirmed: true },
+        frameId: 'f',
+      })
+
+    expect(turn().turn).toEqual({ kind: 'post-paint', action: 'complete' })
+    // A late layout shift pushes the frame under the port's left edge.
+    content.x = 100
+    expect(turn().turn).toEqual({ kind: 'post-paint', action: 'retry' })
+  })
+
+  it('first pass: nudges the frame and confirms paint at the new scroll', () => {
+    const scroll = mockScroll({ scrollLeft: 100, scrollTop: 100 })
+    const slot = frameSlot(scroll, rect(130, 300, 200, 100))
+
+    const { turn } = turnPendingReveal({
+      slot,
+      scroll,
+      spreadCount: 4,
+      stride: 100,
+      state: { tries: 0, paintConfirmed: false },
+      frameId: 'f',
+    })
+
+    expect(turn).toEqual({
+      kind: 'paint-confirm',
+      scrollLeft: 66,
+      scrollTop: 100,
+    })
   })
 })

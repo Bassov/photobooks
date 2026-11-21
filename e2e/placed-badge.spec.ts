@@ -310,17 +310,23 @@ test('M145: a jump to a frame under the spread list nudges it 24 px into the por
   const zoom = await readZoomPercent(page)
   await listRows(page).nth(0).click()
   await scrollSettled(page)
-  // Park the book right of the port: the spread reveal then aligns the
-  // spread's right edge and leaves its left page under the spread list.
-  const view = page.locator(
-    `[data-testid="pasteboard-scroll"] [data-testid="spread-view"][data-spread-id="${s1}"]`,
+  // Park the frame 100 px under the spread list (the port starts at its
+  // right edge): the jump scrolls it right, to the 24 px inset line.
+  const target = spreadFrames(page, s1).first()
+  const listEdge =
+    (await page
+      .getByTestId('spreads-panel')
+      .evaluate((el) => el.getBoundingClientRect().right)) - 100
+  const before = await target.boundingBox()
+  await page.getByTestId('pasteboard-scroll').evaluate(
+    (el, dx) => {
+      el.scrollLeft += dx
+    },
+    (before?.x ?? 0) - listEdge,
   )
-  await page.getByTestId('pasteboard-scroll').evaluate((el) => {
-    el.scrollLeft = Math.max(0, el.scrollLeft - 900)
-  })
   await scrollSettled(page)
-  const parked = await view.boundingBox()
-  expect(parked?.x ?? 0).toBeGreaterThan(212)
+  const parked = await target.boundingBox()
+  expect(Math.abs((parked?.x ?? 0) - listEdge)).toBeLessThanOrEqual(1)
 
   // Sample scrollLeft per frame: the spread reveal used to flip the wide
   // spread between its two edges every frame until its try budget ran out.
@@ -344,10 +350,10 @@ test('M145: a jump to a frame under the spread list nudges it 24 px into the por
   const lefts = await page.evaluate(
     () => (window as unknown as { revealLefts: number[] }).revealLefts,
   )
-  // Spread reveal, then the frame nudge: at most two sideways moves.
+  // One sideways move straight to the frame (no spread reveal first).
   expect(
     lefts.filter((x, i) => i > 0 && x !== lefts[i - 1]).length,
-  ).toBeLessThanOrEqual(2)
+  ).toBeLessThanOrEqual(1)
 
   // Fits (≈ 510 px < 880 × 672): inside the port inset by 24 px on both axes.
   expect(port.left).toBeCloseTo(listRight, 0)
@@ -400,6 +406,118 @@ test('M145: at 200 % a frame larger than the port is centred on both axes', asyn
   const cutRight = frame.right - port.right
   expect(Math.abs(cutLeft - cutRight)).toBeLessThanOrEqual(2)
   expect(await readZoomPercent(page)).toBe(zoom)
+})
+
+type ScrollSample = [left: number, top: number]
+
+/**
+ * Runs `act` while sampling the pasteboard scroll every animation frame until
+ * the jump has settled; returns the samples (the first is before `act`).
+ */
+async function traceJump(
+  page: Page,
+  act: () => Promise<void>,
+): Promise<ScrollSample[]> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        const el = document.querySelector<HTMLElement>(
+          '[data-testid="pasteboard-scroll"]',
+        )
+        const trace = { on: true, samples: [] as ScrollSample[] }
+        Object.assign(window, { scrollTrace: trace })
+        const tick = () => {
+          if (!trace.on) {
+            return
+          }
+          trace.samples.push([el?.scrollLeft ?? 0, el?.scrollTop ?? 0])
+          if (trace.samples.length === 2) {
+            resolve()
+          }
+          requestAnimationFrame(tick)
+        }
+        requestAnimationFrame(tick)
+      }),
+  )
+  await act()
+  await expect(selectedFrames(page)).toHaveCount(1)
+  await scrollSettled(page)
+  return page.evaluate(() => {
+    const trace = (
+      window as unknown as {
+        scrollTrace: { on: boolean; samples: ScrollSample[] }
+      }
+    ).scrollTrace
+    trace.on = false
+    return trace.samples
+  })
+}
+
+/** How often one axis (0 = scrollLeft, 1 = scrollTop) changed between frames. */
+function axisMoves(samples: readonly ScrollSample[], axis: 0 | 1): number {
+  return samples.filter((s, i) => i > 0 && s[axis] !== samples[i - 1]?.[axis])
+    .length
+}
+
+test('M145: at 200 % a jump scrolls each axis once; a re-click on the frame in the port does not scroll', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  const { a, s2 } = await openWithPhotos(page)
+  await chooseZoom(page, '200%')
+  await listRows(page).nth(0).click()
+  await scrollSettled(page)
+
+  // Fresh jump from Page 1: one move per axis, straight to the centred frame.
+  const fresh = await traceJump(page, () => badgeOf(page, a).click())
+  expect(axisMoves(fresh, 1)).toBe(1)
+  expect(axisMoves(fresh, 0)).toBeLessThanOrEqual(1)
+  const first = await settledReveal(page)
+  const cutTop = first.port.top - first.frame.top
+  const cutBottom = first.frame.bottom - first.port.bottom
+  expect(Math.abs(cutTop - cutBottom)).toBeLessThanOrEqual(1)
+
+  // Re-click (one place): the frame is already where the rule puts it.
+  const again = await traceJump(page, () => badgeOf(page, a).click())
+  expect(axisMoves(again, 0)).toBe(0)
+  expect(axisMoves(again, 1)).toBe(0)
+  const second = await settledReveal(page)
+  expect(second.frame.left).toBe(first.frame.left)
+  expect(second.frame.top).toBe(first.frame.top)
+
+  // Cycle from the frame on Pages 2–3 to Page 4: no sideways flash.
+  await placeOnS2(page, a, s2)
+  await listRows(page).nth(0).click()
+  await scrollSettled(page)
+  await badgeOf(page, a).click()
+  await expect(pill(page)).toHaveText('Placed 1 of 2 · Pages 2–3')
+  await scrollSettled(page)
+  const cycle = await traceJump(page, () => badgeOf(page, a).click())
+  await expect(pill(page)).toHaveText('Placed 2 of 2 · Page 4')
+  await expect(spreadFrames(page, s2).first()).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  expect(axisMoves(cycle, 0)).toBeLessThanOrEqual(1)
+  expect(axisMoves(cycle, 1)).toBeLessThanOrEqual(1)
+})
+
+test('M145: at 1060 wide a jump scrolls each axis once to the 24 px inset', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  await page.setViewportSize({ width: 1060, height: 900 })
+  const { a } = await openWithPhotos(page)
+  await listRows(page).nth(0).click()
+  await scrollSettled(page)
+
+  const trace = await traceJump(page, () => badgeOf(page, a).click())
+  expect(axisMoves(trace, 0)).toBeLessThanOrEqual(1)
+  expect(axisMoves(trace, 1)).toBeLessThanOrEqual(1)
+  const { frame, port, listRight } = await settledReveal(page)
+  expect(port.left).toBeCloseTo(listRight, 0)
+  expect(frame.left).toBeGreaterThanOrEqual(port.left + 24 - 0.5)
+  expect(frame.right).toBeLessThanOrEqual(port.right - 24 + 0.5)
 })
 
 test('Enter on the focused row cycles and keeps focus; Masters → Pages', async ({
