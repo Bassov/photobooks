@@ -12,6 +12,7 @@ import {
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
 import { openSessionEditor } from './fixtures/openSessionEditor'
+import { pixelsAt } from './fixtures/paintProbe'
 
 // Designer walkthrough-ux-review §B "Resizable filmstrip" (prod; kit #645,
 // e2e/kit-filmstrip-resize.spec.ts): the dock top edge is a separator; thumb
@@ -244,6 +245,62 @@ test('separator look matches the kit: hover line + pill, drag tint, focus ring',
   await expect(pill(page)).toHaveCSS('outline-width', '2px')
   await expect(pill(page)).toHaveCSS('outline-color', 'rgb(58, 56, 57)')
   await expect(pill(page)).toHaveCSS('outline-offset', '2px')
+})
+
+/** First thumb card vs the strip: x, radius, shadow and painted ring pixels. */
+async function firstThumbLook(page: Page) {
+  const item = page.getByTestId('filmstrip-item').first()
+  const strip = page.getByTestId('filmstrip-scroll')
+  const [t, s] = [await box(item), await box(strip)]
+  const look = await item.evaluate((el) => {
+    const c = getComputedStyle(el)
+    return { radius: c.borderTopLeftRadius, shadow: c.boxShadow }
+  })
+  // 1 px outside the left / top edge (the ring) vs 3 px out (bare chrome).
+  const [x, y] = [t.x - s.x, t.y - s.y]
+  const [ringL, bareL, ringT, bareT] = await pixelsAt(strip, [
+    { x: x - 1, y: y + t.height / 2 },
+    { x: x - 3, y: y + t.height / 2 },
+    { x: x + t.width / 2, y: y - 1 },
+    { x: x + t.width / 2, y: y - 3 },
+  ])
+  const darker = (a: number[] = [], b: number[] = []) =>
+    [0, 1, 2].every((k) => (b[k] ?? 0) - (a[k] ?? 0) >= 6)
+  return {
+    x: t.x,
+    ...look,
+    ringLeft: darker(ringL, bareL),
+    ringTop: darker(ringT, bareT),
+  }
+}
+
+test('first thumb sits 4 px into the strip with a 4 px radius and an outer hairline ring (kit)', async ({
+  page,
+}) => {
+  await editorWithPhotos(page)
+  const expected = {
+    x: expect.closeTo(224, 0.6),
+    radius: '4px',
+    shadow: 'rgba(0, 0, 0, 0.08) 0px 0px 0px 1px',
+    ringLeft: true,
+    ringTop: true,
+  }
+  expect(await thumbH(page)).toBeCloseTo(76, 0)
+  const atAuto = await firstThumbLook(page)
+  expect(Math.abs(atAuto.x - 224)).toBeLessThanOrEqual(0.25)
+  expect(atAuto).toEqual(expected)
+
+  // Same row origin and ring at H = 128 (separator drag, 4 px steps).
+  const s = await box(sep(page))
+  const [cx, cy] = [s.x + s.width / 2, s.y + s.height / 2]
+  await page.mouse.move(cx, cy)
+  await page.mouse.down()
+  await page.mouse.move(cx, cy - 52, { steps: 6 })
+  await page.mouse.up()
+  await expect(sep(page)).toHaveAttribute('aria-valuenow', '128')
+  const at128 = await firstThumbLook(page)
+  expect(Math.abs(at128.x - 224)).toBeLessThanOrEqual(0.25)
+  expect(at128).toEqual(expected)
 })
 
 test('a long strip still virtualises at a large H', async ({ page }) => {
