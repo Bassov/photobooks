@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item design-r39-chevron-prod
+Status: done
 
 ## Scope
 
