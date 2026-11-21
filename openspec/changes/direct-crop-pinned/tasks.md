@@ -1,10 +1,10 @@
 ## Implementation
 
-- [ ] 1. Rotate snap / 15° step helper + rotate knob and chip on direct photo frames (frameHandleMath, frameHandleGesture, SpreadView).
-- [ ] 2. Pinned chrome: PhotoChrome in crop mode (layer shown, focusable photo handles, focus ring), overlay tag vs photo tag.
-- [ ] 3. Photo gesture on the pinned frame; pure pinned key helper (Tab cycle, screen-px nudge, one step per press) in cropGesture; wheel burst stays one step.
-- [ ] 4. Small frames: mid handles < 40 px, grabber < 64 px.
-- [ ] 5. Unit tests + `e2e/direct-crop-pinned.spec.ts`; adjust knob assertions in pinned e2e specs.
+- [x] 1. Rotate snap / 15° step helper + rotate knob and chip on direct photo frames (frameHandleMath, frameHandleGesture, SpreadView). Evidence: `frameHandleMath.test.ts` `snapRotationDeg`, `frameHandleGesture.test.ts` chip test, e2e `direct-crop-pinned.spec.ts` rotate tests (6f84e666).
+- [x] 2. Pinned chrome: PhotoChrome in crop mode (layer shown, focusable photo handles, focus ring), overlay tag vs photo tag. Evidence: `SpreadView.chrome.test.tsx` pinned test, e2e pinned test (outline, hit tests, focus ring).
+- [x] 3. Photo gesture on the pinned frame; pure pinned key helper (Tab cycle, screen-px nudge, one step per press) in cropGesture; wheel burst stays one step. Evidence: `cropKeys.test.ts`, `cropGesture.test.ts` (Tab, screen px, undo per press), `photoGesture.test.ts` pinned corner test, e2e pinned test (Tab order, 1 / 10 px, wheel).
+- [x] 4. Small frames: mid handles < 40 px, grabber < 64 px. Evidence: `SpreadView.chrome.test.tsx` 39 / 40 / 63 / 64 px and one-side cases, e2e 50 × 30 frame.
+- [x] 5. Unit tests + `e2e/direct-crop-pinned.spec.ts`; adjust knob assertions in pinned e2e specs. Evidence: `design-r2-inspector.spec.ts` (knob now present), `crop-in-frame.spec.ts` (one undo per gesture).
 
 ## Manual test scenarios
 
