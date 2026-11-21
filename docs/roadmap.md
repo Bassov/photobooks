@@ -301,6 +301,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [stryker-ci-green](roadmap/P5/stryker-ci-green.md) — Bug: /next-roadmap-item stryker-ci-green
 - [ ] [feature] [printer-presets-core](roadmap/P5/printer-presets-core.md) — Bug: /next-roadmap-item printer-presets-core
 - [ ] [feature] [printer-presets-kit](roadmap/P5/printer-presets-kit.md) — Bug: /next-roadmap-item printer-presets-kit
+- [ ] [lite] [e2e-coverage-per-worker](roadmap/P5/e2e-coverage-per-worker.md) — Bug: /next-roadmap-item e2e-coverage-per-worker
 - [ ] [feature] [frame-copy-paste-kit](roadmap/P5/frame-copy-paste-kit.md) — Bug: /next-roadmap-item frame-copy-paste-kit
 - [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
 - [ ] [feature] [frame-copy-paste-core](roadmap/P5/frame-copy-paste-core.md) — Bug: /next-roadmap-item frame-copy-paste-core
