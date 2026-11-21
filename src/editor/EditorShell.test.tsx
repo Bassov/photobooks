@@ -15,6 +15,7 @@ import { resetCameraStore } from './cameraStore'
 import { addSpread, placeAsset } from '../core'
 import { makeBook } from '../core/testing/fixtures'
 import { enterCropMode, getCropTarget } from './cropMode'
+import { getPhotoPick, startPhotoPick } from './photoPick'
 import { EditorShell } from './EditorShell'
 import {
   STATUS_FRAME_DRAG,
@@ -373,6 +374,42 @@ describe('EditorShell viewport containment', () => {
     expect(screen.queryByTestId('site-preview')).toBeNull()
     expect(screen.getByTestId('editor-shell').hasAttribute('inert')).toBe(false)
     expect(document.activeElement).toBe(present)
+    vi.unstubAllGlobals()
+  })
+
+  it('opening Preview ends photo pick mode (FM4), even by keyboard', () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {
+          return undefined
+        }
+        disconnect() {
+          return undefined
+        }
+      },
+    )
+    render(<EditorShell />)
+    const book = addSpread(
+      makeBook({ id: 'pick', spreads: [], gallery: ['a'], assets: { a: {} } }),
+      { id: 's0' },
+    )
+    const frame = book.spreads[0]?.frames[0]
+    assert(frame !== undefined, 'expected a frame')
+    act(() => {
+      resetBookStore({
+        book,
+        sessionMeta: new Map(),
+        previewUrls: new Map(),
+        importRunning: false,
+        importExpectedCount: 0,
+      })
+      startPhotoPick({ spreadId: 's0', frameId: frame.id, kind: 'place' })
+    })
+    expect(getPhotoPick()).not.toBeNull()
+    // A click with no pointerdown: only the Preview hook can end it.
+    fireEvent.click(screen.getByTestId('present'))
+    expect(getPhotoPick()).toBeNull()
     vi.unstubAllGlobals()
   })
 

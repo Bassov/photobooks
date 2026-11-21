@@ -48,6 +48,7 @@ export const EDITOR_CHROME_CSS = `
 .film-resizer-pill { background: rgb(0 0 0/.24) }
 .filmstrip-item[aria-selected=true] { background: ${SEL} }
 .filmstrip-item[aria-selected=true][data-focused] { background: ${SEL}; box-shadow: 0 0 0 2px #535152 }
+.filmstrip[data-picking] .filmstrip-item:hover, .filmstrip[data-picking] .filmstrip-item[data-focused] { background: ${SEL} }
 .filmstrip-placed { border-radius: 9999px; background: rgb(0 0 0/.55); color: #fff }
 .filmstrip-placed > .pb-icon[data-size] { width: 10px; height: 10px; stroke-width: 2 }
 .film-chip { color: ${SUB}; background: transparent; border: 0; border-radius: calc(infinity * var(--radius-full)); height: 28px; padding: 0 8px; font-size: var(--text-xs); box-shadow: none; transition: background-color .12s }

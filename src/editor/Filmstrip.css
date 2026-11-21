@@ -222,6 +222,15 @@
   box-shadow: 0 0 0 2px var(--ring);
 }
 
+/* Designer frame-context-menu M3 pick mode (kit `--shadow-pick`, cursor-copy). */
+.filmstrip[data-picking] {
+  box-shadow: inset 0 0 0 2px var(--select);
+}
+
+.filmstrip[data-picking] .filmstrip-item {
+  cursor: copy;
+}
+
 .filmstrip-drag {
   position: relative;
   flex: 1 1 0;

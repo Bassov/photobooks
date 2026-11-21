@@ -35,6 +35,8 @@ import {
 } from './frameArrange'
 import { setFrameSource } from './frameSelection'
 import { getGuidesVisible } from './guidesView'
+import { getLeftPanelTab } from './leftPanelTabStore'
+import { startPhotoPick } from './photoPick'
 import { overrideCopyOf } from './parentChanges'
 import { isMacPlatform, parentHitAt, type ParentHit } from './parentHit'
 import { handleOwner } from './selectionPeer'
@@ -173,13 +175,27 @@ function FrameMenu({
   const moves = zMovesFor(book, target)
   const locked = frame.locked === true
   const copy = overrideCopyOf(book, target)
+  // Designer FM4: the photo group (FM3 adds the rest of its rows).
+  const pickKind =
+    frame.kind === 'text' || getLeftPanelTab() === 'masters'
+      ? null
+      : frame.assetId === undefined
+        ? 'place'
+        : 'replace'
+  const pickEnabled = !locked && book.gallery.length > 0
   return (
     <Menu
       aria-label="Frame"
       autoFocus="first"
       data-testid="frame-menu"
       className={MENU_CLASS}
+      {...(pickEnabled ? {} : { disabledKeys: PICK_KEYS })}
       onAction={(key) => {
+        if (key === 'replace' || key === 'place') {
+          startPhotoPick({ ...target, kind: key })
+          close()
+          return
+        }
         if (copy !== undefined && (key === 'reset' || key === 'hide')) {
           // The copy goes either way; the store drops its selection.
           dispatchBookOp({
@@ -199,6 +215,7 @@ function FrameMenu({
       }}
     >
       {copy === undefined ? null : copyItems()}
+      {pickKind === null ? null : pickItem(pickKind)}
       {zItems(moves)}
       {moves.length > 0 ? <MenuSeparator /> : null}
       {lockItem(locked)}
@@ -252,6 +269,24 @@ function copyItems() {
     </MenuItem>,
     hideItem('frame-menu-hide-parent'),
     <MenuSeparator key="copy-separator" />,
+  ]
+}
+
+const PICK_KEYS = ['replace', 'place']
+
+/** "Replace photo…" (filled) / "Place photo…" (empty): filmstrip pick mode. */
+function pickItem(kind: 'replace' | 'place') {
+  const label = kind === 'replace' ? 'Replace photo…' : 'Place photo…'
+  return [
+    <MenuItem
+      key={kind}
+      id={kind}
+      textValue={label}
+      data-testid={`frame-menu-${kind}`}
+    >
+      {label}
+    </MenuItem>,
+    <MenuSeparator key="photo-separator" />,
   ]
 }
 

@@ -34,6 +34,7 @@ import { setImportProgress } from './importProgressStore'
 import { MastersCanvas } from './MastersCanvas'
 import { Pasteboard } from './Pasteboard'
 import { SitePreviewFrame } from './SitePreviewBar'
+import { endPhotoPick } from './photoPick'
 import { installThumbBackgroundWarm } from './thumbBackgroundWarm'
 import { useChromeImport } from './useChromeImport'
 import './EditorShell.css'
@@ -84,6 +85,7 @@ export function EditorShell() {
             panels={panels}
             onPanelsChange={setPanels}
             onPresent={() => {
+              endPhotoPick()
               setPreviewing(true)
             }}
           />

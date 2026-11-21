@@ -18,6 +18,7 @@ import { mockWorkerSuccess } from '../photo/photo.test-helpers'
 import * as tierCache from '../photo/tierCache'
 import { resetTierCache } from '../photo/tierCache'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
+import { endPhotoPick, startPhotoPick } from './photoPick'
 import { enterCropMode, exitCropMode, getCropTarget } from './cropMode'
 import { lockOp, zOrderOp } from './frameArrange'
 import {
@@ -102,6 +103,7 @@ describe('per-spread paint subscription', () => {
   afterEach(() => {
     cleanup()
     exitCropMode()
+    endPhotoPick()
     resetBookStore()
     resetTierDisplay()
     resetTierCache()
@@ -164,6 +166,41 @@ describe('per-spread paint subscription', () => {
     expect(screen.getByTestId('crop-overlay-tag').textContent).toBe(
       'Crop · 100%',
     )
+  })
+
+  it('tags the picked frame "Replacing" / "Placing" on its spread only (FM4)', () => {
+    resetBookStore({
+      book: twoSpreadBook(),
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(
+      <>
+        <ConnectedSpreadView spreadId="s0" />
+        <ConnectedSpreadView spreadId="s1" />
+      </>,
+    )
+    const [left] = screen.getAllByTestId('spread-frame')
+    const frameId = left?.getAttribute('data-frame-id') ?? ''
+    expect(screen.queryByTestId('pick-tag')).toBeNull()
+    act(() => {
+      startPhotoPick({ spreadId: 's0', frameId, kind: 'replace' })
+    })
+    const tags = screen.getAllByTestId('pick-tag')
+    expect(tags).toHaveLength(1)
+    expect(tags[0]?.textContent).toBe('Replacing')
+    expect(left?.contains(tags[0] ?? null)).toBe(true)
+    expect(tags[0]?.className).toBe('spread-frame-crop-tag')
+    act(() => {
+      startPhotoPick({ spreadId: 's0', frameId, kind: 'place' })
+    })
+    expect(screen.getByTestId('pick-tag').textContent).toBe('Placing')
+    act(() => {
+      endPhotoPick()
+    })
+    expect(screen.queryByTestId('pick-tag')).toBeNull()
   })
 
   it('enters crop mode on double-click of a filled frame only', () => {

@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { Book, BookOp, ZMove } from '../core'
+import type { Book, BookOp, Frame, ZMove } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { runAtInterfaceScale } from '../ui/uiScale.test-helpers'
 import * as bookStore from './bookStore'
@@ -14,6 +14,8 @@ import {
   resetFrameSelection,
   setFrameSelection,
 } from './frameSelection'
+import { setLeftPanelTab } from './leftPanelTabStore'
+import { endPhotoPick, getPhotoPick } from './photoPick'
 
 function stackBook(count: number, locked = false): Book {
   return makeBook({
@@ -149,6 +151,7 @@ describe('FrameContextMenu', () => {
       .getAllByRole('menuitem')
       .map((item) => item.getAttribute('data-testid'))
     expect(items).toEqual([
+      'frame-menu-place',
       'frame-menu-backward',
       'frame-menu-back',
       'frame-menu-lock',
@@ -156,7 +159,8 @@ describe('FrameContextMenu', () => {
     expect(screen.getByTestId('frame-menu-back').textContent).toContain(
       'Shift+Ctrl+[',
     )
-    expect(screen.getByRole('separator')).toBeTruthy()
+    // FM4: + the separator after the photo row.
+    expect(screen.getAllByRole('separator')).toHaveLength(2)
     expect(screen.getByTestId('frame-menu-anchor').style.left).toBe('40px')
     expect(screen.getByTestId('frame-menu-anchor').style.top).toBe('50px')
   })
@@ -189,11 +193,16 @@ describe('FrameContextMenu', () => {
       </>,
     )
     openMenu('f0')
-    expect(screen.getAllByRole('menuitem')).toHaveLength(1)
+    // FM4: + the photo row, disabled on a locked frame.
+    expect(screen.getAllByRole('menuitem')).toHaveLength(2)
+    expect(
+      screen.getByTestId('frame-menu-place').getAttribute('aria-disabled'),
+    ).toBe('true')
     expect(screen.getByTestId('frame-menu-lock').textContent).toContain(
       'Unlock',
     )
-    expect(screen.queryByRole('separator')).toBeNull()
+    // FM4: only the photo row's separator.
+    expect(screen.getAllByRole('separator')).toHaveLength(1)
   })
 
   it('ignores a right-click off an editor frame', () => {
@@ -277,6 +286,80 @@ describe('FrameContextMenu', () => {
       })
     })
     expect(screen.queryByTestId('frame-menu')).toBeNull()
+  })
+})
+
+describe('FrameContextMenu photo pick rows (FM4)', () => {
+  afterEach(() => {
+    cleanup()
+    endPhotoPick()
+    setLeftPanelTab('pages')
+    resetFrameSelection()
+    resetBookStore()
+  })
+
+  function photoBook(gallery: string[], frame: Partial<Frame> = {}): Book {
+    return makeBook({
+      assets: Object.fromEntries(gallery.map((id) => [id, {}])),
+      gallery,
+      spreads: [
+        makeSpread({ id: 's', frames: [makeFrame({ id: 'f0', ...frame })] }),
+      ],
+    })
+  }
+
+  function open(book: Book) {
+    seed(book)
+    render(
+      <>
+        <Canvas frameIds={['f0']} />
+        <FrameContextMenu />
+      </>,
+    )
+    openMenu('f0')
+  }
+
+  it('a filled photo frame offers Replace photo…, which starts the pick', () => {
+    open(photoBook(['a', 'b'], { assetId: 'a' }))
+    const row = screen.getByTestId('frame-menu-replace')
+    expect(row.textContent).toBe('Replace photo…')
+    expect(row.hasAttribute('aria-disabled')).toBe(false)
+    expect(screen.queryByTestId('frame-menu-place')).toBeNull()
+    fireEvent.click(row)
+    expect(getPhotoPick()).toEqual({
+      spreadId: 's',
+      frameId: 'f0',
+      kind: 'replace',
+    })
+    expect(document.querySelector('.pb-menu-popover')).toBeNull()
+  })
+
+  it('an empty photo frame offers Place photo…', () => {
+    open(photoBook(['a']))
+    expect(screen.getByTestId('frame-menu-place').textContent).toBe(
+      'Place photo…',
+    )
+    expect(screen.queryByTestId('frame-menu-replace')).toBeNull()
+    fireEvent.click(screen.getByTestId('frame-menu-place'))
+    expect(getPhotoPick()?.kind).toBe('place')
+  })
+
+  it('an empty filmstrip disables the row', () => {
+    open(photoBook([]))
+    expect(
+      screen.getByTestId('frame-menu-place').getAttribute('aria-disabled'),
+    ).toBe('true')
+  })
+
+  it('text frames and Masters have no photo row', () => {
+    open(photoBook(['a'], { kind: 'text' }))
+    expect(screen.getByTestId('frame-menu-lock')).toBeTruthy()
+    expect(screen.queryByTestId('frame-menu-place')).toBeNull()
+    expect(screen.queryByTestId('frame-menu-replace')).toBeNull()
+    cleanup()
+    setLeftPanelTab('masters')
+    open(photoBook(['a']))
+    expect(screen.queryByTestId('frame-menu-place')).toBeNull()
   })
 })
 
@@ -631,9 +714,11 @@ describe('FrameContextMenu on parent items and override copies', () => {
     expect(rows()).toEqual([
       'frame-menu-reset-parent',
       'frame-menu-hide-parent',
+      'frame-menu-place',
       'frame-menu-lock',
     ])
-    expect(document.querySelectorAll('[role="separator"]')).toHaveLength(1)
+    // FM4: + the separator after the photo row.
+    expect(document.querySelectorAll('[role="separator"]')).toHaveLength(2)
     fireEvent.click(screen.getByTestId('frame-menu-reset-parent'))
     expect(
       bookStore.getBookStoreSnapshot().book.spreads[1]?.parentOverrides,
@@ -654,6 +739,7 @@ describe('FrameContextMenu on parent items and override copies', () => {
     expect(rows()).toEqual([
       'frame-menu-reset-parent',
       'frame-menu-hide-parent',
+      'frame-menu-place',
       'frame-menu-lock',
     ])
   })
