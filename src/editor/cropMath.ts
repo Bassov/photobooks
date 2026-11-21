@@ -48,6 +48,65 @@ export function panCrop(
   )
 }
 
+export type PhotoCorner = 'nw' | 'ne' | 'sw' | 'se'
+
+/** Floor of a corner-drag scale factor (the pointer crossed the anchor). */
+const MIN_SCALE = 1e-3
+
+/** Fit zoom at which a Fit photo covers the frame (fit window / fill window). */
+export function fitCoverZoom(rect: RectMm, crop: Crop, aspect: number): number {
+  const at = { ...crop, zoom: 1 }
+  return (
+    shownCropRect(rect, at, aspect, 'fit').width /
+    shownCropRect(rect, at, aspect, 'fill').width
+  )
+}
+
+/**
+ * Corner-drag scale (direct crop): the photo grows or shrinks aspect-locked
+ * about the opposite corner (`fromCentre`: its centre) so the dragged corner
+ * follows `point` (frame-local mm) along the diagonal. Fill never goes below
+ * cover; Fit may shrink to fit, and past cover it becomes Fill.
+ */
+export function scaleCrop(
+  rect: RectMm,
+  crop: Crop,
+  aspect: number,
+  fit: Frame['fit'],
+  corner: PhotoCorner,
+  point: { x: number; y: number },
+  fromCentre: boolean,
+): { crop: Crop; fit: NonNullable<Frame['fit']> } {
+  const window = shownCropRect(rect, crop, aspect, fit)
+  // The photo in frame-local mm.
+  const width = rect.width / window.width
+  const height = rect.height / window.height
+  const left = -window.x * width
+  const top = -window.y * height
+  const cx = corner.endsWith('e') ? 1 : 0
+  const cy = corner.startsWith('s') ? 1 : 0
+  const ax = fromCentre ? 0.5 : 1 - cx
+  const ay = fromCentre ? 0.5 : 1 - cy
+  const vx = (cx - ax) * width
+  const vy = (cy - ay) * height
+  const px = point.x - (left + ax * width)
+  const py = point.y - (top + ay * height)
+  const scale = Math.max(MIN_SCALE, (px * vx + py * vy) / (vx * vx + vy * vy))
+  const zoom = crop.zoom * scale
+  const cover = fit === 'fit' ? fitCoverZoom(rect, crop, aspect) : 1
+  const nextFit = fit === 'fit' && zoom <= cover ? 'fit' : 'fill'
+  const next = {
+    ...crop,
+    // Same window in Fill: the cover ratio converts a Fit zoom.
+    zoom: fit === 'fit' && nextFit === 'fill' ? zoom / cover : zoom,
+    center: {
+      x: ax + (window.x + window.width / 2 - ax) / scale,
+      y: ay + (window.y + window.height / 2 - ay) / scale,
+    },
+  }
+  return { crop: clampCrop(rect, next, aspect, nextFit), fit: nextFit }
+}
+
 /** Zoom around the frame center; never below cover. */
 export function zoomCrop(
   rect: RectMm,

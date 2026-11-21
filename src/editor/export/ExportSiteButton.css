@@ -40,8 +40,9 @@
 }
 
 /* pdf-export D2: Export site is icon-only below 1424 px (12 + 16 + 12 = 40
-   wide, like Settings); Publish keeps its label. */
-@media (max-width: 1423.98px) {
+   wide, like Settings); Publish keeps its label. The width is the app's
+   (`#root` container), so an interface scale counts. */
+@container app (max-width: 1423.98px) {
   .site-job-pill__label--narrow {
     display: none;
   }
@@ -79,7 +80,7 @@
 
 /* §2: kit PublishDialog frame — 480 wide, 20 / 24 padding, no border. */
 .pb-dialog.export-site-dialog {
-  width: min(480px, calc(100vw - 2rem));
+  width: min(480px, calc(var(--app-vw) - 2rem));
   max-width: 480px;
   padding: calc(var(--spacing) * 5) calc(var(--spacing) * 6);
   border: 0;

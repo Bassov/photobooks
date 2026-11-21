@@ -20,7 +20,7 @@ export const filmstripEmptyTitleStyle: CSSProperties = {
 
 /** Determinate import ProgressBar sizing in the status strip. */
 export const filmstripImportProgressStyle: CSSProperties = {
-  width: 'min(12rem, 40vw)',
+  width: 'min(12rem, calc(var(--app-vw) * 0.4))',
   flex: '0 1 auto',
   alignSelf: 'center',
 }

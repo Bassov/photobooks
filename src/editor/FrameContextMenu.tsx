@@ -7,6 +7,7 @@ import {
 } from 'react'
 import { getSpreadSizeMm, type ZMove } from '../core'
 import { Icon } from '../ui/Icon'
+import { uiScale } from '../ui/uiScale'
 import {
   Menu,
   MenuItem,
@@ -113,6 +114,8 @@ function parentMenuAt(event: MouseEvent): MenuAt | null {
   const spreadId = spread.id
   const spreadIndex = book.spreads.indexOf(spread)
   // A zero-size box gives non-finite mm, which hit nothing.
+  // The point is screen px / screen px per mm (one space); the guide hit
+  // radius is app chrome, so it gets app px per mm (÷ interface scale).
   const box = spreadEl.getBoundingClientRect()
   const pxPerMm = box.width / getSpreadSizeMm(book, spreadIndex).widthMm
   const hit = parentHitAt(
@@ -122,7 +125,7 @@ function parentMenuAt(event: MouseEvent): MenuAt | null {
       x: (event.clientX - box.left) / pxPerMm,
       y: (event.clientY - box.top) / pxPerMm,
     },
-    pxPerMm,
+    pxPerMm / uiScale(),
     getGuidesVisible(),
   )
   if (hit === null) {

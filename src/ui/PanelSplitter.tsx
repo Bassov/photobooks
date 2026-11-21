@@ -7,6 +7,7 @@ import {
   type PanelSide,
 } from './panelSize'
 import { ensurePanelStyles } from './panelStyles'
+import { uiScale } from './uiScale'
 
 ensurePanelStyles()
 
@@ -39,7 +40,8 @@ export function PanelSplitter({
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     const d = drag.current
     if (!d) return
-    d.last = dragPanelWidth(side, d.w, e.clientX - d.x)
+    // The pointer moves in screen px; the width is in app px (÷ interface scale).
+    d.last = dragPanelWidth(side, d.w, (e.clientX - d.x) / uiScale())
     onResize(d.last)
   }
   const end = () => {

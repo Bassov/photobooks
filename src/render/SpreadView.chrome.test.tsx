@@ -1,9 +1,15 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolveSpread } from '../core'
-import { makeBook, makeBookWithAsset } from '../core/testing/fixtures'
+import {
+  makeBook,
+  makeBookWithAsset,
+  makeFrame,
+  makeSpread,
+} from '../core/testing/fixtures'
+import { grabberPoint } from './photoLayout'
 import { SpreadView } from './SpreadView'
 
 const control = () => ({
@@ -229,19 +235,321 @@ describe('SpreadView frame chrome', () => {
     ).toBeGreaterThan(0)
   })
 
-  it('selected frame renders the rotate line next to the knob', () => {
+  it('a selected frame without a photo preview has no rotate knob', () => {
     const resolved = resolveSpread(makeBookWithAsset(), 'spread-1')
     assert(resolved !== undefined, 'expected resolved spread')
     const { container } = render(
       <SpreadView
         spreadId="spread-1"
         resolved={resolved}
-        previewUrlFor={() => 'blob:x'}
+        previewUrlFor={() => undefined}
         frameControlFor={() => ({ ...control(), pressed: true })}
       />,
     )
-    // Kit select tool has no rotate knob (uikit/src/sandbox/canvas.tsx:224,443).
+    // §A: the knob is part of the direct photo chrome only.
     expect(container.querySelector('.spread-frame-rotate-line')).toBeNull()
-    expect(screen.queryByTestId('rotate-handle')).toBeNull()
+    expect(screen.queryByTestId('rotate-knob')).toBeNull()
+  })
+})
+
+describe('SpreadView direct-crop chrome', () => {
+  afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+  })
+
+  function renderPhoto(
+    options: {
+      pressed?: boolean
+      locked?: boolean
+      empty?: boolean
+      cropActive?: boolean
+      /** Frame size (screen px) for the 100 × 100 mm frame. */
+      sizePx?: number
+    } = {},
+  ) {
+    const book = options.empty === true ? makeBook() : makeBookWithAsset()
+    const frame = book.spreads[0]?.frames[0]
+    assert(frame !== undefined, 'expected a frame')
+    frame.locked = options.locked
+    const resolved = resolveSpread(book, 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    return render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={() => (options.empty === true ? undefined : 'blob:x')}
+        pxPerMm={(options.sizePx ?? 200) / 100}
+        frameControlFor={() => ({
+          ...control(),
+          pressed: options.pressed ?? true,
+          cropActive: options.cropActive === true,
+        })}
+      />,
+    )
+  }
+
+  const handleIds = () =>
+    screen.queryAllByTestId('sel-handle').map((el) => el.dataset.handle)
+
+  it('a direct photo frame has the rotate knob and a hidden angle chip', () => {
+    const { container } = renderPhoto()
+    const knob = screen.getByTestId('rotate-knob')
+    expect(knob.dataset.handle).toBe('rotate')
+    expect(container.querySelector('.spread-frame-rotate-line')).not.toBeNull()
+    const chip = screen.getByTestId('rotate-chip')
+    expect(chip.hasAttribute('data-rotate-chip')).toBe(true)
+    expect(chip.textContent).toBe('')
+  })
+
+  it('an empty selected frame has frame handles but no knob or grabber', () => {
+    renderPhoto({ empty: true })
+    expect(handleIds()).toHaveLength(8)
+    expect(screen.queryByTestId('rotate-knob')).toBeNull()
+    expect(screen.queryByTestId('crop-grabber')).toBeNull()
+  })
+
+  it('pinned (crop mode): layer shown, focusable photo handles, no frame handles', () => {
+    // Crop mode clears the frame selection (ConnectedSpreadView).
+    renderPhoto({ cropActive: true, pressed: false })
+    expect(screen.getByTestId('photo-layer').dataset.shown).toBe('true')
+    expect(screen.getByTestId('photo-handles').dataset.shown).toBe('true')
+    expect(
+      screen.getByTestId('photo-handles').hasAttribute('aria-hidden'),
+    ).toBe(false)
+    expect(screen.getByTestId('crop-grabber')).toBeTruthy()
+    const handles = screen.getAllByRole('button', { name: /Scale photo/ })
+    expect(handles.map((el) => el.getAttribute('aria-label'))).toEqual([
+      'Scale photo from top left',
+      'Scale photo from top right',
+      'Scale photo from bottom left',
+      'Scale photo from bottom right',
+    ])
+    expect(handles.every((el) => el.tabIndex === 0)).toBe(true)
+    expect(screen.queryByTestId('spread-frame-handles')).toBeNull()
+    expect(screen.queryByTestId('rotate-knob')).toBeNull()
+    expect(screen.getByTestId('crop-overlay-tag').textContent).toBe(
+      'Crop · 100%',
+    )
+  })
+
+  it('unpinned photo handles take no focus', () => {
+    renderPhoto()
+    for (const handle of screen.getAllByTestId('photo-handle')) {
+      expect(handle.hasAttribute('tabindex')).toBe(false)
+      expect(handle.hasAttribute('role')).toBe(false)
+    }
+    expect(
+      screen.getByTestId('photo-handles').getAttribute('aria-hidden'),
+    ).toBe('true')
+  })
+
+  it.each([
+    [64, true],
+    [63, false],
+  ])('a %d px frame shows the grabber: %s', (sizePx, shown) => {
+    renderPhoto({ sizePx })
+    expect(screen.queryByTestId('crop-grabber') !== null).toBe(shown)
+  })
+
+  it.each([
+    [{ width: 100, height: 60 }, 'height'],
+    [{ width: 60, height: 100 }, 'width'],
+  ])('a frame with one side < 64 px (%o, %s) has no grabber', (rect) => {
+    const book = makeBookWithAsset()
+    const frame = book.spreads[0]?.frames[0]
+    assert(frame !== undefined, 'expected a frame')
+    frame.rect = { x: 10, y: 10, ...rect }
+    const resolved = resolveSpread(book, 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={() => 'blob:x'}
+        pxPerMm={1}
+        frameControlFor={() => ({ ...control(), pressed: true })}
+      />,
+    )
+    expect(screen.queryByTestId('crop-grabber')).toBeNull()
+    expect(screen.getByTestId('rotate-knob')).toBeTruthy()
+  })
+
+  it('a selected text frame has no rotate knob or photo chrome', () => {
+    const book = makeBook({
+      spreads: [
+        makeSpread({
+          frames: [
+            makeFrame({
+              kind: 'text',
+              content: { type: 'static', text: 'Lake' },
+            }),
+          ],
+        }),
+      ],
+    })
+    const resolved = resolveSpread(book, 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={() => 'blob:x'}
+        pxPerMm={2}
+        frameControlFor={() => ({ ...control(), pressed: true })}
+      />,
+    )
+    expect(screen.getAllByTestId('sel-handle')).toHaveLength(8)
+    expect(screen.queryByTestId('rotate-knob')).toBeNull()
+    expect(screen.queryByTestId('crop-grabber')).toBeNull()
+  })
+
+  it('an idle or pinned layer listens to no pointer moves', () => {
+    const add = vi.spyOn(window, 'addEventListener')
+    renderPhoto()
+    cleanup()
+    renderPhoto({ cropActive: true, pressed: false })
+    expect(add.mock.calls.some(([type]) => type === 'pointermove')).toBe(false)
+    add.mockRestore()
+  })
+
+  it('a side < 40 px drops its mid handles, corners stay', () => {
+    // 100 × 100 mm at 0.39 px/mm: both sides 39 px.
+    renderPhoto({ sizePx: 39 })
+    expect(handleIds()).toEqual(['nw', 'ne', 'sw', 'se'])
+    cleanup()
+    renderPhoto({ sizePx: 40 })
+    expect(handleIds()).toHaveLength(8)
+  })
+
+  function moveTo(x: number, y: number) {
+    act(() => {
+      window.dispatchEvent(
+        new MouseEvent('pointermove', { clientX: x, clientY: y }),
+      )
+    })
+  }
+
+  it('a selected photo frame has the grabber, hidden layer and 4 photo handles', () => {
+    renderPhoto()
+    const grabber = screen.getByTestId('crop-grabber')
+    expect(grabber.hasAttribute('data-photo-pan')).toBe(true)
+    expect(grabber.dataset.cameraFrame).toBe('')
+    expect(grabber.style.getPropertyValue('--grab-x')).toBe('50%')
+    expect(grabber.style.getPropertyValue('--grab-y')).toBe('50%')
+    expect(screen.getByTestId('photo-layer').dataset.shown).toBeUndefined()
+    expect(screen.getByTestId('photo-handles').dataset.shown).toBeUndefined()
+    expect(
+      screen.getAllByTestId('photo-handle').map((el) => el.dataset.photoHandle),
+    ).toEqual(['nw', 'ne', 'sw', 'se'])
+    const image = screen.getByTestId('spread-frame-image')
+    const ghost = screen.getByTestId('photo-ghost')
+    expect(ghost.style.backgroundImage).toContain('blob:x')
+    for (const box of [ghost, screen.getByTestId('photo-extent')]) {
+      expect(box.style.width).toBe(image.style.width)
+      expect(box.style.left).toBe(image.style.left)
+    }
+    expect(screen.getByTestId('photo-crop-tag').textContent).toBe('Crop')
+  })
+
+  it('no direct-crop chrome on unselected, locked or empty frames', () => {
+    for (const options of [
+      { pressed: false },
+      { locked: true },
+      { empty: true },
+    ]) {
+      const view = renderPhoto(options)
+      expect(screen.queryByTestId('crop-grabber')).toBeNull()
+      expect(screen.queryByTestId('photo-layer')).toBeNull()
+      view.unmount()
+    }
+  })
+
+  it('grabber hover shows the layer; it hides 400 ms after the pointer is > 12 px away', () => {
+    vi.useFakeTimers()
+    renderPhoto()
+    const layer = screen.getByTestId('photo-layer')
+    fireEvent.pointerOver(screen.getByTestId('crop-grabber'))
+    expect(layer.dataset.shown).toBe('true')
+    expect(screen.getByTestId('photo-handles').dataset.shown).toBe('true')
+    // jsdom lays the extent out at 0 × 0: 12 px away still counts as on it.
+    moveTo(12, 0)
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(layer.dataset.shown).toBe('true')
+    moveTo(13, 0)
+    act(() => {
+      vi.advanceTimersByTime(399)
+    })
+    expect(layer.dataset.shown).toBe('true')
+    // Back on the photo cancels the pending hide.
+    moveTo(0, 0)
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(layer.dataset.shown).toBe('true')
+    moveTo(0, 20)
+    act(() => {
+      vi.advanceTimersByTime(400)
+    })
+    expect(layer.dataset.shown).toBeUndefined()
+  })
+
+  it('measures the 12 px from the photo extent on every side', () => {
+    vi.useFakeTimers()
+    renderPhoto()
+    const layer = screen.getByTestId('photo-layer')
+    screen.getByTestId('photo-extent').getBoundingClientRect = () =>
+      ({ left: 100, right: 200, top: 50, bottom: 150 }) as DOMRect
+    const shownAfter = (x: number, y: number): boolean => {
+      fireEvent.pointerOver(screen.getByTestId('crop-grabber'))
+      moveTo(150, 100)
+      moveTo(x, y)
+      act(() => {
+        vi.advanceTimersByTime(400)
+      })
+      return layer.dataset.shown === 'true'
+    }
+    for (const [x, y] of [
+      [150, 100],
+      [88, 100],
+      [212, 100],
+      [150, 38],
+      [150, 162],
+    ] as const) {
+      expect(shownAfter(x, y)).toBe(true)
+    }
+    for (const [x, y] of [
+      [87, 100],
+      [213, 100],
+      [150, 37],
+      [150, 163],
+      [91, 41],
+    ] as const) {
+      expect(shownAfter(x, y)).toBe(false)
+    }
+  })
+
+  it('photo-handle hover shows the layer too', () => {
+    renderPhoto()
+    const [handle] = screen.getAllByTestId('photo-handle')
+    assert(handle !== undefined)
+    fireEvent.pointerOver(handle)
+    expect(screen.getByTestId('photo-layer').dataset.shown).toBe('true')
+  })
+
+  it('grabberPoint is the visible photo centre, the frame centre when turned', () => {
+    expect(
+      grabberPoint({ x: 0.5, y: 0, width: 0.5, height: 1 }, false),
+    ).toEqual({ x: 50, y: 50 })
+    // A Fit photo shown at 25–125 % of the frame width: visible 25–100 %.
+    expect(
+      grabberPoint({ x: -0.25, y: 0.25, width: 1, height: 0.5 }, false),
+    ).toEqual({ x: 62.5, y: 50 })
+    // Shown at -50–50 % across and 50–150 % down.
+    const overhang = { x: 0.5, y: -0.5, width: 1, height: 1 }
+    expect(grabberPoint(overhang, false)).toEqual({ x: 25, y: 75 })
+    expect(grabberPoint(overhang, true)).toEqual({ x: 50, y: 50 })
   })
 })

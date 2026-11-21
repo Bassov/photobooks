@@ -86,7 +86,10 @@ export type Studio = {
   mode: "pages" | "masters"; setMode: (m: "pages" | "masters") => void
   book: Book; setBook: (b: Book) => void
   panels: { l: boolean; b: boolean }; setPanels: (p: { l: boolean; b: boolean }) => void
+  /** Designer frame-context-menu M3: Replace photo… / Place photo… pick mode on frame `id` of spread `si` (UI: photo-pick-kit) */
+  pick: Pick | null; setPick: (p: Pick | null) => void
 }
+export type Pick = { si: number; id: string; kind: "replace" | "place" }
 export type Node = { k: "cover" } | { k: "endpaper"; w: "front" | "back" } | { k: "master"; id: "A" | "B" } | { k: "last" } | { k: "book" } | { k: "none" } | null
 /** `safe`: the safe margin in mm (Book settings Print · S; folios stay inside it) */
 export type Book = { endp: boolean; endpSame: boolean; w: number; h: number; preset: string; safe: number }
@@ -119,6 +122,7 @@ export function StudioProvider({ init, view, features = {}, cur: cur0 = 0, sel: 
   const [sel, setSel] = React.useState<string[]>(sel0)
   const [filmSel, setFilmSel] = React.useState<string[]>([])
   const [cropId, setCropId] = React.useState<string | null>(null)
+  const [pick, setPick] = React.useState<Pick | null>(null)
   const [v, setV] = React.useState<View>(() => ({ ...DEFAULT_VIEW, thumb: readThumb(), ...view }))
   const [status, setStatus] = React.useState("")
   const [dragging, setDragging] = React.useState<string[] | null>(null)
@@ -173,7 +177,7 @@ export function StudioProvider({ init, view, features = {}, cur: cur0 = 0, sel: 
     view: v, setView: (p) => setV((o) => ({ ...o, ...p })), features,
     toast: (c, timeout = 5000) => { queue.add(c, { timeout }) }, queue, status, setStatus, dragging, setDragging,
     saveState, setSaveState, missing, setMissing,
-    node, setNode: (n) => { setNodeRaw(n); if (n) setSel([]) }, mode, setMode, book, setBook, panels, setPanels,
+    node, setNode: (n) => { setNodeRaw(n); if (n) setSel([]) }, mode, setMode, book, setBook, panels, setPanels, pick, setPick,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
@@ -200,6 +204,35 @@ export function mapSpreadFreezing(d: Doc, i: number, fn: (s: Spread) => Spread):
  *  A removed override copy hides its parent item on the spread (Designer parent-overrides PO3). */
 export function removeFrames(d: Doc, i: number, ids: string[]): Doc {
   return mapSpreadFreezing(d, i, (s) => hideCopies({ ...s, template: null, frames: s.frames.filter((f) => !ids.includes(f.id)) }, s.frames.filter((f) => ids.includes(f.id))))
+}
+/** z-order moves (inspector Arrange, frame menu): `fwd` / `bwd` step past the next unselected frame. */
+export type ZKind = "front" | "fwd" | "bwd" | "back"
+export const Z_LABEL: Record<ZKind, string> = { front: "Bring to front", fwd: "Bring forward", bwd: "Send backward", back: "Send to back" }
+/** Move frames `ids` of spread `i` in z order; the same doc back when nothing moves. */
+export function zMove(d: Doc, i: number, ids: string[], kind: ZKind): Doc {
+  return mapSpread(d, i, (s) => {
+    const a = [...s.frames]
+    const sel = a.filter((x) => ids.includes(x.id)), rest = a.filter((x) => !ids.includes(x.id))
+    if (kind === "front") return { ...s, frames: [...rest, ...sel] }
+    if (kind === "back") return { ...s, frames: [...sel, ...rest] }
+    // prod reorderFrames: from the moving end, each selected frame steps past the next unselected one
+    const step = kind === "fwd" ? 1 : -1
+    for (let j = kind === "fwd" ? a.length - 2 : 1; j >= 0 && j < a.length; j -= step) {
+      if (ids.includes(a[j].id) && !ids.includes(a[j + step].id)) [a[j], a[j + step]] = [a[j + step], a[j]]
+    }
+    return { ...s, frames: a }
+  })
+}
+/** The z moves that change the order of frames `ids` on spread `s` (prod zMovesFor / setZMovesFor). */
+export function zMovesFor(s: Spread, ids: string[]): ZKind[] {
+  const order = (fs: Frame[]) => fs.map((f) => f.id).join()
+  const d: Doc = { spreads: [s] } as Doc
+  return (["front", "fwd", "bwd", "back"] as const).filter((k) => order(zMove(d, 0, ids, k).spreads[0].frames) !== order(s.frames))
+}
+/** Replace photo… / Place photo…: crop mode ends, the frame stays selected (pick UI: photo-pick-kit). */
+export function startPick(st: Studio, si: number, id: string, kind: Pick["kind"]) {
+  st.setCropId(null)
+  st.setPick({ si, id, kind })
 }
 export const deleteLabel = (fs: Frame[]) => fs.length > 1 ? `Delete ${fs.length} frames` : fs[0]?.overrides ? "Hide parent item" : "Delete frame"
 export function placedSet(d: Doc) {

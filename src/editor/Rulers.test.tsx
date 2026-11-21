@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createRef, type RefObject } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { runAtInterfaceScale } from '../ui/uiScale.test-helpers'
 import type { GuideDragStart } from './guideGesture'
 import { Rulers } from './Rulers'
 
@@ -250,6 +251,48 @@ describe('Rulers', () => {
     expect(frames).toHaveLength(0)
     camera.listener?.()
     expect(frames).toHaveLength(1)
+  })
+
+  it('at interface scale 1.5 backs at DPR × s and maps screen rects to app px', () => {
+    const restore = runAtInterfaceScale(1.5)
+    try {
+      vi.stubGlobal('devicePixelRatio', 2)
+      const { container } = render(<Stage scrollRef={createRef()} />)
+      const [canvasX, canvasY] = container.querySelectorAll('canvas')
+      // CSS 500 × 22 app px at 2 × 1.5 device px per app px.
+      expect([canvasX?.width, canvasX?.height]).toEqual([1500, 66])
+      expect([canvasY?.width, canvasY?.height]).toEqual([66, 900])
+      expect(ctx.scale).toHaveBeenCalledWith(3, 3)
+      // Spread 122 − area 22 = 100 screen px = 66.67 app px.
+      expect(Number(screen.getByTestId('ruler-x').dataset.origin)).toBeCloseTo(
+        100 / 1.5,
+        9,
+      )
+      const cursorX = container.querySelector<HTMLElement>('.ruler-cursor-x')
+      screen.getByTestId('stage').dispatchEvent(
+        new MouseEvent('pointermove', {
+          clientX: 52,
+          clientY: 37,
+          bubbles: true,
+        }),
+      )
+      expect(parseFloat(cursorX?.style.left ?? '')).toBeCloseTo(20, 9)
+      const cursorY = container.querySelector<HTMLElement>('.ruler-cursor-y')
+      expect(parseFloat(cursorY?.style.top ?? '')).toBeCloseTo(10, 9)
+      // Spread top 72 − area top 22 = 50 screen px.
+      expect(Number(screen.getByTestId('ruler-y').dataset.origin)).toBeCloseTo(
+        50 / 1.5,
+        9,
+      )
+      // 600 mm spread: the spine at 200 mm, 1200 / 1.5 / 600 app px per mm.
+      const spine = container.querySelector<HTMLElement>('.ruler-spine')
+      expect(parseFloat(spine?.style.left ?? '')).toBeCloseTo(
+        100 / 1.5 + (200 * 1200) / 1.5 / 600,
+        4,
+      )
+    } finally {
+      restore()
+    }
   })
 
   it('shows the cursor ticks on pointer move and clears them on leave', () => {

@@ -14,7 +14,7 @@ export function LibraryEmpty({
   return (
     <div
       className="pb-kit-type relative flex min-h-[520px] flex-1 items-center justify-center px-10 pb-10"
-      style={{ gap: 'clamp(48px, 6vw, 110px)' }}
+      style={{ gap: 'clamp(48px, calc(var(--app-vw) * 0.06), 110px)' }}
       data-testid="library-empty"
       data-home-empty=""
     >

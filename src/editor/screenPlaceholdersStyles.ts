@@ -3,10 +3,8 @@
 const STYLE_TEXT = `
 .pb-screen {
   box-sizing: border-box;
-  height: 100vh;
-  height: 100dvh;
-  max-height: 100vh;
-  max-height: 100dvh;
+  height: var(--app-dvh);
+  max-height: var(--app-dvh);
   padding: calc(var(--spacing) * 6);
   display: flex;
   flex-direction: column;

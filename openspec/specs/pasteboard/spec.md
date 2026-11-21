@@ -349,3 +349,35 @@ A text frame whose content exceeds its whole-line box SHALL show the `Overflow` 
 
 - **WHEN** chip `date` is clicked on a text frame under a photo with a capture date
 - **THEN** Live is on, `Anchored to` names that frame, the field shows `{date}` and the canvas the date; another photo dropped on the anchor updates it, and after Make static a swap leaves it unchanged
+
+### Requirement: Direct crop on a selected photo frame
+
+A selected single photo frame (not text, empty, locked, being edited or in crop mode) SHALL be cropped without a mode, one history step per gesture: frame handles resize the frame with the photo fixed on the page (Fill scales it up only to keep cover), the grabber or the shown ghost pans it, and corner photo handles scale it aspect-locked about the opposite corner (Alt: centre). Fill never goes below cover; Fit may shrink to fit and growing past cover switches to Fill.
+
+#### Scenario: Edge crop keeps the photo
+
+- **WHEN** the user drags the right handle of a selected photo frame inward, then presses Undo
+- **THEN** the photo keeps its place and size on the page, and one Undo restores the frame
+
+#### Scenario: Fit grows into Fill
+
+- **WHEN** the user drags a photo corner of a Fit frame outward past cover
+- **THEN** the photo grows about the opposite corner and the inspector shows Fill
+
+### Requirement: Direct crop photo layer
+
+The photo layer (ghost at .3, extent outline, 4 corner handles) SHALL fade in on grabber or photo-handle hover and during a photo gesture (frame handles hidden, "Crop · N%" tag), and hide 400 ms after the pointer is > 12 px outside the photo; chrome is screen px, the fade instant under reduced motion. Hit order: photo handle, frame handle, grabber, ghost, frame body; the wheel keeps panning the canvas.
+
+#### Scenario: Hover shows the layer
+
+- **WHEN** the user hovers the grabber of a selected photo frame
+- **THEN** the ghost, the extent outline and 4 photo handles are painted
+
+### Requirement: Pinned crop and rotate chip
+
+Crop mode (double-click, Crop button) SHALL pin the photo layer: ghost, grabber and 4 photo handles stay shown with the "Crop · N%" tag and the 2 px `--crop` outline, frame handles hidden; Tab cycles the photo handles, arrows nudge the photo 1 screen px (Shift 10), the wheel zooms the photo, Esc or a click outside exits; one history step per gesture, key press or wheel burst. A direct photo frame SHALL show the rotate knob, and while rotating a screen-px chip 10 px right of it with the angle; Shift rotates in 15° steps, else the angle snaps to 0 / 90 / 180 / 270 within ±2°. A frame side < 40 screen px hides that side's mid handles; a side < 64 px hides the grabber.
+
+#### Scenario: Pinned nudge and Tab
+
+- **WHEN** the user double-clicks a photo frame, presses Tab twice and ArrowRight
+- **THEN** the second photo handle has focus, the photo moved 1 px right and one Undo moves it back

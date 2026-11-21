@@ -1,0 +1,44 @@
+# interface-size Specification
+
+## Purpose
+
+Defines how the whole app scales for large screens (interface size): the stored per-computer choice, the clamp to a minimum app size, and the app viewport units that keep layouts inside the window at any scale.
+
+## Requirements
+
+### Requirement: Interface scale core
+
+The app SHALL scale as a whole by an interface scale s (`#root` zoom), with every app viewport height / width token equal to the viewport unit divided by s. The stored choice lives in `localStorage["photobooks.ui.scale.v1"]` as `"100" | "125" | "150"`; any other value counts as 100. The effective scale SHALL be the largest step of 1 / 1.25 / 1.5 that is ≤ the choice and leaves an app of at least 1280×720 CSS px (`innerWidth / s`, `innerHeight / s`), else 1; it is recomputed on window resize and on a `storage` change and is never written back. Product code under `src/editor`, `src/ui` and `src/render` MUST NOT use raw `vh` / `dvh` / `svh` / `vw` units. At 100 % `#root` zoom is 1 and every layout value is unchanged.
+
+#### Scenario: Large screen at 150 %
+
+- **WHEN** the window is 3840×2160 and the stored choice is `"150"`
+- **THEN** `#root` has zoom 1.5 and the welcome, library and editor screens fill the window with no page-level scroll
+
+#### Scenario: Window too small for the choice
+
+- **WHEN** the window is 1920×970 with choice `"150"`, or 1440×900 with choice `"125"`
+- **THEN** the effective scale is 1.25, respectively 1, and the stored choice is unchanged
+
+### Requirement: Modal overlays at app scale
+
+Modal dialogs, alert dialogs and the toast region SHALL render at the interface scale s: their overlay root carries `zoom: var(--ui-scale)`, so each one's rect equals R(s), the same state at 100 % in a W/s × H/s viewport with values × s (±0.5 px). They stay centred, or bottom-right for toasts, as at 100 % and inside the viewport. At 100 % nothing changes.
+
+#### Scenario: Dialog at 150 %
+
+- **WHEN** the window is 3840×2160 with choice `"150"` and the Create book, Print or a confirm dialog opens
+- **THEN** its rect is the rect at 100 % in a 2560×1440 window × 1.5 (±0.5 px), centred in the window
+
+### Requirement: Pointer, bitmap and site preview under interface scale
+
+At interface scale s, every editor pointer gesture SHALL move what it drags by the pointer's screen movement (±1 px): frame drag, resize handle, crop pan, marquee, guide drag, panel splitter, filmstrip separator, spread-list reorder, filmstrip drag to a drop target and the wheel-zoom anchor. Editor bitmaps SHALL use device px per app px = `devicePixelRatio × s` (rulers canvas backing, image tier choice). The site preview room SHALL render at visitor size (net zoom 1) while its Preview bar scales with the app. At s = 1 nothing changes.
+
+#### Scenario: Panel splitter at 150 %
+
+- **WHEN** the window is 3840×2160 with choice `"150"` and the user drags the left panel splitter 60 screen px to the right
+- **THEN** the panel's right edge moves 60 screen px (±1)
+
+#### Scenario: Rulers and site preview at 150 %
+
+- **WHEN** the window is 3840×2160 with DPR 1 and choice `"150"`
+- **THEN** the top ruler canvas is 1.5× its CSS width in device px, and in Preview the bar is 72 px tall while the site room spans the window at visitor size

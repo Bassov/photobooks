@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { MIN_FRAME_EDGE_MM, type Frame } from '../core'
+import { MIN_FRAME_EDGE_MM, sourceCropRect, type Frame } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import {
   dispatchBookOp,
@@ -24,6 +24,8 @@ import { setGridVisible, setSnapOn } from './gridView'
 import { clearLiveGeometry, getLiveGeometry } from './liveGeometry'
 import { getSnapHint, setSnapHint } from './snapHint'
 
+/** No session meta: the store's default photo aspect. */
+const ASPECT = 1
 const SIZE_MM = 300
 const SCALE = 2
 const ORIGIN = { x: 40, y: 30 }
@@ -365,6 +367,46 @@ describe('frameHandleGesture', () => {
       expect(frame().rect.width).toBe(50)
     })
 
+    it('crops a photo frame: the photo keeps its page box, one undo step', () => {
+      stop()
+      dom.pasteboard.remove()
+      setup({ assetId: 'p' })
+      const img = document.createElement('img')
+      img.className = 'spread-frame-image'
+      dom.button.append(img)
+      const pageBox = () => {
+        const { rect, crop, fit } = frame()
+        const window = sourceCropRect(rect, crop, ASPECT, fit)
+        const width = rect.width / window.width
+        const height = rect.height / window.height
+        return {
+          x: rect.x - window.x * width,
+          y: rect.y - window.y * height,
+          width,
+          height,
+        }
+      }
+      const before = pageBox()
+      const se = dom.handles.get('se')
+      assert(se !== undefined)
+      fire('pointerdown', se, 150, 150)
+      fire('pointermove', window, 130, 140)
+      // The preview lays the photo out for the kept crop, not the old one.
+      expect(img.style.width).not.toBe('')
+      expect(img.style.width).not.toBe('100%')
+      fire('pointerup', window, 130, 140)
+      expect(img.style.width).toBe('')
+      expect(frame().rect).toEqual({ x: 100, y: 100, width: 30, height: 40 })
+      const after = pageBox()
+      expect(after.x).toBeCloseTo(before.x, 6)
+      expect(after.y).toBeCloseTo(before.y, 6)
+      expect(after.width).toBeCloseTo(before.width, 6)
+      expect(after.height).toBeCloseTo(before.height, 6)
+      undoBook()
+      expect(frame().rect.width).toBe(50)
+      expect(frame().crop).toBeUndefined()
+    })
+
     it('stops a corner resize at 5 mm', () => {
       const se = dom.handles.get('se')
       assert(se !== undefined)
@@ -699,6 +741,47 @@ describe('frameHandleGesture', () => {
       fire('pointerup', window, 125, 225)
       expect(dom.button.style.transform).toBe('')
       expect(frame().rotationDeg).toBe(90)
+    })
+
+    it('writes the angle chip while rotating and clears the flag after', () => {
+      const rot = dom.handles.get('rotate')
+      assert(rot !== undefined)
+      const chip = document.createElement('span')
+      chip.setAttribute('data-rotate-chip', '')
+      dom.button.append(chip)
+      fire('pointerdown', rot, 225, 125)
+      // 2.4° off a quarter turn: free, rounded in the chip.
+      const rad = ((90 - 2.4) * Math.PI) / 180
+      fire(
+        'pointermove',
+        window,
+        125 + 100 * Math.cos(rad),
+        125 + 100 * Math.sin(rad),
+      )
+      expect(dom.button.hasAttribute('data-rotating')).toBe(true)
+      expect(chip.textContent).toBe('88°')
+      // 88° → within ±2° of 90°.
+      const near = ((90 - 1.5) * Math.PI) / 180
+      fire(
+        'pointermove',
+        window,
+        125 + 100 * Math.cos(near),
+        125 + 100 * Math.sin(near),
+      )
+      expect(chip.textContent).toBe('90°')
+      fire('pointerup', window, 125, 225)
+      expect(dom.button.hasAttribute('data-rotating')).toBe(false)
+    })
+
+    it('clears the rotating flag on Escape', () => {
+      const rot = dom.handles.get('rotate')
+      assert(rot !== undefined)
+      fire('pointerdown', rot, 225, 125)
+      fire('pointermove', window, 125, 225)
+      expect(dom.button.hasAttribute('data-rotating')).toBe(true)
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+      expect(dom.button.hasAttribute('data-rotating')).toBe(false)
+      expect(dom.button.style.transform).toBe('')
     })
 
     it('rounds the committed rotation to 0.1°', () => {

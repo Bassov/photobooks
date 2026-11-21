@@ -5,6 +5,7 @@ import {
   type RefObject,
 } from 'react'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
+import { effectiveDpr, uiScale } from '../ui/uiScale'
 import { getCommittedCamera, subscribeCommitted } from './cameraStore'
 import {
   RULER_PX,
@@ -26,24 +27,26 @@ function measure(scroll: HTMLElement, pageMm: number, pxPerMm?: number) {
     scroll.querySelector<HTMLElement>(ACTIVE_SPREAD) ??
     scroll.querySelector<HTMLElement>('[data-testid="spread-view"]')
   if (spread === null || spread.offsetWidth === 0) return null
+  // Rects are screen px; the canvas draws in app px (÷ interface scale).
+  const s = uiScale()
   const box = spread.getBoundingClientRect()
   const area = scroll.getBoundingClientRect()
   return {
     spread,
     ...rulerGeometry({
-      boxLeft: box.left,
-      boxTop: box.top,
-      boxWidth: box.width,
-      areaLeft: area.left,
-      areaTop: area.top,
+      boxLeft: box.left / s,
+      boxTop: box.top / s,
+      boxWidth: box.width / s,
+      areaLeft: area.left / s,
+      areaTop: area.top / s,
       offsetWidth: spread.offsetWidth,
       pxPerMm: pxPerMm ?? SPREAD_PX_PER_MM * getCommittedCamera().zoom,
       pageMm,
     }),
     lenX: scroll.clientWidth,
     lenY: scroll.clientHeight,
-    areaLeft: area.left,
-    areaTop: area.top,
+    areaLeft: area.left / s,
+    areaTop: area.top / s,
   }
 }
 
@@ -55,7 +58,8 @@ function paintAxis(
   len: number,
   pageMm: number,
 ): void {
-  const dpr = window.devicePixelRatio || 1
+  // Device px per app px (devicePixelRatio × interface scale): sharp at any s.
+  const dpr = effectiveDpr()
   const w = axis === 'x' ? len : RULER_PX
   const h = axis === 'x' ? RULER_PX : len
   canvas.width = Math.round(w * dpr)
@@ -150,11 +154,11 @@ export function Rulers({
     const onMove = (e: PointerEvent): void => {
       if (cursorX.current) {
         cursorX.current.hidden = false
-        cursorX.current.style.left = `${String(e.clientX - area.left)}px`
+        cursorX.current.style.left = `${String(e.clientX / uiScale() - area.left)}px`
       }
       if (cursorY.current) {
         cursorY.current.hidden = false
-        cursorY.current.style.top = `${String(e.clientY - area.top)}px`
+        cursorY.current.style.top = `${String(e.clientY / uiScale() - area.top)}px`
       }
     }
     const onLeave = (): void => {

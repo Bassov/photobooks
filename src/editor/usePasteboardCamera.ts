@@ -3,6 +3,7 @@ import { getSpreadSlotPageCount } from '../core'
 import { measureHandlerSync } from '../perf/measureHandler'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import { overrideBadgeFit } from '../render/overrideBadge'
+import { uiScale } from '../ui/uiScale'
 import {
   centerSpreadScroll,
   clampZoom,
@@ -487,8 +488,9 @@ export function usePasteboardCamera({
             zoom: gesture.startZoom,
             scrollLeft: gesture.startScrollLeft,
             scrollTop: gesture.startScrollTop,
-            anchorX: pending.clientX - gesture.originX,
-            anchorY: pending.clientY - gesture.originY,
+            // Screen px → app px (÷ interface scale), like scrollLeft.
+            anchorX: (pending.clientX - gesture.originX) / uiScale(),
+            anchorY: (pending.clientY - gesture.originY) / uiScale(),
             factor: requested / gesture.startZoom,
             minZoom: gesture.minZoom,
             maxZoom: gesture.maxZoom,

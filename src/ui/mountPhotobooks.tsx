@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { enablePerfHooks, shouldEnablePerfHooks } from '../perf/exposePerf'
 import { warmPhotoWorker } from '../photo/loadPhoto'
 import { createRootTree } from './rootTree'
+import { applyUiScale } from './uiScale'
 
 interface MountPhotobooksOptions {
   getRootElement?: () => HTMLElement | null
@@ -39,6 +40,8 @@ export function mountPhotobooks(deps: MountPhotobooksOptions): void {
   if (!rootElement) {
     throw new Error('Root element #root not found')
   }
+  // Interface size before the first paint: no flash at the wrong scale.
+  applyUiScale()
   const tree: ReactNode = <StrictMode>{createTree(getSearch())}</StrictMode>
   rootFactory(rootElement).render(tree)
 }

@@ -313,6 +313,22 @@ export {
   setTextStyle,
 } from './ops/frames'
 export {
+  FRAMES_PAYLOAD_TYPE,
+  PASTE_STEP_MM,
+  PASTE_STEPS,
+  duplicateFrames,
+  framesPayload,
+  nextFrameIds,
+  pasteFrames,
+  pastedRects,
+  stepRepeatOffset,
+  unmatchedPhotoCount,
+  type FramesPayload,
+  type LastDuplicate,
+  type PasteOptions,
+  type PayloadAsset,
+} from './ops/clipboard'
+export {
   layerOf,
   reorderFrame,
   reorderFrames,

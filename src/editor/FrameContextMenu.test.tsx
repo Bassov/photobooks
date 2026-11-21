@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Book, BookOp, ZMove } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
+import { runAtInterfaceScale } from '../ui/uiScale.test-helpers'
 import * as bookStore from './bookStore'
 import { resetBookStore } from './bookStore'
 import { FrameContextMenu } from './FrameContextMenu'
@@ -543,6 +544,24 @@ describe('FrameContextMenu on parent items and override copies', () => {
 
     openAt(150, 200)
     expect(screen.queryByTestId('parent-menu')).toBeNull()
+  })
+
+  it('at interface scale 1.5 the 4.5 px guide radius is app px (6.75 screen px)', () => {
+    seed(parentBook())
+    renderSpread()
+    // 3 mm off the guide = 6 screen px: outside 4.5 screen px at 100 %…
+    openAt(103, 200)
+    expect(screen.queryByTestId('parent-menu')).toBeNull()
+    const restore = runAtInterfaceScale(1.5)
+    try {
+      // …inside 4.5 app px = 6.75 screen px at 150 %.
+      openAt(103, 200)
+      expect(screen.getByTestId('parent-menu').getAttribute('aria-label')).toBe(
+        'Parent guide',
+      )
+    } finally {
+      restore()
+    }
   })
 
   it('hides a parent guide from its menu', () => {

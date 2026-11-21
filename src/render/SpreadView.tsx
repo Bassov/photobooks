@@ -37,6 +37,7 @@ import { overrideBadgeFit } from './overrideBadge'
 import { adjustFilter, frameStyleCss } from './frameLookCss'
 import {
   clearPhotoPreview,
+  grabberPoint,
   PHOTO_LAYER_ATTR,
   turnedPhotoStyle,
 } from './photoLayout'
@@ -58,6 +59,7 @@ import {
 import { spreadFrameControlStyle } from './spreadChromeStyles'
 import { PHOTO_CAPTION_SIZE_MM, textNodeStyle } from './textStyles'
 import { ICON_GLYPHS } from '../ui/icons/glyphs'
+import { PhotoChrome } from './PhotoChrome'
 import './SpreadView.css'
 
 /** Responsive source of one frame photo (published site): `<img>` attributes. */
@@ -107,6 +109,11 @@ const HANDLE_POINTS = [
   ['s', '50%', '100%'],
   ['se', '100%', '100%'],
 ] as const
+
+/** §A small frames (screen px): a shorter side drops its mid handles. */
+const MID_HANDLE_MIN_PX = 40
+/** §A small frames (screen px): either side shorter, no grabber. */
+const GRABBER_MIN_PX = 64
 
 /** On-screen frame widths (px) where the kit shows the empty / missing hints. */
 const FRAME_ICON_MIN_PX = 46
@@ -578,22 +585,25 @@ function SpreadFrame({
       : { transform: `rotate(${String(item.rotation)}deg)` }),
   }
   const selected = control?.pressed === true && !cropActive
+  // A direct photo frame (§A): photo layer, grabber and rotate knob.
+  const direct = previewUrl !== undefined && item.text === undefined
   const filter = adjustFilter(item.adjust)
+  const photoBox: CSSProperties = turned
+    ? turnedPhotoStyle(
+        { width: box.width, height: box.height },
+        item.sourceCropRect ?? FULL_CROP,
+        quarterTurns,
+        straightenDeg,
+        { h: flipH, v: flipV },
+      )
+    : {
+        left: crop.left,
+        top: crop.top,
+        width: crop.width,
+        height: crop.height,
+      }
   const imageStyle: CSSProperties = {
-    ...(turned
-      ? turnedPhotoStyle(
-          { width: box.width, height: box.height },
-          item.sourceCropRect ?? FULL_CROP,
-          quarterTurns,
-          straightenDeg,
-          { h: flipH, v: flipV },
-        )
-      : {
-          left: crop.left,
-          top: crop.top,
-          width: crop.width,
-          height: crop.height,
-        }),
+    ...photoBox,
     ...(filter === undefined ? {} : { filter }),
   }
   // A turned photo's transform is its layout; previews go on a wrapper.
@@ -791,24 +801,61 @@ function SpreadFrame({
           {item.lowDpi.dpi} dpi
         </span>
       ) : null}
-      {selected &&
-      handles &&
+      {/* Crop mode clears the selection: pinned chrome needs no `handles`. */}
+      {((selected && handles) || cropActive) &&
       item.locked !== true &&
       control.editing !== true ? (
-        <SelectionHandles />
+        <>
+          {direct ? (
+            <PhotoChrome
+              src={previewUrl}
+              box={photoBox}
+              pinned={cropActive}
+              grabber={
+                box.width < GRABBER_MIN_PX || box.height < GRABBER_MIN_PX
+                  ? null
+                  : grabberPoint(item.sourceCropRect ?? FULL_CROP, turned)
+              }
+            />
+          ) : null}
+          {/* Pinned crop (§A): the photo handles replace the frame handles. */}
+          {selected ? (
+            <SelectionHandles
+              rotate={direct}
+              wide={box.width >= MID_HANDLE_MIN_PX}
+              tall={box.height >= MID_HANDLE_MIN_PX}
+            />
+          ) : null}
+        </>
       ) : null}
     </button>
   )
 }
 
-function SelectionHandles() {
+function SelectionHandles({
+  rotate = false,
+  wide = true,
+  tall = true,
+}: {
+  /** Rotate knob + angle chip (direct photo frame, §A). */
+  rotate?: boolean
+  /** Width ≥ 40 screen px: n / s mid handles. */
+  wide?: boolean
+  /** Height ≥ 40 screen px: w / e mid handles. */
+  tall?: boolean
+}) {
+  const points = HANDLE_POINTS.filter(
+    ([id]) =>
+      (wide || (id !== 'n' && id !== 's')) &&
+      (tall || (id !== 'w' && id !== 'e')),
+  )
   return (
     <span
       className="spread-frame-handles"
       data-testid="spread-frame-handles"
       aria-hidden
     >
-      {HANDLE_POINTS.map(([id, x, y]) => (
+      {points.map(([id, x, y]) => (
         <span
           key={id}
           className="spread-frame-handle"
@@ -817,6 +864,29 @@ function SelectionHandles() {
           style={{ left: x, top: y }}
         />
       ))}
+      {rotate ? (
+        <>
+          <span
+            className="spread-frame-rotate-line"
+            data-testid="rotate-stem"
+            data-camera-frame=""
+          />
+          <span
+            className="spread-frame-handle spread-frame-rotate"
+            data-handle="rotate"
+            data-testid="rotate-knob"
+            data-camera-frame=""
+            title="Drag to rotate, Shift for 15° steps"
+          />
+          {/* Text written by src/editor/frameHandleGesture.ts while rotating. */}
+          <span
+            className="spread-frame-crop-tag spread-frame-rotate-chip"
+            data-testid="rotate-chip"
+            data-rotate-chip=""
+            data-camera-frame=""
+          />
+        </>
+      ) : null}
     </span>
   )
 }

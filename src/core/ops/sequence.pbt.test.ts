@@ -99,6 +99,15 @@ describe('editor command sequences', () => {
         c.addSpread(0),
         c.moveSpread(0, 1),
       ],
+      'paste and duplicate copy placements onto other spreads': [
+        c.addToGallery([0, 1]),
+        c.place(0, 0, 0),
+        c.addSpread(1),
+        c.pasteFrames(0, 0, 1, false),
+        c.duplicateFrames(0, 0, 1),
+        c.removeFromGallery(0),
+        c.pasteFrames(1, 0, 0, true),
+      ],
     }
     for (const [name, commands] of Object.entries(cases)) {
       it(name, () => {

@@ -46,7 +46,10 @@ import {
   THUMB_HEIGHT,
   type FilmstripScrollDirection,
 } from './thumbSlotSize'
-import { FILMSTRIP_THUMB_HEIGHT } from './filmstripSize'
+import { setFilmstripThumb, thumbAuto } from './filmstripSize'
+
+/** jsdom window (768 high): the `auto` thumb height is the kit 76 px. */
+const FILMSTRIP_THUMB_HEIGHT = thumbAuto(window.innerHeight)
 
 /** Minimum window cover ahead at the fixed filmstrip height (two widest slots). */
 const OVERSCAN = thumbWidthMax(FILMSTRIP_THUMB_HEIGHT) * 2
@@ -296,6 +299,30 @@ describe('Filmstrip viewport containment', () => {
     expect(
       screen.getByTestId('filmstrip').getAttribute('data-gallery-count'),
     ).toBe('80')
+  })
+
+  it('feeds the separator height H to strides, spacer and slot height', () => {
+    seedGallery(80)
+    render(<Filmstrip />)
+    act(() => {
+      setFilmstripThumb(128, false)
+    })
+    const aspects = Array.from({ length: 80 }, () => 1.5)
+    const spacer = document.querySelector<HTMLElement>('.filmstrip-spacer')
+    const win = screen.getByTestId('filmstrip-window')
+    try {
+      expect(spacer?.style.width).toBe(
+        `${String(spacerWidthPx(aspects, 80, 1, 128))}px`,
+      )
+      expect(win.style.getPropertyValue('--film-slot-h')).toBe('128px')
+      // Window covers the scrollport + overscan at the larger slot width.
+      expect(Number(win.dataset.windowCount)).toBeLessThan(80)
+    } finally {
+      act(() => {
+        setFilmstripThumb('auto', false)
+      })
+    }
+    expect(win.style.getPropertyValue('--film-slot-h')).toBe('76px')
   })
 
   it('declares CSS containment so a wide spacer cannot grow the page', () => {

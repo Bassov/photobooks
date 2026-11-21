@@ -1,5 +1,6 @@
 import { resolveSpread, type Book } from '../core'
 import { measureHandlerSync } from '../perf/measureHandler'
+import { uiScale } from '../ui/uiScale'
 import {
   dispatchBookOp,
   getAssetDisplayName,
@@ -364,22 +365,35 @@ export function stackInset(
   if (world === null) {
     return { insetX: 0, insetY: 0 }
   }
+  // Rects are screen px; the stack is laid out in app px (÷ interface scale).
+  const s = uiScale()
+  const w = world.getBoundingClientRect()
+  const first = world.firstElementChild?.getBoundingClientRect()
   return insetFromRects(
-    world.getBoundingClientRect(),
-    world.firstElementChild?.getBoundingClientRect(),
+    { width: w.width / s, top: w.top / s },
+    first === undefined ? undefined : { top: first.top / s },
     stackWidthPx,
   )
 }
 
-/** Pointer position in stack coordinates (scrollport origin, scroll, inset). */
+/**
+ * Pointer position in stack coordinates (scrollport origin, scroll, inset):
+ * the screen-px offset from the scrollport becomes app px (÷ interface scale),
+ * the space of `scrollLeft` / `scrollTop` and the inset.
+ */
 export function stackPoint(
   event: { clientX: number; clientY: number },
   session: Pick<DropSessionBase, 'originX' | 'originY' | 'insetX' | 'insetY'>,
   scroll: { scrollLeft: number; scrollTop: number },
 ): { x: number; y: number } {
+  const s = uiScale()
   return {
-    x: event.clientX - session.originX + scroll.scrollLeft - session.insetX,
-    y: event.clientY - session.originY + scroll.scrollTop - session.insetY,
+    x:
+      (event.clientX - session.originX) / s +
+      scroll.scrollLeft -
+      session.insetX,
+    y:
+      (event.clientY - session.originY) / s + scroll.scrollTop - session.insetY,
   }
 }
 

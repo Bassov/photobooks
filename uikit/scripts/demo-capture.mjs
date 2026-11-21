@@ -51,7 +51,10 @@ export async function capture(out, { log = console.log, probe } = {}) {
     ["editor-add-folder-picker", () => c('[data-testid="demo-add-folder"]')],
     ["editor-photos-added", () => dlgBtn(/Choose|Select|Use|Add/i).click()],
     ["editor-filmstrip-hover", async () => { const b = await page.locator('[data-testid="filmstrip"] [role="row"]').nth(2).boundingBox(); await page.mouse.move(Math.round(b.x + b.width / 2), Math.round(b.y + b.height / 2)); return "keep" }],
+    // walkthrough-ux-review §B: drag the dock top edge up 52 px → thumbs 76 → 128 (4 px steps); the next step double-clicks back to auto
+    ["editor-filmstrip-resized", async () => { const b = await page.locator('[data-testid="demo"] [data-testid="thumb-resizer"]').boundingBox(), x = Math.round(b.x + b.width / 2), y = Math.round(b.y + b.height / 2); await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x, y - 52, { steps: 6 }); await page.mouse.up() }],
     ["editor-cover-photo-and-title", async () => {
+      await page.locator('[data-testid="demo"] [data-testid="thumb-resizer"]').dblclick(); await settle(150)
       await c('[data-item="cover"]'); await settle(250)
       await page.locator('[data-testid="filmstrip"] [role="row"]').nth(3).dragTo(page.locator('[data-testid="cover-front"]')); await settle(450)
       if (!(await page.locator('[data-testid="cover-text-front"]').count())) { await c('[data-item="cover"]'); await settle(250) }
