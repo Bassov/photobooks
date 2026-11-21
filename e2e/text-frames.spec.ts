@@ -102,7 +102,14 @@ test.describe('text frames', () => {
       'Morning on the lake',
     )
     await expect(frame).toHaveAttribute('aria-pressed', 'true')
-    await expect(frame.getByTestId('sel-handle')).toHaveCount(8)
+    // §A small frames: the 14 mm sides are < 40 screen px, so their mid
+    // handles (w / e) are hidden; the corners and n / s stay.
+    await expect(frame.getByTestId('sel-handle')).toHaveCount(6)
+    expect(
+      await frame
+        .getByTestId('sel-handle')
+        .evaluateAll((els) => els.map((el) => el.getAttribute('data-handle'))),
+    ).toEqual(['nw', 'n', 'ne', 'sw', 's', 'se'])
     await page.keyboard.press('Escape')
     await expect(frame).not.toHaveAttribute('aria-pressed', 'true')
     await expect(spreadView(page).getByTestId('spread-frame')).toHaveCount(

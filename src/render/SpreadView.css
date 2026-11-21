@@ -194,6 +194,43 @@ button.spread-frame[data-crop-active='true']:not(
   cursor: grab;
 }
 
+/* Screen px through a live zoom, about the frame's top-centre point. */
+.spread-frame-rotate-line {
+  transform-origin: 50% 22px;
+  scale: calc(1 / var(--cam-scale, 1));
+}
+
+.spread-frame-handle.spread-frame-rotate {
+  transform-origin: 50% 28px;
+  scale: calc(1 / var(--cam-scale, 1));
+}
+
+/* §A rotate chip: the crop-tag look, 10 px right of the 12 px knob, shown
+   only while rotating (src/editor/frameHandleGesture.ts writes the angle). */
+.spread-frame-crop-tag.spread-frame-rotate-chip {
+  display: none;
+  left: calc(50% + 16px);
+  top: -30px;
+  padding: 0 6px;
+  transform-origin: -16px 30px;
+}
+
+button.spread-frame[data-rotating] .spread-frame-rotate-chip {
+  display: block;
+}
+
+/* Pinned crop: Tab focus on a photo handle (kit focus-visible ring). */
+.spread-frame-photo-handle:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Pinned crop: the photo gesture's live tag replaces the overlay tag. */
+button.spread-frame[data-photo-gesture]
+  .spread-frame-crop-tag:not(.spread-frame-photo-tag) {
+  display: none;
+}
+
 /* Designer walkthrough-ux-review §A, direct crop (kit canvas.tsx FrameChrome).
    The layer and photo handles take no hits until shown; they fade in over
    --duration-fast (0 under reduced motion) and hide at once. The layer sits

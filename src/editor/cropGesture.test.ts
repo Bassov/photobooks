@@ -332,6 +332,87 @@ describe('cropGesture details', () => {
     expect(crop()).toEqual(ZOOMED)
   })
 
+  it('nudges 1 screen px through a camera zoom, one undo step per press', () => {
+    // 200 layout px drawn 400 screen px wide: 1 screen px = 0.5 layout px.
+    const el = setup({ offset: 200, client: 400 })
+    key(el, { key: 'ArrowRight' })
+    expect(crop()?.center.x).toBeCloseTo(0.5 - 0.00125, 9)
+    key(el, { key: 'ArrowRight', shiftKey: true })
+    expect(crop()?.center.x).toBeCloseTo(0.5 - 0.01375, 9)
+    undoBook()
+    expect(crop()?.center.x).toBeCloseTo(0.5 - 0.00125, 9)
+    undoBook()
+    expect(crop()).toEqual(ZOOMED)
+    key(el, { key: 'ArrowDown' })
+    expect(crop()?.center.y).toBeCloseTo(0.5 - 0.00125, 9)
+  })
+
+  it('leaves Tab alone while the cropped frame is not mounted', () => {
+    setup().remove()
+    expect(getCropTarget()).not.toBeNull()
+    const event = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      bubbles: true,
+      cancelable: true,
+    })
+    expect(() => document.body.dispatchEvent(event)).not.toThrow()
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('cycles focus through the photo handles on Tab, backwards with Shift', () => {
+    const el = setup()
+    const handles = ['nw', 'ne', 'sw', 'se'].map((corner) => {
+      const handle = document.createElement('span')
+      handle.setAttribute('data-photo-handle', corner)
+      handle.tabIndex = 0
+      el.append(handle)
+      return handle
+    })
+    const tab = (shiftKey = false) => {
+      const event = new KeyboardEvent('keydown', {
+        key: 'Tab',
+        shiftKey,
+        bubbles: true,
+        cancelable: true,
+      })
+      ;(document.activeElement ?? el).dispatchEvent(event)
+      return event
+    }
+    expect(tab().defaultPrevented).toBe(true)
+    expect(document.activeElement).toBe(handles[0])
+    tab()
+    tab()
+    tab()
+    expect(document.activeElement).toBe(handles[3])
+    tab()
+    expect(document.activeElement).toBe(handles[0])
+    tab(true)
+    expect(document.activeElement).toBe(handles[3])
+    expect(crop()).toEqual(ZOOMED)
+  })
+
+  it('leaves Tab alone without photo handles or with a modifier', () => {
+    const el = setup()
+    const plain = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      bubbles: true,
+      cancelable: true,
+    })
+    el.dispatchEvent(plain)
+    expect(plain.defaultPrevented).toBe(false)
+    const handle = document.createElement('span')
+    handle.setAttribute('data-photo-handle', 'nw')
+    el.append(handle)
+    const ctrl = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
+    el.dispatchEvent(ctrl)
+    expect(ctrl.defaultPrevented).toBe(false)
+  })
+
   it('previews wheel zoom with clamped scale around the frame center', () => {
     const el = setup({ imgOffset: [20, 10] })
     const img = el.querySelector('img')
