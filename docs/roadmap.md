@@ -289,6 +289,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [polish-type](roadmap/P5/polish-type.md) — Bug: /next-roadmap-item polish-type
 - [ ] [feature] [polish-surface](roadmap/P5/polish-surface.md) — Bug: /next-roadmap-item polish-surface
 - [ ] [feature] [cover-empty-cloth](roadmap/P5/cover-empty-cloth.md) — Bug: /next-roadmap-item cover-empty-cloth
+- [ ] [lite] [inspector-rotate-row](roadmap/P5/inspector-rotate-row.md) — Bug: /next-roadmap-item inspector-rotate-row
 - [ ] [feature] [connect-own-hosting-core](roadmap/P5/connect-own-hosting-core.md) — Bug: /next-roadmap-item connect-own-hosting-core
 - [ ] [feature] [connect-own-hosting](roadmap/P5/connect-own-hosting.md) — bring your own hosting (Security Review)
 - [ ] [lite] [site-reader-gl-ready](roadmap/P5/site-reader-gl-ready.md) — Bug: /next-roadmap-item site-reader-gl-ready

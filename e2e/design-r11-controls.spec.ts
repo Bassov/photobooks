@@ -27,11 +27,11 @@ import {
 //     64 × 18.84; Pages Inter 13px; PRINT B / S values ui-monospace 13px,
 //     x 1186 / 1324, y 848.34 (782.34 before printer-presets), 60 × 18.84.
 // M70 buttons (kit `outline`, no border: `0px solid rgba(0, 0, 0, 0)`):
-//     Crop, 90° left / right: 130 × 32 at x 1156 / 1294, bg rgb(215, 215,
+//     Crop: 130 × 32 at x 1156, bg rgb(215, 215,
 //     215), box-shadow 0 1px 2px rgba(20, 20, 19, .06) (kit `shadow-xs`;
 //     its leading transparent ring layers are dropped here), radius 8px,
-//     padding 0 12. Flip H / V: the same box without a shadow (kit
-//     inspector.tsx:157 has no `shadow-xs`). Welcome "Create Library" 160 ×
+//     padding 0 12. 90° left / right, Flip H / V: P12 one 268 × 28 row of
+//     transparent 64.5 × 24 segments (inspector-rotate-row). Welcome "Create Library" 160 ×
 //     48 at x 56, padding 0 28; library "Create book" pill 144 × 48 at
 //     x 749.19; Create book dialog Cancel x 734, 76 × 36 and Create book
 //     x 818, 108 × 36, both padding 0 16.
@@ -386,14 +386,24 @@ test.describe('design-r11-controls: editor inspectors match the kit', () => {
     await expectKitOutline(page.getByTestId('crop-toggle'), SHADOW_XS, {
       x: 1156,
     })
-    await expectKitOutline(page.getByTestId('rot-left'), SHADOW_XS, {
+    // P12 (inspector-rotate-row): kit `rotate-row` = one 268 × 28 --field
+    // track (p-0.5, gap-0.5), four transparent 64.5 × 24 icon segments.
+    await expectBox(page.getByTestId('rotate-row'), {
       x: 1156,
+      width: 268,
+      height: 28,
     })
-    await expectKitOutline(page.getByTestId('rot-right'), SHADOW_XS, {
-      x: 1294,
-    })
-    await expectKitOutline(page.getByTestId('flip-h'), 'none', { x: 1156 })
-    await expectKitOutline(page.getByTestId('flip-v'), 'none', { x: 1294 })
+    for (const [at, id] of [
+      'rot-left',
+      'rot-right',
+      'flip-h',
+      'flip-v',
+    ].entries()) {
+      const segment = page.getByTestId(id)
+      await expectBox(segment, { x: 1158 + at * 66.5, width: 64.5, height: 24 })
+      await expect(segment).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+      await expect(segment).toHaveCSS('box-shadow', 'none')
+    }
 
     await page.getByTestId('crop-toggle').click()
     await expect(page.getByTestId('crop-toggle')).toHaveText('Done')

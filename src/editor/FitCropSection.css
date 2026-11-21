@@ -24,6 +24,43 @@
   margin: -5.5px 0;
 }
 
+/* Kit P12 rotate-row: `grid h-7 grid-cols-4 gap-0.5 rounded-lg bg-field
+   p-0.5` (the Segmented track, no borders); transparent h-6 rounded-sm
+   icon-only segments (16 px glyphs), a pressed flip is the raised pill. */
+.rotate-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: calc(var(--spacing) * 0.5);
+  height: calc(var(--spacing) * 7);
+  padding: calc(var(--spacing) * 0.5);
+  border-radius: var(--radius-lg);
+  background: var(--field);
+}
+
+.rotate-row > .pb-icon-button.pb-button {
+  width: auto;
+  height: calc(var(--spacing) * 6);
+  border-radius: var(--radius-sm);
+}
+
+.rotate-row > .pb-icon-button.pb-button[data-hovered] {
+  background: transparent;
+}
+
+.rotate-row > .pb-icon-button.pb-button[aria-pressed='true'] {
+  color: var(--foreground);
+  background: var(--background);
+  box-shadow: var(--shadow-pill);
+}
+
+/* The Button focus ring, also over a pressed pill. */
+.rotate-row > .pb-icon-button.pb-button[data-focus-visible] {
+  z-index: 1;
+  box-shadow:
+    0 0 0 2px var(--background),
+    0 0 0 4px var(--ring);
+}
+
 /* Kit `text-xs text-muted-foreground` note: 12 / 16.8 px, muted ink. */
 .fit-crop-note {
   margin-bottom: 0;

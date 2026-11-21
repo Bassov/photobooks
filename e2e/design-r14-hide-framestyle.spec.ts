@@ -37,12 +37,14 @@ const SEL = 'rgb(202, 202, 202)'
 
 const KIT = {
   titleX: 1172,
+  // P12 (inspector-rotate-row): Rotate & flip is one 28 px row, 36 px
+  // shorter, so the closed rows sit 36 px higher than the M78 kit values.
   rows: {
-    adjust: 698.78,
-    caption: 735.78,
-    geometry: 772.78,
-    style: 809.78,
-    arrange: 846.78,
+    adjust: 698.78 - 36,
+    caption: 735.78 - 36,
+    geometry: 772.78 - 36,
+    style: 809.78 - 36,
+    arrange: 846.78 - 36,
   },
   remove: { x: 1168, width: 244, height: 32, inset: 28 },
   open: {

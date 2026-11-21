@@ -99,20 +99,36 @@ describe('PhotoRotateSection', () => {
     expect(screen.getByRole('heading').textContent).toBe('Rotate & flip')
   })
 
+  it('puts 90° left · 90° right · Flip H · Flip V in one icon-only row (kit P12)', () => {
+    seed()
+    render(<PhotoRotateSection target={TARGET} />)
+    const row = screen.getByRole('group', { name: 'Rotate and flip' })
+    expect(row.className).toBe('rotate-row')
+    const buttons = Array.from(row.children)
+    expect(buttons.map((b) => b.getAttribute('data-testid'))).toEqual([
+      'rot-left',
+      'rot-right',
+      'flip-h',
+      'flip-v',
+    ])
+    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual([
+      '90° left',
+      '90° right',
+      'Flip H',
+      'Flip V',
+    ])
+    for (const button of buttons) {
+      expect(button.textContent).toBe('')
+      expect(button.querySelector('svg')?.getAttribute('data-size')).toBe('16')
+    }
+    expect(buttons[0]?.hasAttribute('aria-pressed')).toBe(false)
+  })
+
   it('Flip H / Flip V toggle the mirror, show it pressed, and undo', () => {
     seed()
     render(<PhotoRotateSection target={TARGET} />)
     const h = screen.getByTestId('flip-h')
     const v = screen.getByTestId('flip-v')
-    // Kit inspector.tsx:157: Flip is plain outline; the 90° turns add shadow-xs (r11 M70).
-    for (const flip of [h, v]) {
-      expect(flip.classList.contains('pb-button--outline')).toBe(true)
-    }
-    for (const id of ['rot-left', 'rot-right']) {
-      expect(
-        screen.getByTestId(id).classList.contains('pb-button--secondary'),
-      ).toBe(true)
-    }
     expect(h.getAttribute('aria-pressed')).toBe('false')
     expect(v.getAttribute('aria-pressed')).toBe('false')
     fireEvent.click(h)

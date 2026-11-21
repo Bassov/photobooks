@@ -127,9 +127,18 @@ test('v7.2 P1-5 (canvas): Photo inspector has Fill/Fit, Rotate & flip, Adjust, C
   const titles = (
     await D(page, '[data-testid="ctx-inspector"]').innerText()
   ).toLowerCase()
-  const has = ['Fill', 'Fit', 'Flip H', 'Flip V', 'Adjust', 'Caption'].filter(
+  const has = ['Fill', 'Fit', 'Adjust', 'Caption'].filter(
     (t) => !titles.includes(t.toLowerCase()),
   )
+  // P12: Flip H / Flip V are icon-only segments, named by aria-label.
+  for (const name of ['Flip H', 'Flip V']) {
+    await expect(
+      D(page, '[data-testid="ctx-inspector"]').getByRole('button', {
+        name,
+        exact: true,
+      }),
+    ).toBeVisible()
+  }
   const img = () => page.evaluate(frameImgs)
   const t0 = await img()
   await D(page, '[data-testid="flip-h"]').click()
@@ -161,6 +170,45 @@ test('v7.2 P1-5 (canvas): Photo inspector has Fill/Fit, Rotate & flip, Adjust, C
       sl === 3,
     `missing=${has.join(',') || '-'} flip=${String(t1.includes('scale(-'))} caption="${String(cap)}" sliders=${String(sl)}`,
   ).toBe(true)
+  expect(errs).toEqual([])
+})
+
+test('P12: Rotate & flip is one 28 px row of four 16 px icon segments, Straighten 48 px below', async ({
+  page,
+}) => {
+  const errs = await open(page, '#/screen/canvas')
+  await scenPhoto(page)
+  const row = D(page, '[data-testid="rotate-row"]')
+  const rowBox = await row.boundingBox()
+  const top = rowBox?.y ?? Number.NaN
+  // Scrollbars are shown here, so the inspector column is narrower than 268.
+  expect(rowBox?.height).toBe(28)
+  let left = 0
+  for (const id of ['rot-left', 'rot-right', 'flip-h', 'flip-v']) {
+    const segment = D(page, `[data-testid="${id}"]`)
+    const b = await segment.boundingBox()
+    // --field track p-0.5 / gap-0.5: (row − 2 × 2 − 3 × 2) / 4 wide, 24 tall
+    expect(b).toMatchObject({
+      y: top + 2,
+      width: ((rowBox?.width ?? 0) - 10) / 4,
+      height: 24,
+    })
+    expect(b?.x ?? 0).toBeGreaterThan(left)
+    left = b?.x ?? 0
+    expect(await segment.locator('svg').boundingBox()).toMatchObject({
+      width: 16,
+      height: 16,
+    })
+  }
+  const straighten = await D(page, '[data-testid="ctx-inspector"]')
+    .getByText('Straighten', { exact: true })
+    .boundingBox()
+  expect((straighten?.y ?? 0) - top).toBe(48)
+  await D(page, '[data-testid="flip-h"]').click()
+  await expect(D(page, '[data-testid="flip-h"]')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
   expect(errs).toEqual([])
 })
 
