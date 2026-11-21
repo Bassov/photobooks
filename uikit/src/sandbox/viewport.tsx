@@ -10,6 +10,7 @@ import { FRAMES_TYPE, COPIED_MS, countLabel, duplicateFrames, duplicateSpread, f
 import { SpreadSurface, GuideLine, PHOTO_TYPE, FRAME_LOCKED_STATUS, readItems, marqueeStarters, grayPick } from "./canvas"
 import { bestTemplate } from "./templates"
 import { FrameMenu } from "./frame-menu"
+import { LayoutCycle, LAYOUT_CYCLE_MIN_GAP_PX, useLayoutCycleKeys } from "./layout-cycle"
 import { CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, setMaster, guidesOfMaster, useMasters, coverW, pagesOf, pagesName, spineCm, WRAP, SUB, setCoverPhoto } from "./v7"
 import type { Node } from "./store"
 
@@ -265,6 +266,7 @@ export function Viewport({ className, children, pad = 40 }: { className?: string
   const st = useStudio(), masters = useMasters()
   const { view } = st
   useEditorKeys()
+  useLayoutCycleKeys()
   const nd = st.node && ["cover", "endpaper", "master", "last"].includes(st.node.k) ? st.node : st.mode === "masters" ? { k: "master" as const, id: "A" as const } : null
   // Q3: pages stack on the pasteboard, the single last page at the end (M45); cover / endpaper / master and the rulers (guide drawing) keep the single-spread camera
   const stacked = !!st.features.stack && (!nd || nd.k === "last") && !view.rulers
@@ -439,6 +441,10 @@ function Stack({ className, pad, children }: { className?: string; pad: number; 
   const [ref, size] = useSize<HTMLDivElement>()
   const sc = fitScale(size.w, size.h, pad) * st.view.zoom, gap = SH * sc * STACK_GAP
   const last = st.node?.k === "last", ready = size.w > 0
+  // prod placedScroll (design-parity p4): a new book and Fit centre the spread in the 56/48 band, (56 − 48) / 2 below the
+  // viewport centre; at Fit the top padding grows to the band top, so a width-limited page 1 sits there too (prod top 111)
+  const band = (FIT_TOP - FIT_BOTTOM) / 2
+  const top = st.view.zoom === 1 ? Math.max(STACK_TOP, FIT_TOP + (size.h - FIT_TOP - FIT_BOTTOM - SH * sc) / 2) : STACK_TOP
   const centred = React.useRef(false)
   React.useEffect(() => {
     // a current spread (or the last page) not fully in view is centred in the viewport (prod centerSpreadScroll);
@@ -448,29 +454,30 @@ function Stack({ className, pad, children }: { className?: string; pad: number; 
     const el = ref.current?.querySelector(`[data-stack-item="${last ? "last" : st.cur}"]`) as HTMLElement | null
     if (!el || !ref.current) return
     // Designer r17: a remount (Masters → Pages) centres the current spread even when it is fully in view, as prod does
-    const c = ref.current, top = el.offsetTop + el.offsetHeight / 2 - c.clientHeight / 2, mount = !centred.current
+    // opening on page 1 (a new book) is prod placedScroll, in the band; a remount on another spread centres it (r17)
+    const c = ref.current, mount = !centred.current, y = el.offsetTop + el.offsetHeight / 2 - c.clientHeight / 2 - (mount && !last && st.cur === 0 ? band : 0)
     centred.current = true
-    if (mount || el.offsetTop < c.scrollTop || el.offsetTop + el.offsetHeight > c.scrollTop + c.clientHeight) c.scrollTo({ top })
+    if (mount || el.offsetTop < c.scrollTop || el.offsetTop + el.offsetHeight > c.scrollTop + c.clientHeight) c.scrollTo({ top: y })
   }, [st.cur, last, ready])
   // prod usePasteboardCamera: a zoom keeps the content point under the cursor (wheel) or the pasteboard centre (keys, menu) fixed.
   // Everything but the padding scales with sc: x from the stack's centre line, y from the top padding.
   const anchor = React.useRef<{ x: number; y: number } | null>(null)
-  const cam = React.useRef({ sc: 0, l: 0, t: 0, cx: 0 })
+  const cam = React.useRef({ sc: 0, l: 0, t: 0, cx: 0, top: STACK_TOP })
   React.useLayoutEffect(() => {
     const c = ref.current, inner = c?.firstElementChild as HTMLElement | null
     if (!c || !inner) return
     const p = cam.current, k = sc / p.sc, cx = inner.offsetWidth / 2
     const it = c.querySelector(`[data-stack-item="${last ? "last" : st.cur}"]`) as HTMLElement | null
     if (p.sc > 0 && k !== 1 && st.view.zoom === 1 && !anchor.current && it) {
-      // Fit (Ctrl+0, menu) centres the current spread again (prod placedScroll)
-      c.scrollLeft = 0; c.scrollTop = it.offsetTop + it.offsetHeight / 2 - c.clientHeight / 2
+      // Fit (Ctrl+0, menu) centres the current spread in the band again (prod placedScroll)
+      c.scrollLeft = 0; c.scrollTop = it.offsetTop + it.offsetHeight / 2 - c.clientHeight / 2 - band
     } else if (p.sc > 0 && k !== 1) {
       const a = anchor.current ?? { x: c.clientWidth / 2, y: c.clientHeight / 2 }
       c.scrollLeft = cx + (p.l + a.x - p.cx) * k - a.x
-      c.scrollTop = STACK_TOP + (p.t + a.y - STACK_TOP) * k - a.y
+      c.scrollTop = top + (p.t + a.y - p.top) * k - a.y
     }
     anchor.current = null
-    cam.current = { sc: ready ? sc : 0, l: c.scrollLeft, t: c.scrollTop, cx }
+    cam.current = { sc: ready ? sc : 0, l: c.scrollLeft, t: c.scrollTop, cx, top }
   }, [sc, ready])
   const onScroll = () => { const c = ref.current; if (c) { cam.current.l = c.scrollLeft; cam.current.t = c.scrollTop } }
   // proto: scrollbars are hidden, so panning is explicit — wheel / trackpad scrolls, Space+drag, the Hand tool or middle-drag pan
@@ -512,12 +519,13 @@ function Stack({ className, pad, children }: { className?: string; pad: number; 
           (st.view.tool === "hand" || space) && "cursor-grab",
           !space && st.view.tool === "frame" && "cursor-tool-frame",
           !space && st.view.tool === "text" && "cursor-tool-text")} data-testid="pasteboard">
-        <div className="flex min-w-max flex-col items-center px-10 pb-16 pt-14">
+        <div className="flex min-w-max flex-col items-center px-10 pb-16" style={{ paddingTop: top }}>
           {size.w > 0 && st.doc.spreads.map((s, i) => (
             <React.Fragment key={s.id}>
               <div data-stack-item={i} className="relative">
                 <SpreadSurface si={i} sc={sc} active={i === st.cur} />
                 {!st.view.preview && gap >= LABELS_MIN_GAP && <PageLabels nd={null} si={i} />}
+                {i === st.cur && (i === 0 || gap >= LAYOUT_CYCLE_MIN_GAP_PX) && <LayoutCycle si={i} />}
               </div>
               <GapDrop index={i + 1} h={gap} />
             </React.Fragment>

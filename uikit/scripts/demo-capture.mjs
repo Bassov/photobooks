@@ -60,6 +60,10 @@ export async function capture(out, { log = console.log, probe } = {}) {
       if (!(await page.locator('[data-testid="cover-text-front"]').count())) { await c('[data-item="cover"]'); await settle(250) }
       await page.fill('[data-testid="cover-text-front"]', "Lake trip 2026"); await page.locator('[data-testid="cover-text-front"]').blur() }],
     ["editor-spread-1", () => c('[data-item="p1"]')],
+    // Designer cycle-layouts CL2: hover › (tooltip "Next layout ⇧]"), click it, then Ctrl+Z so later shots are unchanged
+    ["editor-layout-cycle-hover", async () => { await page.locator('[data-testid="demo"] [data-testid="layout-cycle-next"]').hover(); return "keep" }],
+    ["editor-layout-cycle-next", () => c('[data-testid="demo"] [data-testid="layout-cycle-next"]')],
+    ["editor-layout-cycle-undone", async () => { await page.evaluate(() => document.activeElement?.blur()); await page.keyboard.press("Control+z") }],
     ["editor-photo-dropped-in-frame", () => page.locator('[data-testid="filmstrip"] [role="row"]').nth(5).dragTo(page.locator(FRAME).first())],
     // Designer placed-badge PB1: row 5's badge = "Show in the book" (hover look; a click selects the place; 2 places → ✓ 2 + cycle pill)
     ["editor-placed-badge-hover", async () => { await page.locator('[data-testid="filmstrip"] [role="row"]').nth(5).getByTestId("filmstrip-placed").hover(); return "keep" }],

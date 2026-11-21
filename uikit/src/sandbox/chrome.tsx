@@ -29,6 +29,7 @@ import { SW, SH, spread, parentOf, defaultMasterOf, pageNumbersOf, foliosOf, pri
 import type { Node } from "./store"
 import { pagesOf, pageLabel, pagesName, fmtN, coverW, SegC, CoverSpread, EndpaperSpread, MasterSpread, LastPage, FolioMarks, MASTERS, useMasters, useCoverPhoto, T, SUB, BAR, FIELD, SURROUND, V7CSS } from "./v7"
 import { ALL_TEMPLATES, TT, basePageId, pageId } from "./templates"
+import { rebindFrames } from "./layout-cycle"
 import { metaOf } from "./meta"
 import { installFilmstripWheel } from "./filmstripWheel"
 
@@ -697,7 +698,7 @@ export function applyTemplate(st: ReturnType<typeof useStudio>, tid: string) {
   const ph = s.frames.filter((f) => f.kind === "image").map((f) => f.photo).filter(Boolean) as string[]
   const t = TT(tid)
   const kept = ph.slice(0, t.count), dropped = ph.length - kept.length
-  st.update((d) => mapSpreadFreezing(d, st.cur, (sp) => ({ ...spread(tid, kept), id: sp.id, guides: sp.guides, parent: sp.parent, bg: sp.bg, frames: [...spread(tid, kept).frames, ...sp.frames.filter((f) => f.kind === "text")] })), `Template “${t.name}”`)
+  st.update((d) => mapSpreadFreezing(d, st.cur, (sp) => ({ ...spread(tid, kept), id: sp.id, guides: sp.guides, parent: sp.parent, bg: sp.bg, frames: [...rebindFrames([...sp.frames.filter((f) => f.kind === "image" && f.photo), ...sp.frames.filter((f) => f.kind === "image" && !f.photo)], spread(tid, kept).frames, "fresh"), ...sp.frames.filter((f) => f.kind === "text")] })), `Template “${t.name}”`)
   st.setSel([])
   st.setStatus(dropped ? `${dropped} photo${dropped > 1 ? "s" : ""} returned to the gallery — “${t.name}” has ${t.count} frame${t.count > 1 ? "s" : ""}` : `Applied “${t.name}” · photos kept in order`)
 }
