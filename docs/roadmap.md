@@ -273,6 +273,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
 - [ ] [lite] [ci-apt-retry](roadmap/P5/ci-apt-retry.md) — Bug: /next-roadmap-item ci-apt-retry
 - [ ] [lite] [e2e-burn-in-cap](roadmap/P5/e2e-burn-in-cap.md) — Bug: /next-roadmap-item e2e-burn-in-cap
+- [ ] [feature] [rig-pin-0-2-24](roadmap/P5/rig-pin-0-2-24.md) — Bug: /next-roadmap-item rig-pin-0-2-24
 - [ ] [feature] [direct-crop-core](roadmap/P5/direct-crop-core.md) — Bug: /next-roadmap-item direct-crop-core
 - [ ] [feature] [filmstrip-resize-kit](roadmap/P5/filmstrip-resize-kit.md) — Bug: /next-roadmap-item filmstrip-resize-kit
 - [ ] [feature] [filmstrip-resize](roadmap/P5/filmstrip-resize.md) — Bug: /next-roadmap-item filmstrip-resize
