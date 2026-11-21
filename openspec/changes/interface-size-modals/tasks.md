@@ -10,3 +10,5 @@
 2. Same window, editor → Print: the Print dialog is 1.5× larger and centred.
 3. Library → book menu → Remove…: the confirm is 1.5× larger and centred.
 4. No key (100 %): the dialogs look as before.
+
+manual-qa (2026-11-21): 1–4 harness problem: `pnpm agent manual-qa` cannot pass the welcome screen (`start-session` click intercepted by the header), no dialog reached. Covered instead by `e2e/interface-size-modals.spec.ts` (8 passed): 1–3 at s = 1.25 / 1.5 = R(s) ±0.5 px, inside the viewport, on top at the centre; 4 is each case's 100 % reference run. ui-review: pass (no new tokens / states; zoom only).
