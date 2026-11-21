@@ -10,9 +10,9 @@ P10 (warm neutral chrome) is a follow-up item (polish-warm-chrome); no palette c
 
 ## Scope
 
-- [ ] P6 icons: Lucide stroke by size in prod `src/ui/Icon.tsx` and the kit icons: 1.75 at 16 px, 1.5 at 12–14 px, 2 at 10 px status glyphs (Low-res, used check).
-- [ ] P8 one primary action: Publish = ink pill h32, padding 0 12, 13/500, bg #232223, text #F2F2F2, `--shadow-xs`; hover #3A3839; focus-visible outline 2px #3A3839 offset 2; running job bg #BFBDB9, text #F2F2F2, no shadow (progress / percent states kept). Preview, Export site, Print keep the secondary fill; Settings stays ghost. Prod and kit `#/demo`. Replaces M111 "match Preview".
-- [ ] P9 quieter canvas: `--dot` alpha .55 → .30 in prod and kit.
+- [x] P6 icons: Lucide stroke by size in prod `src/ui/Icon.tsx` and the kit icons: 1.75 at 16 px, 1.5 at 12–14 px, 2 at 10 px status glyphs (Low-res, used check).
+- [x] P8 one primary action: Publish = ink pill h32, padding 0 12, 13/500, bg #232223, text #F2F2F2, `--shadow-xs`; hover #3A3839; focus-visible outline 2px #3A3839 offset 2; running job bg #BFBDB9, text #F2F2F2, no shadow (progress / percent states kept). Preview, Export site, Print keep the secondary fill; Settings stays ghost. Prod and kit `#/demo`. Replaces M111 "match Preview".
+- [x] P9 quieter canvas: `--dot` alpha .55 → .30 in prod and kit.
 - [ ] Tests that pin the old look updated; `#/demo` baseline images re-captured for changed steps.
 
 ## Done when
