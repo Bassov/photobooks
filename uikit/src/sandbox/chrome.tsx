@@ -413,11 +413,11 @@ let placedTimer: ReturnType<typeof setTimeout> | undefined
 /** The badge's live status text: a filmstrip drag end's 2.5 s clear leaves it to its own timer. */
 let placedText = ""
 /** Designer placed-badge B1–B3: go to the photo's next place; 2+ places paint `Placed i of n · <label>`, one place is read only (`Placed on <label>`). */
-function showInBook(st: ReturnType<typeof useStudio>, photo: string, cov: string) {
+function showInBook(st: ReturnType<typeof useStudio>, photo: string, cov: string, from: Element | null) {
   const places = placesOf(st.doc, photo, cov)
   if (!places.length) return
   const i = nextPlaceIndex(st, photo, places), p = places[i]
-  jumpTo(st, photo, places, i)
+  jumpTo(st, photo, places, i, from)
   const label = p.kind === "cover" ? "Cover" : pagesName(p.si)
   const text = places.length > 1 ? `Placed ${i + 1} of ${places.length} · ${label}` : `Placed on ${label}`
   st.setStatus(text)
@@ -525,7 +525,7 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
       <ThumbGrid aria-label="Photos" layout="grid" selectionMode={picking ? "none" : "multiple"} selectionBehavior="replace" items={items} dependencies={[placed, thumbH, picking]}
         selectedKeys={st.filmSel} onSelectionChange={(k) => st.setFilmSel(k === "all" ? items.map((p) => p.id) : [...k].map(String))}
         // a click or Enter on a thumb = the same replace / place as a drop (one undo step); else Enter / double-click on a placed row = the badge (B5)
-        onAction={picking ? (k) => pickPhoto(st, String(k)) : (k) => showInBook(st, String(k), cov)}
+        onAction={picking ? (k) => pickPhoto(st, String(k)) : (k) => showInBook(st, String(k), cov, root.current)}
         data-picking={picking || undefined}
         dragAndDropHooks={dragAndDropHooks}
         // r15 M88: prod `.pb-empty-title` (18 px / 1.3) around a 13 px / 1.35 span — the 18 px strut sets the baseline
@@ -542,7 +542,7 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
               <div style={{ width: w, height: h }} className="relative">
                 {miss ? <div className="grid size-full place-items-center bg-muted text-muted-foreground"><ImageOff className="size-4" /></div>
                   : <img src={p.src} className="size-full object-cover" draggable={false} alt="" />}
-                {placed.has(p.id) && <PlacedBadge n={placesOf(st.doc, p.id, cov).length} picking={picking} onPress={() => (picking ? pickPhoto(st, p.id) : showInBook(st, p.id, cov))} />}
+                {placed.has(p.id) && <PlacedBadge n={placesOf(st.doc, p.id, cov).length} picking={picking} onPress={() => (picking ? pickPhoto(st, p.id) : showInBook(st, p.id, cov, root.current))} />}
                 {/* Thumb narrower than the chip + 8 px (73.33): icon only; the zero-width label keeps the 16.84 px line box. */}
                 {p.lowres && <span role="img" aria-label="Low-res" title="Low-res" className={cn('absolute left-1 top-1 inline-flex items-center whitespace-nowrap rounded-xs bg-field px-1 py-px text-2xs font-medium text-ink-warning', w < 73.33 ? 'gap-0' : 'gap-1')} data-testid="lowres-chip"><AlertTriangle className="size-2.5" /><span className={w < 73.33 ? 'w-0 overflow-hidden' : undefined}>Low-res</span></span>}
                 {removable && (
@@ -725,10 +725,18 @@ export function TemplateBar({ ids, extra }: { ids?: string[]; extra?: React.Reac
 }
 
 /* ---------------------------------------------------------------- status + floating pager */
+/** M149, prod `isStatusPillVisible` (src/editor/editorStatus.ts): the frame drag hint, a guide position, the frame clipboard
+ *  and the placed-badge cycle paint the pill; every other status (pick-replace, filmstrip drop, "Placed on …") is screen-reader only. */
+const PILL_STATUS = [
+  /^Drag onto another frame to swap, or onto the filmstrip to take the photo back$/,
+  /^(Vertical|Horizontal) guide at /,
+  /^(Copied (frame|\d+ frames)|\d+ photos? (aren't|isn't) in this book, so (their frames are|its frame is) empty)$/,
+  /^Placed \d+ of \d+ · /,
+]
+export const isStatusPillVisible = (s: string) => PILL_STATUS.some((re) => re.test(s))
 export function StatusLine() {
   const st = useStudio()
-  // placed-badge B2: one place's "Placed on …" is for screen readers only (no pill)
-  return <div className={/^Placed on /.test(st.status) ? "sr-only" : "pointer-events-none absolute bottom-3 left-3 z-30 max-w-[60%] truncate rounded-md bg-popover/95 px-3 py-1 text-xs text-muted-foreground shadow-sm empty:hidden"} role="status" aria-live="polite" data-testid="status">{st.status}</div>
+  return <div className={!isStatusPillVisible(st.status) ? "sr-only" :"pointer-events-none absolute bottom-3 left-3 z-30 max-w-[60%] truncate rounded-md bg-popover/95 px-3 py-1 text-xs text-muted-foreground shadow-sm empty:hidden"} role="status" aria-live="polite" data-testid="status">{st.status}</div>
 }
 export function Pager() {
   const st = useStudio()

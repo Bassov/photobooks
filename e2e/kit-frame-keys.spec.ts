@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 
 // kit-gaps (Designer, multi-select-move review2 on #417): the kit `#/demo`
@@ -76,37 +76,6 @@ async function marqueeAll(page: Page) {
     steps: 4,
   })
   await page.mouse.up()
-}
-
-/** Distinct colours in the element's clipped screenshot: painted text gives many, a blank box one. */
-async function paintedColours(page: Page, el: Locator) {
-  const png = (await el.screenshot({ scale: 'css' })).toString('base64')
-  const scratch = await page.context().newPage()
-  try {
-    return await scratch.evaluate(async (png) => {
-      const img = new Image()
-      img.src = `data:image/png;base64,${png}`
-      await img.decode()
-      const canvas = document.createElement('canvas')
-      canvas.width = img.width
-      canvas.height = img.height
-      const ctx = canvas.getContext('2d')
-      if (ctx === null) throw new Error('no 2d context')
-      ctx.drawImage(img, 0, 0)
-      const { data } = ctx.getImageData(0, 0, img.width, img.height)
-      const seen = new Set<number>()
-      for (let i = 0; i < data.length; i += 4) {
-        seen.add(
-          ((data[i] ?? 0) << 16) |
-            ((data[i + 1] ?? 0) << 8) |
-            (data[i + 2] ?? 0),
-        )
-      }
-      return seen.size
-    }, png)
-  } finally {
-    await scratch.close()
-  }
 }
 
 const rects = (page: Page) =>
@@ -188,10 +157,11 @@ test.describe('kit #/demo frame keys', () => {
       const before = await rects(page)
       await page.keyboard.press(key)
       await expect(status).toHaveText(LOCKED)
+      // M149, prod isStatusPillVisible: the locked status is a live-region
+      // announcement only (no pill), as in prod
+      await expect(status).toHaveAttribute('aria-live', 'polite')
       const box = await status.boundingBox()
-      expect(box?.width ?? 0).toBeGreaterThan(0)
-      expect(box?.height ?? 0).toBeGreaterThan(0)
-      expect(await paintedColours(page, status)).toBeGreaterThan(8)
+      expect(box?.width ?? 0).toBeLessThanOrEqual(1)
       expect(await rects(page)).toEqual(before)
     })
   }
