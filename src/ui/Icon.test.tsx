@@ -55,7 +55,7 @@ describe('Icon', () => {
   })
 
   it('ships the named glyphs from the roadmap set', () => {
-    expect(ICON_NAMES.length).toBe(89)
+    expect(ICON_NAMES.length).toBe(96)
     expect(ICON_NAMES).toEqual(
       expect.arrayContaining([
         'braces',

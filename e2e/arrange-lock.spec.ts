@@ -107,14 +107,26 @@ test.describe('Arrange menu, shortcuts and lock', () => {
     await page.mouse.click(overlap.x, overlap.y, { button: 'right' })
     await expect(menu(page)).toBeVisible()
     await assertDocumentFitsViewport(page)
-    // Already on top: only the moves that can change the stack are offered.
-    // FM4 adds the photo row (Place photo… on an empty frame).
+    // Already on top: FM3 keeps every row; the Bring moves are disabled.
     await expect(menu(page).getByRole('menuitem')).toHaveText([
       /Place photo…/,
+      /Cut/,
+      /Copy/,
+      /Paste/,
+      /Duplicate/,
+      /Bring to front/,
+      /Bring forward/,
       /Send backward/,
       /Send to back/,
       /Lock/,
+      /Delete frame/,
     ])
+    for (const move of ['front', 'forward']) {
+      await expect(page.getByTestId(`frame-menu-${move}`)).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      )
+    }
     const popover = await menu(page).evaluate((el) => {
       const bg = getComputedStyle(
         el.closest('.pb-menu-popover') ?? el,
