@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item design-r38-badge-reveal-kit
+Status: done
 
 Designer parity Musts M146, M147 (Round 38, placed-badge) and M149 (Round 39, frame-context-menu p2). Kit-only fix in `uikit/src/sandbox/`.
 
