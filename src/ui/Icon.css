@@ -2,7 +2,9 @@
   display: inline-block;
   flex-shrink: 0;
   vertical-align: middle;
-  color: currentColor;
+  /* design-r36-menu-prod M138: no `color` here. The svg inherits its ink, and
+     an unlayered colour would beat every `text-*` utility on the icon (the
+     menus' `[&_svg]:text-muted-foreground`). */
 }
 
 /* walkthrough-polish-review P6: stroke by size — 1.5 at 12–14 px, 1.75 at 16

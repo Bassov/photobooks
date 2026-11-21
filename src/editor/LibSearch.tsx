@@ -13,11 +13,7 @@ export function LibSearch({
       className="pb-lib-quiet flex w-56 items-center gap-2 px-3.5"
       data-testid="lib-search"
     >
-      <Icon
-        name="search"
-        size={16}
-        className="size-4 shrink-0 text-muted-foreground"
-      />
+      <Icon name="search" size={16} className="size-4 shrink-0" />
       <input
         type="search"
         value={value}

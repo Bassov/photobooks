@@ -99,7 +99,8 @@ function editGroup(frames: readonly Frame[], ctx: FrameMenuContext) {
     ),
     row('copy', 'Copy', 'copy', true, 'Ctrl+C'),
     row('paste', 'Paste', 'clipboardPaste', ctx.mirrorHasFrames, 'Ctrl+V'),
-    row('duplicate', 'Duplicate', 'duplicate', true, 'Ctrl+D'),
+    // design-r36 M139: kit CopyPlus, not the Copy glyph (`duplicate` = copy).
+    row('duplicate', 'Duplicate', 'copyPlus', true, 'Ctrl+D'),
   ]
 }
 
