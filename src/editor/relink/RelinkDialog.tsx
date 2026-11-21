@@ -219,6 +219,8 @@ export function RelinkDialog(props: {
         display: 'flex',
         flexDirection: 'column',
         padding: 0,
+        /* Kit RelinkDialog panel is borderless (r44 M154); Dialog.css keeps it for others. */
+        border: 0,
       }}
     >
       <header style={{ padding: '1.25rem 1.5rem 0.5rem' }}>

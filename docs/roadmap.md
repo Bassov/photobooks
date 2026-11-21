@@ -275,6 +275,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [design-r42-fill-popover-prod](roadmap/P5/design-r42-fill-popover-prod.md) — Bug: /next-roadmap-item design-r42-fill-popover-prod
 - [ ] [lite] [design-r34-is-kit](roadmap/P5/design-r34-is-kit.md) — Bug: /next-roadmap-item design-r34-is-kit
 - [ ] [lite] [ci-apt-retry](roadmap/P5/ci-apt-retry.md) — Bug: /next-roadmap-item ci-apt-retry
+- [ ] [lite] [design-r44-relink-border-prod](roadmap/P5/design-r44-relink-border-prod.md) — Bug: /next-roadmap-item design-r44-relink-border-prod
 - [ ] [lite] [e2e-burn-in-cap](roadmap/P5/e2e-burn-in-cap.md) — Bug: /next-roadmap-item e2e-burn-in-cap
 - [ ] [lite] [placed-badge-kit](roadmap/P5/placed-badge-kit.md) — Bug: /next-roadmap-item placed-badge-kit
 - [ ] [feature] [placed-badge](roadmap/P5/placed-badge.md) — Bug: /next-roadmap-item placed-badge
