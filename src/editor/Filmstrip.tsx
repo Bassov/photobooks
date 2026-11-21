@@ -31,6 +31,7 @@ import {
   getBookStoreSnapshot,
   getGalleryIdsSnapshot,
   getPlacedAssetIdsSnapshot,
+  getPlacementCountSnapshot,
   getSpacerCountSnapshot,
   subscribeBookStore,
   subscribeGallery,
@@ -90,6 +91,7 @@ import {
   type FilmstripScrollDirection,
 } from './thumbSlotSize'
 import { useFilmstripThumbHeight } from './filmstripSize'
+import { jumpToPlacement } from './placedJump'
 import './Filmstrip.css'
 
 interface FilmstripRow {
@@ -109,6 +111,14 @@ function rowIdOf(target: EventTarget): string | null {
   return target instanceof Element
     ? (target.closest('.filmstrip-item')?.getAttribute('data-asset-id') ?? null)
     : null
+}
+
+/** Whether the event started on the placed badge ("Show in the book"). */
+function onPlacedBadge(target: EventTarget): boolean {
+  return (
+    target instanceof Element &&
+    target.closest('[data-testid="filmstrip-placed"]') !== null
+  )
 }
 
 function rowElement(grid: Element, id: string): HTMLElement | undefined {
@@ -158,6 +168,8 @@ const FilmstripGrid = memo(function FilmstripGrid({
   const hasTabStop = current !== null && items.some((row) => row.id === current)
   // Roving row, anchor and pending focus belong to this grid instance.
   useEffect(() => resetFilmstripGridFocus, [])
+  // The first click of a double-click picked (B6): the rest of it is no jump.
+  const pickedRef = useRef(false)
 
   const focusRow = (grid: Element, id: string): void => {
     revealRow(id)
@@ -183,7 +195,17 @@ const FilmstripGrid = memo(function FilmstripGrid({
         }
         if (getPhotoPick() !== null) {
           // Pick mode: the click places / replaces, the selection stays.
+          pickedRef.current = true
           pickPhoto(id)
+          return
+        }
+        if (event.detail > 1 && pickedRef.current) {
+          return
+        }
+        pickedRef.current = false
+        if (onPlacedBadge(event.target)) {
+          // The badge shows the photo in the book; the row is not selected.
+          jumpToPlacement(id)
           return
         }
         applyPick(
@@ -192,6 +214,16 @@ const FilmstripGrid = memo(function FilmstripGrid({
             toggle: event.ctrlKey || event.metaKey,
           }),
         )
+      }}
+      onDoubleClick={(event) => {
+        // A placed row's double-click = the badge (an unplaced photo has no
+        // place to go to); the badge's own clicks already jumped and a pick's
+        // double-click stays the pick.
+        const id = rowIdOf(event.target)
+        if (id === null || pickedRef.current || onPlacedBadge(event.target)) {
+          return
+        }
+        jumpToPlacement(id)
       }}
       onFocus={(event) => {
         if (event.target !== event.currentTarget) {
@@ -242,6 +274,17 @@ const FilmstripGrid = memo(function FilmstripGrid({
           if (from !== null) {
             pickPhoto(from)
           }
+          return
+        }
+        if (
+          event.key === 'Enter' &&
+          from !== null &&
+          getPlacementCountSnapshot(from) > 0
+        ) {
+          // Enter on a placed row = the badge; focus stays on the row (B5).
+          event.preventDefault()
+          event.stopPropagation()
+          jumpToPlacement(from)
           return
         }
         if (event.key === ' ') {

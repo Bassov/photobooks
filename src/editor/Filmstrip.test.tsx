@@ -21,7 +21,16 @@ import {
   FRAME_DRAG_MIME,
   encodeFrameDrag,
 } from './dropTargets'
-import { resetFrameSelection, setFrameSource } from './frameSelection'
+import { makeFrame, makeSpread } from '../core/testing/fixtures'
+import { getEditorStatus } from './editorStatus'
+import {
+  getFrameSelection,
+  resetFrameSelection,
+  setFrameSource,
+} from './frameSelection'
+import { endPhotoPick, startPhotoPick } from './photoPick'
+import { resetActiveSpreadIdForTests } from './photoRootSession'
+import { resetPlacedJumpForTests } from './placedJump'
 import {
   getSelectedAssetId,
   resetGallerySelection,
@@ -1226,5 +1235,200 @@ describe('Filmstrip aspect cards', () => {
       restore()
       resetFilmstripJumpForTests()
     }
+  })
+})
+
+describe('Filmstrip placed badge = Show in the book (placed-badge PB3)', () => {
+  /** seed-0 on s0/a and s1/b, seed-1 on 10 frames of s2, seed-2 unplaced. */
+  function setup(): void {
+    seedGallery(3)
+    const { book, sessionMeta } = getBookStoreSnapshot()
+    resetBookStore({
+      book: {
+        ...book,
+        spreads: [
+          makeSpread({
+            id: 's0',
+            frames: [makeFrame({ id: 'a', assetId: 'seed-0' })],
+          }),
+          makeSpread({
+            id: 's1',
+            frames: [makeFrame({ id: 'b', assetId: 'seed-0' })],
+          }),
+          makeSpread({
+            id: 's2',
+            frames: Array.from({ length: 10 }, (_, i) =>
+              makeFrame({ id: `m${String(i)}`, assetId: 'seed-1', z: i }),
+            ),
+          }),
+        ],
+      },
+      sessionMeta,
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    restoreWidth = stubScrollportWidth(800)
+    render(<Filmstrip />)
+  }
+
+  let restoreWidth: (() => void) | undefined
+
+  function row(id: string): HTMLElement {
+    const match = screen
+      .getAllByTestId('filmstrip-item')
+      .find((item) => item.dataset.assetId === id)
+    assert(match !== undefined, `row ${id} not mounted`)
+    return match
+  }
+
+  function badge(id: string): HTMLElement {
+    const match = row(id).querySelector<HTMLElement>(
+      '[data-testid="filmstrip-placed"]',
+    )
+    assert(match !== null, `badge ${id} missing`)
+    return match
+  }
+
+  const selectedFrame = () => {
+    const selection = getFrameSelection()
+    return selection === null
+      ? null
+      : `${selection.spreadId}/${selection.frameIds.join(',')}`
+  }
+
+  afterEach(() => {
+    act(() => {
+      endPhotoPick()
+    })
+    cleanup()
+    restoreWidth?.()
+    resetPlacedJumpForTests()
+    resetActiveSpreadIdForTests()
+    resetFrameSelection()
+    resetGallerySelection()
+    resetBookStore()
+    resetThumbCache()
+    resetAssetPool()
+  })
+
+  it('is a non-focusable button with the place count in its label', () => {
+    setup()
+
+    expect(badge('seed-0').getAttribute('role')).toBe('button')
+    expect(badge('seed-0').hasAttribute('tabindex')).toBe(false)
+    expect(badge('seed-0').title).toBe('Show in the book')
+    expect(badge('seed-0').getAttribute('aria-label')).toBe(
+      'Show in the book, placed 2 times',
+    )
+    expect(badge('seed-0').textContent).toBe('2')
+    expect(badge('seed-1').textContent).toBe('9+')
+    expect(badge('seed-1').getAttribute('aria-label')).toBe(
+      'Show in the book, placed 10 times',
+    )
+    expect(row('seed-0').getAttribute('aria-keyshortcuts')).toBe('Enter')
+    expect(row('seed-2').hasAttribute('aria-keyshortcuts')).toBe(false)
+    expect(
+      row('seed-2').querySelector('[data-testid="filmstrip-placed"]'),
+    ).toBeNull()
+  })
+
+  it('reads "Show in the book" alone for one place', () => {
+    setup()
+    act(() => {
+      dispatchBookOp({
+        type: 'unplace',
+        spreadId: 's1',
+        frameId: 'b',
+      })
+    })
+
+    expect(badge('seed-0').getAttribute('aria-label')).toBe('Show in the book')
+    expect(badge('seed-0').hasAttribute('data-count')).toBe(false)
+    expect(badge('seed-0').textContent).toBe('')
+  })
+
+  it('a badge click jumps and cycles without selecting the row', () => {
+    setup()
+
+    fireEvent.click(badge('seed-0'))
+    expect(selectedFrame()).toBe('s0/a')
+    expect(getSelectedAssetId()).toBeNull()
+    expect(row('seed-0').getAttribute('aria-selected')).toBe('false')
+
+    fireEvent.click(badge('seed-0'))
+    expect(selectedFrame()).toBe('s1/b')
+    expect(getEditorStatus()).toBe('Placed 2 of 2 · Pages 2–3')
+  })
+
+  it('Enter on a placed row jumps; on an unplaced row it does nothing', () => {
+    setup()
+
+    const reachedDocument = vi.fn()
+    document.addEventListener('keydown', reachedDocument)
+    try {
+      // Handled here: default prevented, the editor's Enter never sees it.
+      expect(fireEvent.keyDown(row('seed-0'), { key: 'Enter' })).toBe(false)
+      expect(selectedFrame()).toBe('s0/a')
+      expect(reachedDocument).not.toHaveBeenCalled()
+
+      act(() => {
+        resetFrameSelection()
+      })
+      expect(fireEvent.keyDown(row('seed-2'), { key: 'Enter' })).toBe(true)
+      expect(selectedFrame()).toBeNull()
+      expect(getSelectedAssetId()).toBeNull()
+      expect(reachedDocument).toHaveBeenCalledTimes(1)
+    } finally {
+      document.removeEventListener('keydown', reachedDocument)
+    }
+  })
+
+  it('double-click on a placed row jumps; the badge and unplaced rows do not add one', () => {
+    setup()
+
+    fireEvent.doubleClick(row('seed-2'))
+    expect(selectedFrame()).toBeNull()
+
+    fireEvent.doubleClick(badge('seed-0'))
+    expect(selectedFrame()).toBeNull()
+
+    fireEvent.doubleClick(row('seed-0'))
+    expect(selectedFrame()).toBe('s0/a')
+  })
+
+  it('pick mode wins over the badge, Enter and double-click (B6)', () => {
+    setup()
+    act(() => {
+      startPhotoPick({ spreadId: 's1', frameId: 'b', kind: 'replace' })
+    })
+
+    fireEvent.click(badge('seed-1'), { detail: 1 })
+    // The pick replaced s1/b with seed-1 and ended the mode; no jump.
+    expect(getBookStoreSnapshot().book.spreads[1]?.frames[0]?.assetId).toBe(
+      'seed-1',
+    )
+    expect(getEditorStatus()).not.toMatch(/^Placed/)
+
+    // The rest of that double-click on the badge: no jump.
+    fireEvent.click(badge('seed-1'), { detail: 2 })
+    fireEvent.doubleClick(row('seed-0'))
+    expect(getEditorStatus()).not.toMatch(/^Placed/)
+    // Still the picked frame: a jump would select seed-0's s0/a.
+    expect(selectedFrame()).toBe('s1/b')
+    expect(getSelectedAssetId()).toBeNull()
+
+    // A new click after the pick is a jump again.
+    fireEvent.click(badge('seed-0'), { detail: 1 })
+    expect(selectedFrame()).toBe('s0/a')
+  })
+
+  it('counts up to 9, then 9+', () => {
+    setup()
+    act(() => {
+      dispatchBookOp({ type: 'unplace', spreadId: 's2', frameId: 'm0' })
+    })
+
+    expect(badge('seed-1').textContent).toBe('9')
+    expect(badge('seed-0').hasAttribute('data-count')).toBe(true)
   })
 })

@@ -376,6 +376,10 @@
   --placeholder-block: #d5d5d5;
   /* Kit TemplateThumb spine (bg-black/10). */
   --thumb-spine: rgb(0 0 0 / 0.1);
+  /* Filmstrip placed badge rest / hover / pressed (kit bg-black/55 /80 /90). */
+  --placed-badge: rgb(0 0 0 / 0.55);
+  --placed-badge-hover: rgb(0 0 0 / 0.8);
+  --placed-badge-pressed: rgb(0 0 0 / 0.9);
   /* Layout tile hover on the paper (Owner 2026-11-02, layout-tile-states). */
   --shadow-tile-hover: 0 0 0 1px rgb(0 0 0 / 0.22), 0 2px 6px rgb(0 0 0 / 0.12);
   /* Repeated Save flashes the selected tile (user-templates UT2). */

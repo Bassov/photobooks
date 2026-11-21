@@ -79,6 +79,12 @@ describe('editorStatus', () => {
     expect(isStatusPillVisible('Vertical guide at 5 mm (left page)')).toBe(true)
     expect(isStatusPillVisible('Horizontal guide at 5 mm')).toBe(true)
     expect(isStatusPillVisible('Photos swapped')).toBe(false)
+    // Placed badge cycle (placed-badge B2); one place stays a live region.
+    expect(isStatusPillVisible('Placed 10 of 12 · Pages 2–3')).toBe(true)
+    expect(isStatusPillVisible('Placed on Pages 2–3')).toBe(false)
+    expect(isStatusPillVisible('xPlaced 1 of 2 · Page 1')).toBe(false)
+    expect(isStatusPillVisible('Placed a of 2 · Page 1')).toBe(false)
+    expect(isStatusPillVisible('Placed 1 of b · Page 1')).toBe(false)
     expect(isStatusPillVisible('Moved: Vertical guide at 5 mm')).toBe(false)
     expect(isStatusPillVisible('')).toBe(false)
     for (const status of [
