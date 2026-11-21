@@ -27,6 +27,7 @@ import type { Node } from "./store"
 import { pagesOf, pageLabel, pagesName, fmtN, coverW, SegC, CoverSpread, EndpaperSpread, MasterSpread, LastPage, FolioMarks, MASTERS, useMasters, useCoverPhoto, T, SUB, BAR, FIELD, SURROUND, V7CSS } from "./v7"
 import { ALL_TEMPLATES, TT, basePageId, pageId } from "./templates"
 import { metaOf } from "./meta"
+import { installFilmstripWheel } from "./filmstripWheel"
 
 export const toolToggle = "size-8 px-0 text-muted-foreground data-[hovered]:bg-accent/70 data-[hovered]:text-foreground data-[selected]:bg-background data-[selected]:text-foreground data-[selected]:shadow-sm [&_svg]:size-4"
 /** prod .pb-view-toggle (IconButton sm): 28 × 28, ghost at rest, #CACACA (--sel) when on */
@@ -514,6 +515,8 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
     })
     return () => cancelAnimationFrame(id)
   }, [picking])
+  // M137 (Owner Must M50): a vertical wheel scrolls the strip sideways, as prod Filmstrip
+  React.useEffect(() => installFilmstripWheel(root.current, () => root.current?.querySelector<HTMLElement>('[data-testid="filmstrip"]') ?? null), [])
   return (
     <div ref={root} className="relative" data-filmstrip>
       <ThumbGrid aria-label="Photos" layout="grid" selectionMode={picking ? "none" : "multiple"} selectionBehavior="replace" items={items} dependencies={[placed, thumbH, picking]}
@@ -524,13 +527,14 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
         dragAndDropHooks={dragAndDropHooks}
         // r15 M88: prod `.pb-empty-title` (18 px / 1.3) around a 13 px / 1.35 span — the 18 px strut sets the baseline
         renderEmptyState={() => <div className="flex items-center px-2 text-sm text-muted-foreground" style={{ height: thumbH }} data-testid="film-empty"><div className="text-lg leading-[1.3]"><span className="text-sm leading-[1.35]">{st.view.unplacedOnly && st.doc.gallery.length ? "Every photo is placed. Turn off “Unplaced” to see all." : "No photos yet — add a folder or drop one here."}</span></div></div>}
-        className="scroll-thin flex gap-2 overflow-x-auto overflow-y-hidden p-1 pb-2 data-[picking]:shadow-pick" data-testid="filmstrip">
+        className="scroll-thin flex gap-2 overflow-x-auto overflow-y-hidden overscroll-contain p-1 pb-2 data-[picking]:shadow-pick" data-testid="filmstrip">
         {(p) => {
           const h = thumbH
           const w = thumbWidth(p.w, p.h, h) // shared aspect rule (app/ui PhotoThumb): true ratio, clamped 5:8…8:5
           const miss = st.missing.has(p.id)
           return (
-            <ThumbItem id={p.id} textValue={p.name} className={cn("group/th shrink-0 overflow-hidden rounded-xs shadow-hairline ring-0! ring-offset-0! outline-none data-[selected]:bg-sel data-[dragging]:opacity-40", picking && "cursor-copy data-[hovered]:bg-sel data-[focus-visible]:bg-sel")}>
+            // tracker p3 Decided: prod `.filmstrip-item[aria-selected=true][data-focused]` focus cue (keyboard and after a click)
+            <ThumbItem id={p.id} textValue={p.name} className={cn("group/th shrink-0 overflow-hidden rounded-xs shadow-hairline ring-0! ring-offset-0! outline-none data-[selected]:bg-sel data-[selected]:data-[focused]:shadow-thumb-focus data-[dragging]:opacity-40", picking && "cursor-copy data-[hovered]:bg-sel data-[focus-visible]:bg-sel")}>
               <AriaButton slot="drag" className="sr-only">Drag {p.name}</AriaButton>
               <div style={{ width: w, height: h }} className="relative">
                 {miss ? <div className="grid size-full place-items-center bg-muted text-muted-foreground"><ImageOff className="size-4" /></div>
