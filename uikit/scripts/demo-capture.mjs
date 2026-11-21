@@ -81,6 +81,14 @@ export async function capture(out, { log = console.log, probe } = {}) {
       await row.nth(5).dragTo(row.nth(0)); await settle(650)
       await row.nth(5).getByTestId("filmstrip-placed").click()
       await park(); await settle(500) }],
+    // Designer fill-book FB1: the head's Fill book chip → confirm popover with the numbers; Enter fills (status, new rows in the
+    // list); Ctrl+Z undoes the one step and the badge re-selects pages 2–3's frame, so later steps see the same book and selection
+    ["editor-fill-book-open", () => c('[data-testid="demo"] [data-testid="film-fill-book"]')],
+    ["editor-fill-book-done", () => page.keyboard.press("Enter")],
+    ["editor-fill-book-undone", async () => {
+      await page.keyboard.press("Control+z"); await settle(200)
+      await page.locator('[data-testid="filmstrip"] [role="row"]').nth(5).getByTestId("filmstrip-placed").click()
+      await park(); await settle(500) }],
     // the press is off the centre: a press on the grabber pans the photo
     ["editor-frame-mid-drag", async () => { const b = await page.locator(FRAME).first().boundingBox(); const x = Math.round(b.x + b.width / 4), y = Math.round(b.y + b.height / 2); await page.mouse.move(x, y); await page.mouse.down(); for (let i = 1; i <= 6; i++) await page.mouse.move(x - 10 * i, y + 6 * i); return "keep" }],
     ["editor-frame-drag-cancelled", async () => { await page.keyboard.press("Escape"); await page.mouse.up(); await settle(200); await page.locator(FRAME).first().click({ force: true, position: { x: 40, y: 40 } }) }],

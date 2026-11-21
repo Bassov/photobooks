@@ -6,8 +6,11 @@ import { useDragAndDrop, isTextDropItem, isFileDropItem, isDirectoryDropItem, DI
 import {
   MousePointer2, SquareDashed, Type, Hand, Undo2, Redo2, Magnet, Grid3x3, Eye, Download, ChevronDown, ChevronLeft, ChevronRight,
   PanelLeftClose, Check, AlertTriangle, Plus, Loader2, Images, LayoutTemplate, Layers, BookOpen, Ruler, Filter, ArrowDownUp,
-  Crosshair, Scan, X, ImageOff, Upload, CloudOff, MoreHorizontal, Copy, Trash2, FolderOpen, Pencil,
+  Crosshair, Scan, X, ImageOff, Upload, CloudOff, MoreHorizontal, Copy, Trash2, FolderOpen, Pencil, BookImage,
 } from "lucide-react"
+import { Dialog as AriaDialog } from "react-aria-components"
+import { Popover, PopoverTrigger } from "@/components/ui/popover"
+import { PrintCustomsCtx, pagesRange, profileById } from "@/demo-parts/printProfiles"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Toggle, ToggleButtonGroup } from "@/components/ui/toggle"
@@ -20,7 +23,7 @@ import { ToastRegion } from "@/components/ui/toast"
 import { Slider, SliderTrack, SliderFillTrack, SliderThumb } from "@/components/ui/slider"
 import { IconButton, ThumbGrid, ThumbItem, Kbd, AlertDialog, thumbWidth } from "@/components/app/ui"
 import { photos, P, type Photo } from "@/data"
-import { useStudio, pickPhoto, placedSet, placesOf, nextPlaceIndex, jumpTo, mapSpread, mapSpreadFreezing, thumbPx, thumbMax, writeThumb, useInnerHeight, THUMB_MIN, type Thumb } from "./store"
+import { useStudio, pickPhoto, placedSet, planFillBook, fillBook, fillBookStatus, plural, placesOf, nextPlaceIndex, jumpTo, mapSpread, mapSpreadFreezing, thumbPx, thumbMax, writeThumb, useInnerHeight, THUMB_MIN, type Thumb } from "./store"
 import { PhotoImg, PHOTO_TYPE, FRAME_TYPE } from "./canvas"
 import { SW, SH, spread, parentOf, defaultMasterOf, pageNumbersOf, foliosOf, printSafe, type Frame, type Spread } from "./model"
 import type { Node } from "./store"
@@ -565,6 +568,7 @@ const filmChip = "h-7 gap-1.5 rounded-full bg-transparent px-2 text-xs text-mute
 export function FilmChips() {
   const st = useStudio()
   return <>
+    <FillBook />
     <Toggle size="sm" isSelected={st.view.unplacedOnly} onChange={(v) => st.setView({ unplacedOnly: v })} className={cn(filmChip, "font-medium leading-none")} data-testid="film-unplaced-only"><Filter />Unplaced</Toggle>
     <MenuTrigger>
       <Button variant="ghost" size="sm" className={cn(filmChip, "font-normal leading-[normal]")} aria-label={`Sort photos: ${SORTS[st.view.sort]}`} data-testid="film-sort"><ArrowDownUp />{SORTS[st.view.sort]}<ChevronDown /></Button>
@@ -575,6 +579,66 @@ export function FilmChips() {
       </MenuPopover>
     </MenuTrigger>
   </>
+}
+/** Designer fill-book F1–F12: the dock head's first chip (Add folder… look) and its confirm popover with the numbers.
+ *  Disabled stays in place; the reason is the wrapping span's `title` (a disabled RAC button gets no tooltip). */
+function FillBook() {
+  const st = useStudio(), cov = useCoverPhoto(), customs = React.useContext(PrintCustomsCtx)
+  const [open, setOpen] = React.useState(false)
+  const placed = withCover(placedSet(st.doc), cov, st.doc.gallery)
+  const unplaced = sortedGallery(st.doc.gallery, st.view.sort).filter((id) => !placed.has(id))
+  const ids = unplaced.filter((id) => !st.missing.has(id)), missing = unplaced.length - ids.length
+  const prof = profileById(st.doc.print?.profile, customs), max = pagesRange(prof)[1]
+  const reason = !st.doc.gallery.length ? "Add a folder of photos first" : st.mode === "masters" ? "Switch to Pages to fill the book"
+    : !unplaced.length ? "Every photo is placed" : !ids.length ? "The unplaced photos' files are missing" : ""
+  const p = open ? planFillBook(st.doc, ids, max) : null
+  const fits = !!p && p.intoFrames + p.onNewSpreads > 0
+  const confirm = () => {
+    const r = fillBook(st.doc, ids, max)
+    setOpen(false)
+    if (r.first < 0) return
+    // F11: one undo step; the spread that got the first photo becomes active, no frame selected
+    st.update(() => r.doc, "Fill book", undefined, r.first)
+    st.setSel([])
+    const text = fillBookStatus(r.plan)
+    st.setStatus(text)
+    setTimeout(() => st.setStatus((s) => (s === text ? "" : s)), 4000)
+  }
+  const row = (tid: string, label: string, value: React.ReactNode) => (
+    <div className="flex h-[22px] items-center justify-between text-xs"><span className="text-muted-foreground">{label}</span><span className="font-medium tabular-nums text-foreground" data-testid={tid}>{value}</span></div>)
+  const sep = <Separator className="-mx-3 my-2.5 w-auto" />
+  return (
+    <span className="inline-flex" title={reason || "Place the unplaced photos into the book"}>
+      <PopoverTrigger isOpen={open} onOpenChange={setOpen}>
+        <Button variant="ghost" size="sm" isDisabled={!!reason} data-testid="film-fill-book"
+          className="h-7 gap-1.5 rounded-full px-2.5 text-xs leading-[normal] [&_svg]:size-3.5 data-[hovered]:bg-field data-[pressed]:bg-field data-[hovered]:text-foreground aria-expanded:bg-field"><BookImage />Fill book</Button>
+        <Popover placement="top end" offset={4} className="w-[296px]" data-testid="fill-book-popover">
+          <AriaDialog aria-label="Fill book" className="p-3 outline-none">
+            {p && <>
+              <div className="text-sm font-semibold leading-[18px] text-foreground">Fill book</div>
+              <div className="mt-0.5 text-xs leading-[16.8px] text-muted-foreground" data-testid="fill-book-order">{plural(ids.length, "unplaced photo")}, {st.view.sort === "added" ? "in Added order" : `by ${SORTS[st.view.sort]}`}.</div>
+              {fits && <>
+                {sep}
+                {row("fill-book-frames", "Empty frames", p.intoFrames ? plural(p.intoFrames, "photo") : "none")}
+                {row("fill-book-spreads", "New spreads", p.onNewSpreads ? <>{plural(p.onNewSpreads, "photo")}<span className="font-normal text-muted-foreground"> · {plural(p.newSpreads, "spread")}</span></> : "none")}
+                {row("fill-book-pages", "Pages", p.pagesAfter === p.pagesBefore ? p.pagesBefore : `${p.pagesBefore} → ${p.pagesAfter}`)}
+                {missing > 0 && <div className="mt-1.5 text-xs text-muted-foreground" data-testid="fill-book-missing">{plural(missing, "photo")} with missing files {missing === 1 ? "is" : "are"} skipped.</div>}
+              </>}
+              {p.leftover > 0 && <div className="mt-1.5 flex gap-1.5 text-xs leading-[16.8px] text-warning-ink" data-testid="fill-book-left">
+                <AlertTriangle className="mt-0.5 size-3 shrink-0" />
+                <span>{fits ? `${plural(p.leftover, "photo")} ${p.leftover === 1 ? "stays" : "stay"} in the filmstrip: ${prof.name} prints up to ${max} pages.` : `No empty frames, and the book is at ${max} pages, the most ${prof.name} prints.`}</span>
+              </div>}
+              {fits && <>{sep}<div className="text-xs text-muted-foreground">The cover and endpapers stay as they are.</div></>}
+              <div className="mt-3 flex justify-end gap-2">
+                <Button variant="ghost" size="sm" className="text-sm" autoFocus={!fits} onPress={() => setOpen(false)} data-testid="fill-book-cancel">Cancel</Button>
+                <Button size="sm" className="text-sm shadow-xs" autoFocus={fits} isDisabled={!fits} onPress={confirm} data-testid="fill-book-confirm">Fill book</Button>
+              </div>
+            </>}
+          </AriaDialog>
+        </Popover>
+      </PopoverTrigger>
+    </span>
+  )
 }
 /** Designer walkthrough-ux-review §B: the dock top edge resizes the filmstrip thumbs. 9 px hit zone (edge −5 .. +4);
  *  hover / drag / focus show a 1 px --input edge line and a 36 × 4 pill; drag tints the pill --select and shows "N px" 30 px above. */
