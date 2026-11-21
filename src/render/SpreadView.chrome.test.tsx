@@ -531,6 +531,45 @@ describe('SpreadView direct-crop chrome', () => {
     }
   })
 
+  it('a shown layer lifts the frame over its neighbours until it hides (M123)', () => {
+    vi.useFakeTimers()
+    renderPhoto()
+    const frame = screen.getByTestId('spread-frame')
+    const z = Number(frame.style.zIndex)
+    expect(z).toBeLessThan(1000)
+    fireEvent.pointerOver(screen.getByTestId('crop-grabber'))
+    expect(Number(frame.style.zIndex)).toBe(z + 1000)
+    moveTo(0, 20)
+    act(() => {
+      vi.advanceTimersByTime(400)
+    })
+    expect(screen.getByTestId('photo-layer').dataset.shown).toBeUndefined()
+    expect(Number(frame.style.zIndex)).toBe(z)
+  })
+
+  it('deselecting with the layer shown drops the lift', () => {
+    const book = makeBookWithAsset()
+    const resolved = resolveSpread(book, 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    const view = (pressed: boolean) => (
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={() => 'blob:x'}
+        pxPerMm={2}
+        frameControlFor={() => ({ ...control(), pressed })}
+      />
+    )
+    const { rerender } = render(view(true))
+    const frame = screen.getByTestId('spread-frame')
+    const z = Number(frame.style.zIndex)
+    fireEvent.pointerOver(screen.getByTestId('crop-grabber'))
+    expect(Number(frame.style.zIndex)).toBe(z + 1000)
+    rerender(view(false))
+    expect(screen.queryByTestId('photo-layer')).toBeNull()
+    expect(Number(frame.style.zIndex)).toBe(z)
+  })
+
   it('photo-handle hover shows the layer too', () => {
     renderPhoto()
     const [handle] = screen.getAllByTestId('photo-handle')

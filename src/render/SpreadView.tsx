@@ -3,6 +3,7 @@ import {
   memo,
   useLayoutEffect,
   useRef,
+  useState,
   type CSSProperties,
   type DragEvent as ReactDragEvent,
   type ReactElement,
@@ -553,6 +554,8 @@ function SpreadFrame({
   const box = frameBox(item.rectMm, pxPerMm)
   const crop = imageCropBox(item.sourceCropRect ?? FULL_CROP)
   const cropActive = control?.cropActive === true
+  // The hover photo layer (§A) lifts the frame like the pinned crop.
+  const [layerShown, setLayerShown] = useState(false)
   const bodyRef = useRef<HTMLDivElement>(null)
   // The committed crop replaces the rAF preview transform.
   const quarterTurns = item.photoQuarterTurns ?? 0
@@ -579,7 +582,7 @@ function SpreadFrame({
     top: box.top,
     width: box.width,
     height: box.height,
-    zIndex: cropActive ? item.z + CROP_Z_BOOST : item.z,
+    zIndex: cropActive || layerShown ? item.z + CROP_Z_BOOST : item.z,
     ...(item.rotation === 0
       ? {}
       : { transform: `rotate(${String(item.rotation)}deg)` }),
@@ -811,6 +814,7 @@ function SpreadFrame({
               src={previewUrl}
               box={photoBox}
               pinned={cropActive}
+              onShownChange={setLayerShown}
               grabber={
                 box.width < GRABBER_MIN_PX || box.height < GRABBER_MIN_PX
                   ? null
