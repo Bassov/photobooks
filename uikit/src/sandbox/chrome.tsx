@@ -724,6 +724,8 @@ export function EditorFrame({ top, left, right, dock, canvas, overlay, className
                 // a11y: no keyboard trap. Only a plain Tab on the canvas element itself hides the panels, and only once per visit.
                 // v0.9.3: never while Space is held (Space is pan only)
                 if (spaceDownRef.current || e.code === "Space") return
+                // pinned crop: Tab only cycles the photo handles (canvas.tsx), the panels stay
+                if (st.cropId) return
                 if (e.key !== "Tab" || e.target !== e.currentTarget || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || tabbed.current) return
                 tabbed.current = true; e.preventDefault(); toggleAll()
               }}

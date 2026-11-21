@@ -285,6 +285,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [design-r24-site-kit](roadmap/P5/design-r24-site-kit.md) — Bug: /next-roadmap-item design-r24-site-kit
 - [ ] [feature] [direct-crop](roadmap/P5/direct-crop.md) — Bug: /next-roadmap-item direct-crop
 - [ ] [feature] [direct-crop-pinned](roadmap/P5/direct-crop-pinned.md) — Bug: /next-roadmap-item direct-crop-pinned
+- [ ] [lite] [design-r32-crop-kit](roadmap/P5/design-r32-crop-kit.md) — Bug: /next-roadmap-item design-r32-crop-kit
 - [ ] [lite] [a5-fit-parity](roadmap/P5/a5-fit-parity.md) — Bug: /next-roadmap-item a5-fit-parity
 - [ ] [feature] [polish-type](roadmap/P5/polish-type.md) — Bug: /next-roadmap-item polish-type
 - [ ] [feature] [polish-surface](roadmap/P5/polish-surface.md) — Bug: /next-roadmap-item polish-surface
