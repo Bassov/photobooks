@@ -13,3 +13,11 @@
    back to 2–3; zoom unchanged.
 2. Focus the placed row, press Enter twice → cycles, focus stays on the row.
 3. Drag a placed photo by its badge onto an empty frame → placed.
+
+manual-qa (stage 9): problem (harness) — all 3 blocked at the welcome screen: the `start-session` click is intercepted by
+the `welcome-screen` header (known harness issue), the editor was never reached. Covered by e2e instead:
+1 → `e2e/placed-badge.spec.ts` "clicks cycle the places with the pill…"; 2 → "Enter on the focused row cycles and keeps
+focus…"; 3 → "a drag from the badge places the photo…" (5/5 green locally).
+
+ui-review: pass — tokens `--placed-badge*` in docs/design.md; keyboard path = row Enter (`aria-keyshortcuts`), label with
+count; hover / pressed / pick / reduced-motion states; status is text, not colour; DOM + paint measured in e2e.
