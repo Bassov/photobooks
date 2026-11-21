@@ -1,7 +1,7 @@
 /**
  * Generate a ~24MP JPEG (6000x4000) for LoAF e2e using jpeg-js.
  */
-import { writeFileSync, mkdirSync } from 'node:fs'
+import { mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import jpeg from 'jpeg-js'
@@ -22,7 +22,11 @@ for (let i = 0; i < frameData.length; i += 4) {
 }
 
 const encoded = jpeg.encode({ data: frameData, width, height }, 50)
-writeFileSync(outPath, encoded.data)
+// Write then rename: a parallel worker's existsSync guard must never see a
+// half-written file.
+const tmpPath = `${outPath}.${String(process.pid)}.tmp`
+writeFileSync(tmpPath, encoded.data)
+renameSync(tmpPath, outPath)
 console.log(
   `Wrote ${outPath} ${width}x${height} (${encoded.data.length} bytes) in ${String(Date.now() - started)}ms`,
 )
