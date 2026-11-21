@@ -62,6 +62,31 @@ async function goTo(page: Page, i: number) {
   }
 }
 
+type Armed = HTMLElement & { __selBg?: Promise<string> }
+
+/**
+ * Arms row `i`: on its next `aria-selected=true` flip, records the background
+ * the row has in the first frame after it. A tween on the selection tone
+ * (kit-undo-dup-select) shows up here as an in-between colour.
+ */
+async function armSelectedBg(page: Page, i: number) {
+  await row(page, i).evaluate((el: Armed) => {
+    el.__selBg = new Promise((resolve) => {
+      const ob = new MutationObserver(() => {
+        if (el.getAttribute('aria-selected') !== 'true') return
+        ob.disconnect()
+        requestAnimationFrame(() => {
+          resolve(getComputedStyle(el).backgroundColor)
+        })
+      })
+      ob.observe(el, { attributes: true, attributeFilter: ['aria-selected'] })
+    })
+  })
+}
+
+const selectedBg = (page: Page, i: number) =>
+  row(page, i).evaluate((el: Armed) => el.__selBg)
+
 /** RGB of the row background, inside its padding (top-left corner). */
 async function rowPaint(page: Page, i: number) {
   const [px] = await pixelsAt(row(page, i), [{ x: 3, y: 3 }])
@@ -101,18 +126,25 @@ test.describe('kit undo fixes', () => {
     await expect(row(page, 4)).toHaveAttribute('aria-selected', 'true')
 
     await blur(page)
+    await armSelectedBg(page, 3)
     await page.keyboard.press('Control+z')
     await expect(rows(page)).toHaveCount(n)
     await expect(row(page, 3)).toHaveAttribute('aria-selected', 'true')
     await expect(row(page, 4)).toHaveAttribute('aria-selected', 'false')
+    // the selection tone lands in the frame the attribute flips (no tween)
+    expect(await selectedBg(page, 3)).toBe('rgb(202, 202, 202)')
     // paint: the original row is the highlighted one, its neighbour is not
     expect(await rowPaint(page, 3)).toEqual(SELECTED)
     expect(await rowPaint(page, 4)).not.toEqual(SELECTED)
 
+    await armSelectedBg(page, 4)
     await page.keyboard.press('Shift+Control+z')
     await expect(rows(page)).toHaveCount(n + 1)
     await expect(row(page, 4)).toHaveAttribute('aria-selected', 'true')
     await expect(row(page, 3)).toHaveAttribute('aria-selected', 'false')
+    expect(await selectedBg(page, 4)).toBe('rgb(202, 202, 202)')
+    expect(await rowPaint(page, 4)).toEqual(SELECTED)
+    expect(await rowPaint(page, 3)).not.toEqual(SELECTED)
   })
 
   test('undo of Delete spread selects the deleted spread again', async ({

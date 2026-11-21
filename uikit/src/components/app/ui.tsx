@@ -159,12 +159,13 @@ export function AlertDialog({ isOpen, width = 420, ...props }: AlertProps & { is
 export function ThumbGrid<T extends object>({ className, ...props }: GridListProps<T>) {
   return <AriaGridList {...props} className={cn("outline-hidden", className as string)} />
 }
-/* v0.9.3: selection is tone-only (#CACACA). Black ring-select is canvas-frame-only (sel-outline), not thumbs. */
+/* v0.9.3: selection is tone-only (#CACACA). Black ring-select is canvas-frame-only (sel-outline), not thumbs.
+ * No colour transition: the tone lands in the frame selection flips (a tween lagged undo/redo, kit-undo-dup-select). */
 export function ThumbItem({ className, ...props }: GridListItemProps & { className?: string }) {
   return (
     <AriaGridListItem {...props}
       className={({ isSelected, isFocusVisible }) => cn(
-        "relative cursor-default select-none rounded-md outline-hidden transition-colors",
+        "relative cursor-default select-none rounded-md outline-hidden",
         isSelected ? "bg-sel" : "data-[hovered]:bg-accent/70",
         isFocusVisible && "ring-2 ring-ring ring-offset-2 ring-offset-chrome",
         className)} />
