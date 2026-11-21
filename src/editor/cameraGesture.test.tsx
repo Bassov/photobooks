@@ -6,7 +6,12 @@ import {
   resetBookStore,
 } from './bookStore'
 import { requestSpreadReveal } from './photoRootSession'
-import { commitZoom, getCommittedZoom, resetCameraStore } from './cameraStore'
+import {
+  commitZoom,
+  getCommittedCamera,
+  getCommittedZoom,
+  resetCameraStore,
+} from './cameraStore'
 import {
   isEditorGestureActive,
   resetEditorGestureForTests,
@@ -573,6 +578,72 @@ describe('pasteboard camera gestures', () => {
     await flushGesture()
     expect(badge.hasAttribute('data-live-fit')).toBe(false)
   })
+
+  /**
+   * One live zoom gesture with a native scroll of `drift` px in the middle;
+   * returns the committed camera after the settle.
+   */
+  async function zoomWithNativeScroll(
+    mode: 'wheel' | 'pinch',
+    drift: number,
+  ): Promise<{ zoom: number; scrollLeft: number; scrollTop: number }> {
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    scroll.scrollLeft = 100
+    scroll.scrollTop = 120
+    const nextFrame = () =>
+      act(async () => {
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            resolve()
+          })
+        })
+      })
+    // jsdom drops clientX / clientY from the WheelEvent init.
+    const wheelAt = (deltaY: number) => {
+      const event = new WheelEvent('wheel', { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'deltaY', { value: deltaY })
+      Object.defineProperty(event, 'clientX', { value: 48 })
+      Object.defineProperty(event, 'clientY', { value: 36 })
+      scroll.dispatchEvent(event)
+    }
+    if (mode === 'wheel') {
+      wheelAt(-120)
+      await nextFrame()
+      scroll.scrollLeft += drift
+      scroll.scrollTop += drift
+      // A second wheel in the same gesture applies after the scroll.
+      wheelAt(-40)
+    } else {
+      const touch = { pointerType: 'touch', clientY: 40 }
+      fireEvent.pointerDown(scroll, { ...touch, pointerId: 1, clientX: 20 })
+      fireEvent.pointerDown(scroll, { ...touch, pointerId: 2, clientX: 80 })
+      fireEvent.pointerMove(scroll, { ...touch, pointerId: 2, clientX: 120 })
+      scroll.scrollLeft += drift
+      scroll.scrollTop += drift
+      fireEvent.pointerMove(scroll, { ...touch, pointerId: 2, clientX: 140 })
+      fireEvent.pointerUp(scroll, { ...touch, pointerId: 1, clientX: 20 })
+      fireEvent.pointerUp(scroll, { ...touch, pointerId: 2, clientX: 140 })
+    }
+    await flushGesture()
+    const { zoom, scrollLeft, scrollTop } = getCommittedCamera()
+    cleanup()
+    resetCameraStore()
+    resetEditorGestureForTests()
+    return { zoom, scrollLeft, scrollTop }
+  }
+
+  it.each(['wheel', 'pinch'] as const)(
+    'a native scroll during a live %s zoom survives the settle commit',
+    async (mode) => {
+      const still = await zoomWithNativeScroll(mode, 0)
+      const scrolled = await zoomWithNativeScroll(mode, 30)
+      expect(still.zoom).not.toBe(1)
+      expect(scrolled.zoom).toBe(still.zoom)
+      expect(scrolled.scrollLeft - still.scrollLeft).toBeCloseTo(30, 6)
+      expect(scrolled.scrollTop - still.scrollTop).toBeCloseTo(30, 6)
+    },
+  )
 
   it('ignores zoom keys on text fields and commits nothing when unmounted mid-gesture', async () => {
     const view = render(<Pasteboard />)
