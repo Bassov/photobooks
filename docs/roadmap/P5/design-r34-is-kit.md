@@ -9,9 +9,9 @@ Round 34 Must M134 (Designer parity interface-size, Spec §1), kit Segmented lan
 
 ## Scope
 
-- [ ] M134: kit `Segmented` (`uikit/src/components/app/controls.tsx`) uses radio-group keyboard semantics like prod `SegmentedControl`: an arrow key moves focus and selects the next/previous option at once (wrapping like prod; Home/End only if prod has them). On kit Settings → Interface size, ArrowRight from 100 % selects 125 %, the hint updates and the choice is stored.
-- [ ] Every kit caller of `Segmented` still behaves; they are listed in the PR body.
-- [ ] An e2e check in `e2e/kit-*.spec.ts` pins the keys (not qa.mjs).
+- [x] M134: kit `Segmented` (`uikit/src/components/app/controls.tsx`) uses radio-group keyboard semantics like prod `SegmentedControl`: an arrow key moves focus and selects the next/previous option at once (wrapping like prod; Home/End only if prod has them). On kit Settings → Interface size, ArrowRight from 100 % selects 125 %, the hint updates and the choice is stored.
+- [x] Every kit caller of `Segmented` still behaves; they are listed in the PR body.
+- [x] An e2e check in `e2e/kit-*.spec.ts` pins the keys (not qa.mjs).
 - **Browser check:** kit #/demo settings step: focus 100 %, ArrowRight → 125 % checked and hint updated; ArrowLeft → 100 % checked.
 
 ## Done when
