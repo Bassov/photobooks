@@ -9,9 +9,9 @@ import {
 import { COVER_CROP, editableSpread } from '../core'
 import { measureHandlerSync } from '../perf/measureHandler'
 import { clearPhotoPreview, paintPhotoPreview } from '../render/photoLayout'
-import { Button } from '../ui/Button'
 import { Disclosure } from '../ui/Disclosure'
 import { Icon } from '../ui/Icon'
+import { IconButton } from '../ui/IconButton'
 import {
   getAssetAspectSnapshot,
   getBookStoreSnapshot,
@@ -112,8 +112,8 @@ export function PhotoRotateSection({ target }: { target: CropTarget }) {
     }
   }
   // Kit `Section title="Rotate & flip"` (uikit/src/sandbox/inspector.tsx:151):
-  // open by default, collapsible; two button rows mt-2 apart, the Straighten
-  // SliderRow mt-3 and the muted quarter-turn note mt-2 (Owner Must M60).
+  // open by default, collapsible; one 28 px rotate & flip row (P12), the
+  // Straighten SliderRow mt-5 and the muted quarter-turn note mt-2 (M60).
   return (
     <Disclosure
       title="Rotate & flip"
@@ -127,11 +127,18 @@ export function PhotoRotateSection({ target }: { target: CropTarget }) {
         data-crop-keep=""
         aria-label="Rotate & flip"
       >
-        <div className="flex gap-2">
-          <Button
-            variant="secondary"
+        {/* Kit P12 `rotate-row` (uikit/src/sandbox/inspector.tsx
+            PhotoRotateSection): one 28 px segmented row of icon-only
+            segments, the name as aria-label and tooltip. */}
+        <div
+          role="group"
+          aria-label="Rotate and flip"
+          className="rotate-row"
+          data-testid="rotate-row"
+        >
+          <IconButton
+            label="90° left"
             size="sm"
-            className="flex-1"
             data-testid="rot-left"
             aria-keyshortcuts=","
             onPress={() => {
@@ -139,12 +146,10 @@ export function PhotoRotateSection({ target }: { target: CropTarget }) {
             }}
           >
             <Icon name="rotateCcw" />
-            90° left
-          </Button>
-          <Button
-            variant="secondary"
+          </IconButton>
+          <IconButton
+            label="90° right"
             size="sm"
-            className="flex-1"
             data-testid="rot-right"
             aria-keyshortcuts="."
             onPress={() => {
@@ -152,16 +157,10 @@ export function PhotoRotateSection({ target }: { target: CropTarget }) {
             }}
           >
             <Icon name="rotateCw" />
-            90° right
-          </Button>
-        </div>
-        {/* Kit Flip H / Flip V: uikit/src/sandbox/inspector.tsx:156-158,
-            plain outline (no shadow-xs, unlike the 90° turns). */}
-        <div className="mt-2 flex gap-2">
-          <Button
-            variant="outline"
+          </IconButton>
+          <IconButton
+            label="Flip H"
             size="sm"
-            className="flex-1"
             data-testid="flip-h"
             aria-pressed={crop.flipH === true}
             onPress={() => {
@@ -169,12 +168,10 @@ export function PhotoRotateSection({ target }: { target: CropTarget }) {
             }}
           >
             <Icon name="flipHorizontal" />
-            Flip H
-          </Button>
-          <Button
-            variant="outline"
+          </IconButton>
+          <IconButton
+            label="Flip V"
             size="sm"
-            className="flex-1"
             data-testid="flip-v"
             aria-pressed={crop.flipV === true}
             onPress={() => {
@@ -182,11 +179,10 @@ export function PhotoRotateSection({ target }: { target: CropTarget }) {
             }}
           >
             <Icon name="flipVertical" />
-            Flip V
-          </Button>
+          </IconButton>
         </div>
         <Slider
-          className="fit-crop-slider fit-crop-slider--row mt-3"
+          className="fit-crop-slider fit-crop-slider--row mt-5"
           data-testid="photo-straighten"
           minValue={-STRAIGHTEN_LIMIT_DEG}
           maxValue={STRAIGHTEN_LIMIT_DEG}

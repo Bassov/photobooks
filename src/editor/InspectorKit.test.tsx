@@ -177,7 +177,7 @@ describe('photo inspector sections', () => {
       'fit-crop-note mt-2',
     )
     expect(screen.getByTestId('photo-straighten').className).toContain(
-      'fit-crop-slider fit-crop-slider--row mt-3',
+      'fit-crop-slider fit-crop-slider--row mt-5',
     )
     expect(screen.getByTestId('crop-zoom').className).toContain(
       'fit-crop-slider fit-crop-slider--row',

@@ -152,22 +152,35 @@ const Glyph = ({ d }: { d: string[] }) => (
 const FlipH = () => <Glyph d={["m3 7 5 5-5 5V7", "m21 7-5 5 5 5V7", "M12 20v2", "M12 14v2", "M12 8v2", "M12 2v2"]} />
 const FlipV = () => <Glyph d={["m17 3-5 5-5-5h10", "m17 21-5-5-5 5h10", "M4 12H2", "M10 12H8", "M16 12h-2", "M22 12h-2"]} />
 
+/* P12 segment: icon-only ghost, the name as aria-label and tooltip; a pressed flip is the Segmented raised pill. */
+function RotateSegment({ label, testId, pressed, onPress, children }: { label: string; testId: string; pressed?: boolean; onPress: () => void; children: React.ReactNode }) {
+  return (
+    <TooltipTrigger delay={400}>
+      <Button variant="ghost" size="xs" aria-label={label} aria-pressed={pressed} onPress={onPress} data-testid={testId}
+        className="h-6 rounded-sm px-0 text-muted-foreground data-[focus-visible]:z-10 data-[hovered]:bg-transparent data-[hovered]:text-foreground aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-pill [&_svg]:size-4">
+        {children}
+      </Button>
+      <Tooltip placement="bottom" className="px-2 py-1 text-xs">{label}</Tooltip>
+    </TooltipTrigger>
+  )
+}
+
 export function PhotoRotateSection() {
   const { f, set } = useSelected()
   if (!f || f.kind !== "image" || !f.photo) return null
   const turn = (d: number) => set((x) => ({ qt: ((((x.qt + d) % 360) + 360) % 360) as Frame["qt"], zoom: 1, ox: 0, oy: 0 }), d > 0 ? "Rotate photo right" : "Rotate photo left")
   return (
     <Section title="Rotate & flip">
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" className="flex-1 gap-1.5 text-sm shadow-xs [&_svg]:size-4" onPress={() => turn(-90)} data-testid="rot-left"><RotateCcw />90° left</Button>
-        <Button variant="outline" size="sm" className="flex-1 gap-1.5 text-sm shadow-xs [&_svg]:size-4" onPress={() => turn(90)} data-testid="rot-right"><RotateCw />90° right</Button>
-      </div>
-      <div className="mt-2 flex gap-2">
-        <Button variant="outline" size="sm" aria-pressed={!!f.flipH} className="flex-1 gap-1.5 text-sm aria-pressed:bg-sel [&_svg]:size-4" onPress={() => set((x) => ({ flipH: !x.flipH }), "Flip horizontal")} data-testid="flip-h"><FlipH />Flip H</Button>
-        <Button variant="outline" size="sm" aria-pressed={!!f.flipV} className="flex-1 gap-1.5 text-sm aria-pressed:bg-sel [&_svg]:size-4" onPress={() => set((x) => ({ flipV: !x.flipV }), "Flip vertical")} data-testid="flip-v"><FlipV />Flip V</Button>
+      {/* P12: one segmented row h28 (90° left · 90° right · Flip H · Flip V) on the Segmented field track (no borders, v7.1 P2 #7),
+          transparent h24 segments, a pressed flip is the raised pill; Straighten mt-5 (section −36 px) */}
+      <div role="group" aria-label="Rotate and flip" data-testid="rotate-row" className="grid h-7 grid-cols-4 gap-0.5 rounded-lg bg-field p-0.5">
+        <RotateSegment label="90° left" testId="rot-left" onPress={() => turn(-90)}><RotateCcw /></RotateSegment>
+        <RotateSegment label="90° right" testId="rot-right" onPress={() => turn(90)}><RotateCw /></RotateSegment>
+        <RotateSegment label="Flip H" testId="flip-h" pressed={!!f.flipH} onPress={() => set((x) => ({ flipH: !x.flipH }), "Flip horizontal")}><FlipH /></RotateSegment>
+        <RotateSegment label="Flip V" testId="flip-v" pressed={!!f.flipV} onPress={() => set((x) => ({ flipV: !x.flipV }), "Flip vertical")}><FlipV /></RotateSegment>
       </div>
       <SliderRow label="Straighten" resetValue={0} value={f.straighten} onChange={(v) => set({ straighten: v as number }, "Straighten", `str-${f.id}`)} minValue={-45} maxValue={45} step={0.5}
-        formatOptions={{ style: "unit", unit: "degree", unitDisplay: "narrow" }} className="mt-3" />
+        formatOptions={{ style: "unit", unit: "degree", unitDisplay: "narrow" }} className="mt-5" />
       <div className="mt-2 text-xs text-muted-foreground">Quarter turn: {f.qt}° · cover fit recomputed</div>
     </Section>
   )
