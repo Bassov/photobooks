@@ -5,7 +5,7 @@ import { Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { SW, SH, PAGE, clamp, round, uid, spread, allGuides, type Guide } from "./model"
 import { hideParentGuide, isOverridePress } from "./parent-overrides"
-import { useStudio, mapSpread, removeFrames, deleteLabel, useKeys, type Studio } from "./store"
+import { useStudio, mapSpread, removeFrames, deleteLabel, endPick, PICK_STATUS, useKeys, type Studio } from "./store"
 import { FRAMES_TYPE, COPIED_MS, countLabel, duplicateFrames, duplicateSpread, framesPayload, parsePayload, pasteFrames, pastedRects, clipboardMirror, setClipboardMirror } from "./clipboard"
 import { SpreadSurface, GuideLine, PHOTO_TYPE, FRAME_LOCKED_STATUS, readItems, marqueeStarters, grayPick } from "./canvas"
 import { bestTemplate } from "./templates"
@@ -133,10 +133,33 @@ function useFrameClipboard(inPlace: React.RefObject<boolean>) {
   }, [])
 }
 
+/** Designer frame-context-menu M3 cancel rules: the first Esc ends the pick before any other Esc layer; a press outside the
+ *  filmstrip dock, another active spread, Masters, Preview, or the frame removed / locked end it with no change. */
+function usePickGuard() {
+  const st = useStudio()
+  const on = !!st.pick
+  const end = React.useEffectEvent(() => endPick(st))
+  React.useEffect(() => {
+    if (!on) return
+    const key = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.preventDefault(); e.stopPropagation(); end() }
+    const down = (e: PointerEvent) => { if (!(e.target as Element | null)?.closest?.('[data-testid="dock"]')) end() }
+    window.addEventListener("keydown", key, true); document.addEventListener("pointerdown", down, true)
+    return () => { window.removeEventListener("keydown", key, true); document.removeEventListener("pointerdown", down, true) }
+  }, [on])
+  const p = st.pick
+  const f = p ? st.doc.spreads[p.si]?.frames.find((x) => x.id === p.id) : undefined
+  const stale = !!p && (st.cur !== p.si || st.mode !== "pages" || st.view.preview || !f || !!f.locked)
+  React.useEffect(() => { if (stale) end() }, [stale])
+  // the status is kept while the mode is on (a drop's late "clear status" timer must not wipe it)
+  const want = p && !stale ? PICK_STATUS[p.kind] : null
+  const keep = React.useEffectEvent(() => { if (want && st.status !== want) st.setStatus(want) })
+  React.useEffect(() => { keep() }, [want, st.status])
+}
 export function useEditorKeys() {
   const st = useStudio()
   const inPlace = React.useRef(false)
   useFrameClipboard(inPlace)
+  usePickGuard()
   useKeys((e) => {
     const mod = e.metaKey || e.ctrlKey
     // Ctrl/⌘+V and +Shift+V: the paste event that follows does the work
@@ -163,8 +186,8 @@ export function useEditorKeys() {
     }
     if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) st.redo(); else st.undo(); return }
     if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); st.redo(); return }
-    // photo pick mode (frame menu Replace / Place photo…) ends before any other Esc layer
-    if (e.key === "Escape") { if (st.pick) st.setPick(null); else if (st.cropId) st.setCropId(null); else if (st.sel.length) st.setSel([]); else st.setNode({ k: "none" }); return }
+    // photo pick mode ends on its own capture-phase Esc (usePickGuard) before this layer
+    if (e.key === "Escape") { if (st.cropId) st.setCropId(null); else if (st.sel.length) st.setSel([]); else st.setNode({ k: "none" }); return }
     if (mod && e.key === "'") { e.preventDefault(); st.setView({ grid: !st.view.grid }); return }
     if (mod && e.key === ";") { e.preventDefault(); st.setView({ guides: !st.view.guides }); return }
     if (e.shiftKey && e.key.toLowerCase() === "r" && !mod) { st.setView({ rulers: !st.view.rulers }); return }
