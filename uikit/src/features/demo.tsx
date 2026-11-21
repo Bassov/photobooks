@@ -1,6 +1,6 @@
 /* v0.8 §5 — #/demo: one clickable end-to-end prototype. State lives in memory (module scope) for the session.
    Stage 2: assembled from src/demo-parts (pure extraction, no visual / behaviour change). */
-import { DEMO_SESSION, type Stage } from "@/demo-parts/session"
+import { DEMO_SESSION, UiScaleCtx, useStageScale, type Stage } from "@/demo-parts/session"
 import { DemoLibrary } from "@/demo-parts/library"
 import { DemoWelcome } from "@/demo-parts/welcome"
 import { DemoEditor } from "@/demo-parts/editor"
@@ -24,8 +24,12 @@ function seedMissing(n: number) {
 
 export function DemoApp() {
   const d = useDemo()
+  /* interface-size D4: #/demo fills the window, so the window is what the clamp reads; the box is divided by the zoom (D1) */
+  const s = useStageScale(d.uiScale, "window")
+  const k = s / 100
   return (
-    <div className="h-screen w-screen overflow-hidden bg-background text-foreground" data-testid="demo" data-demo-stage={d.stage} key={d.nonce}>
+    <UiScaleCtx.Provider value={s}>
+    <div className="h-screen w-screen overflow-hidden bg-background text-foreground" style={s === 100 ? undefined : { zoom: k, width: `calc(100vw / ${k})`, height: `calc(100vh / ${k})` }} data-testid="demo" data-demo-stage={d.stage} key={d.nonce}>
       {d.stage === "welcome" && <DemoWelcome />}
       {d.stage === "library" && <DemoLibrary />}
       {d.stage === "editor" && d.open && <DemoEditor key={d.open} id={d.open} />}
@@ -33,6 +37,7 @@ export function DemoApp() {
       {d.stage === "site" && d.open && <DemoSite key={`${d.open}-${d.siteEntry}`} id={d.open} />}
       {d.stage === "unsupported" && <UnsupportedScreen variant={d.unsupported?.variant ?? "other"} browserName={d.unsupported?.browserName} />}
     </div>
+    </UiScaleCtx.Provider>
   )
 }
 

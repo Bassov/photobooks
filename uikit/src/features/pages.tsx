@@ -11,7 +11,7 @@ import { ExportSiteDialog, type ExportRun, type PrintRun, type PublishRun } from
 import { printProgress } from "@/demo-parts/printCheck"
 import { pagesOf } from "@/sandbox/v7"
 import type { PrintInit, SettingsSection } from "@/demo-parts/settings"
-import { SAMPLE_HOSTING, type SessionState } from "@/demo-parts/session"
+import { SAMPLE_HOSTING, type SessionState, type UiScale } from "@/demo-parts/session"
 import type { HostingDraft, HostingInit } from "@/demo-parts/hosting"
 import type { Doc } from "@/sandbox/model"
 import { WithScenarios } from "./parts"
@@ -58,8 +58,8 @@ const onSite = (site: RootInit["site"], entry: "catalog" | "book" = "catalog"): 
   const books = SHELF().map((b) => ({ ...b, published: true }))
   return { session: { stage: "site", path: PATH, books, open: books[0].id, back: "editor", siteEntry: entry }, site }
 }
-const settingsAt = (section: SettingsSection, s: Partial<SessionState> = {}, print?: PrintInit, hosting?: HostingInit) =>
-  root({ session: { stage: "settings", path: PATH, books: SHELF(), back: "library", ...s }, settings: { section, print, hosting } })
+const settingsAt = (section: SettingsSection, s: Partial<SessionState> = {}, print?: PrintInit, hosting?: HostingInit, focusInterface?: UiScale) =>
+  root({ session: { stage: "settings", path: PATH, books: SHELF(), back: "library", ...s }, settings: { section, print, hosting, focusInterface } })
 /* publish-credentials: a valid draft (key and secret are low-entropy fakes) and the hosting seeds */
 const DRAFT: HostingDraft = { account: SAMPLE_HOSTING.accountId, bucket: SAMPLE_HOSTING.bucket, key: `${"ab".repeat(14)}9f2c`, secret: "5e".repeat(32), url: SAMPLE_HOSTING.publicBaseUrl }
 const hostingAt = (s: Partial<SessionState>, h?: HostingInit) => settingsAt("hosting", s, undefined, h)
@@ -237,6 +237,9 @@ export const PAGES: Record<string, FeatureDef> = {
   "site-settings": page([
     ...(([["library", "Library"], ["hosting", "Hosting"], ["site", "Site"], ["print", "Print presets"], ["interface", "Interface"]] as const).map(([id, l]) =>
       [id, l, settingsAt(id, id === "print" ? { defaultPrintProfileId: "lulu-photo-book" } : {})] as Sc)),
+    /* interface-size: 150 % chosen on the 1440×900 stage clamps to 100 % (D4); 125 % keyboard-focused */
+    ["interface-clamped", "Window too small", settingsAt("interface", { uiScale: 150 })],
+    ["interface-focus", "Size focused", settingsAt("interface", {}, undefined, undefined, 125)],
     ["site-empty", "No values", settingsAt("site", { site: SITE_EMPTY })],
     ["print-empty", "No custom profiles", settingsAt("print", { printProfiles: [] })],
     ["print-edit", "Edit profile", settingsAt("print", {}, { edit: "custom-lulu-copy" })],
@@ -257,7 +260,7 @@ export const PAGES: Record<string, FeatureDef> = {
     ["hosting-replace", "Replace token", hostingAt({}, { replace: true })],
     ["hosting-forget", "Forget token", hostingAt({}, { forget: true })],
   ], {
-    what: "App settings with a back bar: Library (folder, Change library folder…), Hosting (guided Cloudflare setup or the R2 token form, connected card, help), Site (title, author, intro = the home lead, edited in place), Print presets (default for new books, print shops, custom profiles and their editor), Interface.",
+    what: "App settings with a back bar: Library (folder, Change library folder…), Hosting (guided Cloudflare setup or the R2 token form, connected card, help), Site (title, author, intro = the home lead, edited in place), Print presets (default for new books, print shops, custom profiles and their editor), Interface (interface size 100 / 125 / 150 %).",
     where: "#/demo steps 40 (editor → Settings, back bar “Back to the book”) and 49 (library → Settings, back bar “Library”); Print presets only here.",
     edge: ["Change library folder… confirms first; books are not moved", "Profile editor: errors show as you type and disable Save", "Deleting the default profile makes Generic the default", "The secret is never shown again", "Connect checks a real write before saving", "The setup token is never stored", "Only a key for one bucket is kept", "Saved on commit (blur / Enter); Esc reverts", "Intro ≤ 160 = ≤ 3 lines on the 1440 home"],
   }),

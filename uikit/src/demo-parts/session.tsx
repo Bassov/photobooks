@@ -27,10 +27,36 @@ export type SessionState = { stage: Stage; path: string; books: DBook[]; open: s
   /** printer-presets D6: the library's custom print profiles and the default for new books */ printProfiles: KitProfile[]; defaultPrintProfileId: string
   /** publish-credentials: the stored hosting connection; null = not connected */ hosting: HostingRecord | null
   /** personal-site D37: Settings → Site; the site lead reads `intro` */ site: SiteTexts
-  /** in-app-publish: the section the settings stage opens on ("Open Settings → Hosting"); absent = Library */ settingsSection?: SettingsSection }
+  /** in-app-publish: the section the settings stage opens on ("Open Settings → Hosting"); absent = Library */ settingsSection?: SettingsSection
+  /** interface-size: the chosen interface size in % (Settings → Interface); the stage shows `effectiveUiScale` of it */ uiScale: UiScale }
 export type Session = { S: SessionState; set: (p: Partial<SessionState>) => void; useDemo: () => SessionState }
 
-export const INITIAL_SESSION: SessionState = { stage: "welcome", path: "", books: [], open: null, back: "library", nonce: 0, siteEntry: "catalog", printProfiles: SAMPLE_CUSTOMS, defaultPrintProfileId: GENERIC_ID, hosting: SAMPLE_HOSTING, site: SAMPLE_SITE_TEXTS }
+export const INITIAL_SESSION: SessionState = { stage: "welcome", path: "", books: [], open: null, back: "library", nonce: 0, siteEntry: "catalog", printProfiles: SAMPLE_CUSTOMS, defaultPrintProfileId: GENERIC_ID, hosting: SAMPLE_HOSTING, site: SAMPLE_SITE_TEXTS, uiScale: 100 }
+
+/* interface-size D2 / D4: steps 100 / 125 / 150 %; the effective step is the largest one ≤ the choice that leaves the app
+   at least 1280×720, else 100. The stage gets `zoom` = effective / 100 (none at 100, so nothing changes there). */
+export const UI_SCALES = [100, 125, 150] as const
+export type UiScale = (typeof UI_SCALES)[number]
+export const MIN_APP = { w: 1280, h: 720 }
+export function effectiveUiScale(choice: UiScale, w: number, h: number): UiScale {
+  return [...UI_SCALES].reverse().find((s) => s <= choice && (w * 100) / s >= MIN_APP.w && (h * 100) / s >= MIN_APP.h) ?? 100
+}
+/** the effective scale the Settings row reads (the stage that applies the zoom provides it) */
+export const UiScaleCtx = React.createContext<UiScale>(100)
+/** Effective scale of a stage box: `box` = the parent element to measure, or null for the window. Re-measured on resize, never written back. */
+export function useStageScale(choice: UiScale, box: HTMLElement | null | "window"): UiScale {
+  const [size, setSize] = React.useState({ w: 0, h: 0 })
+  React.useLayoutEffect(() => {
+    if (box === null) return
+    if (box === "window") {
+      const read = () => setSize({ w: window.innerWidth, h: window.innerHeight })
+      read(); window.addEventListener("resize", read); return () => window.removeEventListener("resize", read)
+    }
+    const read = () => setSize({ w: box.clientWidth, h: box.clientHeight })
+    read(); const ro = new ResizeObserver(read); ro.observe(box); return () => ro.disconnect()
+  }, [box])
+  return effectiveUiScale(choice, size.w, size.h)
+}
 export function createSession(initial: Partial<SessionState> = {}): Session {
   const S: SessionState = { ...INITIAL_SESSION, ...initial }
   const subs = new Set<() => void>()
