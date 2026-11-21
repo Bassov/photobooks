@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { BookOp } from '../core'
+import type { BookOp, FramesPayload } from '../core'
 import { makeBook, makeSpread } from '../core/testing/fixtures'
 import {
   canRedo,
@@ -229,6 +229,44 @@ describe('step label bookkeeping', () => {
     for (const op of ops) {
       expect(isUndoableOp(op)).toBe(true)
       expect(coalesceKey(op)).toBeUndefined()
+    }
+  })
+
+  it('names cut, paste and duplicate steps with their frame count', () => {
+    const payload = (n: number) =>
+      ({ frames: Array.from({ length: n }) }) as unknown as FramesPayload
+    const ids = (n: number) =>
+      Array.from({ length: n }, (_, i) => `f${String(i)}`)
+    for (const [n, suffix] of [
+      [1, 'frame'],
+      [2, '2 frames'],
+      [3, '3 frames'],
+    ] as const) {
+      expect(
+        opLabel({
+          type: 'removeFrames',
+          spreadId: 's',
+          frameIds: ids(n),
+          cut: true,
+        }),
+      ).toBe(`Cut ${suffix}`)
+      expect(
+        opLabel({
+          type: 'pasteFrames',
+          spreadId: 's',
+          payload: payload(n),
+          inPlace: false,
+        }),
+      ).toBe(`Paste ${suffix}`)
+      expect(
+        opLabel({
+          type: 'duplicateFrames',
+          spreadId: 's',
+          frameIds: ids(n),
+          dx: 5,
+          dy: 5,
+        }),
+      ).toBe(`Duplicate ${suffix}`)
     }
   })
 

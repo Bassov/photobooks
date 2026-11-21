@@ -3,8 +3,9 @@
  * data: the editor owns keys, clipboard events and the step memory. The kit
  * twin is `uikit/src/sandbox/clipboard.ts`.
  */
+import { z } from 'zod'
 import { getSinglePageSide, getSpreadSizeMm } from '../geometry/spreadSize'
-import type { Book, Frame } from '../schema'
+import { bookSchema, type Book, type Frame } from '../schema'
 import { resolveTextContent } from '../text/resolveText'
 import { findBookFrame, spreadFrames, updateSpread } from '../update'
 import { detached, nextFrameId } from './frames'
@@ -54,6 +55,50 @@ export interface LastDuplicate {
   spreadId: string
   sourceRects: readonly Rect[]
   newIds: readonly string[]
+}
+
+/** Built on first use (zod schemas are not built at module load). */
+function makePayloadSchema() {
+  const optionalId = z.string().min(1).optional()
+  return z.object({
+    v: z.literal(1),
+    bookId: z.string(),
+    spreadId: z.string(),
+    side: z.enum(['left', 'right']).nullable(),
+    trim: z.object({
+      widthMm: z.number().positive(),
+      heightMm: z.number().positive(),
+    }),
+    // the book's own frame schema
+    frames: z.array(bookSchema.shape.spreads.element.shape.frames.element),
+    texts: z.record(z.string(), z.string()),
+    assets: z.record(
+      z.string(),
+      z.object({
+        contentHash: optionalId,
+        sourceRootId: optionalId,
+        relativePath: optionalId,
+      }),
+    ),
+  })
+}
+
+let payloadSchema: ReturnType<typeof makePayloadSchema> | undefined
+
+/**
+ * A clipboard string as a frames payload (D1), or null when it is not JSON
+ * or not a version 1 payload: the clipboard is untrusted input.
+ */
+export function parseFramesPayload(json: string): FramesPayload | null {
+  let data: unknown
+  try {
+    data = JSON.parse(json)
+  } catch {
+    return null
+  }
+  payloadSchema ??= makePayloadSchema()
+  const parsed = payloadSchema.safeParse(data)
+  return parsed.success ? (parsed.data as FramesPayload) : null
 }
 
 function spreadAt(book: Book, spreadId: string) {
