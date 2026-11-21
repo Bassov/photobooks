@@ -45,6 +45,9 @@ const ORDER = [
   'Send to back',
 ]
 
+/** Muted icon red channel is 83; anti-aliasing only lightens it. */
+const DARKEST_MUTED = 80
+
 /** The kit's paste step (frame-copy-paste D3). */
 const STEP_MM = 5
 
@@ -145,6 +148,41 @@ test.describe('Frame context menu on photo frames (FM3)', () => {
     // M5: a pointer open focuses the menu, not a row
     await expect(menu(page)).toBeFocused()
     await expect(menu(page).locator('[data-focused]')).toHaveCount(0)
+
+    // design-r36 M138: row icons are --muted-foreground, the Delete icon
+    // keeps the destructive ink (style and paint)
+    const ink = (id: string) =>
+      row(page, id)
+        .locator('svg')
+        .evaluate((el) => getComputedStyle(el).color)
+    expect(await ink('copy')).toBe('rgb(83, 81, 82)')
+    expect(await ink('front')).toBe('rgb(83, 81, 82)')
+    expect(await ink('delete')).toBe('rgb(57, 55, 56)')
+    const darkest = async (id: string) => {
+      const grid = Array.from({ length: 256 }, (_, i) => ({
+        x: (i % 16) + 0.5,
+        y: Math.floor(i / 16) + 0.5,
+      }))
+      const px = await pixelsAt(row(page, id).locator('svg'), grid)
+      return Math.min(...px.map(([r = 255]) => r))
+    }
+    expect(await darkest('copy')).toBeGreaterThanOrEqual(DARKEST_MUTED)
+    expect(await darkest('delete')).toBeLessThan(DARKEST_MUTED)
+    // M139: Duplicate draws CopyPlus, not the Copy glyph
+    const glyph = (id: string) =>
+      row(page, id)
+        .locator('svg')
+        .evaluate((el) => el.innerHTML)
+    expect(await glyph('duplicate')).not.toBe(await glyph('copy'))
+    await expect(row(page, 'duplicate').locator('svg')).toHaveAttribute(
+      'data-icon',
+      'copyPlus',
+    )
+    // icons outside the menus still inherit their control's ink
+    const undo = page.getByTestId('undo')
+    expect(
+      await undo.locator('svg').evaluate((el) => getComputedStyle(el).color),
+    ).toBe(await undo.evaluate((el) => getComputedStyle(el).color))
 
     // hover paints the row --accent #CFCFCF (pixels, not only style)
     const copy = row(page, 'copy')
