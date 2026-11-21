@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item frame-alt-duplicate-kit
+Status: done
 
 Kit `#/demo` editor: Alt held at the press on a frame = duplicate drag (Designer frame-copy-paste spec D2, D8 and
 "Alt-drag look"; Must FC2). The kit is the design source for the later prod item FC5.
