@@ -155,11 +155,22 @@ function usePickGuard() {
   const keep = React.useEffectEvent(() => { if (want && st.status !== want) st.setStatus(want) })
   React.useEffect(() => { keep() }, [want, st.status])
 }
+/** FC2 (prod `data-alt-duplicate` on the workspace): Alt held marks the document; canvas.tsx frames read it for the `copy` cursor. */
+function useAltDuplicateCursor() {
+  React.useEffect(() => {
+    const root = document.documentElement
+    const set = (e: KeyboardEvent) => { if (e.key === "Alt") root.toggleAttribute("data-alt-duplicate", e.type === "keydown") }
+    const clear = () => root.removeAttribute("data-alt-duplicate")
+    window.addEventListener("keydown", set, true); window.addEventListener("keyup", set, true); window.addEventListener("blur", clear)
+    return () => { window.removeEventListener("keydown", set, true); window.removeEventListener("keyup", set, true); window.removeEventListener("blur", clear); clear() }
+  }, [])
+}
 export function useEditorKeys() {
   const st = useStudio()
   const inPlace = React.useRef(false)
   useFrameClipboard(inPlace)
   usePickGuard()
+  useAltDuplicateCursor()
   useKeys((e) => {
     const mod = e.metaKey || e.ctrlKey
     // Ctrl/⌘+V and +Shift+V: the paste event that follows does the work

@@ -109,13 +109,14 @@ export function resetClipboard() { mirror = null; lastDuplicate = null }
 /**
  * D8 Ctrl+D: duplicate the selected frames of spread `si`. Run again on the copies it just made (same spread), the offset is
  * where the user moved them from their source (first frame, z order); else, or when they did not move, +5/+5 mm.
+ * FC2 Alt-drag passes its drop delta as `drag` (mm); it sets the step memory too, so a Ctrl+D after it repeats that delta.
  */
-export function duplicateFrames(d: Doc, si: number, ids: string[]): { doc: Doc; ids: string[] } {
+export function duplicateFrames(d: Doc, si: number, ids: string[], drag?: { x: number; y: number }): { doc: Doc; ids: string[] } {
   const s = d.spreads[si], p = framesPayload(d, si, ids)
   const rects = p.frames.map(({ x, y, w, h }) => ({ x, y, w, h }))
   const last = lastDuplicate
-  const repeat = last && last.spreadId === s.id && last.newIds.length === ids.length && last.newIds.every((id) => ids.includes(id))
-  let offset = { x: PASTE_STEP, y: PASTE_STEP }
+  const repeat = !drag && last && last.spreadId === s.id && last.newIds.length === ids.length && last.newIds.every((id) => ids.includes(id))
+  let offset = drag ?? { x: PASTE_STEP, y: PASTE_STEP }
   if (repeat) {
     const now = s.frames.find((f) => f.id === last.newIds[0])!
     const o = { x: round2(now.x - last.sourceRects[0].x), y: round2(now.y - last.sourceRects[0].y) }

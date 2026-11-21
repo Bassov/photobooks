@@ -12,6 +12,7 @@ import {
   parentOf, pageNumbersOf, foliosOf, printSafe, type Guide, photoRect, keepPhoto, scalePhoto, panPhoto,
 } from "./model"
 import { useStudio, mapSpread, mapFrames, placePhoto, useKeys, type Studio } from "./store"
+import { countLabel, duplicateFrames } from "./clipboard"
 import { anchorPhoto, fillTokens } from "./meta"
 import { setTextOverflow, takeTextGrow, useTextOverflow } from "./text-overflow"
 import { badgeFit, frameContains, isOverridePress, overrideFrame, parentFramesOf, parentHit } from "./parent-overrides"
@@ -20,6 +21,10 @@ export const PHOTO_TYPE = "application/x-photobooks-photo"
 export const FRAME_TYPE = "application/x-photobooks-frame"
 /** Status when a drag, nudge or Del finds only locked frames to act on. */
 export const FRAME_LOCKED_STATUS = "Frame is locked — unlock it in the inspector (Ctrl+Shift+L)"
+/** Designer frame-copy-paste FC2: the status while an Alt-press duplicate drag runs. */
+export const DUPLICATE_DRAG_STATUS = "Release to place the copy · Esc to cancel"
+/** True from an Alt-press on a frame until its gesture ends: the frame's native (swap) drag must not start. */
+const altPress = { on: false }
 
 /* ---------------------------------------------------------------- photo inside a frame (cover × zoom, pan, quarter turn, straighten) */
 export function PhotoImg({ f, wpx, hpx, ghost = false }: { f: Frame; wpx: number; hpx: number; ghost?: boolean }) {
@@ -192,8 +197,11 @@ function FrameEl(p: FrameProps) {
     <div ref={ref} {...(canDrop ? dropProps : {})} {...(swap ? dragProps : {})}
       data-frame={f.id} data-testid={p.inherited ? "master-frame" : "frame"}
       onPointerDown={(e) => p.onDown(e, f)} onDoubleClick={() => p.onDouble(f)}
+      onDragStartCapture={(e) => { if (altPress.on) { e.preventDefault(); e.stopPropagation() } }}
       data-override={f.overrides ? "true" : undefined}
-      className={cn("group/frame absolute", p.inherited && "pointer-events-none", dragLive && "opacity-40", p.hidden && "opacity-0")}
+      className={cn("group/frame absolute", p.inherited && "pointer-events-none", dragLive && "opacity-40", p.hidden && "opacity-0",
+        // FC2: Alt held (viewport.tsx sets data-alt-duplicate) over an own frame with Select = the duplicate-drag cursor
+        !p.inherited && st.view.tool === "select" && st.features.handles && "in-[[data-alt-duplicate]]:cursor-copy")}
       style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined, zIndex: crop || p.editing ? 30 : undefined }}>
       <FrameBody f={f} s={p.s} sc={sc} missing={missing} inherited={p.inherited} editing={p.editing} onEditDone={p.onEditDone} />
       {f.kind === "image" && f.caption && <div data-testid="frame-caption" className="pointer-events-none absolute inset-x-0 truncate" style={{ top: f.h * sc + 1.5 * sc, fontSize: TEXT.caption.size * sc, fontFamily: TEXT.caption.font, color: "#535152", lineHeight: 1.3 }}>{f.caption}</div>}
@@ -417,6 +425,8 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   const ref = React.useRef<HTMLDivElement>(null)
   const [lines, setLines] = React.useState<SnapLine[]>([])
   const [marquee, setMarquee] = React.useState<Rect | null>(null)
+  /** FC2: the Alt-press duplicate drag in progress — its frames and the clones' delta (mm) */
+  const [dup, setDup] = React.useState<{ ids: string[]; x: number; y: number } | null>(null)
   const [editing, setEditing] = React.useState<string | null>(null)
   const fresh = React.useRef<string | null>(null)
   const par = parentOf(doc, s)
@@ -430,13 +440,14 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   const th = 6 / sc
   const gesture = (e: React.PointerEvent, onMove: (p: { x: number; y: number }, ev: PointerEvent) => void, onUp: (moved: boolean) => void, onCancel?: () => void) => {
     const start = pt(e); let moved = false
-    const off = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); window.removeEventListener("keydown", key, true) }
+    const off = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); window.removeEventListener("keydown", key, true); window.removeEventListener("pointercancel", lost) }
     const mv = (ev: PointerEvent) => { if (!ref.current) { off(); return } const p = pt(ev); if (!moved && Math.hypot(p.x - start.x, p.y - start.y) * sc < 3) return; moved = true; onMove(p, ev) }
     const up = () => { off(); setLines([]); onUp(moved) }
-    // with onCancel, Esc during the press ends the gesture without onUp
-    const key = (ev: KeyboardEvent) => { if (ev.key !== "Escape") return; ev.stopPropagation(); off(); setLines([]); onCancel!() }
+    // with onCancel, Esc during the press (or a lost pointer) ends the gesture without onUp
+    const lost = () => { off(); setLines([]); onCancel!() }
+    const key = (ev: KeyboardEvent) => { if (ev.key !== "Escape") return; ev.stopPropagation(); lost() }
     window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up)
-    if (onCancel) window.addEventListener("keydown", key, true)
+    if (onCancel) { window.addEventListener("keydown", key, true); window.addEventListener("pointercancel", lost) }
     return start
   }
   const snapOn = view.snap
@@ -462,32 +473,58 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
     // v0.7.3 (P2): a plain click (no drag) on one frame of a multi-selection collapses to that frame, so its toolbar (Crop) shows up
     const collapse = !e.shiftKey && sel.length > 1 && sel.includes(f.id)
     if (!ft.handles || view.tool !== "select") { if (collapse) st.setSel([f.id]); return }
+    // FC2 (D2): Alt held at the press duplicates the selection (any lock state) instead of moving it
+    if (e.altKey) { moveFrames(e, s.frames.filter((x) => sel.includes(x.id)), () => { if (collapse) st.setSel([f.id]) }, true); return }
     const moving = s.frames.filter((x) => sel.includes(x.id) && !x.locked)
     if (!moving.length) { if (collapse) st.setSel([f.id]); if (f.locked) st.setStatus(FRAME_LOCKED_STATUS); return }
     moveFrames(e, moving, () => { if (collapse) st.setSel([f.id]) })
   }
-  /** Move gesture after the 3 px slop: one "Move frame(s)" step on release; `onClick` when the press never moved. */
-  const moveFrames = (e: React.PointerEvent, moving: Frame[], onClick: () => void) => {
+  /** Move gesture after the 3 px slop: one "Move frame(s)" step on release; `onClick` when the press never moved.
+   *  `dup` (FC2 Alt-press): clones follow the pointer, the originals stay; release = one "Duplicate frame(s)" step, Esc / lost
+   *  pointer = nothing. The Alt that started it does not bypass snapping (`altLatch` until a move without Alt). */
+  const moveFrames = (e: React.PointerEvent, moving: Frame[], onClick: () => void, dup = false) => {
     const orig = moving.map((x) => ({ id: x.id, x: x.x, y: x.y }))
     const bb = bbox(moving)
-    const A = anc(moving.map((x) => x.id))
+    const A = anc(dup ? [] : moving.map((x) => x.id)) // the originals stay put: a copy may snap to them
     const GA = view.grid && view.snapGrid ? (() => { const a = anchors(doc, s, { grid: true, guides: false, frames: false, exclude: [] }); const k = (x: Anchor) => /^(column|row) /.test(x.kind); return { xs: a.xs.filter(k), ys: a.ys.filter(k) } })() : null
+    let altLatch = dup, delta = { x: 0, y: 0 }, shown = false
+    altPress.on = dup
+    const end = () => { altPress.on = false; setDup(null); if (shown) st.setStatus("") }
     const start = gesture(e, (p, ev) => {
       let dx = p.x - start.x, dy = p.y - start.y
       if (ev.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0 }
       let ls: SnapLine[] = []
-      if (snapOn && !ev.altKey) {
+      if (!ev.altKey) altLatch = false
+      if (snapOn && !(ev.altKey && !altLatch)) {
         // v0.8.1 (P2-9): with the layout grid visible, column / row edges win within a wider 16px pull, per axis
         const R = { ...bb, x: bb.x + dx, y: bb.y + dy }, r = snapRect(R, A, th)
         const g = GA ? snapRect(R, GA, 16 / sc, { x: ["l", "r"], y: ["t", "b"] }) : null
         const gx = g?.lines.find((l) => l.axis === "v"), gy = g?.lines.find((l) => l.axis === "h")
         dx += gx ? g!.dx : r.dx; dy += gy ? g!.dy : r.dy
         ls = [gx ?? r.lines.find((l) => l.axis === "v"), gy ?? r.lines.find((l) => l.axis === "h")].filter(Boolean) as SnapLine[]
-        if (gx || gy) st.setStatus(`Snapped to ${[gx?.kind, gy?.kind].filter(Boolean).join(" · ")}`)
+        if ((gx || gy) && !dup) st.setStatus(`Snapped to ${[gx?.kind, gy?.kind].filter(Boolean).join(" · ")}`)
       }
       setLines(ls)
+      if (dup) {
+        if (!shown) { shown = true; st.setStatus(DUPLICATE_DRAG_STATUS) }
+        delta = { x: round(dx, 2), y: round(dy, 2) }
+        setDup({ ids: orig.map((o) => o.id), ...delta })
+        return
+      }
       st.preview((d) => mapSpread(d, si, (sp) => ({ ...sp, template: null, frames: sp.frames.map((x) => { const o = orig.find((q) => q.id === x.id); return o ? { ...x, x: round(o.x + dx, 2), y: round(o.y + dy, 2) } : x }) })))
-    }, (m) => { if (m) { st.commit(moving.length > 1 ? `Move ${moving.length} frames` : "Move frame"); st.setStatus("") } else onClick() })
+    }, (m) => {
+      if (dup) {
+        end()
+        if (!m) { onClick(); return }
+        // one step; the copies become the selection and the step memory (D8: a Ctrl+D next repeats this delta)
+        const out = duplicateFrames(doc, si, orig.map((o) => o.id), delta)
+        st.update(() => out.doc, countLabel("Duplicate", out.ids.length))
+        st.setCropId(null)
+        st.setSel(out.ids)
+        return
+      }
+      if (m) { st.commit(moving.length > 1 ? `Move ${moving.length} frames` : "Move frame"); st.setStatus("") } else onClick()
+    }, dup ? end : undefined)
   }
   /* Designer parent-overrides PO2 (+ parent-overrides-canvas review 3): Ctrl/⌘+Shift press, geometric and through own frames —
      a parent guide (viewport.tsx copies it and drags), else the topmost override copy (selected, no step; moves after 3 px),
@@ -693,7 +730,8 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
     getDropOperation: (t) => (t.has(PHOTO_TYPE) ? "copy" : "cancel"),
     onDrop: async (e) => { await handleDrop(st, si, null, e.items) },
   })
-  const showSel = active && selFrames.length > 0 && !st.cropId && !view.preview
+  // FC2: while a duplicate drag runs the originals show no ring or handles; the clones carry it
+  const showSel = active && selFrames.length > 0 && !st.cropId && !view.preview && !dup
   const single = selFrames.length === 1 ? selFrames[0] : null
   const chromeF = pinned ?? (showSel && single && ft.handles && editing !== single.id && direct(single) ? single : undefined)
   const folios = view.pageNumbers || pageNumbersOf(par) ? foliosOf(doc, s, si, printSafe(doc, st.book)) : []
@@ -712,6 +750,12 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
       {[...s.frames.filter((f) => f.overrides), ...s.frames.filter((f) => !f.overrides)].map((f) => (
         <FrameEl key={f.id} f={f} si={si} s={s} sc={sc} selected={st.sel.includes(f.id)} onDown={onFrameDown} onDouble={onDouble}
           editing={editing === f.id} onEditDone={(t, h) => endEdit(f, t, h)} />
+      ))}
+      {dup && s.frames.filter((f) => dup.ids.includes(f.id)).map((f) => (
+        <div key={f.id} data-testid="dup-clone" className="pointer-events-none absolute z-40"
+          style={{ left: (f.x + dup.x) * sc, top: (f.y + dup.y) * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined, opacity: 0.85, boxShadow: "0 0 0 2px var(--select)" }}>
+          <FrameBody f={f} s={s} sc={sc} missing={!!f.photo && st.missing.has(f.photo)} />
+        </div>
       ))}
       {view.preview && <div className="pointer-events-none absolute inset-0 outline-[4000px] outline-canvas [outline-style:solid]" />}
       {view.grid && !view.preview && <GridOverlay s={s} sc={sc} />}

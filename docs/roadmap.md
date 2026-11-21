@@ -319,6 +319,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
 - [ ] [feature] [frame-copy-paste-core](roadmap/P5/frame-copy-paste-core.md) — Bug: /next-roadmap-item frame-copy-paste-core
 - [ ] [feature] [frame-copy-paste](roadmap/P5/frame-copy-paste.md) — Bug: /next-roadmap-item frame-copy-paste
+- [ ] [lite] [frame-alt-duplicate-kit](roadmap/P5/frame-alt-duplicate-kit.md) — Bug: /next-roadmap-item frame-alt-duplicate-kit
 - [ ] [feature] [frame-menu-kit](roadmap/P5/frame-menu-kit.md) — Bug: /next-roadmap-item frame-menu-kit
 - [ ] [feature] [photo-pick-kit](roadmap/P5/photo-pick-kit.md) — Bug: /next-roadmap-item photo-pick-kit
 - [ ] [lite] [roadmap-status-sync](roadmap/P5/roadmap-status-sync.md) — Bug: /next-roadmap-item roadmap-status-sync
