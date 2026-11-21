@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P5
 Title: Bug: /next-roadmap-item polish-icons-chrome
+Status: done
 
 Q-21 polish item 4, part 1 (Designer spec `walkthrough-polish-review`, Musts P6, P8, P9). Kit + prod in one PR.
 P10 (warm neutral chrome) is a follow-up item (polish-warm-chrome); no palette change here.
