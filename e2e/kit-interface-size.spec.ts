@@ -147,6 +147,56 @@ test.describe('1440×900', () => {
     await expect(seg(page, 100)).toHaveAttribute('aria-checked', 'true')
     expect(await css(page.getByTestId('demo'), 'zoom')).toBe('1')
   })
+
+  // design-r34-is-kit M134: arrows move AND select like prod's native radios
+  // (wrap; Down/Up = Right/Left; Home/End do nothing); the choice is stored.
+  test('#/demo keys: arrows select the next size at once, wrap, and the choice is stored', async ({
+    page,
+  }) => {
+    await page.goto('/uikit/#/demo')
+    await page.evaluate(() => {
+      ;(window as unknown as { __demo: { go: (s: string) => void } }).__demo.go(
+        'settings',
+      )
+    })
+    await page.getByTestId('settings-nav-interface').click()
+    const checked = async (v: number) => {
+      await expect(seg(page, v)).toHaveAttribute('aria-checked', 'true')
+      await expect(seg(page, v)).toBeFocused()
+      await expect(
+        group(page).getByRole('radio', { checked: true }),
+      ).toHaveCount(1)
+    }
+    await seg(page, 100).focus()
+    await page.keyboard.press('ArrowRight')
+    await checked(125)
+    await expect(hint(page)).toHaveText(
+      'Window too small for 125%: showing 100%.',
+    )
+    await page.keyboard.press('ArrowLeft')
+    await checked(100)
+    await expect(hint(page)).toHaveText(
+      'Bigger text and controls for 4K screens.',
+    )
+    await page.keyboard.press('ArrowLeft')
+    await checked(150)
+    await page.keyboard.press('ArrowRight')
+    await checked(100)
+    await page.keyboard.press('ArrowDown')
+    await checked(125)
+    await page.keyboard.press('ArrowUp')
+    await checked(100)
+    await page.keyboard.press('ArrowDown')
+    await checked(125)
+    await page.keyboard.press('End')
+    await page.keyboard.press('Home')
+    await checked(125)
+
+    // stored in the session: another section and back keeps 125 %
+    await page.locator('[data-testid^="settings-nav-"]').first().click()
+    await page.getByTestId('settings-nav-interface').click()
+    await expect(seg(page, 125)).toHaveAttribute('aria-checked', 'true')
+  })
 })
 
 test.describe('1920×1080', () => {

@@ -43,13 +43,37 @@ export function SwitchRow({ children, ...props }: React.ComponentProps<typeof Sw
   )
 }
 
+/* Radio-group keys like prod src/ui/SegmentedControl (native radios): an arrow moves focus
+   AND selects, wrapping at the ends; Right/Down = next, Left/Up = previous. Home/End do
+   nothing (native radios ignore them), so RAC's toolbar must not move focus on them either.
+   RAC's toolbar handles keys in the capture phase on the group, so this runs one level up
+   (a display:contents wrapper, no layout box) and stops the event before the group sees it. */
+const SEGMENT_STEP: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }
+
 /* v1-style segmented control: muted track, white raised selected segment */
 export function Segmented({ items, defaultValue, value, onChange, label, className, size = "md" }: {
   items: { id: string; label: React.ReactNode; aria?: string }[]; defaultValue?: string; value?: string; onChange?: (v: string) => void; label: string; className?: string; size?: "sm" | "md"
 }) {
+  const [own, setOwn] = React.useState(defaultValue)
+  const current = value ?? own
+  const pick = (v: string) => { setOwn(v); onChange?.(v) }
+  const onKeyCapture = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = SEGMENT_STEP[e.key]
+    if (step === undefined && e.key !== "Home" && e.key !== "End") return
+    const radios = [...e.currentTarget.querySelectorAll<HTMLElement>("[role=radio]")]
+    const i = radios.indexOf(e.target as HTMLElement)
+    if (i < 0) return
+    e.stopPropagation()
+    if (step === undefined) return
+    e.preventDefault()
+    const n = (i + step + items.length) % items.length
+    radios[n]!.focus()
+    if (items[n]!.id !== current) pick(items[n]!.id)
+  }
   return (
-    <ToggleButtonGroup selectionMode="single" disallowEmptySelection defaultSelectedKeys={defaultValue ? [defaultValue] : undefined}
-      selectedKeys={value !== undefined ? [value] : undefined} onSelectionChange={(k) => { const v = [...k][0]; if (v !== undefined) onChange?.(String(v)) }} aria-label={label}
+    <div className="contents" onKeyDownCapture={onKeyCapture}>
+    <ToggleButtonGroup selectionMode="single" disallowEmptySelection
+      selectedKeys={current !== undefined ? [current] : []} onSelectionChange={(k) => { const v = [...k][0]; if (v !== undefined) pick(String(v)) }} aria-label={label}
       className={cn("grid gap-0.5 rounded-lg bg-field p-0.5", className)} style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0,1fr))` }}>
       {items.map((it) => (
         <Toggle key={it.id} id={it.id} aria-label={it.aria} size="sm"
@@ -61,6 +85,7 @@ export function Segmented({ items, defaultValue, value, onChange, label, classNa
         </Toggle>
       ))}
     </ToggleButtonGroup>
+    </div>
   )
 }
 
