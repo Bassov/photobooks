@@ -406,6 +406,8 @@ export function sortedGallery(ids: string[], sort: "date" | "name" | "added") {
 }
 let ext = 0
 let placedTimer: ReturnType<typeof setTimeout> | undefined
+/** The badge's live status text: a filmstrip drag end's 2.5 s clear leaves it to its own timer. */
+let placedText = ""
 /** Designer placed-badge B1–B3: go to the photo's next place; 2+ places paint `Placed i of n · <label>`, one place is read only (`Placed on <label>`). */
 function showInBook(st: ReturnType<typeof useStudio>, photo: string, cov: string) {
   const places = placesOf(st.doc, photo, cov)
@@ -415,6 +417,7 @@ function showInBook(st: ReturnType<typeof useStudio>, photo: string, cov: string
   const label = p.kind === "cover" ? "Cover" : pagesName(p.si)
   const text = places.length > 1 ? `Placed ${i + 1} of ${places.length} · ${label}` : `Placed on ${label}`
   st.setStatus(text)
+  placedText = text
   clearTimeout(placedTimer)
   placedTimer = setTimeout(() => st.setStatus((s) => (s === text ? "" : s)), 2500)
 }
@@ -426,11 +429,12 @@ function PlacedBadge({ n, picking, onPress }: { n: number; picking: boolean; onP
       // RAC Button drops `title`; the native tooltip as the Low-res chip's
       ref={(el) => el?.setAttribute("title", "Show in the book")}
       aria-label={n > 1 ? `Show in the book, placed ${n} times` : "Show in the book"}
-      className={cn("absolute bottom-1 right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-black/55 text-white outline-none backdrop-blur-sm transition-[scale,background-color] duration-120 ease-out before:absolute before:-inset-1 before:content-['']",
-        n > 1 && "gap-px pl-[3px] pr-1",
+      className={cn("absolute bottom-1 right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-black/55 text-white outline-none backdrop-blur-sm transition-[scale,background-color] duration-(--duration-fast) ease-out before:absolute before:-inset-1 before:content-['']",
+        n > 1 && "gap-px pl-0.75 pr-1",
         picking ? "cursor-copy" : "cursor-pointer data-[hovered]:scale-[1.125] data-[hovered]:bg-black/80 data-[pressed]:scale-100 data-[pressed]:bg-black/90 motion-reduce:scale-100!")}>
       <Check className="size-2.5 shrink-0" strokeWidth={3} />
-      {n > 1 && <span className="font-[Inter] text-[10px] font-semibold leading-4 tracking-normal tabular-nums">{n > 9 ? "9+" : n}</span>}
+      {/* Spec Look "Inter 10/600": no 10 px step in the kit type scale, so the size is inline */}
+      {n > 1 && <span className="font-[Inter] font-semibold leading-4 tracking-normal tabular-nums" style={{ fontSize: 10 }}>{n > 9 ? "9+" : n}</span>}
     </AriaButton>
   )
 }
@@ -447,7 +451,7 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
     acceptedDragTypes: [FRAME_TYPE, DIRECTORY_DRAG_TYPE, "image/jpeg", "image/png", "image/webp"],
     getDropOperation: () => "move",
     onDragStart: (e) => { st.setDragging([...e.keys].map(String)); st.setStatus(`Dragging ${e.keys.size} photo${e.keys.size > 1 ? "s" : ""} — drop on a frame${st.features.multiDrop ? ", a spread or between spreads" : ""}`) },
-    onDragEnd: () => { st.setDragging(null); setTimeout(() => st.setStatus(""), 2500) },
+    onDragEnd: () => { st.setDragging(null); setTimeout(() => st.setStatus((s) => (s === placedText ? s : "")), 2500) },
     onRootDrop: (e) => handleDrop(e),
     // dropped over a thumbnail instead of empty strip: same handling (external folders / frames back to the gallery)
     onInsert: (e) => handleDrop(e),

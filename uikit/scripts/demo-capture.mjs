@@ -135,8 +135,8 @@ export async function capture(out, { log = console.log, probe } = {}) {
     // p02 is the 800 px low-res photo: no DPI badge in #/demo (prod has no DPI toggle)
     ["editor-view-low-res-photo", async () => { await page.locator('[data-testid="filmstrip"] [role="row"]').nth(1).dragTo(page.locator(FRAME).first()); await settle(400) }],
     ["editor-view-guides-hidden", async () => { await page.keyboard.press("Control+;") }],
-    // the low-res drop's 2.5 s status clear lands at this shot: wait it out so the line is reliably empty
-    ["editor-spread-row-menu", async () => { await page.waitForTimeout(400); await page.keyboard.press("Shift+R"); await page.locator('[data-item="p1"]').hover(); await c('[data-item="p1"] [data-testid="spread-menu"]') }],
+    // the low-res drop's 2.5 s status clear lands at this shot: wait for the empty line
+    ["editor-spread-row-menu", async () => { await page.waitForFunction(() => !document.querySelector('[data-testid="status"]')?.textContent);await page.keyboard.press("Shift+R"); await page.locator('[data-item="p1"]').hover(); await c('[data-item="p1"] [data-testid="spread-menu"]') }],
     ["editor-spread-duplicated", async () => { await page.getByRole("menuitem", { name: /Duplicate/ }).click() }],
     ["editor-spread-reordered", async () => { await page.locator('[data-item="p2"]').dragTo(page.locator('[data-item="p4"]')); await settle(300) }],
     ["editor-master-guides-edit", async () => { await page.locator('[data-testid="mode-seg"]').getByText("Masters", { exact: true }).click(); await settle(250); await page.keyboard.press("Shift+R"); await page.keyboard.press("Control+;"); await settle(200); const r = await page.locator('[data-testid="ruler-y"]').boundingBox(); const t = await page.locator('[data-testid="canvas-master"]').boundingBox(); await page.mouse.move(Math.round(r.x + 10), Math.round(r.y + r.height / 2)); await page.mouse.down(); await page.mouse.move(Math.round(t.x + t.width * 0.3), Math.round(r.y + r.height / 2), { steps: 6 }); await page.mouse.up(); return "keep" }],
