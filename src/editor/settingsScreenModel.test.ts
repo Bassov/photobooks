@@ -7,12 +7,13 @@ import {
 } from './settingsScreenModel'
 
 describe('settingsScreenModel', () => {
-  it('offers Library, Hosting, Site and Print presets, Site at index 2', () => {
+  it('offers Library, Hosting, Site, Print presets and Interface last', () => {
     expect(SETTINGS_SECTIONS.map((x) => [x.id, x.label, x.icon])).toEqual([
       ['library', 'Library', 'hardDrive'],
       ['hosting', 'Hosting', 'keyRound'],
       ['site', 'Site', 'globe'],
       ['print', 'Print presets', 'printer'],
+      ['interface', 'Interface', 'slidersHorizontal'],
     ])
   })
 
