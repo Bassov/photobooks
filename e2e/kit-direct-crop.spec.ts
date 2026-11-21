@@ -167,6 +167,17 @@ async function nudgeAlongOverflow(page: Page, frame: Locator) {
 }
 
 /** hover the grabber: the photo layer shows */
+/** the one "Crop · N%" tag: [computed line-height px, rendered height px], rounded to 0.5 */
+function tagMetrics(page: Page) {
+  return page.getByTestId('crop-tag').evaluate((el) => {
+    const r = (v: number) => Math.round(v * 2) / 2
+    return [
+      r(parseFloat(getComputedStyle(el).lineHeight)),
+      r(el.getBoundingClientRect().height),
+    ]
+  })
+}
+
 async function showLayer(page: Page) {
   await page.getByTestId('crop-grabber').hover()
   await expect(page.getByTestId('photo-handle')).toHaveCount(4)
@@ -318,6 +329,22 @@ test.describe('kit direct crop (Designer walkthrough-ux-review §A)', () => {
     await expect(chip).toHaveCount(0)
   })
 
+  test('M128: the frame crop tag during a grabber pan sits on a 16 px line, 20 px tall', async ({
+    page,
+  }) => {
+    test.setTimeout(90_000)
+    await photoFrame(page)
+    await showLayer(page)
+    const g = centre(await box(page.getByTestId('crop-grabber')))
+    await page.mouse.move(g.x, g.y)
+    await page.mouse.down()
+    await page.mouse.move(g.x + 6, g.y + 6, { steps: 3 })
+    await expect(page.getByTestId('crop-tag')).toHaveText(/^Crop · \d+%$/)
+    expect(await tagMetrics(page)).toEqual([16, 20])
+    await page.mouse.up()
+    await expect(page.getByTestId('crop-tag')).toHaveCount(0)
+  })
+
   test('pinned: frame handles hidden, photo handles + grabber, Tab cycles them, arrows nudge 1 px, Esc exits', async ({
     page,
   }) => {
@@ -333,7 +360,21 @@ test.describe('kit direct crop (Designer walkthrough-ux-review §A)', () => {
     await page.mouse.move(5, 5)
     await page.evaluate(() => new Promise((r) => setTimeout(r, 600)))
     await expect(page.getByTestId('photo-handle')).toHaveCount(4)
+    // M128: the pinned tag sits on a 16 px line, 20 px tall (as the rotate chip)
+    expect(await tagMetrics(page)).toEqual([16, 20])
 
+    // M127: Tab in pinned only cycles the photo handles — the panels stay and the canvas does not re-fit
+    const panels = () =>
+      page
+        .locator(`${DEMO} [data-testid^="panel-"]`)
+        .evaluateAll((els) =>
+          els.map(
+            (e) => `${e.dataset.testid ?? ''}:${e.dataset.hiddenPanel ?? ''}`,
+          ),
+        )
+    const panelsBefore = await panels()
+    expect(panelsBefore.length).toBeGreaterThan(0)
+    const widthBefore = (await box(frame)).width
     const seen: string[] = []
     for (let i = 0; i < 5; i++) {
       await page.keyboard.press('Tab')
@@ -344,6 +385,10 @@ test.describe('kit direct crop (Designer walkthrough-ux-review §A)', () => {
       )
     }
     expect(seen).toEqual(['nw', 'ne', 'sw', 'se', 'nw'])
+    expect(await panels()).toEqual(panelsBefore)
+    expect(
+      Math.abs((await box(frame)).width - widthBefore),
+    ).toBeLessThanOrEqual(0.5)
     // under load the first read can come before the focus-visible style settles
     await expect
       .poll(() =>
