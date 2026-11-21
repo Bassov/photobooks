@@ -60,6 +60,11 @@ const config = {
   // The perTest dry run runs most of the suite (3.8k tests): ~4 min on a
   // loaded 4-core runner, past the 5-min default.
   dryRunTimeoutMinutes: 20,
+  // A runaway mutant (e.g. a rulerTicks loop bound) grows each runner to V8's
+  // ~4 GB default; 4 of them exhaust a 16 GB CI runner, which then shuts down.
+  // Capped, the runner hits OOM alone and Stryker restarts it (normal runners
+  // stay under 1 GB).
+  testRunnerNodeArgs: ['--max-old-space-size=1536'],
 }
 
 // Nightly shard: one slice of `mutate`; the merge job applies `break` once to

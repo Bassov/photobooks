@@ -6,7 +6,8 @@
  * Sizes are balanced by source lines (~10–13k each; `src/editor/` is flat and
  * split by first letter, case-sensitive). `src/core/` is split in two: its
  * PBT-heavy tests make each mutant slow (one 7.6k-mutant core shard ran past
- * 2.5 h).
+ * 2.5 h). Keep every shard well under the 300-min job cap (editor A–G + a–f
+ * together took 220 min).
  */
 
 /** @type {readonly { name: string, include: readonly string[] | null }[]} */
@@ -35,7 +36,8 @@ export const SHARDS = Object.freeze([
       'src/assets/**/*.{ts,tsx}',
     ],
   },
-  { name: 'editor-A-G-a-f', include: ['src/editor/[A-Ga-f]*.{ts,tsx}'] },
+  { name: 'editor-A-G', include: ['src/editor/[A-G]*.{ts,tsx}'] },
+  { name: 'editor-a-f', include: ['src/editor/[a-f]*.{ts,tsx}'] },
   { name: 'editor-H-Z', include: ['src/editor/[H-Z]*.{ts,tsx}'] },
   { name: 'editor-g-p', include: ['src/editor/[g-p]*.{ts,tsx}'] },
   { name: 'editor-q-z', include: ['src/editor/[q-z]*.{ts,tsx}'] },
