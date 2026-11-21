@@ -51,6 +51,9 @@ const NUDGE_MM = 1
 const NUDGE_SHIFT_MM = 10
 /** Pointer travel (client px) before a handle press becomes a gesture. */
 const SLOP_PX = 2
+/** On the frame while the rotate knob is dragged: the angle chip shows. */
+const ROTATING_ATTR = 'data-rotating'
+const ROTATE_CHIP_SELECTOR = '[data-rotate-chip]'
 
 const ARROW_DELTAS: Record<string, readonly [number, number]> = {
   ArrowLeft: [-1, 0],
@@ -132,6 +135,9 @@ export function installFrameHandleGesture(): () => void {
       style.width = current.saved.width
       style.height = current.saved.height
       style.transform = current.savedTransform
+    }
+    for (const element of current.painted) {
+      element.removeAttribute(ROTATING_ATTR)
     }
     current.photo?.painter.restore()
   }
@@ -358,8 +364,15 @@ export function installFrameHandleGesture(): () => void {
       pointerAngleDeg(centerX, centerY, event.clientX, event.clientY),
       event.shiftKey,
     )
-    for (const { style } of current.painted) {
-      style.transform = `rotate(${String(current.rotation)}deg)`
+    const angle = `${String(Math.round(current.rotation))}°`
+    for (const element of current.painted) {
+      element.style.transform = `rotate(${String(current.rotation)}deg)`
+      // §A rotate chip (src/render/SpreadView.tsx): shown while rotating.
+      element.setAttribute(ROTATING_ATTR, '')
+      const chip = element.querySelector(ROTATE_CHIP_SELECTOR)
+      if (chip !== null) {
+        chip.textContent = angle
+      }
     }
   }
 

@@ -20,6 +20,15 @@ The app SHALL scale as a whole by an interface scale s (`#root` zoom), with ever
 - **WHEN** the window is 1920×970 with choice `"150"`, or 1440×900 with choice `"125"`
 - **THEN** the effective scale is 1.25, respectively 1, and the stored choice is unchanged
 
+### Requirement: Modal overlays at app scale
+
+Modal dialogs, alert dialogs and the toast region SHALL render at the interface scale s: their overlay root carries `zoom: var(--ui-scale)`, so each one's rect equals R(s), the same state at 100 % in a W/s × H/s viewport with values × s (±0.5 px). They stay centred, or bottom-right for toasts, as at 100 % and inside the viewport. At 100 % nothing changes.
+
+#### Scenario: Dialog at 150 %
+
+- **WHEN** the window is 3840×2160 with choice `"150"` and the Create book, Print or a confirm dialog opens
+- **THEN** its rect is the rect at 100 % in a 2560×1440 window × 1.5 (±0.5 px), centred in the window
+
 ### Requirement: Pointer, bitmap and site preview under interface scale
 
 At interface scale s, every editor pointer gesture SHALL move what it drags by the pointer's screen movement (±1 px): frame drag, resize handle, crop pan, marquee, guide drag, panel splitter, filmstrip separator, spread-list reorder, filmstrip drag to a drop target and the wheel-zoom anchor. Editor bitmaps SHALL use device px per app px = `devicePixelRatio × s` (rulers canvas backing, image tier choice). The site preview room SHALL render at visitor size (net zoom 1) while its Preview bar scales with the app. At s = 1 nothing changes.

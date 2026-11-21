@@ -273,6 +273,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
 - [ ] [lite] [ci-apt-retry](roadmap/P5/ci-apt-retry.md) — Bug: /next-roadmap-item ci-apt-retry
 - [ ] [lite] [e2e-burn-in-cap](roadmap/P5/e2e-burn-in-cap.md) — Bug: /next-roadmap-item e2e-burn-in-cap
+- [ ] [feature] [rig-pin-0-2-24](roadmap/P5/rig-pin-0-2-24.md) — Bug: /next-roadmap-item rig-pin-0-2-24
 - [ ] [feature] [direct-crop-core](roadmap/P5/direct-crop-core.md) — Bug: /next-roadmap-item direct-crop-core
 - [ ] [feature] [filmstrip-resize-kit](roadmap/P5/filmstrip-resize-kit.md) — Bug: /next-roadmap-item filmstrip-resize-kit
 - [ ] [feature] [filmstrip-resize](roadmap/P5/filmstrip-resize.md) — Bug: /next-roadmap-item filmstrip-resize
@@ -283,6 +284,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [site-cover-title-font](roadmap/P5/site-cover-title-font.md) — Bug: /next-roadmap-item site-cover-title-font
 - [ ] [feature] [design-r24-site-kit](roadmap/P5/design-r24-site-kit.md) — Bug: /next-roadmap-item design-r24-site-kit
 - [ ] [feature] [direct-crop](roadmap/P5/direct-crop.md) — Bug: /next-roadmap-item direct-crop
+- [ ] [feature] [direct-crop-pinned](roadmap/P5/direct-crop-pinned.md) — Bug: /next-roadmap-item direct-crop-pinned
 - [ ] [lite] [a5-fit-parity](roadmap/P5/a5-fit-parity.md) — Bug: /next-roadmap-item a5-fit-parity
 - [ ] [feature] [polish-type](roadmap/P5/polish-type.md) — Bug: /next-roadmap-item polish-type
 - [ ] [feature] [polish-surface](roadmap/P5/polish-surface.md) — Bug: /next-roadmap-item polish-surface
@@ -293,6 +295,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [cycle-layouts-core](roadmap/P5/cycle-layouts-core.md) — Bug: /next-roadmap-item cycle-layouts-core
 - [ ] [feature] [interface-size-core](roadmap/P5/interface-size-core.md) — Bug: /next-roadmap-item interface-size-core
 - [ ] [feature] [interface-size-pointer](roadmap/P5/interface-size-pointer.md) — Bug: /next-roadmap-item interface-size-pointer
+- [ ] [feature] [interface-size-modals](roadmap/P5/interface-size-modals.md) — Bug: /next-roadmap-item interface-size-modals
 - [ ] [feature] [prepush-scoped-units](roadmap/P5/prepush-scoped-units.md) — Bug: /next-roadmap-item prepush-scoped-units
 - [ ] [lite] [ratchet-merge-base](roadmap/P5/ratchet-merge-base.md) — Bug: /next-roadmap-item ratchet-merge-base
 - [ ] [lite] [ci-flakes](roadmap/P5/ci-flakes.md) — Bug: /next-roadmap-item ci-flakes
