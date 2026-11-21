@@ -313,6 +313,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [cycle-layouts-core](roadmap/P5/cycle-layouts-core.md) — Bug: /next-roadmap-item cycle-layouts-core
 - [ ] [lite] [design-r36-menu-kit](roadmap/P5/design-r36-menu-kit.md) — Bug: /next-roadmap-item design-r36-menu-kit
 - [ ] [lite] [design-r38-badge-reveal-prod](roadmap/P5/design-r38-badge-reveal-prod.md) — Bug: /next-roadmap-item design-r38-badge-reveal-prod
+- [ ] [feature] [cycle-layouts-kit](roadmap/P5/cycle-layouts-kit.md) — Bug: /next-roadmap-item cycle-layouts-kit
 - [ ] [feature] [interface-size-core](roadmap/P5/interface-size-core.md) — Bug: /next-roadmap-item interface-size-core
 - [ ] [feature] [interface-size-pointer](roadmap/P5/interface-size-pointer.md) — Bug: /next-roadmap-item interface-size-pointer
 - [ ] [feature] [interface-size](roadmap/P5/interface-size.md) — Bug: /next-roadmap-item interface-size
