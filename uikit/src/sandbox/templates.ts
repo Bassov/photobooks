@@ -73,6 +73,25 @@ export const pickerTemplates = (single: boolean) => (single ? ALL_TEMPLATES : AL
 export const pickerAlias = (id: string | null | undefined, single: boolean) => { const b = id && basePageId(id); return (b && !single && PICKER_MERGES[b]) || b }
 /** one list from one photo up; the sort is stable, so catalogue order holds inside a count */
 export const sortByPhotoCount = (ts: Template[], single = false) => [...ts].sort((a, b) => slotCount(a, single) - slotCount(b, single))
+/** kit-sync KS7: the id the picker applies — page 1 draws the page variant `<id>@page` of a builtin, a saved template keeps its id */
+export const applyId = (id: string, single: boolean) => (single && !isCustom(id) ? pageId(id) : id)
+
+/* Designer cycle-layouts D3/D4 (prod twin: src/editor/layoutCatalog.ts cycleSet / stepLayout, CL3).
+   N = the spread's own photo frames, filled or empty (no text, no parent-item copies). The set is the picker list of this
+   page shape (builtins in picker order after the merges, then My templates of this shape in save order) with N slots;
+   contact sheets are not in the picker, so not in the set. */
+export const ownPhotoFrame = (f: { kind: string; overrides?: string }) => f.kind === "image" && !f.overrides
+export function cycleSet(spread: { frames: { kind: string; overrides?: string }[] }, single: boolean, mine: Template[]): Template[] {
+  const n = spread.frames.filter(ownPhotoFrame).length
+  if (!n) return []
+  return [...pickerTemplates(single), ...ofShape(mine, single)].filter((t) => slotCount(t, single) === n)
+}
+/** the next (`dir` 1) or previous (-1) layout of the set, wrapping at both ends; a current not in the set (Custom) gives the first / last */
+export function stepLayout(set: Template[], current: string | null | undefined, dir: 1 | -1): Template {
+  const i = set.findIndex((t) => t.id === current)
+  if (i < 0) return dir > 0 ? set[0] : set[set.length - 1]
+  return set[(i + dir + set.length) % set.length]
+}
 let custom: Template[] = [
   { id: "c-opener", name: "Travel opener", count: 2, group: "2", pages: 2, frames: [{ x: 0, y: 0, w: 62, h: 100 }, { x: 68, y: 30, w: 28, h: 40 }] },
   { id: "c-polaroid", name: "Polaroid pair", count: 2, group: "2", pages: 2, frames: [{ x: 10, y: 14, w: 30, h: 60 }, { x: 60, y: 24, w: 30, h: 60 }] },

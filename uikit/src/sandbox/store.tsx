@@ -81,6 +81,8 @@ export type Studio = {
   queue: ReturnType<typeof createToastQueue>
   status: string; setStatus: React.Dispatch<React.SetStateAction<string>>
   dragging: string[] | null; setDragging: (ids: string[] | null) => void
+  /** a live gesture (frame drag, handle, rotate) holds a `preview` draft until its commit */
+  drafting: boolean
   saveState: "saved" | "saving" | "dirty" | "error"; setSaveState: (s: Studio["saveState"]) => void
   missing: Set<string>; setMissing: (s: Set<string>) => void
   /** v0.7.1: book-level node selected in the list (cover, endpaper, master, last page, book settings, nothing); null = the current spread */
@@ -140,8 +142,9 @@ export function StudioProvider({ init, view, features = {}, cur: cur0 = 0, sel: 
       const now = Date.now()
       const next = fn(s.doc)
       if (next === s.doc) return s
-      // op-key coalescing: the same key within 1 s replaces the last step (typing in a field)
-      if (key && s.lastKey === key && now - (s.lastAt ?? 0) < 1000 && s.past.length)
+      // op-key coalescing: the same key within 1 s replaces the last step (typing in a field);
+      // a layout-cycle run (`cycle:<spreadId>`, Designer cycle-layouts D5) has no window, any other step ends it
+      if (key && s.lastKey === key && (key.startsWith("cycle:") || now - (s.lastAt ?? 0) < 1000) && s.past.length)
         return { ...s, doc: next, future: [], lastAt: now }
       const step: Step = cur === undefined ? { doc: s.doc, label } : { doc: s.doc, label, cur: s.cur, next: cur }
       return { doc: next, cur: cur ?? s.cur, past: [...s.past, step].slice(-100), future: [], lastKey: key, lastAt: now }
@@ -177,7 +180,7 @@ export function StudioProvider({ init, view, features = {}, cur: cur0 = 0, sel: 
     doc, update, preview, commit, cancelPreview, undo, redo, past: h.past, future: h.future,
     cur: Math.min(h.cur, doc.spreads.length - 1), setCur: (i: number) => { setCur(i); setNodeRaw(null) }, sel, setSel: (ids: string[]) => { setSel(ids); if (ids.length) setNodeRaw(null) }, filmSel, setFilmSel, cropId, setCropId,
     view: v, setView: (p) => setV((o) => ({ ...o, ...p })), features,
-    toast: (c, timeout = 5000) => { queue.add(c, { timeout }) }, queue, status, setStatus, dragging, setDragging,
+    toast: (c, timeout = 5000) => { queue.add(c, { timeout }) }, queue, status, setStatus, dragging, setDragging, drafting: draft !== null,
     saveState, setSaveState, missing, setMissing,
     node, setNode: (n) => { setNodeRaw(n); if (n) setSel([]) }, mode, setMode, book, setBook, panels, setPanels, pick, setPick,
   }
