@@ -12,7 +12,9 @@ import { FilmstripDock } from './FilmstripDock'
 import { seedGallery } from './gallery.test-helpers'
 import { installEditorKeys } from './galleryDrop'
 import { resetGallerySelection, setSelectedAssetId } from './gallerySelection'
-import { FILMSTRIP_THUMB_HEIGHT } from './filmstripSize'
+import { thumbAuto } from './filmstripSize'
+
+const FILMSTRIP_THUMB_HEIGHT = thumbAuto(window.innerHeight)
 import { resetThumbCache } from './thumbCache'
 
 function stubScrollportWidth(width: number): () => void {

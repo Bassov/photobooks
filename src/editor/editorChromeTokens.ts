@@ -46,6 +46,7 @@ export const EDITOR_CHROME_CSS = `
 .e7-item[aria-selected=true], .e7-item[aria-selected=true]:hover { background: ${SEL} }
 .filmstrip-item { box-shadow: none }
 .filmstrip-item::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px rgb(0 0 0/.08); pointer-events: none }
+.film-resizer-pill { background: rgb(0 0 0/.24) }
 .filmstrip-item[aria-selected=true] { background: ${SEL} }
 .filmstrip-item[aria-selected=true][data-focused] { background: ${SEL}; box-shadow: 0 0 0 2px #535152 }
 .filmstrip-placed { border-radius: 9999px; background: rgb(0 0 0/.55); color: #fff }
