@@ -19,12 +19,15 @@ describe('editorChromeTokens', () => {
     expect(mmToCm(210)).toBe(21)
   })
 
-  it('styles "Add folder…" as the kit ink 500 chip, half opacity when disabled', () => {
+  it('styles "Add folder…" and "Fill book" as the kit ink 500 chip, half opacity when disabled', () => {
     expect(EDITOR_CHROME_CSS).toContain(
-      '.film-chip.film-add-folder { color: #393738; font-weight: 500; padding: 0 10px }',
+      '.film-chip.film-add-folder, .film-chip.film-fill-book { color: #393738; font-weight: 500; padding: 0 10px }',
     )
     expect(EDITOR_CHROME_CSS).toContain(
-      '.film-chip.film-add-folder[data-disabled] { opacity: .5 }',
+      '.film-chip.film-add-folder[data-disabled], .film-chip.film-fill-book[data-disabled] { opacity: .5 }',
+    )
+    expect(EDITOR_CHROME_CSS).toContain(
+      '.film-chip.film-fill-book[aria-expanded=true] { background: #D7D7D7 }',
     )
   })
 

@@ -26,6 +26,7 @@ test('dock header has kit chips and Add folder, no size slider', async ({
 }) => {
   await openSessionEditor(page)
   const head = page.locator('.editor-dock-head')
+  await expect(head.getByTestId('film-fill-book')).toHaveText('Fill book')
   await expect(head.getByTestId('film-add-folder')).toHaveText('Add folder…')
   await expect(head.getByTestId('film-unplaced-only')).toHaveText('Unplaced')
   await expect(head.getByTestId('film-sort')).toHaveText('Added order')

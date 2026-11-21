@@ -210,6 +210,31 @@ describe('FilmstripDock', () => {
     expect(screen.queryByTestId('film-add-folder')).toBeNull()
   })
 
+  it('shows Fill book first in the chips, also without Add folder', () => {
+    seedGallery(1)
+    render(<FilmstripDock />)
+    const fill = screen.getByTestId('film-fill-book')
+    expect(fill.textContent).toBe('Fill book')
+    const chips = [...document.querySelectorAll('.editor-dock-head .film-chip')]
+    expect(chips.map((chip) => chip.getAttribute('data-testid'))).toEqual([
+      'film-fill-book',
+      'film-unplaced-only',
+      'film-sort',
+    ])
+  })
+
+  it('keeps Fill book before Add folder', () => {
+    seedGallery(1)
+    render(<FilmstripDock onChoosePhotoFolder={() => Promise.resolve()} />)
+    const chips = [...document.querySelectorAll('.editor-dock-head .film-chip')]
+    expect(chips.map((chip) => chip.getAttribute('data-testid'))).toEqual([
+      'film-fill-book',
+      'film-unplaced-only',
+      'film-sort',
+      'film-add-folder',
+    ])
+  })
+
   it('shows Add folder and calls the handler on press', () => {
     seedGallery(1)
     const onChoosePhotoFolder = vi.fn(() => Promise.resolve())
