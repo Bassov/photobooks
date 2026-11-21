@@ -11,3 +11,5 @@
 
 1. 3840×2160 with `localStorage["photobooks.ui.scale.v1"] = "150"`: welcome, library and editor fill the window at 1.5× with no page scroll.
 2. 1440×900 without the key: the editor looks as before (zoom 1).
+
+manual-qa (2026-11-21): problem (harness) — the rig's `start-session` click is intercepted by the welcome header, so neither scenario was reached. Covered by `e2e/interface-size-core.spec.ts` (5/5 green locally): `#root` zoom 1.5 + `scrollHeight/Width = innerHeight/Width` on welcome, editor and library at 3840×2160; zoom 1 at 1440×900 with "125" and with no key at 4K.

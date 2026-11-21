@@ -34,6 +34,8 @@ Values resolve from kit CSS variables (Theme B). Prefer tokens over raw hex in a
 
 Chrome geometry: `--panel-left` / `--panel-right` / `--topbar` / `--thumb` / `--rail` (kit demo may tighten these). The top-bar tool group centres on the canvas area between `--panel-left` and `--panel-right` (not the window). Top-bar controls: open panel toggles on `--field` (hover keeps it), Preview / Settings `--field` pills, 32 px Undo / Redo, zoom menu sized to its label.
 
+Interface size (`src/ui/uiScale.ts`): `#root` zooms by `--ui-scale` (1 / 1.25 / 1.5, clamped to a 1280×720 app); app code sizes against the window through `--app-dvh` / `--app-svh` / `--app-vh` / `--app-vw` and `h-app` / `min-h-app`, never raw `vh` / `vw`, and through `@container app` instead of width media queries.
+
 Menus (`src/ui/Menu`, `src/ui/ListSelect` options): kit rows `py-1.5 text-sm` at `--leading-menu` 1.45 (30.84 px); a single choice is marked with the 8 px `circle` dot, a multiple choice with the check. Menu and list popovers: kit `Popover`, 4 px off the trigger, 1 px transparent border (no global border colour), width from the menu's own class (round 12, M80). Status pill: kit `StatusLine` (bottom-left, `text-xs`, `--radius-md`, popover/95) for the frame-drag hint only; other statuses are live-region only.
 
 Page numbers: 8 screen px under each page, 11 px, at every zoom. Designer-accepted deviation (2026-10-31): page numbers hidden when the gap cannot hold 8 px + 11 px label.

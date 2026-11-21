@@ -38,4 +38,5 @@
 | `src/ui/SpecimenPage.css`                  | app units                                                 |
 | `e2e/interface-size-core.spec.ts`          | IS3 overflow, IS4, IS7, IS10 (new)                        |
 | `docs/roadmap/P5/interface-size-core.md`   | item scope                                                |
+| `docs/design.md`                           | new tokens (`--ui-scale`, `--app-*`)                      |
 | `docs/roadmap.md`                          | index line (`roadmap add`)                                |
