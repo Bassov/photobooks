@@ -10,17 +10,55 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  stryker-full:
+  # One job for 51k mutants would pass the 6 h job cap; shards are defined in
+  # scripts/stryker-shards.mjs (keep the matrix in step with SHARDS).
+  mutate:
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     steps:
       - uses: actions/checkout@v7
 
       - name: Setup Node and pnpm
         uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.23
 
-      - name: Full mutation testing
+      - name: Mutation testing (shard ${{ matrix.shard }})
         run: pnpm stryker
+        env:
+          STRYKER_SHARD: ${{ matrix.shard }}
+
+      - name: Upload shard report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: stryker-shard-${{ matrix.shard }}
+          path: reports/mutation/mutation.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  merge:
+    needs: mutate
+    if: always() && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node and pnpm
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.23
+
+      - name: Download shard reports
+        uses: actions/download-artifact@v8
+        with:
+          pattern: stryker-shard-*
+          path: reports/mutation/shards
+
+      - name: Merge shards and apply break
+        run: node scripts/stryker-merge.mjs reports/mutation/shards reports/mutation/mutation.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Mutation summary
         if: always()
@@ -31,6 +69,24 @@ jobs:
             echo "No mutation report produced." >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Upload Stryker report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: stryker-report
+          path: reports/mutation/
+          retention-days: 14
+
+  long-runs:
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node and pnpm
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.23
+
       - name: Benchmarks
         run: pnpm bench
         env:
@@ -40,11 +96,3 @@ jobs:
         run: pnpm exec vitest run src/core/ops/sequence.pbt.test.ts
         env:
           FC_NUM_RUNS: '2000'
-
-      - name: Upload Stryker report
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: stryker-report
-          path: reports/mutation/
-          retention-days: 14

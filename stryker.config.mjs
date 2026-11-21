@@ -1,6 +1,8 @@
 import { loadGates } from '@albasov/ts-agent-rig/load-gates'
+import { parseShardIndex, shardMutate } from './scripts/stryker-shards.mjs'
 
 const gates = loadGates()
+const shard = parseShardIndex(process.env.STRYKER_SHARD)
 
 const config = {
   testRunner: 'vitest',
@@ -55,6 +57,23 @@ const config = {
   coverageAnalysis: 'perTest',
   thresholds: gates.stryker.thresholds,
   ignoreStatic: true,
+  // The perTest dry run runs most of the suite (3.8k tests): ~4 min on a
+  // loaded 4-core runner, past the 5-min default.
+  dryRunTimeoutMinutes: 20,
+  // A runaway mutant (e.g. a rulerTicks loop bound) grows each runner to V8's
+  // ~4 GB default; 4 of them exhaust a 16 GB CI runner, which then shuts down.
+  // Capped, the runner hits OOM alone and Stryker restarts it (normal runners
+  // stay under 1 GB).
+  testRunnerNodeArgs: ['--max-old-space-size=1536'],
+}
+
+// Nightly shard: one slice of `mutate`; the merge job applies `break` once to
+// the merged score (scripts/stryker-merge.mjs), not per shard.
+if (shard !== null) {
+  config.mutate = shardMutate(config.mutate, shard)
+  config.thresholds = { ...config.thresholds, break: null }
+  // Hours-long CI job without a TTY: log progress so a slow shard is visible.
+  config.reporters = [...config.reporters, 'progress-append-only']
 }
 
 export default config
