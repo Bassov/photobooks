@@ -272,6 +272,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
 - [ ] [feature] [direct-crop-core](roadmap/P5/direct-crop-core.md) — Bug: /next-roadmap-item direct-crop-core
 - [ ] [feature] [filmstrip-resize-kit](roadmap/P5/filmstrip-resize-kit.md) — Bug: /next-roadmap-item filmstrip-resize-kit
+- [ ] [feature] [filmstrip-resize](roadmap/P5/filmstrip-resize.md) — Bug: /next-roadmap-item filmstrip-resize
 - [ ] [feature] [direct-crop-kit](roadmap/P5/direct-crop-kit.md) — Bug: /next-roadmap-item direct-crop-kit
 - [ ] [feature] [connect-own-hosting-kit](roadmap/P5/connect-own-hosting-kit.md) — Bug: /next-roadmap-item connect-own-hosting-kit
 - [ ] [feature] [connect-own-hosting-relay](roadmap/P5/connect-own-hosting-relay.md) — Bug: /next-roadmap-item connect-own-hosting-relay
