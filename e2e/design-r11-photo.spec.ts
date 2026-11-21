@@ -51,44 +51,61 @@ const MUTED = 'rgb(83, 81, 82)'
 const INK = 'rgb(57, 55, 56)'
 const ERROR_INK = 'rgb(35, 34, 35)'
 
+// P12 (inspector-rotate-row, kit inspector.tsx PhotoRotateSection): Rotate &
+// flip is one 28 px row with Straighten mt-5, 36 px shorter, so every y
+// below it is the round-11 kit value − 36 (re-measured on the kit
+// #/feature/frame-selection-handles: ROTATE & FLIP → ADJUST 167.59, was
+// 203.59; row → Straighten 48, Straighten → Quarter turn 35.8).
+const P12 = 36
+
 const KIT = {
   titleX: 1172,
   collapsed: {
-    adjust: 698.78,
-    caption: 735.78,
-    geometry: 772.78,
-    style: 809.78,
-    arrange: 846.78,
+    adjust: 698.78 - P12,
+    caption: 735.78 - P12,
+    geometry: 772.78 - P12,
+    style: 809.78 - P12,
+    arrange: 846.78 - P12,
   },
   summaryRight: 1428,
-  styleSummary: 809.63,
-  arrangeSummary: 846.63,
+  styleSummary: 809.63 - P12,
+  arrangeSummary: 846.63 - P12,
   adjust: {
-    rows: [727.03, 762.83, 798.63],
-    reset: 834.42,
+    rows: [727.03 - P12, 762.83 - P12, 798.63 - P12],
+    reset: 834.42 - P12,
     height: 206.39,
   },
   geometry: {
-    lock: { x: 1404, y: 767.03, size: 28 },
+    lock: { x: 1404, y: 767.03 - P12, size: 28 },
     prefixX: [1168, 1306],
-    prefixY: [808.63, 848.63],
+    prefixY: [808.63 - P12, 848.63 - P12],
     inputX: [1186, 1324],
-    xy: 807.61,
-    wh: 847.61,
+    xy: 807.61 - P12,
+    wh: 847.61 - P12,
     inputHeight: 18.84,
-    rotationLabel: 889.23,
-    angle: { x: 1358, y: 891.61 },
+    rotationLabel: 889.23 - P12,
+    angle: { x: 1358, y: 891.61 - P12 },
     height: 183,
   },
   pan: { x: [1186, 1324], y: 387.02 },
-  style: { chip: 838.03, chipHeight: 62.84, newStyle: 908.88, height: 169.84 },
-  arrange: { buttons: 875.03, firstX: 1156, layer: 882.63, height: 99 },
+  style: {
+    chip: 838.03 - P12,
+    chipHeight: 62.84,
+    newStyle: 908.88 - P12,
+    height: 169.84,
+  },
+  arrange: {
+    buttons: 875.03 - P12,
+    firstX: 1156,
+    layer: 882.63 - P12,
+    height: 99,
+  },
   m60: {
     photo: 105.75,
     fitCrop: 272.39,
     rotate: 495.19,
-    straighten: 607.44,
-    quarterTurn: 643.23,
+    straighten: 607.44 - P12,
+    quarterTurn: 643.23 - P12,
   },
 } as const
 

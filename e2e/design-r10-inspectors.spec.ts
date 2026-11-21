@@ -38,7 +38,8 @@ import {
 //     ARRANGE 846.78 (37 px pitch). File name x 1240 y 134.00, Remove from
 //     frame 201.64, Fill 302.64, Zoom label 340.64, Crop 424.44, 90° left
 //     523.44, Flip H 563.44, Straighten label 607.44, Quarter turn note 643.23
-//     (12px / 400 / rgb(83, 81, 82)).
+//     (12px / 400 / rgb(83, 81, 82)). P12 moved the Rotate & flip rows and
+//     all below them; see KIT.photo.
 // M61 segmented labels, both states: Book Portrait / Landscape and cm / mm
 //     (editor-inspector-book) 13px / 500; layout picker All / My templates
 //     (editor-new-blank-book) 13px / 500; Create dialog Portrait / Landscape
@@ -105,17 +106,21 @@ const KIT = {
   },
   photo: {
     titleX: 1172,
-    titles: [105.75, 272.39, 495.19, 698.78, 735.78, 772.78, 809.78, 846.78],
+    // P12 (inspector-rotate-row): 90° left · 90° right · Flip H · Flip V in
+    // one 28 px row (all tops 523.44), Straighten mt-5; the section and
+    // everything under it 36 px higher (kit re-measure).
+    titles: [105.75, 272.39, 495.19, 662.78, 699.78, 736.78, 773.78, 810.78],
     nameX: 1240,
     name: 134,
     remove: 201.64,
     fill: 302.64,
     zoom: 340.64,
     crop: 424.44,
-    rotLeft: 523.44,
-    flipH: 563.44,
-    straighten: 607.44,
-    quarterTurn: 643.23,
+    // segment tops: the 523.44 row top + its 2 px track padding
+    rotLeft: 525.44,
+    flipH: 525.44,
+    straighten: 571.44,
+    quarterTurn: 607.23,
   },
 } as const
 
@@ -401,6 +406,20 @@ test.describe('M59–M61: Cover, Book and Photo inspectors match the kit', () =>
     await near(page.getByTestId('crop-toggle'), p.crop)
     await near(page.getByTestId('rot-left'), p.rotLeft)
     await near(page.getByTestId('flip-h'), p.flipH)
+    // P12: one row, equal tops, 28 px row, 16 px glyphs, left → right.
+    const row = page.getByTestId('rotate-row')
+    expect((await box(row)).height).toBe(28)
+    let left = 0
+    for (const id of ['rot-left', 'rot-right', 'flip-h', 'flip-v']) {
+      const segment = page.getByTestId(id)
+      expect((await box(segment)).y).toBe((await box(row)).y + 2)
+      expect((await box(segment)).x).toBeGreaterThan(left)
+      left = (await box(segment)).x
+      expect(await box(segment.locator('svg'))).toMatchObject({
+        width: 16,
+        height: 16,
+      })
+    }
     await near(
       page.getByTestId('photo-straighten').locator('.fit-crop-label'),
       p.straighten,
