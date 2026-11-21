@@ -33,9 +33,9 @@ describe('FilmstripDock chrome', () => {
     expect(screen.queryByRole('slider')).toBeNull()
   })
 
-  it('has no resize separator and a fixed kit thumb height', () => {
+  it('has one resize separator (no old splitter) and the auto kit thumb height', () => {
     render(<FilmstripDock />)
-    expect(screen.queryByRole('separator')).toBeNull()
+    expect(screen.getAllByRole('separator')).toHaveLength(1)
     expect(screen.queryByTestId('film-splitter')).toBeNull()
     expect(
       screen.getByTestId('dock').style.getPropertyValue('--film-thumb-h'),

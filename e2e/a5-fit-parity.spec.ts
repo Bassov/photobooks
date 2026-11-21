@@ -5,17 +5,19 @@ import { expect, test } from './fixtures/coverage'
 // root vite (`/uikit/?theme=procreate-light#/demo`), `__demo.reset()`, create
 // library, New book → Page size A5 → Create, click `[data-item="p1"]`, then
 // getBoundingClientRect of `[data-stack-item="1"] [data-testid="spread"]` and
-// of the `.canvas-dots` port. The Designer's 848 × 601.61 is the 920 px tall
-// window; at 900 px both kit and prod are height-limited at 828.8 × 588.
+// of the `.canvas-dots` port. Walkthrough-ux-review §B (filmstrip-resize):
+// the empty dock row is the `auto` thumb H (76 at 900, 78 at 920), so the
+// empty dock is 132 / 134 px and the port 720 / 738 tall; both windows are
+// now width-limited at the Designer's 848 × 601.61.
 const KIT = [
   {
     height: 900,
-    port: { width: 928, height: 692 },
-    spread: { width: 828.8, height: 588 },
+    port: { width: 928, height: 720 },
+    spread: { width: 848, height: 601.61 },
   },
   {
     height: 920,
-    port: { width: 928, height: 712 },
+    port: { width: 928, height: 738 },
     spread: { width: 848, height: 601.61 },
   },
 ]

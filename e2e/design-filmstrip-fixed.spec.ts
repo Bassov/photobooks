@@ -11,9 +11,11 @@ import {
 } from './fixtures/photoDirectoryPicker'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
-// Kit v0.10.0 baseline: the filmstrip thumb is fixed at 76 px
-// (uikit/src/sandbox/store.tsx:64) and the demo has no resize handle; the name
-// strip needs a thumb of 90 px or more (uikit/src/sandbox/chrome.tsx:471).
+// Tracker #30 (fixed 76 px thumbs, no resize handle) is reversed by the
+// Designer walkthrough-ux-review §B (Owner Q-19): the dock top edge is one
+// separator (e2e/filmstrip-resize.spec.ts drives it). What stays pinned here:
+// the `auto` thumb is the kit 76 px at 900 high, the old pre-#30 splitter and
+// its `...thumbHeight` key stay gone, and below 90 px no file name shows.
 
 const KIT_THUMB = 76
 
@@ -62,11 +64,14 @@ async function dockHeight(
   return box.height
 }
 
-test('#30: no separator or resize control; stored thumbHeight is ignored', async ({
+test('§B: one dock separator, no old splitter; stored thumbHeight is ignored', async ({
   page,
 }) => {
   await importPhotos(page)
-  await expect(page.getByTestId('dock').getByRole('separator')).toHaveCount(0)
+  await expect(page.getByTestId('dock').getByRole('separator')).toHaveCount(1)
+  await expect(
+    page.getByRole('separator', { name: 'Resize photos' }),
+  ).toHaveAttribute('aria-valuenow', String(KIT_THUMB))
   await expect(page.getByTestId('film-splitter')).toHaveCount(0)
   await expect(page.getByLabel('Resize filmstrip')).toHaveCount(0)
   await expect(page.getByTestId('filmstrip-item').first()).toHaveJSProperty(
@@ -75,19 +80,11 @@ test('#30: no separator or resize control; stored thumbHeight is ignored', async
   )
 })
 
-test('#30: dock height is fixed across a drag on its top edge, keys and reload', async ({
+test('§B: arrow keys on a thumb navigate, they do not resize the dock', async ({
   page,
 }) => {
   await importPhotos(page)
   const before = await dockHeight(page)
-  const box = await page.getByTestId('dock').boundingBox()
-  assert.ok(box)
-  await page.mouse.move(box.x + box.width / 2, box.y + 1)
-  await page.mouse.down()
-  await page.mouse.move(box.x + box.width / 2, box.y - 80, { steps: 8 })
-  await page.mouse.up()
-  expect(await dockHeight(page)).toBe(before)
-
   await page.getByTestId('filmstrip-item').first().focus()
   await page.keyboard.press('ArrowUp')
   await page.keyboard.press('ArrowUp')
@@ -98,18 +95,13 @@ test('#30: dock height is fixed across a drag on its top edge, keys and reload',
   )
 })
 
-test('#30: empty dock height is fixed across a drag and a reload with a stored thumbHeight', async ({
+test('§B: empty dock is the kit 132 px (row = auto H) across a reload with a stored thumbHeight', async ({
   page,
 }) => {
   await expect(page.getByTestId('filmstrip-empty')).toBeVisible()
   const before = await dockHeight(page)
-  const box = await page.getByTestId('dock').boundingBox()
-  assert.ok(box)
-  await page.mouse.move(box.x + box.width / 2, box.y + 1)
-  await page.mouse.down()
-  await page.mouse.move(box.x + box.width / 2, box.y - 80, { steps: 8 })
-  await page.mouse.up()
-  expect(await dockHeight(page)).toBe(before)
+  // 40 header + 4 + 76 + 8 strip + 4 panel (kit #/demo empty dock).
+  expect(before).toBe(132)
 
   await page.reload()
   await openSessionEditor(page)
@@ -117,7 +109,7 @@ test('#30: empty dock height is fixed across a drag and a reload with a stored t
   expect(await dockHeight(page)).toBe(before)
 })
 
-test('#10: no filename text under thumbnails, accessible names stay', async ({
+test('#10: no filename text under 76 px thumbnails, accessible names stay', async ({
   page,
 }) => {
   await importPhotos(page)

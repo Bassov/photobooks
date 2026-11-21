@@ -83,7 +83,7 @@ import {
   thumbWidthMax,
   type FilmstripScrollDirection,
 } from './thumbSlotSize'
-import { FILMSTRIP_THUMB_HEIGHT } from './filmstripSize'
+import { useFilmstripThumbHeight } from './filmstripSize'
 import './Filmstrip.css'
 
 interface FilmstripRow {
@@ -295,7 +295,8 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   const viewportWidthRef = useRef(0)
   const galleryRef = useRef(gallery)
   const total = gallery.length
-  const thumbHeight = FILMSTRIP_THUMB_HEIGHT
+  // Separator drag / keys / window resize: strides and overscan follow H.
+  const thumbHeight = useFilmstripThumbHeight()
 
   const prefix = useMemo(
     () => buildStridePrefix(aspects, thumbHeight),
