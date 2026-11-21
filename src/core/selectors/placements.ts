@@ -1,30 +1,69 @@
-import type { Book } from '../schema'
+import type { Book, Frame } from '../schema'
 import { spreadFrames } from '../update'
+
+/** One place an asset sits in the book. */
+export type Place =
+  | { kind: 'cover'; panel: 'front' | 'spine' | 'back' }
+  | { kind: 'endpaper'; side: 'front' | 'back' }
+  | { kind: 'frame'; spreadId: string; frameId: string }
+
+const COVER_PANELS = ['front', 'spine', 'back'] as const
+
+const byZ = (frames: readonly Frame[]): Frame[] =>
+  [...frames].sort((a, b) => a.z - b.z)
+
+/**
+ * Every placed asset in spread-list order: cover front / spine / back, front
+ * endpaper, each spread in paint order — local copies first (by z, painted
+ * beneath as part of the parent layer), then own frames (by z) — back endpaper.
+ */
+function* bookPlacements(book: Book): Generator<readonly [string, Place]> {
+  for (const panel of COVER_PANELS) {
+    const { assetId } = book.cover[panel]
+    if (assetId !== undefined) {
+      yield [assetId, { kind: 'cover', panel }]
+    }
+  }
+  if (book.endpapers.front.assetId !== undefined) {
+    yield [book.endpapers.front.assetId, { kind: 'endpaper', side: 'front' }]
+  }
+  for (const spread of book.spreads) {
+    const frames = [
+      ...byZ(spread.parentOverrides?.frames ?? []),
+      ...byZ(spread.frames),
+    ]
+    for (const frame of frames) {
+      if (frame.assetId !== undefined) {
+        yield [
+          frame.assetId,
+          { kind: 'frame', spreadId: spread.id, frameId: frame.id },
+        ]
+      }
+    }
+  }
+  if (book.endpapers.back.assetId !== undefined) {
+    yield [book.endpapers.back.assetId, { kind: 'endpaper', side: 'back' }]
+  }
+}
 
 /** Placements per asset: spread frames and local copies plus cover panels and endpapers. */
 export function placementCountByAsset(book: Book): ReadonlyMap<string, number> {
   const counts = new Map<string, number>()
-  for (const spread of book.spreads) {
-    for (const frame of spreadFrames(spread)) {
-      if (frame.assetId === undefined) {
-        continue
-      }
-      counts.set(frame.assetId, (counts.get(frame.assetId) ?? 0) + 1)
-    }
-  }
-  const covers = [
-    book.cover.front,
-    book.cover.spine,
-    book.cover.back,
-    book.endpapers.front,
-    book.endpapers.back,
-  ]
-  for (const { assetId } of covers) {
-    if (assetId !== undefined) {
-      counts.set(assetId, (counts.get(assetId) ?? 0) + 1)
-    }
+  for (const [assetId] of bookPlacements(book)) {
+    counts.set(assetId, (counts.get(assetId) ?? 0) + 1)
   }
   return counts
+}
+
+/** Where `assetId` sits, in spread-list order (the places `placementCountByAsset` counts). */
+export function placementsOfAsset(book: Book, assetId: string): Place[] {
+  const places: Place[] = []
+  for (const [placed, place] of bookPlacements(book)) {
+    if (placed === assetId) {
+      places.push(place)
+    }
+  }
+  return places
 }
 
 /** True when any frame in the book has a placed asset. */
