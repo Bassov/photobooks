@@ -10,12 +10,12 @@ import {
   findBookFrame,
   framesPayload,
   nextFrameIds,
-  parseFramesPayload,
   stepRepeatOffset,
   unmatchedPhotoCount,
   type FramesPayload,
   type LastDuplicate,
 } from '../core'
+import { parseFramesPayload } from '../core/ops/clipboard'
 import { dispatchBookOp, getBookStoreSnapshot } from './bookStore'
 import { isCoverSelected } from './coverSelection'
 import { exitCropMode, getCropTarget } from './cropMode'

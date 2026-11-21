@@ -5,7 +5,7 @@
  */
 import { z } from 'zod'
 import { getSinglePageSide, getSpreadSizeMm } from '../geometry/spreadSize'
-import { frameSchema, type Book, type Frame } from '../schema'
+import { bookSchema, type Book, type Frame } from '../schema'
 import { resolveTextContent } from '../text/resolveText'
 import { findBookFrame, spreadFrames, updateSpread } from '../update'
 import { detached, nextFrameId } from './frames'
@@ -69,7 +69,8 @@ function makePayloadSchema() {
       widthMm: z.number().positive(),
       heightMm: z.number().positive(),
     }),
-    frames: z.array(frameSchema),
+    // the book's own frame schema
+    frames: z.array(bookSchema.shape.spreads.element.shape.frames.element),
     texts: z.record(z.string(), z.string()),
     assets: z.record(
       z.string(),

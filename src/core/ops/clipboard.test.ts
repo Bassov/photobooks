@@ -3,12 +3,12 @@ import {
   applyBookOp,
   framesPayload,
   nextFrameIds,
-  parseFramesPayload,
   pastedRects,
   stepRepeatOffset,
   unmatchedPhotoCount,
   type FramesPayload,
 } from '../index'
+import { parseFramesPayload } from './clipboard'
 import type { Book, Frame, Spread } from '../schema'
 import { makeBook, makeFrame, makeSpread } from '../testing/fixtures'
 

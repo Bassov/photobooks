@@ -319,7 +319,6 @@ export {
   duplicateFrames,
   framesPayload,
   nextFrameIds,
-  parseFramesPayload,
   pasteFrames,
   pastedRects,
   stepRepeatOffset,
