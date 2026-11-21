@@ -130,14 +130,15 @@ function SiteJobPill({ name, testid, run, text, rest, narrow, primary, wait, emp
   const lbl = narrow ? "max-[1423.98px]:hidden" : undefined
   const fill = "before:absolute before:inset-0 before:origin-left before:bg-control before:[transform:scaleX(var(--p))] before:[transition:transform_160ms_linear] motion-reduce:before:[transition:none]"
   const running = run.phase === "run"
-  // walkthrough-polish-review P8: the bar's one ink pill (hover #3A3839, 2 px #3A3839 outline at 2, #BFBDB9 while its job runs; the fill is ink)
-  const ink = primary && cn("bg-primary text-primary-foreground shadow-xs data-[hovered]:bg-primary-hover data-[hovered]:text-primary-foreground",
+  // walkthrough-polish-review P8: the bar's one ink pill = the default (primary) Button variant (hover #3A3839) + shadow-xs,
+  // 2 px #3A3839 outline at 2, #BFBDB9 while its job runs (the fill is ink)
+  const ink = primary && cn("shadow-xs",
     "data-[focus-visible]:ring-0 data-[focus-visible]:ring-offset-0 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-primary-hover focus-visible:outline-offset-2",
-    running && "bg-(--primary-busy) data-[hovered]:bg-(--primary-busy) shadow-none before:bg-primary")
+    running && "bg-(--primary-busy) data-[hovered]:bg-(--primary-busy) shadow-none before:bg-(--primary)")
   // the jolly Button has no title prop: a display:contents wrapper carries it without adding a box to the bar
   return <>
     <span className="contents" title={wait ?? text.title}>
-      <Button variant="ghost" size="sm" isDisabled={empty || !!wait} className={cn("relative inline-grid h-8 justify-items-center overflow-hidden rounded-full text-sm font-medium [&_svg]:size-4", className, running && fill, ink)}
+      <Button variant={primary ? "default" : "ghost"} size="sm" isDisabled={empty || !!wait} className={cn("relative inline-grid h-8 justify-items-center overflow-hidden rounded-full text-sm font-medium [&_svg]:size-4", className, running && fill, ink)}
         style={{ ...(primary ? undefined : quiet), "--p": run.p / 100 } as React.CSSProperties} onPress={onPress} aria-label={name} data-state={running ? "running" : run.phase} data-testid={testid}>
         <span aria-hidden className={cn(cell, "invisible")}>{rest.Icon && <rest.Icon />}{rest.label && <span className={lbl}>{rest.label}</span>}</span>
         <span className={cn(cell, "relative tabular-nums")}>{text.Icon && <text.Icon />}{text.label && <span className={lbl}>{text.label}</span>}</span>

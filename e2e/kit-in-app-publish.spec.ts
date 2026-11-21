@@ -293,7 +293,8 @@ test.describe('K2 the Publish pill', () => {
     }
     const preview = await hovered(page.getByTestId('demo-preview'))
     expect(preview).toEqual([215, 215, 215])
-    expect(await hovered(p)).toEqual([58, 56, 57])
+    // The colour transitions from ink: poll until it settles.
+    await expect.poll(() => hovered(p)).toEqual([58, 56, 57])
   })
 
   test('#/demo: Hide / Esc / outside click keep the run in the pill; P7; done opens Published', async ({
