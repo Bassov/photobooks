@@ -58,6 +58,15 @@ interface ParentMenuAt {
 
 type MenuAt = FrameMenuAt | ParentMenuAt
 
+/**
+ * The anchor is fixed inside the zoomed #root, where left/top are app px:
+ * the screen-px point ÷ interface scale lands it under the pointer.
+ */
+function inAppPx(at: MenuAt): MenuAt {
+  const s = uiScale()
+  return { ...at, x: at.x / s, y: at.y / s }
+}
+
 const SPREAD_SELECTOR = '[data-testid="spread-view"]'
 
 function readBook() {
@@ -394,7 +403,7 @@ export function FrameContextMenu() {
           if (parent.kind === 'frame') {
             setFrameSource(parent.target)
           }
-          setAt(parent)
+          setAt(inAppPx(parent))
         }
         return
       }
@@ -408,7 +417,7 @@ export function FrameContextMenu() {
       if (!inSet) {
         setFrameSource(next.target)
       }
-      setAt({ ...next, kind: 'frame', set: inSet ? set : null })
+      setAt(inAppPx({ ...next, kind: 'frame', set: inSet ? set : null }))
     }
     document.addEventListener('contextmenu', onContextMenu)
     return () => {
@@ -425,17 +434,14 @@ export function FrameContextMenu() {
         aria-hidden
         data-testid="frame-menu-anchor"
         className="pointer-events-none fixed size-0"
-        style={{ left: at?.x ?? 0, top: at?.y ?? 0 }}
+        style={at === null ? undefined : { left: at.x, top: at.y }}
       />
       {at === null ? null : (
         <MenuPopover
           triggerRef={anchor}
           isOpen
-          onOpenChange={(isOpen) => {
-            if (!isOpen) {
-              close()
-            }
-          }}
+          // Controlled open: React Aria only ever reports a change to closed.
+          onOpenChange={close}
           placement="bottom start"
           // PO4: a parent row and its press hint stay on one line (rows 30.84);
           // the frame and set menus keep the kit's 224 px.
