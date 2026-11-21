@@ -11,3 +11,5 @@
 
 1. Editor at 1440 × 900 with photos: thumbs 76 px; hover the dock top edge → pill; drag up 52 px → 128 px thumbs with a "128 px" chip, chip gone on release; file names under thumbs; reload keeps 128.
 2. Focus the separator (Tab): ↑ / ↓ / Home / End / Enter change H; no page scroll.
+
+manual-qa (2026-11-21): problem (harness) — both scenarios blocked at the welcome screen (`start-session` click intercepted by the welcome header, 30 s timeout), no product step ran. Covered instead by e2e `e2e/filmstrip-resize.spec.ts`: 1 → "drag the separator: 4 px steps to 128, chip painted only while dragging, names, reload keeps H"; 2 → "keys ↑/↓ ±8, Home, End, Enter and double-click; no page scroll" (both green locally).
