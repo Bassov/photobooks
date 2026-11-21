@@ -10,12 +10,18 @@ interface SegmentedControlItem<T extends string> {
   label: ReactNode
   /** Accessible name when `label` is not plain text. */
   ariaLabel?: string
+  /** `data-testid` on the segment box. */
+  testId?: string
 }
 
 export interface SegmentedControlProps<T extends string = string> {
   items: SegmentedControlItem<T>[]
-  /** Accessible name for the group. */
+  /** Accessible name for the group (unused when `labelledBy` is set). */
   label: string
+  /** Id of a visible label that names the group (`aria-labelledby`). */
+  labelledBy?: string
+  /** `data-testid` on the group. */
+  testId?: string
   value?: T
   defaultValue?: T
   onChange?: (value: T) => void
@@ -28,6 +34,8 @@ export interface SegmentedControlProps<T extends string = string> {
 export function SegmentedControl<T extends string = string>({
   items,
   label,
+  labelledBy,
+  testId,
   value,
   defaultValue,
   onChange,
@@ -47,7 +55,9 @@ export function SegmentedControl<T extends string = string>({
   return (
     <div
       role="radiogroup"
-      aria-label={label}
+      aria-label={labelledBy === undefined ? label : undefined}
+      aria-labelledby={labelledBy}
+      data-testid={testId}
       className={cx('pb-segmented', `pb-segmented--${size}`, className)}
     >
       {items.map((item) => {
@@ -55,6 +65,7 @@ export function SegmentedControl<T extends string = string>({
         return (
           <label
             key={item.id}
+            data-testid={item.testId}
             className={cx(
               'pb-segmented__segment',
               isSelected && 'pb-segmented__segment--selected',

@@ -8,6 +8,7 @@ import { cn } from '../ui/cn'
 import { FeaturedIcon } from '../ui/FeaturedIcon'
 import { Icon } from '../ui/Icon'
 import { HostingSection } from './HostingSection'
+import { InterfaceSettingsSection } from './InterfaceSettingsSection'
 import { ensureKitTypeStyles } from './kitTypeStyles'
 import { changeLibraryFolder } from './projectSession'
 import { PrintPresetsSection } from './PrintPresetsSection'
@@ -110,6 +111,8 @@ export function SettingsScreen({
           <HostingSection row={ROW} rule={settingsRule} />
         ) : sectionId === 'site' ? (
           <SiteSettingsSection row={ROW} rule={settingsRule} />
+        ) : sectionId === 'interface' ? (
+          <InterfaceSettingsSection row={ROW} />
         ) : (
           <>
             <p className="mt-1 max-w-[560px] text-sm leading-relaxed text-muted-foreground">

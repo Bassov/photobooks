@@ -295,6 +295,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [cycle-layouts-core](roadmap/P5/cycle-layouts-core.md) — Bug: /next-roadmap-item cycle-layouts-core
 - [ ] [feature] [interface-size-core](roadmap/P5/interface-size-core.md) — Bug: /next-roadmap-item interface-size-core
 - [ ] [feature] [interface-size-pointer](roadmap/P5/interface-size-pointer.md) — Bug: /next-roadmap-item interface-size-pointer
+- [ ] [feature] [interface-size](roadmap/P5/interface-size.md) — Bug: /next-roadmap-item interface-size
 - [ ] [feature] [interface-size-modals](roadmap/P5/interface-size-modals.md) — Bug: /next-roadmap-item interface-size-modals
 - [ ] [feature] [interface-size-popovers](roadmap/P5/interface-size-popovers.md) — Bug: /next-roadmap-item interface-size-popovers
 - [ ] [feature] [prepush-scoped-units](roadmap/P5/prepush-scoped-units.md) — Bug: /next-roadmap-item prepush-scoped-units

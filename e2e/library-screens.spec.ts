@@ -932,9 +932,8 @@ test('kit v0.10 settings (step 49): back bar, Library only, tokens, confirm firs
   await expect(page.getByTestId('settings')).toBeVisible()
   await expect(page.getByTestId('settings-back')).toHaveText('Library')
 
-  // Library · Hosting · Site · Print presets; Interface has no backing
-  // behavior: hidden.
-  await expect(page.locator('[data-testid^="settings-nav-"]')).toHaveCount(4)
+  // Library · Hosting · Site · Print presets · Interface (UI scale, D8).
+  await expect(page.locator('[data-testid^="settings-nav-"]')).toHaveCount(5)
   await expect(
     page.locator('[data-testid^="settings-nav-"]').nth(2),
   ).toHaveAttribute('data-testid', 'settings-nav-site')
