@@ -30,16 +30,21 @@ export function emptyPastedFramesStatus(count: number): string {
 const CLIPBOARD_STATUS =
   /^(Copied (frame|\d+ frames)|\d+ photos? (aren't|isn't) in this book, so (their frames are|its frame is) empty)$/
 
+/** Placed badge cycle (Designer placed-badge B2): `Placed 1 of 2 · Pages 2–3`. */
+const PLACED_CYCLE_STATUS = /^Placed \d+ of \d+ · /
+
 /**
  * Statuses the kit StatusLine pill paints at the canvas bottom-left: the
- * frame drag hint, the guide position and the frame clipboard. Every other
- * status stays a live-region announcement only (no status chips).
+ * frame drag hint, the guide position, the frame clipboard and the placed
+ * badge cycle. Every other status stays a live-region announcement only (no
+ * status chips).
  */
 export function isStatusPillVisible(status: string): boolean {
   return (
     status === STATUS_FRAME_DRAG ||
     GUIDE_STATUS.test(status) ||
-    CLIPBOARD_STATUS.test(status)
+    CLIPBOARD_STATUS.test(status) ||
+    PLACED_CYCLE_STATUS.test(status)
   )
 }
 
