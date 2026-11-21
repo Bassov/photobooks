@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item design-r34-is-kit
+Status: done
 
 Round 34 Must M134 (Designer parity interface-size, Spec §1), kit Segmented lane. Prod `src/ui/SegmentedControl` and Spec §1 are the reference; no prod edits.
 
