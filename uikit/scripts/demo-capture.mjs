@@ -61,8 +61,26 @@ export async function capture(out, { log = console.log, probe } = {}) {
       await page.fill('[data-testid="cover-text-front"]', "Lake trip 2026"); await page.locator('[data-testid="cover-text-front"]').blur() }],
     ["editor-spread-1", () => c('[data-item="p1"]')],
     ["editor-photo-dropped-in-frame", () => page.locator('[data-testid="filmstrip"] [role="row"]').nth(5).dragTo(page.locator(FRAME).first())],
-    // the drop selects the frame; its direct-crop grabber appears under the resting pointer, so park it until the photo layer hides
-    ["editor-frame-selected", async () => { await park(); await settle(500) }],
+    // Designer placed-badge PB1: row 5's badge = "Show in the book" (hover look; a click selects the place; 2 places → ✓ 2 + cycle pill)
+    ["editor-placed-badge-hover", async () => { await page.locator('[data-testid="filmstrip"] [role="row"]').nth(5).getByTestId("filmstrip-placed").hover(); return "keep" }],
+    ["editor-placed-badge-jump", async () => { await c('[data-item="p0"]'); await settle(200); await page.locator('[data-testid="filmstrip"] [role="row"]').nth(5).getByTestId("filmstrip-placed").click() }],
+    ["editor-placed-badge-twice", async () => {
+      const badge = page.locator('[data-testid="filmstrip"] [role="row"]').nth(5).getByTestId("filmstrip-placed")
+      await c('[data-item="p2"]'); await settle(200)
+      await page.locator('[data-testid="filmstrip"] [role="row"]').nth(5).dragTo(page.locator(FRAME).first()); await settle(200)
+      await c('[data-item="p0"]'); await settle(200)
+      await badge.click(); await settle(150); await badge.click() }],
+    // the drop selects the frame; its direct-crop grabber appears under the resting pointer, so park it until the photo layer hides.
+    // Restore after the badge steps: the pages 4–5 photo leaves by "Remove from frame" (a new step, so redo stays off as before),
+    // then a no-op filmstrip drag (its drag end starts the same 2.5 s status clear as the drop did, so the next shots keep the old timing)
+    // and the badge selects pages 2–3's frame as the drop did (one place: "Placed on …" is screen-reader only, no pill)
+    ["editor-frame-selected", async () => {
+      await page.locator('[data-testid="demo"]').getByRole("button", { name: "Remove from frame" }).click(); await settle(200)
+      await c('[data-item="p1"]'); await settle(200)
+      const row = page.locator('[data-testid="filmstrip"] [role="row"]')
+      await row.nth(5).dragTo(row.nth(0)); await settle(650)
+      await row.nth(5).getByTestId("filmstrip-placed").click()
+      await park(); await settle(500) }],
     // the press is off the centre: a press on the grabber pans the photo
     ["editor-frame-mid-drag", async () => { const b = await page.locator(FRAME).first().boundingBox(); const x = Math.round(b.x + b.width / 4), y = Math.round(b.y + b.height / 2); await page.mouse.move(x, y); await page.mouse.down(); for (let i = 1; i <= 6; i++) await page.mouse.move(x - 10 * i, y + 6 * i); return "keep" }],
     ["editor-frame-drag-cancelled", async () => { await page.keyboard.press("Escape"); await page.mouse.up(); await settle(200); await page.locator(FRAME).first().click({ force: true, position: { x: 40, y: 40 } }) }],
@@ -117,7 +135,8 @@ export async function capture(out, { log = console.log, probe } = {}) {
     // p02 is the 800 px low-res photo: no DPI badge in #/demo (prod has no DPI toggle)
     ["editor-view-low-res-photo", async () => { await page.locator('[data-testid="filmstrip"] [role="row"]').nth(1).dragTo(page.locator(FRAME).first()); await settle(400) }],
     ["editor-view-guides-hidden", async () => { await page.keyboard.press("Control+;") }],
-    ["editor-spread-row-menu", async () => { await page.keyboard.press("Shift+R"); await page.locator('[data-item="p1"]').hover(); await c('[data-item="p1"] [data-testid="spread-menu"]') }],
+    // the low-res drop's 2.5 s status clear lands at this shot: wait it out so the line is reliably empty
+    ["editor-spread-row-menu", async () => { await page.waitForTimeout(400); await page.keyboard.press("Shift+R"); await page.locator('[data-item="p1"]').hover(); await c('[data-item="p1"] [data-testid="spread-menu"]') }],
     ["editor-spread-duplicated", async () => { await page.getByRole("menuitem", { name: /Duplicate/ }).click() }],
     ["editor-spread-reordered", async () => { await page.locator('[data-item="p2"]').dragTo(page.locator('[data-item="p4"]')); await settle(300) }],
     ["editor-master-guides-edit", async () => { await page.locator('[data-testid="mode-seg"]').getByText("Masters", { exact: true }).click(); await settle(250); await page.keyboard.press("Shift+R"); await page.keyboard.press("Control+;"); await settle(200); const r = await page.locator('[data-testid="ruler-y"]').boundingBox(); const t = await page.locator('[data-testid="canvas-master"]').boundingBox(); await page.mouse.move(Math.round(r.x + 10), Math.round(r.y + r.height / 2)); await page.mouse.down(); await page.mouse.move(Math.round(t.x + t.width * 0.3), Math.round(r.y + r.height / 2), { steps: 6 }); await page.mouse.up(); return "keep" }],

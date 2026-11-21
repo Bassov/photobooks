@@ -886,7 +886,7 @@ test('kit10 #/demo: kit-sync KS1–KS5 / K1 — stack gap, page numbers, new-spr
       '[data-testid="canvas"] [data-current] [data-testid="frame"]',
     ).first(),
   )
-  await expect(filmRow.locator('[title="Placed in the book"]')).toHaveCount(1)
+  await expect(filmRow.getByTestId('filmstrip-placed')).toHaveCount(1)
   await settled(page)
   // kit-sync K1 (prod M43): Esc during a frame drag clears the "Release to replace" chip and the dimmed drag source
   const fb = await box(page.locator(`${cur} [data-testid="frame"]`).first())

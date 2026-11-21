@@ -324,7 +324,7 @@ test('kit10: master guides + Page numbers feed the spreads; page-numbers-kit fol
       '[data-testid="canvas"] [data-current] [data-testid="frame"]',
     ).first(),
   )
-  await expect(filmRow.locator('[title="Placed in the book"]')).toHaveCount(1)
+  await expect(filmRow.getByTestId('filmstrip-placed')).toHaveCount(1)
   await page.keyboard.press('Shift+R')
   await page.keyboard.press('Control+;')
   const rulerX = D(page, '[data-testid="ruler-x"]')

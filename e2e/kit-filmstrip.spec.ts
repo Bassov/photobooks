@@ -221,7 +221,7 @@ test('screen canvas, v7.4 P2-4 / v0.9: dragging onto the cover updates the films
         '[data-testid="filmstrip"] [role="row"]',
       ),
     ]
-      .filter((r) => !r.querySelector('[title="Placed in the book"]'))
+      .filter((r) => !r.querySelector('[data-testid="filmstrip-placed"]'))
       .map((r) => r.dataset.key ?? ''),
   )
   const k = film[0] ?? ''
@@ -237,14 +237,14 @@ test('screen canvas, v7.4 P2-4 / v0.9: dragging onto the cover updates the films
   const mark = await page.evaluate(
     (k) =>
       !!document.querySelector(
-        `[data-testid="filmstrip"] [role="row"][data-key="${k}"] [title="Placed in the book"]`,
+        `[data-testid="filmstrip"] [role="row"][data-key="${k}"] [data-testid="filmstrip-placed"]`,
       ),
     k,
   )
   const marks = await page.evaluate(
     () =>
       document.querySelectorAll(
-        '[data-testid="filmstrip"] [role="row"] [title="Placed in the book"]',
+        '[data-testid="filmstrip"] [role="row"] [data-testid="filmstrip-placed"]',
       ).length,
   )
   expect(
