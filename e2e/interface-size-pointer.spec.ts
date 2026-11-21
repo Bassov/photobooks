@@ -159,8 +159,12 @@ function auditTests(): void {
     const mid = centre(await box(spread(page)))
     const dx = Math.sign(mid.x - centre(f0).x) * 60
     const dy = Math.sign(mid.y - centre(f0).y) * 30
+    // Alt after the press: Alt held at the press would duplicate the frame.
+    await page.mouse.move(centre(f0).x, centre(f0).y)
+    await page.mouse.down()
     await page.keyboard.down('Alt')
-    await drag(page, centre(f0), { x: centre(f0).x + dx, y: centre(f0).y + dy })
+    await page.mouse.move(centre(f0).x + dx, centre(f0).y + dy, { steps: 8 })
+    await page.mouse.up()
     await page.keyboard.up('Alt')
     await expect
       .poll(async () => (await box(frame)).x - f0.x)

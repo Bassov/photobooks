@@ -192,19 +192,31 @@ export function duplicateSelectedFrames(): boolean {
   if (selection === null) {
     return false
   }
-  const { book } = getBookStoreSnapshot()
   const { spreadId, frameIds } = selection
-  const sources = framesPayload(book, spreadId, frameIds).frames
-  const offset = stepRepeatOffset(book, spreadId, frameIds, lastDuplicate)
-  const ids = nextFrameIds(book, spreadId, sources.length)
-  dispatchBookOp({
-    type: 'duplicateFrames',
+  const offset = stepRepeatOffset(
+    getBookStoreSnapshot().book,
     spreadId,
     frameIds,
-    dx: offset.x,
-    dy: offset.y,
-    ids,
-  })
+    lastDuplicate,
+  )
+  return duplicateFramesBy(spreadId, frameIds, offset.x, offset.y)
+}
+
+/**
+ * Duplicate `frameIds` on `spreadId` by (dx, dy) mm as one step (Ctrl+D, and
+ * a finished Alt-drag): the copies become the selection and the step memory
+ * a following Ctrl+D repeats (D8). False when the book did not change.
+ */
+export function duplicateFramesBy(
+  spreadId: string,
+  frameIds: readonly string[],
+  dx: number,
+  dy: number,
+): boolean {
+  const { book } = getBookStoreSnapshot()
+  const sources = framesPayload(book, spreadId, frameIds).frames
+  const ids = nextFrameIds(book, spreadId, sources.length)
+  dispatchBookOp({ type: 'duplicateFrames', spreadId, frameIds, dx, dy, ids })
   if (getBookStoreSnapshot().book === book) {
     return false
   }

@@ -3,6 +3,7 @@ import {
   MIN_TEXT_FRAME_MM,
   editableSpread,
   findSpreadFrame,
+  framesPayload,
   getSpreadPageCount,
   getSpreadSizeMm,
   nextFrameId,
@@ -22,6 +23,15 @@ import {
   parentItemStatus,
   setEditorStatus,
 } from './editorStatus'
+import { duplicateFramesBy } from './frameClipboard'
+import {
+  clearClones,
+  duplicateFrameIds,
+  installAltDuplicateCursor,
+  moveClones,
+  paintClones,
+  type DuplicateClone,
+} from './frameDuplicate'
 import { getFrameSelection, setFrameSource } from './frameSelection'
 import { buildGridAnchors } from './gridSnap'
 import { getGridVisible, getSnapOn } from './gridView'
@@ -181,7 +191,28 @@ interface GroupSession {
   dy: number
 }
 
-type Session = DrawSession | MoveSession | GroupSession | MarqueeSession
+/** Alt held at the press on a frame (Designer frame-copy-paste D2). */
+interface DuplicateSession {
+  kind: 'duplicate'
+  pointerId: number
+  ctx: SpreadContext
+  startX: number
+  startY: number
+  started: boolean
+  frameIds: string[]
+  /** Union of the duplicated frames' rects. */
+  union: RectMm
+  /** The press's Alt: true until a move without Alt; it never bypasses snapping. */
+  altLatch: boolean
+  clones: DuplicateClone[]
+  /** Layout px per mm: the frames' own box, before the camera scale. */
+  layoutPxPerMm: number
+  dx: number
+  dy: number
+}
+
+type Session =
+  DrawSession | MoveSession | GroupSession | MarqueeSession | DuplicateSession
 
 export function round(mm: number): number {
   return Math.round(mm * 10) / 10
@@ -354,13 +385,112 @@ export function spreadContext(
 }
 
 /** Grid snap runs while the grid is visible, unless Alt or the snap toggle bypass. */
-export function gridSnapActive(event: { altKey: boolean }): boolean {
-  return getGridVisible() && !snapBypassed(event)
+export function gridSnapActive(
+  event: { altKey: boolean },
+  altLatch = false,
+): boolean {
+  return getGridVisible() && !snapBypassed(event, altLatch)
 }
 
-/** Alt held or the TopBar snap toggle off: the gesture runs without snapping. */
-export function snapBypassed(event: { altKey: boolean }): boolean {
-  return event.altKey || !getSnapOn()
+/**
+ * Alt held or the TopBar snap toggle off: the gesture runs without snapping.
+ * `altLatch`: the Alt that started a duplicate drag, still unreleased, does
+ * not bypass (Designer frame-copy-paste D2).
+ */
+export function snapBypassed(
+  event: { altKey: boolean },
+  altLatch = false,
+): boolean {
+  return (event.altKey && !altLatch) || !getSnapOn()
+}
+
+/**
+ * A set's drag delta from its press: the union clamped onto the spread,
+ * Shift locking the dominant axis (snapping must not move the other one),
+ * then snapped.
+ */
+function snappedDelta(
+  ctx: SpreadContext,
+  union: RectMm,
+  start: { startX: number; startY: number },
+  event: PointerEvent,
+  altLatch: boolean,
+): {
+  dx: number
+  dy: number
+  lines: SnapLine[]
+  hint: ReturnType<typeof snapRect>['hint']
+} {
+  let rawX = (event.clientX - start.startX) / ctx.pxPerMm
+  let rawY = (event.clientY - start.startY) / ctx.pxPerMm
+  const lock = !event.shiftKey
+    ? null
+    : Math.abs(rawX) >= Math.abs(rawY)
+      ? 'y'
+      : 'x'
+  if (lock === 'y') {
+    rawY = 0
+  } else if (lock === 'x') {
+    rawX = 0
+  }
+  const moved = {
+    ...union,
+    x: union.x + clampDelta(rawX, union.x, union.width, ctx.widthMm),
+    y: union.y + clampDelta(rawY, union.y, union.height, ctx.heightMm),
+  }
+  const snap = snapRect(ctx.index, moved, {
+    pxPerMm: ctx.pxPerMm,
+    altKey: snapBypassed(event, altLatch),
+    grid: gridSnapActive(event, altLatch),
+  })
+  return {
+    dx: moved.x + (lock === 'x' ? 0 : snap.dx) - union.x,
+    dy: moved.y + (lock === 'y' ? 0 : snap.dy) - union.y,
+    lines: snap.lines.filter((line) => line.axis !== lock),
+    hint: snap.hint,
+  }
+}
+
+/** An Alt press on a frame button: its duplicate drag, or null off interior spreads. */
+function duplicateSession(
+  event: PointerEvent,
+  spreadEl: HTMLElement,
+  frameEl: HTMLElement,
+): DuplicateSession | null {
+  const frameIds = duplicateFrameIds(
+    spreadEl.getAttribute('data-spread-id') ?? '',
+    frameEl.getAttribute('data-frame-id') ?? '',
+  )
+  // The originals stay put: a copy may snap to them (kit).
+  const ctx = spreadContext(spreadEl, [])
+  if (ctx === null) {
+    return null
+  }
+  const rects = framesPayload(
+    getBookStoreSnapshot().book,
+    ctx.spreadId,
+    frameIds,
+  ).frames.map((frame) => frame.rect)
+  const [first, ...rest] = rects
+  if (first === undefined) {
+    return null
+  }
+  const layoutWidth = spreadEl.offsetWidth
+  return {
+    kind: 'duplicate',
+    pointerId: event.pointerId,
+    ctx,
+    startX: event.clientX,
+    startY: event.clientY,
+    started: false,
+    frameIds,
+    union: unionOf(first, rest),
+    altLatch: true,
+    clones: [],
+    layoutPxPerMm: layoutWidth > 0 ? layoutWidth / ctx.widthMm : ctx.pxPerMm,
+    dx: 0,
+    dy: 0,
+  }
 }
 
 function pct(mm: number, total: number): string {
@@ -564,6 +694,9 @@ export function installFrameGesture(): () => void {
     if (current.kind === 'draw') {
       current.draft.remove()
     }
+    if (current.kind === 'duplicate') {
+      clearClones(current.ctx.element, current.clones)
+    }
   }
 
   const armSwallow = (): void => {
@@ -639,6 +772,21 @@ export function installFrameGesture(): () => void {
         },
         { once: true },
       )
+      return
+    }
+    // Alt held at the press on an own frame duplicates it (or its selection);
+    // the click below the slop still selects. Handles keep Alt as a bypass.
+    const duplicate =
+      tool === 'select' &&
+      event.altKey &&
+      !(event.ctrlKey || event.metaKey) &&
+      frameEl instanceof HTMLButtonElement &&
+      event.target.closest('[data-handle]') === null
+        ? duplicateSession(event, spreadEl, frameEl)
+        : null
+    if (duplicate !== null) {
+      session = duplicate
+      listen()
       return
     }
     // A set shows no handles: any press on a member's button is its body.
@@ -750,6 +898,8 @@ export function installFrameGesture(): () => void {
         groupMove(current, event)
       } else if (current.kind === 'marquee') {
         marqueeMove(current, event)
+      } else if (current.kind === 'duplicate') {
+        duplicateMove(current, event)
       } else {
         moveMove(current, event)
       }
@@ -879,36 +1029,40 @@ export function installFrameGesture(): () => void {
     if (moving === null) {
       return
     }
-    const { union } = moving
-    let rawX = (event.clientX - group.startX) / ctx.pxPerMm
-    let rawY = (event.clientY - group.startY) / ctx.pxPerMm
-    // Shift locks the dominant axis; snapping must not move the other one.
-    const lock = !event.shiftKey
-      ? null
-      : Math.abs(rawX) >= Math.abs(rawY)
-        ? 'y'
-        : 'x'
-    if (lock === 'y') {
-      rawY = 0
-    } else if (lock === 'x') {
-      rawX = 0
-    }
-    const moved = {
-      ...union,
-      x: union.x + clampDelta(rawX, union.x, union.width, ctx.widthMm),
-      y: union.y + clampDelta(rawY, union.y, union.height, ctx.heightMm),
-    }
-    const snap = snapRect(ctx.index, moved, {
-      pxPerMm: ctx.pxPerMm,
-      altKey: snapBypassed(event),
-      grid: gridSnapActive(event),
-    })
-    const lines = snap.lines.filter((line) => line.axis !== lock)
-    group.dx = moved.x + (lock === 'x' ? 0 : snap.dx) - union.x
-    group.dy = moved.y + (lock === 'y' ? 0 : snap.dy) - union.y
+    const delta = snappedDelta(ctx, moving.union, group, event, false)
+    group.dx = delta.dx
+    group.dy = delta.dy
     paintGroup(group, moving.painted)
-    paintSnapLines(ctx, lines)
-    setSnapHint(snap.hint, ctx.spreadId)
+    paintSnapLines(ctx, delta.lines)
+    setSnapHint(delta.hint, ctx.spreadId)
+  }
+
+  function duplicateMove(dup: DuplicateSession, event: PointerEvent): void {
+    const { ctx } = dup
+    if (!event.altKey) {
+      dup.altLatch = false
+    }
+    if (
+      !dup.started &&
+      Math.hypot(event.clientX - dup.startX, event.clientY - dup.startY) <
+        MOVE_SLOP_PX
+    ) {
+      return
+    }
+    if (!dup.started) {
+      dup.started = true
+      dup.clones = paintClones(ctx.element, dup.frameIds)
+    }
+    const delta = snappedDelta(ctx, dup.union, dup, event, dup.altLatch)
+    dup.dx = delta.dx
+    dup.dy = delta.dy
+    moveClones(
+      dup.clones,
+      dup.dx * dup.layoutPxPerMm,
+      dup.dy * dup.layoutPxPerMm,
+    )
+    paintSnapLines(ctx, delta.lines)
+    setSnapHint(delta.hint, ctx.spreadId)
   }
 
   function onUp(event: PointerEvent): void {
@@ -934,9 +1088,26 @@ export function installFrameGesture(): () => void {
         }, 0)
       }
       parentStatus = null
+    } else if (current.kind === 'duplicate') {
+      commitDuplicate(current)
     } else {
       commitMove(current)
     }
+  }
+
+  function commitDuplicate(dup: DuplicateSession): void {
+    // Below the slop it was a plain click: the frame's click selects it.
+    if (!dup.started) {
+      return
+    }
+    armSwallow()
+    // One step; the copies become the selection and the step memory (D8).
+    duplicateFramesBy(
+      dup.ctx.spreadId,
+      dup.frameIds,
+      round(dup.dx),
+      round(dup.dy),
+    )
   }
 
   function commitGroup(group: GroupSession): void {
@@ -1052,14 +1223,10 @@ export function installFrameGesture(): () => void {
   // A group press on a filled frame must never become a native image drag
   // (nor a Text press over a photo), and a marquee must not drag or
   // text-select what it crosses.
-  // An override press on a filled parent item moves its copy, never drags the photo.
+  // An override press on a filled parent item moves its copy, never drags the
+  // photo; an Alt press on a filled frame duplicates it, never drags the photo.
   const onDragStart = (event: Event): void => {
-    if (
-      session?.kind === 'group' ||
-      session?.kind === 'marquee' ||
-      session?.kind === 'move' ||
-      session?.kind === 'draw'
-    ) {
+    if (session !== null) {
       event.preventDefault()
     }
   }
@@ -1100,8 +1267,10 @@ export function installFrameGesture(): () => void {
   window.addEventListener('keydown', onSpace, true)
   window.addEventListener('keyup', onSpace, true)
   window.addEventListener('blur', clearSpace)
+  const stopAltCursor = installAltDuplicateCursor()
   return () => {
     finish()
+    stopAltCursor()
     document.removeEventListener('pointerdown', onDown, true)
     document.removeEventListener('click', onClick, true)
     document.removeEventListener('dragstart', onDragStart, true)
