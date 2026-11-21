@@ -198,8 +198,9 @@ test('empty frame: Place photo…, edit, order, Lock + Delete', async ({
     'Delete frame',
   ])
   await expect(m.getByRole('separator')).toHaveCount(3)
-  // frame 4 is on top
+  // frame 4 is on top; no photos yet, so Place photo… is disabled (M2: a pick needs ≥ 1 photo)
   expect(await disabled(m)).toEqual([
+    'frame-menu-place',
     'frame-menu-paste',
     'frame-menu-front',
     'frame-menu-forward',
@@ -208,6 +209,7 @@ test('empty frame: Place photo…, edit, order, Lock + Delete', async ({
   await row(page, 'back').click()
   await rightClick(hero(page).nth(0))
   expect(await disabled(menu(page))).toEqual([
+    'frame-menu-place',
     'frame-menu-paste',
     'frame-menu-backward',
     'frame-menu-back',
@@ -310,7 +312,8 @@ test('Shift+F10 opens the menu on the selection with row 1 focused', async ({
   )
   await page.keyboard.press('Shift+F10')
   await expect(menu(page)).toBeVisible()
-  await expect(row(page, 'place')).toHaveAttribute('data-focused', 'true')
+  // the first enabled row: Place photo… is disabled with no photos (M2)
+  await expect(row(page, 'cut')).toHaveAttribute('data-focused', 'true')
   await page.keyboard.press('Escape')
   await expect(menu(page)).toHaveCount(0)
 })

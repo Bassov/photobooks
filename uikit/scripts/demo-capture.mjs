@@ -68,7 +68,13 @@ export async function capture(out, { log = console.log, probe } = {}) {
     ["editor-frame-drag-cancelled", async () => { await page.keyboard.press("Escape"); await page.mouse.up(); await settle(200); await page.locator(FRAME).first().click({ force: true, position: { x: 40, y: 40 } }) }],
     // Designer frame-copy-paste FC1 on pages 8–9 (spread 1's full-bleed frame clamps back in place): Ctrl+C → "Copied frame"; Ctrl+V → +5/+5 mm;
     // on pages 6–7 Ctrl+V pastes in place; Ctrl+D → +5/+5 mm; the copy moved 40 mm right, Ctrl+D repeats that move. The five edits are undone after.
+    // Designer frame-context-menu: right-click the filled frame (FM1 menu); Replace photo… → filmstrip ring, "Replacing" tag, status (FM2);
+    // a click on thumb 3 replaces the photo (one undo step, undone at the next step so the later shots keep thumb 5's photo)
+    ["editor-frame-menu", () => page.locator(FRAME).first().click({ button: "right", force: true, position: { x: 60, y: 60 } })],
+    ["editor-photo-pick", () => c('[data-testid="frame-menu-replace"]')],
+    ["editor-photo-picked", () => page.locator('[data-testid="filmstrip"] [role="row"]').nth(3).click()],
     ["editor-frame-copied", async () => {
+      await page.keyboard.press("Control+z"); await settle(200)
       allFrames = await page.locator('[data-testid="canvas"] [data-testid="frame"]').count()
       await page.locator('[data-testid="canvas"] [data-spread="4"] [data-testid="frame"]').nth(1).click({ force: true }); await settle(200); await page.keyboard.press("Control+c") }],
     ["editor-frame-pasted", () => page.keyboard.press("Control+v")],

@@ -1,6 +1,7 @@
 /* Sandbox editor store: document with undo history (op-key coalescing), selection, view state, toasts. */
 import * as React from "react"
 import { createToastQueue, type ToastContent } from "@/components/ui/toast"
+import { P } from "@/data"
 import type { Doc, Frame, Spread } from "./model"
 import { setGeom, reflowDoc } from "./model"
 import { anchorPhoto, fillTokens } from "./meta"
@@ -229,10 +230,36 @@ export function zMovesFor(s: Spread, ids: string[]): ZKind[] {
   const d: Doc = { spreads: [s] } as Doc
   return (["front", "fwd", "bwd", "back"] as const).filter((k) => order(zMove(d, 0, ids, k).spreads[0].frames) !== order(s.frames))
 }
-/** Replace photo… / Place photo…: crop mode ends, the frame stays selected (pick UI: photo-pick-kit). */
+/** One photo onto frame `frameId` of spread `si` (a filmstrip drop or a pick): one undo step "Replace photo" / "Place photo". */
+export function placePhoto(st: Studio, si: number, frameId: string, photo: string) {
+  const old = st.doc.spreads[si].frames.find((x) => x.id === frameId)?.photo
+  st.update((d) => mapFrames(d, si, [frameId], (x) => ({ ...x, photo, zoom: 1, ox: 0, oy: 0, qt: 0, straighten: 0 })), old ? "Replace photo" : "Place photo")
+  st.setStatus(old ? `Replaced ${P(old).name} — it is back in the gallery` : `Placed ${P(photo).name}`)
+  st.setSel([frameId]); st.setCur(si)
+}
+/** Designer frame-context-menu M3 pick mode status (kept while the mode is on). */
+export const PICK_STATUS: Record<Pick["kind"], string> = {
+  replace: "Click a photo in the filmstrip to replace this one · Esc to cancel",
+  place: "Click a photo in the filmstrip to place it here · Esc to cancel",
+}
+/** Replace photo… / Place photo…: crop mode ends, the frame stays selected, the filmstrip picks (chrome.tsx). */
 export function startPick(st: Studio, si: number, id: string, kind: Pick["kind"]) {
   st.setCropId(null)
+  st.setCur(si); st.setSel([id])
   st.setPick({ si, id, kind })
+  st.setStatus(PICK_STATUS[kind])
+}
+/** Cancel: no change to the book. */
+export function endPick(st: Studio) {
+  st.setPick(null)
+  st.setStatus("")
+}
+/** A filmstrip click / Enter on `photo` while picking = the same replace / place as a drop; the mode then ends. */
+export function pickPhoto(st: Studio, photo: string) {
+  const p = st.pick
+  if (!p) return
+  st.setPick(null)
+  placePhoto(st, p.si, p.id, photo)
 }
 export const deleteLabel = (fs: Frame[]) => fs.length > 1 ? `Delete ${fs.length} frames` : fs[0]?.overrides ? "Hide parent item" : "Delete frame"
 export function placedSet(d: Doc) {

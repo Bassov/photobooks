@@ -20,7 +20,7 @@ import { ToastRegion } from "@/components/ui/toast"
 import { Slider, SliderTrack, SliderFillTrack, SliderThumb } from "@/components/ui/slider"
 import { IconButton, ThumbGrid, ThumbItem, Kbd, AlertDialog, thumbWidth } from "@/components/app/ui"
 import { photos, P, type Photo } from "@/data"
-import { useStudio, placedSet, mapSpread, mapSpreadFreezing, thumbPx, thumbMax, writeThumb, useInnerHeight, THUMB_MIN, type Thumb } from "./store"
+import { useStudio, pickPhoto, placedSet, mapSpread, mapSpreadFreezing, thumbPx, thumbMax, writeThumb, useInnerHeight, THUMB_MIN, type Thumb } from "./store"
 import { PhotoImg, PHOTO_TYPE, FRAME_TYPE } from "./canvas"
 import { SW, SH, spread, parentOf, defaultMasterOf, pageNumbersOf, foliosOf, printSafe, type Frame, type Spread } from "./model"
 import type { Node } from "./store"
@@ -468,20 +468,36 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
     const on = (e: KeyboardEvent) => { if ((e.key === "Delete" || e.key === "Backspace") && st.filmSel.length && (e.target as HTMLElement).closest("[data-filmstrip]")) onRemove?.(st.filmSel[0]) }
     window.addEventListener("keydown", on); return () => window.removeEventListener("keydown", on)
   }, [removable, st.filmSel, onRemove])
+  // Designer frame-context-menu M3: Replace / Place photo… picks here; focus goes to the roving thumb (the last focused, else the first)
+  const picking = !!st.pick
+  const root = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    if (!picking) return
+    // a frame after the menu's own focus restore
+    const id = requestAnimationFrame(() => {
+      const g = root.current
+      const row = g?.querySelector<HTMLElement>('[role="row"][tabindex="0"]') ?? g?.querySelector<HTMLElement>('[role="row"]')
+      row?.focus({ preventScroll: true })
+    })
+    return () => cancelAnimationFrame(id)
+  }, [picking])
   return (
-    <div className="relative" data-filmstrip>
-      <ThumbGrid aria-label="Photos" layout="grid" selectionMode="multiple" selectionBehavior="replace" items={items} dependencies={[placed, thumbH]}
+    <div ref={root} className="relative" data-filmstrip>
+      <ThumbGrid aria-label="Photos" layout="grid" selectionMode={picking ? "none" : "multiple"} selectionBehavior="replace" items={items} dependencies={[placed, thumbH, picking]}
         selectedKeys={st.filmSel} onSelectionChange={(k) => st.setFilmSel(k === "all" ? items.map((p) => p.id) : [...k].map(String))}
+        // a click or Enter on a thumb = the same replace / place as a drop (one undo step)
+        onAction={picking ? (k) => pickPhoto(st, String(k)) : undefined}
+        data-picking={picking || undefined}
         dragAndDropHooks={dragAndDropHooks}
         // r15 M88: prod `.pb-empty-title` (18 px / 1.3) around a 13 px / 1.35 span — the 18 px strut sets the baseline
         renderEmptyState={() => <div className="flex items-center px-2 text-sm text-muted-foreground" style={{ height: thumbH }} data-testid="film-empty"><div className="text-lg leading-[1.3]"><span className="text-sm leading-[1.35]">{st.view.unplacedOnly && st.doc.gallery.length ? "Every photo is placed. Turn off “Unplaced” to see all." : "No photos yet — add a folder or drop one here."}</span></div></div>}
-        className="scroll-thin flex gap-2 overflow-x-auto overflow-y-hidden p-1 pb-2" data-testid="filmstrip">
+        className="scroll-thin flex gap-2 overflow-x-auto overflow-y-hidden p-1 pb-2 data-[picking]:shadow-pick" data-testid="filmstrip">
         {(p) => {
           const h = thumbH
           const w = thumbWidth(p.w, p.h, h) // shared aspect rule (app/ui PhotoThumb): true ratio, clamped 5:8…8:5
           const miss = st.missing.has(p.id)
           return (
-            <ThumbItem id={p.id} textValue={p.name} className="group/th shrink-0 overflow-hidden rounded-xs shadow-hairline ring-0! ring-offset-0! outline-none data-[selected]:bg-sel data-[dragging]:opacity-40">
+            <ThumbItem id={p.id} textValue={p.name} className={cn("group/th shrink-0 overflow-hidden rounded-xs shadow-hairline ring-0! ring-offset-0! outline-none data-[selected]:bg-sel data-[dragging]:opacity-40", picking && "cursor-copy data-[hovered]:bg-sel data-[focus-visible]:bg-sel")}>
               <AriaButton slot="drag" className="sr-only">Drag {p.name}</AriaButton>
               <div style={{ width: w, height: h }} className="relative">
                 {miss ? <div className="grid size-full place-items-center bg-muted text-muted-foreground"><ImageOff className="size-4" /></div>
