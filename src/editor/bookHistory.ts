@@ -137,8 +137,22 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
   setPageNumbering: 'Page numbering',
 }
 
+/** "Cut frame" / "Cut 3 frames" (kit `countLabel`). */
+function framesLabel(verb: string, count: number): string {
+  return count > 1 ? `${verb} ${String(count)} frames` : `${verb} frame`
+}
+
 /** Short name of the step an op creates, for the undo / redo tooltip. */
 export function opLabel(op: BookOp): string {
+  if (op.type === 'removeFrames' && op.cut === true) {
+    return framesLabel('Cut', op.frameIds.length)
+  }
+  if (op.type === 'pasteFrames') {
+    return framesLabel('Paste', op.payload.frames.length)
+  }
+  if (op.type === 'duplicateFrames') {
+    return framesLabel('Duplicate', op.frameIds.length)
+  }
   if (op.type === 'removeFrames' && op.frameIds.length > 1) {
     return `Delete ${String(op.frameIds.length)} frames`
   }

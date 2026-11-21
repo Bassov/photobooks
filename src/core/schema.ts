@@ -142,7 +142,7 @@ function makeAdjustSchema() {
   })
 }
 
-const frameSchema = z.object({
+export const frameSchema = z.object({
   id: nonEmptyString,
   rect: rectMmSchema,
   z: z.number().int(),

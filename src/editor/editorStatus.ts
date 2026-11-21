@@ -15,13 +15,45 @@ export const STATUS_FRAME_DRAG =
 
 const GUIDE_STATUS = /^(Vertical|Horizontal) guide at /
 
+/** Frame copy (Designer frame-copy-paste, kit `viewport.tsx` `useFrameClipboard`). */
+export function copiedFramesStatus(count: number): string {
+  return count > 1 ? `Copied ${String(count)} frames` : 'Copied frame'
+}
+
+/** D7: photos a paste could not find in this book. */
+export function emptyPastedFramesStatus(count: number): string {
+  return count > 1
+    ? `${String(count)} photos aren't in this book, so their frames are empty`
+    : "1 photo isn't in this book, so its frame is empty"
+}
+
+const CLIPBOARD_STATUS =
+  /^(Copied (frame|\d+ frames)|\d+ photos? (aren't|isn't) in this book, so (their frames are|its frame is) empty)$/
+
 /**
  * Statuses the kit StatusLine pill paints at the canvas bottom-left: the
- * frame drag hint and the guide position. Every other status stays a
- * live-region announcement only (no status chips).
+ * frame drag hint, the guide position and the frame clipboard. Every other
+ * status stays a live-region announcement only (no status chips).
  */
 export function isStatusPillVisible(status: string): boolean {
-  return status === STATUS_FRAME_DRAG || GUIDE_STATUS.test(status)
+  return (
+    status === STATUS_FRAME_DRAG ||
+    GUIDE_STATUS.test(status) ||
+    CLIPBOARD_STATUS.test(status)
+  )
+}
+
+let flashTimer: ReturnType<typeof setTimeout> | undefined
+
+/** Show `next` for `ms`, then clear it unless another status replaced it. */
+export function flashEditorStatus(next: string, ms: number): void {
+  setEditorStatus(next)
+  clearTimeout(flashTimer)
+  flashTimer = setTimeout(() => {
+    if (text === next) {
+      setEditorStatus('')
+    }
+  }, ms)
 }
 
 /** The page a guide sits on: a two-page spread's page width, or a single page's side. */

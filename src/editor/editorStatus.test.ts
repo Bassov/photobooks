@@ -1,5 +1,8 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  copiedFramesStatus,
+  emptyPastedFramesStatus,
+  flashEditorStatus,
   getEditorStatus,
   guideStatus,
   isStatusPillVisible,
@@ -78,5 +81,43 @@ describe('editorStatus', () => {
     expect(isStatusPillVisible('Photos swapped')).toBe(false)
     expect(isStatusPillVisible('Moved: Vertical guide at 5 mm')).toBe(false)
     expect(isStatusPillVisible('')).toBe(false)
+    for (const status of [
+      copiedFramesStatus(1),
+      copiedFramesStatus(3),
+      emptyPastedFramesStatus(1),
+      emptyPastedFramesStatus(2),
+    ]) {
+      expect(isStatusPillVisible(status)).toBe(true)
+      expect(isStatusPillVisible(`${status}.`)).toBe(false)
+      expect(isStatusPillVisible(`x ${status}`)).toBe(false)
+    }
+  })
+
+  it('words the frame clipboard statuses as the kit', () => {
+    expect(copiedFramesStatus(1)).toBe('Copied frame')
+    expect(copiedFramesStatus(2)).toBe('Copied 2 frames')
+    expect(emptyPastedFramesStatus(1)).toBe(
+      "1 photo isn't in this book, so its frame is empty",
+    )
+    expect(emptyPastedFramesStatus(3)).toBe(
+      "3 photos aren't in this book, so their frames are empty",
+    )
+  })
+
+  it('flashes a status and clears it only while it is still shown', () => {
+    vi.useFakeTimers()
+    try {
+      flashEditorStatus('Copied frame', 100)
+      vi.advanceTimersByTime(99)
+      expect(getEditorStatus()).toBe('Copied frame')
+      vi.advanceTimersByTime(1)
+      expect(getEditorStatus()).toBe('')
+      flashEditorStatus('Copied frame', 100)
+      setEditorStatus('Photo moved')
+      vi.advanceTimersByTime(100)
+      expect(getEditorStatus()).toBe('Photo moved')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
