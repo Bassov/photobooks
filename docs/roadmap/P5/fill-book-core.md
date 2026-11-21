@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P5
 Title: Bug: /next-roadmap-item fill-book-core
+Status: done
 
 Core part of the Designer feature "fill book" (Owner Q-26, item 1 of 3, Must FB2; design spec `fill-book/spec.md` "### Core"). One book op places the unplaced photos, in the caller's order, into the empty frames before the last page, then onto new spreads of 2 photos inserted before the last page, then into the last page's empty frames, without passing the page limit. Core only, no UI.
 
