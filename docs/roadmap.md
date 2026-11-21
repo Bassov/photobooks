@@ -286,7 +286,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [ci-flakes](roadmap/P5/ci-flakes.md) — Bug: /next-roadmap-item ci-flakes
 - [ ] [feature] [printer-presets-core](roadmap/P5/printer-presets-core.md) — Bug: /next-roadmap-item printer-presets-core
 - [ ] [feature] [printer-presets-kit](roadmap/P5/printer-presets-kit.md) — Bug: /next-roadmap-item printer-presets-kit
-- [ ] [feature] [e2e-coverage-per-worker](roadmap/P5/e2e-coverage-per-worker.md) — Bug: /next-roadmap-item e2e-coverage-per-worker
+- [ ] [lite] [e2e-coverage-per-worker](roadmap/P5/e2e-coverage-per-worker.md) — Bug: /next-roadmap-item e2e-coverage-per-worker
 - [ ] [feature] [frame-copy-paste-kit](roadmap/P5/frame-copy-paste-kit.md) — Bug: /next-roadmap-item frame-copy-paste-kit
 - [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
 - [ ] [lite] [roadmap-status-sync](roadmap/P5/roadmap-status-sync.md) — Bug: /next-roadmap-item roadmap-status-sync
