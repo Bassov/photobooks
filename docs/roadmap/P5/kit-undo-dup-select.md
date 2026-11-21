@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item kit-undo-dup-select
+Status: done
 
 ## Scope
 
