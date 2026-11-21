@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { openSessionEditor } from './fixtures/openSessionEditor'
+import { pixelsAt, topAt } from './fixtures/paintProbe'
 
 // Designer frame-copy-paste FC4: prod Ctrl/⌘+C / X / V / Shift+V / D on the
 // canvas frame selection, values = kit (e2e/kit-frame-copy-paste.spec.ts).
@@ -230,4 +231,148 @@ test('the Caption field keeps native copy / paste', async ({ page }) => {
   await caption.press('Control+d')
   await expect(frames(page, 2)).toHaveCount(2)
   await expect(status(page)).not.toHaveText('Copied frame')
+})
+
+// FC5 (D2, D8, "Alt-drag look"), values = kit (e2e/kit-frame-alt-duplicate.spec.ts).
+const clones = (page: Page) =>
+  spread(page, 2).getByTestId('frame-duplicate-clone')
+const undoLabel = (page: Page) =>
+  page.getByTestId('undo').getAttribute('aria-label')
+
+function near(a: number, b: number, tol = 1) {
+  expect(Math.abs(a - b)).toBeLessThanOrEqual(tol)
+}
+
+/** Alt held from before the press, inside frame `id` (off its centre); stays down. */
+async function altPress(page: Page, id: string) {
+  await frame(page, 2, id).scrollIntoViewIfNeeded()
+  const b = await box(frame(page, 2, id))
+  const p = {
+    x: Math.round(b.x + b.width * 0.3),
+    y: Math.round(b.y + b.height * 0.3),
+  }
+  await page.mouse.move(p.x, p.y)
+  await page.keyboard.down('Alt')
+  await page.mouse.down()
+  return p
+}
+
+test('Alt-press drag paints a ringed clone; release adds one selected copy at the drag delta in one step; Ctrl+D repeats it', async ({
+  page,
+}) => {
+  const src = await local(page, 2, 'spread-2-f0')
+  const p = await altPress(page, 'spread-2-f0')
+  await page.mouse.move(p.x + 30, p.y + 6, { steps: 5 })
+  await expect(clones(page)).toHaveCount(1)
+  await expect(status(page)).toHaveText(
+    'Release to place the copy · Esc to cancel',
+  )
+  // the original stays put without its chrome; the clone is painted on top,
+  // at .85 with the select ring
+  expectAt(await local(page, 2, 'spread-2-f0'), src)
+  // above the original it overlaps (only the editor's guides layer tops it)
+  const stack = await topAt(clones(page))
+  const above = stack.findIndex((ids) => ids.includes('frame-duplicate-clone'))
+  expect(above).toBeGreaterThanOrEqual(0)
+  expect(above).toBeLessThan(
+    stack.findIndex((ids) => ids.includes('spread-frame')),
+  )
+  const look = await clones(page).evaluate((el) => {
+    const cs = getComputedStyle(el)
+    return { opacity: cs.opacity, shadow: cs.boxShadow }
+  })
+  expect(look.opacity).toBe('0.85')
+  expect(look.shadow).toMatch(/0px 0px 0px 2px$/)
+  const ring = (/rgba?\(([^)]+)\)/.exec(look.shadow)?.[1] ?? '')
+    .split(',')
+    .slice(0, 3)
+    .map(Number)
+  const clone = await box(clones(page))
+  const s = await box(spread(page, 2))
+  // right of the clone, 30 px past the original, over the paper: across the
+  // 2 px ring (sub-pixel edges antialias), the darkest sample
+  const samples = await pixelsAt(
+    spread(page, 2),
+    [0.5, 1, 1.5].map((dx) => ({
+      x: clone.x - s.x + clone.width + dx,
+      y: clone.y - s.y + clone.height / 2,
+    })),
+  )
+  const sum = (rgb: number[]) => rgb.slice(0, 3).reduce((a, b) => a + b, 0)
+  const px = samples.reduce((a, b) => (sum(b) < sum(a) ? b : a))
+  // the ring at .85 over the light paper: near the ring colour (none = far off)
+  expect(ring).toHaveLength(3)
+  ring.forEach((c, k) => {
+    near(px[k] ?? -255, c, 48)
+  })
+  await expect(spread(page, 2).getByTestId('sel-handle')).toHaveCount(0)
+
+  // Alt released, then pressed again: no snapping, the copy lands at the
+  // exact pointer delta
+  await page.keyboard.up('Alt')
+  await page.mouse.move(p.x + 38, p.y + 9, { steps: 2 })
+  await page.keyboard.down('Alt')
+  await page.mouse.move(p.x + 40, p.y + 8, { steps: 2 })
+  await page.mouse.up()
+  await page.keyboard.up('Alt')
+  await expect(clones(page)).toHaveCount(0)
+  await expect(frames(page, 2)).toHaveCount(3)
+  await expect(frame(page, 2, NEW)).toHaveCount(1)
+  const made = await local(page, 2, NEW)
+  near(made.x - src.x, 40)
+  near(made.y - src.y, 8)
+  expectAt(await local(page, 2, 'spread-2-f0'), src)
+  expect(await undoLabel(page)).toBe('Undo “Duplicate frame” (Ctrl+Z)')
+  await expect(status(page)).toHaveText('')
+
+  // D8: Ctrl+D next repeats the drag delta
+  await page.keyboard.press('Control+d')
+  await expect(frames(page, 2)).toHaveCount(4)
+  const again = await local(page, 2, NEW)
+  near(again.x - made.x, 40)
+  near(again.y - made.y, 8)
+  await page.keyboard.press('Control+z')
+  await page.keyboard.press('Control+z')
+  await expect(frames(page, 2)).toHaveCount(2)
+})
+
+test('Alt shows the copy cursor; an Alt click selects; Esc mid Alt-drag adds nothing', async ({
+  page,
+}) => {
+  const f1 = frame(page, 2, 'spread-2-f1')
+  const cursor = () => f1.evaluate((el) => getComputedStyle(el).cursor)
+  await f1.scrollIntoViewIfNeeded()
+  await f1.hover()
+  expect(await cursor()).toBe('pointer')
+  await page.keyboard.down('Alt')
+  await expect.poll(cursor).toBe('copy')
+  await page.keyboard.up('Alt')
+  await expect.poll(cursor).toBe('pointer')
+  // the Frame tool keeps its own cursor under Alt
+  await page.keyboard.press('f')
+  await page.keyboard.down('Alt')
+  expect(await cursor()).not.toBe('copy')
+  await page.keyboard.up('Alt')
+  await page.keyboard.press('v')
+
+  const before = await undoLabel(page)
+  // under the 3 px slop: a plain click selection, nothing added
+  const p = await altPress(page, 'spread-2-f1')
+  await page.mouse.move(p.x + 1, p.y + 1)
+  await page.mouse.up()
+  await page.keyboard.up('Alt')
+  await expect(f1).toHaveAttribute('aria-pressed', 'true')
+  await expect(frames(page, 2)).toHaveCount(2)
+  await expect(clones(page)).toHaveCount(0)
+
+  // Esc mid-drag: the clone goes, no frame and no undo step
+  const q = await altPress(page, 'spread-2-f0')
+  await page.mouse.move(q.x + 40, q.y + 8, { steps: 5 })
+  await expect(clones(page)).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await expect(clones(page)).toHaveCount(0)
+  await page.mouse.up()
+  await page.keyboard.up('Alt')
+  await expect(frames(page, 2)).toHaveCount(2)
+  expect(await undoLabel(page)).toBe(before)
 })

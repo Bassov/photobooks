@@ -34,6 +34,21 @@ button.spread-frame {
   cursor: pointer;
 }
 
+/* Alt held with the Select tool: a press duplicates the frame (Designer
+   frame-copy-paste "Alt-drag look"; editor/frameDuplicate.ts). */
+.editor-workspace[data-alt-duplicate][data-tool='select'] button.spread-frame {
+  cursor: copy;
+}
+
+/* While its clones follow an Alt-drag, the originals stay painted without
+   their selection chrome (ring, handles, group box). */
+[data-alt-duplicating] button.spread-frame[aria-pressed='true']::after,
+[data-alt-duplicating] .spread-copy-selection::after,
+[data-alt-duplicating] .spread-group-box,
+[data-alt-duplicating] [data-handle] {
+  display: none;
+}
+
 /* Kit selection (FrameView/Selection): chrome on the selected frame only.
    Unselected frames carry no ring, outline or edge, so photos sit flush.
    Painted on ::after above the photo in CSS px so it stays visible at every

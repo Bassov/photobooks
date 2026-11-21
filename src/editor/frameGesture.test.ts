@@ -651,7 +651,8 @@ describe('frameGesture · move', () => {
 
   /** Press inside frame b (at its mm center) and drag by (dx, dy) mm. */
   function drag(dx: number, dy: number, init: MouseEventInit = {}) {
-    pointer('pointerdown', button, 30, 30, init)
+    // Alt after the press bypasses snapping; Alt at the press would duplicate.
+    pointer('pointerdown', button, 30, 30, { ...init, altKey: false })
     pointer('pointermove', window, 30 + dx, 30 + dy, init)
     pointer('pointerup', window, 30 + dx, 30 + dy, init)
   }
@@ -805,7 +806,7 @@ describe('frameGesture · move', () => {
       makeFrame({ id: 'b', rect: rect(10, 10, 40, 40), z: 1, locked: true }),
     ])
     const before = getBookStoreSnapshot().book
-    pointer('pointerdown', button, 30, 30, ALT)
+    pointer('pointerdown', button, 30, 30)
     pointer('pointermove', window, 50, 40, ALT)
     expect(getEditorStatus()).toMatch(/locked/i)
     expect(button.style.left).toBe('')
@@ -854,7 +855,7 @@ describe('frameGesture · move', () => {
   })
 
   it('the preview left / top follow the pointer in percent', () => {
-    pointer('pointerdown', button, 30, 30, ALT)
+    pointer('pointerdown', button, 30, 30)
     pointer('pointermove', window, 30 + 60, 30 + 30, ALT)
     expect(parseFloat(button.style.left)).toBeCloseTo((70 / 300) * 100)
     expect(parseFloat(button.style.top)).toBeCloseTo((40 / 300) * 100)
@@ -862,7 +863,7 @@ describe('frameGesture · move', () => {
   })
 
   it('Alt moves without snapping', () => {
-    pointer('pointerdown', button, 30, 30, ALT)
+    pointer('pointerdown', button, 30, 30)
     pointer('pointermove', window, 30 + 98, 30 + 5, ALT)
     expect(spread.querySelector('.snap-line')).toBeNull()
     pointer('pointerup', window, 30 + 98, 30 + 5, ALT)
@@ -890,13 +891,13 @@ describe('frameGesture · move', () => {
   })
 
   it('starts at the slop distance (3 px) and not before', () => {
-    pointer('pointerdown', button, 30, 30, ALT)
+    pointer('pointerdown', button, 30, 30)
     fire('pointermove', window, px(30, 'x') + 2, px(30, 'y'), ALT)
     expect(getFrameSource()).toBeNull()
     fire('pointerup', window, px(30, 'x') + 2, px(30, 'y'), ALT)
     expect(frames()[1]?.rect).toEqual(rect(10, 10, 40, 40))
 
-    pointer('pointerdown', button, 30, 30, ALT)
+    pointer('pointerdown', button, 30, 30)
     fire('pointermove', window, px(30, 'x') + 3, px(30, 'y'), ALT)
     expect(getFrameSource()).not.toBeNull()
     fire('pointerup', window, px(30, 'x') + 3, px(30, 'y'), ALT)
@@ -947,7 +948,7 @@ describe('frameGesture · move', () => {
   it('keeps the frame inside the spread on every side', () => {
     drag(900, -900, ALT)
     expect(frames()[1]?.rect).toEqual(rect(260, 0, 40, 40))
-    pointer('pointerdown', button, 280, 20, ALT)
+    pointer('pointerdown', button, 280, 20)
     pointer('pointermove', window, -900, 900, ALT)
     pointer('pointerup', window, -900, 900, ALT)
     expect(frames()[1]?.rect).toEqual(rect(0, 260, 40, 40))
@@ -961,7 +962,7 @@ describe('frameGesture · move', () => {
     expect(button.style.top).toBe('')
     expect(frames()[1]?.rect.x).toBe(10)
 
-    pointer('pointerdown', button, 30, 30, ALT)
+    pointer('pointerdown', button, 30, 30)
     pointer('pointermove', window, 90, 90, ALT)
     pointer('pointercancel', window, 90, 90, ALT)
     expect(button.style.left).toBe('')
@@ -995,7 +996,7 @@ describe('frameGesture · move', () => {
   })
 
   it('follows only the pointer that started the move', () => {
-    pointer('pointerdown', button, 30, 30, ALT)
+    pointer('pointerdown', button, 30, 30)
     pointer('pointermove', window, 70, 55, ALT)
     secondPointer('pointermove', 200, 200)
     secondPointer('pointerup', 200, 200)
@@ -1140,7 +1141,8 @@ describe('frameGesture · group move', () => {
 
   /** Press inside frame a (filled) and move by (dx, dy) mm, still pressed. */
   function press(dx: number, dy: number, init: MouseEventInit = {}) {
-    pointer('pointerdown', button(0), 120, 120, init)
+    // Alt after the press bypasses snapping; Alt at the press would duplicate.
+    pointer('pointerdown', button(0), 120, 120, { ...init, altKey: false })
     pointer('pointermove', window, 120 + dx, 120 + dy, init)
   }
 
@@ -1278,7 +1280,7 @@ describe('frameGesture · group move', () => {
   it('a frame outside the set moves alone; a set elsewhere moves nothing here', () => {
     setup()
     // d is empty: today's single move, the set stays put.
-    pointer('pointerdown', button(3), 260, 210, ALT)
+    pointer('pointerdown', button(3), 260, 210)
     pointer('pointermove', window, 280, 210, ALT)
     pointer('pointerup', window, 280, 210, ALT)
     expect(frames().map((frame) => frame.rect.x)).toEqual([100, 10, 200, 270])
@@ -1370,7 +1372,7 @@ describe('frameGesture · group move', () => {
     stray.className = 'spread-frame'
     stray.setAttribute('data-frame-id', 'a')
     spread.append(stray)
-    pointer('pointerdown', stray, 120, 120, ALT)
+    pointer('pointerdown', stray, 120, 120)
     pointer('pointermove', window, 140, 120, ALT)
     pointer('pointerup', window, 140, 120, ALT)
     expect(button(0).style.transform).toBe('')
