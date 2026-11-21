@@ -17,26 +17,38 @@ import {
 
 import { cn } from "@/lib/utils"
 
+import { POSITIONER, SCALED_EDGE, scaledBox, scaledGaps, useOverlayScale } from "./overlay-scale"
+
 const PopoverTrigger = AriaDialogTrigger
 
-const Popover = ({ className, offset = 4, ...props }: AriaPopoverProps) => (
-  <AriaPopover
-    offset={offset}
-    className={composeRenderProps(className, (className) =>
-      cn(
-        "z-50 rounded-md border bg-popover text-popover-foreground shadow-md outline-hidden",
-        /* Entering */
-        "data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95",
-        /* Exiting */
-        "data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95",
-        /* Placement */
-        "data-[placement=bottom]:slide-in-from-top-2 data-[placement=left]:slide-in-from-right-2 data-[placement=right]:slide-in-from-left-2 data-[placement=top]:slide-in-from-bottom-2",
-        className
-      )
-    )}
-    {...props}
-  />
-)
+const POPOVER_BOX = "rounded-md bg-popover text-popover-foreground shadow-md outline-hidden"
+const POPOVER_MOTION = [
+  /* Entering */
+  "data-[entering]:animate-in data-[entering]:fade-in-0 data-[entering]:zoom-in-95",
+  /* Exiting */
+  "data-[exiting]:animate-out data-[exiting]:fade-out-0 data-[exiting]:zoom-out-95",
+  /* Placement */
+  "data-[placement=bottom]:slide-in-from-top-2 data-[placement=left]:slide-in-from-right-2 data-[placement=right]:slide-in-from-left-2 data-[placement=top]:slide-in-from-bottom-2",
+]
+
+/* Interface size (overlay-scale.tsx): at s ≠ 1 the box and the consumer's classes move to a zoomed child. */
+const Popover = ({ className, offset = 4, crossOffset, containerPadding, children, ...props }: AriaPopoverProps) => {
+  const s = useOverlayScale()
+  const scaled = s !== 1
+  return (
+    <AriaPopover
+      {...scaledGaps(s, offset, crossOffset, containerPadding)}
+      className={composeRenderProps(className, (className) =>
+        scaled
+          ? cn("z-50", POSITIONER, ...POPOVER_MOTION)
+          : cn("z-50 border", POPOVER_BOX, ...POPOVER_MOTION, className)
+      )}
+      {...props}
+    >
+      {scaled ? scaledBox(s, children, cn(POPOVER_BOX, SCALED_EDGE), className) : children}
+    </AriaPopover>
+  )
+}
 
 function PopoverDialog({ className, ...props }: AriaDialogProps) {
   return (

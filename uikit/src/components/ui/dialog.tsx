@@ -23,6 +23,8 @@ import {
 
 import { cn } from "@/lib/utils"
 
+import { useOverlayScale, zoomStyle } from "./overlay-scale"
+
 const Dialog = AriaDialog
 
 const sheetVariants = cva(
@@ -49,26 +51,33 @@ const sheetVariants = cva(
 
 const DialogTrigger = AriaDialogTrigger
 
+/* Interface size (overlay-scale.tsx): the overlay portals outside the zoomed demo root, so at s ≠ 1 its
+   root carries the zoom; the dialog inside is the 100 % dialog × s. */
 const DialogOverlay = ({
   className,
   isDismissable = true,
+  style,
   ...props
-}: AriaModalOverlayProps) => (
-  <AriaModalOverlay
-    isDismissable={isDismissable}
-    className={composeRenderProps(className, (className) =>
-      cn(
-        "fixed inset-0 z-50 bg-black/80",
-        /* Exiting */
-        "data-[exiting]:duration-(--duration-base) data-[exiting]:animate-out data-[exiting]:fade-out-0",
-        /* Entering */
-        "data-[entering]:animate-in data-[entering]:fade-in-0",
-        className
-      )
-    )}
-    {...props}
-  />
-)
+}: AriaModalOverlayProps) => {
+  const s = useOverlayScale()
+  return (
+    <AriaModalOverlay
+      isDismissable={isDismissable}
+      className={composeRenderProps(className, (className) =>
+        cn(
+          "fixed inset-0 z-50 bg-black/80",
+          /* Exiting */
+          "data-[exiting]:duration-(--duration-base) data-[exiting]:animate-out data-[exiting]:fade-out-0",
+          /* Entering */
+          "data-[entering]:animate-in data-[entering]:fade-in-0",
+          className
+        )
+      )}
+      style={s === 1 ? style : composeRenderProps(style, (style) => ({ ...style, ...zoomStyle(s) }))}
+      {...props}
+    />
+  )
+}
 
 interface DialogContentProps
   extends Omit<React.ComponentProps<typeof AriaModal>, "children">,

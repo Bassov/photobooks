@@ -18,6 +18,7 @@ import {
 import { flushSync } from "react-dom"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useOverlayScale, zoomStyle } from "./overlay-scale"
 import "./toast.css"
 
 export interface ToastContent {
@@ -38,9 +39,12 @@ export function createToastQueue() {
 }
 
 export function ToastRegion({ className, ...props }: Omit<ToastRegionProps<ToastContent>, "children"> & { className?: string }) {
+  // Interface size (overlay-scale.tsx): the region portals outside the zoomed demo root and zooms itself
+  const s = useOverlayScale()
   return (
     <AriaToastRegion
       {...props}
+      style={s === 1 ? props.style : { ...props.style, ...zoomStyle(s) }}
       className={cn("fixed z-50 flex flex-col-reverse gap-2 rounded-lg outline-hidden data-[focus-visible]:ring-2 data-[focus-visible]:ring-ring", className)}
     >
       {({ toast }) => {

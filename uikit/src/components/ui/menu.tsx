@@ -164,7 +164,7 @@ function JollyMenu<T extends object>({
       <Button variant={variant} size={size}>
         {label}
       </Button>
-      <MenuPopover className="min-w-(--trigger-width)">
+      <MenuPopover className="min-w-[calc(var(--trigger-width)/var(--overlay-scale,1))]">
         <Menu {...props}>{children}</Menu>
       </MenuPopover>
     </MenuTrigger>
