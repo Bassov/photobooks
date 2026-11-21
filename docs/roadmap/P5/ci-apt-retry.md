@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item ci-apt-retry
+Status: done
 
 CI jobs sometimes fail before any test runs because `apt-get` inside `playwright install --with-deps` /
 `playwright install-deps` hits a transient mirror error (follow-up 3 of #654 ci-flakes). Retry transient apt /
