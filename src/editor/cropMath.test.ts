@@ -138,6 +138,58 @@ describe('scaleCrop', () => {
     }
   })
 
+  it('keeps a panned photo at cover still when a corner drags inward (M125)', () => {
+    // A 2:1 photo covers the square frame 200 wide, panned to x −10.
+    const crop = { zoom: 1, center: { x: 0.3, y: 0.5 } }
+    expect(photoBox(crop, 2).x).toBeCloseTo(-10)
+    for (const corner of ['se', 'nw', 'ne', 'sw'] as const) {
+      const at = {
+        x: corner.endsWith('e') ? 140 : 40,
+        y: corner.startsWith('s') ? 60 : 40,
+      }
+      const next = scaleCrop(RECT, crop, 2, 'fill', corner, at, false)
+      expect(next.fit).toBe('fill')
+      expect(next.crop.zoom).toBe(1)
+      expect(next.crop.center.x).toBeCloseTo(0.3, 9)
+      expect(next.crop.center.y).toBeCloseTo(0.5, 9)
+    }
+  })
+
+  it('stops at 8× with the anchor corner in place', () => {
+    const crop = { zoom: 4, center: { x: 0.5, y: 0.5 } }
+    const before = photoBox(crop, 1)
+    const next = scaleCrop(
+      RECT,
+      crop,
+      1,
+      'fill',
+      'se',
+      { x: 2000, y: 2000 },
+      false,
+    )
+    expect(next.crop.zoom).toBe(8)
+    const after = photoBox(next.crop, 1)
+    expect(after.x).toBeCloseTo(before.x)
+    expect(after.y).toBeCloseTo(before.y)
+    expect(after.width).toBeCloseTo(800)
+  })
+
+  it('stops at 8× when Fit grows into Fill', () => {
+    // Fit cover ratio 2 for a 2:1 photo: Fit zoom 16 = Fill 8.
+    const next = scaleCrop(
+      RECT,
+      COVER_CROP,
+      2,
+      'fit',
+      'se',
+      { x: 5000, y: 2500 },
+      false,
+    )
+    expect(next.fit).toBe('fill')
+    expect(next.crop.zoom).toBe(8)
+    expect(photoBox(next.crop, 2).x).toBeCloseTo(0)
+  })
+
   it('stays Fit exactly at cover', () => {
     const next = scaleCrop(
       RECT,

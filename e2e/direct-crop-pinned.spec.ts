@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
+import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
 import {
   ensurePhotoFixtures,
@@ -132,6 +133,31 @@ function hitAt(page: Page, at: Point): Promise<string | null> {
         ?.getAttribute('data-testid') ?? null,
     at,
   )
+}
+
+/**
+ * Waits until the canvas camera is still: the frame rect and the
+ * pasteboard-scroll offsets read the same on two polls in a row.
+ */
+async function cameraSettled(page: Page, frame: Locator): Promise<void> {
+  const scroll = page.getByTestId('pasteboard-scroll')
+  const read = async () => {
+    const f = await box(frame)
+    const s = await scroll.evaluate((el) => [el.scrollLeft, el.scrollTop])
+    return [f.x, f.y, f.width, f.height, ...s].map(Math.round).join(',')
+  }
+  let last = ''
+  await expect
+    .poll(
+      async () => {
+        const now = await read()
+        const still = now === last
+        last = now
+        return still
+      },
+      { intervals: [100] },
+    )
+    .toBe(true)
 }
 
 /** A CSS colour (e.g. `var(--crop)`) resolved to `rgb(…)` in the page. */
@@ -307,8 +333,10 @@ test('pinned crop: 2 px --crop outline, photo handles over hidden frame handles,
   const ratio0 = await cropRatio()
   const before = await box(image)
   await page.mouse.move(centre(before).x, centre(before).y)
-  await page.mouse.wheel(0, -200)
+  // A small zoom step keeps the frame clear of the inspector edge.
+  await page.mouse.wheel(0, -100)
   await expect(page.getByTestId('zoom-label')).not.toHaveText('Fit')
+  await cameraSettled(page, frame)
   await expect(frame).not.toHaveAttribute('data-crop-active', 'true')
   await expect(tag).toHaveCount(0)
   await expect
@@ -341,8 +369,16 @@ test('pinned crop: 2 px --crop outline, photo handles over hidden frame handles,
   )
   const handles = frame.getByTestId('photo-handle')
   await expect(handles).toHaveCount(4)
+  await cameraSettled(page, frame)
+  const port = await box(page.getByTestId('pasteboard-scroll'))
   for (const handle of await handles.all()) {
-    expect(await hitAt(page, centre(await box(handle)))).toBe('photo-handle')
+    const c = centre(await box(handle))
+    // The camera keeps every handle in the visible canvas, not under a panel.
+    expect(c.x).toBeGreaterThan(port.x)
+    expect(c.x).toBeLessThan(port.x + port.width)
+    expect(c.y).toBeGreaterThan(port.y)
+    expect(c.y).toBeLessThan(port.y + port.height)
+    expect(await hitAt(page, c)).toBe('photo-handle')
   }
   const grabber = frame.getByTestId('crop-grabber')
   expect(await hitAt(page, centre(await box(grabber)))).toBe('crop-grabber')
@@ -407,6 +443,175 @@ test('pinned crop: 2 px --crop outline, photo handles over hidden frame handles,
     .toBeGreaterThan(100)
   await page.keyboard.press('Escape')
   await expect(frame).not.toHaveAttribute('data-crop-active', 'true')
+})
+
+/** Hovers the grabber until the photo layer shows. */
+async function showLayer(page: Page, frame: Locator): Promise<void> {
+  const g = centre(await box(frame.getByTestId('crop-grabber')))
+  await page.mouse.move(g.x, g.y)
+  await expect(frame.getByTestId('photo-layer')).toHaveAttribute(
+    'data-shown',
+    'true',
+  )
+}
+
+/**
+ * Two portraits on page 1, the 3:2 sample in the left frame (selected), the
+ * empty right frame beside it.
+ */
+async function photoBesideNeighbour(
+  page: Page,
+): Promise<{ frame: Locator; neighbour: Locator }> {
+  await openSessionEditor(page)
+  await page.bringToFront()
+  await choosePhotoFolder(page, [photoFixturePaths.samplePng])
+  await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(1, {
+    timeout: 30_000,
+  })
+  await applyLayout(page, 'Two portraits', { restorePanel: true })
+  await dragPlaceFirstFilmstripItem(page, 0)
+  const frame = page.locator('[data-testid="spread-frame"][data-filled="true"]')
+  await expect(frame.getByTestId('spread-frame-image')).toHaveCount(1, {
+    timeout: 30_000,
+  })
+  const neighbour = page
+    .getByTestId('spread-view')
+    .filter({ has: frame })
+    .locator('[data-testid="spread-frame"]:not([data-filled="true"])')
+  await expect(neighbour).toHaveCount(1)
+  if ((await frame.getAttribute('aria-pressed')) !== 'true') {
+    await frame.click()
+  }
+  await expect(frame).toHaveAttribute('aria-pressed', 'true')
+  const f = await box(frame)
+  await page.mouse.move(f.x + f.width / 2, f.y + f.height + 120, { steps: 4 })
+  await expect(frame.getByTestId('photo-layer')).not.toHaveAttribute(
+    'data-shown',
+    'true',
+  )
+  return { frame, neighbour }
+}
+
+test('hover photo layer sits over the neighbouring frame: 4 handles hit first, ghost painted (M123)', async ({
+  page,
+}) => {
+  const { frame, neighbour } = await photoBesideNeighbour(page)
+  const n = await box(neighbour)
+  const f0 = await box(frame)
+  expect(n.x).toBeGreaterThan(f0.x + f0.width)
+  // Probe inside the neighbour, 10 px in from the side facing the photo.
+  const probe = { x: 10, y: n.height / 2 }
+  const [hidden] = await pixelsAt(neighbour, [probe])
+
+  await showLayer(page, frame)
+  // The 3:2 photo overhangs the portrait frame well into the neighbour.
+  const ghost = await box(frame.getByTestId('photo-ghost'))
+  expect(ghost.x + ghost.width).toBeGreaterThan(n.x + 20)
+  const handles = frame.getByTestId('photo-handle')
+  await expect(handles).toHaveCount(4)
+  const centres = await Promise.all(
+    (await handles.all()).map(async (handle) => centre(await box(handle))),
+  )
+  // ne and se sit over the neighbour.
+  expect(centres.filter((c) => c.x > n.x && c.x < n.x + n.width)).toHaveLength(
+    2,
+  )
+  for (const c of centres) {
+    expect(await hitAt(page, c)).toBe('photo-handle')
+  }
+  // Paint: the .3 ghost tints the neighbour's placeholder.
+  const [shown] = await pixelsAt(neighbour, [probe])
+  const delta = Math.max(
+    ...[0, 1, 2].map((i) => Math.abs((shown?.[i] ?? 0) - (hidden?.[i] ?? 0))),
+  )
+  expect(delta).toBeGreaterThan(10)
+  await assertDocumentFitsViewport(page)
+})
+
+test('Fill at cover: an inward photo-corner drag leaves the photo still (M125)', async ({
+  page,
+}) => {
+  const { frame } = await sizedPhotoFrame(page)
+  const image = frame.getByTestId('spread-frame-image')
+  const f = await box(frame)
+  const p = await box(image)
+  // The 3:2 photo covers the square frame and overhangs on both sides.
+  expect(p.x).toBeLessThan(f.x - 20)
+  await showLayer(page, frame)
+  const se = centre(
+    await box(
+      frame.locator('[data-testid="photo-handle"][data-photo-handle="se"]'),
+    ),
+  )
+  await page.mouse.move(se.x, se.y)
+  await page.mouse.down()
+  for (const step of [0.25, 0.5, 0.75, 1]) {
+    await page.mouse.move(se.x - 50 * step, se.y - 50 * step)
+  }
+  await page.mouse.up()
+  const after = await box(image)
+  for (const key of ['x', 'y', 'width', 'height'] as const) {
+    expect(Math.abs(after[key] - p[key])).toBeLessThanOrEqual(0.5)
+  }
+  const f1 = await box(frame)
+  expect(Math.abs(f1.x - f.x)).toBeLessThanOrEqual(0.5)
+})
+
+test('pinned crop: Tab keeps the camera still, one Esc keeps the frame selected, a second deselects (M124, M126)', async ({
+  page,
+}) => {
+  const { frame } = await sizedPhotoFrame(page)
+  const scroll = page.getByTestId('pasteboard-scroll')
+  await page.getByTestId('zoom-in').click()
+  await page.getByTestId('zoom-in').click()
+  await expect(page.getByTestId('zoom-label')).not.toHaveText('Fit')
+  await frame.dblclick({ position: { x: 12, y: 12 } })
+  await expect(frame).toHaveAttribute('data-crop-active', 'true')
+  await frame.focus()
+  // Scroll the nw photo handle out of the scrollport, past its left edge.
+  const nw = frame.locator(
+    '[data-testid="photo-handle"][data-photo-handle="nw"]',
+  )
+  const view = await box(scroll)
+  const h = await box(nw)
+  await scroll.evaluate(
+    (el, by) => {
+      el.scrollLeft += by
+    },
+    h.x + h.width + 10 - view.x,
+  )
+  await expect
+    .poll(async () => (await box(nw)).x + h.width)
+    .toBeLessThan(view.x)
+  const read = () =>
+    scroll.evaluate((el) => [el.scrollLeft, el.scrollTop] as const)
+  const s0 = await read()
+  const f0 = await box(frame)
+
+  const focused = () =>
+    page.evaluate(
+      () => document.activeElement?.getAttribute('data-photo-handle') ?? null,
+    )
+  await page.keyboard.press('Tab')
+  await expect.poll(focused).toBe('nw')
+  await page.keyboard.press('Tab')
+  await expect.poll(focused).toBe('ne')
+  expect(await read()).toEqual(s0)
+  const f1 = await box(frame)
+  for (const key of ['x', 'y', 'width', 'height'] as const) {
+    expect(Math.abs(f1[key] - f0[key])).toBeLessThanOrEqual(0.5)
+  }
+
+  await page.keyboard.press('Escape')
+  await expect(frame).not.toHaveAttribute('data-crop-active', 'true')
+  await expect(frame).toHaveAttribute('aria-pressed', 'true')
+  await expect(frame.getByTestId('sel-handle')).toHaveCount(8)
+  await expect(frame.getByTestId('crop-grabber')).toHaveCount(1)
+  await expect(page.getByTestId('inspector-context')).toHaveText('Photo')
+  await page.keyboard.press('Escape')
+  await expect(frame).not.toHaveAttribute('aria-pressed', 'true')
+  await expect(frame.getByTestId('sel-handle')).toHaveCount(0)
+  await assertDocumentFitsViewport(page)
 })
 
 test('a 50 × 30 px frame has no grabber and no mid handles on its 30 px sides', async ({

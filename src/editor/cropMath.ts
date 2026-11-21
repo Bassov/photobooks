@@ -1,4 +1,10 @@
-import { clampCrop, shownCropRect, type Frame, type RectMm } from '../core'
+import {
+  clampCrop,
+  MAX_CROP_ZOOM,
+  shownCropRect,
+  type Frame,
+  type RectMm,
+} from '../core'
 
 type Crop = NonNullable<Frame['crop']>
 
@@ -50,9 +56,6 @@ export function panCrop(
 
 export type PhotoCorner = 'nw' | 'ne' | 'sw' | 'se'
 
-/** Floor of a corner-drag scale factor (the pointer crossed the anchor). */
-const MIN_SCALE = 1e-3
-
 /** Fit zoom at which a Fit photo covers the frame (fit window / fill window). */
 export function fitCoverZoom(rect: RectMm, crop: Crop, aspect: number): number {
   const at = { ...crop, zoom: 1 }
@@ -91,9 +94,14 @@ export function scaleCrop(
   const vy = (cy - ay) * height
   const px = point.x - (left + ax * width)
   const py = point.y - (top + ay * height)
-  const scale = Math.max(MIN_SCALE, (px * vx + py * vy) / (vx * vx + vy * vy))
-  const zoom = crop.zoom * scale
   const cover = fit === 'fit' ? fitCoverZoom(rect, crop, aspect) : 1
+  // Zoom limits (cover / fit at 1, 8× in Fill) bound the scale itself, so the
+  // anchor corner stays put at a limit instead of the clamp sliding the photo.
+  const scale = Math.min(
+    (MAX_CROP_ZOOM * cover) / crop.zoom,
+    Math.max(1 / crop.zoom, (px * vx + py * vy) / (vx * vx + vy * vy)),
+  )
+  const zoom = crop.zoom * scale
   const nextFit = fit === 'fit' && zoom <= cover ? 'fit' : 'fill'
   const next = {
     ...crop,
