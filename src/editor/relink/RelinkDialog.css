@@ -1,0 +1,8 @@
+/* r40 M150: the kit RelinkDialog title (`.heading text-xl leading-tight`,
+   −0.005em tracking); the sub line sets the 4 px gap (kit `mt-1`). */
+.relink-dialog-panel .pb-dialog-title {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+}
