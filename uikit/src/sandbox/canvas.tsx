@@ -11,7 +11,7 @@ import {
   allGuides, clamp, round, effectiveDpi, orientedSize, photoOf, uid, framesFromTemplate,
   parentOf, pageNumbersOf, foliosOf, printSafe, type Guide, photoRect, keepPhoto, scalePhoto, panPhoto,
 } from "./model"
-import { useStudio, mapSpread, mapFrames, useKeys, type Studio } from "./store"
+import { useStudio, mapSpread, mapFrames, placePhoto, useKeys, type Studio } from "./store"
 import { anchorPhoto, fillTokens } from "./meta"
 import { setTextOverflow, takeTextGrow, useTextOverflow } from "./text-overflow"
 import { badgeFit, frameContains, isOverridePress, overrideFrame, parentFramesOf, parentHit } from "./parent-overrides"
@@ -253,11 +253,7 @@ export async function handleDrop(st: Studio, si: number, frameId: string | null,
   }
   if (!photos.length) return
   if (photos.length === 1 || !st.features.multiDrop) {
-    if (!frameId) return
-    const old = sp.frames.find((x) => x.id === frameId)?.photo
-    st.update((d) => mapFrames(d, si, [frameId], (x) => ({ ...x, photo: photos[0], zoom: 1, ox: 0, oy: 0, qt: 0, straighten: 0 })), old ? "Replace photo" : "Place photo")
-    st.setStatus(old ? `Replaced ${P(old).name} — it is back in the gallery` : `Placed ${P(photos[0]).name}`)
-    st.setSel([frameId]); st.setCur(si)
+    if (frameId) placePhoto(st, si, frameId, photos[0])
     return
   }
   // multi-drop: target frame first, then the spread's empty frames in order
@@ -393,7 +389,7 @@ function FrameChrome({ f, sc, pinned, rotate, op, rotating, onHandle, onPan, onS
               boxShadow: on ? "0 0 0 1.5px var(--paper), 0 0 0 3px var(--crop)" : "0 0 0 1.5px var(--crop), 0 1px 2px rgb(0 0 0 / .25)" }} />
         )
       })}
-      {op && !pinned && <span data-testid="crop-tag" className="absolute -top-6 left-0 whitespace-nowrap rounded-md bg-field px-1.5 py-0.5 text-2xs font-semibold text-foreground">Crop · {Math.round(f.zoom * 100)}%</span>}
+      {op && !pinned && <span data-testid="crop-tag" className="absolute -top-6 left-0 whitespace-nowrap rounded-md bg-field px-1.5 py-0.5 text-2xs font-semibold leading-4 text-foreground">Crop · {Math.round(f.zoom * 100)}%</span>}
     </div>
   )
 }
@@ -741,7 +737,9 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
       {showSel && selFrames.length > 1 && (() => { const b = bbox(selFrames); return <div className="pointer-events-none absolute z-40 outline-1 outline-dashed outline-mark" style={{ left: b.x * sc - 4, top: b.y * sc - 4, width: b.w * sc + 8, height: b.h * sc + 8 }} /> })()}
       {/* proto: floating contextual toolbar for a single selected frame */}
       {active && si === st.cur && <TemplatePreview sc={sc} />}
-      {st.cropId && s.frames.some((f) => f.id === st.cropId) && (() => { const f = s.frames.find((x) => x.id === st.cropId)!; return <div data-testid="crop-overlay" className="pointer-events-none absolute z-40 outline-2 outline-crop [outline-style:solid]" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc }}><span data-testid="crop-tag" className="absolute -top-6 left-0 whitespace-nowrap rounded-md bg-field px-1.5 py-0.5 text-2xs font-semibold text-foreground">Crop · {Math.round(f.zoom * 100)}%</span></div> })()}
+      {st.cropId && s.frames.some((f) => f.id === st.cropId) && (() => { const f = s.frames.find((x) => x.id === st.cropId)!; return <div data-testid="crop-overlay" className="pointer-events-none absolute z-40 outline-2 outline-crop [outline-style:solid]" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc }}><span data-testid="crop-tag" className="absolute -top-6 left-0 whitespace-nowrap rounded-md bg-field px-1.5 py-0.5 text-2xs font-semibold leading-4 text-foreground">Crop · {Math.round(f.zoom * 100)}%</span></div> })()}
+      {/* Designer frame-context-menu M3: the pick target's tag, in the crop-tag look */}
+      {st.pick?.si === si && !view.preview && (() => { const f = s.frames.find((x) => x.id === st.pick!.id); return f && <div data-testid="pick-overlay" className="pointer-events-none absolute z-40" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined }}><span data-testid="pick-tag" className="absolute -top-6 left-0 whitespace-nowrap rounded-sm bg-field px-1.5 py-0.5 text-2xs font-semibold leading-4 text-foreground">{st.pick!.kind === "replace" ? "Replacing" : "Placing"}</span></div> })()}
     </div>
   )
 }

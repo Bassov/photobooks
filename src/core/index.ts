@@ -346,7 +346,13 @@ export {
   type AlignEdge,
   type DistributeAxis,
 } from './ops/transform'
-export { fillSpread, insertSpreadWithAssets } from './ops/fill'
+export {
+  fillBook,
+  fillSpread,
+  insertSpreadWithAssets,
+  planFillBook,
+  type FillBookPlan,
+} from './ops/fill'
 export {
   GUIDE_OVERSHOOT_MM,
   addGuide,

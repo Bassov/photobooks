@@ -115,7 +115,9 @@ export default function SitePreview({ onExit }: { onExit: () => void }) {
       <div
         className="site relative min-h-0 flex-1 overflow-hidden"
         // Beats the unlayered full-viewport `.site` min-height (site.css).
-        style={{ minHeight: 0 }}
+        // The counter-zoom draws the room at visitor size under any
+        // interface scale (interface-size D6); the bar above still scales.
+        style={{ minHeight: 0, zoom: 'calc(1 / var(--ui-scale))' }}
         data-testid="site-preview-scroll"
       >
         <SiteRoom

@@ -1,11 +1,25 @@
+/* Positioner + zoomed .pb-overlay-box: see scaledOverlay.css. */
 .pb-popover {
   z-index: 50;
-  border: 1px solid var(--border);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  padding: 0;
+  border: 1px solid transparent;
+  outline: none;
+}
+
+.pb-popover__box {
   border-radius: var(--radius-md);
   background: var(--popover);
   color: var(--foreground);
-  box-shadow: var(--shadow-md);
-  outline: none;
+  /* The 1 px hairline, drawn in the padding (it scales with the box). */
+  box-shadow:
+    inset 0 0 0 1px var(--border),
+    var(--shadow-md);
 }
 
 .pb-popover-dialog {

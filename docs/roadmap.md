@@ -192,6 +192,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [in-app-publish-core](roadmap/P3/in-app-publish-core.md) — Bug: /next-roadmap-item in-app-publish-core
 - [ ] [feature] [publish-site-flaky](roadmap/P3/publish-site-flaky.md) — Bug: /next-roadmap-item publish-site-flaky
 - [ ] [feature] [e2e-ci-shard](roadmap/P3/e2e-ci-shard.md) — Bug: /next-roadmap-item e2e-ci-shard
+- [ ] [lite] [e2e-slow-tests](roadmap/P3/e2e-slow-tests.md) — Bug: /next-roadmap-item e2e-slow-tests
 - [ ] [lite] [deps-dev-outline-longhands](roadmap/P3/deps-dev-outline-longhands.md) — Bug: /next-roadmap-item deps-dev-outline-longhands
 - [ ] [feature] [finalize-reliability](roadmap/P3/finalize-reliability.md) — Bug: /next-roadmap-item finalize-reliability
 - [ ] [feature] [perf-workflow-merge-base](roadmap/P3/perf-workflow-merge-base.md) — Bug: /next-roadmap-item perf-workflow-merge-base
@@ -286,6 +287,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [direct-crop](roadmap/P5/direct-crop.md) — Bug: /next-roadmap-item direct-crop
 - [ ] [feature] [direct-crop-pinned](roadmap/P5/direct-crop-pinned.md) — Bug: /next-roadmap-item direct-crop-pinned
 - [ ] [feature] [design-r32-crop-prod](roadmap/P5/design-r32-crop-prod.md) — Bug: /next-roadmap-item design-r32-crop-prod
+- [ ] [lite] [design-r32-crop-kit](roadmap/P5/design-r32-crop-kit.md) — Bug: /next-roadmap-item design-r32-crop-kit
 - [ ] [lite] [a5-fit-parity](roadmap/P5/a5-fit-parity.md) — Bug: /next-roadmap-item a5-fit-parity
 - [ ] [feature] [polish-type](roadmap/P5/polish-type.md) — Bug: /next-roadmap-item polish-type
 - [ ] [feature] [polish-surface](roadmap/P5/polish-surface.md) — Bug: /next-roadmap-item polish-surface
@@ -295,9 +297,13 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [site-reader-gl-ready](roadmap/P5/site-reader-gl-ready.md) — Bug: /next-roadmap-item site-reader-gl-ready
 - [ ] [lite] [cycle-layouts-core](roadmap/P5/cycle-layouts-core.md) — Bug: /next-roadmap-item cycle-layouts-core
 - [ ] [feature] [interface-size-core](roadmap/P5/interface-size-core.md) — Bug: /next-roadmap-item interface-size-core
+- [ ] [feature] [interface-size-pointer](roadmap/P5/interface-size-pointer.md) — Bug: /next-roadmap-item interface-size-pointer
 - [ ] [feature] [interface-size-modals](roadmap/P5/interface-size-modals.md) — Bug: /next-roadmap-item interface-size-modals
+- [ ] [feature] [interface-size-popovers](roadmap/P5/interface-size-popovers.md) — Bug: /next-roadmap-item interface-size-popovers
+- [ ] [feature] [fill-book-core](roadmap/P5/fill-book-core.md) — Bug: /next-roadmap-item fill-book-core
 - [ ] [feature] [prepush-scoped-units](roadmap/P5/prepush-scoped-units.md) — Bug: /next-roadmap-item prepush-scoped-units
 - [ ] [lite] [ratchet-merge-base](roadmap/P5/ratchet-merge-base.md) — Bug: /next-roadmap-item ratchet-merge-base
+- [ ] [feature] [interface-size-kit](roadmap/P5/interface-size-kit.md) — Bug: /next-roadmap-item interface-size-kit
 - [ ] [lite] [ci-flakes](roadmap/P5/ci-flakes.md) — Bug: /next-roadmap-item ci-flakes
 - [ ] [feature] [stryker-ci-green](roadmap/P5/stryker-ci-green.md) — Bug: /next-roadmap-item stryker-ci-green
 - [ ] [feature] [printer-presets-core](roadmap/P5/printer-presets-core.md) — Bug: /next-roadmap-item printer-presets-core
@@ -306,7 +312,9 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [frame-copy-paste-kit](roadmap/P5/frame-copy-paste-kit.md) — Bug: /next-roadmap-item frame-copy-paste-kit
 - [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
 - [ ] [feature] [frame-copy-paste-core](roadmap/P5/frame-copy-paste-core.md) — Bug: /next-roadmap-item frame-copy-paste-core
+- [ ] [feature] [frame-copy-paste](roadmap/P5/frame-copy-paste.md) — Bug: /next-roadmap-item frame-copy-paste
 - [ ] [feature] [frame-menu-kit](roadmap/P5/frame-menu-kit.md) — Bug: /next-roadmap-item frame-menu-kit
+- [ ] [feature] [photo-pick-kit](roadmap/P5/photo-pick-kit.md) — Bug: /next-roadmap-item photo-pick-kit
 - [ ] [lite] [roadmap-status-sync](roadmap/P5/roadmap-status-sync.md) — Bug: /next-roadmap-item roadmap-status-sync
 - [ ] [feature] [printer-presets-kit-book](roadmap/P5/printer-presets-kit-book.md) — Bug: /next-roadmap-item printer-presets-kit-book
 - [ ] [lite] [deps-dev-knip-relink](roadmap/P5/deps-dev-knip-relink.md) — Bug: /next-roadmap-item deps-dev-knip-relink

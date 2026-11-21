@@ -15,6 +15,7 @@ import {
 } from 'react-aria-components'
 import { cx } from './className'
 import { Icon } from './Icon'
+import { overlayBox, useScaledGaps } from './scaledOverlay'
 import './Menu.css'
 
 export function MenuTrigger(props: AriaMenuTriggerProps) {
@@ -25,17 +26,26 @@ export interface MenuPopoverProps extends Omit<PopoverProps, 'className'> {
   className?: string
 }
 
+/**
+ * The positioned element keeps `pb-menu-popover` + `className`; the zoomed
+ * box inside it takes the same `className` (widths) and the paint (Popover.css).
+ */
 export function MenuPopover({
   className,
   offset = 4,
+  crossOffset,
+  containerPadding,
+  children,
   ...props
 }: MenuPopoverProps) {
   return (
     <AriaPopover
       {...props}
-      offset={offset}
+      {...useScaledGaps({ offset, crossOffset, containerPadding })}
       className={cx('pb-menu-popover', className)}
-    />
+    >
+      {overlayBox(children, cx('pb-menu-popover__box', className))}
+    </AriaPopover>
   )
 }
 

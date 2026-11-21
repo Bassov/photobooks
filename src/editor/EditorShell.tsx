@@ -28,6 +28,7 @@ import { installDocumentDragGesture } from './editorGesture'
 import { installFrameGesture } from './frameGesture'
 import { installFrameHandleGesture } from './frameHandleGesture'
 import { installPhotoGesture } from './photoGesture'
+import { installFrameClipboard } from './frameClipboard'
 import { installEditorKeys } from './galleryDrop'
 import { setImportProgress } from './importProgressStore'
 import { MastersCanvas } from './MastersCanvas'
@@ -47,6 +48,7 @@ export function EditorShell() {
     getEditorStatus,
   )
   useEffect(() => installEditorKeys(), [])
+  useEffect(() => installFrameClipboard(), [])
   useEffect(() => installDocumentDragGesture(), [])
   useEffect(() => installCropGesture(), [])
   useEffect(() => installFrameGesture(), [])

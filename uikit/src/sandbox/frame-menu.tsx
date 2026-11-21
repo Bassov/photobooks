@@ -55,12 +55,14 @@ function frameGroups(st: Studio, si: number, frames: Frame[]): Group[] {
     { id: "hide-parent", label: "Hide on this spread", Icon: EyeOff },
   ])
   if (one && f.kind === "image" && scope) {
+    // M2: a pick needs an unlocked frame (drops are refused) and ≥ 1 photo in the filmstrip
+    const pickable = !f.locked && st.doc.gallery.length > 0
     groups.push(f.photo ? [
-      { id: "replace", label: "Replace photo…", Icon: Replace, enabled: !f.locked },
+      { id: "replace", label: "Replace photo…", Icon: Replace, enabled: pickable },
       { id: "remove", label: "Remove photo", Icon: ImageOff },
       (f.fit ?? "fill") === "fill" ? { id: "fit", label: "Fit photo to frame", Icon: Shrink } : { id: "fit", label: "Fill frame", Icon: Expand },
       { id: "crop", label: "Crop", Icon: Crop },
-    ] : [{ id: "place", label: "Place photo…", Icon: ImagePlus, enabled: !f.locked }])
+    ] : [{ id: "place", label: "Place photo…", Icon: ImagePlus, enabled: pickable }])
   }
   if (scope) groups.push([
     { id: "cut", label: "Cut", Icon: Scissors, keys: "Ctrl+X", enabled: frames.some((x) => !x.locked) },

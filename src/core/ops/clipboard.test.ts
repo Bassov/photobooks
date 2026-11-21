@@ -8,6 +8,7 @@ import {
   unmatchedPhotoCount,
   type FramesPayload,
 } from '../index'
+import { parseFramesPayload } from './clipboard'
 import type { Book, Frame, Spread } from '../schema'
 import { makeBook, makeFrame, makeSpread } from '../testing/fixtures'
 
@@ -444,6 +445,24 @@ describe('pasteFrames: D7 other book', () => {
     expect(framesPayload(bare, 'spread-1', ['f1']).assets).toStrictEqual({
       a: {},
     })
+  })
+
+  it('parses its own JSON back and refuses anything else', () => {
+    const copied = copyAll()
+    expect(parseFramesPayload(JSON.stringify(copied))).toStrictEqual(copied)
+    const valid = JSON.parse(JSON.stringify(copied)) as Record<string, unknown>
+    for (const bad of [
+      'not json',
+      '"text"',
+      JSON.stringify({ ...valid, v: 2 }),
+      JSON.stringify({ ...valid, side: 'top' }),
+      JSON.stringify({ ...valid, frames: [{ id: '' }] }),
+      JSON.stringify({ ...valid, trim: { widthMm: 0, heightMm: 1 } }),
+      JSON.stringify({ ...valid, texts: { a: 1 } }),
+      JSON.stringify({ ...valid, assets: { a: { contentHash: '' } } }),
+    ]) {
+      expect(parseFramesPayload(bad)).toBeNull()
+    }
   })
 
   it('needs both root and path, and a hash only matches a hash', () => {
