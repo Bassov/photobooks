@@ -491,7 +491,7 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
         dragAndDropHooks={dragAndDropHooks}
         // r15 M88: prod `.pb-empty-title` (18 px / 1.3) around a 13 px / 1.35 span — the 18 px strut sets the baseline
         renderEmptyState={() => <div className="flex items-center px-2 text-sm text-muted-foreground" style={{ height: thumbH }} data-testid="film-empty"><div className="text-lg leading-[1.3]"><span className="text-sm leading-[1.35]">{st.view.unplacedOnly && st.doc.gallery.length ? "Every photo is placed. Turn off “Unplaced” to see all." : "No photos yet — add a folder or drop one here."}</span></div></div>}
-        className="scroll-thin flex gap-2 overflow-x-auto overflow-y-hidden p-1 pb-2 data-[picking]:shadow-[inset_0_0_0_2px_var(--select)]" data-testid="filmstrip">
+        className="scroll-thin flex gap-2 overflow-x-auto overflow-y-hidden p-1 pb-2 data-[picking]:shadow-pick" data-testid="filmstrip">
         {(p) => {
           const h = thumbH
           const w = thumbWidth(p.w, p.h, h) // shared aspect rule (app/ui PhotoThumb): true ratio, clamped 5:8…8:5
