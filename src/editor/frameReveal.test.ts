@@ -84,6 +84,23 @@ describe('revealFrames', () => {
     })
   })
 
+  it('scrolls on one axis only', () => {
+    const scrollBy = mount(at(351, 50))
+    revealFrames('s', ['f'])
+    expect(scrollBy).toHaveBeenCalledWith({
+      left: 51,
+      top: 0,
+      behavior: 'instant',
+    })
+    const scrollY = mount(at(50, -60))
+    revealFrames('s', ['f'])
+    expect(scrollY).toHaveBeenCalledWith({
+      left: 0,
+      top: -60,
+      behavior: 'instant',
+    })
+  })
+
   it('leaves a shown frame and reveals an unmounted spread', () => {
     const scrollBy = mount(at(10, 10))
     revealFrames('s', ['f'])

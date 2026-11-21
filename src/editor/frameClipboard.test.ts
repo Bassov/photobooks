@@ -265,6 +265,13 @@ describe('cut', () => {
     expect(getFrameSelection()).toBeNull()
   })
 
+  it('cuts nothing without a selection', () => {
+    expect(cutSelectedFrames()).toBeNull()
+    expect(idsOn('mid')).toStrictEqual(['a', 'b', 'c'])
+    expect(getHistorySnapshot().undoLabel).toBeNull()
+    expect(frameClipboardMirror()).toBeNull()
+  })
+
   it('cuts nothing when every frame is locked', () => {
     select('b')
     const { prevented, store } = clip('cut')
@@ -461,6 +468,21 @@ describe('duplicate (Ctrl/⌘+D)', () => {
     ).toBe(false)
     expect(key({ key: 'd' }, inside('<input data-t>'))).toBe(false)
     expect(idsOn('mid')).toStrictEqual(['a', 'b', 'c'])
+  })
+
+  it('duplicates nothing without a selection or frames left to copy', () => {
+    expect(duplicateSelectedFrames()).toBe(false)
+    select('gone')
+    expect(duplicateSelectedFrames()).toBe(false)
+    expect(getFrameSelection()).toStrictEqual({
+      spreadId: 'mid',
+      frameIds: ['gone'],
+    })
+    expect(idsOn('mid')).toStrictEqual(['a', 'b', 'c'])
+    // no lastDuplicate was kept: a real duplicate still steps +5/+5 mm
+    select('a')
+    expect(duplicateSelectedFrames()).toBe(true)
+    expect(newRect()).toStrictEqual(rect(25, 25))
   })
 
   it('stops listening once uninstalled', () => {

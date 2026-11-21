@@ -91,6 +91,22 @@ describe('editorStatus', () => {
       expect(isStatusPillVisible(`${status}.`)).toBe(false)
       expect(isStatusPillVisible(`x ${status}`)).toBe(false)
     }
+    for (const status of [
+      'Copied 12 frames',
+      "12 photos aren't in this book, so their frames are empty",
+    ]) {
+      expect(isStatusPillVisible(status)).toBe(true)
+    }
+    for (const status of [
+      'Copied frames',
+      'Copied x frames',
+      'Copied 2 frame',
+      "photos aren't in this book, so their frames are empty",
+      "x photos aren't in this book, so their frames are empty",
+      "2 photos aren't in this book",
+    ]) {
+      expect(isStatusPillVisible(status)).toBe(false)
+    }
   })
 
   it('words the frame clipboard statuses as the kit', () => {
