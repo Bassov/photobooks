@@ -192,6 +192,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [in-app-publish-core](roadmap/P3/in-app-publish-core.md) — Bug: /next-roadmap-item in-app-publish-core
 - [ ] [feature] [publish-site-flaky](roadmap/P3/publish-site-flaky.md) — Bug: /next-roadmap-item publish-site-flaky
 - [ ] [feature] [e2e-ci-shard](roadmap/P3/e2e-ci-shard.md) — Bug: /next-roadmap-item e2e-ci-shard
+- [ ] [lite] [e2e-slow-tests](roadmap/P3/e2e-slow-tests.md) — Bug: /next-roadmap-item e2e-slow-tests
 - [ ] [lite] [deps-dev-outline-longhands](roadmap/P3/deps-dev-outline-longhands.md) — Bug: /next-roadmap-item deps-dev-outline-longhands
 - [ ] [feature] [finalize-reliability](roadmap/P3/finalize-reliability.md) — Bug: /next-roadmap-item finalize-reliability
 - [ ] [feature] [perf-workflow-merge-base](roadmap/P3/perf-workflow-merge-base.md) — Bug: /next-roadmap-item perf-workflow-merge-base
