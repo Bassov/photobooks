@@ -1,3 +1,5 @@
+import { effectiveDpr } from '../ui/uiScale'
+
 /**
  * Per-spread thumb/tier keys encode entries as `id:…` joined by `|`.
  * Asset ids must not contain `:` or `|` — `mintAssetId` sanitizes to
@@ -75,9 +77,12 @@ export function frameEdgePx(
   return Math.max(rectMm.width, rectMm.height) * pxPerMm
 }
 
-/** `devicePixelRatio` when finite and positive; otherwise 1. */
+/**
+ * Device px per app px when finite and positive; otherwise 1. Defaults to
+ * `devicePixelRatio × interface scale` (`effectiveDpr`, interface-size D7).
+ */
 export function positiveDevicePixelRatio(
-  ratio: number | undefined = globalThis.devicePixelRatio,
+  ratio: number | undefined = effectiveDpr(),
 ): number {
   return typeof ratio === 'number' && ratio > 0 ? ratio : 1
 }

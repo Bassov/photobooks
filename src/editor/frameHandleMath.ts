@@ -89,13 +89,34 @@ export function pointerAngleDeg(
   return (Math.atan2(y - centerY, x - centerX) * 180) / Math.PI
 }
 
-/** Rotation after dragging the rotate handle; Shift snaps to 15° steps. */
+/** Free rotation snaps to a quarter turn this close to it (degrees). */
+const ROTATE_SNAP_DEG = 2
+
+/**
+ * Walkthrough-ux-review §A: an angle in (−180, 180]; `step` (Shift) rounds it
+ * to 15°, else it snaps to 0 / 90 / 180 / −90 within ±2°.
+ */
+export function snapRotationDeg(deg: number, step: boolean): number {
+  const angle = halfTurnRange(deg)
+  if (step) {
+    return halfTurnRange(Math.round(angle / ROTATE_STEP_DEG) * ROTATE_STEP_DEG)
+  }
+  const quarter = Math.round(angle / 90) * 90
+  return Math.abs(angle - quarter) <= ROTATE_SNAP_DEG
+    ? halfTurnRange(quarter)
+    : angle
+}
+
+function halfTurnRange(deg: number): number {
+  return deg - Math.ceil((deg - 180) / 360) * 360
+}
+
+/** Rotation after dragging the rotate handle (see `snapRotationDeg`). */
 export function rotatedDeg(
   startDeg: number,
   startPointerDeg: number,
   pointerDeg: number,
   snap: boolean,
 ): number {
-  const next = startDeg + pointerDeg - startPointerDeg
-  return snap ? Math.round(next / ROTATE_STEP_DEG) * ROTATE_STEP_DEG : next
+  return snapRotationDeg(startDeg + pointerDeg - startPointerDeg, snap)
 }

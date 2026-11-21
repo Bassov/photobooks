@@ -123,13 +123,17 @@ test('wheel zooms, arrows nudge, drag pans, Reset to cover restores', async ({
   // The drag did not toggle the move-source selection.
   await expect(filledFrame(page)).not.toHaveAttribute('aria-pressed', 'true')
 
+  const panned = await imageBox(page)
   await page.getByTestId('crop-reset').click()
   await expect.poll(async () => imageBox(page)).toEqual(cover)
 
-  // Pressing outside the frame leaves crop mode; the whole burst (zoom, nudge,
-  // pan, reset) is a single undo step, so redo returns to cover.
+  // Pressing outside the frame leaves crop mode. Walkthrough-ux-review §A:
+  // one gesture = one undo step (it was one step for the whole burst), so
+  // undo takes back the reset only and redo returns to cover.
   await page.getByTestId('undo').click()
   await expect(page.getByTestId('redo')).toBeEnabled()
+  await expect.poll(async () => imageBox(page)).toEqual(panned)
+  await page.getByTestId('redo').click()
   await expect.poll(async () => imageBox(page)).toEqual(cover)
   await assertDocumentFitsViewport(page)
 })

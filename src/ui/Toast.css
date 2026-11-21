@@ -8,6 +8,8 @@
   flex-direction: column-reverse;
   gap: calc(var(--spacing) * 2);
   outline: none;
+  /* Portalled outside the #root zoom (Designer interface-size §4). */
+  zoom: var(--ui-scale);
 }
 
 .pb-toast-region[data-focus-visible] {

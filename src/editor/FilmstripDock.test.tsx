@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { runAtInterfaceScale } from '../ui/uiScale.test-helpers'
 import { resetBookStore } from './bookStore'
 import { seedGallery } from './gallery.test-helpers'
 import { FilmstripDock } from './FilmstripDock'
@@ -114,6 +115,21 @@ describe('FilmstripDock thumb separator', () => {
     expect(sep().getAttribute('aria-valuenow')).toBe('128')
     expect(setItem).toHaveBeenCalledTimes(1)
     expect(errors()).toEqual([])
+  })
+
+  it('at interface scale 1.5 moves the separator with the pointer (screen px ÷ s)', () => {
+    const restore = runAtInterfaceScale(1.5)
+    try {
+      setFilmstripThumb(100)
+      render(<FilmstripDock />)
+      fireEvent.pointerDown(sep(), { button: 0, clientY: 900, pointerId: 1 })
+      // 48 screen px up = 32 app px taller.
+      fireEvent.pointerMove(sep(), { clientY: 852, pointerId: 1 })
+      expect(sep().getAttribute('aria-valuenow')).toBe('132')
+      fireEvent.pointerUp(sep(), { clientY: 852, pointerId: 1 })
+    } finally {
+      restore()
+    }
   })
 
   it('does not write when a drag ends where it started or is cancelled', () => {

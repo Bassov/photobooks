@@ -743,6 +743,47 @@ describe('frameHandleGesture', () => {
       expect(frame().rotationDeg).toBe(90)
     })
 
+    it('writes the angle chip while rotating and clears the flag after', () => {
+      const rot = dom.handles.get('rotate')
+      assert(rot !== undefined)
+      const chip = document.createElement('span')
+      chip.setAttribute('data-rotate-chip', '')
+      dom.button.append(chip)
+      fire('pointerdown', rot, 225, 125)
+      // 2.4° off a quarter turn: free, rounded in the chip.
+      const rad = ((90 - 2.4) * Math.PI) / 180
+      fire(
+        'pointermove',
+        window,
+        125 + 100 * Math.cos(rad),
+        125 + 100 * Math.sin(rad),
+      )
+      expect(dom.button.hasAttribute('data-rotating')).toBe(true)
+      expect(chip.textContent).toBe('88°')
+      // 88° → within ±2° of 90°.
+      const near = ((90 - 1.5) * Math.PI) / 180
+      fire(
+        'pointermove',
+        window,
+        125 + 100 * Math.cos(near),
+        125 + 100 * Math.sin(near),
+      )
+      expect(chip.textContent).toBe('90°')
+      fire('pointerup', window, 125, 225)
+      expect(dom.button.hasAttribute('data-rotating')).toBe(false)
+    })
+
+    it('clears the rotating flag on Escape', () => {
+      const rot = dom.handles.get('rotate')
+      assert(rot !== undefined)
+      fire('pointerdown', rot, 225, 125)
+      fire('pointermove', window, 125, 225)
+      expect(dom.button.hasAttribute('data-rotating')).toBe(true)
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+      expect(dom.button.hasAttribute('data-rotating')).toBe(false)
+      expect(dom.button.style.transform).toBe('')
+    })
+
     it('rounds the committed rotation to 0.1°', () => {
       const rot = dom.handles.get('rotate')
       assert(rot !== undefined)

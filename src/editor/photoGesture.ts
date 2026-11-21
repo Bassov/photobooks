@@ -142,16 +142,19 @@ export function installPhotoGesture(): () => void {
     const button = grip?.closest<HTMLElement>('button.spread-frame')
     const spreadEl = button?.closest<HTMLElement>(SPREAD_SELECTOR)
     const corner = handle?.getAttribute('data-photo-handle') ?? ''
+    const frameId = button?.getAttribute('data-frame-id') ?? ''
+    const pinned = getCropTarget()
     if (
       !button ||
       !spreadEl ||
       getEditorTool() !== 'select' ||
-      getCropTarget() !== null ||
+      // Pinned crop (§A): only the cropped frame's corner handles; its pans
+      // stay with src/editor/cropGesture.ts.
+      (pinned !== null && (pinned.frameId !== frameId || handle === null)) ||
       (handle !== null && !isCorner(corner))
     ) {
       return
     }
-    const frameId = button.getAttribute('data-frame-id') ?? ''
     const ctx = spreadContext(spreadEl, [frameId])
     const frame =
       ctx === null ? undefined : findSpreadFrame(ctx.spread, frameId)

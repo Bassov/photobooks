@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
+import { runAtInterfaceScale } from '../ui/uiScale.test-helpers'
 import {
   assetIdsOnSpread,
   desiredTiersForItems,
@@ -90,6 +91,18 @@ describe('spreadPreviewKeys', () => {
     expect(positiveDevicePixelRatio(-1)).toBe(1)
     expect(positiveDevicePixelRatio(Number.NaN)).toBe(1)
     expect(positiveDevicePixelRatio(undefined)).toBe(1)
+  })
+
+  it('defaults to device px per app px: devicePixelRatio × interface scale', () => {
+    vi.stubGlobal('devicePixelRatio', 2)
+    expect(positiveDevicePixelRatio()).toBe(2)
+    const restore = runAtInterfaceScale(1.5)
+    try {
+      expect(positiveDevicePixelRatio()).toBe(3)
+    } finally {
+      restore()
+      vi.unstubAllGlobals()
+    }
   })
 
   it('keeps the max desired tier per asset across frames and zoom', () => {
