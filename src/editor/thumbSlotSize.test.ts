@@ -60,7 +60,10 @@ describe('filmstrip stride prefix', () => {
     const prefix = buildStridePrefix([1.5, 0.5])
     expect(prefix[0]).toBe(0)
     expect(prefix[1]).toBe(thumbStride(1.5))
-    expect(prefix[2]).toBe(thumbStride(1.5) + thumbStride(0.5))
+    // Track end: no gap after the last card (it set the scroll extent).
+    expect(prefix[2]).toBe(thumbStride(1.5) + thumbStride(0.5) - 8)
+    expect(buildStridePrefix([1], 92)).toEqual([0, 92])
+    expect(buildStridePrefix([])).toEqual([0])
   })
 
   it('packs origins from each card end, not a fixed max-width stride', () => {
@@ -86,7 +89,23 @@ describe('filmstrip stride prefix', () => {
   it('reserves spacer width for expected import slots', () => {
     const known = [1.5, 0.5]
     expect(spacerWidthPx(known, 5, 1)).toBe(
-      thumbStride(1.5) + thumbStride(0.5) + 3 * thumbStride(1),
+      thumbStride(1.5) + thumbStride(0.5) + 3 * thumbStride(1) - 8,
+    )
+  })
+
+  it('omits the gap after the last slot', () => {
+    // A trailing gap left the last thumb 12 px (not 4 px) from the end.
+    expect(spacerWidthPx([1.5], 0)).toBe(thumbSlotSize(1.5).width)
+    expect(spacerWidthPx([], 1, 0.5)).toBe(thumbSlotSize(0.5).width)
+  })
+
+  it('sums slot widths and inner gaps at a custom height', () => {
+    const height = 92
+    expect(spacerWidthPx([1.5, 0.75, 1], 0, 1, height)).toBe(
+      thumbSlotSize(1.5, height).width +
+        thumbSlotSize(0.75, height).width +
+        thumbSlotSize(1, height).width +
+        2 * 8,
     )
   })
 
@@ -173,9 +192,10 @@ describe('filmstrip window ranges', () => {
       start: 0,
       end: 6,
     })
+    // Track end 40 × 104 − 8 = 4152; the scrollport starts in item 35.
     const atEnd = (prefix[40] ?? 0) - 416
     expect(filmstripWindowRange(prefix, atEnd, 416, 1, 416)).toEqual({
-      start: 34,
+      start: 33,
       end: 40,
     })
     expect(filmstripWindowRange([0], 0, 416, 1, 416)).toEqual({
