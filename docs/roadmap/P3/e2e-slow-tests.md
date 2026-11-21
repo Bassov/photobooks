@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P3
 Title: Bug: /next-roadmap-item e2e-slow-tests
+Status: done
 
 ## Scope
 
