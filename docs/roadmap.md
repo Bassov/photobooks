@@ -245,6 +245,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [static-export-viewer](roadmap/P4/static-export-viewer.md) — Bug: /next-roadmap-item static-export-viewer
 - [ ] [prep] [pdf-captions](roadmap/P4/pdf-captions.md) — text in the PDF
 - [ ] [feature] [site-final-painter](roadmap/P4/site-final-painter.md) — Bug: /next-roadmap-item site-final-painter
+- [ ] [feature] [product-walkthrough](roadmap/P4/product-walkthrough.md) — Bug: /next-roadmap-item product-walkthrough
 - [ ] [feature] [ratchet-merge-base-ci](roadmap/P4/ratchet-merge-base-ci.md) — Bug: /next-roadmap-item ratchet-merge-base-ci
 - [ ] [feature] [cover-pdf-kit](roadmap/P4/cover-pdf-kit.md) — Bug: /next-roadmap-item cover-pdf-kit
 - [ ] [feature] [cover-pdf-check](roadmap/P4/cover-pdf-check.md) — Bug: /next-roadmap-item cover-pdf-check

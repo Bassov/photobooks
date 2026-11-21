@@ -5,17 +5,19 @@ import { chromium } from "playwright-core"
 import fs from "node:fs"
 import { chromePath } from "./chrome.mjs"
 export const URL_ = "file://" + new URL("../dist/index.html", import.meta.url).pathname + "?theme=procreate-light#/demo"
-const CSS = `*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:0s!important;transition-delay:0s!important;caret-color:transparent!important;scroll-behavior:auto!important}`
+export const CSS = `*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:0s!important;transition-delay:0s!important;caret-color:transparent!important;scroll-behavior:auto!important}`
 const FIXED = Date.UTC(2026, 9, 29, 12, 0, 0)
 // a frame on the current spread: the pages stack on the pasteboard, so the first frame in the canvas may be another spread's
 const FRAME = '[data-testid="canvas"] [data-current] [data-testid="frame"]'
 
 // `probe(name, page)` runs after each shot (DOM measurements on the same walk); its result is kept in `probes[name]`.
-export async function capture(out, { log = console.log, probe } = {}) {
+// `dpr` (default 1, the baseline) sets the device scale factor: guide-shots.mjs captures at 2.
+// `after(ctx)` runs after the walk in the same browser context (guide-shots.mjs: kit feature-page states).
+export async function capture(out, { log = console.log, probe, dpr = 1, after } = {}) {
   fs.mkdirSync(out, { recursive: true })
   for (const f of fs.readdirSync(out)) if (f.endsWith(".png")) fs.unlinkSync(`${out}/${f}`)
   const browser = await chromium.launch({ executablePath: chromePath(), args: ["--no-sandbox", "--font-render-hinting=none", "--disable-lcd-text", "--force-color-profile=srgb"] })
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, locale: "en-US", timezoneId: "UTC" })
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: dpr, locale: "en-US", timezoneId: "UTC" })
   await ctx.addInitScript(() => { const pn = performance.now.bind(performance); window.__pt = null; performance.now = () => (window.__pt ?? pn()) })
   await ctx.addInitScript((t) => { const D = Date; const off = t - D.now(); class FD extends D { constructor(...a) { super(...(a.length ? a : [D.now() + off])) } static now() { return D.now() + off } } window.Date = FD; Math.random = (() => { let s = 42; return () => ((s = (s * 16807) % 2147483647) / 2147483647) })() }, FIXED)
   const page = await ctx.newPage(); page.setDefaultTimeout(6000)
@@ -209,6 +211,6 @@ export async function capture(out, { log = console.log, probe } = {}) {
     // a step may shoot at another size (unsupported-mobile); the next step starts at the fixed 1440×900 again
     if (page.viewportSize()?.width !== 1440) await page.setViewportSize({ width: 1440, height: 900 })
   }
-  await browser.close()
+  try { if (after) await after(ctx) } finally { await browser.close() }
   return { shots, errs, probes }
 }

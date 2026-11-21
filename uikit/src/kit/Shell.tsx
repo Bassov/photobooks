@@ -1,6 +1,6 @@
 import { DemoCredits } from "./Credits"
 import * as React from "react"
-import { BookOpen, ChevronLeft, ChevronRight, ChevronDown, LayoutGrid, Shapes, MousePointerClick, Image as ImageIcon, Search, X, NotebookText, MonitorPlay, Layers, Play } from "lucide-react"
+import { BookOpen, BookOpenText, ChevronLeft, ChevronRight, ChevronDown, LayoutGrid, Shapes, MousePointerClick, Image as ImageIcon, Search, X, NotebookText, MonitorPlay, Layers, Play } from "lucide-react"
 import { Link } from "react-aria-components"
 import { UNSAFE_PortalProvider } from "react-aria"
 import { cn } from "@/lib/utils"
@@ -18,7 +18,7 @@ import { SCREEN_DEFS } from "@/features/screen-demos"
 const navLink = "inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm text-muted-foreground outline-hidden data-[hovered]:bg-field data-[hovered]:text-foreground data-[current]:bg-sel data-[current]:font-medium data-[current]:text-foreground data-[focus-visible]:ring-2 data-[focus-visible]:ring-ring [&_svg]:size-4"
 const card = "rounded-xl bg-card outline-hidden data-[hovered]:bg-field data-[focus-visible]:ring-2 data-[focus-visible]:ring-ring"
 
-export function KitBar({ current, screen, section }: { current?: string; screen?: string; section?: "index" | "components" }) {
+export function KitBar({ current, screen, section }: { current?: string; screen?: string; section?: "index" | "components" | "guide" }) {
   const sec = section ?? (current || screen ? "index" : (typeof location !== "undefined" && location.hash.startsWith("#/components") ? "components" : "index"))
   const i = current ? pageIndex(current) : -1
   const prev = i > 0 ? PAGES[i - 1] : null, next = i >= 0 && i < PAGES.length - 1 ? PAGES[i + 1] : null
@@ -34,6 +34,7 @@ export function KitBar({ current, screen, section }: { current?: string; screen?
       <span className="mx-2 h-5 w-px" />
       <Link href={href.index} className={navLink} data-nav="index" data-current={sec === "index" || undefined} aria-current={sec === "index" ? "page" : undefined}><LayoutGrid />Screens</Link>
       <Link href={href.components} className={navLink} data-nav="components" data-current={sec === "components" || undefined} aria-current={sec === "components" ? "page" : undefined}><Shapes />Components</Link>
+      <Link href={href.guide()} className={navLink} data-nav="guide" data-current={sec === "guide" || undefined} aria-current={sec === "guide" ? "page" : undefined}><BookOpenText />Guide</Link>
       <div className="ml-auto flex items-center gap-1.5">
         {i >= 0 && (
           <>
