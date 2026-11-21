@@ -114,6 +114,11 @@ async function sizedPhotoFrame(
   // Leave the photo: the layer is hover-only until pinned.
   const f = await box(frame)
   await page.mouse.move(f.x - 80, f.y + f.height + 80, { steps: 3 })
+  // The layer hides 400 ms after the pointer leaves; until then its photo
+  // handles take the hits over the frame handles.
+  await expect(
+    frame.locator('[data-testid="photo-layer"][data-shown="true"]'),
+  ).toHaveCount(0)
   return { frame, pxPerMm }
 }
 
