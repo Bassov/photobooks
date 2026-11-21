@@ -69,7 +69,7 @@ export const EDITOR_CHROME_CSS = `
 .e7-tip > .e7-tt { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .12s .25s; z-index: 50; background: #535152; color: ${ON_INK}; font-size: 11px; line-height: 16px; padding: 3px 7px; border-radius: 5px }
 .e7-tip:hover > .e7-tt, .e7-tip:focus-visible > .e7-tt { opacity: 1 }
 .e7-tt kbd { font-family: inherit; opacity: .7; margin-left: 6px }
-.e7.editor-shell { display: flex; flex-direction: column; height: 100svh; max-height: 100svh; overflow: hidden; background: var(--canvas) }
+.e7.editor-shell { display: flex; flex-direction: column; height: var(--app-svh); max-height: var(--app-svh); overflow: hidden; background: var(--canvas) }
 .e7 .editor-chrome { flex-wrap: wrap; gap: calc(var(--spacing) * 2) calc(var(--spacing) * 1.5); padding: 0 calc(var(--spacing) * 3); border-bottom: 0; min-height: 3rem; height: auto; flex-shrink: 0 }
 .e7 .editor-workspace { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; height: auto; overflow: hidden }
 .e7 .pasteboard { flex: 1 1 0; min-height: 0; height: auto }

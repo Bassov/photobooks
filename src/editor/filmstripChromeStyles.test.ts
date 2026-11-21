@@ -15,7 +15,9 @@ describe('filmstripChromeStyles', () => {
   })
 
   it('sizes the import progress bar for the status strip', () => {
-    expect(filmstripImportProgressStyle.width).toBe('min(12rem, 40vw)')
+    expect(filmstripImportProgressStyle.width).toBe(
+      'min(12rem, calc(var(--app-vw) * 0.4))',
+    )
     expect(filmstripImportProgressStyle.flex).toBe('0 1 auto')
   })
 })

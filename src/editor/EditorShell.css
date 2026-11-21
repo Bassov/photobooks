@@ -6,8 +6,8 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  height: 100svh;
-  max-height: 100svh;
+  height: var(--app-svh);
+  max-height: var(--app-svh);
   overflow: hidden;
   background: var(--chrome);
   color: var(--foreground);
@@ -68,7 +68,7 @@
 .book-title {
   margin: 0;
   min-width: 0;
-  max-width: min(16rem, 40vw);
+  max-width: min(16rem, calc(var(--app-vw) * 0.4));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -140,7 +140,7 @@
 .editor-top-end {
   grid-column: 4 / 6;
   justify-self: end;
-  max-width: calc(100vw - var(--spacing) * 6);
+  max-width: calc(var(--app-vw) - var(--spacing) * 6);
   overflow: clip;
   overflow-clip-margin: var(--spacing);
 }

@@ -5,6 +5,30 @@
 
 @import './tokens.css';
 
+/* Interface size (src/ui/uiScale.ts): the app zooms by --ui-scale, so app
+   code sizes against the viewport through these tokens, never raw vh / vw
+   (guard: src/ui/viewportUnits.test.ts). At 1 they equal the raw units. */
+:root {
+  --ui-scale: 1;
+  --app-dvh: calc(100dvh / var(--ui-scale));
+  --app-svh: calc(100svh / var(--ui-scale));
+  --app-vh: calc(100vh / var(--ui-scale));
+  --app-vw: calc(100vw / var(--ui-scale));
+}
+
+#root {
+  zoom: var(--ui-scale);
+  container: app / inline-size;
+}
+
+@utility h-app {
+  height: var(--app-dvh);
+}
+
+@utility min-h-app {
+  min-height: var(--app-dvh);
+}
+
 *,
 *::before,
 *::after {
@@ -71,9 +95,9 @@ body {
 .pb-dialog.pb-create-dialog {
   display: flex;
   flex-direction: column;
-  width: min(460px, calc(100vw - 2rem));
+  width: min(460px, calc(var(--app-vw) - 2rem));
   max-width: 460px;
-  max-height: calc(100vh - 2rem);
+  max-height: calc(var(--app-vh) - 2rem);
   padding: 0;
   border: 0;
   /* r10 M63: kit header, body and footer sit 16px apart. */
@@ -118,8 +142,8 @@ body {
 .pb-dialog.pb-print-profile-dialog {
   display: flex;
   flex-direction: column;
-  width: min(560px, calc(100vw - 32px));
-  max-height: calc(100vh - 96px);
+  width: min(560px, calc(var(--app-vw) - 32px));
+  max-height: calc(var(--app-vh) - 96px);
   overflow: hidden;
   padding: 20px 24px;
   border: 0;
