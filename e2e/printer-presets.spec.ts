@@ -277,7 +277,8 @@ test('a custom profile drives Book settings; picking it is one undo step', async
   await issue.scrollIntoViewIfNeeded()
   const [top] = await topAt(issue)
   expect(top).toContain('book-print-issue')
-  await expect(issue).toHaveCSS('color', 'rgb(138, 90, 18)')
+  // Polish P7: the one warning ink `--warning-ink` #845510.
+  await expect(issue).toHaveCSS('color', 'rgb(132, 85, 16)')
 
   // Kit "Lulu picked": the warnings sit 8 px apart under the hint, B / S 12.
   const print = await box(page.locator('h3', { hasText: /^Print$/ }))

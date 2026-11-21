@@ -14,8 +14,9 @@ import { chooseZoom, readZoomPercent } from './fixtures/zoomMenu'
 // M37 page numbers sit a constant 8 screen px under their page, 11 px font,
 //     centred under it, with no drift while a zoom gesture scales the world.
 
+// Polish P5 (walkthrough-polish-review): one shadow ink rgb(20 20 19).
 const KIT_SHADOW =
-  'rgba(0, 0, 0, 0.1) 0px 2px 6px 0px, rgba(0, 0, 0, 0.14) 0px 12px 32px 0px'
+  'rgba(20, 20, 19, 0.1) 0px 2px 6px 0px, rgba(20, 20, 19, 0.14) 0px 12px 32px 0px'
 
 interface StackProbe {
   gesture: string | null

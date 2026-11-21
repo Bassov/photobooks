@@ -44,8 +44,8 @@ import {
 
 type Unit = 'cm' | 'mm'
 
-/** Kit PRINT warning text (`text-[#8a5a12]`); the prod status tokens are grey. */
-const WARNING_TEXT = '#8a5a12'
+/** Polish P7: PRINT warning text in the one warning ink (status tokens are grey). */
+const WARNING_TEXT = 'var(--warning-ink)'
 
 /** Kit v7.tsx `mm`: profile values as is, up to 3 decimals (3.175, 12.7). */
 function exactMm(n: number): string {
