@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { appInnerHeight, subscribeUiScale } from '../ui/uiScale'
 
 /**
  * Filmstrip thumb height H (Designer walkthrough-ux-review §B, kit
@@ -118,19 +119,22 @@ export function resetFilmstripThumb(): void {
 function subscribe(listener: () => void): () => void {
   listeners.add(listener)
   // A window resize re-clamps H on render; it never writes storage.
+  // So does an interface size change (H is in app px: innerHeight / s).
   window.addEventListener('resize', listener)
+  const offScale = subscribeUiScale(listener)
   return () => {
     listeners.delete(listener)
     window.removeEventListener('resize', listener)
+    offScale()
   }
 }
 
 function heightSnapshot(): number {
-  return thumbPx(currentThumb(), window.innerHeight)
+  return thumbPx(currentThumb(), appInnerHeight())
 }
 
 function maxSnapshot(): number {
-  return thumbMax(window.innerHeight)
+  return thumbMax(appInnerHeight())
 }
 
 /** Effective thumb height H for the current window. */

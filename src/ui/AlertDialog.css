@@ -1,7 +1,7 @@
 /* Kit AlertDialog (uikit components/app/ui.tsx): 420 wide, head px-6 pt-6
    pb-5, a 16 px gap, then the actions row px-6 pb-5. */
 .pb-dialog.pb-alert-dialog {
-  width: min(420px, calc(100vw - var(--spacing) * 8));
+  width: min(420px, calc(var(--app-vw) - var(--spacing) * 8));
   padding: calc(var(--spacing) * 6) calc(var(--spacing) * 6)
     calc(var(--spacing) * 5);
   border: 0;

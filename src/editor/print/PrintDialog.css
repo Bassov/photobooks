@@ -1,7 +1,7 @@
 /* Designer pdf-export §2: the kit PrintDialog frame is 500 wide (the
    Export site frame otherwise). */
 .pb-dialog.export-site-dialog.print-dialog {
-  width: min(500px, calc(100vw - 2rem));
+  width: min(500px, calc(var(--app-vw) - 2rem));
   max-width: 500px;
 }
 

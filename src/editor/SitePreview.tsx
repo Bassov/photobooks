@@ -114,7 +114,7 @@ export default function SitePreview({ onExit }: { onExit: () => void }) {
     >
       <div
         className="site relative min-h-0 flex-1 overflow-hidden"
-        // Beats the unlayered `.site { min-height: 100dvh }`.
+        // Beats the unlayered full-viewport `.site` min-height (site.css).
         style={{ minHeight: 0 }}
         data-testid="site-preview-scroll"
       >

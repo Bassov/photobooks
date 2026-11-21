@@ -48,7 +48,7 @@ const STYLE_TEXT = `
   margin-bottom: 0; /* no preflight: the UA h1 margin (0.67em) pushed the paragraph ~19px down */
   font-family: ${KIT_DISPLAY_FONT};
   font-weight: 400;
-  font-size: clamp(44px, 4vw, 64px);
+  font-size: clamp(44px, calc(var(--app-vw) * 0.04), 64px);
   line-height: 0.98;
   letter-spacing: -0.035em;
 }
