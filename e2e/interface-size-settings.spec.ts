@@ -179,6 +179,18 @@ test.describe('1440×900', () => {
   })
 })
 
+test('narrow main (< 704): the label takes its own line', async ({ page }) => {
+  // 900 wide: main = 900 − 220 nav − 64 padding = 616 px of content.
+  await page.setViewportSize({ width: 900, height: 800 })
+  await openInterface(page)
+  const label = await box(page.locator('#interface-size-label'))
+  const track = await box(page.getByTestId('interface-size'))
+  const row = await box(page.getByTestId('interface-size-row'))
+  expect(Math.abs(label.width - (row.width - 32))).toBeLessThanOrEqual(0.5)
+  expect(track.y - (label.y + label.height)).toBeCloseTo(6, 0)
+  expect(Math.abs(track.x - label.x)).toBeLessThanOrEqual(0.5)
+})
+
 test('IS4: 1920×970 with 150 shows 125 and says so', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 970 })
   await storeChoice(page, '150')
