@@ -16,7 +16,7 @@ import { Section, IconButton } from "@/components/app/ui"
 import { SliderRow, Segmented } from "@/components/app/controls"
 import { Tabs, TabList, Tab, TabPanel } from "@/components/ui/tabs"
 import { P } from "@/data"
-import { useStudio, mapSpread, mapFrames, removeFrames, deleteLabel } from "./store"
+import { useStudio, mapFrames, removeFrames, deleteLabel, zMove, Z_LABEL, type ZKind } from "./store"
 import { round, clamp, effectiveDpi, type Frame } from "./model"
 import { bbox } from "./canvas"
 import { segList, segTab } from "./chrome"
@@ -177,18 +177,7 @@ export function ArrangeSection() {
   const { f, frames, st } = useSelected()
   // Designer parent-overrides PO3: a copy cannot leave the parent paint slot, so a set of copies has no z-order controls
   if (!f || frames.every((x) => x.overrides)) return null
-  const move = (kind: "front" | "back" | "fwd" | "bwd") => st.update((d) => mapSpread(d, st.cur, (s) => {
-    const a = [...s.frames]; const ids = frames.map((x) => x.id)
-    const sel = a.filter((x) => ids.includes(x.id)), rest = a.filter((x) => !ids.includes(x.id))
-    if (kind === "front") return { ...s, frames: [...rest, ...sel] }
-    if (kind === "back") return { ...s, frames: [...sel, ...rest] }
-    // prod reorderFrames: from the moving end, each selected frame steps past the next unselected one
-    const step = kind === "fwd" ? 1 : -1
-    for (let i = kind === "fwd" ? a.length - 2 : 1; i >= 0 && i < a.length; i -= step) {
-      if (ids.includes(a[i].id) && !ids.includes(a[i + step].id)) [a[i], a[i + step]] = [a[i + step], a[i]]
-    }
-    return { ...s, frames: a }
-  }), { front: "Bring to front", back: "Send to back", fwd: "Bring forward", bwd: "Send backward" }[kind])
+  const move = (kind: ZKind) => st.update((d) => zMove(d, st.cur, frames.map((x) => x.id), kind), Z_LABEL[kind])
   const all = st.doc.spreads[st.cur].frames
   const zs = frames.map((x) => all.findIndex((y) => y.id === x.id) + 1)
   const z = zs[0], lo = Math.min(...zs), hi = Math.max(...zs)
