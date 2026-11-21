@@ -6,6 +6,7 @@ import {
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
 import { openSessionEditor } from './fixtures/openSessionEditor'
+import { pixelsAt } from './fixtures/paintProbe'
 import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
@@ -35,9 +36,6 @@ import { readZoomPercent } from './fixtures/zoomMenu'
 //     57.64; title "Endpaper · front" at 1156 / 64, 268 × 18.84 (13 px / 18.85,
 //     weight 500); subline top 84.84, height 16.8; first section top 105.64.
 //     Nothing sits above the head.
-// M50 kit filmstrip (912 × 88 at 220 / 808): the kit leaves a vertical wheel
-//     to the browser (scrollLeft stays 0). The Owner Must replaces that: the
-//     wheel scrolls the strip sideways, never the page or the canvas zoom.
 // M53 step 34 (editor-preview): Preview opens on the cover (`site-cover`,
 //     indicator "Cover · 1 / 20"); Next shows the first spread.
 // M54 the kit inspector still draws "Hide inspector (I)"; the Owner Must
@@ -266,6 +264,86 @@ test.describe('M50 the mouse wheel over the filmstrip scrolls it sideways', () =
     expect(await portScroll()).toEqual(before)
     expect(await windowScroll()).toEqual([0, 0, 0])
     await assertDocumentFitsViewport(page)
+  })
+
+  // Designer M137: the kit strip takes the same wheel (it left it to the browser).
+  test('kit: wheel(0, 300) moves scrollLeft; the zoom stays Fit', async ({
+    page,
+  }) => {
+    await openKitStrip(page)
+    const strip = kitStrip(page)
+    await expect
+      .poll(() => strip.evaluate((el) => el.scrollWidth - el.clientWidth))
+      .toBeGreaterThan(300)
+    expect(await strip.evaluate((el) => el.scrollLeft)).toBe(0)
+    const zoom = page.getByTestId('demo').getByTestId('zoom-menu')
+    await expect(zoom).toHaveText('Fit')
+
+    // the kit screen page is taller than the viewport: bring the strip under the mouse
+    await strip.scrollIntoViewIfNeeded()
+    const windowScroll = () =>
+      page.evaluate(() => [window.scrollX, window.scrollY])
+    const before = await windowScroll()
+    const box = await rectOf(strip)
+    await page.mouse.move(box.left + box.width / 2, box.top + box.height / 2)
+    await page.mouse.wheel(0, 300)
+    await expect
+      .poll(() => strip.evaluate((el) => el.scrollLeft))
+      .toBeCloseTo(300, 0)
+    await page.mouse.wheel(0, -120)
+    await expect
+      .poll(() => strip.evaluate((el) => el.scrollLeft))
+      .toBeCloseTo(180, 0)
+    await expect(zoom).toHaveText('Fit')
+    expect(await windowScroll()).toEqual(before)
+  })
+})
+
+// Kit `#/screen/canvas`: the "Frame selected" editor screen, photos in the strip.
+async function openKitStrip(page: Page): Promise<void> {
+  await page.goto('/uikit/#/screen/canvas')
+  await expect(page.getByTestId('demo')).toBeVisible()
+  await expect(kitStrip(page).getByRole('row').first()).toBeVisible()
+}
+
+const kitStrip = (page: Page) =>
+  page.getByTestId('demo').getByTestId('filmstrip')
+
+test.describe('tracker p3: the focused kit thumb has the prod focus cue', () => {
+  // prod `.filmstrip-item[aria-selected=true][data-focused]`: 0 0 0 2px #535152
+  const CUE = [83, 81, 82]
+
+  /** Paint 1 px inside the 2 px ring, left of the thumb at mid-height. */
+  async function ringPixel(page: Page, thumb: Locator): Promise<number[]> {
+    const strip = kitStrip(page)
+    const [s, t] = [await rectOf(strip), await rectOf(thumb)]
+    const x = Math.ceil(t.left - s.left - 2)
+    const y = Math.round(t.top - s.top + t.height / 2)
+    const [rgba = []] = await pixelsAt(strip, [{ x, y }])
+    return rgba.slice(0, 3)
+  }
+
+  const isCue = (rgb: number[]) =>
+    rgb.every((v, k) => Math.abs(v - (CUE[k] ?? 0)) <= 2)
+
+  test('after a click and after keyboard focus', async ({ page }) => {
+    await openKitStrip(page)
+    const rows = kitStrip(page).getByRole('row')
+    const [first, second] = [rows.nth(0), rows.nth(1)]
+    expect(isCue(await ringPixel(page, first))).toBe(false)
+
+    await first.click()
+    await expect(first).toHaveAttribute('data-focused', 'true')
+    await expect
+      .poll(async () => isCue(await ringPixel(page, first)))
+      .toBe(true)
+
+    await page.keyboard.press('ArrowRight')
+    await expect(second).toHaveAttribute('data-focus-visible', 'true')
+    await expect
+      .poll(async () => isCue(await ringPixel(page, second)))
+      .toBe(true)
+    expect(isCue(await ringPixel(page, first))).toBe(false)
   })
 })
 
