@@ -11,3 +11,5 @@
 
 1. 3840×2160, choice 150: drag the left panel splitter 40 px → panel edge follows the pointer.
 2. Same: open Preview → bar 72 px, site room at visitor size.
+
+`pnpm agent manual-qa` (2026-11-21): problem (harness) — 1, 2: start-session click intercepted by the welcome-screen header (30 s timeout), editor never reached. Covered instead by `e2e/interface-size-pointer.spec.ts` ("panel splitter and filmstrip separator follow the pointer", "site preview: bar scales, room and GL at visitor size"), passing at 150 % and 100 %.

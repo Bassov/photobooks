@@ -22,7 +22,7 @@
 | `src/editor/usePasteboardCamera.ts`                                    | wheel anchor / s                        |
 | `src/editor/galleryDrop.ts`                                            | drop point / s                          |
 | `src/editor/SpreadsPanel.tsx`                                          | reorder point / s                       |
-| `src/ui/testing/uiScaleFixture.ts`                                     | test helper: s = 1.5 via the real store |
+| `src/ui/uiScale.test-helpers.ts`                                       | test helper: s = 1.5 via the real store |
 | `src/editor/galleryDrop.stack.test.ts`                                 | unit                                    |
 | `src/editor/SpreadsPanel.test.tsx`                                     | unit                                    |
 | `src/ui/Panel.test.tsx`                                                | unit                                    |
