@@ -584,10 +584,17 @@ export function usePasteboardCamera({
         releaseZoomGesture()
         return
       }
+      // Commit what is on screen: the live paint is the world translate under
+      // the port's current scroll. A native scroll during the gesture
+      // (scrollbar, focus, a click's scroll-into-view) moved that scroll off
+      // `frame.scrollLeft`, which assumes the start scroll — committing the
+      // frame as is snapped the canvas back by that scroll (camera-crop-race).
+      // Without a port this is `frame.scrollLeft` (start scroll − translate).
       commitZoom(
         gesture.frame.zoom,
-        gesture.frame.scrollLeft,
-        gesture.frame.scrollTop,
+        (port?.scrollLeft ?? gesture.startScrollLeft) -
+          gesture.frame.translateX,
+        (port?.scrollTop ?? gesture.startScrollTop) - gesture.frame.translateY,
       )
       releaseZoomGesture()
     }

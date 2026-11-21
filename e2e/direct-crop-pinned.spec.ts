@@ -614,6 +614,160 @@ test('pinned crop: Tab keeps the camera still, one Esc keeps the frame selected,
   await assertDocumentFitsViewport(page)
 })
 
+interface CameraSample {
+  x: number
+  y: number
+  w: number
+  crop: boolean
+}
+
+/**
+ * Records the frame rect on every animation frame until `stop()` (page side),
+ * so a one-frame camera jump shows even when the camera settles back.
+ */
+async function sampleFrameRect(
+  frame: Locator,
+): Promise<() => Promise<CameraSample[]>> {
+  await frame.evaluate((el) => {
+    const samples: CameraSample[] = []
+    const w = window as unknown as {
+      __cameraSamples: CameraSample[]
+      __cameraStop: boolean
+    }
+    w.__cameraSamples = samples
+    w.__cameraStop = false
+    const tick = () => {
+      const r = el.getBoundingClientRect()
+      samples.push({
+        x: r.x,
+        y: r.y,
+        w: r.width,
+        crop: el.getAttribute('data-crop-active') === 'true',
+      })
+      if (!w.__cameraStop) {
+        requestAnimationFrame(tick)
+      }
+    }
+    requestAnimationFrame(tick)
+  })
+  return () =>
+    frame.evaluate(() => {
+      const w = window as unknown as {
+        __cameraSamples: CameraSample[]
+        __cameraStop: boolean
+      }
+      w.__cameraStop = true
+      return w.__cameraSamples
+    })
+}
+
+function sampleAt(samples: CameraSample[], index: number): CameraSample {
+  const sample = samples[index]
+  if (sample === undefined) {
+    throw new Error(`no camera sample ${String(index)}`)
+  }
+  return sample
+}
+
+test('pinned crop right after a wheel zoom: the camera stays where the wheel left it', async ({
+  page,
+}) => {
+  const { frame } = await sizedPhotoFrame(page)
+  const at = centre(await box(frame))
+  await page.mouse.move(at.x, at.y)
+  const stop = await sampleFrameRect(frame)
+  // No stillness wait. In one task: a wheel zoom over the frame, its first
+  // live paint, then a native scroll of the pasteboard (scrollbar, focus or
+  // the click's scroll-into-view) — all inside the 80 ms wheel settle window.
+  const moved = await page
+    .getByTestId('pasteboard-scroll')
+    .evaluate(async (el, p) => {
+      el.dispatchEvent(
+        new WheelEvent('wheel', {
+          deltaY: -100,
+          clientX: p.x,
+          clientY: p.y,
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+      const left = el.scrollLeft
+      const top = el.scrollTop
+      el.scrollLeft += 40
+      el.scrollTop += 40
+      const by = Math.max(
+        Math.abs(el.scrollLeft - left),
+        Math.abs(el.scrollTop - top),
+      )
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+      const w = window as unknown as { __cameraSamples: CameraSample[] }
+      return {
+        by,
+        from: w.__cameraSamples.length,
+        live: el.querySelector<HTMLElement>('[data-gesture="zoom"]') !== null,
+      }
+    }, at)
+  expect(moved.by).toBeGreaterThan(10)
+  // The scroll landed while the wheel zoom was still live.
+  expect(moved.live).toBe(true)
+  // The pinned crop turns on while that zoom may still be settling.
+  // Off the centre grabber, like the outline test (12 px in from the sw corner).
+  const f = await box(frame)
+  await page.mouse.dblclick(f.x + 12, f.y + f.height - 12)
+  await expect(frame).toHaveAttribute('data-crop-active', 'true')
+  await expect(page.getByTestId('zoom-label')).not.toHaveText('Fit')
+  // Let the settle (80 ms) commit the zoom, then sample 10 more frames.
+  await expect(page.getByTestId('pasteboard-world')).not.toHaveAttribute(
+    'data-gesture',
+    'zoom',
+  )
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        let left = 10
+        const step = () => {
+          left -= 1
+          if (left === 0) resolve()
+          else requestAnimationFrame(step)
+        }
+        requestAnimationFrame(step)
+      }),
+  )
+  const samples = await stop()
+  // `ref`: the frame painted after the wheel zoom and the native scroll.
+  const ref = sampleAt(samples, moved.from - 1)
+  expect(ref.w).toBeGreaterThan(sampleAt(samples, 0).w)
+  const on = samples.findIndex((s) => s.crop)
+  expect(on).toBeGreaterThanOrEqual(moved.from)
+  const off = (s: CameraSample) =>
+    Math.max(
+      Math.abs(s.x - ref.x),
+      Math.abs(s.y - ref.y),
+      Math.abs(s.w - ref.w),
+    )
+  // Neither the zoom settle nor the pinned crop moves the camera: every
+  // later frame, the one where crop turns on included, stays within 1 px.
+  const drift = Math.max(...samples.slice(moved.from - 1).map(off))
+  const atCrop = Math.abs(
+    off(sampleAt(samples, on)) - off(sampleAt(samples, on - 1)),
+  )
+  test.info().annotations.push({
+    type: 'camera-drift-px',
+    description: `max ${drift.toFixed(2)}, crop-on frame ${atCrop.toFixed(2)}`,
+  })
+  expect(atCrop).toBeLessThanOrEqual(1)
+  expect(drift).toBeLessThanOrEqual(1)
+  // Every photo handle sits in the visible canvas and takes its own hit.
+  const port = await box(page.getByTestId('pasteboard-scroll'))
+  for (const handle of await frame.getByTestId('photo-handle').all()) {
+    const c = centre(await box(handle))
+    expect(c.x).toBeGreaterThan(port.x)
+    expect(c.x).toBeLessThan(port.x + port.width)
+    expect(await hitAt(page, c)).toBe('photo-handle')
+  }
+})
+
 test('a 50 × 30 px frame has no grabber and no mid handles on its 30 px sides', async ({
   page,
 }) => {
