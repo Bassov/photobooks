@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
-import { pixelsAt } from './fixtures/paintProbe'
+import { pixelsAt, topAt } from './fixtures/paintProbe'
 
 // Designer placed-badge PB1, kit `#/demo`: the filmstrip "placed" badge is the
 // "Show in the book" button. A click goes to the photo's place and selects it
@@ -229,4 +229,136 @@ test('photo-pick mode: a badge press is the pick, no jump', async ({
   await expect(target.locator('img')).toHaveCount(1)
   await expectFrameSelected(page, 4)
   await expect(badge(thumb(page, 5))).toHaveText('2')
+})
+
+// Designer M146: after the jump each axis is revealed on its own — a frame that
+// fits the port (the pasteboard right of the spread list) inset by 24 px
+// scrolls the minimum that puts it inside; a larger one is centred.
+test('M146: at 200 % a jump reveals a frame hidden under the spread list (fits: minimum scroll; larger: centred)', async ({
+  page,
+}) => {
+  const pb = demo(page).getByTestId('pasteboard')
+  const edge = async () => {
+    const p = await rect(demo(page).getByTestId('spreads-panel'))
+    return p.x + p.width
+  }
+  const scrollLeft = () => pb.evaluate((el) => el.scrollLeft)
+  // the leftmost of spread 4's frames that still fits the port at 200 %
+  await listItem(page, 'p4').click()
+  const port0 = await rect(pb)
+  const boxes = await Promise.all(
+    (await frames(page, 4).all()).map((l) => rect(l)),
+  )
+  const fits = boxes
+    .map((b, i) => ({ b, i }))
+    .filter(({ b }) => b.width * 2 < port0.width - 48 - 2)
+  expect(fits.length).toBeGreaterThan(0)
+  const small = frames(page, 4).nth(
+    fits.reduce((a, c) => (c.b.x < a.b.x ? c : a)).i,
+  )
+  await thumb(page, 5).dragTo(small)
+  await expect(small.locator('img')).toHaveCount(1)
+  // a full-page frame: larger than the port at 200 %
+  await listItem(page, 'p1').click()
+  const big = frames(page, 1).first()
+  await thumb(page, 6).dragTo(big)
+  await expect(big.locator('img')).toHaveCount(1)
+  await page.mouse.move(5, 5)
+  await listItem(page, 'p4').click()
+  await demo(page).getByTestId('zoom-menu').click()
+  await page.getByRole('menuitem', { name: '200%' }).click()
+
+  // fits: the frame scrolled out to the left, under the spread list
+  await pb.evaluate((el) => {
+    el.scrollLeft = el.scrollWidth
+  })
+  await expect
+    .poll(async () => (await rect(small)).x)
+    .toBeLessThan(await edge())
+  let before = await scrollLeft()
+  await badge(thumb(page, 5)).click()
+  await expect.poll(scrollLeft).not.toBe(before)
+  const [port, box, left] = [await rect(pb), await rect(small), await edge()]
+  expect(port.x).toBeGreaterThanOrEqual(left - 0.5)
+  expect(box.x).toBeGreaterThanOrEqual(left + 24 - 0.5)
+  expect(box.x).toBeCloseTo(port.x + 24, 0)
+  expect(box.x + box.width).toBeLessThanOrEqual(port.x + port.width - 24 + 0.5)
+  // painted there: the frame is the top hit just inside the inset
+  const hit = await topAt(pb, {
+    x: box.x - port.x + 12,
+    y: box.y - port.y + box.height * 0.3,
+  })
+  expect(hit.flat()).toContain('frame')
+  expect(hit.flat()).not.toContain('spreads-panel')
+
+  // larger than the port: centred on that axis
+  await pb.evaluate((el) => {
+    el.scrollLeft = el.scrollWidth
+  })
+  before = await scrollLeft()
+  await badge(thumb(page, 6)).click()
+  await expectFrameSelected(page, 1)
+  await expect.poll(scrollLeft).not.toBe(before)
+  const b = await rect(big)
+  expect(b.width).toBeGreaterThan(port.width - 48)
+  expect(b.x + b.width / 2).toBeCloseTo(port.x + port.width / 2, 0)
+})
+
+// Spec Jump step 6 (M147): every jump path clears the filmstrip selection.
+test('M147: badge click, Enter and double-click jumps leave the filmstrip unselected', async ({
+  page,
+}) => {
+  await placeOn(page, 1)
+  const row = thumb(page, 5)
+  const selected = film(page).locator('[role="row"][aria-selected="true"]')
+
+  await row.click()
+  await expect(row).toHaveAttribute('aria-selected', 'true')
+  await badge(row).click()
+  await expectFrameSelected(page, 1)
+  await expect(selected).toHaveCount(0)
+
+  await listItem(page, 'p0').click()
+  await row.click()
+  await expect(row).toHaveAttribute('aria-selected', 'true')
+  await page.keyboard.press('Enter')
+  await expectFrameSelected(page, 1)
+  await expect(selected).toHaveCount(0)
+
+  await listItem(page, 'p0').click()
+  await row.dblclick()
+  await expectFrameSelected(page, 1)
+  await expect(selected).toHaveCount(0)
+})
+
+// M149, prod isStatusPillVisible: only the frame drag hint, a guide position,
+// the frame clipboard and the badge cycle paint the pill; other statuses are
+// screen-reader only (text kept in the live region).
+test('M149: drop and pick-replace statuses are screen-reader only; the badge cycle paints the pill', async ({
+  page,
+}) => {
+  const srOnly = async (text: RegExp) => {
+    await expect(status(page)).toHaveText(text)
+    await expect(status(page)).toHaveAttribute('aria-live', 'polite')
+    expect((await rect(status(page))).width).toBeLessThanOrEqual(1)
+  }
+  await placeOn(page, 1)
+  await srOnly(/^Placed IMG_\d+\.jpg$/)
+  await expect(status(page)).toHaveText('', { timeout: 8000 })
+
+  await frames(page, 1).first().click({ button: 'right', force: true })
+  await page.getByTestId('frame-menu-replace').click()
+  await expect(film(page)).toHaveAttribute('data-picking', 'true')
+  await thumb(page, 6).click()
+  await srOnly(/^Replaced IMG_\d+\.jpg — it is back in the gallery$/)
+
+  await placeOn(page, 2)
+  await placeOn(page, 3)
+  await expect(status(page)).toHaveText('', { timeout: 8000 })
+  await listItem(page, 'p0').click()
+  await badge(thumb(page, 5)).click()
+  await expect(status(page)).toHaveText(/^Placed 1 of 2 · /)
+  const pill = await rect(status(page))
+  expect(pill.width).toBeGreaterThan(40)
+  expect((await topAt(status(page)))[0]?.[0]).toBe('status')
 })

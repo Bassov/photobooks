@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   actionAfterPaintConfirm,
+  insetAxisDelta,
   isScrollNearMax,
+  nudgeBoxIntoInsetPort,
   nudgeBoxIntoPort,
   planRevealAttempt,
   REVEAL_TRY_CEILING,
@@ -9,6 +11,7 @@ import {
   revealLaidOutSpread,
   revealTryBudget,
   spreadBoxContained,
+  spreadBoxRevealed,
   turnPendingReveal,
 } from './pasteboardReveal'
 
@@ -226,10 +229,11 @@ describe('turnPendingReveal', () => {
     expect(result.turn).toEqual({ kind: 'await-slot', top: 300 })
   })
 
-  it('retries then clears when layout never contains', () => {
-    // Tall box never fits; keep scrollHeight huge so we stay off max-scroll budget.
+  it('retries then clears when layout never reveals', () => {
+    // Fixed tall box below the port top never covers it; keep scrollHeight
+    // huge so we stay off the max-scroll budget.
     const scroll = mockScroll({ scrollHeight: 100_000 })
-    const slot = mockSlot(() => rect(PORT.left, PORT.top, 200, 500))
+    const slot = mockSlot(() => rect(PORT.left, PORT.top + 50, 200, 500))
     const first = turnPendingReveal({
       slot,
       scroll,
@@ -470,6 +474,126 @@ describe('nudgeBoxIntoPort', () => {
   })
 })
 
+describe('insetAxisDelta / nudgeBoxIntoInsetPort (M145)', () => {
+  // Designer par.json prod.reveal: port x 212–1140, frame x 133.7–556.3.
+  it('moves a fitting frame under the spread list to the 24 px inset line', () => {
+    expect(insetAxisDelta(133.7, 556.3, 212, 1140, 24)).toBeCloseTo(-102.3, 5)
+    expect(133.7 - insetAxisDelta(133.7, 556.3, 212, 1140, 24)).toBeCloseTo(
+      236,
+      5,
+    )
+  })
+
+  it('moves a fitting frame past the far edge back to the inset line', () => {
+    expect(insetAxisDelta(900, 1130, 212, 1140, 24)).toBeCloseTo(14, 5)
+  })
+
+  it('leaves a fitting frame already inside the inset band', () => {
+    expect(insetAxisDelta(236, 1116, 212, 1140, 24)).toBe(0)
+  })
+
+  it('centres a frame larger than the inset port: overflow split equally', () => {
+    // 2×: frame 1007 tall, port 720 (48–768), top cut 371 → bottom 84 above.
+    const top = 48 - 371
+    const delta = insetAxisDelta(top, top + 1007, 48, 768, 24)
+    const after = { top: top - delta, bottom: top + 1007 - delta }
+    expect(Math.abs(48 - after.top - (after.bottom - 768))).toBeLessThanOrEqual(
+      1,
+    )
+  })
+
+  it('centres a frame that fits the port but not its inset band', () => {
+    expect(insetAxisDelta(100, 980, 100, 1000, 24)).toBe(-10)
+  })
+
+  it('treats a box exactly the inset band wide as fitting (same as centred)', () => {
+    expect(insetAxisDelta(0, 80, 0, 100, 10)).toBe(-10)
+    expect(insetAxisDelta(20, 100, 0, 100, 10)).toBe(10)
+  })
+
+  it('scrolls each axis by its own rule, then leaves an inset box alone', () => {
+    const scroll = mockScroll({
+      scrollTop: 600,
+      scrollLeft: 300,
+      scrollWidth: 4000,
+    })
+    // Fits horizontally (left of the port); taller than the port vertically.
+    nudgeBoxIntoInsetPort(
+      scroll,
+      rect(PORT.left - 50, PORT.top - 300, 200, 600),
+      24,
+    )
+    expect(scroll.scrollLeft).toBe(300 - 74)
+    expect(scroll.scrollTop).toBe(600 - 200)
+
+    nudgeBoxIntoInsetPort(
+      scroll,
+      rect(PORT.left + 24, PORT.top + 24, 200, 200),
+      24,
+    )
+    expect(scroll.scrollLeft).toBe(226)
+    expect(scroll.scrollTop).toBe(400)
+
+    // Right / bottom edges past the far inset line.
+    nudgeBoxIntoInsetPort(
+      scroll,
+      rect(PORT.left + 400, PORT.top + 300, 100, 100),
+      24,
+    )
+    expect(scroll.scrollLeft).toBe(226 + 24)
+    expect(scroll.scrollTop).toBe(400 + 24)
+  })
+})
+
+describe('spreadBoxRevealed', () => {
+  const port = rect(PORT.left, PORT.top, PORT.width, PORT.height)
+
+  it('wants a fitting box inside and a larger box covering the port', () => {
+    expect(spreadBoxRevealed(port, rect(PORT.left, PORT.top, 200, 180))).toBe(
+      true,
+    )
+    expect(
+      spreadBoxRevealed(port, rect(PORT.left - 20, PORT.top, 200, 180)),
+    ).toBe(false)
+    expect(
+      spreadBoxRevealed(port, rect(PORT.left - 20, PORT.top - 10, 600, 500)),
+    ).toBe(true)
+    expect(
+      spreadBoxRevealed(port, rect(PORT.left + 20, PORT.top, 600, 180)),
+    ).toBe(false)
+    expect(
+      spreadBoxRevealed(port, rect(PORT.left, PORT.top + 20, 200, 500)),
+    ).toBe(false)
+    expect(spreadBoxRevealed(port, rect(PORT.left, PORT.top, 0, 180))).toBe(
+      false,
+    )
+    expect(spreadBoxRevealed(port, rect(PORT.left, PORT.top, 200, 0))).toBe(
+      false,
+    )
+  })
+
+  // PORT x 40–540 (500 wide), y 100–500 (400 tall); 1 px tolerance.
+  it.each([
+    ['fitting box on the left tolerance', rect(39, 100, 200, 180), true],
+    ['fitting box past the left tolerance', rect(38.5, 100, 200, 180), false],
+    ['fitting box on the right tolerance', rect(341, 100, 200, 180), true],
+    ['fitting box past the right tolerance', rect(341.5, 100, 200, 180), false],
+    ['fitting box on the top tolerance', rect(40, 99, 200, 180), true],
+    ['fitting box on the bottom tolerance', rect(40, 321, 200, 180), true],
+    ['501 wide still fits: must lie inside', rect(41, 100, 501, 180), false],
+    ['501 wide inside the tolerance', rect(39.5, 100, 501, 180), true],
+    ['wider box left edge on the tolerance', rect(41, 100, 600, 180), true],
+    ['wider box left edge past it', rect(41.5, 100, 600, 180), false],
+    ['wider box right edge on the tolerance', rect(-61, 100, 600, 180), true],
+    ['wider box right edge short of it', rect(-61.5, 100, 600, 180), false],
+    ['taller box top edge on the tolerance', rect(40, 101, 200, 500), true],
+    ['taller box bottom edge on the tolerance', rect(40, -1, 200, 500), true],
+    ['taller box bottom edge short of it', rect(40, -1.5, 200, 500), false],
+  ])('%s', (_, box, revealed) => {
+    expect(spreadBoxRevealed(port, box)).toBe(revealed)
+  })
+})
+
 describe('revealLaidOutSpread', () => {
   it('returns false when the spread has no measurable size', () => {
     const scroll = mockScroll()
@@ -481,14 +605,58 @@ describe('revealLaidOutSpread', () => {
     ).toBe(false)
   })
 
-  it('returns false when the spread cannot fit in the port', () => {
+  it('returns false when a spread taller than the port leaves part of it bare', () => {
     const scroll = mockScroll()
     expect(
       revealLaidOutSpread(
         scroll,
-        mockSlot(() => rect(PORT.left, PORT.top, 200, 500)),
+        mockSlot(() => rect(PORT.left, PORT.top + 50, 200, 500)),
       ),
     ).toBe(false)
+  })
+
+  it('returns true once a spread taller than the port covers it (no flip-flop)', () => {
+    const scroll = mockScroll({ scrollTop: 50 })
+    expect(
+      revealLaidOutSpread(
+        scroll,
+        mockSlot(() => rect(PORT.left, PORT.top - 20, 200, 500)),
+      ),
+    ).toBe(true)
+    // One edge nudge (top aligned), no second nudge to the far edge.
+    expect(scroll.scrollTop).toBe(30)
+  })
+
+  /** Reads 1–3: box, after, afterSecond; later reads: `rest`. */
+  function sequenceSlot(boxes: readonly DOMRect[], rest: DOMRect) {
+    let read = 0
+    return mockSlot(() => {
+      read += 1
+      return boxes[read - 1] ?? rest
+    })
+  }
+
+  it('nudges a third time when the second nudge did not reveal', () => {
+    const scroll = mockScroll({ scrollTop: 50 })
+    const below = rect(PORT.left, PORT.top + 500, 200, 180)
+    revealLaidOutSpread(
+      scroll,
+      sequenceSlot([below, below, below], rect(PORT.left, 200, 200, 180)),
+    )
+    // Each centring nudge adds 500 - (400 - 180) / 2 = 390.
+    expect(scroll.scrollTop).toBe(50 + 3 * 390)
+  })
+
+  it('skips the third nudge once the second one revealed the spread', () => {
+    const scroll = mockScroll({ scrollTop: 50 })
+    const below = rect(PORT.left, PORT.top + 500, 200, 180)
+    // A taller box covering the port: revealed, yet a nudge would move it.
+    const covering = rect(PORT.left, PORT.top - 20, 200, 500)
+    revealLaidOutSpread(
+      scroll,
+      sequenceSlot([below, below, covering], covering),
+    )
+    expect(scroll.scrollTop).toBe(50 + 2 * 390)
   })
 
   it('forces content-visibility visible while revealing', () => {

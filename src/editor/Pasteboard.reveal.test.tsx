@@ -176,7 +176,8 @@ describe('Pasteboard reveal of an added spread', () => {
       left: PORT_LEFT,
       width: 200,
       height: 420,
-      scrollTop: 110,
+      // One edge nudge: the taller box then covers the port (revealed).
+      scrollTop: 70,
       scrollLeft: 40,
     },
     {
@@ -194,8 +195,9 @@ describe('Pasteboard reveal of an added spread', () => {
       left: PORT_LEFT,
       width: 520,
       height: 180,
+      // One edge nudge: the wider box then covers the port (revealed).
       scrollTop: 50,
-      scrollLeft: 100,
+      scrollLeft: 60,
     },
     {
       label: 'pulls a short spread down when only its top is above the port',

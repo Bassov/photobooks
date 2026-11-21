@@ -307,10 +307,13 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [design-r35-filmstrip-wheel-kit](roadmap/P5/design-r35-filmstrip-wheel-kit.md) — Bug: /next-roadmap-item design-r35-filmstrip-wheel-kit
 - [ ] [feature] [fill-book-kit](roadmap/P5/fill-book-kit.md) — Bug: /next-roadmap-item fill-book-kit
 - [ ] [lite] [design-r40-relink-prod](roadmap/P5/design-r40-relink-prod.md) — Bug: /next-roadmap-item design-r40-relink-prod
+- [ ] [lite] [design-r38-badge-reveal-kit](roadmap/P5/design-r38-badge-reveal-kit.md) — Bug: /next-roadmap-item design-r38-badge-reveal-kit
 - [ ] [lite] [design-r37-dialog-title-prod](roadmap/P5/design-r37-dialog-title-prod.md) — Bug: /next-roadmap-item design-r37-dialog-title-prod
 - [ ] [lite] [site-reader-gl-ready](roadmap/P5/site-reader-gl-ready.md) — Bug: /next-roadmap-item site-reader-gl-ready
+- [ ] [lite] [design-r39-chevron-prod](roadmap/P5/design-r39-chevron-prod.md) — Bug: /next-roadmap-item design-r39-chevron-prod
 - [ ] [lite] [cycle-layouts-core](roadmap/P5/cycle-layouts-core.md) — Bug: /next-roadmap-item cycle-layouts-core
 - [ ] [lite] [design-r36-menu-kit](roadmap/P5/design-r36-menu-kit.md) — Bug: /next-roadmap-item design-r36-menu-kit
+- [ ] [lite] [design-r38-badge-reveal-prod](roadmap/P5/design-r38-badge-reveal-prod.md) — Bug: /next-roadmap-item design-r38-badge-reveal-prod
 - [ ] [feature] [interface-size-core](roadmap/P5/interface-size-core.md) — Bug: /next-roadmap-item interface-size-core
 - [ ] [feature] [interface-size-pointer](roadmap/P5/interface-size-pointer.md) — Bug: /next-roadmap-item interface-size-pointer
 - [ ] [feature] [interface-size](roadmap/P5/interface-size.md) — Bug: /next-roadmap-item interface-size
@@ -318,6 +321,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [interface-size-modals](roadmap/P5/interface-size-modals.md) — Bug: /next-roadmap-item interface-size-modals
 - [ ] [feature] [interface-size-popovers](roadmap/P5/interface-size-popovers.md) — Bug: /next-roadmap-item interface-size-popovers
 - [ ] [feature] [fill-book-core](roadmap/P5/fill-book-core.md) — Bug: /next-roadmap-item fill-book-core
+- [ ] [feature] [fill-book](roadmap/P5/fill-book.md) — Bug: /next-roadmap-item fill-book
 - [ ] [feature] [prepush-scoped-units](roadmap/P5/prepush-scoped-units.md) — Bug: /next-roadmap-item prepush-scoped-units
 - [ ] [lite] [ratchet-merge-base](roadmap/P5/ratchet-merge-base.md) — Bug: /next-roadmap-item ratchet-merge-base
 - [ ] [feature] [interface-size-kit](roadmap/P5/interface-size-kit.md) — Bug: /next-roadmap-item interface-size-kit

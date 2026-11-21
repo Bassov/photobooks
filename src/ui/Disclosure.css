@@ -88,7 +88,8 @@
 
 .pb-disclosure__chevron {
   flex-shrink: 0;
-  color: var(--muted-foreground);
+  /* Kit text-muted-foreground/70 (Owner Must M148, round 39). */
+  color: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
   transition: transform var(--motion-duration-fast);
 }
 

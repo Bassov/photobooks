@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   copiedFramesStatus,
   emptyPastedFramesStatus,
+  fillBookStatus,
   flashEditorStatus,
   getEditorStatus,
   guideStatus,
@@ -110,6 +111,31 @@ describe('editorStatus', () => {
       "photos aren't in this book, so their frames are empty",
       "x photos aren't in this book, so their frames are empty",
       "2 photos aren't in this book",
+    ]) {
+      expect(isStatusPillVisible(status)).toBe(false)
+    }
+  })
+
+  it('words the Fill book status and paints it as a pill', () => {
+    expect(fillBookStatus(12, 4, 0)).toBe('Placed 12 photos · added 4 spreads')
+    expect(fillBookStatus(1, 0, 0)).toBe('Placed 1 photo')
+    expect(fillBookStatus(3, 1, 1)).toBe(
+      'Placed 3 photos · added 1 spread · 1 stays in the filmstrip',
+    )
+    expect(fillBookStatus(2, 0, 5)).toBe(
+      'Placed 2 photos · 5 stay in the filmstrip',
+    )
+    for (const status of [
+      'Placed 1 photo',
+      'Placed 12 photos',
+      'Placed 2 photos · added 1 spread',
+    ]) {
+      expect(isStatusPillVisible(status)).toBe(true)
+    }
+    for (const status of [
+      'Placed photos',
+      'xPlaced 1 photo',
+      'Placed 1 photo.',
     ]) {
       expect(isStatusPillVisible(status)).toBe(false)
     }

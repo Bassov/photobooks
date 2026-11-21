@@ -54,6 +54,29 @@ export function spreadBoxContained(port: DOMRect, box: DOMRect): boolean {
   )
 }
 
+/** One axis of `spreadBoxRevealed`: inside when it fits, else covering. */
+function axisRevealed(a0: number, a1: number, lo: number, hi: number): boolean {
+  if (a1 - a0 <= hi - lo + 1) {
+    return a0 >= lo - 1 && a1 <= hi + 1
+  }
+  return a0 <= lo + 1 && a1 >= hi - 1
+}
+
+/**
+ * Per axis: a box that fits the port is inside it, a larger box covers it
+ * (all `nudgeBoxIntoPort` can do). A spread wider or taller than the port is
+ * never contained, so checking containment alone flip-flopped the reveal
+ * between its two edges until the try budget ran out (M145).
+ */
+export function spreadBoxRevealed(port: DOMRect, box: DOMRect): boolean {
+  return (
+    box.width >= 1 &&
+    box.height >= 1 &&
+    axisRevealed(box.left, box.right, port.left, port.right) &&
+    axisRevealed(box.top, box.bottom, port.top, port.bottom)
+  )
+}
+
 export function nudgeBoxIntoPort(scroll: HTMLElement, box: DOMRect): void {
   const port = scroll.getBoundingClientRect()
   const contentTop = scroll.scrollTop + (box.top - port.top)
@@ -82,6 +105,55 @@ export function nudgeBoxIntoPort(scroll: HTMLElement, box: DOMRect): void {
   scroll.scrollLeft = Math.max(0, left)
 }
 
+/**
+ * Scroll delta on one axis for the box span [a0, a1] in the port [lo, hi]:
+ * when the box fits the port inset by `inset`, the least shift that puts it
+ * inside the inset band (0 when it already is); else centre it in the port.
+ */
+export function insetAxisDelta(
+  a0: number,
+  a1: number,
+  lo: number,
+  hi: number,
+  inset: number,
+): number {
+  // Shifts d with a0 - d ≥ lo + inset and a1 - d ≤ hi - inset: [least, most].
+  // Clamping 0 into it is the least scroll; when the box is larger the range
+  // is empty and the clamp collapses to its midpoint, i.e. centring.
+  const least = a1 - (hi - inset)
+  const most = a0 - (lo + inset)
+  const mid = (least + most) / 2
+  return Math.min(Math.max(0, Math.min(least, mid)), Math.max(most, mid))
+}
+
+/**
+ * Designer placed-badge B4 (M145): per axis, scroll the least that puts the
+ * box inside the port inset by `inset`, or centre it when it is larger. The
+ * port is the scroll element's rect (it starts at the spread list's right edge).
+ */
+export function nudgeBoxIntoInsetPort(
+  scroll: HTMLElement,
+  box: DOMRect,
+  inset: number,
+): void {
+  const port = scroll.getBoundingClientRect()
+  // The scroller clamps; writing an unchanged value fires no scroll event.
+  scroll.scrollLeft += insetAxisDelta(
+    box.left,
+    box.right,
+    port.left,
+    port.right,
+    inset,
+  )
+  scroll.scrollTop += insetAxisDelta(
+    box.top,
+    box.bottom,
+    port.top,
+    port.bottom,
+    inset,
+  )
+}
+
 export function revealLaidOutSpread(
   scroll: HTMLElement,
   slot: HTMLElement,
@@ -102,11 +174,11 @@ export function revealLaidOutSpread(
   const widthFits = after.width <= port.width + 1
   // Secondary nudges when at least one axis still fits — an AND gate skipped
   // horizontal correction for height-fit / width-overflow (and the tall twin).
-  if (!spreadBoxContained(port, after) && (heightFits || widthFits)) {
+  if (!spreadBoxRevealed(port, after) && (heightFits || widthFits)) {
     const beforeTop = scroll.scrollTop
     nudgeBoxIntoPort(scroll, after)
     const afterSecond = target.getBoundingClientRect()
-    if (!spreadBoxContained(scroll.getBoundingClientRect(), afterSecond)) {
+    if (!spreadBoxRevealed(scroll.getBoundingClientRect(), afterSecond)) {
       nudgeBoxIntoPort(scroll, afterSecond)
     }
     if (
@@ -116,7 +188,7 @@ export function revealLaidOutSpread(
         scroll.scrollHeight,
         scroll.clientHeight,
       ) &&
-      !spreadBoxContained(
+      !spreadBoxRevealed(
         scroll.getBoundingClientRect(),
         target.getBoundingClientRect(),
       )
@@ -124,7 +196,7 @@ export function revealLaidOutSpread(
       return false
     }
   }
-  return spreadBoxContained(
+  return spreadBoxRevealed(
     scroll.getBoundingClientRect(),
     target.getBoundingClientRect(),
   )
@@ -229,7 +301,7 @@ export function turnPendingReveal(input: {
   }
   const view = input.slot.querySelector('[data-testid="spread-view"]')
   const target = view instanceof HTMLElement ? view : input.slot
-  const containedAfterPaint = spreadBoxContained(
+  const containedAfterPaint = spreadBoxRevealed(
     input.scroll.getBoundingClientRect(),
     target.getBoundingClientRect(),
   )

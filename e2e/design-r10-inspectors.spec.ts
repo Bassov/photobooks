@@ -9,6 +9,7 @@ import {
 } from './fixtures/ensurePhotoFixtures'
 import { openLibraryBook } from './fixtures/openLibraryBook'
 import { openSessionEditor } from './fixtures/openSessionEditor'
+import { pixelsAt } from './fixtures/paintProbe'
 import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
@@ -214,6 +215,20 @@ async function box(locator: Locator) {
   return b
 }
 
+/** Darkest painted pixel in the locator box: the lowest red channel (the
+ * Designer's ink metric; chrome greys are near-neutral). */
+async function darkestPixel(locator: Locator) {
+  const b = await locator.boundingBox()
+  if (b === null) throw new Error('not visible')
+  const w = Math.floor(b.width)
+  const grid = Array.from({ length: w * Math.floor(b.height) }, (_, i) => ({
+    x: i % w,
+    y: Math.floor(i / w),
+  }))
+  const rgba = await pixelsAt(locator, grid)
+  return Math.min(...rgba.map(([r = 0]) => r))
+}
+
 async function near(locator: Locator, kit: number, axis: 'x' | 'y' = 'y') {
   const actual = (await box(locator))[axis]
   expect(
@@ -389,6 +404,21 @@ test.describe('M59–M61: Cover, Book and Photo inspectors match the kit', () =>
       await expect(
         triggers.nth(at).locator('.pb-disclosure__chevron'),
       ).toHaveCSS('transform', at < 3 ? 'matrix(0, 1, -1, 0, 0, 0)' : 'none')
+    }
+    // M148 (round 39): the chevron paints kit text-muted-foreground/70 on the
+    // rgb(225) panel. Darkest red: open ▾ 160 (the Designer's kit value),
+    // closed › 151 (the unrotated stroke anti-aliases denser at the same
+    // colour); solid muted-foreground painted the open one 132.
+    for (const [at, ink] of [
+      [0, 160],
+      [3, 151],
+    ] as const) {
+      const chevron = triggers.nth(at).locator('.pb-disclosure__chevron')
+      expect(await pixelsAt(chevron, [{ x: 0, y: 0 }])).toEqual([
+        [225, 225, 225, 255],
+      ])
+      const dark = await darkestPixel(chevron)
+      expect(Math.abs(dark - ink)).toBeLessThanOrEqual(6)
     }
 
     await near(page.getByTestId('inspector-photo').locator('.truncate'), p.name)

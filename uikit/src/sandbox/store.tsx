@@ -340,14 +340,41 @@ export function nextPlaceIndex(st: Studio, photo: string, places: Place[]) {
   const i = places.findIndex((p) => (p.kind === "cover" ? -1 : p.si) >= at)
   return i < 0 ? 0 : i
 }
-/** B1: go to place `i` of `photo` and select it, as a spread-row click then a frame click (no history step, B9). */
-export function jumpTo(st: Studio, photo: string, places: Place[], i: number) {
+/** Reveal inset of the port (the pasteboard right of the spread list), px. */
+export const REVEAL_INSET = 24
+/** M146 one axis: a frame that fits the port inset by REVEAL_INSET moves the minimum that puts it inside; a larger one is centred.
+ *  Returns the scroll delta. */
+export function revealDelta(lo: number, hi: number, portLo: number, portHi: number, inset = REVEAL_INSET) {
+  const a = portLo + inset, b = portHi - inset
+  if (hi - lo > b - a) return (lo + hi) / 2 - (portLo + portHi) / 2
+  return lo < a ? lo - a : hi > b ? hi - b : 0
+}
+/** M146: after the spread's own centring (Stack, an effect), scroll the pasteboard per axis so the frame sits in the port. */
+function revealFrame(root: Element, si: number, frameId: string) {
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const port = root.querySelector<HTMLElement>('[data-testid="pasteboard"]')
+    const f = port?.querySelector(`[data-spread="${si}"] [data-frame="${frameId}"]`)
+    if (!port || !f) return
+    const r = f.getBoundingClientRect(), pr = port.getBoundingClientRect()
+    port.scrollLeft += revealDelta(r.left, r.right, pr.left, pr.left + port.clientWidth)
+    port.scrollTop += revealDelta(r.top, r.bottom, pr.top, pr.top + port.clientHeight)
+  }))
+}
+/** B1: go to place `i` of `photo` and select it, as a spread-row click then a frame click (no history step, B9).
+ *  Spec Jump step 6: the filmstrip selection clears on every path (badge, Enter, double-click). `from` = an element of the
+ *  jumping editor (the filmstrip); its pasteboard reveals the frame (M146). */
+export function jumpTo(st: Studio, photo: string, places: Place[], i: number, from?: Element | null) {
   const p = places[i]
   lastJump = { photo, i }
   st.setCropId(null)
   st.setMode("pages")
+  st.setFilmSel([])
   if (p.kind === "cover") st.setNode({ k: "cover" })
-  else { st.setCur(p.si); st.setSel([p.frameId]) }
+  else {
+    st.setCur(p.si); st.setSel([p.frameId])
+    const root = from?.closest('[data-testid="editor"]')
+    if (root) revealFrame(root, p.si, p.frameId)
+  }
 }
 /** Inputs whose keys never edit text (Switch / checkbox, radio, slider…). */
 const NON_TEXT_INPUT = new Set(["checkbox", "radio", "range", "button", "submit", "reset", "color", "file", "image"])
