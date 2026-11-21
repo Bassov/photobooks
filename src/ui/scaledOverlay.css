@@ -1,0 +1,20 @@
+/* Interface size (design interface-size §4): a positioned overlay is two
+   boxes. The element React Aria positions (.pb-popover, .pb-menu-popover,
+   .pb-list-select__popover, .pb-tooltip) stays unzoomed: a flex column with a
+   1 px transparent border, no width of its own (unlayered, so it beats the
+   width utilities a consumer passes), and React Aria's inline max-height. Its
+   single child .pb-overlay-box is zoomed by the app scale and carries the box:
+   the consumer's classes, bg, radius, shadow. The box's -1 screen px margin
+   covers that border and its 1px padding stands in for it, so at 100 % the
+   paint and the content inset are as before, and at s every size is the 100 %
+   size × s (a real 1 px border would snap to 1 screen px under the zoom).
+   Component CSS loads after this file and may override the padding. */
+.pb-overlay-box {
+  zoom: var(--ui-scale);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: calc(-1px / var(--ui-scale));
+  padding: 1px;
+}

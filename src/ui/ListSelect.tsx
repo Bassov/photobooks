@@ -10,6 +10,7 @@ import {
 } from 'react-aria-components'
 import { cx } from './className'
 import { Icon } from './Icon'
+import { overlayBox, useScaledGaps } from './scaledOverlay'
 import './Field.css'
 import './ListSelect.css'
 
@@ -62,28 +63,31 @@ export function ListSelect({
       <Popover
         placement="bottom start"
         shouldFlip={false}
-        offset={4}
+        {...useScaledGaps({ offset: 4 })}
         className="pb-list-select__popover"
       >
-        <ListBox className="pb-list-select__list">
-          {options.map((option) => (
-            <ListBoxItem
-              key={option.value}
-              id={option.value}
-              textValue={option.label}
-              className="pb-list-select__item"
-            >
-              {({ isSelected }) => (
-                <>
-                  <span className="pb-list-select__check" aria-hidden="true">
-                    {isSelected ? <Icon name="check" size={16} /> : null}
-                  </span>
-                  {option.label}
-                </>
-              )}
-            </ListBoxItem>
-          ))}
-        </ListBox>
+        {overlayBox(
+          <ListBox className="pb-list-select__list">
+            {options.map((option) => (
+              <ListBoxItem
+                key={option.value}
+                id={option.value}
+                textValue={option.label}
+                className="pb-list-select__item"
+              >
+                {({ isSelected }) => (
+                  <>
+                    <span className="pb-list-select__check" aria-hidden="true">
+                      {isSelected ? <Icon name="check" size={16} /> : null}
+                    </span>
+                    {option.label}
+                  </>
+                )}
+              </ListBoxItem>
+            ))}
+          </ListBox>,
+          'pb-list-select__box',
+        )}
       </Popover>
     </AriaSelect>
   )
