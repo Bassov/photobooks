@@ -799,7 +799,7 @@ test('kit10 → kit-sync KS1: #/demo top bar — two view toggles, tools toolbar
       '[data-testid="canvas"] [data-current] [data-testid="frame"]',
     ).first(),
   )
-  await expect(filmRow.locator('[title="Placed in the book"]')).toHaveCount(1)
+  await expect(filmRow.getByTestId('filmstrip-placed')).toHaveCount(1)
   await settled(page)
   // kit10 → kit-sync KS1: no DPI toggle in #/demo, so a low-res photo shows no dpi badge (prod has none)
   await expect(

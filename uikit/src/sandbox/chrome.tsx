@@ -20,7 +20,7 @@ import { ToastRegion } from "@/components/ui/toast"
 import { Slider, SliderTrack, SliderFillTrack, SliderThumb } from "@/components/ui/slider"
 import { IconButton, ThumbGrid, ThumbItem, Kbd, AlertDialog, thumbWidth } from "@/components/app/ui"
 import { photos, P, type Photo } from "@/data"
-import { useStudio, pickPhoto, placedSet, mapSpread, mapSpreadFreezing, thumbPx, thumbMax, writeThumb, useInnerHeight, THUMB_MIN, type Thumb } from "./store"
+import { useStudio, pickPhoto, placedSet, placesOf, nextPlaceIndex, jumpTo, mapSpread, mapSpreadFreezing, thumbPx, thumbMax, writeThumb, useInnerHeight, THUMB_MIN, type Thumb } from "./store"
 import { PhotoImg, PHOTO_TYPE, FRAME_TYPE } from "./canvas"
 import { SW, SH, spread, parentOf, defaultMasterOf, pageNumbersOf, foliosOf, printSafe, type Frame, type Spread } from "./model"
 import type { Node } from "./store"
@@ -405,6 +405,39 @@ export function sortedGallery(ids: string[], sort: "date" | "name" | "added") {
   return a
 }
 let ext = 0
+let placedTimer: ReturnType<typeof setTimeout> | undefined
+/** The badge's live status text: a filmstrip drag end's 2.5 s clear leaves it to its own timer. */
+let placedText = ""
+/** Designer placed-badge B1–B3: go to the photo's next place; 2+ places paint `Placed i of n · <label>`, one place is read only (`Placed on <label>`). */
+function showInBook(st: ReturnType<typeof useStudio>, photo: string, cov: string) {
+  const places = placesOf(st.doc, photo, cov)
+  if (!places.length) return
+  const i = nextPlaceIndex(st, photo, places), p = places[i]
+  jumpTo(st, photo, places, i)
+  const label = p.kind === "cover" ? "Cover" : pagesName(p.si)
+  const text = places.length > 1 ? `Placed ${i + 1} of ${places.length} · ${label}` : `Placed on ${label}`
+  st.setStatus(text)
+  placedText = text
+  clearTimeout(placedTimer)
+  placedTimer = setTimeout(() => st.setStatus((s) => (s === text ? "" : s)), 2500)
+}
+/** Designer placed-badge Look: 16 px disc (check 10, blur 8), `✓ n` pill for 2+ places (`9+` above 9), hover .8 + 1.125, pressed .9,
+ *  24 × 24 hit area; not focusable (the row is the tab stop, B5). Pick mode: no hover look, the press is the pick (B6). */
+function PlacedBadge({ n, picking, onPress }: { n: number; picking: boolean; onPress: () => void }) {
+  return (
+    <AriaButton slot={null} excludeFromTabOrder preventFocusOnPress onPress={onPress} data-testid="filmstrip-placed"
+      // RAC Button drops `title`; the native tooltip as the Low-res chip's
+      ref={(el) => el?.setAttribute("title", "Show in the book")}
+      aria-label={n > 1 ? `Show in the book, placed ${n} times` : "Show in the book"}
+      className={cn("absolute bottom-1 right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-black/55 text-white outline-none backdrop-blur-sm transition-[scale,background-color] duration-(--duration-fast) ease-out before:absolute before:-inset-1 before:content-['']",
+        n > 1 && "gap-px pl-0.75 pr-1",
+        picking ? "cursor-copy" : "cursor-pointer data-[hovered]:scale-[1.125] data-[hovered]:bg-black/80 data-[pressed]:scale-100 data-[pressed]:bg-black/90 motion-reduce:scale-100!")}>
+      <Check className="size-2.5 shrink-0" strokeWidth={3} />
+      {/* Spec Look "Inter 10/600": no 10 px step in the kit type scale, so the size is inline */}
+      {n > 1 && <span className="font-[Inter] font-semibold leading-4 tracking-normal tabular-nums" style={{ fontSize: 10 }}>{n > 9 ? "9+" : n}</span>}
+    </AriaButton>
+  )
+}
 export function Filmstrip({ removable = false, externalDrop = false, sortable = true, onRemove }: { removable?: boolean; externalDrop?: boolean; sortable?: boolean; onRemove?: (id: string) => void }) {
   const st = useStudio()
   const cov = useCoverPhoto(), placed = withCover(placedSet(st.doc), cov, st.doc.gallery)
@@ -418,7 +451,7 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
     acceptedDragTypes: [FRAME_TYPE, DIRECTORY_DRAG_TYPE, "image/jpeg", "image/png", "image/webp"],
     getDropOperation: () => "move",
     onDragStart: (e) => { st.setDragging([...e.keys].map(String)); st.setStatus(`Dragging ${e.keys.size} photo${e.keys.size > 1 ? "s" : ""} — drop on a frame${st.features.multiDrop ? ", a spread or between spreads" : ""}`) },
-    onDragEnd: () => { st.setDragging(null); setTimeout(() => st.setStatus(""), 2500) },
+    onDragEnd: () => { st.setDragging(null); setTimeout(() => st.setStatus((s) => (s === placedText ? s : "")), 2500) },
     onRootDrop: (e) => handleDrop(e),
     // dropped over a thumbnail instead of empty strip: same handling (external folders / frames back to the gallery)
     onInsert: (e) => handleDrop(e),
@@ -485,8 +518,8 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
     <div ref={root} className="relative" data-filmstrip>
       <ThumbGrid aria-label="Photos" layout="grid" selectionMode={picking ? "none" : "multiple"} selectionBehavior="replace" items={items} dependencies={[placed, thumbH, picking]}
         selectedKeys={st.filmSel} onSelectionChange={(k) => st.setFilmSel(k === "all" ? items.map((p) => p.id) : [...k].map(String))}
-        // a click or Enter on a thumb = the same replace / place as a drop (one undo step)
-        onAction={picking ? (k) => pickPhoto(st, String(k)) : undefined}
+        // a click or Enter on a thumb = the same replace / place as a drop (one undo step); else Enter / double-click on a placed row = the badge (B5)
+        onAction={picking ? (k) => pickPhoto(st, String(k)) : (k) => showInBook(st, String(k), cov)}
         data-picking={picking || undefined}
         dragAndDropHooks={dragAndDropHooks}
         // r15 M88: prod `.pb-empty-title` (18 px / 1.3) around a 13 px / 1.35 span — the 18 px strut sets the baseline
@@ -502,7 +535,7 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
               <div style={{ width: w, height: h }} className="relative">
                 {miss ? <div className="grid size-full place-items-center bg-muted text-muted-foreground"><ImageOff className="size-4" /></div>
                   : <img src={p.src} className="size-full object-cover" draggable={false} alt="" />}
-                {placed.has(p.id) && <span className="absolute bottom-1 right-1 grid size-4 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm" title="Placed in the book"><Check className="size-2.5" strokeWidth={3} /></span>}
+                {placed.has(p.id) && <PlacedBadge n={placesOf(st.doc, p.id, cov).length} picking={picking} onPress={() => (picking ? pickPhoto(st, p.id) : showInBook(st, p.id, cov))} />}
                 {/* Thumb narrower than the chip + 8 px (73.33): icon only; the zero-width label keeps the 16.84 px line box. */}
                 {p.lowres && <span role="img" aria-label="Low-res" title="Low-res" className={cn('absolute left-1 top-1 inline-flex items-center whitespace-nowrap rounded-xs bg-field px-1 py-px text-2xs font-medium text-ink-warning', w < 73.33 ? 'gap-0' : 'gap-1')} data-testid="lowres-chip"><AlertTriangle className="size-2.5" /><span className={w < 73.33 ? 'w-0 overflow-hidden' : undefined}>Low-res</span></span>}
                 {removable && (
@@ -626,7 +659,8 @@ export function TemplateBar({ ids, extra }: { ids?: string[]; extra?: React.Reac
 /* ---------------------------------------------------------------- status + floating pager */
 export function StatusLine() {
   const st = useStudio()
-  return <div className="pointer-events-none absolute bottom-3 left-3 z-30 max-w-[60%] truncate rounded-md bg-popover/95 px-3 py-1 text-xs text-muted-foreground shadow-sm empty:hidden" role="status" aria-live="polite" data-testid="status">{st.status}</div>
+  // placed-badge B2: one place's "Placed on …" is for screen readers only (no pill)
+  return <div className={/^Placed on /.test(st.status) ? "sr-only" : "pointer-events-none absolute bottom-3 left-3 z-30 max-w-[60%] truncate rounded-md bg-popover/95 px-3 py-1 text-xs text-muted-foreground shadow-sm empty:hidden"} role="status" aria-live="polite" data-testid="status">{st.status}</div>
 }
 export function Pager() {
   const st = useStudio()

@@ -453,7 +453,7 @@ test('kit10 #/demo: parent-guides PG5 / PG2 and parent-overrides PO2 on a Master
       '[data-testid="canvas"] [data-current] [data-testid="frame"]',
     ).first(),
   )
-  await expect(filmRow.locator('[title="Placed in the book"]')).toHaveCount(1)
+  await expect(filmRow.getByTestId('filmstrip-placed')).toHaveCount(1)
   await page.keyboard.press('Shift+R')
   await page.keyboard.press('Control+;')
   const rulerX = Dm(page, '[data-testid="ruler-x"]')

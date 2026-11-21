@@ -78,7 +78,7 @@ export type Studio = {
   features: Features
   toast: (c: ToastContent, timeout?: number) => void
   queue: ReturnType<typeof createToastQueue>
-  status: string; setStatus: (s: string) => void
+  status: string; setStatus: React.Dispatch<React.SetStateAction<string>>
   dragging: string[] | null; setDragging: (ids: string[] | null) => void
   saveState: "saved" | "saving" | "dirty" | "error"; setSaveState: (s: Studio["saveState"]) => void
   missing: Set<string>; setMissing: (s: Set<string>) => void
@@ -266,6 +266,44 @@ export function placedSet(d: Doc) {
   const s = new Set<string>()
   for (const sp of d.spreads) for (const f of sp.frames) if (f.photo) s.add(f.photo)
   return s
+}
+/** Designer placed-badge: where a photo sits, in spread-list order (the cover's front photo, then spreads × frames bottom → top). */
+export type Place = { kind: "cover" } | { kind: "frame"; si: number; frameId: string }
+export function placesOf(d: Doc, photoId: string, coverPhoto: string): Place[] {
+  const out: Place[] = []
+  if (photoId === coverPhoto && d.gallery.includes(photoId)) out.push({ kind: "cover" })
+  d.spreads.forEach((s, si) => { for (const f of s.frames) if (f.photo === photoId) out.push({ kind: "frame", si, frameId: f.id }) })
+  return out
+}
+/** B3 memory: the last jump (photo + index into its places). */
+let lastJump: { photo: string; i: number } | null = null
+const isSelected = (st: Studio, p: Place) => p.kind === "cover"
+  ? st.node?.k === "cover"
+  : !st.node && st.cur === p.si && st.sel.length === 1 && st.sel[0] === p.frameId
+/** spread-list position of the active row: cover −1, front endpaper −0.5, spread i, last page / back endpaper after every spread */
+function activePos(st: Studio) {
+  const nd = st.node
+  if (nd?.k === "cover") return -1
+  if (nd?.k === "endpaper") return nd.w === "front" ? -0.5 : Infinity
+  if (nd?.k === "last") return Infinity
+  return st.cur
+}
+/** B3: the last jump still selected → the next place (wraps); else the first place at or after the active row, else the first. */
+export function nextPlaceIndex(st: Studio, photo: string, places: Place[]) {
+  const last = lastJump
+  if (last && last.photo === photo && last.i < places.length && isSelected(st, places[last.i])) return (last.i + 1) % places.length
+  const at = activePos(st)
+  const i = places.findIndex((p) => (p.kind === "cover" ? -1 : p.si) >= at)
+  return i < 0 ? 0 : i
+}
+/** B1: go to place `i` of `photo` and select it, as a spread-row click then a frame click (no history step, B9). */
+export function jumpTo(st: Studio, photo: string, places: Place[], i: number) {
+  const p = places[i]
+  lastJump = { photo, i }
+  st.setCropId(null)
+  st.setMode("pages")
+  if (p.kind === "cover") st.setNode({ k: "cover" })
+  else { st.setCur(p.si); st.setSel([p.frameId]) }
 }
 /** Inputs whose keys never edit text (Switch / checkbox, radio, slider…). */
 const NON_TEXT_INPUT = new Set(["checkbox", "radio", "range", "button", "submit", "reset", "color", "file", "image"])
