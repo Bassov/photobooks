@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P5
 Title: Bug: /next-roadmap-item interface-size
+Status: done
 
 ## Scope
 
@@ -11,11 +12,11 @@ Musts IS1, IS2, IS4 hint, IS10). Depends on interface-size-core (`src/ui/uiScale
 overlay / pointer items, all on main. Kit side: interface-size-kit.
 
 - [ ] `src/editor/settingsScreenModel.ts`: 5th section `{ id: 'interface', label: 'Interface', icon:
-  'slidersHorizontal' }`; the D2 "hidden" note goes.
+'slidersHorizontal' }`; the D2 "hidden" note goes.
 - [ ] `src/editor/SettingsScreen.tsx` section branch + new `src/editor/InterfaceSettingsSection.tsx`: §1 exactly (Site
       row geometry, SegmentedControl md `w-56`, test ids `interface-size`, `interface-size-100|125|150`,
       `settings-nav-interface`, label id, hint id with `aria-live`, clamp wording `Window too small for {choice}%:
-  showing {effective}%.` in `text-foreground`). Applies at once: no Save, no toast, no undo step; focus and
+showing {effective}%.` in `text-foreground`). Applies at once: no Save, no toast, no undo step; focus and
       Settings scroll kept; the clamped choice stays selected; narrow main < 704 wraps.
 - [ ] IS1: at 1440×900 the nav shows Interface 5th; row 68.8 tall, track 224×32, segments 28, hint 12 / 16.8 (e2e,
       ±0.5 px).
