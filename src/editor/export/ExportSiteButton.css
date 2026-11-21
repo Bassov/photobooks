@@ -129,6 +129,8 @@
   margin: 0;
   font-size: var(--text-xl);
   line-height: 1.25;
+  /* r37 M144: the kit `.heading` title tracks −0.005em (−0.105px at 21px). */
+  letter-spacing: -0.005em;
 }
 
 .export-site-dialog .pb-button--ghost {
