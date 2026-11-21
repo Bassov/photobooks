@@ -33,18 +33,34 @@ const CLIPBOARD_STATUS =
 /** Placed badge cycle (Designer placed-badge B2): `Placed 1 of 2 · Pages 2–3`. */
 const PLACED_CYCLE_STATUS = /^Placed \d+ of \d+ · /
 
+/** Designer fill-book F11: what the Fill book confirm did. */
+export function fillBookStatus(
+  placed: number,
+  added: number,
+  left: number,
+): string {
+  const count = (n: number, noun: string): string =>
+    `${String(n)} ${noun}${n === 1 ? '' : 's'}`
+  const spreads = added > 0 ? ` · added ${count(added, 'spread')}` : ''
+  const stay = left === 1 ? 'stays' : 'stay'
+  const rest = left > 0 ? ` · ${String(left)} ${stay} in the filmstrip` : ''
+  return `Placed ${count(placed, 'photo')}${spreads}${rest}`
+}
+
 /**
  * Statuses the kit StatusLine pill paints at the canvas bottom-left: the
- * frame drag hint, the guide position, the frame clipboard and the placed
- * badge cycle. Every other status stays a live-region announcement only (no
- * status chips).
+ * frame drag hint, the guide position, the frame clipboard, the placed
+ * badge cycle and the Fill book result. Every other status stays a
+ * live-region announcement only (no status chips).
  */
 export function isStatusPillVisible(status: string): boolean {
   return (
     status === STATUS_FRAME_DRAG ||
     GUIDE_STATUS.test(status) ||
     CLIPBOARD_STATUS.test(status) ||
-    PLACED_CYCLE_STATUS.test(status)
+    PLACED_CYCLE_STATUS.test(status) ||
+    // Fill book (F11): `Placed 12 photos · added 4 spreads`.
+    /^Placed \d+ photos?(?: · |$)/.test(status)
   )
 }
 

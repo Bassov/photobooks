@@ -78,6 +78,7 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
   unplace: 'Remove photo',
   fillSpread: 'Fill spread',
   insertSpreadWithAssets: 'Insert spread',
+  fillBook: 'Fill book',
   setCrop: 'Crop',
   resetCrop: 'Reset crop',
   setFit: 'Change fit',

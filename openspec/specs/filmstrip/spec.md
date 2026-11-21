@@ -237,6 +237,15 @@ The filmstrip dock SHALL offer sort by capture time (asset `capturedAt`, else fi
 - **WHEN** "Unplaced only" is on and a gallery photo is placed
 - **THEN** that photo leaves the list and the dock count reads "N of M · U used"
 
+### Requirement: Fill book from the filmstrip head
+
+The dock head SHALL show a "Fill book" chip first in its right group (also without Add folder…). It is disabled with a `title` reason (no photos, Masters mode, every photo placed, every unplaced file missing). Its popover SHALL show the core `planFillBook` numbers for the unplaced, non-missing photos in the filmstrip sort; Enter confirms one `fillBook` step ("Fill book"), makes the first changed spread active with no frame selected, reveals it without a zoom change and shows the fill status; Esc / Cancel / outside change nothing.
+
+#### Scenario: Fill a new book with 12 photos
+
+- **WHEN** a new 4-page book has 12 unplaced photos and the user opens Fill book and presses Enter
+- **THEN** the popover read "4 photos" / "8 photos · 4 spreads" / "4 → 12", the book has 7 spreads, the status reads "Placed 12 photos · added 4 spreads" and one Ctrl+Z restores the 3 spreads
+
 ### Requirement: Remove photo from gallery
 
 The system SHALL remove a gallery photo via × on its thumb or Delete/Backspace on the selected thumb. A placed photo MUST first ask in an AlertDialog and empty its frames on confirm; an unplaced photo is removed immediately with a status-line message. The file on disk MUST NOT be touched.

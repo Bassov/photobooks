@@ -187,6 +187,7 @@ describe('step label bookkeeping', () => {
       unplace: 'Remove photo',
       fillSpread: 'Fill spread',
       insertSpreadWithAssets: 'Insert spread',
+      fillBook: 'Fill book',
       setCrop: 'Crop',
       resetCrop: 'Reset crop',
       setFit: 'Change fit',

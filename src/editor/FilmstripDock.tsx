@@ -36,6 +36,7 @@ import {
   subscribeBookStore,
   subscribeGallery,
 } from './bookStore'
+import { FillBookButton } from './FillBookButton'
 import { Filmstrip } from './Filmstrip'
 import {
   cancelGalleryRemove,
@@ -257,6 +258,7 @@ export function FilmstripDock({
           </span>
         </span>
         <div className="ml-auto flex items-center gap-2">
+          <FillBookButton sort={sort} />
           <ToggleButton
             size="sm"
             className="film-chip inline-flex items-center gap-1.5"
