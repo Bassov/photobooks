@@ -125,6 +125,17 @@ describe('FillBookButton', () => {
       '2 photos with missing files are skipped.',
     )
     expect(screen.queryByTestId('fill-book-left')).toBeNull()
+    // Designer R42 M152: every popover text line uses the kit's 16.8 px leading.
+    for (const id of [
+      'fill-book-order',
+      'fill-book-missing',
+      'fill-book-cover',
+    ]) {
+      expect(screen.getByTestId(id).className).toContain('leading-[16.8px]')
+    }
+    expect(
+      screen.getByTestId('fill-book-pages').parentElement?.className,
+    ).toContain('leading-[16.8px]')
   })
 
   it('says "is" for one missing file', () => {
@@ -170,6 +181,9 @@ describe('FillBookButton', () => {
     render(<FillBookButton sort="added" />)
     openPopover()
     expect(text('fill-book-left')).toMatch(/^1 photo stays in the filmstrip: /)
+    expect(screen.getByTestId('fill-book-left').className).toContain(
+      'leading-[16.8px]',
+    )
   })
 
   it('warns about leftovers at the page limit', () => {

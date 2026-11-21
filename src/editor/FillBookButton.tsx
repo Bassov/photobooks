@@ -68,7 +68,7 @@ function Row({
   children: ReactNode
 }) {
   return (
-    <div className="flex h-[22px] items-center justify-between text-xs">
+    <div className="flex h-[22px] items-center justify-between text-xs leading-[16.8px]">
       <span className="text-muted-foreground">{label}</span>
       <span
         className="font-medium text-[var(--foreground)] tabular-nums"
@@ -140,7 +140,7 @@ function PlanBody({
           </Row>
           {missing > 0 ? (
             <div
-              className="mt-1.5 text-xs text-muted-foreground"
+              className="mt-1.5 text-xs leading-[16.8px] text-muted-foreground"
               data-testid="fill-book-missing"
             >
               {plural(missing, 'photo')} with missing files{' '}
@@ -165,7 +165,10 @@ function PlanBody({
       {fits ? (
         <>
           <Sep />
-          <div className="text-xs text-muted-foreground">
+          <div
+            className="text-xs leading-[16.8px] text-muted-foreground"
+            data-testid="fill-book-cover"
+          >
             The cover and endpapers stay as they are.
           </div>
         </>

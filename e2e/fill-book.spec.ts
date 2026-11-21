@@ -142,6 +142,28 @@ test('Fill book fills a new book in photo order, one Ctrl+Z restores it', async 
   expect(geometry?.padding).toBe('12px')
   expect(geometry?.radius).toBe('8px')
 
+  // Designer R42 M152: kit text lines are 16.8 px, so the popover is 231.59 tall.
+  const lines = await page.evaluate(() => {
+    const byId = (id: string) => document.querySelector(`[data-testid="${id}"]`)
+    // Row values and their labels (the value's previous sibling).
+    const rowIds = ['fill-book-frames', 'fill-book-spreads', 'fill-book-pages']
+    const nodes = [
+      byId('fill-book-order'),
+      byId('fill-book-cover'),
+      ...rowIds.flatMap((id) => [byId(id), byId(id)?.previousElementSibling]),
+    ]
+    const heights = nodes
+      .filter((el): el is Element => el instanceof Element)
+      .map((el) => getComputedStyle(el).lineHeight)
+    const box = document
+      .querySelector('[data-testid="fill-book-popover"] [role="dialog"]')
+      ?.parentElement?.getBoundingClientRect()
+    return { heights, popover: box?.height ?? 0 }
+  })
+  expect(lines.heights).toHaveLength(8)
+  expect(new Set(lines.heights)).toEqual(new Set(['16.8px']))
+  expect(Math.abs(lines.popover - 231.59)).toBeLessThanOrEqual(0.5)
+
   await page.keyboard.press('Enter')
   await expect(popover(page)).toBeHidden()
   await expect(page.getByTestId('editor-status')).toHaveText(
