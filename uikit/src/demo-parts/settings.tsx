@@ -9,7 +9,8 @@ import { Badge } from "@/components/uui/Badge"
 import { AlertDialog, IconButton } from "@/components/app/ui"
 import { FolderPicker, LIBRARY } from "@/features/screens"
 import { SAMPLE_SITE_TEXTS, type SiteTexts } from "@/features/site/sample"
-import { useSession } from "./session"
+import { Segmented } from "@/components/app/controls"
+import { UI_SCALES, UiScaleCtx, useSession, type UiScale } from "./session"
 import { HostingSection, type HostingInit } from "./hosting"
 import { SiteSection } from "./siteSettings"
 import { CATALOG, CHEVRON, GENERIC_ID, PrintProfileDialog, copyOf, newProfile, profileSummary, type Draft, type KitProfile } from "./printProfiles"
@@ -18,8 +19,8 @@ export type SettingsSection = "library" | "hosting" | "site" | "print" | "interf
 /* ---------------------------------------------------------------- settings */
 const SECTIONS = [["library", "Library", HardDrive], ["hosting", "Hosting", KeyRound], ["site", "Site", Globe], ["print", "Print presets", Printer], ["interface", "Interface", SlidersHorizontal]] as const
 /** `site` + `onSite`: the stored Site values and their commit (the #/demo session); without `onSite` the screen keeps them */
-export function SettingsScreen(props: { bookCount?: number; libraryPath?: string; initialSection?: SettingsSection; print?: PrintInit; hosting?: HostingInit; site?: SiteTexts; onSite?: (s: SiteTexts) => void } = {}) {
-  const { bookCount, libraryPath, initialSection = "library", print, hosting, site = SAMPLE_SITE_TEXTS, onSite } = props
+export function SettingsScreen(props: { bookCount?: number; libraryPath?: string; initialSection?: SettingsSection; print?: PrintInit; hosting?: HostingInit; site?: SiteTexts; onSite?: (s: SiteTexts) => void; focusInterface?: UiScale } = {}) {
+  const { bookCount, libraryPath, initialSection = "library", print, hosting, site = SAMPLE_SITE_TEXTS, onSite, focusInterface } = props
   const [ownSite, setOwnSite] = React.useState(site)
   const siteNow = onSite ? site : ownSite
   const commitSite = onSite ?? setOwnSite
@@ -62,22 +63,51 @@ export function SettingsScreen(props: { bookCount?: number; libraryPath?: string
           </>
         ) : sec === "print" ? <PrintPresets row={row} rule={rule} init={print} /> : sec === "hosting" ? <HostingSection rule={rule} init={hosting} /> : sec === "site" ? (
           <SiteSection rule={rule} site={siteNow} onSite={commitSite} />
-        ) : (
-          <div className="mt-5 max-w-[640px] overflow-hidden rounded-xl bg-chrome">
-            {([["Units", "Millimetres"], ["Thumbnail size", "96 px"], ["Density", "Comfortable"]]).map(([k, v], i) => (
-              <React.Fragment key={k}>
-                {i > 0 && rule}
-                <div className={row}><div className="min-w-0 flex-1 text-sm">{k}</div><span className="text-sm text-muted-foreground">{v}</span></div>
-              </React.Fragment>
-            ))}
-          </div>
-        )}
+        ) : <InterfaceSection focus={focusInterface} />}
       </main>
       <AlertDialog isOpen={confirm} tone="neutral" icon={<FolderSync />} title="Change the library folder?" confirmLabel="Choose folder…" onCancel={() => setConfirm(false)} onConfirm={() => { setConfirm(false); setPick(true) }}>
         Your books stay in <span className="font-mono text-sm text-foreground/80">{path}</span> — nothing is moved or deleted. Photobooks will show the books in the folder you pick instead (an empty folder starts a new library). Change it back any time to see these books again.
       </AlertDialog>
       <FolderPicker isOpen={pick} title="Choose the library folder" onCancel={() => setPick(false)} onPick={(p) => { setPick(false); if (p !== path) { setPrev(path); setPath(p) } }} />
     </div>
+  )
+}
+
+/* ---------------------------------------------------------------- interface (Designer spec interface-size §1, D8: one row) */
+/** interface-size §1: the choice applies at once (no Save, no toast); the hint says when the stage clamps it (D4).
+    `focus`: feature-page seed, the segment that opens keyboard-focused. */
+function InterfaceSection({ focus }: { focus?: UiScale }) {
+  const { set, useDemo } = useSession()
+  const choice = useDemo().uiScale
+  const shown = React.useContext(UiScaleCtx)
+  const box = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    if (!focus) return
+    // next frame: a scenario tab mounts this on pointerdown, and the browser then focuses the tab on mousedown
+    const raf = requestAnimationFrame(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" })) // keyboard modality, so the ring shows as after Tab
+      box.current?.querySelectorAll<HTMLElement>("[role=radio]")[UI_SCALES.indexOf(focus)]?.focus()
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [focus])
+  const clamped = shown < choice
+  return (
+    <>
+      <p className="mt-1 max-w-[560px] text-sm leading-relaxed text-muted-foreground">How big Photobooks looks on this screen. Saved for this computer.</p>
+      <div className="mt-5 max-w-[640px] overflow-hidden rounded-xl bg-chrome" data-testid="interface-settings">
+        <div className="flex items-center gap-4 px-4 py-2 @max-[704px]:flex-wrap @max-[704px]:gap-y-1.5" data-testid="interface-size-row">
+          <span id="interface-size-label" className="w-[160px] shrink-0 text-sm @max-[704px]:w-full">Interface size</span>
+          <div className="min-w-0 flex-1" ref={box}>
+            <div className="w-56" data-testid="interface-size">
+              <Segmented label="Interface size" value={String(choice)} onChange={(v) => set({ uiScale: Number(v) as UiScale })} items={UI_SCALES.map((s) => ({ id: String(s), label: `${s}%` }))} />
+            </div>
+            <div id="interface-size-hint" aria-live="polite" className={cn("mt-1 text-xs leading-[16.8px]", clamped ? "text-foreground" : "text-muted-foreground")} data-testid="interface-size-hint">
+              {clamped ? `Window too small for ${choice}%: showing ${shown}%.` : "Bigger text and controls for 4K screens."}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -159,13 +189,13 @@ function PrintPresets({ row, rule, init }: { row: string; rule: React.ReactNode;
 }
 
 /** #/demo Settings stage with its back bar ("Back to the book" from the editor, "Library" from the library). State: session (back, books, path). */
-export function DemoSettings({ initialSection, print, hosting }: { initialSection?: SettingsSection; print?: PrintInit; hosting?: HostingInit } = {}) {
+export function DemoSettings({ initialSection, print, hosting, focusInterface }: { initialSection?: SettingsSection; print?: PrintInit; hosting?: HostingInit; focusInterface?: UiScale } = {}) {
   const { set, useDemo } = useSession()
   const d = useDemo()
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-12 shrink-0 items-center gap-2 bg-chrome px-3"><Button variant="ghost" size="sm" className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4" onPress={() => set({ stage: d.back, settingsSection: undefined })} data-testid="demo-settings-back"><ChevronLeft />{d.back === "editor" ? "Back to the book" : "Library"}</Button><span className="text-sm font-medium">Settings</span></div>
-      <div className="min-h-0 flex-1"><SettingsScreen bookCount={d.books.length} libraryPath={d.path || undefined} initialSection={initialSection ?? d.settingsSection} print={print} hosting={hosting} site={d.site} onSite={(site) => set({ site })} /></div>
+      <div className="min-h-0 flex-1"><SettingsScreen bookCount={d.books.length} libraryPath={d.path || undefined} initialSection={initialSection ?? d.settingsSection} print={print} hosting={hosting} site={d.site} onSite={(site) => set({ site })} focusInterface={focusInterface} /></div>
     </div>
   )
 }

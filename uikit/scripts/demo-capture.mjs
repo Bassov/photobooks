@@ -205,6 +205,8 @@ export async function capture(out, { log = console.log, probe } = {}) {
     ["library-remove-confirm", async () => { await page.fill('[data-testid="lib-search-input"]', ""); await settle(); await c('[data-testid="demo"] [data-testid="book-menu"]'); await settle(); await page.getByRole("menuitem", { name: /Remove/ }).click() }],
     ["library-after-remove", () => page.getByRole("button", { name: "Remove book" }).click()],
     ["settings-from-library", () => c('[data-testid="demo"] [data-testid="home-settings"]')],
+    // interface-size §1: Settings → Interface, one row (100 % at the 1440×900 stage)
+    ["settings-interface", () => c('[data-testid="settings-nav-interface"]')],
     // unsupported-browser screen (prod shows it instead of the app): desktop variants, then the phone at 390×844
     ["unsupported-other", () => page.evaluate(() => window.__demo.unsupported("other", "Safari"))],
     ["unsupported-no-api", () => page.evaluate(() => window.__demo.unsupported("no-api", "Brave"))],
