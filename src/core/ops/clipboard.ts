@@ -68,39 +68,39 @@ export function framesPayload(
   frameIds: readonly string[],
 ): FramesPayload {
   const { index, spread } = spreadAt(book, spreadId)
-  const frames =
-    spread === undefined
-      ? []
-      : spreadFrames(spread)
-          .filter((frame) => frameIds.includes(frame.id))
-          .sort((a, b) => a.z - b.z)
-  const texts: Record<string, string> = {}
-  const assets: Record<string, PayloadAsset> = {}
+  const payload: FramesPayload = {
+    v: 1,
+    bookId: book.id,
+    spreadId,
+    side: getSinglePageSide(index, book.spreads.length),
+    trim: { ...book.settings.trim },
+    frames: [],
+    texts: {},
+    assets: {},
+  }
+  if (spread === undefined) {
+    return payload
+  }
+  const frames = spreadFrames(spread)
+    .filter((frame) => frameIds.includes(frame.id))
+    .sort((a, b) => a.z - b.z)
+  const { texts, assets } = payload
   for (const frame of frames) {
-    if (spread !== undefined && frame.anchorFrameId !== undefined) {
+    if (frame.anchorFrameId !== undefined) {
       texts[frame.id] = resolveTextContent(book, spread, frame).text
     }
-    const asset =
-      frame.assetId === undefined ? undefined : book.assets[frame.assetId]
-    if (frame.assetId !== undefined && asset !== undefined) {
+    const assetId = frame.assetId ?? ''
+    const asset = book.assets[assetId]
+    if (asset !== undefined) {
       const { contentHash, sourceRootId, relativePath } = asset
-      assets[frame.assetId] = {
+      assets[assetId] = {
         ...(contentHash !== undefined && { contentHash }),
         ...(sourceRootId !== undefined && { sourceRootId }),
         ...(relativePath !== undefined && { relativePath }),
       }
     }
   }
-  return {
-    v: 1,
-    bookId: book.id,
-    spreadId,
-    side: getSinglePageSide(index, book.spreads.length),
-    trim: { ...book.settings.trim },
-    frames,
-    texts,
-    assets,
-  }
+  return { ...payload, frames }
 }
 
 /** The least shift putting [a0, a1] inside [lo, hi]; centred when larger. */
@@ -197,10 +197,8 @@ export function stepRepeatOffset(
   ) {
     return step
   }
-  const [firstId] = last.newIds
   const [source] = last.sourceRects
-  const now =
-    firstId === undefined ? undefined : findBookFrame(book, spreadId, firstId)
+  const now = findBookFrame(book, spreadId, last.newIds[0] ?? '')
   if (now === undefined || source === undefined) {
     return step
   }
@@ -233,8 +231,9 @@ export function nextFrameIds(
 function matchedAsset(
   book: Book,
   payload: FramesPayload,
-  assetId: string,
+  copiedId: string | undefined,
 ): string | undefined {
+  const assetId = copiedId ?? ''
   if (payload.bookId === book.id && book.assets[assetId] !== undefined) {
     return assetId
   }
@@ -316,22 +315,12 @@ export function pasteFrames(
     }
     delete copy.locked
     delete copy.overridesId
-    if (
-      copy.frameStyleId !== undefined &&
-      book.frameStyles[copy.frameStyleId] === undefined
-    ) {
+    if (book.frameStyles[copy.frameStyleId ?? ''] === undefined) {
       delete copy.frameStyleId
     }
-    const assetId =
-      frame.assetId === undefined
-        ? undefined
-        : matchedAsset(book, payload, frame.assetId)
+    const assetId = matchedAsset(book, payload, frame.assetId)
     const placed =
-      frame.assetId === undefined
-        ? copy
-        : assetId === undefined
-          ? withoutPlacement(copy)
-          : { ...copy, assetId }
+      assetId === undefined ? withoutPlacement(copy) : { ...copy, assetId }
     const anchorId = frame.anchorFrameId
     if (anchorId === undefined) {
       return placed

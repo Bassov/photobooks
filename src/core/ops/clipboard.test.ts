@@ -102,6 +102,37 @@ describe('pastedRects: D3 steps', () => {
     expect(
       pastedRects(b, 'middle', p, { inPlace: true, offset: { x: 40, y: 40 } }),
     ).toEqual([rect(10, 10)])
+    expect(rects(paste(b, p, 'middle', true, ['n1']), 'middle')?.[1]).toEqual({
+      id: 'n1',
+      ...rect(10, 10),
+    })
+  })
+
+  it('treats a gap of exactly 0.01 mm as taken', () => {
+    const source = makeFrame({
+      id: 'f1',
+      rect: { x: 10, y: 0.02, width: 0.02, height: 10 },
+    })
+    const b = book({
+      middle: [source],
+      last: [makeFrame({ rect: { x: 10, y: 0.01, width: 0.01, height: 10 } })],
+    })
+    const p = framesPayload(b, 'middle', ['f1'])
+    expect(pastedRects(b, 'last', p, { inPlace: false })).toEqual([
+      { x: 15, y: 5.02, width: 0.02, height: 10 },
+    ])
+  })
+
+  it('steps when any one rect of the group is taken', () => {
+    const b = book({
+      middle: [frame('f1', 10, 10), frame('f2', 150, 10)],
+      last: [frame('x', 150, 10)],
+    })
+    const p = framesPayload(b, 'middle', ['f1', 'f2'])
+    expect(pastedRects(b, 'last', p, { inPlace: false })).toEqual([
+      rect(15, 15),
+      rect(155, 15),
+    ])
   })
 
   it('takes a spot within 0.01 mm on every edge', () => {
@@ -162,6 +193,16 @@ describe('pastedRects: D4 single pages', () => {
 
   it('clamps into the page + bleed and centres a group bigger than it', () => {
     expect(at('middle', 250, 'first')).toBe(-3)
+    expect(at('middle', 0, 'first', 303)).toBe(0)
+    const tall = book({
+      middle: [frame('f1', 10, 10), frame('f2', 10, 150, { z: 2 })],
+    })
+    expect(
+      pastedRects(tall, 'middle', framesPayload(tall, 'middle', ['f1', 'f2']), {
+        inPlace: false,
+        offset: { x: 0, y: -20 },
+      }).map((r) => r.y),
+    ).toEqual([-3, 137])
     expect(at('middle', 250, 'last')).toBe(203)
     expect(at('middle', 100, 'first', 400)).toBe(-50)
     expect(at('middle', 100, 'last', 400)).toBe(-50)
@@ -227,6 +268,7 @@ describe('pasteFrames: D5 copies', () => {
     for (const copy of copies) {
       expect(copy.locked).toBeUndefined()
       expect('overridesId' in copy).toBe(false)
+      expect(copy.content).toBeUndefined()
     }
     expect(spread?.frames.slice(0, 2)).toEqual(b.spreads[1]?.frames)
   })
@@ -242,6 +284,20 @@ describe('pasteFrames: D5 copies', () => {
     expect(paste(b, p, 'nope')).toBe(b)
     expect(paste(b, framesPayload(b, 'nope', ['f1']), 'middle')).toBe(b)
     expect(nextFrameIds(b, 'nope', 2)).toEqual([])
+    const gap = book({
+      middle: [frame('frame-1', 0, 0), frame('frame-3', 0, 0)],
+    })
+    expect(nextFrameIds(gap, 'middle', 2)).toEqual(['frame-4', 'frame-5'])
+    expect(framesPayload(b, 'nope', ['f1'])).toStrictEqual({
+      v: 1,
+      bookId: 'book-1',
+      spreadId: 'nope',
+      side: null,
+      trim: { widthMm: 300, heightMm: 300 },
+      frames: [],
+      texts: {},
+      assets: {},
+    })
     const two = framesPayload(
       book({ middle: [frame('f1', 10, 10), frame('f2', 200, 10)] }),
       'middle',
@@ -283,6 +339,7 @@ describe('pasteFrames: D6 live captions', () => {
 
   it('remaps an anchor copied with it', () => {
     const p = framesPayload(b, 'middle', ['p1', 't1'])
+    expect(p.texts).toStrictEqual({ t1: 'Lake' })
     const out = paste(b, p, 'last', false, ['n1', 'n2'])
     expect(out.spreads[2]?.frames[1]).toMatchObject({
       id: 'n2',
@@ -308,14 +365,25 @@ describe('pasteFrames: D6 live captions', () => {
     const copy = out.spreads[2]?.frames[0]
     expect(copy?.content).toEqual({ type: 'static', text: 'Lake' })
     expect(copy?.anchorFrameId).toBeUndefined()
-    const gone = applyBookOp(b, {
-      type: 'removeFrames',
-      spreadId: 'middle',
-      frameIds: ['p1'],
-    })
+    const gone = applyBookOp(
+      book({ middle: [photo, frame('p2', 200, 10), caption] }),
+      { type: 'removeFrames', spreadId: 'middle', frameIds: ['p1'] },
+    )
     expect(
-      paste(gone, p, 'middle', false, ['n1']).spreads[1]?.frames[1],
+      paste(gone, p, 'middle', false, ['n1']).spreads[1]?.frames[2],
     ).toMatchObject({ content: { type: 'static', text: 'Lake' } })
+    const textNow = applyBookOp(gone, {
+      type: 'addTextFrame',
+      spreadId: 'middle',
+      rect: rect(10, 200, 50, 10),
+      id: 'p1',
+    })
+    const onText = paste(textNow, p, 'middle', false, ['n1']).spreads[1]
+    expect(onText?.frames[3]).toMatchObject({
+      id: 'n1',
+      content: { type: 'static', text: 'Lake' },
+    })
+    expect(onText?.frames[3]?.anchorFrameId).toBeUndefined()
     const otherBook = paste({ ...b, id: 'book-2' }, p, 'middle', false, ['n1'])
     expect(otherBook.spreads[1]?.frames[2]?.anchorFrameId).toBeUndefined()
     expect(
@@ -353,22 +421,61 @@ describe('pasteFrames: D7 other book', () => {
       x: { sourceRootId: 'r', relativePath: 'y.jpg' },
       y: { contentHash: HASH, sourceRootId: 'q', relativePath: 'other.jpg' },
       z: { sourceRootId: 'q', relativePath: 'z.jpg' },
+      // Same id as the source's `m`, another photo: ids never match across books.
+      m: { relativePath: 'z.jpg' },
     },
-    gallery: ['x', 'y', 'z'],
+    gallery: ['x', 'y', 'z', 'm'],
     frameStyles: { thin: { strokeMm: 1 } },
     spreads: [makeSpread({ id: 't', frames: [] })],
   })
-  const p = framesPayload(source, 's', ['f1', 'f2', 'f3', 'f4'])
+  const copyAll = () => framesPayload(source, 's', ['f1', 'f2', 'f3', 'f4'])
 
   it('records the asset identities', () => {
-    expect(p.assets).toEqual({
+    expect(copyAll().assets).toStrictEqual({
       h: { contentHash: HASH, sourceRootId: 'r', relativePath: 'x.jpg' },
       p: { sourceRootId: 'r', relativePath: 'y.jpg' },
       m: { sourceRootId: 'r', relativePath: 'z.jpg' },
     })
+    const bare = makeBook({
+      assets: { a: {} },
+      gallery: ['a'],
+      spreads: [makeSpread({ frames: [frame('f1', 0, 0, { assetId: 'a' })] })],
+    })
+    expect(framesPayload(bare, 'spread-1', ['f1']).assets).toStrictEqual({
+      a: {},
+    })
+  })
+
+  it('needs both root and path, and a hash only matches a hash', () => {
+    const half = (wanted: object, have: object) =>
+      paste(
+        makeBook({
+          id: 'book-2',
+          assets: { q: have },
+          gallery: ['q'],
+          spreads: [makeSpread({ id: 't', frames: [] })],
+        }),
+        { ...copyAll(), assets: { h: wanted } },
+        't',
+      ).spreads[0]?.frames[0]?.assetId
+    expect(half({ relativePath: 'x.jpg' }, { relativePath: 'x.jpg' })).toBe(
+      undefined,
+    )
+    expect(half({ sourceRootId: 'r' }, { sourceRootId: 'r' })).toBe(undefined)
+    expect(half({ contentHash: HASH }, {})).toBe(undefined)
+    expect(half({ sourceRootId: 'r', relativePath: 'x.jpg' }, {})).toBe(
+      undefined,
+    )
+    expect(
+      half(
+        { sourceRootId: 'r', relativePath: 'x.jpg' },
+        { sourceRootId: 'r', relativePath: 'x.jpg' },
+      ),
+    ).toBe('q')
   })
 
   it('remaps by hash, then by path, else pastes empty', () => {
+    const p = copyAll()
     const frames = paste(target, p, 't').spreads[0]?.frames ?? []
     expect(frames.map((f) => [f.assetId, f.crop !== undefined])).toEqual([
       ['y', true],
@@ -388,6 +495,7 @@ describe('pasteFrames: D7 other book', () => {
   })
 
   it('keeps the same asset id in the same book', () => {
+    const p = copyAll()
     const frames = paste(source, p, 's').spreads[0]?.frames.slice(4) ?? []
     expect(frames.map((f) => f.assetId)).toEqual(['h', 'p', 'm', undefined])
     const half = { ...p, assets: { h: { contentHash: HASH } } }
