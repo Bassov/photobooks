@@ -218,12 +218,24 @@ test.describe('Arrange menu, shortcuts and lock', () => {
       await page.keyboard.press('Escape')
       await frame.click()
     }
+    // A centre click on an unlocked photo frame lands on the grabber and
+    // shows the photo layer; its extent (on top, kit §A) covers the
+    // neighbour's centre until the pointer leaves it. Park the pointer on the
+    // bare pasteboard until no layer is shown, then click.
+    const clickNeighbour = async (target: Locator) => {
+      const pasteboard = await boxOf(canvas(page))
+      await page.mouse.move(pasteboard.x + 4, pasteboard.y + 4)
+      await expect(
+        active.locator('[data-testid="photo-layer"][data-shown="true"]'),
+      ).toHaveCount(0)
+      await target.click()
+    }
 
     // Locked source: the click on B is refused, both photos and the lock stay.
     await select(frameA)
     await page.keyboard.press('Control+Shift+KeyL')
     await expect(frameA).toHaveAttribute('data-locked', 'true')
-    await frameB.click()
+    await clickNeighbour(frameB)
     await expect.poll(() => status.textContent()).toBe(lockedStatus)
     await expect(frameA).toHaveAttribute('data-asset-id', assetA)
     await expect(frameB).toHaveAttribute('data-asset-id', assetB)
@@ -231,7 +243,7 @@ test.describe('Arrange menu, shortcuts and lock', () => {
 
     // Locked target: same.
     await select(frameB)
-    await frameA.click()
+    await clickNeighbour(frameA)
     await expect.poll(() => status.textContent()).toBe(lockedStatus)
     await expect(frameA).toHaveAttribute('data-asset-id', assetA)
     await expect(frameB).toHaveAttribute('data-asset-id', assetB)
@@ -241,7 +253,7 @@ test.describe('Arrange menu, shortcuts and lock', () => {
     await select(frameA)
     await page.keyboard.press('Control+Shift+KeyL')
     await expect(frameA).not.toHaveAttribute('data-locked', 'true')
-    await frameB.click()
+    await clickNeighbour(frameB)
     await expect.poll(() => status.textContent()).toBe('Photos swapped')
     await expect(frameA).toHaveAttribute('data-asset-id', assetB)
     await expect(frameB).toHaveAttribute('data-asset-id', assetA)
