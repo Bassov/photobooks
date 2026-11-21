@@ -515,6 +515,7 @@ const DOCK = `${DEMO} [data-testid="dock"]`
 const U = `${DOCK} [data-testid="film-unplaced-only"]`
 const SORT = `${DOCK} [data-testid="film-sort"]`
 const A = `${DOCK} [data-testid="demo-add-folder"]`
+const FB = `${DOCK} [data-testid="film-fill-book"]`
 
 /** a header chip's box, radius, type and padding */
 function chipOf(el: Element) {
@@ -562,6 +563,8 @@ test('kit-sync W5 (#/demo, Designer kit-sync Spec 13 = prod FilmstripDock): film
   // Designer capture = this renderer at 1440 × 900 (prod e2e rounds glyph runs: 786 / 90, 884 / 126, 1018 / 110)
   const SPEC: Record<string, [string, number, number, string, string, string]> =
     {
+      // Designer fill-book F1: first in the right group; the other three keep their x
+      'Fill book': [FB, 687.88, 87.97, '500', 'rgb(57, 55, 56)', '0px 10px'],
       Unplaced: [U, 783.92, 90.75, '500', 'rgb(83, 81, 82)', '0px 8px'],
       'Added order': [
         SORT,
@@ -575,13 +578,13 @@ test('kit-sync W5 (#/demo, Designer kit-sync Spec 13 = prod FilmstripDock): film
     }
   const order = await page
     .locator(
-      `${DOCK} :is([data-testid="film-unplaced-only"], [data-testid="film-sort"], [data-testid="demo-add-folder"])`,
+      `${DOCK} :is([data-testid="film-fill-book"], [data-testid="film-unplaced-only"], [data-testid="film-sort"], [data-testid="demo-add-folder"])`,
     )
     .evaluateAll((els) => els.map((e) => e.textContent.trim()))
   expect(
     order.join('|'),
-    'kit-sync KS13: #/demo dock header = Unplaced · Added order · Add folder… (prod order), 8 apart',
-  ).toBe('Unplaced|Added order|Add folder…')
+    'kit-sync KS13 + fill-book F1: #/demo dock header = Fill book · Unplaced · Added order · Add folder…, 8 apart',
+  ).toBe('Fill book|Unplaced|Added order|Add folder…')
   for (const [name, [sel, x, w, fw, c, p]] of Object.entries(SPEC)) {
     const m = await chip(sel)
     expect(
@@ -838,4 +841,201 @@ test('kit-sync W5 (#/demo, Designer kit-sync Spec 13 = prod FilmstripDock): film
   ).toBe(true)
   // kit-sync W5: no console errors
   expect(errs).toEqual([])
+})
+
+/* ---------------------------------------------------------------- Designer fill-book FB1 (kit) */
+const POP = '[data-testid="fill-book-popover"]'
+const title = (page: Page) =>
+  page.locator(FB).evaluate((e) => e.parentElement?.getAttribute('title'))
+
+/** spread rows in the spread list (p0, p1, …) */
+const spreadRows = (page: Page) =>
+  page
+    .locator(`${DEMO} [data-item]`)
+    .evaluateAll(
+      (els) =>
+        els.filter((e) => /^p\d+$/.test(e.getAttribute('data-item') ?? ''))
+          .length,
+    )
+
+/**
+ * Reshape the saved demo book and reopen the editor. The kit's new book has 10 spreads (20 pages, kit MIN_SPREADS), so the
+ * Spec's prod "4-page book with 4 empty frames" becomes: 4 empty frames (spread 0: 1, spread 2: 2, spread 9: 1), other
+ * spreads blank, `blank` extra blank spreads, the first `photos` photos in the gallery.
+ */
+async function shapeBook(
+  page: Page,
+  o: { photos: number; blank?: number; missing?: number },
+) {
+  await page.evaluate((o) => {
+    const d = (window as unknown as { __demo: DemoApi }).__demo
+    const b = d.state().books[0] as unknown as {
+      doc?: {
+        spreads: { id: string; frames: unknown[]; guides: unknown[] }[]
+        gallery: string[]
+      }
+      missing?: string[]
+    }
+    if (!b.doc) throw new Error('no saved doc')
+    const keep: Record<number, number> = { 0: 1, 2: 2, 9: 1 }
+    const spreads = b.doc.spreads.map((s, i) => ({
+      ...s,
+      template: null,
+      frames: s.frames.slice(0, keep[i] ?? 0),
+    }))
+    for (let i = 0; i < (o.blank ?? 0); i++)
+      spreads.push({
+        id: `fb-blank-${String(i)}`,
+        template: null,
+        frames: [],
+        guides: [],
+      })
+    const gallery = b.doc.gallery.slice(0, o.photos)
+    b.doc = { ...b.doc, spreads, gallery }
+    b.missing = gallery.slice(0, o.missing ?? 0)
+    d.go('library')
+  }, o)
+  await settled(page)
+  await page.evaluate(() => {
+    ;(window as unknown as { __demo: DemoApi }).__demo.go('editor')
+  })
+  await expect(page.locator(FB)).toBeVisible()
+  await settled(page)
+}
+
+test('fill-book FB1 (#/demo): Fill book popover numbers, Enter fills, one Ctrl+Z restores, Esc / Masters / empty', async ({
+  page,
+}) => {
+  const errs = watchErrors(page)
+  await demoBook(page, 'Fill')
+  // empty gallery: disabled in place, the reason as the wrapping span's title
+  await expect(page.locator(FB)).toBeDisabled()
+  expect(await title(page)).toBe('Add a folder of photos first')
+  await addFolder(page)
+  await shapeBook(page, { photos: 12 })
+  await expect(page.locator(FB)).toBeEnabled()
+  expect(await title(page)).toBe('Place the unplaced photos into the book')
+  expect(await spreadRows(page)).toBe(10)
+
+  // Esc closes with no change, focus back on the chip
+  await page.locator(FB).click()
+  await expect(page.locator(POP)).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.locator(POP)).toHaveCount(0)
+  await expect(page.locator(FB)).toBeFocused()
+  expect(await spreadRows(page)).toBe(10)
+
+  // open: 296 wide above the chip, focus on Fill book, the kit model's numbers
+  await page.locator(FB).click()
+  const pop = page.locator(POP)
+  await expect(pop).toBeVisible()
+  await settled(page)
+  const [pb, cb] = await Promise.all([
+    pop.boundingBox(),
+    page.locator(FB).boundingBox(),
+  ])
+  expect(pb?.width, 'fill-book Popover: width 296').toBe(296)
+  expect(
+    pb && cb && Math.abs(pb.y + pb.height + 4 - cb.y) <= 1,
+    `fill-book Popover: top end, offset 4 above the chip — ${JSON.stringify({ pb, cb })}`,
+  ).toBe(true)
+  await expect(pop.getByTestId('fill-book-confirm')).toBeFocused()
+  await expect(pop.getByTestId('fill-book-order')).toHaveText(
+    '12 unplaced photos, in Added order.',
+  )
+  await expect(pop.getByTestId('fill-book-frames')).toHaveText('4 photos')
+  await expect(pop.getByTestId('fill-book-spreads')).toHaveText(
+    '8 photos · 4 spreads',
+  )
+  await expect(pop.getByTestId('fill-book-pages')).toHaveText('20 → 28')
+  await expect(pop.getByTestId('fill-book-left')).toHaveCount(0)
+  await expect(pop.getByTestId('fill-book-missing')).toHaveCount(0)
+  await expect(pop).toContainText('The cover and endpapers stay as they are.')
+
+  // Enter = Fill book: 4 new spreads, every photo placed, status, the first changed spread active
+  await page.keyboard.press('Enter')
+  await expect(pop).toHaveCount(0)
+  expect(await spreadRows(page)).toBe(14)
+  await expect(D(page, '[data-testid="status"]')).toHaveText(
+    'Placed 12 photos · added 4 spreads',
+  )
+  await expect(D(page, '[data-testid="placed-count"]')).toContainText('12 used')
+  await expect(D(page, '[data-item="p0"]')).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
+  await expect(page.locator(FB)).toBeDisabled()
+  expect(await title(page)).toBe('Every photo is placed')
+  // the last new spread holds the 12th photo in Added order (pages read in photo order)
+  const order = await D(
+    page,
+    '[data-testid="filmstrip"] [role="row"]',
+  ).evaluateAll((rs) => rs.map((r) => r.getAttribute('data-key')))
+  await D(page, '[data-item="p13"]').click()
+  await settled(page)
+  const lastSrc = await D(
+    page,
+    '[data-testid="canvas"] [data-spread="13"] [data-testid="frame"] img',
+  )
+    .last()
+    .getAttribute('src')
+  expect(
+    lastSrc?.includes(`${order[11] ?? '?'}.jpg`),
+    `fill-book F5: pages 26–27 end on the 12th photo in Added order — ${String(lastSrc)} vs ${JSON.stringify(order)}`,
+  ).toBe(true)
+
+  // one Ctrl+Z restores the book
+  await page.locator(FB).focus()
+  await page.keyboard.press('Control+z')
+  expect(await spreadRows(page)).toBe(10)
+  await expect(D(page, '[data-testid="placed-count"]')).toContainText('0 used')
+  await expect(page.locator(FB)).toBeEnabled()
+
+  // Masters mode disables the chip
+  await D(page, '[data-testid="mode-seg"]').getByText('Masters').click()
+  await expect(page.locator(FB)).toBeDisabled()
+  expect(await title(page)).toBe('Switch to Pages to fill the book')
+  expect(errs).toEqual([])
+})
+
+test('fill-book FB1 (#/demo): page limit warning, missing files skipped, nothing fits', async ({
+  page,
+}) => {
+  await demoBook(page, 'Fill limit')
+  await addFolder(page)
+  // 10 + 49 blank spreads = 118 pages: room for one new spread (Generic prints up to 120)
+  await shapeBook(page, { photos: 12, blank: 49, missing: 1 })
+  await page.locator(FB).click()
+  const pop = page.locator(POP)
+  await expect(pop.getByTestId('fill-book-order')).toHaveText(
+    '11 unplaced photos, in Added order.',
+  )
+  await expect(pop.getByTestId('fill-book-frames')).toHaveText('4 photos')
+  await expect(pop.getByTestId('fill-book-spreads')).toHaveText(
+    '2 photos · 1 spread',
+  )
+  await expect(pop.getByTestId('fill-book-pages')).toHaveText('118 → 120')
+  await expect(pop.getByTestId('fill-book-missing')).toHaveText(
+    '1 photo with missing files is skipped.',
+  )
+  await expect(pop.getByTestId('fill-book-left')).toHaveText(
+    '5 photos stay in the filmstrip: Generic prints up to 120 pages.',
+  )
+  await expect(pop.getByTestId('fill-book-left')).toHaveCSS(
+    'color',
+    'rgb(132, 85, 16)',
+  )
+  await page.keyboard.press('Enter')
+  await expect(D(page, '[data-testid="status"]')).toHaveText(
+    'Placed 6 photos · added 1 spread · 5 stay in the filmstrip',
+  )
+  // the book is at 120 with no empty frames: nothing fits, confirm disabled
+  await page.locator(FB).click()
+  await expect(pop.getByTestId('fill-book-left')).toHaveText(
+    'No empty frames, and the book is at 120 pages, the most Generic prints.',
+  )
+  await expect(pop.getByTestId('fill-book-frames')).toHaveCount(0)
+  await expect(pop.getByTestId('fill-book-confirm')).toBeDisabled()
+  await page.keyboard.press('Escape')
+  await expect(pop).toHaveCount(0)
 })

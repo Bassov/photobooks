@@ -3,7 +3,8 @@ import * as React from "react"
 import { createToastQueue, type ToastContent } from "@/components/ui/toast"
 import { P } from "@/data"
 import type { Doc, Frame, Spread } from "./model"
-import { setGeom, reflowDoc } from "./model"
+import { setGeom, reflowDoc, spread, SW } from "./model"
+import { bestTemplate } from "./templates"
 import { anchorPhoto, fillTokens } from "./meta"
 import { hideCopies } from "./parent-overrides"
 
@@ -266,6 +267,49 @@ export function placedSet(d: Doc) {
   const s = new Set<string>()
   for (const sp of d.spreads) for (const f of sp.frames) if (f.photo) s.add(f.photo)
   return s
+}
+/* ---------------------------------------------------------------- Designer fill-book (FB1 = core src/core/ops/fill.ts, kit doc) */
+export type FillPlan = { intoFrames: number; onNewSpreads: number; newSpreads: number; leftover: number; pagesBefore: number; pagesAfter: number; maxPages: number }
+/** F6: a spread's empty own photo frames (no text, locked or master copy), left page → right page, top (1 mm) → left */
+function emptySlots(s: Spread) {
+  const page = (f: Frame) => (f.x + f.w / 2 < SW / 2 ? 0 : 1)
+  return s.frames.filter((f) => f.kind === "image" && !f.locked && !f.overrides && !f.photo)
+    .sort((a, b) => page(a) - page(b) || Math.round(a.y) - Math.round(b.y) || a.x - b.x)
+}
+/** F3–F9 on the kit doc. The kit's last page is a node without frames (L = ∅), so E = every spread's empty frames and the
+ *  new spreads go after the last spread, before the closing page. Pages = 2 per spread (v7 `pagesOf`). */
+function layoutFill(d: Doc, ids: readonly string[], maxPages: number) {
+  const placed = placedSet(d)
+  const usable = [...new Set(ids)].filter((id) => !placed.has(id))
+  const slots = d.spreads.flatMap((s, si) => emptySlots(s).map((f) => ({ si, id: f.id })))
+  const pagesBefore = d.spreads.length * 2
+  const intoFrames = Math.min(usable.length, slots.length)
+  const needed = usable.length - intoFrames
+  const room = Math.max(0, Math.floor((maxPages - pagesBefore) / 2))
+  const newSpreads = Math.min(Math.ceil(needed / 2), room)
+  const onNewSpreads = Math.min(needed, 2 * newSpreads)
+  const plan: FillPlan = { intoFrames, onNewSpreads, newSpreads, leftover: needed - onNewSpreads, pagesBefore, pagesAfter: pagesBefore + 2 * newSpreads, maxPages }
+  return { usable, slots, plan }
+}
+/** The popover's numbers: the same layout `fillBook` applies. `ids` = the filmstrip's unplaced, present photos in its order. */
+export const planFillBook = (d: Doc, ids: readonly string[], maxPages: number) => layoutFill(d, ids, maxPages).plan
+/** Photos in order into the empty frames, then new 2-photo spreads (best fit, as a gap drop); the tail that passes the page
+ *  limit stays out. `first` = the first spread that changed (−1 when nothing fits). */
+export function fillBook(d: Doc, ids: readonly string[], maxPages: number): { doc: Doc; first: number; plan: FillPlan } {
+  const { usable, slots, plan } = layoutFill(d, ids, maxPages)
+  if (!plan.intoFrames && !plan.onNewSpreads) return { doc: d, first: -1, plan }
+  const put = new Map(slots.slice(0, plan.intoFrames).map((s, i) => [s.id, usable[i]]))
+  const spreads = d.spreads.map((s) => (s.frames.some((f) => put.has(f.id))
+    ? { ...s, frames: s.frames.map((f) => { const photo = put.get(f.id); return photo ? { ...f, photo, zoom: 1, ox: 0, oy: 0, qt: 0 as const, straighten: 0 } : f }) }
+    : s))
+  const rest = usable.slice(plan.intoFrames, plan.intoFrames + plan.onNewSpreads)
+  for (let i = 0; i < rest.length; i += 2) { const chunk = rest.slice(i, i + 2); spreads.push(spread(bestTemplate(chunk).id, chunk)) }
+  return { doc: { ...d, spreads }, first: plan.intoFrames ? slots[0].si : d.spreads.length, plan }
+}
+export const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`
+/** Spec status: "Placed {p} photo(s)" + " · added {s} spread(s)" + " · {l} stay(s) in the filmstrip" */
+export function fillBookStatus(p: FillPlan) {
+  return `Placed ${plural(p.intoFrames + p.onNewSpreads, "photo")}${p.newSpreads ? ` · added ${plural(p.newSpreads, "spread")}` : ""}${p.leftover ? ` · ${p.leftover} ${p.leftover === 1 ? "stays" : "stay"} in the filmstrip` : ""}`
 }
 /** Designer placed-badge: where a photo sits, in spread-list order (the cover's front photo, then spreads × frames bottom → top). */
 export type Place = { kind: "cover" } | { kind: "frame"; si: number; frameId: string }
