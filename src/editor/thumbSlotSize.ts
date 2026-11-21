@@ -47,7 +47,12 @@ export function thumbStride(aspect: number, height = THUMB_HEIGHT): number {
   return thumbSlotSize(aspect, height).width + THUMB_GAP
 }
 
-/** Inclusive prefix sums of item strides (length = aspects.length + 1, [0]=0). */
+/**
+ * Item origins plus the track end (length = aspects.length + 1, [0]=0):
+ * `prefix[i]` is the left of item i (sum of earlier strides) and the last
+ * entry is the packed track width, without a gap after the last item (the
+ * window width reads it, so a trailing gap would widen the scroll extent).
+ */
 export function buildStridePrefix(
   aspects: readonly number[],
   height = THUMB_HEIGHT,
@@ -60,7 +65,8 @@ export function buildStridePrefix(
     if (prev === undefined || aspect === undefined) {
       continue
     }
-    prefix[i + 1] = prev + thumbStride(aspect, height)
+    const last = i === aspects.length - 1
+    prefix[i + 1] = prev + thumbStride(aspect, height) - (last ? THUMB_GAP : 0)
   }
   return prefix
 }
@@ -180,6 +186,11 @@ export function filmstripWindowRange(
   }
 }
 
+/**
+ * Packed width of the filmstrip track: every slot plus the gaps between
+ * slots, without a trailing gap after the last slot (so the last thumb ends
+ * at the same inset as the first one starts).
+ */
 export function spacerWidthPx(
   aspects: readonly number[],
   reservedCount: number,
@@ -190,7 +201,7 @@ export function spacerWidthPx(
   if (count === 0) {
     return 0
   }
-  let total = 0
+  let total = -THUMB_GAP
   for (let i = 0; i < count; i += 1) {
     total += thumbStride(aspects[i] ?? defaultAspect, height)
   }

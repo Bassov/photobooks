@@ -303,6 +303,99 @@ test('first thumb sits 4 px into the strip with a 4 px radius and an outer hairl
   expect(at128).toEqual(expected)
 })
 
+/** Writes `count` 1×1 PNGs into a fresh temp dir (square thumbs). */
+function squarePngs(count: number, tag: string): string[] {
+  const dir = join(
+    tmpdir(),
+    `photobooks-${tag}-${String(process.pid)}-${String(Date.now())}`,
+  )
+  mkdirSync(dir, { recursive: true })
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  )
+  return Array.from({ length: count }, (_, i) => {
+    const path = join(dir, `${tag}-${String(i).padStart(3, '0')}.png`)
+    writeFileSync(path, png)
+    return path
+  })
+}
+
+/** Scrolls the strip to the end; last thumb's right edge vs the scrollport's. */
+async function lastThumbEndGap(page: Page) {
+  const scroll = page.getByTestId('filmstrip-scroll')
+  const measure = () =>
+    scroll.evaluate((node) => {
+      // Re-applied per poll: a late layout pass can move the end.
+      node.scrollLeft = node.scrollWidth
+      const r = node.getBoundingClientRect()
+      const portRight = r.left + node.clientLeft + node.clientWidth
+      const rights = [
+        ...node.querySelectorAll('[data-testid="filmstrip-item"]'),
+      ].map((row) => row.getBoundingClientRect().right)
+      const atEnd =
+        Math.abs(node.scrollLeft + node.clientWidth - node.scrollWidth) <= 1
+      return {
+        atEnd,
+        overflows: node.scrollWidth > node.clientWidth,
+        gap: portRight - Math.max(...rights),
+        portRight: portRight - r.left,
+      }
+    })
+  await expect.poll(measure).toMatchObject({ atEnd: true, overflows: true })
+  // The window re-renders after the scroll commit; wait for the gap to settle.
+  await expect
+    .poll(async () => (await measure()).gap, { timeout: 10_000 })
+    .toBeLessThan(40)
+  return measure()
+}
+
+/** Gallery of `count` loaded, thumbs at H, strip scrolled to the end: 4 px tail. */
+async function expectEndInset(page: Page, count: number, h: number) {
+  await expect
+    .poll(
+      () => page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+      { timeout: 60_000 },
+    )
+    .toBe(String(count))
+  await expect(page.getByTestId('filmstrip-status')).toHaveCount(0, {
+    timeout: 60_000,
+  })
+  expect(await thumbH(page)).toBeCloseTo(h, 0)
+
+  const end = await lastThumbEndGap(page)
+  // Was 12 px: the spacer and the window width each counted a gap after the last thumb.
+  expect(end.gap).toBeCloseTo(4, 0)
+  // Paint: the thumb reaches 4 px from the end; 1.5 px from it is bare chrome.
+  const strip = page.getByTestId('filmstrip-scroll')
+  const y = (await box(strip)).height / 2
+  const [thumbPx, bare] = await pixelsAt(strip, [
+    { x: end.portRight - 4.5, y },
+    { x: end.portRight - 1.5, y },
+  ])
+  const differs = [0, 1, 2].some(
+    (k) => Math.abs((thumbPx?.[k] ?? 0) - (bare?.[k] ?? 0)) >= 6,
+  )
+  expect(differs).toBe(true)
+}
+
+test('the last thumb ends 4 px from the strip end when scrolled to the end (kit)', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  const count = 24
+  await openSessionEditor(page)
+  await choosePhotoFolder(page, squarePngs(count, 'end'))
+  await expectEndInset(page, count, 76)
+
+  // H 76 → 92 from the separator keyboard (8 px steps).
+  await sep(page).focus()
+  await page.keyboard.press('ArrowUp')
+  await page.keyboard.press('ArrowUp')
+  await expect(sep(page)).toHaveAttribute('aria-valuenow', '92')
+  await expectEndInset(page, count, 92)
+})
+
 test('a long strip still virtualises at a large H', async ({ page }) => {
   test.setTimeout(120_000)
   const count = 120
