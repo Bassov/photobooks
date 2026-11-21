@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P5
 Title: Bug: /next-roadmap-item design-r32-crop-prod
+Status: done
 
 Designer parity Round 32, `walkthrough-ux-review` §A (direct crop, 2026-11-21, NOT PASS): the four prod Musts
 M123–M126. Visual reference: kit `uikit/src/sandbox/canvas.tsx` (no `uikit/` edits).
