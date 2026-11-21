@@ -5,13 +5,17 @@ import {
   applyBookOp,
   applyTemplate,
   checkBookInvariants,
+  fillBook,
   fillSpread,
   insertSpreadWithAssets,
+  pageLabel,
   placeAsset,
+  planFillBook,
   type Book,
+  type Frame,
   type SavedTemplate,
 } from '../index'
-import { makeBook, makeSpread } from '../testing/fixtures'
+import { makeBook, makeFrame, makeSpread } from '../testing/fixtures'
 
 function gridBook(assetIds: readonly string[]): Book {
   return applyTemplate(addToGallery(makeBook(), assetIds), 'spread-1', '4-grid')
@@ -292,5 +296,304 @@ describe('insertSpreadWithAssets', () => {
       assetIds: ['a'],
     })
     expect(placed(filled)).toEqual(['a'])
+  })
+})
+
+const ids12 = Array.from({ length: 12 }, (_, i) => `p${String(i + 1)}`)
+
+/** A new book: pages `1`, `2–3`, `4` with 1, 2 and 1 empty frames. */
+function newBook(ids: readonly string[]): Book {
+  let book = addToGallery(
+    makeBook({
+      spreads: ['s1', 's2', 's3'].map((id) => makeSpread({ id, frames: [] })),
+    }),
+    ids,
+  )
+  for (const id of ['s1', 's2', 's3']) {
+    book = applyTemplate(book, id, 'one-per-page')
+  }
+  return book
+}
+
+/** Photos of every spread, frames in array order. */
+function photos(book: Book): (string | undefined)[][] {
+  return book.spreads.map((spread) =>
+    spread.frames.map((frame) => frame.assetId),
+  )
+}
+
+/** A book with a handmade middle spread between two frameless single pages. */
+function handBook(frames: Frame[], ids: readonly string[] = ['a', 'b']): Book {
+  return addToGallery(
+    makeBook({
+      spreads: [
+        makeSpread({ id: 'first', frames: [] }),
+        makeSpread({ id: 'mid', frames }),
+        makeSpread({ id: 'last', frames: [] }),
+      ],
+    }),
+    ids,
+  )
+}
+
+function assetOf(book: Book, frameId: string): string | undefined {
+  return book.spreads
+    .flatMap((spread) => spread.frames)
+    .find((frame) => frame.id === frameId)?.assetId
+}
+
+describe('fillBook', () => {
+  it('fills a new book with 12 photos up to page 12, the last photo on the last page', () => {
+    const book = newBook(ids12)
+    expect(planFillBook(book, ids12, 120)).toEqual({
+      intoFrames: 4,
+      onNewSpreads: 8,
+      newSpreads: 4,
+      leftover: 0,
+      pagesBefore: 4,
+      pagesAfter: 12,
+      maxPages: 120,
+    })
+    const next = fillBook(book, ids12, [], 120)
+    const count = next.spreads.length
+    expect(next.spreads.map((_, i) => pageLabel(i, count))).toEqual([
+      '1',
+      '2–3',
+      '4–5',
+      '6–7',
+      '8–9',
+      '10–11',
+      '12',
+    ])
+    // E (pages 1–3) → new spreads (4–11) → L (page 12), in order.
+    expect(photos(next).flat()).toEqual(ids12)
+    expect(photos(next).at(-1)).toEqual(['p12'])
+    expect(next.spreads.map((spread) => spread.id).slice(0, 2)).toEqual([
+      's1',
+      's2',
+    ])
+    expect(next.spreads.at(-1)?.id).toBe('s3')
+    expect(checkBookInvariants(next)).toEqual({ ok: true })
+  })
+
+  it('reads a spread left page → right page, top (to 1 mm) → bottom, left → right', () => {
+    const book = handBook(
+      [
+        makeFrame({
+          id: 'right',
+          rect: { x: 300, y: 0, width: 50, height: 50 },
+        }),
+        makeFrame({
+          id: 'low',
+          rect: { x: 10, y: 200, width: 50, height: 50 },
+        }),
+        makeFrame({ id: 'b', rect: { x: 150, y: 9.6, width: 50, height: 50 } }),
+        makeFrame({ id: 'a', rect: { x: 10, y: 10.4, width: 50, height: 50 } }),
+      ],
+      ['p1', 'p2', 'p3', 'p4'],
+    )
+    const next = fillBook(book, ['p1', 'p2', 'p3', 'p4'], [], 120)
+    expect(['a', 'b', 'low', 'right'].map((id) => assetOf(next, id))).toEqual([
+      'p1',
+      'p2',
+      'p3',
+      'p4',
+    ])
+    expect(next.spreads).toHaveLength(3)
+  })
+
+  it('skips locked, text, filled and master items and keeps them ===', () => {
+    const master = makeFrame({ id: 'm' })
+    const base = handBook(
+      [
+        makeFrame({ id: 'locked', locked: true }),
+        makeFrame({ id: 'text', kind: 'text' }),
+        makeFrame({
+          id: 'filled',
+          assetId: 'x',
+          rect: { x: 0, y: 0, width: 9, height: 9 },
+        }),
+        makeFrame({ id: 'free', rect: { x: 0, y: 150, width: 9, height: 9 } }),
+      ],
+      ['x', 'a', 'b'],
+    )
+    const book: Book = {
+      ...base,
+      parents: [{ id: 'parent', name: 'P', frames: [master], guides: [] }],
+      defaultParentId: 'parent',
+    }
+    const next = fillBook(book, ['a'], [], 120)
+    expect(assetOf(next, 'free')).toBe('a')
+    const before = book.spreads[1]?.frames ?? []
+    const after = next.spreads[1]?.frames ?? []
+    expect(after.slice(0, 3)).toEqual(before.slice(0, 3))
+    after.slice(0, 3).forEach((frame, i) => {
+      expect(frame).toBe(before[i])
+    })
+    expect(next.parents).toBe(book.parents)
+    expect(next.spreads).toHaveLength(3)
+  })
+
+  it('never touches the cover, endpapers or master items', () => {
+    const book = newBook(ids12)
+    const next = fillBook(book, ids12, [], 120)
+    expect(next.cover).toBe(book.cover)
+    expect(next.endpapers).toBe(book.endpapers)
+    expect(next.parents).toBe(book.parents)
+  })
+
+  it('does not re-place photos used anywhere, cover-only included', () => {
+    let book = newBook(['cov', 'end', 'used', 'a'])
+    book = placeAsset(book, 's3', book.spreads[2]?.frames[0]?.id ?? '', 'used')
+    book = {
+      ...book,
+      cover: { ...book.cover, front: { ...book.cover.front, assetId: 'cov' } },
+      endpapers: { ...book.endpapers, back: { assetId: 'end' } },
+    }
+    const ids = ['cov', 'end', 'used', 'nope', 'a', 'a']
+    expect(planFillBook(book, ids, 120)).toMatchObject({
+      intoFrames: 1,
+      leftover: 0,
+    })
+    expect(photos(fillBook(book, ids, [], 120))).toEqual([
+      ['a'],
+      [undefined, undefined],
+      ['used'],
+    ])
+  })
+
+  it('puts an odd last photo on a spread of its own', () => {
+    const ids = ids12.slice(0, 7)
+    const book = newBook(ids)
+    expect(planFillBook(book, ids, 120)).toMatchObject({
+      intoFrames: 4,
+      onNewSpreads: 3,
+      newSpreads: 2,
+      pagesAfter: 8,
+    })
+    const next = fillBook(book, ids, [], 120)
+    expect(photos(next).map((list) => list.filter(Boolean).length)).toEqual([
+      1, 2, 2, 1, 1,
+    ])
+    expect(photos(next)[3]).toContain('p6')
+    expect(photos(next).at(-1)).toEqual(['p7'])
+  })
+
+  it('stops at the page limit: the tail stays unplaced', () => {
+    const book = newBook(ids12)
+    expect(planFillBook(book, ids12, 9)).toEqual({
+      intoFrames: 4,
+      onNewSpreads: 4,
+      newSpreads: 2,
+      leftover: 4,
+      pagesBefore: 4,
+      pagesAfter: 8,
+      maxPages: 9,
+    })
+    const next = fillBook(book, ids12, [], 9)
+    expect(photos(next).flat()).toEqual(ids12.slice(0, 8))
+  })
+
+  it('adds no spread when the book is already past the limit', () => {
+    const book = newBook(ids12)
+    expect(planFillBook(book, ids12, 2)).toMatchObject({
+      newSpreads: 0,
+      onNewSpreads: 0,
+      intoFrames: 4,
+      leftover: 8,
+      pagesAfter: 4,
+    })
+    expect(photos(fillBook(book, ids12, [], 2))).toEqual([
+      ['p1'],
+      ['p2', 'p3'],
+      ['p4'],
+    ])
+  })
+
+  it('fills frames before the last page first and adds no spread when the frames suffice', () => {
+    const ids = ['p1', 'p2']
+    const book = newBook(ids)
+    expect(planFillBook(book, ids, 120)).toMatchObject({
+      intoFrames: 2,
+      newSpreads: 0,
+      leftover: 0,
+      pagesAfter: 4,
+    })
+    expect(photos(fillBook(book, ids, [], 120))).toEqual([
+      ['p1'],
+      ['p2', undefined],
+      [undefined],
+    ])
+  })
+
+  it('puts new spreads after the only spread of a one-spread book', () => {
+    const book = applyTemplate(
+      addToGallery(makeBook(), ['a', 'b', 'c']),
+      'spread-1',
+      'one-per-page',
+    )
+    expect(planFillBook(book, ['a', 'b', 'c'], 120)).toMatchObject({
+      intoFrames: 0,
+      onNewSpreads: 3,
+      newSpreads: 2,
+      pagesBefore: 1,
+      pagesAfter: 4,
+    })
+    const next = fillBook(book, ['a', 'b', 'c'], [], 120)
+    expect(next.spreads[0]?.id).toBe('spread-1')
+    expect(photos(next)[0]).toEqual([undefined])
+    expect(photos(next).flat().filter(Boolean)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('fills both single pages of a two-spread book', () => {
+    let book = addToGallery(
+      makeBook({
+        spreads: ['s1', 's2'].map((id) => makeSpread({ id, frames: [] })),
+      }),
+      ['a', 'b'],
+    )
+    book = applyTemplate(
+      applyTemplate(book, 's1', 'one-per-page'),
+      's2',
+      'one-per-page',
+    )
+    expect(planFillBook(book, ['a', 'b'], 2)).toMatchObject({
+      intoFrames: 2,
+      leftover: 0,
+    })
+    expect(photos(fillBook(book, ['a', 'b'], [], 2))).toEqual([['a'], ['b']])
+  })
+
+  it('returns the same book when nothing is placeable', () => {
+    const book = newBook(['a'])
+    expect(fillBook(book, ['nope'], [], 120)).toBe(book)
+    expect(fillBook(book, [], [], 120)).toBe(book)
+  })
+
+  it('is reachable through applyBookOp with saved layouts', () => {
+    const landscape = { widthPx: 3000, heightPx: 2000 }
+    const base = newBook(ids12)
+    const book: Book = {
+      ...base,
+      // Portrait pages: builtin page-wide slots no longer suit landscapes.
+      settings: { ...base.settings, trim: { widthMm: 200, heightMm: 300 } },
+      assets: Object.fromEntries(ids12.map((id) => [id, landscape])),
+    }
+    const wide = { x: 0, y: 0, w: 90, h: 5 }
+    const saved: SavedTemplate = {
+      id: 'user-wide',
+      name: 'Wide',
+      pages: 2,
+      slots: [wide, wide],
+    }
+    const next = applyBookOp(book, {
+      type: 'fillBook',
+      assetIds: ids12,
+      templates: [saved],
+      maxPages: 120,
+    })
+    expect(next).toEqual(fillBook(book, ids12, [saved], 120))
+    expect(next.spreads[2]?.templateId).toBe('user-wide')
+    expect(photos(next)[2]).toEqual(['p4', 'p5'])
   })
 })
