@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item design-r35-filmstrip-wheel-kit
+Status: done
 
 Designer parity walkthrough-ux-review p3 Must M137 (Round 35) and the tracker p3 "Decided" focus cue. Kit-only.
 
