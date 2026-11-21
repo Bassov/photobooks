@@ -6,6 +6,7 @@ import {
   type PopoverProps as AriaPopoverProps,
 } from 'react-aria-components'
 import { cx } from './className'
+import { overlayBox, useScaledGaps } from './scaledOverlay'
 import './Popover.css'
 
 export const PopoverTrigger = AriaDialogTrigger
@@ -14,13 +15,22 @@ export interface PopoverProps extends Omit<AriaPopoverProps, 'className'> {
   className?: string
 }
 
-export function Popover({ className, offset = 6, ...props }: PopoverProps) {
+export function Popover({
+  className,
+  offset = 6,
+  crossOffset,
+  containerPadding,
+  children,
+  ...props
+}: PopoverProps) {
   return (
     <AriaPopover
       {...props}
-      offset={offset}
+      {...useScaledGaps({ offset, crossOffset, containerPadding })}
       className={cx('pb-popover', className)}
-    />
+    >
+      {overlayBox(children, cx('pb-popover__box', className))}
+    </AriaPopover>
   )
 }
 
