@@ -74,7 +74,7 @@ export function useLayoutCycleKeys() {
 
 const CSS = `
 .layout-cycle { position: absolute; bottom: calc(100% + 8px); z-index: 20; transform: translateX(-50%); display: inline-flex; align-items: center; box-sizing: border-box; height: 28px; padding: 2px; border-radius: var(--radius-md); background: var(--chrome); box-shadow: 0 0 0 1px var(--card-edge), 0 1px 2px rgb(20 20 19 / .06); white-space: nowrap; font-family: Inter, ui-sans-serif, system-ui, sans-serif; cursor: default }
-.layout-cycle > button { all: unset; box-sizing: border-box; position: relative; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; color: ${SUB}; cursor: default }
+.layout-cycle > button { appearance: none; border: 0; margin: 0; padding: 0; background: transparent; font: inherit; box-sizing: border-box; position: relative; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; color: ${SUB}; cursor: default }
 .layout-cycle > button svg { width: 16px; height: 16px }
 .layout-cycle > button:hover { background: var(--field); color: ${T} }
 .layout-cycle > button:active { background: var(--accent); color: ${T}; transform: scale(.98) }
