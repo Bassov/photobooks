@@ -90,6 +90,13 @@ export const ICON_NAMES = [
   'alignLeft',
   'alignCenter',
   'alignRight',
+  'replace',
+  'imagePlus',
+  'shrink',
+  'expand',
+  'crop',
+  'scissors',
+  'clipboardPaste',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -714,5 +721,64 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
     ['path', { d: 'M21 5H3' }],
     ['path', { d: 'M21 12H9' }],
     ['path', { d: 'M21 19H7' }],
+  ],
+  // Designer frame-context-menu: the frame menu rows (kit lucide icons).
+  replace: [
+    ['path', { d: 'M14 4a1 1 0 0 1 1-1' }],
+    ['path', { d: 'M15 10a1 1 0 0 1-1-1' }],
+    ['path', { d: 'M21 4a1 1 0 0 0-1-1' }],
+    ['path', { d: 'M21 9a1 1 0 0 1-1 1' }],
+    ['path', { d: 'm3 7 3 3 3-3' }],
+    ['path', { d: 'M6 10V5a2 2 0 0 1 2-2h2' }],
+    ['rect', { x: '3', y: '14', width: '7', height: '7', rx: '1' }],
+  ],
+  imagePlus: [
+    ['path', { d: 'M16 5h6' }],
+    ['path', { d: 'M19 2v6' }],
+    [
+      'path',
+      { d: 'M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5' },
+    ],
+    ['path', { d: 'm21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21' }],
+    ['circle', { cx: '9', cy: '9', r: '2' }],
+  ],
+  shrink: [
+    ['path', { d: 'm15 15 6 6m-6-6v4.8m0-4.8h4.8' }],
+    ['path', { d: 'M9 19.8V15m0 0H4.2M9 15l-6 6' }],
+    ['path', { d: 'M15 4.2V9m0 0h4.8M15 9l6-6' }],
+    ['path', { d: 'M9 4.2V9m0 0H4.2M9 9 3 3' }],
+  ],
+  expand: [
+    ['path', { d: 'm15 15 6 6' }],
+    ['path', { d: 'm15 9 6-6' }],
+    ['path', { d: 'M21 16v5h-5' }],
+    ['path', { d: 'M21 8V3h-5' }],
+    ['path', { d: 'M3 16v5h5' }],
+    ['path', { d: 'm3 21 6-6' }],
+    ['path', { d: 'M3 8V3h5' }],
+    ['path', { d: 'M9 9 3 3' }],
+  ],
+  crop: [
+    ['path', { d: 'M6 2v14a2 2 0 0 0 2 2h14' }],
+    ['path', { d: 'M18 22V8a2 2 0 0 0-2-2H2' }],
+  ],
+  scissors: [
+    ['circle', { cx: '6', cy: '6', r: '3' }],
+    ['path', { d: 'M8.12 8.12 12 12' }],
+    ['path', { d: 'M20 4 8.12 15.88' }],
+    ['circle', { cx: '6', cy: '18', r: '3' }],
+    ['path', { d: 'M14.8 14.8 20 20' }],
+  ],
+  clipboardPaste: [
+    ['path', { d: 'M11 14h10' }],
+    ['path', { d: 'M16 4h2a2 2 0 0 1 2 2v1.344' }],
+    ['path', { d: 'm17 18 4-4-4-4' }],
+    [
+      'path',
+      {
+        d: 'M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 1.793-1.113',
+      },
+    ],
+    ['rect', { x: '8', y: '2', width: '8', height: '4', rx: '1' }],
   ],
 }

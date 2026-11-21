@@ -77,6 +77,11 @@ function onPages(): boolean {
   )
 }
 
+/** D10: frame copy / paste acts on `spreadId` (the frame menu's edit group). */
+export function frameEditScope(spreadId: string): boolean {
+  return onPages() && isInteriorSpread(spreadId)
+}
+
 /** The frame selection on an interior spread; in crop mode, the cropped frame. */
 function selectedFrames(): FrameSelection | null {
   const crop = getCropTarget()

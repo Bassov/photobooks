@@ -440,8 +440,20 @@ test('a copy menu reads Reset / Hide / Lock; Reset all restores the moved logo',
 
   await rightClickCentre(page, copy)
   await expect(page.getByTestId('frame-menu').getByRole('menuitem')).toHaveText(
-    // FM4 adds the photo row (Replace photo… on the filled copy).
-    ['Reset to parent', 'Hide on this spread', 'Replace photo…', /^Lock/],
+    // FM3: + the photo and edit groups; no order rows, no Delete.
+    [
+      'Reset to parent',
+      'Hide on this spread',
+      'Replace photo…',
+      'Remove photo',
+      'Fit photo to frame',
+      'Crop',
+      /^Cut/,
+      /^Copy/,
+      /^Paste/,
+      /^Duplicate/,
+      /^Lock/,
+    ],
   )
   // The frame menu keeps the kit's fixed 224 px.
   expect((await boxOf(menuPopover(page))).width).toBeCloseTo(224, 0)

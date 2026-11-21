@@ -1,12 +1,20 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { Book, BookOp, Frame, ZMove } from '../core'
+import {
+  FRAMES_PAYLOAD_TYPE,
+  type Book,
+  type BookOp,
+  type Frame,
+  type ZMove,
+} from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { runAtInterfaceScale } from '../ui/uiScale.test-helpers'
 import * as bookStore from './bookStore'
 import { resetBookStore } from './bookStore'
+import { enterCropMode, exitCropMode, getCropTarget } from './cropMode'
 import { FrameContextMenu } from './FrameContextMenu'
 import { installArrangeKeys } from './frameArrange'
+import { frameClipboardMirror, resetFrameClipboard } from './frameClipboard'
 import { ArrangeSection, FrameLockButton } from './FrameSections'
 import {
   getFrameSelection,
@@ -135,7 +143,7 @@ describe('FrameContextMenu', () => {
     off()
   })
 
-  it('selects the frame and lists only moves that change the stack', () => {
+  it('selects the frame; moves that cannot change the stack are disabled', () => {
     seed(stackBook(3))
     render(
       <>
@@ -152,15 +160,38 @@ describe('FrameContextMenu', () => {
       .map((item) => item.getAttribute('data-testid'))
     expect(items).toEqual([
       'frame-menu-place',
+      'frame-menu-cut',
+      'frame-menu-copy',
+      'frame-menu-paste',
+      'frame-menu-duplicate',
+      'frame-menu-front',
+      'frame-menu-forward',
       'frame-menu-backward',
       'frame-menu-back',
       'frame-menu-lock',
+      'frame-menu-delete',
+    ])
+    const disabled = screen
+      .getAllByRole('menuitem')
+      .filter((item) => item.getAttribute('aria-disabled') === 'true')
+      .map((item) => item.getAttribute('data-testid'))
+    // No gallery photo to place; nothing copied.
+    expect(disabled).toEqual([
+      'frame-menu-place',
+      'frame-menu-paste',
+      'frame-menu-front',
+      'frame-menu-forward',
     ])
     expect(screen.getByTestId('frame-menu-back').textContent).toContain(
       'Shift+Ctrl+[',
     )
-    // FM4: + the separator after the photo row.
-    expect(screen.getAllByRole('separator')).toHaveLength(2)
+    expect(screen.getByTestId('frame-menu-delete').textContent).toBe(
+      'Delete frameDel',
+    )
+    // M1: photo · edit · order · lock + delete.
+    expect(screen.getAllByRole('separator')).toHaveLength(3)
+    // M5: a pointer open highlights no row.
+    expect(document.querySelector('[data-focused]')).toBeNull()
     expect(screen.getByTestId('frame-menu-anchor').style.left).toBe('40px')
     expect(screen.getByTestId('frame-menu-anchor').style.top).toBe('50px')
   })
@@ -184,7 +215,7 @@ describe('FrameContextMenu', () => {
     }
   })
 
-  it('a lone locked frame offers only Unlock', () => {
+  it('a lone locked frame keeps every row, the moves, Place and Cut disabled', () => {
     seed(stackBook(1, true))
     render(
       <>
@@ -193,16 +224,24 @@ describe('FrameContextMenu', () => {
       </>,
     )
     openMenu('f0')
-    // FM4: + the photo row, disabled on a locked frame.
-    expect(screen.getAllByRole('menuitem')).toHaveLength(2)
-    expect(
-      screen.getByTestId('frame-menu-place').getAttribute('aria-disabled'),
-    ).toBe('true')
     expect(screen.getByTestId('frame-menu-lock').textContent).toContain(
       'Unlock',
     )
-    // FM4: only the photo row's separator.
-    expect(screen.getAllByRole('separator')).toHaveLength(1)
+    // M2: Cut leaves locked frames; Copy, Duplicate and Delete still act.
+    const disabled = screen
+      .getAllByRole('menuitem')
+      .filter((item) => item.getAttribute('aria-disabled') === 'true')
+      .map((item) => item.getAttribute('data-testid'))
+    expect(disabled).toEqual([
+      'frame-menu-place',
+      'frame-menu-cut',
+      'frame-menu-paste',
+      'frame-menu-front',
+      'frame-menu-forward',
+      'frame-menu-backward',
+      'frame-menu-back',
+    ])
+    expect(screen.getAllByRole('menuitem')).toHaveLength(11)
   })
 
   it('ignores a right-click off an editor frame', () => {
@@ -398,11 +437,24 @@ describe('FrameContextMenu on a multi-selection', () => {
         .getAllByRole('menuitem')
         .map((item) => item.getAttribute('data-testid')),
     ).toEqual([
+      'frame-menu-cut',
+      'frame-menu-copy',
+      'frame-menu-paste',
+      'frame-menu-duplicate',
       'frame-menu-front',
       'frame-menu-forward',
+      'frame-menu-backward',
+      'frame-menu-back',
       'frame-menu-lock',
       'frame-menu-delete',
     ])
+    // A set has no photo group; its own z moves stay enabled.
+    expect(
+      screen.getByTestId('frame-menu-back').getAttribute('aria-disabled'),
+    ).toBe('true')
+    expect(
+      screen.getByTestId('frame-menu-front').hasAttribute('aria-disabled'),
+    ).toBe(false)
     expect(screen.getByTestId('frame-menu-delete').textContent).toContain(
       'Delete 2 frames',
     )
@@ -455,7 +507,9 @@ describe('FrameContextMenu on a multi-selection', () => {
     renderSet(stackBook(4))
     openMenu('f3')
     expect(getFrameSource()).toEqual({ spreadId: 's', frameId: 'f3' })
-    expect(screen.queryByTestId('frame-menu-delete')).toBeNull()
+    expect(screen.getByTestId('frame-menu-delete').textContent).toBe(
+      'Delete frameDel',
+    )
   })
 
   it('a frame with a selected id on another spread is outside the set', () => {
@@ -567,6 +621,18 @@ describe('FrameContextMenu on parent items and override copies', () => {
     screen
       .getAllByRole('menuitem')
       .map((item) => item.getAttribute('data-testid'))
+
+  /** An (empty) override copy: Reset / Hide, photo, edit, Lock. */
+  const COPY_ROWS = [
+    'frame-menu-reset-parent',
+    'frame-menu-hide-parent',
+    'frame-menu-place',
+    'frame-menu-cut',
+    'frame-menu-copy',
+    'frame-menu-paste',
+    'frame-menu-duplicate',
+    'frame-menu-lock',
+  ]
 
   it('opens the parent item menu through the own frame; Override selects the copy', () => {
     // The spread already overrides another parent frame.
@@ -702,7 +768,7 @@ describe('FrameContextMenu on parent items and override copies', () => {
     expect(screen.queryByTestId('parent-menu')).toBeNull()
   })
 
-  it('a copy reads Reset to parent, Hide on this spread, then Lock, without z rows', () => {
+  it('a copy reads Reset to parent, Hide on this spread, photo, edit, then Lock, without z rows or Delete', () => {
     seed(
       parentBook({
         frames: [{ ...LOGO, id: 'copy', overridesId: 'logo' }],
@@ -711,14 +777,8 @@ describe('FrameContextMenu on parent items and override copies', () => {
     renderSpread(['copy'])
     openMenu('copy')
     expect(getFrameSource()).toEqual({ spreadId: 's', frameId: 'copy' })
-    expect(rows()).toEqual([
-      'frame-menu-reset-parent',
-      'frame-menu-hide-parent',
-      'frame-menu-place',
-      'frame-menu-lock',
-    ])
-    // FM4: + the separator after the photo row.
-    expect(document.querySelectorAll('[role="separator"]')).toHaveLength(2)
+    expect(rows()).toEqual(COPY_ROWS)
+    expect(document.querySelectorAll('[role="separator"]')).toHaveLength(3)
     fireEvent.click(screen.getByTestId('frame-menu-reset-parent'))
     expect(
       bookStore.getBookStoreSnapshot().book.spreads[1]?.parentOverrides,
@@ -736,12 +796,13 @@ describe('FrameContextMenu on parent items and override copies', () => {
     expect(openAt(32, 8)).toBe(false)
     expect(screen.queryByTestId('parent-menu')).toBeNull()
     expect(getFrameSource()).toEqual({ spreadId: 's', frameId: 'copy' })
-    expect(rows()).toEqual([
-      'frame-menu-reset-parent',
-      'frame-menu-hide-parent',
-      'frame-menu-place',
-      'frame-menu-lock',
-    ])
+    expect(rows()).toEqual(COPY_ROWS)
+    // A pointer open: no row takes the roving focus.
+    expect(
+      screen
+        .getAllByRole('menuitem')
+        .filter((item) => item.getAttribute('tabindex') === '0'),
+    ).toEqual([])
   })
 
   it("a right-click on a selected copy's handle peer opens the copy menu", () => {
@@ -781,5 +842,356 @@ describe('FrameContextMenu on parent items and override copies', () => {
       bookStore.getBookStoreSnapshot().book.spreads[1]?.parentOverrides,
     ).toEqual({ hiddenIds: ['logo'] })
     expect(getFrameSource()).toBeNull()
+  })
+})
+
+describe('FrameContextMenu rows and commands (FM3)', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+    exitCropMode()
+    endPhotoPick()
+    resetFrameClipboard()
+    resetFrameSelection()
+    resetBookStore()
+  })
+
+  /** A filled frame f0 (asset a) and an empty f1 on spread s. */
+  function filledBook(fit?: Frame['fit']): Book {
+    return makeBook({
+      assets: { a: {}, b: {} },
+      gallery: ['a', 'b'],
+      spreads: [
+        makeSpread({
+          id: 's',
+          frames: [
+            makeFrame({
+              id: 'f0',
+              z: 1,
+              assetId: 'a',
+              ...(fit === undefined ? {} : { fit }),
+            }),
+            makeFrame({ id: 'f1', z: 2 }),
+          ],
+        }),
+      ],
+    })
+  }
+
+  /** The canvas inside a pasteboard slot, with its paper (2 px/mm). */
+  function renderCanvas(book: Book) {
+    seed(book)
+    render(
+      <>
+        <div data-pasteboard-slot="">
+          <div data-testid="spread-view" data-spread-id="s">
+            <span>paper</span>
+            <Canvas frameIds={['f0', 'f1']} />
+          </div>
+        </div>
+        <FrameContextMenu />
+      </>,
+    )
+    vi.spyOn(
+      screen.getByTestId('spread-view'),
+      'getBoundingClientRect',
+    ).mockReturnValue(
+      DOMRect.fromRect({ x: 0, y: 0, width: 1200, height: 600 }),
+    )
+  }
+
+  const frames = () =>
+    bookStore.getBookStoreSnapshot().book.spreads[0]?.frames ?? []
+  const pick = (id: string) => {
+    fireEvent.click(screen.getByTestId(`frame-menu-${id}`))
+  }
+
+  it('a filled photo frame has 14 rows in the Spec order', () => {
+    renderCanvas(filledBook())
+    openMenu('f0')
+    expect(
+      screen.getAllByRole('menuitem').map((item) => item.textContent),
+    ).toEqual([
+      'Replace photo…',
+      'Remove photo',
+      'Fit photo to frame',
+      'Crop',
+      'CutCtrl+X',
+      'CopyCtrl+C',
+      'PasteCtrl+V',
+      'DuplicateCtrl+D',
+      'Bring to frontShift+Ctrl+]',
+      'Bring forwardCtrl+]',
+      'Send backwardCtrl+[',
+      'Send to backShift+Ctrl+[',
+      'LockCtrl+Shift+L',
+      'Delete frameDel',
+    ])
+    expect(screen.getAllByRole('separator')).toHaveLength(3)
+    expect(
+      screen.getByTestId('frame-menu-delete').getAttribute('data-variant'),
+    ).toBe('destructive')
+  })
+
+  it('Fit / Fill, Remove and Crop run the inspector commands', () => {
+    renderCanvas(filledBook('fit'))
+    openMenu('f0')
+    expect(screen.getByTestId('frame-menu-fit').textContent).toBe('Fill frame')
+    pick('fit')
+    expect(frames()[0]?.fit ?? 'fill').toBe('fill')
+    openMenu('f0')
+    expect(screen.getByTestId('frame-menu-fit').textContent).toBe(
+      'Fit photo to frame',
+    )
+    pick('fit')
+    expect(frames()[0]?.fit).toBe('fit')
+    openMenu('f0')
+    pick('crop')
+    expect(getCropTarget()).toEqual({
+      spreadId: 's',
+      frameId: 'f0',
+      assetId: 'a',
+    })
+    openMenu('f0')
+    pick('remove')
+    expect(frames()[0]?.assetId).toBeUndefined()
+  })
+
+  it('Copy, Paste, Duplicate, Cut and Delete are one step each', () => {
+    renderCanvas(filledBook())
+    openMenu('f0')
+    pick('copy')
+    expect(frameClipboardMirror()?.frames).toHaveLength(1)
+    openMenu('f0')
+    expect(
+      screen.getByTestId('frame-menu-paste').hasAttribute('aria-disabled'),
+    ).toBe(false)
+    pick('paste')
+    expect(frames()).toHaveLength(3)
+    expect(bookStore.getHistorySnapshot().undoLabel).toBe('Paste frame')
+    // Not in place: the D3 step.
+    expect(frames()[2]?.rect.x).toBe((frames()[0]?.rect.x ?? 0) + 5)
+    openMenu('f0')
+    pick('duplicate')
+    expect(frames()).toHaveLength(4)
+    openMenu('f1')
+    pick('cut')
+    expect(frames().map((frame) => frame.id)).not.toContain('f1')
+    openMenu('f0')
+    pick('delete')
+    expect(frames().map((frame) => frame.id)).not.toContain('f0')
+    expect(frames()).toHaveLength(2)
+  })
+
+  it('menu Copy also puts the frames on the system clipboard, once', () => {
+    renderCanvas(filledBook())
+    const setData = vi.fn()
+    const later = vi.fn()
+    /** A copy event as the browser sends it; false when cancelled. */
+    const copyEvent = (clipboard: boolean) => {
+      const event = new Event('copy', { bubbles: true, cancelable: true })
+      if (clipboard) {
+        Object.defineProperty(event, 'clipboardData', { value: { setData } })
+      }
+      return document.dispatchEvent(event)
+    }
+    const sent: boolean[] = []
+    const execCommand = vi.fn(() => {
+      sent.push(copyEvent(true))
+      return true
+    })
+    document.addEventListener('copy', later)
+    Object.defineProperty(document, 'execCommand', {
+      value: execCommand,
+      configurable: true,
+    })
+    try {
+      openMenu('f0')
+      // Scope left after the menu opened: nothing copied, no clipboard write.
+      setLeftPanelTab('masters')
+      pick('copy')
+      expect(execCommand).not.toHaveBeenCalled()
+      setLeftPanelTab('pages')
+      openMenu('f0')
+      pick('copy')
+      expect(execCommand).toHaveBeenCalledWith('copy')
+      expect(sent).toEqual([false])
+      expect(setData).toHaveBeenCalledWith(
+        FRAMES_PAYLOAD_TYPE,
+        JSON.stringify(frameClipboardMirror()),
+      )
+      // Ahead of the editor's own copy listener; then gone.
+      expect(later).not.toHaveBeenCalled()
+      expect(copyEvent(false)).toBe(true)
+      expect(later).toHaveBeenCalledTimes(1)
+      // No clipboardData on the event: no throw.
+      execCommand.mockImplementation(() => copyEvent(false))
+      openMenu('f0')
+      pick('copy')
+      expect(setData).toHaveBeenCalledTimes(1)
+    } finally {
+      setLeftPanelTab('pages')
+      Reflect.deleteProperty(document, 'execCommand')
+      document.removeEventListener('copy', later)
+    }
+  })
+
+  it('a click lands at the pointer unless both coordinates are 0 or a menu key came first', () => {
+    seed(stackBook(1))
+    render(
+      <>
+        <Canvas frameIds={['f0']} />
+        <FrameContextMenu />
+      </>,
+    )
+    vi.spyOn(screen.getByText('f0'), 'getBoundingClientRect').mockReturnValue(
+      DOMRect.fromRect({ x: 30, y: 10, width: 20, height: 30 }),
+    )
+    const anchorAfter = (point: { clientX: number; clientY: number }) => {
+      openMenu('f0', point)
+      const anchor = screen.getByTestId('frame-menu-anchor')
+      const at = [anchor.style.left, anchor.style.top]
+      fireEvent.keyDown(screen.getByTestId('frame-menu'), { key: 'Escape' })
+      return at
+    }
+    expect(anchorAfter({ clientX: 0, clientY: 50 })).toEqual(['0px', '50px'])
+    expect(anchorAfter({ clientX: 40, clientY: 0 })).toEqual(['40px', '0px'])
+    fireEvent.keyDown(window, { key: 'ContextMenu' })
+    expect(anchorAfter({ clientX: 40, clientY: 25 })).toEqual(['30px', '40px'])
+    // The key flag is one-shot; other keys (Shift+A, F10) are no menu key.
+    expect(anchorAfter({ clientX: 40, clientY: 25 })).toEqual(['40px', '25px'])
+    fireEvent.keyDown(window, { key: 'A', shiftKey: true })
+    expect(anchorAfter({ clientX: 40, clientY: 25 })).toEqual(['40px', '25px'])
+    fireEvent.keyDown(window, { key: 'F10' })
+    expect(anchorAfter({ clientX: 40, clientY: 25 })).toEqual(['40px', '25px'])
+  })
+
+  it('names the menu Frame or Frames and closes when the frame goes', () => {
+    renderCanvas(filledBook())
+    openMenu('f0')
+    expect(screen.getByTestId('frame-menu').getAttribute('aria-label')).toBe(
+      'Frame',
+    )
+    expect(
+      screen.getByTestId('frame-menu-copy').getAttribute('data-variant'),
+    ).toBe('default')
+    act(() => {
+      bookStore.dispatchBookOp({
+        type: 'removeFrames',
+        spreadId: 's',
+        frameIds: ['f0'],
+      })
+    })
+    expect(document.querySelector('.pb-menu-popover')).toBeNull()
+    seed(filledBook())
+    setFrameSelection({ spreadId: 's', frameIds: ['f0', 'f1'] })
+    openMenu('f1')
+    expect(screen.getByTestId('frame-menu').getAttribute('aria-label')).toBe(
+      'Frames',
+    )
+  })
+
+  // DOM focus itself is pinned in e2e (jsdom defers it by input modality).
+  it('the keyboard open puts focus on the first enabled row', () => {
+    seed(stackBook(1, true))
+    render(
+      <>
+        <Canvas frameIds={['f0']} />
+        <FrameContextMenu />
+      </>,
+    )
+    vi.spyOn(screen.getByText('f0'), 'getBoundingClientRect').mockReturnValue(
+      DOMRect.fromRect({ x: 30, y: 10, width: 20, height: 30 }),
+    )
+    // Chromium's Shift+F10 contextmenu carries a point inside the frame.
+    fireEvent.keyDown(screen.getByText('f0'), { key: 'F10', shiftKey: true })
+    openMenu('f0', { clientX: 40, clientY: 25 })
+    const anchor = screen.getByTestId('frame-menu-anchor')
+    expect([anchor.style.left, anchor.style.top]).toEqual(['30px', '40px'])
+    // Place and Cut are disabled on a locked frame: Copy is first.
+    const roving = screen
+      .getAllByRole('menuitem')
+      .filter((item) => item.getAttribute('tabindex') === '0')
+    expect(roving.map((item) => item.getAttribute('data-testid'))).toEqual([
+      'frame-menu-copy',
+    ])
+  })
+
+  it('a pointer open puts focus on no row', () => {
+    renderCanvas(filledBook())
+    openMenu('f0')
+    expect(
+      screen
+        .getAllByRole('menuitem')
+        .filter((item) => item.getAttribute('tabindex') === '0'),
+    ).toEqual([])
+  })
+
+  it('shows macOS glyphs for the keys', () => {
+    vi.spyOn(globalThis.navigator, 'userAgent', 'get').mockReturnValue(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+    )
+    renderCanvas(filledBook())
+    openMenu('f0')
+    expect(screen.getByTestId('frame-menu-front').textContent).toBe(
+      'Bring to front⇧⌘]',
+    )
+    expect(screen.getByTestId('frame-menu-delete').textContent).toBe(
+      'Delete frame⌫',
+    )
+  })
+
+  it('the paper opens the page menu only with frames copied', () => {
+    renderCanvas(filledBook())
+    const openPaper = () =>
+      fireEvent.contextMenu(screen.getByText('paper'), {
+        clientX: 400,
+        clientY: 300,
+      })
+    expect(openPaper()).toBe(true)
+    expect(screen.queryByTestId('page-menu')).toBeNull()
+
+    openMenu('f0')
+    pick('copy')
+    // Off the pasteboard (previews): no page menu.
+    const slot = document.querySelector('[data-pasteboard-slot]')
+    slot?.removeAttribute('data-pasteboard-slot')
+    expect(openPaper()).toBe(true)
+    slot?.setAttribute('data-pasteboard-slot', '')
+    // Crop ends: paste must not target the cropped frame's selection.
+    enterCropMode('s', 'f0')
+    expect(openPaper()).toBe(false)
+    expect(getFrameSource()).toBeNull()
+    expect(getCropTarget()).toBeNull()
+    expect(popoverClass('page-menu')).toBe('pb-menu-popover w-max min-w-56')
+    expect(
+      screen.getAllByRole('menuitem').map((item) => item.textContent),
+    ).toEqual(['PasteCtrl+V', 'Paste in placeShift+Ctrl+V'])
+    fireEvent.click(screen.getByTestId('page-menu-paste-in-place'))
+    expect(frames()).toHaveLength(3)
+    expect(frames()[2]?.rect).toEqual(frames()[0]?.rect)
+    expect(getFrameSelection()?.frameIds).toEqual([frames()[2]?.id])
+
+    expect(openPaper()).toBe(false)
+    fireEvent.click(screen.getByTestId('page-menu-paste'))
+    expect(frames()).toHaveLength(4)
+    expect(frames()[3]?.rect.x).toBe((frames()[0]?.rect.x ?? 0) + 5)
+  })
+
+  it('the paper on Masters keeps the browser menu', () => {
+    renderCanvas(filledBook())
+    openMenu('f0')
+    pick('copy')
+    setLeftPanelTab('masters')
+    try {
+      expect(
+        fireEvent.contextMenu(screen.getByText('paper'), {
+          clientX: 400,
+          clientY: 300,
+        }),
+      ).toBe(true)
+    } finally {
+      setLeftPanelTab('pages')
+    }
   })
 })
