@@ -7,6 +7,7 @@ import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
 import { installCropGesture } from './cropGesture'
 import * as cropMode from './cropMode'
 import { enterCropMode, exitCropMode, getCropTarget } from './cropMode'
+import { getFrameSource, setFrameSource } from './frameSelection'
 
 const ZOOMED = { zoom: 2, center: { x: 0.5, y: 0.5 } }
 
@@ -187,10 +188,23 @@ describe('cropGesture', () => {
   })
 
   it('exits on Escape and on a press outside the frame', () => {
+    // Crop mode starts from a cleared selection (ConnectedSpreadView).
+    setFrameSource(null)
+    const bubbled = vi.fn()
+    document.addEventListener('keydown', bubbled)
     frame.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
     )
     expect(getCropTarget()).toBeNull()
+    // §A: Esc keeps the frame selected; the editor's Esc deselect never sees
+    // this press.
+    expect(getFrameSource()).toEqual({
+      spreadId: 'spread-1',
+      frameId: 'frame-1',
+    })
+    expect(bubbled).not.toHaveBeenCalled()
+    document.removeEventListener('keydown', bubbled)
+    setFrameSource(null)
 
     enterCropMode('spread-1', 'frame-1')
     const keep = document.createElement('div')
@@ -368,6 +382,8 @@ describe('cropGesture details', () => {
       el.append(handle)
       return handle
     })
+    // The camera stays put (M126): no scroll into view on focus.
+    const focus = vi.spyOn(handles[0] as HTMLElement, 'focus')
     const tab = (shiftKey = false) => {
       const event = new KeyboardEvent('keydown', {
         key: 'Tab',
@@ -380,6 +396,7 @@ describe('cropGesture details', () => {
     }
     expect(tab().defaultPrevented).toBe(true)
     expect(document.activeElement).toBe(handles[0])
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true })
     tab()
     tab()
     tab()

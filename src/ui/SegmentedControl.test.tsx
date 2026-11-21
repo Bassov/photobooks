@@ -13,6 +13,36 @@ describe('SegmentedControl', () => {
     cleanup()
   })
 
+  it('names the group by a visible label and tags the group and segments', () => {
+    render(
+      <>
+        <span id="seg-label">Scale</span>
+        <SegmentedControl
+          label="Fit"
+          labelledBy="seg-label"
+          testId="seg"
+          items={[
+            { id: 'a', label: 'A', testId: 'seg-a' },
+            { id: 'b', label: 'B' },
+          ]}
+        />
+      </>,
+    )
+    const group = screen.getByRole('radiogroup', { name: 'Scale' })
+    expect(group.getAttribute('aria-label')).toBeNull()
+    expect(group.dataset.testid).toBe('seg')
+    expect(screen.getByTestId('seg-a').tagName).toBe('LABEL')
+    expect(screen.getByTestId('seg-a').textContent).toBe('A')
+  })
+
+  it('keeps aria-label and no test ids by default', () => {
+    render(<SegmentedControl label="Fit" items={items} />)
+    const group = screen.getByRole('radiogroup', { name: 'Fit' })
+    expect(group.getAttribute('aria-labelledby')).toBeNull()
+    expect(group.hasAttribute('data-testid')).toBe(false)
+    expect(group.querySelector('[data-testid]')).toBeNull()
+  })
+
   it('reports selection changes through onChange', () => {
     const onChange = vi.fn()
     render(

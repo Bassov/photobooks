@@ -27,7 +27,13 @@ export function PhotoChrome({
   box,
   grabber,
   pinned,
+  onShownChange,
 }: {
+  /**
+   * The layer shows or hides (false on unmount): the frame lifts above its
+   * neighbours meanwhile, so the ghost and the 4 photo handles stay on top.
+   */
+  onShownChange: (shown: boolean) => void
   src: string
   /** The photo's box in the frame (the image style without its filter). */
   box: CSSProperties
@@ -42,6 +48,15 @@ export function PhotoChrome({
   const [hovered, setShown] = useState(false)
   const shown = hovered || pinned
   const extent = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    onShownChange(shown)
+  }, [shown, onShownChange])
+  useEffect(
+    () => () => {
+      onShownChange(false)
+    },
+    [onShownChange],
+  )
   useEffect(() => {
     // The extent span is always mounted, so the ref is set once effects run.
     const node = extent.current

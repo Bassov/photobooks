@@ -79,11 +79,17 @@ test('no crop section until a photo is double-clicked; Esc leaves crop mode', as
   await filledFrame(page).dblclick()
   await expect(filledFrame(page)).toHaveAttribute('data-crop-active', 'true')
   await expect(page.getByTestId('spread-frame-ghost')).toHaveCount(1)
+  await expect(page.getByTestId('crop-toggle')).toHaveText('Done')
   await page.keyboard.press('Escape')
   await expect(filledFrame(page)).not.toHaveAttribute(
     'data-crop-active',
     'true',
   )
+  // §A (M124): the first Esc keeps the frame selected (Photo inspector, not
+  // cropping); the second clears it and the section with it.
+  await expect(filledFrame(page)).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('crop-toggle')).toHaveText('Crop')
+  await page.keyboard.press('Escape')
   await expect(page.getByTestId('inspector-fit-crop')).toHaveCount(0)
   await assertDocumentFitsViewport(page)
 })

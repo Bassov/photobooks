@@ -102,9 +102,8 @@ describe('SettingsScreen', () => {
     expect(screen.queryByRole('alertdialog')).toBeNull()
   })
 
-  it('hides Interface, which has no backing behavior (no stub, no inputs)', () => {
+  it('shows Interface last: one radiogroup and its hint (D8)', () => {
     render(<SettingsScreen libraryPath="Lib" bookCount={0} />)
-    expect(screen.queryByTestId('settings-nav-interface')).toBeNull()
     expect(screen.queryByTestId('settings-deferred-interface')).toBeNull()
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
@@ -112,8 +111,26 @@ describe('SettingsScreen', () => {
       'Hosting',
       'Site',
       'Print presets',
+      'Interface',
       'Change library folder…',
     ])
+    expect(screen.queryByRole('radiogroup')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('settings-nav-interface'))
+    expect(screen.getByTestId('settings-section-title').textContent).toBe(
+      'Interface',
+    )
+    expect(
+      screen.getByTestId('settings-nav-interface').getAttribute('aria-current'),
+    ).toBe('page')
+    expect(screen.getAllByRole('radiogroup')).toHaveLength(1)
+    expect(
+      screen.getByRole('radiogroup', { name: 'Interface size' }),
+    ).toBeTruthy()
+    expect(screen.getByTestId('interface-size-hint').textContent).toBe(
+      'Bigger text and controls for 4K screens.',
+    )
+    expect(screen.queryByTestId('change-library')).toBeNull()
   })
 
   it('opens on the section it is given', async () => {

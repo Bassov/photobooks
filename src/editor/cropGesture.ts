@@ -11,6 +11,7 @@ import { cropWheelFactor, panCrop, zoomCrop, type FramePx } from './cropMath'
 import { cycledIndex, pinnedCropKey } from './cropKeys'
 import { exitCropMode, getCropTarget, type CropTarget } from './cropMode'
 import { editorKeysSuspended } from './editorKeysGate'
+import { setFrameSource } from './frameSelection'
 
 type Crop = NonNullable<Frame['crop']>
 
@@ -294,6 +295,10 @@ export function installCropGesture(): () => void {
       flushWheel()
       finishPan(false)
       exitCropMode()
+      // §A "Esc exits as today": back to the selected frame (handles, Photo
+      // inspector); the editor's Esc deselect waits for a second press.
+      setFrameSource(cropTarget)
+      event.stopPropagation()
       return
     }
     if (
@@ -319,7 +324,8 @@ export function installCropGesture(): () => void {
       const next = cycledIndex(current, handles.length, action.back)
       for (const [index, handle] of handles.entries()) {
         if (index === next) {
-          handle.focus()
+          // The camera stays put: a handle under a panel is not scrolled in.
+          handle.focus({ preventScroll: true })
         }
       }
       return

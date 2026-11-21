@@ -112,6 +112,15 @@ async function goToView(page: Page, view: number) {
   await animationsSettled(reader)
 }
 
+/** End: a jump (no turn) to the last view, resting there with its faces drawn */
+async function jumpToEnd(page: Page) {
+  const reader = page.getByTestId('ps-reader')
+  const from = await reader.getAttribute('data-view')
+  await page.keyboard.press('End')
+  await expect(reader).not.toHaveAttribute('data-view', from ?? '')
+  await settle(page, Number(await reader.getAttribute('data-view')))
+}
+
 /** the reader's spine, page width and middle row (viewport px) */
 async function geometry(page: Page) {
   const b = await box(page.getByTestId('ps-reader'))
@@ -132,7 +141,9 @@ async function holdAt(
   g: { spine: number; pw: number; y: number },
   th: number,
 ) {
-  await page.mouse.move(xAt(g, th), g.y, { steps: 4 })
+  // one pointermove: the reader draws the held leaf in the move's own task (a full GL frame, ~0.85 s in CI's software
+  // GL), and only the held θ is read
+  await page.mouse.move(xAt(g, th), g.y)
   const leaf = page.getByTestId('ps-leaf')
   await expect
     .poll(async () =>
@@ -164,7 +175,7 @@ async function sweep(page: Page, g: { spine: number; pw: number; y: number }) {
     await holdAt(page, g, th)
     tops.push(await alphaTop(page))
   }
-  await page.mouse.move(g.spine + 0.8 * g.pw, g.y, { steps: 6 })
+  await page.mouse.move(g.spine + 0.8 * g.pw, g.y)
   await page.mouse.up()
   await expect(page.getByTestId('ps-reader')).toHaveAttribute(
     'data-turn',
@@ -216,13 +227,28 @@ test.describe('site room 1440×900: GL turn (kit reader-gl T1 / T2)', () => {
   test('T1: the landing leaf shows its own page, not the old view (forward at view 9, backward at view 3)', async ({
     page,
   }) => {
-    // eleven settled turns and two held drags in software GL
+    // settled turns and two held drags in software GL: the backward case first (views 2, 3 are next to the opening),
+    // then End jumps near view 10 instead of eight more turns
     test.setTimeout(120_000)
     const errors = collectErrors(page)
     await openBook(page, 'alps')
+    const g = await geometry(page)
+
+    // backward: view 3 → 2, held at θ 5; the probe sits on the right page
+    const right = await probe(page, 1, 2, 3)
+    const old2 = await rgbAt(page, right.x, right.y)
+    await page.mouse.move(g.spine - 0.8 * g.pw, g.y)
+    await page.mouse.down()
+    await holdAt(page, g, 5)
+    const back = await rgbAt(page, right.x, right.y)
+    await page.mouse.up()
+    await settle(page, 2)
+    await animationsSettled(page.getByTestId('ps-reader'))
+    expect(await nearest(page, back, right.x, right.y)).toBeLessThanOrEqual(12)
+    expect(dRgb(back, old2)).toBeGreaterThan(12)
 
     // forward: view 9 → 10, held at θ 165 and 175; the probe sits on the left page
-    const g = await geometry(page)
+    await jumpToEnd(page)
     const left = await probe(page, -1, 10, 9)
     const old = await rgbAt(page, left.x, left.y)
     await page.mouse.move(g.spine + 0.8 * g.pw, g.y)
@@ -241,19 +267,6 @@ test.describe('site room 1440×900: GL turn (kit reader-gl T1 / T2)', () => {
     for (const d of fwd) expect(d).toBeLessThanOrEqual(12)
     // and not the old view's left page
     for (const p of held) expect(dRgb(p, old)).toBeGreaterThan(12)
-
-    // backward: view 3 → 2, held at θ 5; the probe sits on the right page
-    const right = await probe(page, 1, 2, 3)
-    const old2 = await rgbAt(page, right.x, right.y)
-    await page.mouse.move(g.spine - 0.8 * g.pw, g.y)
-    await page.mouse.down()
-    await holdAt(page, g, 5)
-    const back = await rgbAt(page, right.x, right.y)
-    await page.mouse.up()
-    await settle(page, 2)
-    await animationsSettled(page.getByTestId('ps-reader'))
-    expect(await nearest(page, back, right.x, right.y)).toBeLessThanOrEqual(12)
-    expect(dRgb(back, old2)).toBeGreaterThan(12)
     expect(errors).toEqual([])
   })
 
