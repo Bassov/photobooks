@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item e2e-burn-in-cap
+Status: done
 
 `e2e-burn-in` must stay bounded when a PR edits a shared e2e fixture. PR #660 (edits `e2e/fixtures/coverage.ts`,
 imported by every spec) made `ts-rig-gate e2e-burn-in-targets` select the whole suite: 1055 tests × 10 repeats on one
