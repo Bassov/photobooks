@@ -258,8 +258,10 @@ function ReaderGl({ b, a, th, W, H, box, s, board, bend, label, fade, onFade, on
     const seq = ++drawSeq.current
     root.current?.removeAttribute("data-faces")
     void gl.draws.draw(c, cw, ch, () => gl.book.loading, turned).then((loading) => {
-      if (seq !== drawSeq.current) return
+      // data-gl: GL pixels are on the canvas, from any draw: a texture landing during every fence (software GL under
+      // load) must not hold it back until the last face lands
       root.current?.setAttribute("data-gl", "ready")
+      if (seq !== drawSeq.current) return
       // data-faces: "done" once every face drawn so far has its canvas, not the paper placeholder (tests wait on it)
       root.current?.setAttribute("data-faces", loading ? "loading" : "done")
       const ms = fadeDue.current

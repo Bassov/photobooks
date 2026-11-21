@@ -99,6 +99,7 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
   moveFrame: 'Move frame',
   moveFrames: 'Move frame',
   resizeFrame: 'Resize frame',
+  resizeFrameKeepPhoto: 'Resize frame',
   rotateFrame: 'Rotate frame',
   reorderFrame: 'Reorder frame',
   reorderFrames: 'Reorder frames',

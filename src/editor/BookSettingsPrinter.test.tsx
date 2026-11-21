@@ -83,7 +83,7 @@ describe('Book settings Printer', () => {
     ])
     expect(
       screen.getByTestId('book-print-issue').getAttribute('style'),
-    ).toContain('color: #8a5a12')
+    ).toContain('color: var(--warning-ink)')
     expect(screen.getByTestId('book-bleed').textContent).toContain('3.175')
     expect(screen.getByTestId('book-safe-margin').textContent).toContain('12.7')
     expect(screen.getByTestId('book-pages-range').textContent).toBe('20–80')

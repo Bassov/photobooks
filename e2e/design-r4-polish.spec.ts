@@ -162,6 +162,16 @@ test.describe('M38 drag-hint pill while a photo frame is dragged', () => {
     await frame.click()
     await expect(frame).toHaveAttribute('aria-pressed', 'true')
     await expectNoPill(page)
+    // The click landed on the crop grabber (direct-crop): move off the photo
+    // so its layer hides and a later press reaches the frame body.
+    const r = await rectOf(frame)
+    await page.mouse.move(r.left + r.width / 2, r.top + r.height + 120, {
+      steps: 4,
+    })
+    await expect(frame.getByTestId('photo-layer')).not.toHaveAttribute(
+      'data-shown',
+      'true',
+    )
     return frame
   }
 
@@ -170,13 +180,27 @@ test.describe('M38 drag-hint pill while a photo frame is dragged', () => {
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
   }
 
+  /**
+   * A point on the selected frame's body, 40 px below (or above) the crop
+   * grabber: the grabber sits above the body in the hit order (direct-crop),
+   * so a press on it pans the photo instead of starting a frame drag.
+   */
+  async function bodyPointOf(
+    frame: Locator,
+  ): Promise<{ x: number; y: number }> {
+    const r = await rectOf(frame)
+    const g = await centreOf(frame.getByTestId('crop-grabber'))
+    const below = g.y + 40
+    return { x: g.x, y: below < r.top + r.height - 20 ? below : g.y - 40 }
+  }
+
   test('step 17: the selected frame drags with the kit pill; release clears it', async ({
     page,
   }) => {
     test.setTimeout(120_000)
     const frame = await placedAndSelected(page)
     const before = await rectOf(frame)
-    const { x, y } = await centreOf(frame)
+    const { x, y } = await bodyPointOf(frame)
 
     // The kit capture: down on the frame, six moves over the canvas.
     await page.mouse.move(x, y)
@@ -203,7 +227,7 @@ test.describe('M38 drag-hint pill while a photo frame is dragged', () => {
   }) => {
     test.setTimeout(120_000)
     const frame = await placedAndSelected(page)
-    const { x, y } = await centreOf(frame)
+    const { x, y } = await bodyPointOf(frame)
     const other = page
       .locator('[data-testid="spread-frame"][data-filled="false"]')
       .first()

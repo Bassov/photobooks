@@ -110,7 +110,7 @@ export function PublishDialog({ title, otherBooks, initialStep, fail, run, onHid
 /** booklet-imposition: the Imposition (duplex) control (pdf-export D3 kept it hidden until then). */
 const IMPOSITION: boolean = true
 const SEVERITY_ROW: Record<CheckSeverity, [LucideIcon, string]> = {
-  error: [CircleAlert, "font-medium text-destructive-solid"], warning: [TriangleAlert, "text-warning-fg"], info: [Info, "text-muted-foreground"],
+  error: [CircleAlert, "font-medium text-destructive-solid"], warning: [TriangleAlert, "text-warning-ink"], info: [Info, "text-muted-foreground"],
 }
 /** §2.1 check row: icon 16 centred on the first line, page list muted. */
 function CheckLine({ icon: Icon, className, children, pages = [], cover = false, rule }: { icon: LucideIcon; className: string; children: React.ReactNode; pages?: number[]; cover?: boolean; rule?: string }) {
