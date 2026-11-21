@@ -330,6 +330,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [frame-menu-kit](roadmap/P5/frame-menu-kit.md) — Bug: /next-roadmap-item frame-menu-kit
 - [ ] [feature] [photo-pick-kit](roadmap/P5/photo-pick-kit.md) — Bug: /next-roadmap-item photo-pick-kit
 - [ ] [feature] [photo-pick](roadmap/P5/photo-pick.md) — Bug: /next-roadmap-item photo-pick
+- [ ] [feature] [frame-context-menu](roadmap/P5/frame-context-menu.md) — Bug: /next-roadmap-item frame-context-menu
 - [ ] [lite] [roadmap-status-sync](roadmap/P5/roadmap-status-sync.md) — Bug: /next-roadmap-item roadmap-status-sync
 - [ ] [feature] [printer-presets-kit-book](roadmap/P5/printer-presets-kit-book.md) — Bug: /next-roadmap-item printer-presets-kit-book
 - [ ] [lite] [deps-dev-knip-relink](roadmap/P5/deps-dev-knip-relink.md) — Bug: /next-roadmap-item deps-dev-knip-relink
