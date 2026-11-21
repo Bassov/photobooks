@@ -16,6 +16,7 @@ import {
   resetActiveSpreadIdForTests,
   setActiveSpreadId,
 } from './photoRootSession'
+import { runAtInterfaceScale } from '../ui/uiScale.test-helpers'
 import { SpreadsPanel } from './SpreadsPanel'
 import { spreadsRowPx } from './spreadsPanel.test-helpers'
 
@@ -197,6 +198,31 @@ describe('SpreadsPanel reorder', () => {
     )
     expect(fireEvent.keyDown(first, { key: 'Enter', altKey: true })).toBe(true)
     expect(getSpreadIdsSnapshot()).toEqual(before)
+  })
+
+  it('at interface scale 1.5 reads the drag point in app px (screen px ÷ s)', () => {
+    const [a, b, c] = getSpreadIdsSnapshot()
+    const restore = runAtInterfaceScale(1.5)
+    try {
+      render(<SpreadsPanel />)
+      screen.getByTestId('spreads-list').scrollTop = 0
+      const dt = transfer()
+      fireDrag('dragStart', item(c), dt)
+      const list = screen.getByTestId('spreads-list')
+      // The list sits 30 app px down (45 screen px); 0.9 row below its top
+      // in app px is 1.35 rows of screen px: still the second slot.
+      vi.spyOn(list, 'getBoundingClientRect').mockReturnValue(
+        DOMRect.fromRect({ x: 0, y: 45, width: 200, height: 600 }),
+      )
+      fireDrag('dragOver', list, dt, 45 + spreadsRowPx() * 0.9 * 1.5)
+      expect(screen.getByTestId('spread-drop-line').style.transform).toBe(
+        shift(1),
+      )
+      fireDrag('drop', list, dt)
+      expect(getSpreadIdsSnapshot()).toEqual([a, c, b])
+    } finally {
+      restore()
+    }
   })
 
   it('dragging shows the target by transform and an insertion line, then drops as one move', () => {

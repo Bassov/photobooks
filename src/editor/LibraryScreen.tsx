@@ -153,7 +153,7 @@ export function LibraryScreen() {
   if (project.restorePending) {
     return (
       <main
-        className="pb-library relative flex h-dvh min-h-dvh w-full flex-col overflow-hidden"
+        className="pb-library relative flex h-app min-h-app w-full flex-col overflow-hidden"
         data-testid="library-screen"
       >
         <p
@@ -169,7 +169,7 @@ export function LibraryScreen() {
   if (needsRegrant) {
     return (
       <main
-        className="pb-library relative flex h-dvh min-h-dvh w-full flex-col overflow-hidden"
+        className="pb-library relative flex h-app min-h-app w-full flex-col overflow-hidden"
         data-testid="library-screen"
       >
         <EmptyState
@@ -219,7 +219,7 @@ export function LibraryScreen() {
 
   return (
     <main
-      className="pb-library relative flex h-dvh min-h-dvh w-full flex-col overflow-hidden text-foreground"
+      className="pb-library relative flex h-app min-h-app w-full flex-col overflow-hidden text-foreground"
       data-testid="library-screen"
     >
       <div

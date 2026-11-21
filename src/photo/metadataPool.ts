@@ -56,9 +56,13 @@ function ensureSlots(): void {
   const size = metadataWorkerCount(concurrency)
   for (let i = 0; i < size; i += 1) {
     slots.push({
-      worker: new Worker(new URL('./photo.worker.ts', import.meta.url), {
-        type: 'module',
-      }),
+      // @vite-ignore keeps Stryker's wrapped options object parseable by Vite.
+      worker: new Worker(
+        new URL('./photo.worker.ts', import.meta.url),
+        /* @vite-ignore */ {
+          type: 'module',
+        },
+      ),
       busy: false,
     })
   }

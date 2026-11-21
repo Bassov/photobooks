@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { runAtInterfaceScale } from '../ui/uiScale.test-helpers'
 import { insetFromRects, stackInset, stackPoint } from './galleryDrop'
 
 describe('insetFromRects', () => {
@@ -62,5 +63,39 @@ describe('stackPoint', () => {
         { scrollLeft: 7, scrollTop: 200 },
       ),
     ).toEqual({ x: 377, y: 494 })
+  })
+
+  it('at interface scale 1.5 maps screen px to app px before scroll and inset', () => {
+    const restore = runAtInterfaceScale(1.5)
+    try {
+      expect(
+        stackPoint(
+          { clientX: 400, clientY: 350 },
+          { originX: 100, originY: 50, insetX: 30, insetY: 56 },
+          { scrollLeft: 7, scrollTop: 200 },
+        ),
+      ).toEqual({ x: 177, y: 344 })
+    } finally {
+      restore()
+    }
+  })
+})
+
+describe('stackInset at interface scale 1.5', () => {
+  it('measures the screen-px rects in app px', () => {
+    const restore = runAtInterfaceScale(1.5)
+    try {
+      const scroll = document.createElement('div')
+      const world = document.createElement('div')
+      world.dataset.testid = 'pasteboard-world'
+      const slot = document.createElement('div')
+      world.append(slot)
+      scroll.append(world)
+      world.getBoundingClientRect = () => rect({ width: 1500, top: 15 })
+      slot.getBoundingClientRect = () => rect({ top: 99 })
+      expect(stackInset(scroll, 400)).toEqual({ insetX: 300, insetY: 56 })
+    } finally {
+      restore()
+    }
   })
 })

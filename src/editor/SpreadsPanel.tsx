@@ -21,6 +21,7 @@ import {
   MenuTrigger,
 } from '../ui/Menu'
 import type { PhotobooksToastQueue } from '../ui/toastQueue'
+import { uiScale } from '../ui/uiScale'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
@@ -313,10 +314,12 @@ export function SpreadsPanel({
     event.dataTransfer.dropEffect = 'move'
     const scroller = event.currentTarget
     // Spans start at the first spread row, below the Cover / Endpaper head.
+    // Spans are app px: screen px ÷ interface scale before the scroll offset.
+    const s = uiScale()
     const y =
       contentY(
-        event.clientY,
-        scroller.getBoundingClientRect().top,
+        event.clientY / s,
+        scroller.getBoundingClientRect().top / s,
         scroller.scrollTop,
       ) - headPx
     const target = reorderTargetIndex(session.spans, session.from, y)

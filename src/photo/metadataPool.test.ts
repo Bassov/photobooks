@@ -256,10 +256,12 @@ describe('metadataPool', () => {
 
   it('reuses worker slots across sequential jobs', async () => {
     let workers = 0
+    const args: unknown[][] = []
     class CountingWorker {
       private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
-      constructor() {
+      constructor(...ctorArgs: unknown[]) {
         workers += 1
+        args.push(ctorArgs)
       }
       addEventListener(
         type: string,
@@ -296,6 +298,9 @@ describe('metadataPool', () => {
     await enqueueMetadata({ buffer: new ArrayBuffer(1) })
     await enqueueMetadata({ buffer: new ArrayBuffer(1) })
     expect(workers).toBe(1)
+    const [url, options] = args[0] ?? []
+    expect(String(url)).toMatch(/photo\.worker\.ts(?:\?|$)/)
+    expect(options).toEqual({ type: 'module' })
   })
 
   it('queues behind busy slots then drains when a slot frees', async () => {

@@ -29,6 +29,7 @@ describe('mountPhotobooks', () => {
     expect(createTree).toHaveBeenCalledWith('?x=1')
     expect(createRoot).toHaveBeenCalledWith(root)
     expect(render).toHaveBeenCalledOnce()
+    expect(document.documentElement.dataset.uiScale).toBe('100')
   })
 
   it('warms perf hooks when enabled', () => {

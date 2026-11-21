@@ -25,6 +25,7 @@ import {
 } from './filmstripDropFolder'
 import { Button as AriaButton } from 'react-aria-components'
 import { AlertDialog } from '../ui/AlertDialog'
+import { appInnerHeight, uiScale } from '../ui/uiScale'
 import { Icon } from '../ui/Icon'
 import { Menu, MenuItem, MenuPopover, MenuTrigger } from '../ui/Menu'
 import { ToggleButton } from '../ui/ToggleButton'
@@ -102,7 +103,12 @@ function ThumbResizer({ height, max }: { height: number; max: number }) {
           return
         }
         // Same 4 px step: the store hook bails out, nothing re-renders.
-        d.last = thumbDragPx(d.start, d.y - event.clientY, window.innerHeight)
+        // Screen px → app px (÷ interface scale).
+        d.last = thumbDragPx(
+          d.start,
+          (d.y - event.clientY) / uiScale(),
+          appInnerHeight(),
+        )
         setFilmstripThumb(d.last, false)
       }}
       onPointerUp={() => {
@@ -124,7 +130,7 @@ function ThumbResizer({ height, max }: { height: number; max: number }) {
         setFilmstripThumb('auto')
       }}
       onKeyDown={(event) => {
-        const next = thumbForKey(event.key, height, window.innerHeight)
+        const next = thumbForKey(event.key, height, appInnerHeight())
         if (next === null) {
           return
         }

@@ -1,30 +1,51 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { test as base, expect } from '@playwright/test'
+import {
+  type CoverageMap,
+  type CoveragePayload,
+  mergeCoverage,
+  readPageCoverage,
+} from './coverageMerge'
 
 const COVERAGE_DIR = path.resolve(process.cwd(), '.nyc_output')
 
-type CoverageWindow = Window & { __coverage__?: unknown }
-
 /**
- * Auto fixture: after each test, dump Istanbul `window.__coverage__`
- * (injected when the Playwright webServer built with VITE_COVERAGE=1).
+ * Auto fixture: after each test, merge Istanbul `window.__coverage__`
+ * (injected when the Playwright webServer built with VITE_COVERAGE=1) into the
+ * worker's map; the worker writes one `.nyc_output/e2e-worker-*.json` on
+ * teardown (also after a failed test restarts the worker).
  * Specs import `test`/`expect` from this module instead of `@playwright/test`.
  */
-export const test = base.extend<{ collectCoverage: null }>({
-  collectCoverage: [
-    async ({ page }, use, testInfo) => {
-      await use(null)
-      const cov = await page
-        .evaluate(() => (window as CoverageWindow).__coverage__)
-        .catch(() => undefined)
-      if (cov === undefined || cov === null) return
+export const test = base.extend<
+  { collectCoverage: null },
+  { workerCoverage: CoverageMap }
+>({
+  workerCoverage: [
+    // eslint-disable-next-line no-empty-pattern -- Playwright fixtures require a destructured first argument
+    async ({}, use, workerInfo) => {
+      const map: CoverageMap = {}
+      await use(map)
+      if (Object.keys(map).length === 0) return
       mkdirSync(COVERAGE_DIR, { recursive: true })
-      const safe = testInfo.testId.replace(/[^a-z0-9_-]+/gi, '_')
       writeFileSync(
-        path.join(COVERAGE_DIR, `e2e-${safe}.json`),
-        JSON.stringify(cov),
+        path.join(
+          COVERAGE_DIR,
+          `e2e-worker-${String(workerInfo.workerIndex)}-${String(process.pid)}.json`,
+        ),
+        JSON.stringify(map),
       )
+    },
+    { scope: 'worker' },
+  ],
+  collectCoverage: [
+    async ({ page, workerCoverage }, use) => {
+      await use(null)
+      const json = await page
+        .evaluate(readPageCoverage, Object.keys(workerCoverage))
+        .catch(() => null)
+      if (json === null) return
+      mergeCoverage(workerCoverage, JSON.parse(json) as CoveragePayload)
     },
     { auto: true },
   ],

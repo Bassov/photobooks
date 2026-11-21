@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Panel } from './Panel'
 import { PanelSplitter } from './PanelSplitter'
+import { runAtInterfaceScale } from './uiScale.test-helpers'
 
 describe('Panel', () => {
   afterEach(() => {
@@ -150,6 +151,22 @@ describe('PanelSplitter', () => {
     fireEvent.pointerUp(s, { pointerId: 1 })
     expect(onResize).toHaveBeenCalledTimes(1)
     expect(onCommit).toHaveBeenCalledTimes(1)
+  })
+
+  it('at interface scale 1.5 turns the screen-px drag into app px', () => {
+    const restore = runAtInterfaceScale(1.5)
+    try {
+      const onResize = vi.fn()
+      render(<PanelSplitter side="right" width={300} onResize={onResize} />)
+      const s = screen.getByTestId('resize-right')
+      s.setPointerCapture = vi.fn()
+      fireEvent.pointerDown(s, { clientX: 1000, pointerId: 1 })
+      // 60 screen px left = 40 app px wider for the right panel.
+      fireEvent.pointerMove(s, { clientX: 940, pointerId: 1 })
+      expect(onResize).toHaveBeenLastCalledWith(340)
+    } finally {
+      restore()
+    }
   })
 
   it('captures the pointer and starts idle', () => {

@@ -351,14 +351,21 @@ describe('SpreadPager', () => {
     )
     const sizes = { w: 1000, h: 500, stageW: 2000, stageH: 1064 }
     stubSizes(sizes)
-    const renderSpread = vi.fn(() => null)
+    // Count commits of the spread, not calls of renderSpread: React may run the
+    // pager before bailing out of a same-state update and drop that output, and
+    // only the React Compiler's memo (absent on Stryker-instrumented code) hides it.
+    const renderSpread = vi.fn()
+    function Spread() {
+      renderSpread()
+      return null
+    }
     render(
       <SpreadPager
         count={1}
         index={0}
         onIndexChange={() => undefined}
         onExit={() => undefined}
-        renderSpread={renderSpread}
+        renderSpread={() => <Spread />}
       />,
     )
     const box = () => firstShadowBox()

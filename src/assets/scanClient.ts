@@ -11,9 +11,13 @@ let scanWorker: Worker | undefined
 let requestCounter = 0
 
 function getScanWorker(): Worker {
-  scanWorker ??= new Worker(new URL('./scan.worker.ts', import.meta.url), {
-    type: 'module',
-  })
+  // @vite-ignore keeps Stryker's wrapped options object parseable by Vite.
+  scanWorker ??= new Worker(
+    new URL('./scan.worker.ts', import.meta.url),
+    /* @vite-ignore */ {
+      type: 'module',
+    },
+  )
   return scanWorker
 }
 
