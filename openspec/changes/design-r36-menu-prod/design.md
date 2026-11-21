@@ -22,4 +22,4 @@
 
 - Reuse: `Icon`, `MenuItem variant`, `e2e/fixtures/paintProbe.ts`; tokens `--muted-foreground`, `--destructive`.
 - Unit: Duplicate row icon `copyPlus` ≠ Copy `copy`; `copyPlus` / `bringToFront` nodes equal lucide 1.70; name list 97.
-- e2e: row icon ink `--muted-foreground`, Delete `--destructive` (computed + darkest painted pixel); Duplicate svg ≠ Copy svg; ARRANGE Bring to front svg colour = its button colour (non-menu icon unchanged).
+- e2e: row icon ink `--muted-foreground`, Delete `--destructive` (computed + darkest painted pixel); Duplicate svg ≠ Copy svg; top-bar Undo svg colour = its button colour (non-menu icon unchanged).
