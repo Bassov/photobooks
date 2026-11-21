@@ -33,6 +33,7 @@ import {
   setTextLive,
   setTextStyle,
 } from './frames'
+import { duplicateFrames, pasteFrames, type FramesPayload } from './clipboard'
 import {
   alignFrames,
   distributeFrames,
@@ -199,7 +200,29 @@ export type BookOp =
       frameId: string
       anchorFrameId: string
     }
-  | { type: 'removeFrames'; spreadId: string; frameIds: readonly string[] }
+  | {
+      type: 'removeFrames'
+      spreadId: string
+      frameIds: readonly string[]
+      /** Ctrl+X: only the undo label differs. */
+      cut?: true
+    }
+  | {
+      type: 'pasteFrames'
+      spreadId: string
+      payload: FramesPayload
+      inPlace: boolean
+      /** The new frames' ids (editor: `nextFrameIds`), so it can select them. */
+      ids?: readonly string[]
+    }
+  | {
+      type: 'duplicateFrames'
+      spreadId: string
+      frameIds: readonly string[]
+      dx: number
+      dy: number
+      ids?: readonly string[]
+    }
   | {
       type: 'setFrameRect'
       spreadId: string
@@ -588,6 +611,23 @@ function applyRaw(book: Book, op: BookOp): Book {
       return setTextAlign(book, op.spreadId, op.frameId, op.align)
     case 'removeFrames':
       return removeFrames(book, op.spreadId, op.frameIds)
+    case 'pasteFrames':
+      return pasteFrames(
+        book,
+        op.spreadId,
+        op.payload,
+        { inPlace: op.inPlace },
+        op.ids,
+      )
+    case 'duplicateFrames':
+      return duplicateFrames(
+        book,
+        op.spreadId,
+        op.frameIds,
+        op.dx,
+        op.dy,
+        op.ids,
+      )
     case 'setFrameRect':
       return setFrameRect(book, op.spreadId, op.frameId, op.rect)
     case 'moveFrame':
