@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item design-r34-is-prod
+Status: done
 
 Round 34 Musts M133, M135 (Designer parity interface-size), prod lane: `src/ui` SegmentedControl + `src/editor/FrameContextMenu`. The kit is the reference; no kit edits.
 
