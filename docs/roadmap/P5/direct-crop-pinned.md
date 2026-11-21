@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P5
 Title: Bug: /next-roadmap-item direct-crop-pinned
+Status: done
 
 Direct crop, prod part 2 (Q-18, design spec `walkthrough-ux-review` §A). Part 1 (#658) shipped the keep-photo
 frame-handle crop, the grabber, the photo layer with corner handles and the hit order. This item finishes §A in prod.
