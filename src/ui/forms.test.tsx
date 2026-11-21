@@ -448,6 +448,7 @@ describe('TextField details', () => {
     expect(input.placeholder).toBe('p')
     expect(input.disabled).toBe(true)
     expect(input.className).toContain('pb-field__control')
+    expect(input.classList.contains('pb-field__control--text')).toBe(true)
     expect(input.className).toContain('c')
     expect(input.getAttribute('aria-invalid')).toBeNull()
     expect(input.getAttribute('aria-describedby')).toBeNull()

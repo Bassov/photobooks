@@ -105,6 +105,8 @@ export function BookObject({
               style={{
                 marginTop: '0.6em',
                 fontSize: layout.subSize,
+                // Kit inherits preflight's body line-height 1.5 (15 px at 10 px).
+                lineHeight: 1.5,
                 letterSpacing: 'var(--tracking-display)',
               }}
             >

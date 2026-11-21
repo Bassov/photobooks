@@ -47,6 +47,7 @@ describe('BookObject', () => {
     expect(sub.style.fontSize).toBe(`${String(layout.subSize)}px`)
     expect(sub.style.letterSpacing).toBe('var(--tracking-display)')
     expect(sub.style.marginTop).toBe('0.6em')
+    expect(sub.style.lineHeight).toBe('1.5')
   })
 
   it('omits cover and subtitle when absent', () => {

@@ -46,7 +46,11 @@ export function TextField({
         value={value}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        className={cx('pb-field__control', className)}
+        className={cx(
+          'pb-field__control',
+          'pb-field__control--text',
+          className,
+        )}
         onChange={(e) => {
           onChange(e.target.value)
         }}
