@@ -123,17 +123,22 @@ const printText = ({ phase, p }: ExportPill): PillText =>
 /** Job pill (Designer static-export §1, in-app-publish §1, pdf-export D1): the rest content is a hidden sizer in the same grid
  *  cell as the live content, so every state keeps the rest width; running fills a ::before layer (scaleX) under "NN%". `narrow`:
  *  the label hides below 1424 px (Export site; pdf-export D2). `wait`: the other site job runs (P7), the pill is disabled with that title. */
-function SiteJobPill({ name, testid, run, text, rest, narrow, wait, empty, className, onPress }: {
-  name: string; testid: string; run: ExportPill; text: PillText; rest: PillText; narrow?: boolean; wait?: string; empty: boolean; className: string; onPress?: () => void
+function SiteJobPill({ name, testid, run, text, rest, narrow, primary, wait, empty, className, onPress }: {
+  name: string; testid: string; run: ExportPill; text: PillText; rest: PillText; narrow?: boolean; primary?: boolean; wait?: string; empty: boolean; className: string; onPress?: () => void
 }) {
   const cell = "col-start-1 row-start-1 flex items-center gap-1.5"
   const lbl = narrow ? "max-[1423.98px]:hidden" : undefined
   const fill = "before:absolute before:inset-0 before:origin-left before:bg-control before:[transform:scaleX(var(--p))] before:[transition:transform_160ms_linear] motion-reduce:before:[transition:none]"
+  const running = run.phase === "run"
+  // walkthrough-polish-review P8: the bar's one ink pill (hover #3A3839, 2 px #3A3839 outline at 2, #BFBDB9 while its job runs; the fill is ink)
+  const ink = primary && cn("bg-primary text-primary-foreground shadow-xs data-[hovered]:bg-primary-hover data-[hovered]:text-primary-foreground",
+    "data-[focus-visible]:ring-0 data-[focus-visible]:ring-offset-0 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-primary-hover focus-visible:outline-offset-2",
+    running && "bg-(--primary-busy) data-[hovered]:bg-(--primary-busy) shadow-none before:bg-primary")
   // the jolly Button has no title prop: a display:contents wrapper carries it without adding a box to the bar
   return <>
     <span className="contents" title={wait ?? text.title}>
-      <Button variant="ghost" size="sm" isDisabled={empty || !!wait} className={cn("relative inline-grid h-8 justify-items-center overflow-hidden rounded-full text-sm font-medium [&_svg]:size-4", className, run.phase === "run" && fill)}
-        style={{ ...quiet, "--p": run.p / 100 } as React.CSSProperties} onPress={onPress} aria-label={name} data-state={run.phase === "run" ? "running" : run.phase} data-testid={testid}>
+      <Button variant="ghost" size="sm" isDisabled={empty || !!wait} className={cn("relative inline-grid h-8 justify-items-center overflow-hidden rounded-full text-sm font-medium [&_svg]:size-4", className, running && fill, ink)}
+        style={{ ...(primary ? undefined : quiet), "--p": run.p / 100 } as React.CSSProperties} onPress={onPress} aria-label={name} data-state={running ? "running" : run.phase} data-testid={testid}>
         <span aria-hidden className={cn(cell, "invisible")}>{rest.Icon && <rest.Icon />}{rest.label && <span className={lbl}>{rest.label}</span>}</span>
         <span className={cn(cell, "relative tabular-nums")}>{text.Icon && <text.Icon />}{text.label && <span className={lbl}>{text.label}</span>}</span>
       </Button>
@@ -153,7 +158,7 @@ export function EditorTopBar({ title, onLibrary, onPreview, onSettings, exportSi
       <SiteJobPill name="Export site" testid="demo-export-site" run={exportSite} text={exportText(exportSite)} rest={EXPORT_PILL.idle} narrow empty={empty} className="px-3"
         wait={publish.phase === "run" ? "Wait until Publish finishes" : undefined} onPress={onExportSite} />
       <SiteJobPill name="Print" testid="demo-print" run={print} text={printText(print)} rest={PRINT_PILL.idle} empty={empty} className="px-3" onPress={onPrint} />
-      <SiteJobPill name="Publish" testid="demo-publish" run={publish} text={publishText(publish)} rest={PUBLISH_PILL.idle} empty={empty} className="px-3.5"
+      <SiteJobPill name="Publish" testid="demo-publish" run={publish} text={publishText(publish)} rest={PUBLISH_PILL.idle} primary empty={empty} className="px-3"
         wait={exportSite.phase === "run" ? "Wait until the export finishes" : undefined} onPress={onPublish} />
     </div>
   )

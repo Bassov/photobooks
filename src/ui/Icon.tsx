@@ -33,7 +33,6 @@ export function Icon({ name, size = 16, className, label }: IconProps) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
       data-size={size}

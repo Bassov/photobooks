@@ -48,9 +48,45 @@
   }
 }
 
-/* in-app-publish §1: Publish has no icon at rest and a 14 px inset. */
-.editor-top-pill.publish-pill.pb-button {
-  padding: 0 calc(var(--spacing) * 3.5);
+/* walkthrough-polish-review P8 (replaces M111 "match Preview"): Publish is
+   the bar's one ink pill — h32, 0 12 inset, 13/500, --shadow-xs; hover
+   #3A3839; focus 2 px #3A3839 outline at 2; while its job runs #BFBDB9 with
+   no shadow, the progress fills in ink under the percent. Four classes beat
+   the runtime `.e7-ghost` look (editorChromeTokens.ts) and the shared
+   `.pb-button` hover / focus / disabled rules. */
+.site-job-pill--primary.editor-top-pill.pb-button.e7-ghost {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: var(--shadow-xs);
+}
+
+.site-job-pill--primary.editor-top-pill.pb-button.e7-ghost:hover:not(
+    :disabled
+  ) {
+  background: var(--primary-hover);
+}
+
+.site-job-pill--primary.editor-top-pill.pb-button.e7-ghost:focus-visible {
+  outline: 2px solid var(--primary-hover);
+  outline-offset: 2px;
+  box-shadow: var(--shadow-xs);
+}
+
+.site-job-pill--primary.editor-top-pill.pb-button.e7-ghost:disabled {
+  opacity: 0.5;
+}
+
+.site-job-pill--primary.editor-top-pill.pb-button.e7-ghost[data-state='running'],
+.site-job-pill--primary.editor-top-pill.pb-button.e7-ghost[data-state='running']:hover:not(
+    :disabled
+  ) {
+  background: var(--primary-busy);
+  color: var(--primary-foreground);
+  box-shadow: none;
+}
+
+.site-job-pill--primary[data-state='running']::before {
+  background: var(--primary);
 }
 
 /* The P7 wait title sits on a wrapper that adds no box to the bar. */

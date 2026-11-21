@@ -5,6 +5,19 @@
   color: currentColor;
 }
 
+/* walkthrough-polish-review P6: stroke by size — 1.5 at 12–14 px, 1.75 at 16
+   px and up; 10 px status glyphs (Low-res, placed check) set 2 where they
+   shrink. CSS beats the glyph helpers' stroke-width attribute too. */
+.pb-icon[data-size='12'],
+.pb-icon[data-size='14'] {
+  stroke-width: 1.5;
+}
+
+.pb-icon[data-size='16'],
+.pb-icon[data-size='20'] {
+  stroke-width: 1.75;
+}
+
 .pb-icon[data-size='12'] {
   width: var(--icon-size-12);
   height: var(--icon-size-12);

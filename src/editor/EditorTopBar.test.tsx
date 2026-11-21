@@ -237,9 +237,15 @@ describe('EditorTopBar', () => {
     for (const pill of [preview, settings, exportSite, publish]) {
       expect(pill.className).toContain('editor-top-pill')
       expect(pill.className).not.toContain('e7-sec')
+    }
+    for (const pill of [preview, settings, exportSite]) {
       expect(pill.style.background).toBe('#D7D7D7')
       expect(pill.style.color).toBe('#393738')
     }
+    // walkthrough-polish-review P8: Publish is the ink pill, painted by
+    // ExportSiteButton.css (`.site-job-pill--primary`), not inline.
+    expect(publish.className).toContain('site-job-pill--primary')
+    expect(publish.style.background).toBe('')
     expect(settings.getAttribute('aria-label')).toBe('Settings')
     expect(preview.parentElement).toBe(settings.parentElement)
     expect(preview.parentElement?.className).toContain('gap-1.5')

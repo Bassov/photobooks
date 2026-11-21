@@ -83,6 +83,17 @@ describe('PublishButton', () => {
     expect(pill().querySelector('.site-job-pill__label--narrow')).toBeNull()
   })
 
+  it('is the ink pill: its look comes from CSS, not the ghost inline style', () => {
+    // walkthrough-polish-review P8: ExportSiteButton.css paints
+    // `.site-job-pill--primary`; ChromeButton's inline ghost look would win.
+    render(<PublishButton disabled={false} onOpenHosting={vi.fn()} />)
+
+    expect(pill().classList.contains('site-job-pill--primary')).toBe(true)
+    expect(pill().style.background).toBe('')
+    expect(pill().style.color).toBe('')
+    expect(pill().style.boxShadow).toBe('')
+  })
+
   it('is disabled at rest only when the editor says so', () => {
     render(<PublishButton disabled onOpenHosting={vi.fn()} />)
     expect(pill().disabled).toBe(true)

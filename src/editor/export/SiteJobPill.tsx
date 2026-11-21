@@ -79,6 +79,7 @@ export function SiteJobPill({
   title,
   say,
   narrow = false,
+  primary = false,
   wait,
   disabled,
   onClick,
@@ -93,15 +94,17 @@ export function SiteJobPill({
   title: string
   say: StatusSay
   narrow?: boolean
+  /** The bar's one ink pill (walkthrough-polish-review P8): its look is in
+   *  ExportSiteButton.css, so ChromeButton's inline ghost look is cleared. */
+  primary?: boolean
   wait?: string | undefined
   disabled: boolean
   onClick: () => void
 }) {
   const status = useStatusText(kind, percent, say)
-  const style: CSSProperties & { '--site-job-progress'?: number } = {
-    background: FIELD,
-    color: T,
-  }
+  const style: CSSProperties & { '--site-job-progress'?: number } = primary
+    ? { background: undefined, color: undefined, boxShadow: undefined }
+    : { background: FIELD, color: T }
   if (kind === 'running') {
     style['--site-job-progress'] = percent / 100
   }
@@ -113,7 +116,7 @@ export function SiteJobPill({
     <>
       <span className="site-job-pill-wait" title={shown}>
         <ChromeButton
-          className={`editor-top-pill site-job-pill h-8 text-sm font-medium ${className}`}
+          className={`editor-top-pill site-job-pill${primary ? ' site-job-pill--primary' : ''} h-8 text-sm font-medium ${className}`}
           style={style}
           data-testid={testId}
           data-state={kind}

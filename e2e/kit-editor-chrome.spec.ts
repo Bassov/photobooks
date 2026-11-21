@@ -598,7 +598,11 @@ test('screen canvas: v7.3 P2-3 / v0.9: after frame select, Ctrl+. hides the pane
 
 // ───────── v0.9 / v0.9.1: demo top bar buttons ─────────
 
-test('v0.9 §9 Publish is quiet gray, not primary black', async ({ page }) => {
+// walkthrough-polish-review P8 replaces v0.9 §9 ("Publish is quiet gray"):
+// Publish is the top bar's one ink pill.
+test('P8 Publish is the one ink pill (was v0.9 §9 quiet gray)', async ({
+  page,
+}) => {
   await demoEditor(page, 'Pub')
   const pub = await page
     .locator('[data-testid="demo-publish"]')
@@ -606,15 +610,10 @@ test('v0.9 §9 Publish is quiet gray, not primary black', async ({ page }) => {
       const s = getComputedStyle(e)
       return { bg: s.backgroundColor, color: s.color }
     })
-  expect(pub.bg, JSON.stringify(pub)).not.toMatch(
-    /rgb\(\s*35,\s*34,\s*35\s*\)|rgb\(\s*0,\s*0,\s*0\s*\)/,
-  )
-  expect(pub.bg, JSON.stringify(pub)).toMatch(
-    /rgb\(\s*215,\s*215,\s*215\s*\)|rgb\(\s*225,\s*225,\s*225\s*\)/,
-  )
+  expect(pub).toEqual({ bg: 'rgb(35, 34, 35)', color: 'rgb(242, 242, 242)' })
 })
 
-test('v0.9.1 §7 Preview/Print/Publish share quiet #D7D7D7', async ({
+test('v0.9.1 §7 Preview/Print share quiet #D7D7D7; Publish is ink (P8)', async ({
   page,
 }) => {
   await demoEditor(page, 'Tone')
@@ -626,7 +625,8 @@ test('v0.9.1 §7 Preview/Print/Publish share quiet #D7D7D7', async ({
   expect(tones, JSON.stringify(tones)).toEqual({
     'demo-preview': 'rgb(215, 215, 215)',
     'demo-print': 'rgb(215, 215, 215)',
-    'demo-publish': 'rgb(215, 215, 215)',
+    // walkthrough-polish-review P8: Publish is the one ink pill.
+    'demo-publish': 'rgb(35, 34, 35)',
   })
 })
 

@@ -267,6 +267,7 @@
 .filmstrip-lowres > .pb-icon[data-size] {
   width: 10px;
   height: 10px;
+  stroke-width: 2;
 }
 
 /* Thumb narrower than the chip + 8 px: icon only. The zero-width label keeps

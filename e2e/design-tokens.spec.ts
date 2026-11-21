@@ -206,10 +206,10 @@ test('editor top bar follows kit v0.10 structure and tokens', async ({
     .getByTestId('editor-settings-open')
     .evaluate((el) => getComputedStyle(el).backgroundColor)
   await expect(print).toHaveCSS('background-color', settingsBg)
-  // Publish: the same field pill, 14 px sides (in-app-publish §1).
+  // Publish: the bar's one ink pill, 12 px sides (walkthrough-polish-review P8).
   const publish = page.getByTestId('publish')
-  await expect(publish).toHaveCSS('background-color', 'rgb(215, 215, 215)')
-  await expect(publish).toHaveCSS('padding', '0px 14px')
+  await expect(publish).toHaveCSS('background-color', 'rgb(35, 34, 35)')
+  await expect(publish).toHaveCSS('padding', '0px 12px')
   // Kit toolbar: Preview · Settings · Export site · Print · Publish (demo-parts/editor.tsx).
   await expect(
     bar.getByRole('button', { name: 'Settings', exact: true }),
