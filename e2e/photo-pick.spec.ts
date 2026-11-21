@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
+import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { expect, test } from './fixtures/coverage'
 import { dropAssetOnFrame } from './fixtures/dropAssetOnFrame'
 import {
@@ -97,6 +98,8 @@ test.describe('Photo pick from the filmstrip (FM4)', () => {
     expect(await edge()).toBeLessThan(90)
 
     await expect(status(page)).toHaveText(REPLACE_STATUS)
+    // The inset ring shifts nothing: no page-level overflow.
+    await assertDocumentFitsViewport(page)
     const tag = filled.getByTestId('pick-tag')
     await expect(tag).toHaveText('Replacing')
     expect(

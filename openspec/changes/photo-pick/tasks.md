@@ -10,3 +10,5 @@
 
 1. Right-click a filled frame → Replace photo… → filmstrip ring + status; click another thumb → frame shows it; Ctrl+Z restores.
 2. Place photo… on an empty frame, Esc → no change; pointerdown on a filter keeps the mode.
+
+manual-qa: problem (harness) — both scenarios stopped at the welcome screen (`start-session` click intercepted by the header), never reached the editor. Covered by `e2e/photo-pick.spec.ts` (6/6 green, with `arrange-lock` + `parent-overrides`: 18 passed).
