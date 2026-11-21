@@ -308,6 +308,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [fill-book-kit](roadmap/P5/fill-book-kit.md) — Bug: /next-roadmap-item fill-book-kit
 - [ ] [lite] [design-r37-dialog-title-prod](roadmap/P5/design-r37-dialog-title-prod.md) — Bug: /next-roadmap-item design-r37-dialog-title-prod
 - [ ] [lite] [site-reader-gl-ready](roadmap/P5/site-reader-gl-ready.md) — Bug: /next-roadmap-item site-reader-gl-ready
+- [ ] [lite] [design-r39-chevron-prod](roadmap/P5/design-r39-chevron-prod.md) — Bug: /next-roadmap-item design-r39-chevron-prod
 - [ ] [lite] [cycle-layouts-core](roadmap/P5/cycle-layouts-core.md) — Bug: /next-roadmap-item cycle-layouts-core
 - [ ] [lite] [design-r36-menu-kit](roadmap/P5/design-r36-menu-kit.md) — Bug: /next-roadmap-item design-r36-menu-kit
 - [ ] [feature] [interface-size-core](roadmap/P5/interface-size-core.md) — Bug: /next-roadmap-item interface-size-core
