@@ -7,6 +7,9 @@
   justify-content: center;
   background: var(--overlay-scrim);
   outline: none;
+  /* Portalled to <body>, outside the #root zoom: the overlay root carries the
+     interface scale itself (Designer interface-size §4). */
+  zoom: var(--ui-scale);
 }
 
 .pb-dialog-modal {
