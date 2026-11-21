@@ -166,7 +166,6 @@ async function nudgeAlongOverflow(page: Page, frame: Locator) {
   return across ? img2.x - img.x : img2.y - img.y
 }
 
-/** hover the grabber: the photo layer shows */
 /** the one "Crop · N%" tag: [computed line-height px, rendered height px], rounded to 0.5 */
 function tagMetrics(page: Page) {
   return page.getByTestId('crop-tag').evaluate((el) => {
@@ -178,6 +177,7 @@ function tagMetrics(page: Page) {
   })
 }
 
+/** hover the grabber: the photo layer shows */
 async function showLayer(page: Page) {
   await page.getByTestId('crop-grabber').hover()
   await expect(page.getByTestId('photo-handle')).toHaveCount(4)
