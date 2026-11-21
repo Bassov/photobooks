@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P5
 Title: Bug: /next-roadmap-item frame-alt-duplicate
+Status: done
 
 Prod editor: Alt held at the press on a frame = duplicate drag, values = kit (FC2, #686). Designer frame-copy-paste spec D2, D8,
 "Alt-drag look", "Prod changes" and "Tests"; Must FC5 (last item of frame-copy-paste).
