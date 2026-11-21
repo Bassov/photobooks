@@ -6,7 +6,7 @@ import { flashEditorStatus } from './editorStatus'
 import { getSelectedEndpaper, setEndpaperSelected } from './endpaperSelection'
 import { getFrameSource, setFrameSource } from './frameSelection'
 import { setLeftPanelTab } from './leftPanelTabStore'
-import { nudgeBoxIntoPort, spreadBoxContained } from './pasteboardReveal'
+import { nudgeBoxIntoInsetPort } from './pasteboardReveal'
 import { getActiveSpreadId, requestSpreadReveal } from './photoRootSession'
 import { commitTextEdit } from './textEditStore'
 
@@ -17,7 +17,7 @@ export const PLACED_STATUS_MS = 2500
 const PORT_INSET_PX = 24
 
 /** Frames to wait for the spread reveal to lay out the target frame. */
-const REVEAL_WAIT_FRAMES = 30
+const REVEAL_WAIT_FRAMES = 300
 
 /** Spread-list position of the cover row (the front endpaper row is −1). */
 const COVER_POSITION = -2
@@ -116,8 +116,9 @@ let last: { assetId: string; place: Place } | null = null
 let pendingNudge: object | null = null
 
 /**
- * B4: once the reveal has laid the frame out (its rect held still for a
- * frame), scroll it into the port only when it is not already in view.
+ * B4: once the spread reveal has let go of the scroll and the frame's rect
+ * held still for a frame, per axis scroll the least that puts the frame
+ * 24 px inside the port, or centre it when it is larger (M145).
  */
 function nudgeFrameWhenSettled(spreadId: string, frameId: string): void {
   const target = {}
@@ -138,17 +139,11 @@ function nudgeFrameWhenSettled(spreadId: string, frameId: string): void {
     if (pendingNudge !== target) {
       return
     }
-    if (scroll && box && at === previous) {
-      const port = scroll.getBoundingClientRect()
-      const inView = new DOMRect(
-        port.x + PORT_INSET_PX,
-        port.y + PORT_INSET_PX,
-        port.width - 2 * PORT_INSET_PX,
-        port.height - 2 * PORT_INSET_PX,
-      )
-      if (!spreadBoxContained(inView, box)) {
-        nudgeBoxIntoPort(scroll, box)
-      }
+    // The spread reveal re-nudges the spread until it lets go of the camera
+    // (`data-reveal-hold`); a frame nudge before that would be undone.
+    const held = scroll?.dataset.revealHold === 'true'
+    if (scroll && box && !held && at === previous) {
+      nudgeBoxIntoInsetPort(scroll, box, PORT_INSET_PX)
       return
     }
     previous = at

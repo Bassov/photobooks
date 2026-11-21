@@ -11,7 +11,7 @@ import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
-import { readZoomPercent } from './fixtures/zoomMenu'
+import { chooseZoom, readZoomPercent } from './fixtures/zoomMenu'
 
 /** Designer placed-badge spec (Must PB3), 1440 × 900. */
 
@@ -231,6 +231,175 @@ test('clicks cycle the places with the pill, keep zoom and leave the row unselec
   )
   expect(await at()).toBe(before)
   await expect(pill(page)).toHaveCount(0, { timeout: 5_000 })
+})
+
+/** The selected frame's box, the pasteboard port and the spread list's right edge. */
+async function revealGeometry(page: Page) {
+  return page.evaluate(() => {
+    const scroll = document.querySelector<HTMLElement>(
+      '[data-testid="pasteboard-scroll"]',
+    )
+    const frame = scroll
+      ?.querySelector('[data-testid="spread-frame"][aria-pressed="true"]')
+      ?.getBoundingClientRect()
+    const port = scroll?.getBoundingClientRect()
+    const list = document
+      .querySelector('[data-testid="spreads-panel"]')
+      ?.getBoundingClientRect()
+    return {
+      held: scroll?.dataset.revealHold === 'true',
+      scroll: `${String(scroll?.scrollLeft)},${String(scroll?.scrollTop)}`,
+      frame: frame && {
+        left: frame.left,
+        top: frame.top,
+        right: frame.right,
+        bottom: frame.bottom,
+      },
+      port: port && {
+        left: port.left,
+        top: port.top,
+        right: port.right,
+        bottom: port.bottom,
+      },
+      listRight: list?.right ?? 0,
+    }
+  })
+}
+
+/** Waits for any reveal + nudge to end: no hold, scroll still across polls. */
+async function scrollSettled(page: Page) {
+  let last = ''
+  await expect
+    .poll(
+      async () => {
+        await page.evaluate(
+          () =>
+            new Promise((resolve) =>
+              requestAnimationFrame(() => requestAnimationFrame(resolve)),
+            ),
+        )
+        const g = await revealGeometry(page)
+        const key = `${String(g.held)}|${g.scroll}`
+        const still = !g.held && key === last
+        last = key
+        return still
+      },
+      { timeout: 10_000 },
+    )
+    .toBe(true)
+}
+
+async function settledReveal(page: Page) {
+  await scrollSettled(page)
+  const g = await revealGeometry(page)
+  if (!g.frame || !g.port) {
+    throw new Error('expected a selected frame on the pasteboard')
+  }
+  return { frame: g.frame, port: g.port, listRight: g.listRight }
+}
+
+test('M145: a jump to a frame under the spread list nudges it 24 px into the port', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  const { a, s1 } = await openWithPhotos(page)
+  // chooseZoom's '50%' also matches '150%' (substring name match).
+  await page.getByTestId('zoom-menu').click()
+  await page.getByRole('menuitem', { name: /^50%/ }).click()
+  await expect(page.getByRole('menu')).toHaveCount(0)
+  const zoom = await readZoomPercent(page)
+  await listRows(page).nth(0).click()
+  await scrollSettled(page)
+  // Park the book right of the port: the spread reveal then aligns the
+  // spread's right edge and leaves its left page under the spread list.
+  const view = page.locator(
+    `[data-testid="pasteboard-scroll"] [data-testid="spread-view"][data-spread-id="${s1}"]`,
+  )
+  await page.getByTestId('pasteboard-scroll').evaluate((el) => {
+    el.scrollLeft = Math.max(0, el.scrollLeft - 900)
+  })
+  await scrollSettled(page)
+  const parked = await view.boundingBox()
+  expect(parked?.x ?? 0).toBeGreaterThan(212)
+
+  // Sample scrollLeft per frame: the spread reveal used to flip the wide
+  // spread between its two edges every frame until its try budget ran out.
+  await page.evaluate(() => {
+    const el = document.querySelector<HTMLElement>(
+      '[data-testid="pasteboard-scroll"]',
+    )
+    const lefts: number[] = []
+    Object.assign(window, { revealLefts: lefts })
+    const tick = () => {
+      lefts.push(el?.scrollLeft ?? 0)
+      if (lefts.length < 120) {
+        requestAnimationFrame(tick)
+      }
+    }
+    requestAnimationFrame(tick)
+  })
+  await badgeOf(page, a).click()
+  await expect(selectedFrames(page)).toHaveCount(1)
+  const { frame, port, listRight } = await settledReveal(page)
+  const lefts = await page.evaluate(
+    () => (window as unknown as { revealLefts: number[] }).revealLefts,
+  )
+  // Spread reveal, then the frame nudge: at most two sideways moves.
+  expect(
+    lefts.filter((x, i) => i > 0 && x !== lefts[i - 1]).length,
+  ).toBeLessThanOrEqual(2)
+
+  // Fits (≈ 510 px < 880 × 672): inside the port inset by 24 px on both axes.
+  expect(port.left).toBeCloseTo(listRight, 0)
+  expect(frame.left).toBeGreaterThanOrEqual(listRight + 24 - 1)
+  expect(frame.right).toBeLessThanOrEqual(port.right - 24 + 1)
+  expect(frame.top).toBeGreaterThanOrEqual(port.top + 24 - 1)
+  expect(frame.bottom).toBeLessThanOrEqual(port.bottom - 24 + 1)
+  // Least scroll: the left edge lands on the inset line, not centred.
+  expect(Math.abs(frame.left - (listRight + 24))).toBeLessThanOrEqual(1)
+  // Paint: the left mid handle is the topmost thing there, not the list.
+  const hit = await page.evaluate(
+    ([x, y]) => {
+      const top = document.elementsFromPoint(x ?? 0, y ?? 0)[0]
+      return {
+        list: top?.closest('[data-testid="spreads-panel"]') != null,
+        frame:
+          top?.closest(
+            '[data-testid="spread-frame-handles"], [data-testid="spread-frame"]',
+          ) != null,
+      }
+    },
+    [frame.left + 1, (frame.top + frame.bottom) / 2],
+  )
+  expect(hit).toEqual({ list: false, frame: true })
+  expect(await readZoomPercent(page)).toBe(zoom)
+})
+
+test('M145: at 200 % a frame larger than the port is centred on both axes', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  const { a } = await openWithPhotos(page)
+  await chooseZoom(page, '200%')
+  const zoom = await readZoomPercent(page)
+  await listRows(page).nth(0).click()
+  await expect(page.getByTestId('pasteboard-scroll')).not.toHaveAttribute(
+    'data-reveal-hold',
+  )
+
+  await badgeOf(page, a).click()
+  await expect(selectedFrames(page)).toHaveCount(1)
+  const { frame, port } = await settledReveal(page)
+
+  expect(frame.bottom - frame.top).toBeGreaterThan(port.bottom - port.top)
+  expect(frame.right - frame.left).toBeGreaterThan(port.right - port.left)
+  const cutTop = port.top - frame.top
+  const cutBottom = frame.bottom - port.bottom
+  expect(Math.abs(cutTop - cutBottom)).toBeLessThanOrEqual(2)
+  const cutLeft = port.left - frame.left
+  const cutRight = frame.right - port.right
+  expect(Math.abs(cutLeft - cutRight)).toBeLessThanOrEqual(2)
+  expect(await readZoomPercent(page)).toBe(zoom)
 })
 
 test('Enter on the focused row cycles and keeps focus; Masters → Pages', async ({
