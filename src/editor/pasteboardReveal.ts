@@ -195,8 +195,62 @@ function revealFrame(slot: HTMLElement, frameId: string): Element | null {
 }
 
 /**
- * Frame-targeted reveal (placed-badge jump, M145): one inset nudge straight
- * to the frame, so no axis first scrolls to the spread and then back.
+ * One axis of a frame jump: the spread centred in the port (clamped), then
+ * the B4 inset rule on the frame as it sits at that scroll (clamped).
+ */
+function frameJumpAxis(
+  at: number,
+  max: number,
+  spread: readonly [number, number],
+  frame: readonly [number, number],
+  port: readonly [number, number],
+  inset: number,
+): number {
+  const centre = (spread[0] + spread[1] - port[0] - port[1]) / 2
+  const target = clampedScroll(at, centre, max)
+  const shift = target - at
+  return clampedScroll(
+    target,
+    insetAxisDelta(frame[0] - shift, frame[1] - shift, port[0], port[1], inset),
+    max,
+  )
+}
+
+/**
+ * Designer placed-badge B4 (M145): "spread reveal, then the frame rect
+ * nudged" (the kit centres the target spread), folded into one scroll write
+ * per axis: the frame is placed where it sits once its spread is centred and
+ * the inset rule applied there, so no axis scrolls to the spread and back.
+ */
+function jumpScrollToFrame(
+  scroll: HTMLElement,
+  spread: DOMRect,
+  frame: DOMRect,
+  inset: number,
+): void {
+  const port = scroll.getBoundingClientRect()
+  scroll.scrollLeft = frameJumpAxis(
+    scroll.scrollLeft,
+    scroll.scrollWidth - scroll.clientWidth,
+    [spread.left, spread.right],
+    [frame.left, frame.right],
+    [port.left, port.right],
+    inset,
+  )
+  scroll.scrollTop = frameJumpAxis(
+    scroll.scrollTop,
+    scroll.scrollHeight - scroll.clientHeight,
+    [spread.top, spread.bottom],
+    [frame.top, frame.bottom],
+    [port.top, port.bottom],
+    inset,
+  )
+}
+
+/**
+ * Frame-targeted reveal (placed-badge jump, M145): a frame already inside the
+ * inset port scrolls nothing (a mounted frame need not be in view); else one
+ * `jumpScrollToFrame`.
  */
 function revealLaidOutFrame(
   scroll: HTMLElement,
@@ -208,7 +262,14 @@ function revealLaidOutFrame(
   if (frame === null || box === undefined || box.width < 1 || box.height < 1) {
     return false
   }
-  nudgeBoxIntoInsetPort(scroll, box, PORT_INSET_PX)
+  if (insetPortSettled(scroll, box, PORT_INSET_PX)) {
+    return true
+  }
+  const view = slot.querySelector('[data-testid="spread-view"]')
+  const spread = (
+    view instanceof HTMLElement ? view : slot
+  ).getBoundingClientRect()
+  jumpScrollToFrame(scroll, spread, box, PORT_INSET_PX)
   return insetPortSettled(scroll, frame.getBoundingClientRect(), PORT_INSET_PX)
 }
 

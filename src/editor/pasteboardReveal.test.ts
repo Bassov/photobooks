@@ -836,24 +836,125 @@ describe('restoreRevealSlotVisibility', () => {
 })
 
 describe('frame-targeted reveal (placed-badge jump, M145)', () => {
+  /** Client box of `content` (scroll space): it follows the scroll. */
+  const client = (scroll: HTMLElement, content: DOMRect) => () =>
+    rect(
+      content.left - scroll.scrollLeft,
+      content.top - scroll.scrollTop,
+      content.width,
+      content.height,
+    )
+
   /**
-   * A slot whose spread view never reveals (far below the port) holding frame
-   * `f` at `content` (scroll space): its client box follows the scroll.
+   * A slot holding frame `f` at `content` and its spread view at `spread`
+   * (scroll space). The default spread is the port at the current scroll, so
+   * the spread reveal alone would not move.
    */
-  function frameSlot(scroll: HTMLElement, content: DOMRect): HTMLElement {
-    const slot = mockSlot(() => rect(PORT.left, PORT.top + 5000, 200, 180))
+  function frameSlot(
+    scroll: HTMLElement,
+    content: DOMRect,
+    spread = rect(
+      PORT.left + scroll.scrollLeft,
+      PORT.top + scroll.scrollTop,
+      PORT.width,
+      PORT.height,
+    ),
+  ): HTMLElement {
+    const slot = mockSlot(client(scroll, spread))
     const frame = document.createElement('div')
     frame.dataset.frameId = 'f'
-    frame.getBoundingClientRect = () =>
-      rect(
-        content.left - scroll.scrollLeft,
-        content.top - scroll.scrollTop,
-        content.width,
-        content.height,
-      )
+    frame.getBoundingClientRect = client(scroll, content)
     slot.append(frame)
     return slot
   }
+
+  /** Records every scroll write per axis (each axis moves at most once). */
+  function writes(scroll: HTMLElement): { left: number[]; top: number[] } {
+    const log = { left: [] as number[], top: [] as number[] }
+    const own = Object.getOwnPropertyDescriptors(scroll)
+    const spy = (key: 'scrollLeft' | 'scrollTop', into: number[]) => {
+      const { get, set } = own[key]
+      Object.defineProperty(scroll, key, {
+        get: () => Number(get?.call(scroll)),
+        set(value: number) {
+          into.push(value)
+          set?.call(scroll, value)
+        },
+      })
+    }
+    spy('scrollLeft', log.left)
+    spy('scrollTop', log.top)
+    return log
+  }
+
+  it('Fit: centres the target spread that fits the port, frame inside it', () => {
+    // Spread 400×300 in scroll space at y 620: client top 520, under the
+    // 400 px port (100..500). Its frame sits inside the spread.
+    const scroll = mockScroll({ scrollLeft: 0, scrollTop: 100 })
+    const log = writes(scroll)
+    const slot = frameSlot(
+      scroll,
+      rect(120, 660, 200, 100),
+      rect(90, 620, 400, 300),
+    )
+
+    expect(revealLaidOutSpread(scroll, slot, 'f')).toBe(true)
+    // Spread client box: equal 50 px above and below in the port.
+    const spread = client(scroll, rect(90, 620, 400, 300))()
+    expect(spread.top - PORT.top).toBe(50)
+    expect(PORT.top + PORT.height - spread.bottom).toBe(50)
+    expect(spread.left - PORT.left).toBe(50)
+    expect(log.top).toHaveLength(1)
+    expect(log.left.length).toBeLessThanOrEqual(1)
+  })
+
+  it('centres a spread taller than the port too (not an edge pull)', () => {
+    // Spread 900 tall at client 400..1300: centred at scrollTop 850 (client
+    // −150..750, centre 300). Its frame then sits at client 350..470, inside
+    // the inset port, so no nudge follows. An edge pull would end at 1100.
+    const scroll = mockScroll({ scrollLeft: 0, scrollTop: 300 })
+    const log = writes(scroll)
+    const slot = frameSlot(
+      scroll,
+      rect(100, 1200, 200, 120),
+      rect(40, 700, 500, 900),
+    )
+
+    expect(revealLaidOutSpread(scroll, slot, 'f')).toBe(true)
+    expect(at(scroll)).toEqual([0, 850])
+    expect(log.top).toEqual([850])
+  })
+
+  it('nudges the frame on the 24 px inset from the centred spread', () => {
+    // Same spread; the frame at content 1500..1620 is at client 650..770 once
+    // the spread is centred (850): 294 px past the inset bottom (476).
+    const scroll = mockScroll({ scrollLeft: 0, scrollTop: 300 })
+    const log = writes(scroll)
+    const slot = frameSlot(
+      scroll,
+      rect(100, 1500, 200, 120),
+      rect(40, 700, 500, 900),
+    )
+
+    expect(revealLaidOutSpread(scroll, slot, 'f')).toBe(true)
+    expect(at(scroll)).toEqual([0, 1144])
+    expect(log.top).toEqual([1144])
+  })
+
+  it('scrolls nothing for a frame inside the inset port, spread or not', () => {
+    const scroll = mockScroll({ scrollLeft: 100, scrollTop: 100 })
+    const log = writes(scroll)
+    // The spread sticks out below the port; the frame is well inside.
+    const slot = frameSlot(
+      scroll,
+      rect(200, 300, 200, 100),
+      rect(140, 250, 400, 380),
+    )
+
+    expect(revealLaidOutSpread(scroll, slot, 'f')).toBe(true)
+    expect(at(scroll)).toEqual([100, 100])
+    expect(log).toEqual({ left: [], top: [] })
+  })
 
   const at = (scroll: HTMLElement) => [scroll.scrollLeft, scroll.scrollTop]
 
