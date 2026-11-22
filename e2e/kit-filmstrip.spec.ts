@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
+import { topAt } from './fixtures/paintProbe'
 
 // Kit filmstrip (moved from uikit/scripts/qa.mjs v0.7.2 / v0.7.4 / v8 smokes, v0.9 §3, v0.9.3,
 // the kit10 missing photo + Relink steps and kit-sync W5, uikit-qa-split-5): drag onto a frame
@@ -959,6 +960,13 @@ test('fill-book FB1 (#/demo): Fill book popover numbers, Enter fills, one Ctrl+Z
   await expect(D(page, '[data-testid="status"]')).toHaveText(
     'Placed 12 photos · added 4 spreads',
   )
+  // r42 M153 (prod F11): the fill result paints as the status pill, not only the live region
+  const pill = D(page, '[data-testid="status"]')
+  expect((await pill.boundingBox())?.width ?? 0).toBeGreaterThan(100)
+  expect(
+    (await topAt(pill))[0],
+    'M153: the status pill is the top paint',
+  ).toContain('status')
   await expect(D(page, '[data-testid="placed-count"]')).toContainText('12 used')
   await expect(D(page, '[data-item="p0"]')).toHaveAttribute(
     'aria-selected',
