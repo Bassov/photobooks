@@ -199,7 +199,8 @@ export function useEditorKeys() {
     if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) st.redo(); else st.undo(); return }
     if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); st.redo(); return }
     // photo pick mode ends on its own capture-phase Esc (usePickGuard) before this layer
-    if (e.key === "Escape") { if (st.cropId) st.setCropId(null); else if (st.sel.length) st.setSel([]); else st.setNode({ k: "none" }); return }
+    // M151, prod reference (e2e/inspector-context-paths.spec.ts): Esc with nothing selected keeps the active spread context
+    if (e.key === "Escape") { if (st.cropId) st.setCropId(null); else if (st.sel.length) st.setSel([]); return }
     if (mod && e.key === "'") { e.preventDefault(); st.setView({ grid: !st.view.grid }); return }
     if (mod && e.key === ";") { e.preventDefault(); st.setView({ guides: !st.view.guides }); return }
     if (e.shiftKey && e.key.toLowerCase() === "r" && !mod) { st.setView({ rulers: !st.view.rulers }); return }
