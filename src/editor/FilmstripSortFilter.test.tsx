@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { placeAsset } from '../core'
 import {
+  dispatchBookOp,
   getBookStoreSnapshot,
   patchAssetRecord,
   resetBookStore,
@@ -344,5 +345,101 @@ describe('filmstrip sort / filter / remove', () => {
     } finally {
       uninstall()
     }
+  })
+})
+
+describe('Photos header low-res count (P11)', () => {
+  let restore: () => void
+  beforeEach(() => {
+    restore = stubScrollportWidth(1200)
+  })
+  afterEach(() => {
+    cleanup()
+    restore()
+    resetBookStore()
+  })
+
+  const head = () => screen.getByTestId('film-head').textContent
+  const chips = () => screen.queryAllByTestId('lowres-chip').length
+
+  const TINY = 100
+  // ≈ 243 ppi on the 19 × 23 cm page below, ≈ 188 ppi on A4.
+  const HUGE = 2200
+
+  /** Decoded square sizes per seeded photo (the size the chip reads). */
+  function resize(ids: readonly string[], sides: readonly number[]): void {
+    const snap = getBookStoreSnapshot()
+    const sessionMeta = new Map(snap.sessionMeta)
+    ids.forEach((id, index) => {
+      const side = sides[index] ?? TINY
+      sessionMeta.set(id, {
+        name: id,
+        correctedWidth: side,
+        correctedHeight: side,
+        orientation: 1,
+        aspect: 1,
+      })
+    })
+    resetBookStore({
+      book: snap.book,
+      sessionMeta,
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+  }
+
+  /** Three photos: ids[0] and ids[2] tiny (low-res), ids[1] huge. */
+  function seedMixed(): readonly string[] {
+    return seedSized([TINY, HUGE, TINY])
+  }
+
+  function seedSized(sides: readonly number[]): readonly string[] {
+    const ids = seedGallery(sides.length)
+    dispatchBookOp({ type: 'setTrim', widthMm: 190, heightMm: 230 })
+    resize(ids, sides)
+    return ids
+  }
+
+  it('says nothing about low-res when no shown photo carries the chip', () => {
+    seedSized([HUGE, HUGE])
+    render(<FilmstripDock />)
+    expect(head()).toBe('Photos · 2 · 0 used')
+    expect(screen.queryByTestId('lowres-count')).toBeNull()
+  })
+
+  it('counts the chips after "· M used", unfiltered and filtered', () => {
+    const ids = seedMixed()
+    render(<FilmstripDock />)
+    expect(chips()).toBe(2)
+    expect(head()).toBe('Photos · 3 · 0 used · 2 low-res')
+    expect(screen.getByTestId('lowres-count').className).toContain(
+      'text-[var(--warning-ink)]',
+    )
+
+    fireEvent.click(screen.getByTestId('film-unplaced-only'))
+    expect(head()).toBe('Photos · 3 of 3 · 0 used · 2 low-res')
+    // A placed low-res photo leaves the shown strip and the count.
+    placeFirst(ids, 0)
+    expect(chips()).toBe(1)
+    expect(head()).toBe('Photos · 2 of 3 · 1 used · 1 low-res')
+
+    fireEvent.click(screen.getByTestId('film-unplaced-only'))
+    expect(head()).toBe('Photos · 3 · 1 used · 2 low-res')
+  })
+
+  it('recounts when the trim or a pixel size changes', () => {
+    const ids = seedMixed()
+    render(<FilmstripDock />)
+    expect(head()).toBe('Photos · 3 · 0 used · 2 low-res')
+    act(() => {
+      resize(ids, [TINY, HUGE, HUGE])
+    })
+    expect(head()).toBe('Photos · 3 · 0 used · 1 low-res')
+    // A4 pages bring the 2200 px photos below the threshold.
+    act(() => {
+      dispatchBookOp({ type: 'setTrim', widthMm: 210, heightMm: 297 })
+    })
+    expect(chips()).toBe(3)
+    expect(head()).toBe('Photos · 3 · 0 used · 3 low-res')
   })
 })

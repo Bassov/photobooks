@@ -5,14 +5,10 @@ import {
   useSyncExternalStore,
   type CSSProperties,
 } from 'react'
-import { bookDpiThresholds } from '../core'
 import { Icon } from '../ui/Icon'
 import {
   getAssetAspectSnapshot,
   getAssetCacheKey,
-  getAssetPixelSizeSnapshot,
-  getBookPrintProfiles,
-  getBookStoreSnapshot,
   getPlacementCountSnapshot,
   subscribeBookStore,
 } from './bookStore'
@@ -41,7 +37,7 @@ import {
   setSelectedAssetId,
   subscribeGallerySelection,
 } from './gallerySelection'
-import { pageFillLowRes } from './pageFillLowRes'
+import { isAssetLowRes } from './pageFillLowRes'
 import { getRelinkStatus, subscribeRelink } from './relink/statusStore'
 import { ensureThumb, getThumbUrl, subscribeThumb } from './thumbCache'
 import { thumbSlotAspect } from './thumbSlotSize'
@@ -153,26 +149,11 @@ const FilmstripItemBody = memo(function FilmstripItemBody({
           data-testid="lowres-chip"
         >
           <Icon name="warning" size={14} />
-          <span className="filmstrip-lowres-label">Low-res</span>
         </span>
       ) : null}
     </div>
   )
 })
-
-/** Stored or decoded pixel size against the current trim; unknown → false. */
-function isAssetLowRes(id: string): boolean {
-  const size = getAssetPixelSizeSnapshot(id)
-  if (size === undefined) {
-    return false
-  }
-  const { book } = getBookStoreSnapshot()
-  return pageFillLowRes(
-    book.settings.trim,
-    size,
-    bookDpiThresholds(book, getBookPrintProfiles()),
-  )
-}
 
 function matchesFocusVisible(element: Element): boolean {
   try {

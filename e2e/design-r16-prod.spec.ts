@@ -6,6 +6,7 @@ import {
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
 import { openLibraryBook } from './fixtures/openLibraryBook'
+import { pixelsAt } from './fixtures/paintProbe'
 import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
@@ -25,16 +26,18 @@ import {
 // M84 (step editor-spread-1): Contact sheet button x 1313, right 1424,
 //     111 × 32 (the row's right edge, 1424).
 // M85 (step editor-photos-added, p02 800 px): "Low-res" chip at the thumb's
-//     left + 4 / top + 4, 65.33 × 16.84 (the "Low-res" text run is 43.33
-//     wide), 11px / 14.85px weight 500, rgb(132, 85, 16) on rgb(216, 214,
-//     210) (P10 field), radius 4px, padding 1px 4px, gap 4, warning icon 10 × 10.
-//     Designer decision (RESUME 1): the chip never wraps; on a thumb
-//     narrower than 73.33 (chip + 8) it is icon-only, 18 × 16.84 at the same
-//     4/4 offset, icon centred vertically, title / aria-label "Low-res". The
-//     kit gets the same rule in uikit/src/sandbox/chrome.tsx (its only
-//     low-res demo photo is landscape, so no kit portrait measurement).
+//     left + 4 / top + 4, rgb(132, 85, 16) on rgb(216, 214, 210) (P10
+//     field), radius 4px, padding 1px 4px, warning icon 10 × 10 centred
+//     vertically, title / aria-label "Low-res".
+// P11 (walkthrough-polish-review, Owner Q-21): the chip is always the M85
+//     narrow icon-only variant, 18 × 16.84 at every thumb width (the 65.33
+//     wide "Low-res" text variant and its < 73.33 switch are gone; no text
+//     is painted). The Photos header ends " · N low-res" in the warning ink
+//     when N > 0 and says nothing about low-res when N = 0. The kit gets the
+//     same rule in uikit/src/sandbox/chrome.tsx (e2e/kit-filmstrip-lowres).
 
 const FIELD = 'rgb(216, 214, 210)'
+const FIELD_RGB = [216, 214, 210]
 const MUTED = 'rgb(83, 81, 82)'
 const WARNING_INK = 'rgb(132, 85, 16)'
 const CLEAR = 'rgba(0, 0, 0, 0)'
@@ -52,11 +55,11 @@ const KIT = {
   contactWidth: 111,
   contactHeight: 32,
   chipInset: 4,
-  chipWidth: 65.33,
+  chipWidth: 18,
   chipHeight: 16.84,
   chipIcon: 10,
-  narrowChipWidth: 18,
-  narrowThumbMax: 73.33,
+  /** Thumb width under which the old M85 chip went icon-only. */
+  oldNarrowThumbMax: 73.33,
 }
 
 interface Box {
@@ -78,6 +81,58 @@ function near(actual: number, expected: number, what: string): void {
     Math.abs(actual - expected),
     `${what}: ${String(actual)} vs ${String(expected)}`,
   ).toBeLessThanOrEqual(TOL)
+}
+
+/** Laid-out text runs reading "Low-res" (any case) in the filmstrip. */
+function paintedLowResText(page: Page): Promise<number> {
+  return page.getByTestId('filmstrip').evaluate((root) => {
+    const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+    let hits = 0
+    for (let n = walk.nextNode(); n !== null; n = walk.nextNode()) {
+      if (!/low-res/i.test(n.textContent ?? '')) continue
+      const range = document.createRange()
+      range.selectNodeContents(n)
+      const painted = [...range.getClientRects()].some(
+        (r) => r.width > 0 && r.height > 0,
+      )
+      if (painted) hits += 1
+    }
+    return hits
+  })
+}
+
+/** P11 chip on a wide thumb: 18 × 16.84 at +4/+4, icon only, no text paint. */
+async function expectIconOnlyChip(
+  page: Page,
+  item: Locator,
+  chip: Locator,
+  size: string,
+): Promise<void> {
+  const thumb = await box(item.locator('.filmstrip-drag'))
+  // Wide thumbs used to show the "Low-res" text variant.
+  expect(thumb.width, size).toBeGreaterThan(KIT.oldNarrowThumbMax)
+  const c = await box(chip)
+  near(c.x, thumb.x + KIT.chipInset, `${size} chip x`)
+  near(c.y, thumb.y + KIT.chipInset, `${size} chip y`)
+  near(c.width, KIT.chipWidth, `${size} chip width`)
+  near(c.height, KIT.chipHeight, `${size} chip height`)
+  const icon = await box(chip.locator('svg'))
+  near(icon.width, KIT.chipIcon, `${size} icon width`)
+  near(icon.height, KIT.chipIcon, `${size} icon height`)
+  near(icon.x, c.x + 4, `${size} icon x`)
+  near(icon.y + icon.height / 2, c.y + c.height / 2, `${size} icon centre y`)
+  // Paint: the right padding column is plain field (no text run starts
+  // after the icon), and no "Low-res" text node lays out in the filmstrip.
+  const pad = await pixelsAt(chip, [
+    { x: 15.5, y: 3 },
+    { x: 15.5, y: 8 },
+    { x: 15.5, y: 13 },
+  ])
+  expect(
+    pad.map((px) => px.slice(0, 3)),
+    `${size} right padding`,
+  ).toEqual([FIELD_RGB, FIELD_RGB, FIELD_RGB])
+  expect(await paintedLowResText(page), size).toBe(0)
 }
 
 async function parkPointer(page: Page): Promise<void> {
@@ -238,7 +293,7 @@ test.describe('design-r16-prod M85 low-res chip', () => {
     ensurePhotoFixtures()
   })
 
-  test('a small photo carries the kit Low-res chip; a 24 MP photo has none', async ({
+  test('a small photo carries the icon-only Low-res chip at default and max size; the header counts it', async ({
     page,
   }) => {
     test.setTimeout(120_000)
@@ -256,23 +311,32 @@ test.describe('design-r16-prod M85 low-res chip', () => {
       timeout: 60_000,
     })
     await parkPointer(page)
-    const chips = page.getByTestId('lowres-chip')
+    const chips = page.getByRole('img', { name: 'Low-res', exact: true })
     await expect(chips).toHaveCount(1)
     const small = items.filter({ has: chips })
     await expect(small).toHaveAttribute('aria-label', /sample-3x2/)
 
     const chip = chips.first()
-    await expect(chip).toHaveText('Low-res')
-    const thumb = await box(small.locator('.filmstrip-drag'))
-    const c = await box(chip)
-    near(c.x, thumb.x + KIT.chipInset, 'chip x')
-    near(c.y, thumb.y + KIT.chipInset, 'chip y')
-    near(c.width, KIT.chipWidth, 'chip width')
-    near(c.height, KIT.chipHeight, 'chip height')
-    const icon = await box(chip.locator('svg'))
-    near(icon.width, KIT.chipIcon, 'icon width')
-    near(icon.height, KIT.chipIcon, 'icon height')
-    near(icon.x, c.x + 4, 'icon x')
+    await expect(chip).toHaveAttribute('title', 'Low-res')
+    await expect(chip).toHaveText('')
+    const head = page.getByTestId('film-head')
+    await expect(head).toHaveText('Photos · 2 · 0 used · 1 low-res')
+    const count = head.getByTestId('lowres-count')
+    await expect(count).toHaveText(' · 1 low-res')
+    expect(await count.evaluate((el) => getComputedStyle(el).color)).toBe(
+      WARNING_INK,
+    )
+
+    await expectIconOnlyChip(page, small, chip, 'default')
+    const sep = page.getByRole('separator', { name: 'Resize photos' })
+    await sep.focus()
+    await page.keyboard.press('End')
+    await expect(sep).toHaveAttribute(
+      'aria-valuenow',
+      (await sep.getAttribute('aria-valuemax')) ?? '',
+    )
+    await parkPointer(page)
+    await expectIconOnlyChip(page, small, chip, 'max')
 
     const look = await chip.evaluate((el) => {
       const s = getComputedStyle(el)
@@ -281,8 +345,6 @@ test.describe('design-r16-prod M85 low-res chip', () => {
         bg: s.backgroundColor,
         radius: s.borderRadius,
         padding: s.padding,
-        gap: s.columnGap,
-        font: `${s.fontSize}/${s.lineHeight} ${s.fontWeight}`,
         icon: el.querySelector('svg')?.getAttribute('data-icon'),
       }
     })
@@ -291,13 +353,29 @@ test.describe('design-r16-prod M85 low-res chip', () => {
       bg: FIELD,
       radius: '4px',
       padding: '1px 4px',
-      gap: '4px',
-      font: '11px/14.85px 500',
       icon: 'warning',
     })
   })
 
-  test('a portrait thumb carries an icon-only Low-res chip on one line, inside the thumb', async ({
+  test('without low-res photos the Photos header says nothing about low-res', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000)
+    await installPhotoDirectoryPickerStub(page)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await openLibraryBook(page)
+    await choosePhotoFolder(page, [photoFixturePaths.largeJpeg])
+    await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(1, {
+      timeout: 60_000,
+    })
+    await expect(page.getByTestId('film-head')).toHaveText(
+      'Photos · 1 · 0 used',
+    )
+    await expect(page.getByTestId('lowres-count')).toHaveCount(0)
+    await expect(page.getByTestId('lowres-chip')).toHaveCount(0)
+  })
+
+  test('a portrait thumb carries the same icon-only Low-res chip, inside the thumb', async ({
     page,
   }) => {
     test.setTimeout(120_000)
@@ -315,11 +393,11 @@ test.describe('design-r16-prod M85 low-res chip', () => {
     await expect(chip).toHaveAttribute('aria-label', 'Low-res')
     await expect(chip).toHaveAttribute('title', 'Low-res')
     const thumb = await box(page.locator('.filmstrip-drag'))
-    expect(thumb.width).toBeLessThan(KIT.narrowThumbMax)
+    expect(thumb.width).toBeLessThan(KIT.oldNarrowThumbMax)
     const c = await box(chip)
     near(c.x, thumb.x + KIT.chipInset, 'chip x')
     near(c.y, thumb.y + KIT.chipInset, 'chip y')
-    near(c.width, KIT.narrowChipWidth, 'chip width')
+    near(c.width, KIT.chipWidth, 'chip width')
     near(c.height, KIT.chipHeight, 'chip height')
     expect(c.right).toBeLessThanOrEqual(thumb.right)
     const icon = await box(chip.locator('svg'))
