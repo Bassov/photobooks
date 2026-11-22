@@ -1068,11 +1068,11 @@ test('r16 M92: a grey-canvas press activates the nearest spread and keeps the sc
   // the demo walk (demo-capture editor-spread-selected) reads y 66.25 before and after; this shorter walk (no photos added) lands at 52.25
   expect
     .soft(
-      before.rows.length === 0 &&
-        before.insp === 'Select a spread or photo' &&
+      before.rows.join() === 'p1' &&
+        /^Spread · Pages 2–3\b/.test(before.insp) &&
         before.y !== null &&
         before.y < 100,
-      `r16 M92: before the press (Esc ×2) no row and the empty inspector; page 1 above the centred spread 2–3 (label y < 100): ${JSON.stringify(before)}`,
+      `r16 M92 + r41 M151: before the press (pick → Esc ×2) row p1 and the inspector keep spread 2–3 (as prod); page 1 above the centred spread 2–3 (label y < 100): ${JSON.stringify(before)}`,
     )
     .toBe(true)
   expect
@@ -1086,6 +1086,42 @@ test('r16 M92: a grey-canvas press activates the nearest spread and keeps the sc
     )
     .toBe(true)
   // r16 M92: no console errors
+  expect(errs).toEqual([])
+})
+
+test('r41 M151: Esc with nothing selected keeps the active spread in the inspector (prod reference)', async ({
+  page,
+}) => {
+  const errs = await demoLibrary(page)
+  await page.locator('[role=dialog] input').first().fill('Lake trip')
+  await pick(page, '[data-testid="create-book"]')
+  await expect(page.locator('[role=dialog]')).toHaveCount(0)
+  const inspector = page.locator('[data-testid="inspector"]')
+  const escFromBody = async () => {
+    await page.evaluate(() => {
+      ;(document.activeElement as HTMLElement | null)?.blur()
+    })
+    await page.keyboard.press('Escape')
+    await settled(page)
+  }
+  // header line "Spread · Page(s) … · n empty", then the Layout section
+  const head = () =>
+    inspector.evaluate((el: HTMLElement) =>
+      el.innerText.split('\n').slice(0, 3).join(' · '),
+    )
+  // nothing selected (fresh book, page 1 active): Esc keeps the spread context
+  await escFromBody()
+  await expect.poll(head).toMatch(/^Spread · Page 1 · \d+ empty · Layout$/i)
+  // pick → Esc → Esc: still spread 2–3
+  await pick(page, '[data-item="p1"]')
+  await escFromBody()
+  await escFromBody()
+  await expect(page.locator('[data-item="p1"]')).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
+  await expect.poll(head).toMatch(/^Spread · Pages 2–3 · \d+ empty · Layout$/i)
+  await expect(inspector).not.toContainText('Select a spread or photo')
   expect(errs).toEqual([])
 })
 

@@ -727,12 +727,14 @@ export function TemplateBar({ ids, extra }: { ids?: string[]; extra?: React.Reac
 
 /* ---------------------------------------------------------------- status + floating pager */
 /** M149, prod `isStatusPillVisible` (src/editor/editorStatus.ts): the frame drag hint, a guide position, the frame clipboard
- *  and the placed-badge cycle paint the pill; every other status (pick-replace, filmstrip drop, "Placed on …") is screen-reader only. */
+ *  the placed-badge cycle and (M153) the Fill book result paint the pill; every other status (pick-replace, filmstrip drop,
+ *  "Placed on …") is screen-reader only. */
 const PILL_STATUS = [
   /^Drag onto another frame to swap, or onto the filmstrip to take the photo back$/,
   /^(Vertical|Horizontal) guide at /,
   /^(Copied (frame|\d+ frames)|\d+ photos? (aren't|isn't) in this book, so (their frames are|its frame is) empty)$/,
   /^Placed \d+ of \d+ · /,
+  /^Placed \d+ photos?(?: · |$)/,
 ]
 export const isStatusPillVisible = (s: string) => PILL_STATUS.some((re) => re.test(s))
 export function StatusLine() {
