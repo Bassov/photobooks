@@ -11,7 +11,7 @@ const STYLE_TEXT = `
   color: var(--foreground);
 }
 .pb-library-main {
-  background: radial-gradient(1200px 800px at 50% 30%, #D6D6D6, #C8CACB 75%);
+  background: radial-gradient(1200px 800px at 50% 30%, #D6D6D6, #C9C7C3 75%);
 }
 .pb-lib-rise {
   animation: pb-lib-rise 1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
@@ -70,7 +70,7 @@ const STYLE_TEXT = `
 .pb-lib-quiet {
   height: calc(var(--spacing) * 9);
   border-radius: var(--radius-full);
-  background: #D7D7D7;
+  background: #D8D6D2;
   font-size: var(--text-sm);
   color: var(--foreground);
   border: 0;

@@ -21,20 +21,20 @@ import {
 //     8px, padding 6px 10px 0px, gap 8, overflow hidden. Title text at the
 //     button x + 10, white-space nowrap; size line at the title's right + 8,
 //     nowrap, rgb(83, 81, 82). aria-pressed "false", bg transparent; Book
-//     settings open: aria-pressed "true", bg rgb(215, 215, 215).
+//     settings open: aria-pressed "true", bg rgb(216, 214, 210).
 // M84 (step editor-spread-1): Contact sheet button x 1313, right 1424,
 //     111 × 32 (the row's right edge, 1424).
 // M85 (step editor-photos-added, p02 800 px): "Low-res" chip at the thumb's
 //     left + 4 / top + 4, 65.33 × 16.84 (the "Low-res" text run is 43.33
-//     wide), 11px / 14.85px weight 500, rgb(132, 85, 16) on rgb(215, 215,
-//     215), radius 4px, padding 1px 4px, gap 4, warning icon 10 × 10.
+//     wide), 11px / 14.85px weight 500, rgb(132, 85, 16) on rgb(216, 214,
+//     210) (P10 field), radius 4px, padding 1px 4px, gap 4, warning icon 10 × 10.
 //     Designer decision (RESUME 1): the chip never wraps; on a thumb
 //     narrower than 73.33 (chip + 8) it is icon-only, 18 × 16.84 at the same
 //     4/4 offset, icon centred vertically, title / aria-label "Low-res". The
 //     kit gets the same rule in uikit/src/sandbox/chrome.tsx (its only
 //     low-res demo photo is landscape, so no kit portrait measurement).
 
-const FIELD = 'rgb(215, 215, 215)'
+const FIELD = 'rgb(216, 214, 210)'
 const MUTED = 'rgb(83, 81, 82)'
 const WARNING_INK = 'rgb(132, 85, 16)'
 const CLEAR = 'rgba(0, 0, 0, 0)'

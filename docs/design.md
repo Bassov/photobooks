@@ -7,7 +7,7 @@ Agents: use tokens and primitives named here. New tokens or primitives are added
 ## Principles
 
 1. **Photo is the visual anchor** — chrome stays quiet; metadata is secondary to the image.
-2. **Neutral chrome** — grayscale Theme B (kit v0.9.3 Procreate-light); no blue/purple brand fills, no tinted pasteboard that competes with photos.
+2. **Neutral chrome** — Theme B (kit v0.9.3 Procreate-light) in warm neutrals (P10: site-paper hue, near-grey lightness); no blue/purple brand fills, no tinted pasteboard that competes with photos.
 3. **Density** — editor controls prefer compact (`sm` / h-8) over marketing spacing.
 4. **One primary action per view** — e.g. Export, Open library, Grant access; everything else is quiet (ghost / outline / icon).
 
@@ -48,7 +48,7 @@ UI ref: `uikit#/feature/design-tokens`.
 
 ## Semantic color roles
 
-Surfaces: `--background`, `--chrome`, `--canvas`, `--paper`, `--card`, `--popover`. Fullscreen pager (`SpreadPager`, site lightbox): `--presentation` backdrop, `--presentation-ink/-chip/-chip-hover/-chip-ink`, `--shadow-stage-dark`; sits above chrome and toast. Editor Preview = the site book page under a `--bar` bar with an inset `--border` rule.  
+Surfaces: `--background`, `--chrome`, `--canvas`, `--paper`, `--card`, `--popover`. Warm neutrals (walkthrough-polish-review P10, the site paper's hue at the v6.1 lightness): canvas `#C9C7C3`, chrome `#E3E1DD` (`--t-bar` / `--t-panel` / `--t-raised`, prod `BAR`), field `#D8D6D2` (`--t-field`, prod `FIELD`), `--accent` hover `#CDCAC5`, `--border` `#CCC9C4`; `--subtle` / `--muted` / `--control` / `--input`, `--cover-empty`, the hatch and the site palette stay R=G=B. Fullscreen pager (`SpreadPager`, site lightbox): `--presentation` backdrop, `--presentation-ink/-chip/-chip-hover/-chip-ink`, `--shadow-stage-dark`; sits above chrome and toast. Editor Preview = the site book page under a `--bar` bar with an inset `--border` rule.  
 Text: `--foreground`, `--muted-foreground`, `--primary` / `--primary-foreground`; `--primary-busy` #BFBDB9 = the primary pill while its job runs (Publish is the editor top bar's one ink pill, P8).  
 Fills: `--secondary`, `--muted`, `--subtle`, `--accent` / `--accent-foreground`; `--t-field-hover` (secondary button on `--field`), `--t-tag` (quiet tag tint, e.g. the masters "Default" tag).  
 Lines: `--border`, `--input`, `--ring`.  
@@ -60,7 +60,7 @@ App Tailwind 4 bridge: `@theme` tokens in `styles/tokens.css` (entry `styles/app
 
 Site viewer (`styles/tokens.css` under `.site`, read by `src/site/site.css`; kit block under `.site` in `uikit/src/index.css`): `--site-bg` `#E1E1E1`, `--site-text`, `--site-muted`, `--site-control` `#D7D7D7` (+ `-hover` `#CFCFCF`), `--site-focus`, `--site-font` (Inter), `--site-heading` (Lora 400), `--site-page-shadow` (= `--page-shadow` inside `.site`), `--site-h1-narrow` (28 px). They hold today's kit values; a later site direction changes only them and the layout constants in `src/site/siteModel.ts`.
 
-Library quiet controls (search/sort): kit v0.9.1 tone-only field fill `#D7D7D7` on `--chrome` (no border); focus ring `#3A3839` (same ink as kit `--ring` companion). Hover uses `--accent`.
+Library quiet controls (search/sort): kit v0.9.1 tone-only field fill `#D8D6D2` on `--chrome` (no border); focus ring `#3A3839` (same ink as kit `--ring` companion). Hover uses `--accent`.
 
 Do not put raw brand colour on large surfaces. Book page fills come from the document, not chrome tokens.
 
@@ -93,7 +93,7 @@ Selection / focus rings use `--ring` / `--select`; never confuse focus ring with
 
 **Cover sheet.** The cover canvas shows the printed sheet, and Fit fits the whole sheet: the closed cover (back · spine · front at trim size) plus the profile wrap (generic 15 mm) as a band outside it on all four sides, veiled in `color-mix(--canvas 72%)` because it folds away. Hatched hinge strips (generic 8 mm, white 24 % hatch) touch the spine on both boards, and each board has a dashed safe frame (`safeMarginMm`) whose spine-side edge is the hinge. The "Wrap N mm" chip (11 px, `--foreground`) sits in the top band only while the band is at least 18 screen px. The front photo fills the front board plus its outer, top and bottom wrap; drops on that box set it, drops on the back board or spine do not. Spine text is centred on the spine, at the smaller of 12 px at the 848 px reference and half the spine width. Mini covers (list, Preview, site) are the closed cover only, with the same photo crop (`src/render/coverLayout.ts`).
 
-**Inspector rhythm.** Cover, Book settings and Endpaper use the kit v7 `Head` / `Sec` / `Row` (`InspectorHead` / `InspectorSec` / `InspectorRow`): 13 / 500 head on the 1.45 line, px-4 py-4 sections, mt-3 rows; their two-way choices are `SegmentedControl` size `inspector` (kit `SegC`, 26 px). Segmented labels are 500 selected or not; the selected segment is the raised chrome `#E1E1E1` pill on the `--field` track, never the `#CACACA` tone. Photo opens on collapsible Photo / Fit & crop / Rotate & flip sections; a closed section is its 36 px title row (37 px pitch). Text's Live block (Designer `live-captions`): `insp-toggle` switch row, `Select` 32 px "Anchored to" only while Live, and token chips `.live-caption-chip` (24 px, `--chrome` + `--shadow-xs`, hover `--accent`, `--radius-md`, monospace `--text-2xs`, `braces` 12 px `--muted-foreground`; a missing value greys the label) on one row.
+**Inspector rhythm.** Cover, Book settings and Endpaper use the kit v7 `Head` / `Sec` / `Row` (`InspectorHead` / `InspectorSec` / `InspectorRow`): 13 / 500 head on the 1.45 line, px-4 py-4 sections, mt-3 rows; their two-way choices are `SegmentedControl` size `inspector` (kit `SegC`, 26 px). Segmented labels are 500 selected or not; the selected segment is the raised chrome `#E3E1DD` pill on the `--field` track, never the `#CACACA` tone. Photo opens on collapsible Photo / Fit & crop / Rotate & flip sections; a closed section is its 36 px title row (37 px pitch). Text's Live block (Designer `live-captions`): `insp-toggle` switch row, `Select` 32 px "Anchored to" only while Live, and token chips `.live-caption-chip` (24 px, `--chrome` + `--shadow-xs`, hover `--accent`, `--radius-md`, monospace `--text-2xs`, `braces` 12 px `--muted-foreground`; a missing value greys the label) on one row.
 
 UI ref: `uikit#/full/editor`, `uikit#/screen/editor`, `uikit#/feature/editor-chrome-toolbar`.
 

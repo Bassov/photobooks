@@ -3,12 +3,12 @@ import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewpor
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import { installPhotoDirectoryPickerStub } from './fixtures/photoDirectoryPicker'
 
-// uikit/src/index.css: --muted-foreground #535152, --field #D7D7D7,
+// uikit/src/index.css: --muted-foreground #535152, --field #D8D6D2,
 // --grid-line rgb(83 81 82 / .6) (:187). Top-bar toggles (design-create-library-chrome #7):
 // ghost at rest, on = --color-sel #CACACA (uikit/src/index.css:98), as the kit's
 // chrome.tsx:211 view toggle (ghost, pressed fill) — black / dark fills are reserved.
 const MUTED = 'rgb(83, 81, 82)'
-const FIELD = 'rgb(215, 215, 215)'
+const FIELD = 'rgb(216, 214, 210)'
 const TOGGLE_ON = 'rgb(202, 202, 202)'
 const TOGGLE_OFF = 'rgba(0, 0, 0, 0)'
 const GRID_LINE = 'rgba(83, 81, 82, 0.6)'

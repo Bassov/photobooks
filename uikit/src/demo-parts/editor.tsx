@@ -93,7 +93,7 @@ export function PhotosDock() { return <Dock right={<><RelinkControl /><FilmChips
 const DEMO_VIEWS: ComponentProps<typeof TopBar>["views"] = ["snap", "grid"]
 /** KS1: the #/demo canvas opens with no guides, rulers or bleed / trim / safe lines. KS13: the filmstrip starts on Added order (prod default). */
 const DEMO_VIEW: Partial<View> = { guides: false, rulers: false, overlays: false, sort: "added" }
-const quiet = { background: "#D7D7D7" } as const
+const quiet = { background: "#D8D6D2" } as const
 export type ExportPill = { phase: ExportPhase; p: number }
 type PillText = { Icon?: LucideIcon; label: string; title: string; say: string }
 const tens = (p: number) => Math.floor(p / 10) * 10

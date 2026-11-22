@@ -24,7 +24,7 @@ const CARD_TOP = 121.44
 const INK = [57, 55, 56]
 const MUTED = [83, 81, 82]
 /** Ghost hover fill (kit and prod), unchanged by the hover ink. */
-const HOVER_FILL = 'rgb(207, 207, 207)'
+const HOVER_FILL = 'rgb(205, 202, 197)'
 
 async function openHosting(page: Page) {
   await page.setViewportSize({ width: 1440, height: 900 })

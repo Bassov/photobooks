@@ -253,7 +253,7 @@ async function headerPages(page: Page) {
 
 // ───────── v7: kit chrome ─────────
 
-test('v7 kit chrome: no borders, #CACACA nav, opaque #E1E1E1 header, Inter + Lora, #D7D7D7 hover, no #232223 fills', async ({
+test('v7 kit chrome: no borders, #CACACA nav, opaque #E3E1DD header, Inter + Lora, #D8D6D2 hover, no #232223 fills', async ({
   page,
 }) => {
   await page.goto('/uikit/#/')
@@ -299,15 +299,15 @@ test('v7 kit chrome: no borders, #CACACA nav, opaque #E1E1E1 header, Inter + Lor
   expect(r.nav).toBe('rgb(202, 202, 202)')
   expect(r.cur).toBe('page')
   expect(r.comp).not.toBe('rgb(202, 202, 202)')
-  // v7 kit header opaque #E1E1E1; fonts Inter + Lora
-  expect(r.hdr).toBe('rgb(225, 225, 225)')
+  // v7 kit header opaque #E3E1DD (P10); fonts Inter + Lora
+  expect(r.hdr).toBe('rgb(227, 225, 221)')
   expect(r.font).toMatch(/Inter/)
   expect(r.h).toMatch(/Lora/)
-  // v7 kit nav hover #D7D7D7
+  // v7 kit nav hover #D8D6D2 (P10)
   await page.hover('[data-nav="components"]')
   await expect(page.locator('[data-nav="components"]')).toHaveCSS(
     'background-color',
-    'rgb(215, 215, 215)',
+    'rgb(216, 214, 210)',
   )
   // v7 kit chrome: no #232223 fills outside primary buttons
   const blk = await page.evaluate(
@@ -356,7 +356,7 @@ test('v7 kit links #393738/#535152 tone, not underlined at rest; demo frame: no 
     return [s.borderTopWidth, s.borderTopStyle, s.backgroundColor]
   })
   expect(dm[0] === '0px' || dm[1] === 'none', dm.join(' ')).toBe(true)
-  expect(dm[2], dm.join(' ')).toBe('rgb(225, 225, 225)')
+  expect(dm[2], dm.join(' ')).toBe('rgb(227, 225, 221)')
 })
 
 // ───────── v0.7.1: no keyboard trap, one editor ─────────
@@ -613,7 +613,7 @@ test('P8 Publish is the one ink pill (was v0.9 §9 quiet gray)', async ({
   expect(pub).toEqual({ bg: 'rgb(35, 34, 35)', color: 'rgb(242, 242, 242)' })
 })
 
-test('v0.9.1 §7 Preview/Print share quiet #D7D7D7; Publish is ink (P8)', async ({
+test('v0.9.1 §7 Preview/Print share quiet #D8D6D2; Publish is ink (P8)', async ({
   page,
 }) => {
   await demoEditor(page, 'Tone')
@@ -623,8 +623,8 @@ test('v0.9.1 §7 Preview/Print share quiet #D7D7D7; Publish is ink (P8)', async 
       .locator(`[data-testid="${id}"]`)
       .evaluate((e) => getComputedStyle(e).backgroundColor)
   expect(tones, JSON.stringify(tones)).toEqual({
-    'demo-preview': 'rgb(215, 215, 215)',
-    'demo-print': 'rgb(215, 215, 215)',
+    'demo-preview': 'rgb(216, 214, 210)',
+    'demo-print': 'rgb(216, 214, 210)',
     // walkthrough-polish-review P8: Publish is the one ink pill.
     'demo-publish': 'rgb(35, 34, 35)',
   })

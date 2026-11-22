@@ -306,7 +306,8 @@ test.describe('pdf-export dialog', () => {
         ])
         return [left?.[0], right?.[0]]
       })
-      .toEqual([190, 215])
+      // Right half: the P10 warm field #D8D6D2 (red channel 216).
+      .toEqual([190, 216])
 
     // The rest of the pages and the paint `done`: the cover paints (held).
     await releasePdf(page, sheets - half + 1)

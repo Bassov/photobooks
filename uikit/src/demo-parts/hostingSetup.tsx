@@ -46,7 +46,7 @@ const HINT = "mt-1 text-xs leading-[16.8px] text-muted-foreground"
 const FOOT = "mt-3.5 flex items-center gap-4 @max-[480px]:flex-wrap"
 const NOTE = "min-w-0 flex-1 text-xs leading-[16.8px] text-muted-foreground"
 const BTNS = "flex shrink-0 gap-2 @max-[480px]:ml-auto"
-const LINK_BTN = "inline-flex h-(--control-sm) items-center gap-1.5 rounded-md bg-field px-3 text-sm font-medium text-foreground shadow-xs hover:bg-[#CFCFCF]"
+const LINK_BTN = "inline-flex h-(--control-sm) items-center gap-1.5 rounded-md bg-field px-3 text-sm font-medium text-foreground shadow-xs hover:bg-[#CDCAC5]"
 const Ext = ({ href, children, tid }: { href: string; children: React.ReactNode; tid?: string }) => (
   <a href={href} target="_blank" rel="noopener noreferrer" className={LINK_BTN} data-testid={tid}>{children}<ExternalLink className="size-3.5" /></a>
 )
@@ -54,7 +54,7 @@ type Mark = "current" | "done" | "future"
 function Marker({ n, s }: { n: number; s: Mark }) {
   return (
     <span data-testid={`hosting-marker-${n}`} data-state={s} className={cn("grid size-5 shrink-0 place-items-center rounded-full text-2xs font-semibold tabular-nums",
-      s === "current" && "bg-[#232223] text-[#F2F2F2]", s === "done" && "bg-[#D7D7D7] text-[#393738]", s === "future" && "text-[#535152]")}
+      s === "current" && "bg-[#232223] text-[#F2F2F2]", s === "done" && "bg-[#D8D6D2] text-[#393738]", s === "future" && "text-[#535152]")}
       style={s === "future" ? { boxShadow: "inset 0 0 0 1px rgb(57 55 56 / .35)" } : undefined}>
       {s === "done" ? <Check className="size-3" strokeWidth={2.5} /> : n}
     </span>
@@ -162,7 +162,7 @@ export function HostingSetup({ rule, seed, active, focus, onDone, onManual }: {
         <Marker n={n} s={s} />
         <div className={cn("min-w-0 flex-1 text-sm", s === "future" ? "text-muted-foreground" : "font-medium text-foreground")}>{s === "done" ? doneTitle : title}</div>
         {s === "done" && <span className="max-w-1/2 truncate font-mono text-xs leading-[16.8px] text-muted-foreground" data-testid={`hosting-step-${n}-summary`}>{summary}</span>}
-        {s === "done" && onChange && <Button variant="ghost" size="xs" className="px-2 text-xs data-[hovered]:bg-[#CFCFCF]" onPress={onChange} data-testid={`hosting-step-${n}-change`}>Change</Button>}
+        {s === "done" && onChange && <Button variant="ghost" size="xs" className="px-2 text-xs data-[hovered]:bg-[#CDCAC5]" onPress={onChange} data-testid={`hosting-step-${n}-change`}>Change</Button>}
       </div>
     )
   }

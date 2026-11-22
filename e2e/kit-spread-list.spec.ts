@@ -79,7 +79,7 @@ test('v7 list order: Cover · Endpaper · page 1 · spreads · last page · Endp
   expect(errs).toEqual([])
 })
 
-test('v7 selection: list row #CACACA + bold, no outline; hover #D7D7D7', async ({
+test('v7 selection: list row #CACACA + bold, no outline; hover #D8D6D2', async ({
   page,
 }) => {
   const errs = await open(page, '#/screen/canvas')
@@ -95,7 +95,7 @@ test('v7 selection: list row #CACACA + bold, no outline; hover #D7D7D7', async (
     '[data-testid="panel-l"] [role=row][aria-selected=false]',
   ).first()
   await other.hover()
-  await expect(other).toHaveCSS('background-color', 'rgb(215, 215, 215)')
+  await expect(other).toHaveCSS('background-color', 'rgb(216, 214, 210)')
   expect(errs).toEqual([])
 })
 

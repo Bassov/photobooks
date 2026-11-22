@@ -169,7 +169,7 @@ test.describe('K1 the Publish dialog', () => {
     })
     expect(frame).toEqual({ w: 480, pad: '20px 24px', r: '14px' })
     const [[r = 0, g = 0, b = 0] = []] = await pixelsAt(d, [{ x: 6, y: 6 }])
-    expect([r, g, b]).toEqual([225, 225, 225])
+    expect([r, g, b]).toEqual([227, 225, 221])
   })
 
   test('running: phase · NN%, a 6 px bar, the hint and Hide', async ({
@@ -292,7 +292,7 @@ test.describe('K2 the Publish pill', () => {
       return [r, g, b]
     }
     const preview = await hovered(page.getByTestId('demo-preview'))
-    expect(preview).toEqual([215, 215, 215])
+    expect(preview).toEqual([216, 214, 210])
     // The colour transitions from ink: poll until it settles.
     await expect.poll(() => hovered(p)).toEqual([58, 56, 57])
   })

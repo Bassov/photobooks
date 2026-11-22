@@ -11,7 +11,7 @@ test.describe('kit v0.10 canvas and pasteboard', () => {
       .first()
     await expect(spreadView).toBeVisible()
     const board = page.locator('.editor-workspace')
-    await expect(board).toHaveCSS('background-color', 'rgb(200, 202, 203)')
+    await expect(board).toHaveCSS('background-color', 'rgb(201, 199, 195)')
     await expect(board).toHaveCSS('background-image', /radial-gradient/)
     // A single page sits on its half of a spread-wide slot (round 7, M45):
     // the slot is what is centred.

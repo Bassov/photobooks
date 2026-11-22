@@ -111,14 +111,14 @@ test.describe('1440×900', () => {
     )
     await expect(radio(page, 100)).toBeChecked()
 
-    // Paint: the selected pill is the raised #E1E1E1 on the #D7D7D7 track.
+    // Paint: the selected pill is the raised #E3E1DD on the #D8D6D2 track (P10).
     const seg = page.getByTestId('interface-size-100')
     const [pill, rest] = await pixelsAt(page.getByTestId('interface-size'), [
       { x: 6, y: 16 },
       { x: 224 - 8, y: 16 },
     ])
-    expect(pill?.slice(0, 3)).toEqual([225, 225, 225])
-    expect(rest?.slice(0, 3)).toEqual([215, 215, 215])
+    expect(pill?.slice(0, 3)).toEqual([227, 225, 221])
+    expect(rest?.slice(0, 3)).toEqual([216, 214, 210])
     expect(await seg.evaluate((el) => getComputedStyle(el).color)).toBe(
       'rgb(57, 55, 56)',
     )

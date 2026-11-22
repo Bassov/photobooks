@@ -726,8 +726,8 @@ test('kit-sync W5 (#/demo, Designer kit-sync Spec 13 = prod FilmstripDock): film
   ).toBe(true)
   expect(
     bgOn,
-    'kit-sync KS13: Unplaced on = rgb(215, 215, 215) fill (prod .film-chip[data-selected])',
-  ).toBe('rgb(215, 215, 215)')
+    'kit-sync KS13: Unplaced on = rgb(216, 214, 210) fill (prod .film-chip[data-selected])',
+  ).toBe('rgb(216, 214, 210)')
   // interact: the sort menu opens above the chip with prod's options, Added order checked; File name relabels and re-sorts
   const label0 = await page.locator(SORT).getAttribute('aria-label')
   await click(SORT)
@@ -785,7 +785,7 @@ test('kit-sync W5 (#/demo, Designer kit-sync Spec 13 = prod FilmstripDock): film
       ),
     `kit-sync KS13: File name relabels the chip and sorts the strip by name — ${JSON.stringify({ label1, names: names.slice(0, 4) })}`,
   ).toBe(true)
-  // hover: all three header chips fill rgb(215, 215, 215) with text rgb(57, 55, 56) (prod .film-chip:hover); Add folder… pressed too
+  // hover: all three header chips fill rgb(216, 214, 210) with text rgb(57, 55, 56) (prod .film-chip:hover); Add folder… pressed too
   const hov: Record<string, { bg: string; c: string }> = {}
   for (const [name, sel] of [
     ['Unplaced', U],
@@ -800,9 +800,9 @@ test('kit-sync W5 (#/demo, Designer kit-sync Spec 13 = prod FilmstripDock): film
   await settled(page)
   expect(
     Object.values(hov).every(
-      (s) => s.bg === 'rgb(215, 215, 215)' && s.c === 'rgb(57, 55, 56)',
+      (s) => s.bg === 'rgb(216, 214, 210)' && s.c === 'rgb(57, 55, 56)',
     ),
-    `kit-sync KS13: hover fills Unplaced · sort · Add folder… rgb(215, 215, 215), text rgb(57, 55, 56) — ${JSON.stringify(hov)}`,
+    `kit-sync KS13: hover fills Unplaced · sort · Add folder… rgb(216, 214, 210), text rgb(57, 55, 56) — ${JSON.stringify(hov)}`,
   ).toBe(true)
   const ab = await box(page.locator(A))
   await page.mouse.move(ab.x + ab.width / 2, ab.y + ab.height / 2)
@@ -814,8 +814,8 @@ test('kit-sync W5 (#/demo, Designer kit-sync Spec 13 = prod FilmstripDock): film
   await settled(page)
   expect(
     pressA,
-    'kit-sync KS13: Add folder… pressed fills rgb(215, 215, 215), text rgb(57, 55, 56)',
-  ).toEqual({ bg: 'rgb(215, 215, 215)', c: 'rgb(57, 55, 56)' })
+    'kit-sync KS13: Add folder… pressed fills rgb(216, 214, 210), text rgb(57, 55, 56)',
+  ).toEqual({ bg: 'rgb(216, 214, 210)', c: 'rgb(57, 55, 56)' })
   // all placed: the gallery keeps only the cover photo → Unplaced on shows prod's all-placed copy
   await page.evaluate((id) => {
     const d = (window as unknown as { __demo: DemoApi }).__demo

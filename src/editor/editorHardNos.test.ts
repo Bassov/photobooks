@@ -13,7 +13,7 @@ describe('editor hard-nos (kit v0.9.3)', () => {
     expect(EDITOR_CHROME_CSS).toContain(
       '.filmstrip-placed { border-radius: 9999px; background: rgb(0 0 0/.55); color: #fff }',
     )
-    expect(EDITOR_CHROME_CSS).toContain('.editor-dock { background: #E1E1E1 }')
+    expect(EDITOR_CHROME_CSS).toContain('.editor-dock { background: #E3E1DD }')
   })
 
   it('suppresses canvas focus ring and uses grab cursor while data-panning', () => {

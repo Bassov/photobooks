@@ -64,14 +64,14 @@ function screenCredits() {
       if (getComputedStyle(a).backgroundImage !== 'none') break
     }
     const L1 = lum(s.color)[0]
-    const L2 = bg ? lum(bg)[0] : lum('rgb(200,202,203)')[0]
+    const L2 = bg ? lum(bg)[0] : lum('rgb(201,199,195)')[0]
     const r = e.getBoundingClientRect()
     const host = (
       e.closest('[data-demo-stage]') ?? e.closest('[data-testid="demo"]')
     )?.getBoundingClientRect() ?? { top: 0, right: 0 }
     const cn = (e.getAttribute('class') ?? '').replace(/\[&_a\]:[^\s]+/g, '')
     const pill =
-      /\b(?:rounded-(?:full|md|lg|xl|2xl)|bg-\[|#E1E1E1)|\bshadow-(?:sm|md|lg|pill|hairline)\b/.test(
+      /\b(?:rounded-(?:full|md|lg|xl|2xl)|bg-\[|#E3E1DD)|\bshadow-(?:sm|md|lg|pill|hairline)\b/.test(
         cn,
       ) || parseFloat(s.backgroundColor.match(/[\d.]+/g)?.[3] ?? '0') > 0.2
     return {

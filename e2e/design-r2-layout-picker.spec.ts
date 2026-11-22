@@ -53,13 +53,13 @@ const PAGE_TILES = {
   thumb: { width: 256 / 3 - 8, height: 256 / 3 - 8 },
 }
 const GRID_GAP = 6
-/** Paper box-shadows (kit tokens: --select #232223, --ring #3a3839, panel --background #e1e1e1). */
+/** Paper box-shadows (kit tokens: --select #232223, --ring #3a3839, panel --background #e3e1dd). */
 const PAPER_IDLE = 'rgba(0, 0, 0, 0.08) 0px 0px 0px 1px'
 const PAPER_HOVER =
   'rgba(0, 0, 0, 0.22) 0px 0px 0px 1px, rgba(0, 0, 0, 0.12) 0px 2px 6px 0px'
 const PAPER_SELECTED = 'rgb(35, 34, 35) 0px 0px 0px 2px'
 const PAPER_FOCUS =
-  'rgb(225, 225, 225) 0px 0px 0px 2px, rgb(58, 56, 57) 0px 0px 0px 4px'
+  'rgb(227, 225, 221) 0px 0px 0px 2px, rgb(58, 56, 57) 0px 0px 0px 4px'
 const LIFT = 'matrix(1, 0, 0, 1, 0, -1)'
 
 test.use({ viewport: { width: 1440, height: 900 } })

@@ -175,7 +175,7 @@ test('the Relink dialog matches the kit RelinkDialog geometry', async ({
   near(g.list.right, 24)
   near(g.list.mt, 8)
   expect(g.list.border).toBe('0px')
-  expect(g.list.bg).toBe('rgb(215, 215, 215)')
+  expect(g.list.bg).toBe('rgb(216, 214, 210)')
   for (const row of g.rows) {
     near(row.h, 36, 0.01)
     expect(row.pad).toBe('8px 12px')

@@ -561,7 +561,7 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
   )
 }
 const SORTS = { date: "Date taken", name: "File name", added: "Added order" } as const
-/** KS13: filmstrip header chips = prod `.film-chip` (src/editor/FilmstripDock.tsx): pill h 28, pad 0 8, 12 px #535152; hover / on #D7D7D7 + #393738.
+/** KS13: filmstrip header chips = prod `.film-chip` (src/editor/FilmstripDock.tsx): pill h 28, pad 0 8, 12 px #535152; hover / on field #D8D6D2 + #393738.
  *  No pressed fill: prod keeps the sort chip transparent while its menu is open. */
 const filmChip = "h-7 gap-1.5 rounded-full bg-transparent px-2 text-xs text-muted-foreground shadow-none transition-colors [&_svg]:size-3.5 data-[hovered]:bg-field data-[hovered]:text-foreground data-[selected]:bg-field data-[selected]:text-foreground"
 /** Filmstrip dock "Unplaced" filter + sort menu (prod order Date taken · File name · Added order, opens above the chip).
@@ -762,7 +762,7 @@ export function Toasts({ className }: { className?: string }) {
 export function EditorFrame({ top, left, right, dock, canvas, overlay, className }: {
   top?: React.ReactNode; left?: React.ReactNode; right?: React.ReactNode; dock?: React.ReactNode; canvas: React.ReactNode; overlay?: React.ReactNode; className?: string
 }) {
-  // v0.7.1: the ONE editor shell. Three surfaces (#E1E1E1 bars, #C8CACB canvas, white paper), no borders.
+  // v0.7.1: the ONE editor shell. Three surfaces (#E3E1DD bars, #C9C7C3 canvas, white paper; P10 warm neutrals), no borders.
   // Panels: [ list · \ photos · ] inspector · Cmd/Ctrl+. all. Tab on the bare canvas hides the panels once; the next Tab moves on.
   const st = useStudio()
   const inspectorOpen = useInspectorOpen()

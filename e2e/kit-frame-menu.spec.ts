@@ -171,7 +171,7 @@ test('filled photo frame: 14 rows, 3 separators, 224 × 468.81 px, painted at th
   expect(top).toBe('frame-menu-replace')
 })
 
-test('paint: separators are --border #CDCDCD, the hovered Delete row a 10 % destructive mix (M141, M142)', async ({
+test('paint: separators are --border #CCC9C4, the hovered Delete row a 10 % destructive mix (M141, M142)', async ({
   page,
 }) => {
   await fillFrame0(page)
@@ -184,7 +184,7 @@ test('paint: separators are --border #CDCDCD, the hovered Delete row a 10 % dest
     const s = seps.nth(i)
     const b = await rect(s)
     const [px] = await pixelsAt(s, [{ x: b.width / 2, y: 0 }])
-    expect(px?.slice(0, 3)).toEqual([205, 205, 205])
+    expect(px?.slice(0, 3)).toEqual([204, 201, 196])
   }
   const del = row(page, 'delete')
   await del.hover()
@@ -194,10 +194,11 @@ test('paint: separators are --border #CDCDCD, the hovered Delete row a 10 % dest
   )
   const [bg] = await pixelsAt(del, [{ x: 4, y: 2 }])
   expect(bg).toHaveLength(4)
-  // Spec: rgb(208.2) — 10 % of --destructive over the popover
-  for (const c of bg?.slice(0, 3) ?? []) {
-    expect(Math.abs(c - 208.2)).toBeLessThanOrEqual(1)
-  }
+  // Spec: 10 % of --destructive over the P10 popover #E3E1DD = rgb(210, 208, 204.5)
+  const mixed = [210, 208, 204.5]
+  mixed.forEach((m, i) => {
+    expect(Math.abs((bg?.[i] ?? -1) - m)).toBeLessThanOrEqual(1)
+  })
 })
 
 test('Fit ↔ Fill flips the row label; Remove photo empties the frame', async ({

@@ -174,12 +174,12 @@ test('kit-sync W4 (#/demo, Designer kit-sync Spec 9–11 = prod): cover inspecto
           near(s.w, want[1]) &&
           s.h === 36 &&
           s.r === '8px' &&
-          s.bg === 'rgb(215, 215, 215)' &&
+          s.bg === 'rgb(216, 214, 210)' &&
           s.chev &&
           near(s.right, 1424)
         )
       }),
-    `kit-sync KS10: Title font / Cover / Finish are selects h 36, r 8, #D7D7D7, chevron 16, right edge 1424 — ${JSON.stringify(sels)}`,
+    `kit-sync KS10: Title font / Cover / Finish are selects h 36, r 8, #D8D6D2, chevron 16, right edge 1424 — ${JSON.stringify(sels)}`,
   ).toBe(true)
   await page
     .locator(`${DEMO} [data-testid="cover-material"]`)

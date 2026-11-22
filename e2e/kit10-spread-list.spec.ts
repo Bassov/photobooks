@@ -12,7 +12,7 @@ test('spread list follows kit v0.10 structure and tokens', async ({ page }) => {
   await openSessionEditor(page)
   const panel = page.getByTestId('spreads-panel')
   await expect(panel).toBeVisible()
-  await expect(panel).toHaveCSS('background-color', 'rgb(225, 225, 225)')
+  await expect(panel).toHaveCSS('background-color', 'rgb(227, 225, 221)')
   const width = await panel.evaluate((el) => el.getBoundingClientRect().width)
   expect(Math.round(width)).toBe(212)
 

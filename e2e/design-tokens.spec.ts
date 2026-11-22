@@ -32,8 +32,8 @@ test('specimen page shows token swatches without third-party fonts', async ({
     const fg = (el: Element | null) => (el ? getComputedStyle(el).color : '')
     return { chrome: bg(chrome), sel: bg(sel), muted: fg(muted) }
   })
-  // Kit v0.9.3: --chrome #E1E1E1, --color-sel #CACACA, --muted-foreground #535152
-  expect(twColors.chrome).toMatch(/225,\s*225,\s*225/)
+  // Kit v0.9.3: --chrome #E3E1DD (P10), --color-sel #CACACA, --muted-foreground #535152
+  expect(twColors.chrome).toMatch(/227,\s*225,\s*221/)
   expect(twColors.sel).toMatch(/202,\s*202,\s*202/)
   expect(twColors.muted).toMatch(/83,\s*81,\s*82/)
   await expect(page.getByText('Semantic colour roles')).toBeVisible()
@@ -172,9 +172,9 @@ test('book paper and canvas use light Theme B tokens', async ({ page }) => {
   })
 
   expect(['#ffffff', '#fff']).toContain(colors.paper.toLowerCase())
-  // Kit v0.9.3 Procreate-light surfaces
-  expect(colors.canvas.toLowerCase()).toBe('#c8cacb')
-  expect(colors.chrome.toLowerCase()).toBe('#e1e1e1')
+  // Kit v0.9.3 Procreate-light surfaces, P10 warm neutrals
+  expect(colors.canvas.toLowerCase()).toBe('#c9c7c3')
+  expect(colors.chrome.toLowerCase()).toBe('#e3e1dd')
   // rgb(255, 255, 255) == #fff / #ffffff
   expect(colors.spreadBg).toMatch(/255,\s*255,\s*255/)
   await assertDocumentFitsViewport(page)
@@ -186,7 +186,7 @@ test('editor top bar follows kit v0.10 structure and tokens', async ({
   await page.goto('/?fixture=painter')
   const bar = page.getByTestId('editor-bar')
   await expect(bar).toBeVisible()
-  await expect(bar).toHaveCSS('background-color', 'rgb(225, 225, 225)')
+  await expect(bar).toHaveCSS('background-color', 'rgb(227, 225, 221)')
   await expect(page.getByTestId('go-library')).toContainText('Library')
   await expect(page.getByTestId('book-title')).toBeVisible()
   await expect(page.getByTestId('undo')).toBeVisible()
@@ -194,7 +194,7 @@ test('editor top bar follows kit v0.10 structure and tokens', async ({
   await expect(page.getByTestId('zoom-menu')).toBeVisible()
   const present = page.getByTestId('present')
   await expect(present).toHaveText('Preview')
-  await expect(present).toHaveCSS('background-color', 'rgb(215, 215, 215)')
+  await expect(present).toHaveCSS('background-color', 'rgb(216, 214, 210)')
   // Print (pdf-export D1): one icon-only 40 × 32 pill, quiet like Settings.
   const print = bar.getByRole('button', { name: 'Print', exact: true })
   await expect(print).toHaveCount(1)

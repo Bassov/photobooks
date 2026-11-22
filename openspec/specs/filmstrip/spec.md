@@ -202,7 +202,7 @@ A thumb320 decode cancelled because its asset left the now set (queued, deferred
 
 ### Requirement: Tone-only filmstrip selection and used badges
 
-Selected filmstrip thumbs SHALL use tone fill `#CACACA` only (no black ring-select, no blue). Keyboard focus MAY show a gray a11y ring. Used/placed photos SHALL show a corner check (black/55 disc, white check; a `✓ N` count for 2+ places; no green, no blue). The dock bar is `#E1E1E1` with a plain head “Photos · {gallery} · {used} used” and quiet ghost sort/filter chips. Folder-import and filmstrip folder messages (“no new photos”, loose-file drop hints, skip summaries) MUST go to the editor status line, not toast popups.
+Selected filmstrip thumbs SHALL use tone fill `#CACACA` only (no black ring-select, no blue). Keyboard focus MAY show a gray a11y ring. Used/placed photos SHALL show a corner check (black/55 disc, white check; a `✓ N` count for 2+ places; no green, no blue). The dock bar is the warm chrome `#E3E1DD` with a plain head “Photos · {gallery} · {used} used” and quiet ghost sort/filter chips. Folder-import and filmstrip folder messages (“no new photos”, loose-file drop hints, skip summaries) MUST go to the editor status line, not toast popups.
 
 #### Scenario: Selected thumb is tone-only
 

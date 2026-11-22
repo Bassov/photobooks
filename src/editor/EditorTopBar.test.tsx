@@ -239,7 +239,7 @@ describe('EditorTopBar', () => {
       expect(pill.className).not.toContain('e7-sec')
     }
     for (const pill of [preview, settings, exportSite]) {
-      expect(pill.style.background).toBe('#D7D7D7')
+      expect(pill.style.background).toBe('#D8D6D2')
       expect(pill.style.color).toBe('#393738')
     }
     // walkthrough-polish-review P8: Publish is the ink pill, painted by

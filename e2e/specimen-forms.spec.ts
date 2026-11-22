@@ -8,7 +8,7 @@ test('specimen forms: grayscale field, ink focus ring, keyboard step', async ({
   await expect(forms).toBeVisible()
 
   const text = page.getByTestId('specimen-text')
-  await expect(text).toHaveCSS('background-color', 'rgb(215, 215, 215)')
+  await expect(text).toHaveCSS('background-color', 'rgb(216, 214, 210)')
   await text.focus()
   await expect(text).toHaveCSS('outline-color', 'rgb(83, 81, 82)')
 

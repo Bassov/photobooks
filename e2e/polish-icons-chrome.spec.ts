@@ -12,7 +12,7 @@ test.use({ viewport: { width: 1440, height: 900 } })
 const INK = 'rgb(35, 34, 35)'
 const INK_HOVER = 'rgb(58, 56, 57)'
 const ON_INK = 'rgb(242, 242, 242)'
-const QUIET = 'rgb(215, 215, 215)'
+const QUIET = 'rgb(216, 214, 210)'
 const SHADOW_XS = 'rgba(20, 20, 19, 0.06) 0px 1px 2px 0px'
 const DOT = 'rgba(255, 255, 255, 0.3)'
 /** Rendered icon width → stroke (P6). */
@@ -110,8 +110,9 @@ async function expectQuietDots(canvas: Locator) {
       { x: 16, y: 16 },
       { x: 24, y: 24 },
     ])
-  expect([cr, cg, cb]).toEqual([200, 202, 203])
-  // 200 + .30 × 55 ≈ 216.5 (the .55 dot painted ≈ 230).
+  // P10 warm canvas #C9C7C3.
+  expect([cr, cg, cb]).toEqual([201, 199, 195])
+  // 201 + .30 × 54 ≈ 217 (blue 195 + .30 × 60 = 213; the .55 dot painted ≈ 230).
   for (const [dot, base] of [
     [dr, cr],
     [dg, cg],

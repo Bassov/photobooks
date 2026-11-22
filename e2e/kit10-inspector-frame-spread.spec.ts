@@ -5,11 +5,11 @@ import { expandDisclosure } from './fixtures/expandDisclosure'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import { installPhotoDirectoryPickerStub } from './fixtures/photoDirectoryPicker'
 
-// uikit/src/index.css: --muted-foreground #535152, --field #D7D7D7.
+// uikit/src/index.css: --muted-foreground #535152, --field #D8D6D2.
 const MUTED = 'rgb(83, 81, 82)'
 // --foreground (--t-text #393738).
 const FOREGROUND = 'rgb(57, 55, 56)'
-const FIELD = 'rgb(215, 215, 215)'
+const FIELD = 'rgb(216, 214, 210)'
 
 test.beforeEach(async ({ page }) => {
   await installPhotoDirectoryPickerStub(page)

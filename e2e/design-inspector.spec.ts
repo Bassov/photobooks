@@ -13,8 +13,8 @@ import {
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
 
-// uikit/src/index.css: --field #D7D7D7.
-const FIELD = 'rgb(215, 215, 215)'
+// uikit/src/index.css: --field #D8D6D2 (P10 warm neutrals).
+const FIELD = 'rgb(216, 214, 210)'
 
 test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: false })

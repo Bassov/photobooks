@@ -25,7 +25,7 @@
 .pb-segmented__segment:hover {
   color: var(--foreground);
 }
-/* Kit raised pill: chrome #E1E1E1 on the #D7D7D7 field track, never darker
+/* Kit raised pill: chrome #E3E1DD on the #D8D6D2 field track, never darker
    than the track (Owner Must M67, round 10). */
 .pb-segmented__segment--selected,
 .pb-segmented__segment--selected:hover {

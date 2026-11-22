@@ -147,7 +147,7 @@ test('site-preview-mode: #/demo Preview dialog, room under the bar, keys / focus
         JSON.stringify(sp0.root) ===
           JSON.stringify(['fixed', 'dialog', 'true', 'Site preview']) &&
         sp0.bar?.[0] === 48 &&
-        sp0.bar[1] === 'rgb(225, 225, 225)' &&
+        sp0.bar[1] === 'rgb(227, 225, 221)' &&
         String(sp0.bar[2]).includes('inset') &&
         near(sp0.back?.[0], 12) &&
         near(sp0.back?.[1], 8) &&
@@ -156,7 +156,7 @@ test('site-preview-mode: #/demo Preview dialog, room under the bar, keys / focus
         sp0.backTitle === 'Back to the editor (Esc)' &&
         sp0.backKeys === 'Escape' &&
         near(sp0.label?.[0], (sp0.back?.[0] ?? 0) + (sp0.back?.[2] ?? 0) + 8),
-      `site-preview-mode §2: Preview opens the site preview dialog in the editor stage — 48 px #E1E1E1 bar with an inset rule, Back x 12 y 8 h 32 on the Library link, label 8 px right of Back: ${JSON.stringify(sp0)}`,
+      `site-preview-mode §2: Preview opens the site preview dialog in the editor stage — 48 px #E3E1DD bar with an inset rule, Back x 12 y 8 h 32 on the Library link, label 8 px right of Back: ${JSON.stringify(sp0)}`,
     )
     .toBe(true)
   expect

@@ -52,7 +52,7 @@ const FOOT = 'mt-3.5 flex items-center gap-4 @max-[480px]:flex-wrap'
 const NOTE = 'min-w-0 flex-1 text-xs leading-[16.8px] text-muted-foreground'
 const BTNS = 'flex shrink-0 gap-2 @max-[480px]:ml-auto'
 const LINK_BTN =
-  'inline-flex h-(--control-sm) items-center gap-1.5 rounded-md bg-field px-3 text-sm font-medium text-foreground no-underline shadow-xs hover:bg-[#CFCFCF]'
+  'inline-flex h-(--control-sm) items-center gap-1.5 rounded-md bg-field px-3 text-sm font-medium text-foreground no-underline shadow-xs hover:bg-[#CDCAC5]'
 const TEXT_LINK =
   'inline-flex items-center gap-1 text-xs text-foreground underline decoration-foreground/35 underline-offset-4'
 const SELECT =
@@ -91,7 +91,7 @@ function Ext({
 
 const MARKER: Record<StepMark, string> = {
   current: 'bg-[#232223] text-[#F2F2F2]',
-  done: 'bg-[#D7D7D7] text-[#393738] [&_svg]:stroke-[2.5]',
+  done: 'bg-[#D8D6D2] text-[#393738] [&_svg]:stroke-[2.5]',
   future: 'text-[#535152]',
 }
 const MARKER_STYLE: Record<StepMark, CSSProperties | undefined> = {
@@ -163,7 +163,7 @@ function StepHead({
           size="sm"
           className={cn(
             XS_GHOST,
-            'text-foreground! data-[hovered]:bg-[#CFCFCF]!',
+            'text-foreground! data-[hovered]:bg-[#CDCAC5]!',
           )}
           onPress={onChange}
           data-testid={`hosting-step-${String(n)}-change`}
