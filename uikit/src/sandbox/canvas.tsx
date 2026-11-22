@@ -619,7 +619,8 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
       // direct crop: the photo keeps its page rect; Fill scales it about the fixed edge point only when it would stop covering
       const crop = direct(f) ? keepPhoto(f, r, { x: h.includes("e") ? r.x : h.includes("w") ? r.x + r.w : r.x + r.w / 2, y: h.includes("s") ? r.y : h.includes("n") ? r.y + r.h : r.y + r.h / 2 }) : {}
       st.preview((d) => mapSpread(d, si, (sp) => ({ ...sp, template: null, frames: sp.frames.map((q) => (q.id === f.id ? { ...q, ...r, ...crop } : q)) })))
-    }, (m) => m && st.commit(direct(f) ? "Crop frame" : "Resize frame"))
+      // Esc (or a lost pointer) mid resize: back to the start size, no step, selection kept (prod frameHandleGesture)
+    }, (m) => m && st.commit(direct(f) ? "Crop frame" : "Resize frame"), () => st.cancelPreview())
   }
   const onBgDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return

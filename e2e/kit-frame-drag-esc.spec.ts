@@ -130,3 +130,67 @@ for (const pre of ['unselected', 'selected'] as const) {
     expect(hb.x).toBeLessThanOrEqual(end.x + end.width + 12)
   })
 }
+
+// design-r48 M159 (prod twin: src/editor/frameHandleGesture.ts Esc): Esc
+// during a resize-handle drag puts the frame back at its start size.
+
+/** select the middle frame, press its se handle and drag it +30/+20 px */
+async function resizeSe(page: Page) {
+  await heroTwo(page)
+  const f = frames(page).nth(1)
+  const start = await box(f)
+  await preselect(
+    page,
+    'selected',
+    start.x + start.width / 2,
+    start.y + start.height / 2,
+  )
+  const undo0 = await undo(page).getAttribute('aria-label')
+  const se = await box(paper(page).locator('[data-handle="se"]'))
+  const hx = se.x + se.width / 2
+  const hy = se.y + se.height / 2
+  await page.mouse.move(hx, hy)
+  await page.mouse.down()
+  await page.mouse.move(hx + 30, hy + 20, { steps: 8 })
+  await expect
+    .poll(async () => (await box(f)).width - start.width)
+    .toBeGreaterThan(10)
+  return { f, start, undo0, hx, hy }
+}
+
+test('design-r48 M159 (#/demo): Esc mid resize puts the frame back at its start size, release adds no step', async ({
+  page,
+}) => {
+  const { f, start, undo0, hx, hy } = await resizeSe(page)
+  await page.keyboard.press('Escape')
+  await expect
+    .poll(async () => Math.abs((await box(f)).width - start.width))
+    .toBeLessThanOrEqual(0.5)
+  // the pointer goes on after Esc: the gesture is over, nothing follows it
+  await page.mouse.move(hx + 50, hy + 40, { steps: 3 })
+  await page.mouse.up()
+  await settled(page)
+
+  const end = await box(f)
+  expect(Math.abs(end.x - start.x)).toBeLessThanOrEqual(0.5)
+  expect(Math.abs(end.y - start.y)).toBeLessThanOrEqual(0.5)
+  expect(Math.abs(end.width - start.width)).toBeLessThanOrEqual(0.5)
+  expect(Math.abs(end.height - start.height)).toBeLessThanOrEqual(0.5)
+  await expect(undo(page)).toHaveAttribute('aria-label', undo0 ?? '')
+  await expect(name(page)).toHaveText('Hero + two')
+  // Esc ended the resize, not the selection
+  await expect(handles(page).first()).toBeVisible()
+  await expect(D(page, '[data-testid="snap-line"]')).toHaveCount(0)
+})
+
+test('design-r48 M159 (#/demo): a resize without Esc still commits "Resize frame"', async ({
+  page,
+}) => {
+  const { f, start } = await resizeSe(page)
+  await page.mouse.up()
+  await settled(page)
+
+  expect((await box(f)).width - start.width).toBeGreaterThan(10)
+  await expect(undo(page)).toHaveAttribute('aria-label', /Resize frame/)
+  await expect(D(page, '[data-testid="snap-line"]')).toHaveCount(0)
+})
