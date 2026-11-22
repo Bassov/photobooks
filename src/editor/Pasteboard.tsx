@@ -1,4 +1,5 @@
 import {
+  Fragment,
   memo,
   startTransition,
   useEffect,
@@ -50,9 +51,11 @@ import {
   type PasteboardWindow,
 } from './pasteboardWindow'
 import { Icon } from '../ui/Icon'
+import { LayoutCycle } from './LayoutCycle'
 import { PageLabels } from './PageLabels'
 import {
   NEW_SPREAD_PILL_SHIFT_PX,
+  layoutCycleFits,
   newSpreadPillFits,
   pageLabelsFit,
 } from './pageLabelsModel'
@@ -592,55 +595,79 @@ export const Pasteboard = memo(function Pasteboard({
             {mounted.map((spreadId, index) => {
               const slotIndex = range.start + index
               const side = getSinglePageSide(slotIndex, spreadIds.length)
+              // A single page keeps a spread-wide slot (kit #/demo).
+              // Explicit: a skipped content-visibility slot has no
+              // intrinsic width to fit.
+              const slotWidth =
+                getSpreadSlotPageCount(slotIndex, spreadIds.length) *
+                trimWidthMm *
+                pxPerMm
               return (
-                <div
-                  key={spreadId}
-                  className="pasteboard-slot"
-                  data-pasteboard-slot=""
-                  data-testid="pasteboard-slot"
-                  data-spread-id={spreadId}
-                  data-slot-index={slotIndex}
-                  data-active={markedId === spreadId ? 'true' : 'false'}
-                  data-page-side={side ?? undefined}
-                  style={{
-                    height: stride,
-                    // A single page keeps a spread-wide slot (kit #/demo).
-                    // Explicit: a skipped content-visibility slot has no
-                    // intrinsic width to fit.
-                    width:
-                      getSpreadSlotPageCount(slotIndex, spreadIds.length) *
-                      trimWidthMm *
-                      pxPerMm,
-                    paddingBottom: gapPx,
-                    containIntrinsicBlockSize: `auto ${String(stride)}px`,
-                    ['--slot-pad' as string]: `${String(gapPx)}px`,
-                  }}
-                >
-                  <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />
-                  {pageLabelsFit(gapPx) ? (
-                    <PageLabels
-                      gapPx={gapPx}
-                      spreadIndex={slotIndex}
-                      pages={getSpreadPageCount(slotIndex, spreadIds.length)}
-                      side={side}
-                    />
-                  ) : null}
-                  {newSpreadPillFits(gapPx) ? (
+                <Fragment key={spreadId}>
+                  {/* The pill lives outside the slot: the slot's paint
+                      containment would clip it above the paper top. A
+                      zero-height anchor in flow puts its top on the slot's
+                      top edge (= paper top). */}
+                  {markedId === spreadId &&
+                  layoutCycleFits(slotIndex, gapPx) ? (
                     <div
-                      className="pasteboard-gap"
-                      data-testid="pasteboard-gap"
-                      data-gap-insert-index={slotIndex + 1}
-                      data-camera-frame=""
-                      aria-hidden="true"
-                      style={{
-                        ['--pill-shift' as string]: `${String(NEW_SPREAD_PILL_SHIFT_PX)}px`,
-                      }}
+                      className="layout-cycle-anchor"
+                      data-testid="layout-cycle-anchor"
+                      style={{ width: slotWidth }}
                     >
-                      <Icon name="addSpread" size={14} />
-                      Drop here for a new spread
+                      <LayoutCycle
+                        spreadId={spreadId}
+                        slotIndex={slotIndex}
+                        side={side}
+                        gapPx={gapPx}
+                      />
                     </div>
                   ) : null}
-                </div>
+                  <div
+                    className="pasteboard-slot"
+                    data-pasteboard-slot=""
+                    data-testid="pasteboard-slot"
+                    data-spread-id={spreadId}
+                    data-slot-index={slotIndex}
+                    data-active={markedId === spreadId ? 'true' : 'false'}
+                    data-page-side={side ?? undefined}
+                    style={{
+                      height: stride,
+                      width: slotWidth,
+                      paddingBottom: gapPx,
+                      containIntrinsicBlockSize: `auto ${String(stride)}px`,
+                      ['--slot-pad' as string]: `${String(gapPx)}px`,
+                    }}
+                  >
+                    <ConnectedSpreadView
+                      spreadId={spreadId}
+                      pxPerMm={pxPerMm}
+                    />
+                    {pageLabelsFit(gapPx) ? (
+                      <PageLabels
+                        gapPx={gapPx}
+                        spreadIndex={slotIndex}
+                        pages={getSpreadPageCount(slotIndex, spreadIds.length)}
+                        side={side}
+                      />
+                    ) : null}
+                    {newSpreadPillFits(gapPx) ? (
+                      <div
+                        className="pasteboard-gap"
+                        data-testid="pasteboard-gap"
+                        data-gap-insert-index={slotIndex + 1}
+                        data-camera-frame=""
+                        aria-hidden="true"
+                        style={{
+                          ['--pill-shift' as string]: `${String(NEW_SPREAD_PILL_SHIFT_PX)}px`,
+                        }}
+                      >
+                        <Icon name="addSpread" size={14} />
+                        Drop here for a new spread
+                      </div>
+                    ) : null}
+                  </div>
+                </Fragment>
               )
             })}
             {shouldRenderSpacer(range.tailPx) ? (

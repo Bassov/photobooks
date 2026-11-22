@@ -48,3 +48,18 @@ export const NEW_SPREAD_PILL_MIN_GAP_PX =
 export function newSpreadPillFits(gapPx: number): boolean {
   return gapPx >= NEW_SPREAD_PILL_MIN_GAP_PX
 }
+
+/** Layout-cycle pill (Designer cycle-layouts): 28 high, 8 above the paper. */
+const LAYOUT_CYCLE_HEIGHT_PX = 28
+const LAYOUT_CYCLE_OFFSET_PX = 8
+
+/**
+ * The previous spread's page labels, then 8 + pill + 8 clear: a stacked
+ * spread under a shorter gap shows no pill. The first slot always has room.
+ */
+export const LAYOUT_CYCLE_MIN_GAP_PX =
+  PAGE_LABELS_MIN_GAP_PX + 2 * LAYOUT_CYCLE_OFFSET_PX + LAYOUT_CYCLE_HEIGHT_PX
+
+export function layoutCycleFits(slotIndex: number, gapPx: number): boolean {
+  return slotIndex === 0 || gapPx >= LAYOUT_CYCLE_MIN_GAP_PX
+}

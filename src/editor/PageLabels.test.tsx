@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { dropChipLabel } from '../render/dropChip'
 import { PageLabels } from './PageLabels'
 import {
+  LAYOUT_CYCLE_MIN_GAP_PX,
+  layoutCycleFits,
   PAGE_LABEL_LINE_PX,
   PAGE_LABEL_OFFSET_PX,
   PAGE_LABELS_MIN_GAP_PX,
@@ -53,6 +55,16 @@ describe('page labels', () => {
     expect(newSpreadPillFits(70.01)).toBe(true)
     expect(newSpreadPillFits(69.99)).toBe(false)
     expect(newSpreadPillFits(0)).toBe(false)
+  })
+
+  it('shows the layout pill on the first slot always, else when the gap holds it', () => {
+    expect(LAYOUT_CYCLE_MIN_GAP_PX).toBe(19 + 8 + 28 + 8)
+    expect(layoutCycleFits(0, 0)).toBe(true)
+    expect(layoutCycleFits(0, 100)).toBe(true)
+    expect(layoutCycleFits(1, 63)).toBe(true)
+    expect(layoutCycleFits(1, 62.99)).toBe(false)
+    expect(layoutCycleFits(2, 100)).toBe(true)
+    expect(layoutCycleFits(2, 0)).toBe(false)
   })
 
   it('centres the pill between the page-number line and the next spread', () => {

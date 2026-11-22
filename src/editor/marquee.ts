@@ -13,7 +13,7 @@ const PORT_SELECTOR =
   '[data-testid="pasteboard-scroll"], [data-testid="masters-canvas"]'
 /** Presses on these own their gesture; a marquee starts only on bare paper or gray. */
 const NOT_PAPER =
-  'button, a, input, textarea, [role="button"], [data-handle], .guide-line'
+  'button, a, input, textarea, [role="button"], [data-handle], .guide-line, .layout-cycle'
 
 interface ClientBox {
   left: number

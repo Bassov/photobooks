@@ -2,12 +2,14 @@ import {
   customLayoutRects,
   generateTemplateFrames,
   getSpreadPageCount,
+  getSpreadSizeMm,
   isTemplateId,
   parseContactSheetId,
   TEMPLATE_IDS,
   type Book,
   type FixedTemplateId,
   type RectMm,
+  type SavedTemplate,
   type Spread,
 } from '../core'
 import { applyMarkedSpreadTemplate } from './applyMarkedSpreadTemplate'
@@ -195,19 +197,105 @@ export function layoutRects(
  * Apply a catalog template or a saved layout to a spread; the op skips a
  * saved layout of another page count.
  */
-export function applyLayout(spreadId: string, templateId: string): void {
+export function applyLayout(
+  spreadId: string,
+  templateId: string,
+  step: { historyKey?: string; label?: string } = {},
+): void {
   if (isTemplateId(templateId)) {
-    applyMarkedSpreadTemplate(spreadId, templateId)
+    applyMarkedSpreadTemplate(spreadId, templateId, step)
     return
   }
   const saved = findSavedTemplate(templateId)
   if (saved !== undefined) {
-    dispatchBookOp({
-      type: 'applyCustomLayout',
-      spreadId,
-      templateId,
-      slots: saved.slots,
-      pages: saved.pages,
-    })
+    dispatchBookOp(
+      {
+        type: 'applyCustomLayout',
+        spreadId,
+        templateId,
+        slots: saved.slots,
+        pages: saved.pages,
+      },
+      step.historyKey,
+      step.label,
+    )
   }
+}
+
+/** The picker's builtins on a spread (kit order, margin variants merged). */
+export function pickerBuiltins(
+  book: Book,
+  spreadIndex: number,
+  spread: Spread,
+): { items: LayoutItem[]; aliases: ReadonlyMap<string, string> } {
+  return mergeLayouts(
+    LAYOUT_PICKER.map((id): LayoutItem => ({
+      id,
+      name: TEMPLATE_NAMES[id],
+      rects: generateTemplateFrames(id, book, spreadIndex, spread).map(
+        (frame) => frame.rect,
+      ),
+      saved: false,
+    })),
+    getSpreadSizeMm(book, spreadIndex),
+  )
+}
+
+/** My templates saved on this spread's page shape, in save order. */
+export function pickerSaved(
+  book: Book,
+  spreadIndex: number,
+  mine: readonly SavedTemplate[],
+): LayoutItem[] {
+  const pages = getSpreadPageCount(spreadIndex, book.spreads.length)
+  return mine
+    .filter((t) => t.pages === pages)
+    .map((t) => ({
+      id: t.id,
+      name: t.name,
+      rects: customLayoutRects(book, spreadIndex, t.slots),
+      saved: true,
+    }))
+}
+
+/**
+ * The picker list of a spread (Designer cycle-layouts D4): builtins, then My
+ * templates of this page shape; `aliases` maps a merged-away builtin to the
+ * tile that stands for it.
+ */
+export function pickerLayouts(
+  book: Book,
+  spreadIndex: number,
+  spread: Spread,
+  mine: readonly SavedTemplate[],
+): { items: LayoutItem[]; aliases: ReadonlyMap<string, string> } {
+  const builtins = pickerBuiltins(book, spreadIndex, spread)
+  return {
+    items: [...builtins.items, ...pickerSaved(book, spreadIndex, mine)],
+    aliases: builtins.aliases,
+  }
+}
+
+/** The layouts a spread with `slots` photo frames cycles through (D3 / D4). */
+export function cycleSet<T extends { rects: readonly RectMm[] }>(
+  items: readonly T[],
+  slots: number,
+): T[] {
+  return slots < 1 ? [] : items.filter((item) => item.rects.length === slots)
+}
+
+/**
+ * The next (`dir` 1) or previous (-1) layout of the set, wrapping at both
+ * ends; a current not in the set (Custom) gives the first / last; undefined
+ * for an empty set.
+ */
+export function stepLayout<T extends { id: string }>(
+  set: readonly T[],
+  current: string | undefined,
+  dir: 1 | -1,
+): T | undefined {
+  const index = set.findIndex((item) => item.id === current)
+  // Custom: › lands on the first (from -1), ‹ on the last (from 0).
+  const from = index < 0 ? Math.min(-dir, 0) : index
+  return set[(from + dir + set.length) % set.length]
 }
