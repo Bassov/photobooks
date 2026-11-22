@@ -10,3 +10,5 @@
 
 1. Prod editor at 1440×900: top bar, panels and dock read warm grey; canvas behind the spread is the warm canvas; Preview / Settings pills are the warm field; paper stays white.
 2. Library home and Settings: quiet search / sort fields and the selected nav row are warm; hover fills stay visible.
+
+manual-qa 2026-11-22: problem (harness) — both scenarios blocked at the welcome `start-session` click (header intercepts pointer events), no colours measured. Evidence instead: `e2e/kit-warm-chrome.spec.ts` (prod + kit paint at 1440×900), `library-screens`, `printer-presets`, `frame-context-menu`, `settings-profile-fields` pins green locally.
