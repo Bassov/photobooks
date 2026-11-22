@@ -319,6 +319,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [design-r38-badge-reveal-prod](roadmap/P5/design-r38-badge-reveal-prod.md) — Bug: /next-roadmap-item design-r38-badge-reveal-prod
 - [ ] [feature] [cycle-layouts-kit](roadmap/P5/cycle-layouts-kit.md) — Bug: /next-roadmap-item cycle-layouts-kit
 - [ ] [lite] [design-r41-esc-kit](roadmap/P5/design-r41-esc-kit.md) — Bug: /next-roadmap-item design-r41-esc-kit
+- [ ] [feature] [polish-warm-chrome](roadmap/P5/polish-warm-chrome.md) — Bug: /next-roadmap-item polish-warm-chrome
 - [ ] [feature] [interface-size-core](roadmap/P5/interface-size-core.md) — Bug: /next-roadmap-item interface-size-core
 - [ ] [feature] [interface-size-pointer](roadmap/P5/interface-size-pointer.md) — Bug: /next-roadmap-item interface-size-pointer
 - [ ] [feature] [interface-size](roadmap/P5/interface-size.md) — Bug: /next-roadmap-item interface-size
