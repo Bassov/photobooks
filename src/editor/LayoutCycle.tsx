@@ -1,7 +1,6 @@
 import { useMemo, useSyncExternalStore, type PointerEvent } from 'react'
 import { Button } from 'react-aria-components'
 import { Icon } from '../ui/Icon'
-import { Tooltip, TooltipTrigger } from '../ui/Tooltip'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import {
   cycleLayout,
@@ -38,19 +37,22 @@ const CYCLE_BUTTONS = {
 function CycleButton({ spreadId, dir }: { spreadId: string; dir: 1 | -1 }) {
   const { label, testId, icon, keys } = CYCLE_BUTTONS[dir]
   return (
-    <TooltipTrigger>
-      <Button
-        className="layout-cycle-button"
-        aria-label={label}
-        data-testid={testId}
-        onPress={() => {
-          cycleLayout(spreadId, dir)
-        }}
-      >
-        <Icon name={icon} size={16} />
-      </Button>
-      <Tooltip placement="top">{`${label} ${keys}`}</Tooltip>
-    </TooltipTrigger>
+    // The top-bar panel toggles' dark tooltip (`e7-tip` / `e7-tt`,
+    // editorChromeTokens), flipped above the button in LayoutCycle.css.
+    <Button
+      className="layout-cycle-button e7-tip"
+      aria-label={label}
+      data-testid={testId}
+      onPress={() => {
+        cycleLayout(spreadId, dir)
+      }}
+    >
+      <Icon name={icon} size={16} />
+      <span className="e7-tt" aria-hidden>
+        {label}
+        <kbd>{keys}</kbd>
+      </span>
+    </Button>
   )
 }
 

@@ -96,19 +96,18 @@ describe('LayoutCycle', () => {
     expect(next.querySelector('[data-icon]')?.getAttribute('data-icon')).toBe(
       'chevronRight',
     )
-    for (const [button, tip] of [
-      [prev, 'Previous layout ⇧['],
-      [next, 'Next layout ⇧]'],
+    // The top-bar dark tooltip markup: label + key hint, hidden from AT.
+    for (const [button, label, keys] of [
+      [prev, 'Previous layout', '⇧['],
+      [next, 'Next layout', '⇧]'],
     ] as const) {
-      fireEvent.keyDown(document.body, { key: 'Tab' })
-      act(() => {
-        button.focus()
-      })
-      expect(screen.getByRole('tooltip').textContent).toBe(tip)
-      act(() => {
-        button.blur()
-      })
+      expect(button.classList.contains('e7-tip')).toBe(true)
+      const tip = button.querySelector(':scope > .e7-tt')
+      expect(tip?.getAttribute('aria-hidden')).toBe('true')
+      expect(tip?.firstChild?.textContent).toBe(label)
+      expect(tip?.querySelector('kbd')?.textContent).toBe(keys)
     }
+    expect(screen.queryByRole('tooltip')).toBeNull()
   })
 
   it('renders nothing for a slot past the last spread', () => {
