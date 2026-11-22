@@ -232,9 +232,12 @@ test('hidden under a short gap (keys still act), in Masters, in Preview and duri
   await page.getByRole('tab', { name: 'Pages' }).click()
   await expect(pill(page)).toBeVisible()
 
+  // Preview: ⇧] records no layout step (same layout name after Esc).
+  const before = await pillName(page).textContent()
   await page.getByTestId('present').click()
   await expect(pill(page)).toBeHidden()
   await page.keyboard.press('Shift+BracketRight')
   await page.keyboard.press('Escape')
   await expect(pill(page)).toBeVisible()
+  await expect(pillName(page)).toHaveText(before ?? '')
 })

@@ -1,8 +1,15 @@
 /* Designer cycle-layouts (kit `.layout-cycle`): a pill centred over the
-   active paper, its bottom 8 screen px above the paper top. The slot's top
-   edge is the paper top; --cam-scale (set on [data-camera-frame] during a
-   live zoom) keeps every size in screen px. A single page centres on its
-   half of the spread-wide slot. */
+   active paper, its bottom 8 screen px above the paper top. It hangs off a
+   zero-height, slot-wide anchor placed in flow right before the active
+   slot (whose paint containment would clip it), so the anchor's top is the
+   paper top; --cam-scale (set on [data-camera-frame] during a live zoom)
+   keeps every size in screen px. A single page centres on its half of the
+   spread-wide slot. */
+.layout-cycle-anchor {
+  position: relative;
+  height: 0;
+  margin-inline: auto;
+}
 .layout-cycle {
   position: absolute;
   left: 50%;
