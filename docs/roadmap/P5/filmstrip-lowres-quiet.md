@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P5
 Title: Bug: /next-roadmap-item filmstrip-lowres-quiet
+Status: done
 
 ## Scope
 
