@@ -16,6 +16,7 @@ import { openSessionEditor } from './fixtures/openSessionEditor'
 
 // Neutral --parent (#6b696a) is within 2/255 of gray; color-mix may
 // serialize as color(srgb r g b / a), so read the first three numbers.
+// The chip fill is the P10 warm field token (#D8D6D2), pinned exactly.
 const nearGray = (css: string): boolean => {
   const m = css.match(/\d+(\.\d+)?/g)
   if (m === null || m.length < 3) {
@@ -127,7 +128,7 @@ test('drop target and placed marker use the grayscale kit look', async ({
   expect(nearGray(overlay.background)).toBe(true)
   const chip = await pseudo(hovered, '::after')
   expect(chip.content).toBe('"Release to place"')
-  expect(nearGray(chip.background)).toBe(true)
+  expect(chip.background).toBe('rgb(216, 214, 210)') // --field (P10)
   expect(nearGray(chip.color)).toBe(true)
 
   // Other empty frames get the dashed idle hint while an asset is dragged.

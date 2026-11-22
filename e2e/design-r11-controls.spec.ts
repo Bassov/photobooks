@@ -27,8 +27,8 @@ import {
 //     64 × 18.84; Pages Inter 13px; PRINT B / S values ui-monospace 13px,
 //     x 1186 / 1324, y 848.34 (782.34 before printer-presets), 60 × 18.84.
 // M70 buttons (kit `outline`, no border: `0px solid rgba(0, 0, 0, 0)`):
-//     Crop: 130 × 32 at x 1156, bg rgb(215, 215,
-//     215), box-shadow 0 1px 2px rgba(20, 20, 19, .06) (kit `shadow-xs`;
+//     Crop: 130 × 32 at x 1156, bg rgb(216, 214,
+//     210) (P10 field), box-shadow 0 1px 2px rgba(20, 20, 19, .06) (kit `shadow-xs`;
 //     its leading transparent ring layers are dropped here), radius 8px,
 //     padding 0 12. 90° left / right, Flip H / V: P12 one 268 × 28 row of
 //     transparent 64.5 × 24 segments (inspector-rotate-row). Welcome "Create Library" 160 ×
