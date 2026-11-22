@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item design-r47-esc-tooltip
+Status: done
 
 ## Scope
 
