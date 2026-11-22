@@ -79,7 +79,7 @@ export function IconButton({
 
   if (tooltip) {
     return (
-      <TooltipTrigger delay={400} {...(isOpen === undefined ? {} : { isOpen })}>
+      <TooltipTrigger isOpen={isOpen}>
         {described}
         <Tooltip placement={placement}>{reason ?? label}</Tooltip>
       </TooltipTrigger>
