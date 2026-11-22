@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P5
 Title: Bug: /next-roadmap-item polish-warm-chrome
+Status: done
 
 Designer walkthrough-polish-review P10 "Warm neutral chrome" (Owner Q-21, Q-22); split off polish-icons-chrome (#682). Kit + prod in one PR.
 
