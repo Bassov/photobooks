@@ -45,6 +45,7 @@ import {
   subscribePendingGalleryRemove,
 } from './galleryRemoveRequest'
 import { warmNameCollator, type GallerySortKey } from './galleryView'
+import { countLowResAssets } from './pageFillLowRes'
 
 const SORT_LABELS: Record<GallerySortKey, string> = {
   captured: 'Date taken',
@@ -191,6 +192,15 @@ export function FilmstripDock({
   const count = gallery.length
   const used = gallery.filter((id) => placed.has(id)).length
   const shown = unplacedOnly ? count - used : count
+  const shownIds = unplacedOnly
+    ? gallery.filter((id) => !placed.has(id))
+    : gallery
+  const readLowRes = () => countLowResAssets(shownIds)
+  const lowRes = useSyncExternalStore(
+    subscribeBookStore,
+    readLowRes,
+    readLowRes,
+  )
 
   return (
     <div
@@ -256,6 +266,12 @@ export function FilmstripDock({
               ? `Photos · ${String(shown)} of ${String(count)} · ${String(used)} used`
               : `Photos · ${String(count)} · ${String(used)} used`}
           </span>
+          {lowRes > 0 ? (
+            <span
+              className="text-[var(--warning-ink)]"
+              data-testid="lowres-count"
+            >{` · ${String(lowRes)} low-res`}</span>
+          ) : null}
         </span>
         <div className="ml-auto flex items-center gap-2">
           <FillBookButton sort={sort} />

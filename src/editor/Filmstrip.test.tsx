@@ -237,8 +237,8 @@ describe('Filmstrip low-res chip (r15 M85)', () => {
     render(<Filmstrip />)
     expect(screen.getAllByTestId('filmstrip-item')).toHaveLength(3)
     expect(chipOf('sharp')).toBeNull()
-    expect(chipOf('soft')?.textContent).toBe('Low-res')
-    // Icon-only on narrow thumbs keeps the name on the chip itself.
+    // P11: always icon-only; the name lives on the chip itself.
+    expect(chipOf('soft')?.textContent).toBe('')
     expect(chipOf('soft')?.getAttribute('aria-label')).toBe('Low-res')
     expect(chipOf('soft')?.getAttribute('title')).toBe('Low-res')
     expect(chipOf('unknown')).toBeNull()

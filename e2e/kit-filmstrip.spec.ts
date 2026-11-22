@@ -265,7 +265,8 @@ test("screen canvas, v8 §3.1: single filmstrip label 'Photos · N · M used'", 
     (d: HTMLElement) => (d.innerText.match(/\bused\b/g) ?? []).length,
   )
   expect(
-    /^Photos · \d+ · \d+ used$/.test(t) && n === 1 && dup === 1,
+    // P11: the demo gallery holds one low-res photo (p02)
+    /^Photos · \d+ · \d+ used · 1 low-res$/.test(t) && n === 1 && dup === 1,
     `"${t}" n=${String(n)} used×${String(dup)}`,
   ).toBe(true)
   expect(errs).toEqual([])

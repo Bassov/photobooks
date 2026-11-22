@@ -322,6 +322,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [cycle-layouts](roadmap/P5/cycle-layouts.md) — Bug: /next-roadmap-item cycle-layouts
 - [ ] [lite] [design-r41-esc-kit](roadmap/P5/design-r41-esc-kit.md) — Bug: /next-roadmap-item design-r41-esc-kit
 - [ ] [feature] [polish-warm-chrome](roadmap/P5/polish-warm-chrome.md) — Bug: /next-roadmap-item polish-warm-chrome
+- [ ] [feature] [filmstrip-lowres-quiet](roadmap/P5/filmstrip-lowres-quiet.md) — Bug: /next-roadmap-item filmstrip-lowres-quiet
 - [ ] [feature] [interface-size-core](roadmap/P5/interface-size-core.md) — Bug: /next-roadmap-item interface-size-core
 - [ ] [feature] [interface-size-pointer](roadmap/P5/interface-size-pointer.md) — Bug: /next-roadmap-item interface-size-pointer
 - [ ] [lite] [design-r48-esc-resize](roadmap/P5/design-r48-esc-resize.md) — Bug: /next-roadmap-item design-r48-esc-resize

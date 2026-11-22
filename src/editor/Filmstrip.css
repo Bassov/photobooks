@@ -318,14 +318,16 @@
   }
 }
 
-/* Kit sandbox filmstrip "Low-res" chip: field chip, top-left, 10 px warning. */
+/* Kit sandbox filmstrip "Low-res" chip (P11): always icon-only, 18 × 16.84 —
+   a field chip, top-left, 10 px warning; the 2xs line box sets the height. */
 .filmstrip-lowres {
   position: absolute;
   left: calc(var(--spacing) * 1);
   top: calc(var(--spacing) * 1);
   display: inline-flex;
   align-items: center;
-  gap: calc(var(--spacing) * 1);
+  box-sizing: border-box;
+  height: calc(1lh + 2px);
   padding: 1px calc(var(--spacing) * 1);
   border-radius: var(--radius-xs);
   background: var(--field);
@@ -341,19 +343,6 @@
   width: 10px;
   height: 10px;
   stroke-width: 2;
-}
-
-/* Thumb narrower than the chip + 8 px: icon only. The zero-width label keeps
-   the text line box, so the chip stays 16.84 px tall. */
-@container (width < 73.33px) {
-  .filmstrip-lowres {
-    gap: 0;
-  }
-
-  .filmstrip-lowres-label {
-    width: 0;
-    overflow: hidden;
-  }
 }
 
 /* Missing file mark (kit sandbox `miss`): muted tile with an image-off glyph. */

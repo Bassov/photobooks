@@ -74,7 +74,11 @@ async function openBookSettings(page: Page): Promise<Locator> {
   return printer
 }
 
-const lowRes = (page: Page) => page.locator('.filmstrip-lowres-label')
+// P11: the chip is icon-only, so find it by its accessible name.
+const lowRes = (page: Page) =>
+  page
+    .getByTestId('filmstrip')
+    .getByRole('img', { name: 'Low-res', exact: true })
 
 test('Settings → Print presets matches the kit', async ({ page }) => {
   await openEditor(page)

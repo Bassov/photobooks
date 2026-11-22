@@ -443,6 +443,8 @@ function PlacedBadge({ n, picking, onPress }: { n: number; picking: boolean; onP
     </AriaButton>
   )
 }
+/** The filmstrip Low-res chip predicate, shared with the Photos header count (P11). */
+const isLowRes = (id: string) => P(id)?.lowres === true
 export function Filmstrip({ removable = false, externalDrop = false, sortable = true, onRemove }: { removable?: boolean; externalDrop?: boolean; sortable?: boolean; onRemove?: (id: string) => void }) {
   const st = useStudio()
   const cov = useCoverPhoto(), placed = withCover(placedSet(st.doc), cov, st.doc.gallery)
@@ -544,8 +546,8 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
                 {miss ? <div className="grid size-full place-items-center bg-muted text-muted-foreground"><ImageOff className="size-4" /></div>
                   : <img src={p.src} className="size-full object-cover" draggable={false} alt="" />}
                 {placed.has(p.id) && <PlacedBadge n={placesOf(st.doc, p.id, cov).length} picking={picking} onPress={() => (picking ? pickPhoto(st, p.id) : showInBook(st, p.id, cov, root.current))} />}
-                {/* Thumb narrower than the chip + 8 px (73.33): icon only; the zero-width label keeps the 16.84 px line box. */}
-                {p.lowres && <span role="img" aria-label="Low-res" title="Low-res" className={cn('absolute left-1 top-1 inline-flex items-center whitespace-nowrap rounded-xs bg-field px-1 py-px text-2xs font-medium text-ink-warning', w < 73.33 ? 'gap-0' : 'gap-1')} data-testid="lowres-chip"><AlertTriangle className="size-2.5" /><span className={w < 73.33 ? 'w-0 overflow-hidden' : undefined}>Low-res</span></span>}
+                {/* P11: always the icon-only chip, 18 × 16.84 (the 2xs line box + 1 px padding sets the height); the header counts them. */}
+                {isLowRes(p.id) && <span role="img" aria-label="Low-res" title="Low-res" className="absolute left-1 top-1 inline-flex h-[calc(1lh+2px)] items-center rounded-xs bg-field px-1 py-px text-2xs text-ink-warning" data-testid="lowres-chip"><AlertTriangle className="size-2.5" /></span>}
                 {removable && (
                   <button type="button" aria-label={`Remove ${p.name} from gallery`} onClick={(e) => { e.stopPropagation(); onRemove?.(p.id) }} onPointerDown={(e) => e.stopPropagation()}
                     className="absolute right-1 top-1 hidden size-5 place-items-center rounded-full bg-black/60 text-white group-hover/th:grid"><X className="size-3" /></button>
@@ -671,7 +673,9 @@ function ThumbResizer() {
 export function Dock({ children, left, right, templates = false, tabs = true, defaultTab = "photos" }: { children?: React.ReactNode; left?: React.ReactNode; right?: React.ReactNode; templates?: boolean | React.ReactNode; tabs?: boolean; defaultTab?: string }) {
   const st = useStudio()
   const cov = useCoverPhoto(), placed = withCover(placedSet(st.doc), cov, st.doc.gallery)
-  const shown = st.view.unplacedOnly ? st.doc.gallery.filter((p) => !placed.has(p)).length : null
+  const shownIds = st.view.unplacedOnly ? st.doc.gallery.filter((p) => !placed.has(p)) : null
+  const shown = shownIds === null ? null : shownIds.length
+  const lowRes = (shownIds ?? st.doc.gallery).filter(isLowRes).length
   return (
     <div className="relative shrink-0" style={{ background: BAR }} data-testid="dock">
       {children === undefined && <ThumbResizer />}
@@ -684,7 +688,7 @@ export function Dock({ children, left, right, templates = false, tabs = true, de
               <Tab id="templates" className={segTab}><LayoutTemplate />Templates</Tab>
             </TabList>
           )}
-          {left ?? <span className="text-sm tabular-nums" style={{ color: SUB }} data-testid="film-head"><span data-testid="placed-count">{tabs && templates !== false ? "" : "Photos · "}{shown === null ? st.doc.gallery.length : `${shown} of ${st.doc.gallery.length}`} · {placed.size} used</span></span>}
+          {left ?? <span className="text-sm tabular-nums" style={{ color: SUB }} data-testid="film-head"><span data-testid="placed-count">{tabs && templates !== false ? "" : "Photos · "}{shown === null ? st.doc.gallery.length : `${shown} of ${st.doc.gallery.length}`} · {placed.size} used</span>{lowRes > 0 && <span className="text-[var(--warning-ink)]" data-testid="lowres-count"> · {lowRes} low-res</span>}</span>}
           <div className="ml-auto flex items-center gap-2">{right ?? <FilmChips />}</div>
         </div>
         {templates === false ? <div className="mt-0 px-2 pb-1" data-testid="film-panel">{children ?? <Filmstrip />}</div> : <TabPanel id="photos" className="mt-0 px-2 pb-1">{children ?? <Filmstrip />}</TabPanel>}
