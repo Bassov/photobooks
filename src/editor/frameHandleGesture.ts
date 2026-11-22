@@ -128,6 +128,11 @@ export function installFrameHandleGesture(): () => void {
     }, 0)
   }
 
+  const swallowRelease = (): void => {
+    window.removeEventListener('pointerup', swallowRelease)
+    armSwallow()
+  }
+
   const restore = (current: Session): void => {
     for (const { style } of current.painted) {
       style.left = current.saved.left
@@ -431,6 +436,9 @@ export function installFrameHandleGesture(): () => void {
     if (event.key === 'Escape' && session !== null) {
       event.stopPropagation()
       onCancel()
+      // The button is still down (resize or rotate handle): its release must
+      // not click through and deselect the frame that was just restored.
+      window.addEventListener('pointerup', swallowRelease)
       return
     }
     const arrow = ARROW_DELTAS[event.key]

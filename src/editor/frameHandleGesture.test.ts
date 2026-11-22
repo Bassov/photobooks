@@ -489,6 +489,35 @@ describe('frameHandleGesture', () => {
       expect(frame().rect.width).toBe(50)
     })
 
+    it.each(['se', 'rotate'])(
+      'Escape mid-%s then a release outside the frame keeps the selection',
+      (id) => {
+        const handle = dom.handles.get(id)
+        assert(handle !== undefined)
+        const before = getFrameSource()
+        const { book } = getBookStoreSnapshot()
+        const history = getHistorySnapshot()
+        fire('pointerdown', handle, 150, 150)
+        fire('pointermove', window, 260, 240)
+        key('Escape')
+        fire('pointerup', window, 260, 240)
+        const click = new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+        })
+        dom.pasteboard.dispatchEvent(click)
+        expect(click.defaultPrevented).toBe(true)
+        expect(getFrameSource()).toEqual(before)
+        // No op dispatched: same book, same undo stack.
+        expect(getBookStoreSnapshot().book).toBe(book)
+        expect(getHistorySnapshot()).toEqual(history)
+        // One-shot: the next bare release + click deselects again.
+        fire('pointerup', window, 260, 240)
+        dom.pasteboard.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+        expect(getFrameSource()).toBeNull()
+      },
+    )
+
     it('arrow keys nudge 1 mm, Shift 10 mm', () => {
       key('ArrowRight')
       expect(frame().rect.x).toBe(101)
