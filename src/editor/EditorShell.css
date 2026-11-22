@@ -230,6 +230,15 @@
      (Guides.css), so the clip reaches that far out. */
   overflow-clip-margin: var(--guide-overhang);
 }
+/* The active slot's layout pill sits above the paper (LayoutCycle.css) at a
+   screen size a live zoom scales by 1 / --cam-scale, which no fixed clip
+   margin follows (overflow-clip-margin takes a literal length only): the
+   active slot, on screen anyway, drops paint containment. Its paper keeps
+   its own clip-path below. */
+.pasteboard-slot[data-active='true'] {
+  contain: layout style;
+  content-visibility: visible;
+}
 
 /* The paper keeps the slot-box clip it had before the margin: page edges,
    the gap below, a single page's empty half. Guides are its sibling. */

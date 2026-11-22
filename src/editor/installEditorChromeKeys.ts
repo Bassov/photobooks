@@ -45,6 +45,8 @@ export function installEditorChromeKeys(options: {
       return
     }
     if (mod || e.altKey) return
+    // Shift + a physical bracket cycles layouts (installLayoutCycleKeys).
+    if (e.shiftKey && e.code.startsWith('Bracket')) return
     if (el?.closest('input')) return
     const action = panelHotkeyAction(e.key, {
       left: true,

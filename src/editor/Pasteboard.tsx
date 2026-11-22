@@ -50,9 +50,11 @@ import {
   type PasteboardWindow,
 } from './pasteboardWindow'
 import { Icon } from '../ui/Icon'
+import { LayoutCycle } from './LayoutCycle'
 import { PageLabels } from './PageLabels'
 import {
   NEW_SPREAD_PILL_SHIFT_PX,
+  layoutCycleFits,
   newSpreadPillFits,
   pageLabelsFit,
 } from './pageLabelsModel'
@@ -617,6 +619,15 @@ export const Pasteboard = memo(function Pasteboard({
                   }}
                 >
                   <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />
+                  {markedId === spreadId &&
+                  layoutCycleFits(slotIndex, gapPx) ? (
+                    <LayoutCycle
+                      spreadId={spreadId}
+                      slotIndex={slotIndex}
+                      side={side}
+                      gapPx={gapPx}
+                    />
+                  ) : null}
                   {pageLabelsFit(gapPx) ? (
                     <PageLabels
                       gapPx={gapPx}

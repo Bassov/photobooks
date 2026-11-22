@@ -206,7 +206,7 @@ const CAMERA_FRAME_VARS = ['--cam-tx', '--cam-ty', '--cam-scale'] as const
  */
 function writeCameraFrame(port: HTMLElement, frame: ZoomFrame | null): void {
   for (const el of port.querySelectorAll<HTMLElement>('[data-camera-frame]')) {
-    const { gapPx, badgeW, badgeH } = el.dataset
+    const { gapPx, gapMin, badgeW, badgeH } = el.dataset
     if (frame === null) {
       for (const name of CAMERA_FRAME_VARS) {
         el.style.removeProperty(name)
@@ -217,11 +217,15 @@ function writeCameraFrame(port: HTMLElement, frame: ZoomFrame | null): void {
       el.style.setProperty('--cam-tx', `${String(frame.translateX)}px`)
       el.style.setProperty('--cam-ty', `${String(frame.translateY)}px`)
       el.style.setProperty('--cam-scale', String(frame.scale))
-      // Page numbers: the live gap is the layout gap times the gesture scale.
+      // Page numbers / layout pill: the live gap is the layout gap times the
+      // gesture scale; `data-gap-min` overrides the page-label minimum.
       if (gapPx !== undefined) {
+        const liveGap = Number(gapPx) * frame.scale
         el.toggleAttribute(
           'data-gap-short',
-          !pageLabelsFit(Number(gapPx) * frame.scale),
+          gapMin === undefined
+            ? !pageLabelsFit(liveGap)
+            : liveGap < Number(gapMin),
         )
       }
       // Override badges: refit to the copy's live size (Designer PO3).

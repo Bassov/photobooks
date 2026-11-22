@@ -22,6 +22,7 @@ import { installEditorChromeKeys } from './installEditorChromeKeys'
 import { installEditorGridKeys } from './installEditorGridKeys'
 import { installEditorRotateKeys } from './installEditorRotateKeys'
 import { installEditorToolKeys } from './installEditorToolKeys'
+import { installLayoutCycleKeys } from './installLayoutCycleKeys'
 
 export type { EditorPanels } from './editorChromePanels'
 
@@ -99,12 +100,14 @@ export function EditorFrame({
     const offGrid = installEditorGridKeys()
     const offRotate = installEditorRotateKeys()
     const offArrange = installArrangeKeys()
+    const offCycle = installLayoutCycleKeys()
     return () => {
       offChrome()
       offTool()
       offGrid()
       offRotate()
       offArrange()
+      offCycle()
     }
   }, [setPn])
 
