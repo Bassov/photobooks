@@ -11,3 +11,5 @@
 1. Prod 1440×900: import a folder with a small photo and a 24 MP photo; the small thumb shows an 18 × 16.84 warning icon chip with no text; header ends "· 1 low-res" in warning ink.
 2. Drag the dock edge to max height: the chip stays 18 × 16.84, still no text.
 3. Turn on "Unplaced", place the low-res photo: the header loses "low-res".
+
+manual-qa (2026-11-22): problem (harness) — all 3 scenarios blocked at the welcome screen: the header intercepts the `start-session` click (30 s timeout), no editor reached. Covered instead by e2e: 1 and 2 → `design-r16-prod.spec.ts` "M85 low-res chip" (default + max size, paint, header ink) and `kit-filmstrip-lowres.spec.ts`; 3 → `kit-filmstrip-lowres.spec.ts` (Unplaced + place p02) and `FilmstripSortFilter.test.tsx` (filtered count drops on place).
