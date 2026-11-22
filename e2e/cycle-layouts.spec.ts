@@ -104,7 +104,8 @@ test('the pill sits 8 px over the paper top centre at Fit and keeps its width', 
   expect(box.height).toBeCloseTo(28, 1)
   // Painted, not clipped by the slot: the pill is the top hit at its centre.
   expect((await topAt(pill(page)))[0]).toContain('layout-cycle')
-  await expect(pill(page)).toHaveCSS('background-color', 'rgb(225, 225, 225)')
+  // Chrome face `--chrome` = top-bar `BAR`: P10 warm #E3E1DD (was #E1E1E1).
+  await expect(pill(page)).toHaveCSS('background-color', 'rgb(227, 225, 221)')
   await expect(pill(page)).toHaveCSS('border-radius', '8px')
   const next = page.getByTestId('layout-cycle-next')
   expect((await next.boundingBox())?.width).toBeCloseTo(24, 1)
