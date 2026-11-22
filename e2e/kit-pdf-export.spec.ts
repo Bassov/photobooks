@@ -210,7 +210,7 @@ test('dialog box, title and buttons carry the Spec values', async ({
   expect(m).toEqual({
     w: 500,
     r: '14px',
-    bg: 'rgb(225, 225, 225)',
+    bg: 'rgb(227, 225, 221)',
     pad: '20px 24px 20px 24px',
     // walkthrough-polish-review P2: all Lora chrome at 400
     font: '"Lora Variable" 21px 26.25px 400 rgb(57, 55, 56)',
@@ -622,7 +622,7 @@ test('PE4 Print pill: rest, running fill, reopen, done 4 s, rest; 40 × 32 throu
   expect(await titleOf(pill)).toBe('Exporting PDF · 50%')
   await expect(status).toHaveText('Exporting PDF, 50%')
   expect(await sizeOf(pill)).toEqual([40, 32])
-  // what paints: the #BEBEBE fill up to 50 % of the pill, the quiet #D7D7D7 after it
+  // what paints: the #BEBEBE fill up to 50 % of the pill, the quiet #D8D6D2 after it (red channel)
   await expect
     .poll(async () => {
       const px = await pixelsAt(pill, [
@@ -631,7 +631,7 @@ test('PE4 Print pill: rest, running fill, reopen, done 4 s, rest; 40 × 32 throu
       ])
       return px.map(([r = 0]) => r)
     })
-    .toEqual([190, 215])
+    .toEqual([190, 216])
 
   // the pill opens the dialog in its current step; Esc hides it again
   await pill.click()

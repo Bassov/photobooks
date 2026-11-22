@@ -47,8 +47,8 @@ import {
 //     (create-book-dialog) 13px / 500; Photo Fill / Fit (editor-frame-selected)
 //     12px / 500.
 // M67 segmented look (addendum 2026-11-01): every track is the field
-//     rgb(215, 215, 215) with 2 px padding; the selected segment is the chrome
-//     rgb(225, 225, 225), 6 px radius, lighter than the track; idle segments
+//     rgb(216, 214, 210) with 2 px padding; the selected segment is the chrome
+//     rgb(227, 225, 221), 6 px radius, lighter than the track; idle segments
 //     are transparent with no shadow. Shadows below are the kit's visible
 //     layers (the kit adds four transparent Tailwind ring layers before them).
 //     Book Portrait / Landscape and cm / mm (v7 SegC): track 30 px, radius
@@ -125,8 +125,8 @@ const KIT = {
   },
 } as const
 
-const FIELD = 'rgb(215, 215, 215)'
-const CHROME = 'rgb(225, 225, 225)'
+const FIELD = 'rgb(216, 214, 210)'
+const CHROME = 'rgb(227, 225, 221)'
 const PILL =
   'rgba(20, 20, 19, 0.08) 0px 1px 2px 0px, rgba(20, 20, 19, 0.06) 0px 0px 0px 0.5px'
 const SEGC_SHADOW = 'rgba(35, 34, 35, 0.14) 0px 1px 2px 0px'
@@ -415,7 +415,7 @@ test.describe('M59–M61: Cover, Book and Photo inspectors match the kit', () =>
     ] as const) {
       const chevron = triggers.nth(at).locator('.pb-disclosure__chevron')
       expect(await pixelsAt(chevron, [{ x: 0, y: 0 }])).toEqual([
-        [225, 225, 225, 255],
+        [227, 225, 221, 255],
       ])
       const dark = await darkestPixel(chevron)
       expect(Math.abs(dark - ink)).toBeLessThanOrEqual(6)

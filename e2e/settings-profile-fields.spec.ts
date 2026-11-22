@@ -4,8 +4,8 @@ import { pixelsAt, type Point } from './fixtures/paintProbe'
 
 // Designer printer-presets r21 (M97, M98); the kit is the reference.
 const PAINTER = '/?fixture=painter&printProfiles=kit'
-const PANEL = [225, 225, 225]
-const HOVER = [215, 215, 215]
+const PANEL = [227, 225, 221]
+const HOVER = [216, 214, 210]
 
 async function openPrintPresets(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -35,7 +35,7 @@ test('a non-current settings nav row paints the panel, hover paints the kit grey
   expect(rest?.slice(0, 3)).toEqual(PANEL)
 
   await row.hover()
-  await expect(row).toHaveCSS('background-color', 'rgb(215, 215, 215)')
+  await expect(row).toHaveCSS('background-color', 'rgb(216, 214, 210)')
   const [hover] = await pixelsAt(row, probe)
   expect(hover?.slice(0, 3)).toEqual(HOVER)
 })

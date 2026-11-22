@@ -287,11 +287,11 @@ test('recents-home: v6.1 library search + sort: quiet field tone on chrome, no b
     }),
   )
   const want = {
-    bg: 'rgb(215, 215, 215)',
+    bg: 'rgb(216, 214, 210)',
     border: '0px',
     shadow: 'none',
     black: false,
-    bar: 'rgb(225, 225, 225)',
+    bar: 'rgb(227, 225, 221)',
   }
   expect(st).toEqual([want, want])
   expect(errs).toEqual([])

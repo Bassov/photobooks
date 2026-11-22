@@ -5,9 +5,9 @@ import { clearProjectSession } from './fixtures/clearProjectSession'
 // Values measured on the rendered kit `#/demo` (1440x900), steps 07 / 43 / 46:
 // uikit/src/demo-parts/library.tsx:53-54 (rename Input), uikit/src/features/
 // library.tsx:123-127 (LibSearch), uikit/src/features/create-book.tsx:30-33.
-const FIELD = 'rgb(215, 215, 215)'
+const FIELD = 'rgb(216, 214, 210)'
 const KIT_RING =
-  'rgb(225, 225, 225) 0px 0px 0px 2px, rgb(58, 56, 57) 0px 0px 0px 4px'
+  'rgb(227, 225, 221) 0px 0px 0px 2px, rgb(58, 56, 57) 0px 0px 0px 4px'
 
 test.afterEach(async ({ page }) => {
   await clearProjectSession(page)

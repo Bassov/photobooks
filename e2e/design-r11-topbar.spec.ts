@@ -10,14 +10,14 @@ import { openLibraryBook } from './fixtures/openLibraryBook'
 // Bar 48 tall at y 0. Library x 12, w 78; title button x 102; Undo x 400 and
 //     Redo x 432 (32 × 32 at y 8: the title button's right + 16, flush).
 // Zoom: out x 894 (28 × 28), menu x 924, 49 × 32 at "Fit", padding 0 8, bg
-//     transparent, rgb(83, 81, 82); hover bg rgb(207, 207, 207),
+//     transparent, rgb(83, 81, 82); hover bg rgb(205, 202, 197),
 //     rgb(57, 55, 56). In x 975 (menu right + 2).
 // Panel toggles x 1015 / 1049 / 1083 (zoom-in right + 12, 34 apart), 32 × 32,
 //     radius 8, padding 0, no shadow, colour rgb(83, 81, 82) on and off. On:
-//     bg rgb(215, 215, 215), kept on hover. Off: transparent, hover
+//     bg rgb(216, 214, 210), kept on hover. Off: transparent, hover
 //     rgba(57, 55, 56, 0.08).
 // Preview x 1123 (toggle-r right + 8), 96 × 32, full pill (computed
-//     9999px since polish P4), padding 0 12, bg rgb(215, 215, 215), rgb(57, 55, 56),
+//     9999px since polish P4), padding 0 12, bg rgb(216, 214, 210), rgb(57, 55, 56),
 //     no shadow, the same on hover.
 // Settings (Preview right + 6), 40 × 32, the same pill and colours.
 // Export site (Settings right + 6), the same pill (static-export §1), Print
@@ -33,8 +33,8 @@ const SHADOW_XS = 'rgba(20, 20, 19, 0.06) 0px 1px 2px 0px'
 
 const INK = 'rgb(57, 55, 56)'
 const MUTED = 'rgb(83, 81, 82)'
-const FIELD = 'rgb(215, 215, 215)'
-const HOVER = 'rgb(207, 207, 207)'
+const FIELD = 'rgb(216, 214, 210)'
+const HOVER = 'rgb(205, 202, 197)'
 const GHOST_HOVER = 'rgba(57, 55, 56, 0.08)'
 const CLEAR = 'rgba(0, 0, 0, 0)'
 // Polish P4: the one pill token `--radius-full` (was calc(infinity * 1px)).

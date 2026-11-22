@@ -396,7 +396,7 @@ export function SpecimenPage() {
           Forms · TextField / NumberField / Select / Checkbox
         </h2>
         <p className="specimen-note">
-          Every state · field #D7D7D7 · ink focus ring (no blue)
+          Every state · field #D8D6D2 · ink focus ring (no blue)
         </p>
         <FieldGroup legend="Text field" row>
           <TextField

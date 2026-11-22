@@ -332,7 +332,7 @@ test('empty library kit chrome and Create book dialog open editor', async ({
   }
   await expect(page.getByTestId('create-title')).toHaveCSS(
     'border-top-color',
-    'rgb(215, 215, 215)',
+    'rgb(216, 214, 210)',
   )
   await page.getByRole('button', { name: 'Cancel' }).click()
   await expect(page.getByTestId('create-book-dialog')).toHaveCount(0)
@@ -700,13 +700,13 @@ test('kit v0.10 welcome, empty library and change-folder confirm tokens', async 
     }
     await api.seedHomeRecentsForTests(0)
   })
-  // Demo step 03: LibraryEmpty inside the #E1E1E1 bar + canvas shell.
+  // Demo step 03: LibraryEmpty inside the #E3E1DD bar + canvas shell.
   await expect(page.getByTestId('library-empty')).toBeVisible({
     timeout: 15_000,
   })
   await expect(page.getByTestId('library-bar')).toHaveCSS(
     'background-color',
-    'rgb(225, 225, 225)',
+    'rgb(227, 225, 221)',
   )
   await expect(page.getByTestId('example-book')).toBeVisible()
   await expect(page.getByTestId('new-book')).toHaveCSS(
@@ -719,7 +719,7 @@ test('kit v0.10 welcome, empty library and change-folder confirm tokens', async 
   await page.getByTestId('change-library').hover()
   await expect(page.getByTestId('change-library')).toHaveCSS(
     'background-color',
-    'rgb(215, 215, 215)',
+    'rgb(216, 214, 210)',
   )
   await page.getByTestId('change-library').click()
   const dialog = page.getByRole('alertdialog')
@@ -775,16 +775,16 @@ test('kit v0.10 books grid: tile, menu, rename, sort, search, remove tokens', as
   await expect(page.getByTestId('library-screen')).toBeVisible({
     timeout: 15_000,
   })
-  // Step 41: tile = BookObject cover; quiet search / sort on the #D7D7D7 field.
+  // Step 41: tile = BookObject cover; quiet search / sort on the #D8D6D2 field.
   const tile = page.getByTestId(`library-book-${bookId}`)
   await expect(tile.getByTestId('book-object')).toBeVisible()
   await expect(page.getByTestId('lib-search')).toHaveCSS(
     'background-color',
-    'rgb(215, 215, 215)',
+    'rgb(216, 214, 210)',
   )
   await expect(page.getByTestId('lib-sort')).toHaveCSS(
     'background-color',
-    'rgb(215, 215, 215)',
+    'rgb(216, 214, 210)',
   )
   await assertDocumentFitsViewport(page)
 
@@ -803,7 +803,7 @@ test('kit v0.10 books grid: tile, menu, rename, sort, search, remove tokens', as
   await menu.getByRole('menuitem', { name: 'Rename' }).click()
   await expect(page.getByTestId('rename-input')).toHaveCSS(
     'background-color',
-    'rgb(215, 215, 215)',
+    'rgb(216, 214, 210)',
   )
   await page.getByTestId('rename-input').press('Escape')
 
@@ -859,7 +859,7 @@ test('kit v0.10 create book: dialog, size menu, custom size tokens', async ({
   await expect(dialog).toContainText('Create book')
   await expect(page.getByTestId('create-title')).toHaveCSS(
     'background-color',
-    'rgb(215, 215, 215)',
+    'rgb(216, 214, 210)',
   )
   await expect(page.getByRole('button', { name: 'Cancel' })).toBeInViewport({
     ratio: 1,
@@ -881,7 +881,7 @@ test('kit v0.10 create book: dialog, size menu, custom size tokens', async ({
   for (const id of ['create-custom-w', 'create-custom-h']) {
     await expect(page.getByTestId(id).locator('..')).toHaveCSS(
       'background-color',
-      'rgb(215, 215, 215)',
+      'rgb(216, 214, 210)',
     )
   }
   await expect(custom).toContainText('cm')
@@ -940,7 +940,7 @@ test('kit v0.10 settings (step 49): back bar, Library only, tokens, confirm firs
   // Owner design change (round 11, M71): kit `bg-accent` selected row.
   await expect(page.getByTestId('settings-nav-library')).toHaveCSS(
     'background-color',
-    'rgb(207, 207, 207)',
+    'rgb(205, 202, 197)',
   )
   await expect(page.getByTestId('settings-section-title')).toHaveText('Library')
   await assertDocumentFitsViewport(page)

@@ -8,7 +8,7 @@ import { MASTER_GRIDS, MASTER_GUIDES, MASTER_PN, MASTER_POS, FOLIO_W, builtinMas
 import { Check, Link2, RotateCcw, TriangleAlert, Unlink2 } from "lucide-react"
 import { CATALOG, PrintCustomsCtx, pagesRange, pickPrint, printIssues, profileById, profileHint } from "@/demo-parts/printProfiles"
 
-export const T = "#393738", SUB = "#535152", INK = "#232223", ON_INK = "#F2F2F2", SURROUND = "#C8CACB", BAR = "#E1E1E1", FIELD = "#D7D7D7", PAPER = "#FFFFFF"
+export const T = "#393738", SUB = "#535152", INK = "#232223", ON_INK = "#F2F2F2", SURROUND = "#C9C7C3", BAR = "#E3E1DD", FIELD = "#D8D6D2", PAPER = "#FFFFFF"
 const serif = { fontFamily: "var(--font-heading)" } as const
 const ph = (id: string) => `url(${P(id).src})`
 /* v0.7.2: the cover's front photo is replaceable (P0-2); one value per mounted demo */
@@ -38,15 +38,15 @@ export const V7CSS = `
 .e7-canvas[data-panning], .e7-canvas[data-panning]:focus-visible { outline: none }
 .e7-elink { border: 0; background: none; border-radius: 4px; padding: 0 2px; outline: none; cursor: pointer } .e7-elink:hover { text-decoration: underline; text-underline-offset: 2px } .e7-elink:focus-visible { outline: 2px solid #535152; outline-offset: 1px }
 .e7-tag { height: 14px; padding: 0 5px; border-radius: var(--radius-xs); background: rgb(57 55 56/.08); font-size: 10px; font-weight: 500; line-height: 14px; letter-spacing: .01em }
-.e7-mkdef { border: 0; outline: none; background: ${FIELD}; box-shadow: 0 1px 2px rgba(20,20,19,.06); cursor: pointer } .e7-mkdef:hover { background: #CDCDCD } .e7-mkdef:focus-visible { outline: 2px solid #535152; outline-offset: 2px }
+.e7-mkdef { border: 0; outline: none; background: ${FIELD}; box-shadow: 0 1px 2px rgba(20,20,19,.06); cursor: pointer } .e7-mkdef:hover { background: #CCC9C4 } .e7-mkdef:focus-visible { outline: 2px solid #535152; outline-offset: 2px }
 .cursor-tool-frame { cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M12%201v22M1%2012h22%22%20stroke%3D%22%23232223%22%20stroke-width%3D%223.2%22%20stroke-linecap%3D%22square%22%2F%3E%3Cpath%20d%3D%22M12%201v22M1%2012h22%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22square%22%2F%3E%3C%2Fsvg%3E") 12 12, crosshair }
 .cursor-tool-text { cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2224%22%20viewBox%3D%220%200%2016%2024%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M3%202.5h10M8%202.5v19M3%2021.5h10%22%20stroke%3D%22%23232223%22%20stroke-width%3D%222.6%22%20stroke-linecap%3D%22square%22%2F%3E%3Cpath%20d%3D%22M3%202.5h10M8%202.5v19M3%2021.5h10%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%221.3%22%20stroke-linecap%3D%22square%22%2F%3E%3C%2Fsvg%3E") 7 11, text }
 
 .e7-item { cursor: default; outline: none } .e7-item:hover { background: ${FIELD} }
 .e7-item[aria-selected=true], .e7-item[aria-selected=true]:hover { background: #CACACA }
-.e7-title { transition: background-color .12s } .e7-title:hover { background: rgb(57 55 56/.08) } .e7-title:active { background: #CDCDCD } .e7-title[aria-pressed=true] { background: ${FIELD} }
+.e7-title { transition: background-color .12s } .e7-title:hover { background: rgb(57 55 56/.08) } .e7-title:active { background: #CCC9C4 } .e7-title[aria-pressed=true] { background: ${FIELD} }
 .e7-tg { background: #CACACA } .e7-tg[data-on] { background: #A8A8A8 } .e7-tg[data-on]:hover { background: #8E8E8E } .e7-tg:focus-visible { outline: 2px solid #535152; outline-offset: 2px }
-.e7-tog[aria-pressed=true] { background: ${FIELD} } .e7-sec:hover { background: #CDCDCD !important }
+.e7-tog[aria-pressed=true] { background: ${FIELD} } .e7-sec:hover { background: #CCC9C4 !important }
 .e7-csel { -webkit-appearance: none; appearance: none; padding: 0 33px 0 11px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b696a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-position: right 9px center; background-size: 16px 16px; background-repeat: no-repeat }
 .e7-sel { -webkit-appearance: none; appearance: none; background-image: linear-gradient(45deg, transparent 50%, ${SUB} 50%), linear-gradient(135deg, ${SUB} 50%, transparent 50%); background-position: calc(100% - 13px) 12px, calc(100% - 9px) 12px; background-size: 4px 4px; background-repeat: no-repeat }
 .e7-pan { transition: width .18s cubic-bezier(.2,.7,.2,1), height .18s cubic-bezier(.2,.7,.2,1) } @media (prefers-reduced-motion: reduce) { .e7-pan { transition: none } }
@@ -100,7 +100,7 @@ export function CoverSpread({ big, slide }: { big?: boolean; slide?: number }) {
     </div>)
   if (!big) return cover
   const boardY = { top: pct(WRAP + SAFE, SHH), height: pct(bk.h - 2 * SAFE, SHH) }
-  const strip = (s: React.CSSProperties) => <div className="absolute" style={{ ...s, background: "rgb(200 202 203/.72)" }} />
+  const strip = (s: React.CSSProperties) => <div className="absolute" style={{ ...s, background: "rgb(201 199 195/.72)" }} />
   return (
     <div ref={ref} className="relative size-full" style={{ background: "#3E3C3B" }} data-testid="cover-sheet">
       {cover}

@@ -36,7 +36,7 @@ import {
 //     x 749.19; Create book dialog Cancel x 734, 76 × 36 and Create book
 //     x 818, 108 × 36, both padding 0 16.
 // M71 Settings (settings-from-library): "Library" crumb rgb(57, 55, 56),
-//     78 × 32 at x 12; selected nav row bg rgb(207, 207, 207), x 12, 195 ×
+//     78 × 32 at x 12; selected nav row bg rgb(205, 202, 197), x 12, 195 ×
 //     34.84; "Change library folder…" 187 × 32 at x 689, y 181.44, kit
 //     outline + shadow-xs, padding 0 12. Library bar (library-empty):
 //     "Change library folder…" 24 px tall full pill (kit `rounded-full`),
@@ -44,7 +44,7 @@ import {
 
 const INK = 'rgb(57, 55, 56)'
 const MUTED = 'rgb(83, 81, 82)'
-const FIELD = 'rgb(215, 215, 215)'
+const FIELD = 'rgb(216, 214, 210)'
 const NO_BORDER = '0px solid rgba(0, 0, 0, 0)'
 const SHADOW_XS = 'rgba(20, 20, 19, 0.06) 0px 1px 2px 0px'
 const TOL = 0.5
@@ -264,7 +264,7 @@ test.describe('design-r11-controls: inputs, buttons and Settings match the kit',
     await expectBox(back, { x: 12, width: 78, height: 32 })
 
     const row = page.getByTestId('settings-nav-library')
-    expect((await look(row)).bg).toBe('rgb(207, 207, 207)')
+    expect((await look(row)).bg).toBe('rgb(205, 202, 197)')
     await expectBox(row, { x: 12, y: 102, width: 195, height: 34.84 })
 
     const change = page

@@ -177,12 +177,12 @@ test.describe('printer-presets (qa.mjs)', () => {
     expect(
       sel.w === 240 &&
         sel.h === 32 &&
-        sel.bg === 'rgb(215, 215, 215)' &&
+        sel.bg === 'rgb(216, 214, 210)' &&
         sel.r === '8px' &&
         sel.pad === '0px 32px 0px 10px' &&
         sel.font.startsWith('13px') &&
         sel.font.endsWith(' 400'),
-      `printer-presets: default select 240 × 32, bg #D7D7D7, r8, padding 0 32 0 10, 13/400 — ${JSON.stringify(sel)}`,
+      `printer-presets: default select 240 × 32, bg #D8D6D2, r8, padding 0 32 0 10, 13/400 — ${JSON.stringify(sel)}`,
     ).toBe(true)
     const opts = await S('print-default').evaluate(
       (s: HTMLSelectElement) =>
@@ -224,10 +224,10 @@ test.describe('printer-presets (qa.mjs)', () => {
             s.name === '13px 500' &&
             s.sum === '12px/16.8px rgb(83, 81, 82) ellipsis nowrap' &&
             s.title &&
-            s.btn === 'Duplicate 32 rgb(215, 215, 215) 12px',
+            s.btn === 'Duplicate 32 rgb(216, 214, 210) 12px',
         ) &&
         shops.map((s) => s.badge).join() === 'false,true,false',
-      `printer-presets: shops Generic, Lulu, Saal; name 13/500, summary 12/16.8 #535152 ellipsis + title; Default badge on Lulu only; Duplicate h32 bg #D7D7D7 pad 12 — ${JSON.stringify(shops)}`,
+      `printer-presets: shops Generic, Lulu, Saal; name 13/500, summary 12/16.8 #535152 ellipsis + title; Default badge on Lulu only; Duplicate h32 bg #D8D6D2 pad 12 — ${JSON.stringify(shops)}`,
     ).toBe(true)
     const gsum = await S('print-shop-generic')
       .locator('[data-testid="print-summary-line"]')
@@ -390,18 +390,18 @@ test.describe('printer-presets (qa.mjs)', () => {
     expect(
       dlg.w === 560 &&
         dlg.r === '14px' &&
-        dlg.bg === 'rgb(225, 225, 225)' &&
+        dlg.bg === 'rgb(227, 225, 221)' &&
         dlg.pad === '20px 24px' &&
         dlg.cols === '132px' &&
         dlg.lab === '13px rgb(83, 81, 82)' &&
         dlg.f96.join() === '96,32,96' &&
         dlg.f64 === 64 &&
         `${String(dlg.field[0])} ${solid(dlg.field[1] ?? '')}` ===
-          'rgb(215, 215, 215) 8px rgba(20, 20, 19, 0.06) 0px 1px 2px 0px' &&
+          'rgb(216, 214, 210) 8px rgba(20, 20, 19, 0.06) 0px 1px 2px 0px' &&
         dlg.title === 'Edit print profile' &&
         dlg.sub ===
           'Based on Lulu · Photo book. Books that use this profile follow your changes.',
-      `printer-presets: editor 560 wide, r14, bg #E1E1E1, padding 20 24, label column 132 (13 #535152), fields 96 × 32 / 64, field bg #D7D7D7 r8 shadow .06 — ${JSON.stringify(dlg)}`,
+      `printer-presets: editor 560 wide, r14, bg #E3E1DD, padding 20 24, label column 132 (13 #535152), fields 96 × 32 / 64, field bg #D8D6D2 r8 shadow .06 — ${JSON.stringify(dlg)}`,
     ).toBe(true)
     const hint = () =>
       page.locator('[data-testid="pp-spine-hint"]').textContent()
@@ -624,11 +624,11 @@ test.describe('printer-presets (qa.mjs)', () => {
       g.sel.w + g.sb === 268 &&
         g.sel.w === g.sizeW &&
         g.sel.h === 32 &&
-        g.sel.bg === 'rgb(215, 215, 215)' &&
+        g.sel.bg === 'rgb(216, 214, 210)' &&
         near(g.sel.y, 26.84) &&
         g.sel.groups === 'Print shops:3,Custom:1' &&
         g.sel.value === 'generic',
-      `printer-presets-kit-book: Printer select 268 (+ scrollbar) × 32 = Page size select, bg #D7D7D7 under the PRINT title, optgroups Print shops (3) / Custom (1), Generic — ${JSON.stringify({ ...g.sel, sizeW: g.sizeW, sb: g.sb })}`,
+      `printer-presets-kit-book: Printer select 268 (+ scrollbar) × 32 = Page size select, bg #D8D6D2 under the PRINT title, optgroups Print shops (3) / Custom (1), Generic — ${JSON.stringify({ ...g.sel, sizeW: g.sizeW, sb: g.sb })}`,
     ).toBe(true)
     expect(
       near(g.hint.y, 64.84) &&

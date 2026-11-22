@@ -565,7 +565,7 @@ describe('HostingSetup states', () => {
     paste(SETUP_TOKEN)
     fireEvent.click(byId('hosting-setup-continue'))
     await screen.findByTestId('hosting-setup-host')
-    expect(classes(marker(1))).toContain('bg-[#D7D7D7]')
+    expect(classes(marker(1))).toContain('bg-[#D8D6D2]')
     expect(classes(marker(1))).not.toContain('bg-[#232223]')
     expect(marker(1).getAttribute('style')).toBeNull()
     expect(title(1).textContent).toBe('Cloudflare account')

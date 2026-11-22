@@ -64,7 +64,7 @@ const big = "h-12 rounded-full px-7 text-md shadow-ink"
 /** Welcome: the only first-run screen. One text-only primary action opens the folder picker. */
 export function WelcomeScreen({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="relative h-full w-full overflow-hidden text-foreground" style={{ background: "linear-gradient(180deg,#E1E1E1 0%,#D9D9D9 55%,#C8CACB 100%)" }} data-testid="welcome">
+    <div className="relative h-full w-full overflow-hidden text-foreground" style={{ background: "linear-gradient(180deg,#E3E1DD 0%,#D9D9D9 55%,#C9C7C3 100%)" }} data-testid="welcome">
       <LibStyle />
       <div className="absolute inset-y-0 left-[33%] right-0 overflow-hidden" style={{ WebkitMaskImage: "linear-gradient(90deg,transparent 0%,rgb(0 0 0/.35) 22%,#000 46%)", maskImage: "linear-gradient(90deg,transparent 0%,rgb(0 0 0/.35) 22%,#000 46%)" }}>
         <div className="lib-drift absolute inset-0 bg-cover" style={{ backgroundImage: `url(${hiPhoto("c18")})`, backgroundPosition: "74% 62%", animation: "lib-drift 34s ease-in-out infinite alternate", transformOrigin: "80% 60%" }} />
@@ -122,7 +122,7 @@ export function LibraryEmpty({ onCreate }: { onCreate: () => void }) {
 
 export type SortKey = "edited" | "title" | "created"
 const SORTS: { id: SortKey; label: string }[] = [{ id: "edited", label: "Last edited" }, { id: "title", label: "Title" }, { id: "created", label: "Created" }]
-/* v6.1 quiet controls: #D7D7D7 field on #E1E1E1 chrome — tone only, no border, no black */
+/* v6.1 quiet controls: #D8D6D2 field on #E3E1DD chrome — tone only, no border, no black */
 const quiet = "h-9 rounded-full bg-field text-sm text-foreground outline-hidden transition-colors hover:bg-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A3839]"
 export function LibSearch({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
@@ -226,7 +226,7 @@ export function HomeScreen({ empty = false, onOpenBook, banner, libState = "ok",
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-app text-foreground" data-testid="home">
       <LibStyle />
       <LibraryBar path={path} missing={state === "missing"} onChange={() => setConfirmChange(true)} tools={state === "ok" && books.length > 0 ? <><LibSearch value={query} onChange={setQuery} /><LibSort value={sort} onChange={setSort} /></> : null} />
-      <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto" style={{ background: "radial-gradient(1200px 800px at 50% 30%, #D6D6D6, #C8CACB 75%)" }}>
+      <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto" style={{ background: "radial-gradient(1200px 800px at 50% 30%, #D6D6D6, #C9C7C3 75%)" }}>
         <div className="mx-auto flex w-full max-w-[1280px] flex-1 flex-col px-12">
           {(banner || changed) && <div className="pt-6">
             {banner}

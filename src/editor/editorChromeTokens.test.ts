@@ -27,7 +27,7 @@ describe('editorChromeTokens', () => {
       '.film-chip.film-add-folder[data-disabled], .film-chip.film-fill-book[data-disabled] { opacity: .5 }',
     )
     expect(EDITOR_CHROME_CSS).toContain(
-      '.film-chip.film-fill-book[aria-expanded=true] { background: #D7D7D7 }',
+      '.film-chip.film-fill-book[aria-expanded=true] { background: #D8D6D2 }',
     )
   })
 
@@ -46,7 +46,7 @@ describe('editorChromeTokens', () => {
 
   it('fills an open panel toggle with the kit field, hover keeps it', () => {
     const on = EDITOR_CHROME_CSS.indexOf(
-      '.e7-tog[aria-expanded=true] { background: #D7D7D7 }',
+      '.e7-tog[aria-expanded=true] { background: #D8D6D2 }',
     )
     expect(on).toBeGreaterThan(EDITOR_CHROME_CSS.indexOf('.e7-ghost:hover'))
     expect(EDITOR_CHROME_CSS).not.toContain('.e7-sec')

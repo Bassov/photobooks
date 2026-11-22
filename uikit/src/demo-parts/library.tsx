@@ -36,7 +36,7 @@ export function DemoLibrary({ init = {} }: { init?: LibraryInit } = {}) {
       <LibStyle />
       <LibraryBar path={d.path} onChange={() => setConfirmChange(true)} onSettings={() => set({ stage: "settings", back: "library" })}
         tools={d.books.length > 0 ? <><LibSearch value={query} onChange={setQuery} /><LibSort value={sort} onChange={setSort} /></> : null} />
-      <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto" style={{ background: "radial-gradient(1200px 800px at 50% 30%, #D6D6D6, #C8CACB 75%)" }}>
+      <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto" style={{ background: "radial-gradient(1200px 800px at 50% 30%, #D6D6D6, #C9C7C3 75%)" }}>
         <div className="mx-auto flex w-full max-w-[1280px] flex-1 flex-col px-12">
           <div className="flex items-end justify-between pb-2 pt-10">
             <div className="flex items-baseline gap-3"><h2 className="text-display leading-none" style={{ fontFamily: "var(--font-heading)" }}>Your books</h2>{d.books.length >= 1 && <span className="text-sm text-muted-foreground" data-testid="book-count">{d.books.length} {d.books.length === 1 ? "book" : "books"}</span>}</div>

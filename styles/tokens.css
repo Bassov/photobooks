@@ -231,14 +231,15 @@
   --thumb: 104px;
   --rail: 52px;
 
-  --t-bg: #c8cacb;
-  --t-canvas: #c8cacb;
-  --t-bar: #e1e1e1;
-  --t-panel: #e1e1e1;
-  --t-raised: #e1e1e1;
-  --t-field: #d7d7d7;
+  /* P10 warm neutrals: same lightness as the old greys, hue of the site paper. */
+  --t-bg: #c9c7c3;
+  --t-canvas: #c9c7c3;
+  --t-bar: #e3e1dd;
+  --t-panel: #e3e1dd;
+  --t-raised: #e3e1dd;
+  --t-field: #d8d6d2;
   /* Kit secondary button hover on a field fill (default-master I3). */
-  --t-field-hover: #cdcdcd;
+  --t-field-hover: #ccc9c4;
   /* Quiet ink tint behind small tags (kit ghost hover, default-master P2). */
   --t-tag: rgb(57 55 56 / 0.08);
   --t-text: #393738;
@@ -260,8 +261,8 @@
   --secondary: var(--t-field);
   --subtle: #dadada;
   --muted: #dcdcdc;
-  --accent: #cfcfcf;
-  --border: #cdcdcd;
+  --accent: #cdcac5;
+  --border: #ccc9c4;
   --control: #bebebe;
   --input: #a3a3a3;
   --primary: var(--t-ink);

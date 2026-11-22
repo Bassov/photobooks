@@ -124,7 +124,7 @@ test('Pages: kit number box without arrows, 20–120 hint and spreads note', asy
   await expect(page.getByTestId('book-pages-range')).toHaveText('20–120')
   await expect(note).toHaveText('Add 8 spreads to reach the 20-page minimum')
   // Rendered #/demo step 24 `Val` box: FIELD fill, 6 px radius, 4 / 8 px pad.
-  await expect(field).toHaveCSS('background-color', 'rgb(215, 215, 215)')
+  await expect(field).toHaveCSS('background-color', 'rgb(216, 214, 210)')
   await expect(field).toHaveCSS('border-radius', '6px')
   await expect(field).toHaveCSS('padding', '4px 8px')
   await expect(field).toHaveCSS('appearance', 'textfield')

@@ -6,8 +6,8 @@ import { expect, test } from './fixtures/coverage'
 // Kit tokens and surfaces (moved from uikit/scripts/qa.mjs §4 / v5 / v6 / v6.1,
 // uikit-qa-split-1): duration tokens under reduced motion, text contrast on every
 // surface, no blue (source + built CSS + rendered), the #232223 primary button and
-// its focus ring, the 3-level surfaces (canvas #C8CACB · chrome #E1E1E1 · field
-// #D7D7D7 · white = paper) in tokens and as rendered.
+// its focus ring, the 3-level surfaces (P10 warm: canvas #C9C7C3 · chrome #E3E1DD
+// · field #D8D6D2 · white = paper) in tokens and as rendered.
 // v7–v0.10 (uikit-qa-split-2): editor borders / blue / surfaces, scrollbars,
 // #232223 reserved for selection, rendered borders on every page, near-black
 // chips, DPI badge, dashed guides carry data-allow-border, kit versions.
@@ -231,7 +231,7 @@ function textContrast(): [string, string, number][] {
     '--muted-foreground-on-app',
     '--accent-text',
   ])
-    for (const bg of ['#C8CACB', '#E1E1E1', '#D7D7D7', '#FFFFFF'])
+    for (const bg of ['#C9C7C3', '#E3E1DD', '#D8D6D2', '#FFFFFF'])
       out.push([fg, bg, cr(v(fg), bg)])
   return out
 }
@@ -394,9 +394,14 @@ async function tabToDemoButton(page: Page) {
 
 /** v6.1 rendered scan over `hashes`: tinted near-grey and off-paper white surfaces */
 async function scanSurfaces(page: Page, hashes: string[]) {
-  // canvas; paper-stock + site-theme + token swatches (content)
+  // P10 warm chrome tones (canvas, chrome, field, hover, border); paper-stock
+  // + site-theme + token swatches (content)
   const CONTENT = new Set([
-    '200,202,203',
+    '201,199,195',
+    '227,225,221',
+    '216,214,210',
+    '205,202,197',
+    '204,201,196',
     '246,242,234',
     '236,231,223',
     '250,248,245',
@@ -568,22 +573,29 @@ test.describe('v6.1 3-level surfaces', () => {
       '--chrome',
       '--background',
     ]
-    // v6.1 chrome tone: bars, panels, raised, background tokens = #E1E1E1
-    expect(chrome.map((n) => `${n}=${String(t[n])}`)).toEqual(
-      chrome.map((n) => `${n}=#e1e1e1`),
+    // P10 warm neutrals (site-paper hue, the v6.1 lightness): chrome #E3E1DD
+    // (was #E1E1E1), field #D8D6D2 (was #D7D7D7), canvas #C9C7C3 (was
+    // #C8CACB), hover --accent #CDCAC5 (was #CFCFCF), --border #CCC9C4 (was
+    // #CDCDCD).
+    const warm: Record<string, string> = {
+      ...Object.fromEntries(chrome.map((n) => [n, '#e3e1dd'])),
+      '--card': '#e3e1dd',
+      '--popover': '#e3e1dd',
+      '--t-field': '#d8d6d2',
+      '--field': '#d8d6d2',
+      '--secondary': '#d8d6d2',
+      '--t-canvas': '#c9c7c3',
+      '--t-bg': '#c9c7c3',
+      '--accent': '#cdcac5',
+      '--border': '#ccc9c4',
+    }
+    expect(Object.keys(warm).map((n) => `${n}=${String(t[n])}`)).toEqual(
+      Object.entries(warm).map(([n, h]) => `${n}=${h}`),
     )
-    // v6.1 input tone: --t-field / --field / --secondary = #D7D7D7
-    expect([t['--t-field'], t['--field'], t['--secondary']]).toEqual([
-      '#d7d7d7',
-      '#d7d7d7',
-      '#d7d7d7',
-    ])
-    // v6.1 canvas #C8CACB (user-specified; the one exemption from R=G=B)
-    expect([t['--t-canvas'], t['--t-bg']]).toEqual(['#c8cacb', '#c8cacb'])
-    // v6.1 surface tokens are pure neutral greys (R=G=B; canvas exempt)
+    // every other surface token stays a pure neutral grey (R=G=B)
     const nonNeutral = Object.entries(t).filter(
       ([n, h]) =>
-        !/--t-(canvas|bg)/.test(n) &&
+        !(n in warm) &&
         !(h.slice(1, 3) === h.slice(3, 5) && h.slice(3, 5) === h.slice(5, 7)),
     )
     expect(nonNeutral).toEqual([])
@@ -608,15 +620,15 @@ test.describe('v6.1 3-level surfaces', () => {
     page,
   }) => {
     await open(page, feat('recents-home'))
-    // v6.1 library top bar renders in the chrome tone rgb(225,225,225)
+    // v6.1 library top bar renders in the chrome tone rgb(227,225,221)
     await expect(
       page.locator('[data-testid="demo"] [data-testid="library-bar"]'),
-    ).toHaveCSS('background-color', 'rgb(225, 225, 225)')
+    ).toHaveCSS('background-color', 'rgb(227, 225, 221)')
     await open(page, feat('editor-chrome-toolbar'))
     // v6.1 kit header renders in the chrome tone
     await expect(page.locator('header').first()).toHaveCSS(
       'background-color',
-      'rgb(225, 225, 225)',
+      'rgb(227, 225, 221)',
     )
     await open(page, feat('inspector'))
     const bookTab = page
@@ -627,7 +639,7 @@ test.describe('v6.1 3-level surfaces', () => {
     await expect(
       page.locator('[data-testid="demo"] input:not([type=checkbox])').first(),
     ).toBeVisible()
-    // v6.1 inputs render in the field tone rgb(215,215,215)
+    // v6.1 inputs render in the field tone rgb(216,214,210)
     const inputs = await page
       .locator(
         'input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color])',
@@ -644,7 +656,7 @@ test.describe('v6.1 3-level surfaces', () => {
         }),
       )
     expect(inputs.length).toBeGreaterThan(0)
-    expect([...new Set(inputs)]).toEqual(['rgb(215, 215, 215)'])
+    expect([...new Set(inputs)]).toEqual(['rgb(216, 214, 210)'])
   })
 })
 
@@ -828,7 +840,7 @@ test.describe('v7–v0.10 tokens and surfaces', () => {
     expect(r.blue).toBe(0)
     expect(
       r.bgs.filter(
-        (b) => b !== 'rgb(225, 225, 225)' && b !== 'rgba(0, 0, 0, 0)',
+        (b) => b !== 'rgb(227, 225, 221)' && b !== 'rgba(0, 0, 0, 0)',
       ),
     ).toEqual([])
     expect(errs).toEqual([])

@@ -168,24 +168,26 @@ test('the profile editor matches the kit and paints its errors', async ({
 const grey = (px: number[] | undefined) => px?.[0] ?? -1
 
 // Designer printer-presets round 21 (M99–M101), kit #/demo Settings → Print
-// presets: action hover #CFCFCF, the destructive AlertDialog, a ringless badge.
+// presets: action hover #CDCAC5 (P10), the destructive AlertDialog, a ringless badge.
 test('row actions, the Default badge and the delete confirm paint like the kit', async ({
   page,
 }) => {
   await openEditor(page)
   await openPrintPresets(page)
 
-  // M101: the kit badge has no inset ring, so its edge is the tint (211).
+  // M101: the kit badge has no inset ring, so its edge is the tint (213 red:
+  // .08 ink over the #E3E1DD chrome).
   const badge = page.getByTestId('print-shops').getByText('Default')
   const b = await box(badge)
   const [edge, inner] = await pixelsAt(badge, [
     { x: 0, y: b.height / 2 },
     { x: 3, y: b.height / 2 },
   ])
-  expect(Math.abs(grey(edge) - 211), `edge ${String(edge)}`).toBeLessThan(4)
+  expect(Math.abs(grey(edge) - 213), `edge ${String(edge)}`).toBeLessThan(4)
   expect(Math.abs(grey(edge) - grey(inner))).toBeLessThanOrEqual(1)
 
-  // M99: Duplicate / New profile / Edit… go from --field 215 to #CFCFCF.
+  // M99: Duplicate / New profile / Edit… go from --field #D8D6D2 to #CDCAC5
+  // (P10 warm neutrals; red channel 216 → 205).
   for (const id of [
     'print-duplicate-generic',
     'print-new',
@@ -193,11 +195,11 @@ test('row actions, the Default badge and the delete confirm paint like the kit',
   ]) {
     const button = page.getByTestId(id)
     const h = (await box(button)).height
-    expect(grey((await pixelsAt(button, [{ x: 4, y: h / 2 }]))[0])).toBe(215)
+    expect(grey((await pixelsAt(button, [{ x: 4, y: h / 2 }]))[0])).toBe(216)
     await button.hover()
     await expect(async () => {
       const [px] = await pixelsAt(button, [{ x: 4, y: h / 2 }])
-      expect(grey(px), id).toBe(207)
+      expect(grey(px), id).toBe(205)
     }).toPass()
   }
   await page.mouse.move(0, 0)

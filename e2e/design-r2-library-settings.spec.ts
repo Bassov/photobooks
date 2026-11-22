@@ -80,7 +80,7 @@ test('library: search focus is the kit flat fill without a ring', async ({
   const search = page.getByTestId('lib-search')
   await expect(search).toHaveCSS('outline-style', 'none')
   await expect(search).toHaveCSS('box-shadow', 'none')
-  await expect(search).toHaveCSS('background-color', 'rgb(215, 215, 215)')
+  await expect(search).toHaveCSS('background-color', 'rgb(216, 214, 210)')
 })
 
 test('library: rename input is the field pill with the kit focus ring', async ({

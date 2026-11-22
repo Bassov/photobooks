@@ -404,7 +404,11 @@ async function paintsRed(l: Locator) {
     (_, i) => ({ x: i % 80, y: Math.floor(i / 80) }),
   ).filter((p) => p.x < b.width - 1 && p.y < b.height - 1)
   const px = await pixelsAt(l, pts)
-  return px.some(([r = 0, g = 0, bl = 0]) => r > 140 && g < 100 && bl < 100)
+  // Red ink leads green by ~100 (#a8403a: 104); a subpixel fringe of grey
+  // text on the warm P10 field leads by ≤ 45 (rgb(141, 99, 82)).
+  return px.some(
+    ([r = 0, g = 0, bl = 0]) => r > 140 && g < 100 && bl < 100 && r - g > 60,
+  )
 }
 
 async function toAddress(page: Page) {
@@ -490,10 +494,10 @@ test.describe('KS1 setup steps 1–2', () => {
       'aria-current',
       'step',
     )
-    // done = #D7D7D7 disc with a Check; the summary is the account
+    // done = #D8D6D2 disc with a Check; the summary is the account
     near3(
       await rgbAt(page.getByTestId('hosting-marker-1'), 10, 3),
-      [215, 215, 215],
+      [216, 214, 210],
     )
     await expect(
       page.getByTestId('hosting-marker-1').locator('svg.lucide-check'),

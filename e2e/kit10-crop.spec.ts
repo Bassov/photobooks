@@ -14,7 +14,7 @@ import {
 } from './fixtures/photoDirectoryPicker'
 
 const CROP = 'rgb(107, 105, 106)' // --crop #6b696a
-const FIELD = 'rgb(215, 215, 215)' // #D7D7D7
+const FIELD = 'rgb(216, 214, 210)' // #D8D6D2
 
 test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: false })

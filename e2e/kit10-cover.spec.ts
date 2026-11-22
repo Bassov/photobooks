@@ -12,11 +12,11 @@ import {
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import { pixelsAt, topAt } from './fixtures/paintProbe'
 
-// uikit/src/index.css + sandbox/v7.tsx: list selection #CACACA, field #D7D7D7;
+// uikit/src/index.css + sandbox/v7.tsx: list selection #CACACA, field #D8D6D2;
 // CoverSpread fills back and spine with backFill #3E3C3B (cover-pdf C5),
 // an empty front too (Designer P1).
 const SEL = 'rgb(202, 202, 202)'
-const FIELD = 'rgb(215, 215, 215)'
+const FIELD = 'rgb(216, 214, 210)'
 const BACK = 'rgb(62, 60, 59)'
 const SPINE = BACK
 const BACK_RGB = [62, 60, 59, 255]

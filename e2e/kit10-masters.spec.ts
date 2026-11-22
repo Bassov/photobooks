@@ -28,10 +28,10 @@ test('Masters mode shows the kit switch and the default Master A with its note',
   )
   // Field track, bar-toned selected segment, rounded like the kit SegC.
   const track = page.getByRole('tablist', { name: 'Left panel' })
-  await expect(track).toHaveCSS('background-color', 'rgb(215, 215, 215)')
+  await expect(track).toHaveCSS('background-color', 'rgb(216, 214, 210)')
   await expect(page.getByTestId('left-tab-masters')).toHaveCSS(
     'background-color',
-    'rgb(225, 225, 225)',
+    'rgb(227, 225, 221)',
   )
   await expect(track).toHaveCSS('border-radius', '8px')
   // The note names the default above the list: 12 / 400 / 16.8 SUB, the

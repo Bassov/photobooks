@@ -32,7 +32,7 @@ import {
 
 const INK = 'rgb(57, 55, 56)'
 const MUTED = 'rgb(83, 81, 82)'
-const FIELD = 'rgb(215, 215, 215)'
+const FIELD = 'rgb(216, 214, 210)'
 const SEL = 'rgb(202, 202, 202)'
 
 const KIT = {

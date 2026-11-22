@@ -72,7 +72,7 @@ test('a fresh book uses Master A by default; Make default, None and Edit master'
   await expect(make).toHaveText('Make default')
   const makeBox = await make.boundingBox()
   expect(makeBox?.height).toBe(28)
-  await expect(make).toHaveCSS('background-color', 'rgb(215, 215, 215)')
+  await expect(make).toHaveCSS('background-color', 'rgb(216, 214, 210)')
   await make.click()
 
   // B is the default: tagged, named in the note, list order unchanged.

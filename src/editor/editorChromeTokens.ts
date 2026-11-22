@@ -3,8 +3,9 @@
 export const T = '#393738'
 export const SUB = '#535152'
 const ON_INK = '#F2F2F2'
-export const BAR = '#E1E1E1'
-export const FIELD = '#D7D7D7'
+/** P10 warm neutrals (site-paper hue, same lightness as the old #E1E1E1 / #D7D7D7). */
+export const BAR = '#E3E1DD'
+export const FIELD = '#D8D6D2'
 const SEL = '#CACACA'
 /** Owner 2026-10-29: toggle on / off fills and the swatch selection ring (2px, 2px offset). */
 export const TOGGLE_ON = '#A8A8A8'
@@ -62,7 +63,7 @@ export const EDITOR_CHROME_CSS = `
 .pb-segmented__segment input:disabled { cursor: wait }
 .e7-title { transition: background-color .12s; border: 0; background: transparent; cursor: pointer }
 .e7-title:hover { background: rgb(57 55 56/.08) }
-.e7-title:active { background: #CDCDCD }
+.e7-title:active { background: #CCC9C4 }
 .e7-title[aria-pressed=true] { background: ${FIELD} }
 .e7-tog[aria-expanded=true] { background: ${FIELD} }
 .e7-pan { transition: width .18s cubic-bezier(.2,.7,.2,1), height .18s cubic-bezier(.2,.7,.2,1) }

@@ -131,7 +131,7 @@ test.describe('Frame context menu on photo frames (FM3)', () => {
     ensurePhotoFixtures({ includeLargeJpeg: false })
   })
 
-  test('filled frame: 14 rows, 3 separators, 224 × 468.81; no row focused; hover #CFCFCF; Delete focus = destructive mix', async ({
+  test('filled frame: 14 rows, 3 separators, 224 × 468.81; no row focused; hover #CDCAC5; Delete focus = destructive mix', async ({
     page,
   }) => {
     test.setTimeout(120_000)
@@ -184,13 +184,13 @@ test.describe('Frame context menu on photo frames (FM3)', () => {
       await undo.locator('svg').evaluate((el) => getComputedStyle(el).color),
     ).toBe(await undo.evaluate((el) => getComputedStyle(el).color))
 
-    // hover paints the row --accent #CFCFCF (pixels, not only style)
+    // hover paints the row --accent #CDCAC5 (pixels, not only style)
     const copy = row(page, 'copy')
     await copy.hover()
     await expect(copy).toHaveAttribute('data-focused', 'true')
     const h = (await copy.boundingBox())?.height ?? 0
     const [hover] = await pixelsAt(copy, [{ x: 3, y: h / 2 }])
-    expect(hover?.slice(0, 3)).toEqual([207, 207, 207])
+    expect(hover?.slice(0, 3)).toEqual([205, 202, 197])
 
     // the Delete row's focus bg is the destructive mix
     await page.keyboard.press('End')
@@ -206,11 +206,13 @@ test.describe('Frame context menu on photo frames (FM3)', () => {
       return [mix, getComputedStyle(el).backgroundColor]
     })
     expect(got).toBe(want)
-    // 10 % #393738 over the rgb(225) popover = rgb(208.2, 208, 208.1)
+    // 10 % #393738 over the rgb(227, 225, 221) popover (P10) = rgb(210, 208, 204.5)
     const [paint] = await pixelsAt(del, [{ x: 3, y: h / 2 }])
-    for (const channel of paint?.slice(0, 3) ?? []) {
-      expect(Math.abs(channel - 208)).toBeLessThanOrEqual(1)
-    }
+    const mixed = [210, 208, 204.5]
+    expect(paint).toHaveLength(4)
+    mixed.forEach((m, i) => {
+      expect(Math.abs((paint?.[i] ?? -1) - m)).toBeLessThanOrEqual(1)
+    })
   })
 
   test('opened at y 840 the menu flips inside the viewport', async ({

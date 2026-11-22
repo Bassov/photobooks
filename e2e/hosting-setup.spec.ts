@@ -134,10 +134,10 @@ test('kit geometry and paint; Continue keeps its width through Checking…', asy
     'aria-current',
     'step',
   )
-  // done = #D7D7D7 disc with a check
+  // done = #D8D6D2 disc with a check
   near3(
     await rgbAt(page.getByTestId('hosting-marker-1'), 10, 3),
-    [215, 215, 215],
+    [216, 214, 210],
   )
   await expect(page.getByTestId('hosting-step-1-summary')).toHaveText(
     'Aleksandr Basov',

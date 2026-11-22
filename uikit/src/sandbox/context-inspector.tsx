@@ -358,7 +358,7 @@ function ResetParentButton({ f }: { f: Frame }) {
   return (
     <button type="button" data-testid="inspector-reset-parent" aria-label="Reset to parent" title="Reset to parent"
       onClick={() => { st.update((d) => mapSpreadFreezing(d, st.cur, (s) => resetParentItem(s, f.overrides!)), "Reset to parent"); st.setSel([]) }}
-      className="grid size-[28px] place-items-center rounded-md border-0 bg-transparent p-0 text-[#535152] outline-none transition-colors hover:bg-[#D7D7D7] hover:text-[#393738] active:bg-[#D7D7D7] active:text-[#393738] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A3839] [&_svg]:size-3.5"><RotateCcw /></button>
+      className="grid size-[28px] place-items-center rounded-md border-0 bg-transparent p-0 text-[#535152] outline-none transition-colors hover:bg-[#D8D6D2] hover:text-[#393738] active:bg-[#D8D6D2] active:text-[#393738] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A3839] [&_svg]:size-3.5"><RotateCcw /></button>
   )
 }
 
@@ -373,7 +373,7 @@ function ParentChanges({ sp }: { sp: Spread }) {
       <div className="flex h-[24px] items-center text-xs">
         <span style={{ color: SUB }}>Changed from {name}</span>
         <button type="button" data-testid="parent-reset-all" onClick={() => st.update((d) => mapSpreadFreezing(d, st.cur, resetSpreadToParent), "Reset spread to parent")}
-          className="ml-auto h-[24px] rounded-sm border-0 bg-transparent px-2 text-xs font-medium leading-[24px] outline-none hover:bg-[#D7D7D7] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A3839]" style={{ color: T }}>Reset all</button>
+          className="ml-auto h-[24px] rounded-sm border-0 bg-transparent px-2 text-xs font-medium leading-[24px] outline-none hover:bg-[#D8D6D2] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A3839]" style={{ color: T }}>Reset all</button>
       </div>
       {rows.map((r) => (
         <div key={r.id} data-testid="parent-change-row" className="grid h-[28px] grid-cols-[16px_1fr_16px] items-center gap-2">
