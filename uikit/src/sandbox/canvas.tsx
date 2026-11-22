@@ -479,7 +479,8 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
     if (!moving.length) { if (collapse) st.setSel([f.id]); if (f.locked) st.setStatus(FRAME_LOCKED_STATUS); return }
     moveFrames(e, moving, () => { if (collapse) st.setSel([f.id]) })
   }
-  /** Move gesture after the 3 px slop: one "Move frame(s)" step on release; `onClick` when the press never moved.
+  /** Move gesture after the 3 px slop: one "Move frame(s)" step on release; `onClick` when the press never moved; Esc /
+   *  lost pointer = frames back where they started, no step.
    *  `dup` (FC2 Alt-press): clones follow the pointer, the originals stay; release = one "Duplicate frame(s)" step, Esc / lost
    *  pointer = nothing. The Alt that started it does not bypass snapping (`altLatch` until a move without Alt). */
   const moveFrames = (e: React.PointerEvent, moving: Frame[], onClick: () => void, dup = false) => {
@@ -524,7 +525,12 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
         return
       }
       if (m) { st.commit(moving.length > 1 ? `Move ${moving.length} frames` : "Move frame"); st.setStatus("") } else onClick()
-    }, dup ? end : undefined)
+    }, () => {
+      // Esc / lost pointer (as prod frameGesture): the frames go back, the release does nothing, no step, selection kept
+      end()
+      if (dup) return
+      st.cancelPreview(); st.setStatus("")
+    })
   }
   /* Designer parent-overrides PO2 (+ parent-overrides-canvas review 3): Ctrl/⌘+Shift press, geometric and through own frames —
      a parent guide (viewport.tsx copies it and drags), else the topmost override copy (selected, no step; moves after 3 px),

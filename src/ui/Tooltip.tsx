@@ -8,10 +8,18 @@ import { cx } from './className'
 import { overlayBox, useScaledGaps } from './scaledOverlay'
 import './Tooltip.css'
 
-export type TooltipTriggerProps = ComponentProps<typeof AriaTooltipTrigger>
+type AriaTooltipTriggerProps = ComponentProps<typeof AriaTooltipTrigger>
 
-export function TooltipTrigger({ delay = 400, ...props }: TooltipTriggerProps) {
-  return <AriaTooltipTrigger delay={delay} {...props} />
+/** `isOpen` may be passed as `undefined`: React Aria reads that as uncontrolled. */
+export type TooltipTriggerProps = Omit<AriaTooltipTriggerProps, 'isOpen'> & {
+  isOpen?: boolean | undefined
+}
+
+/** Kit top-bar tooltip timing: opens 300 ms after the pointer comes in. */
+export function TooltipTrigger({ delay = 300, ...props }: TooltipTriggerProps) {
+  return (
+    <AriaTooltipTrigger delay={delay} {...(props as AriaTooltipTriggerProps)} />
+  )
 }
 
 export interface TooltipProps extends Omit<AriaTooltipProps, 'className'> {
@@ -20,7 +28,7 @@ export interface TooltipProps extends Omit<AriaTooltipProps, 'className'> {
 
 export function Tooltip({
   className,
-  offset = 6,
+  offset = 4,
   crossOffset,
   containerPadding,
   children,
