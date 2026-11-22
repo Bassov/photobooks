@@ -45,6 +45,23 @@ describe('installEditorChromeKeys', () => {
     expect(setPanels).toHaveBeenCalledWith({ l: false, b: false, r: false })
   })
 
+  it('leaves Shift + physical brackets to the layout cycle', () => {
+    const { setPanels } = mount()
+    for (const [code, key] of [
+      ['BracketLeft', '['],
+      ['BracketRight', ']'],
+    ] as const) {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { code, key, shiftKey: true }),
+      )
+    }
+    expect(setPanels).not.toHaveBeenCalled()
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { code: 'BracketRight', key: ']' }),
+    )
+    expect(setPanels).toHaveBeenCalledWith({ l: true, b: true, r: false })
+  })
+
   it('arms and clears Space pan; ignores typing and filmstrip targets', () => {
     const { setPanels, setSpaceDown } = mount()
     window.dispatchEvent(

@@ -361,7 +361,8 @@ test('M145: a jump to a frame under the spread list nudges it 24 px into the por
   expect(frame.right).toBeLessThanOrEqual(port.right - 24 + 1)
   expect(frame.top).toBeGreaterThanOrEqual(port.top + 24 - 1)
   expect(frame.bottom).toBeLessThanOrEqual(port.bottom - 24 + 1)
-  // Least scroll: the left edge lands on the inset line, not centred.
+  // The spread (wider than the port) is centred, then the frame nudged the
+  // least from there: its left edge lands on the inset line.
   expect(Math.abs(frame.left - (listRight + 24))).toBeLessThanOrEqual(1)
   // Paint: the left mid handle is the topmost thing there, not the list.
   const hit = await page.evaluate(
@@ -500,6 +501,62 @@ test('M145: at 200 % a jump scrolls each axis once; a re-click on the frame in t
   )
   expect(axisMoves(cycle, 0)).toBeLessThanOrEqual(1)
   expect(axisMoves(cycle, 1)).toBeLessThanOrEqual(1)
+})
+
+/** Space above / below a spread's view in the pasteboard port. */
+async function spreadGaps(page: Page, spreadId: string) {
+  return page.evaluate((id) => {
+    const scroll = document.querySelector('[data-testid="pasteboard-scroll"]')
+    const port = scroll?.getBoundingClientRect()
+    const view = scroll
+      ?.querySelector(`[data-testid="spread-view"][data-spread-id="${id}"]`)
+      ?.getBoundingClientRect()
+    return {
+      above: (view?.top ?? 0) - (port?.top ?? 0),
+      below: (port?.bottom ?? 0) - (view?.bottom ?? 0),
+    }
+  }, spreadId)
+}
+
+test('M145: at Fit a jump from Page 1 reveals Pages 2–3 centred, each axis once', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  const { a, s1 } = await openWithPhotos(page)
+  await chooseZoom(page, 'Fit spread')
+  const zoom = await readZoomPercent(page)
+  await listRows(page).nth(0).click()
+  await scrollSettled(page)
+  const parked = await spreadGaps(page, s1)
+  // Precondition: Pages 2–3 is not centred while Page 1 is active.
+  expect(Math.abs(parked.above - parked.below)).toBeGreaterThan(1)
+
+  const trace = await traceJump(page, () => badgeOf(page, a).click())
+  expect(axisMoves(trace, 0)).toBeLessThanOrEqual(1)
+  expect(axisMoves(trace, 1)).toBeLessThanOrEqual(1)
+  await expect(spreadFrames(page, s1).first()).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  const gaps = await spreadGaps(page, s1)
+  expect(gaps.above).toBeGreaterThan(0)
+  expect(Math.abs(gaps.above - gaps.below)).toBeLessThanOrEqual(0.5)
+  // Paint: the spread's bottom edge is not under the filmstrip.
+  const { frame } = await settledReveal(page)
+  const bottomHit = await page.evaluate(
+    ([x, y]) =>
+      document
+        .elementsFromPoint(x ?? 0, y ?? 0)[0]
+        ?.closest('[data-testid="pasteboard-scroll"]') != null,
+    [(frame.left + frame.right) / 2, frame.bottom - 2],
+  )
+  expect(bottomHit).toBe(true)
+
+  // Re-click on the frame now in the port: no scroll on either axis.
+  const again = await traceJump(page, () => badgeOf(page, a).click())
+  expect(axisMoves(again, 0)).toBe(0)
+  expect(axisMoves(again, 1)).toBe(0)
+  expect(await readZoomPercent(page)).toBe(zoom)
 })
 
 test('M145: at 1060 wide a jump scrolls each axis once to the 24 px inset', async ({

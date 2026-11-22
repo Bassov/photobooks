@@ -11,14 +11,11 @@ import {
   CONTACT_MAX_COLS,
   CONTACT_MAX_ROWS,
   contactSheetId,
-  customLayoutRects,
-  generateTemplateFrames,
   getSpreadPageCount,
   getSpreadSizeMm,
   parseContactSheetId,
   spreadLayoutSlots,
   type Book,
-  type FixedTemplateId,
   type RectMm,
   type Spread,
 } from '../core'
@@ -35,10 +32,9 @@ import {
 } from '../ui/Menu'
 import { LAYOUT_CHIPS, matchesChip, type LayoutChipId } from './layoutChips'
 import {
-  LAYOUT_PICKER,
-  TEMPLATE_NAMES,
   applyLayout,
-  mergeLayouts,
+  pickerBuiltins,
+  pickerSaved,
   sortByPhotoCount,
   templateName,
   type LayoutItem,
@@ -243,16 +239,10 @@ function LayoutPicker({
   const spreadGrid = spread.layoutGrid
   const geometry = useMemo(() => {
     const size = getSpreadSizeMm(book, spreadIndex)
-    const { items: builtins, aliases } = mergeLayouts(
-      LAYOUT_PICKER.map((id: FixedTemplateId): LayoutItem => ({
-        id,
-        name: TEMPLATE_NAMES[id],
-        rects: generateTemplateFrames(id, book, spreadIndex, spread).map(
-          (frame) => frame.rect,
-        ),
-        saved: false,
-      })),
-      size,
+    const { items: builtins, aliases } = pickerBuiltins(
+      book,
+      spreadIndex,
+      spread,
     )
     return {
       widthMm: size.widthMm,
@@ -270,15 +260,7 @@ function LayoutPicker({
     spreadGrid,
   ])
   const saved = useMemo(
-    () =>
-      mine
-        .filter((t) => t.pages === pages)
-        .map((t): LayoutItem => ({
-          id: t.id,
-          name: t.name,
-          rects: customLayoutRects(book, spreadIndex, t.slots),
-          saved: true,
-        })),
+    () => pickerSaved(book, spreadIndex, mine),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- trim + spread count only
     [mine, pages, book.settings, book.spreads.length, spreadIndex],
   )

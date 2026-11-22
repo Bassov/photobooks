@@ -310,6 +310,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [fill-book-kit](roadmap/P5/fill-book-kit.md) — Bug: /next-roadmap-item fill-book-kit
 - [ ] [lite] [design-r40-relink-prod](roadmap/P5/design-r40-relink-prod.md) — Bug: /next-roadmap-item design-r40-relink-prod
 - [ ] [feature] [design-r43-badge-jump-prod](roadmap/P5/design-r43-badge-jump-prod.md) — Bug: /next-roadmap-item design-r43-badge-jump-prod
+- [ ] [lite] [design-r45-badge-jump-fit-prod](roadmap/P5/design-r45-badge-jump-fit-prod.md) — Bug: /next-roadmap-item design-r45-badge-jump-fit-prod
 - [ ] [lite] [design-r38-badge-reveal-kit](roadmap/P5/design-r38-badge-reveal-kit.md) — Bug: /next-roadmap-item design-r38-badge-reveal-kit
 - [ ] [lite] [design-r37-dialog-title-prod](roadmap/P5/design-r37-dialog-title-prod.md) — Bug: /next-roadmap-item design-r37-dialog-title-prod
 - [ ] [lite] [site-reader-gl-ready](roadmap/P5/site-reader-gl-ready.md) — Bug: /next-roadmap-item site-reader-gl-ready
@@ -318,10 +319,12 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [design-r36-menu-kit](roadmap/P5/design-r36-menu-kit.md) — Bug: /next-roadmap-item design-r36-menu-kit
 - [ ] [lite] [design-r38-badge-reveal-prod](roadmap/P5/design-r38-badge-reveal-prod.md) — Bug: /next-roadmap-item design-r38-badge-reveal-prod
 - [ ] [feature] [cycle-layouts-kit](roadmap/P5/cycle-layouts-kit.md) — Bug: /next-roadmap-item cycle-layouts-kit
+- [ ] [feature] [cycle-layouts](roadmap/P5/cycle-layouts.md) — Bug: /next-roadmap-item cycle-layouts
 - [ ] [lite] [design-r41-esc-kit](roadmap/P5/design-r41-esc-kit.md) — Bug: /next-roadmap-item design-r41-esc-kit
 - [ ] [feature] [polish-warm-chrome](roadmap/P5/polish-warm-chrome.md) — Bug: /next-roadmap-item polish-warm-chrome
 - [ ] [feature] [interface-size-core](roadmap/P5/interface-size-core.md) — Bug: /next-roadmap-item interface-size-core
 - [ ] [feature] [interface-size-pointer](roadmap/P5/interface-size-pointer.md) — Bug: /next-roadmap-item interface-size-pointer
+- [ ] [lite] [design-r46-cycle-pill](roadmap/P5/design-r46-cycle-pill.md) — Bug: /next-roadmap-item design-r46-cycle-pill
 - [ ] [feature] [interface-size](roadmap/P5/interface-size.md) — Bug: /next-roadmap-item interface-size
 - [ ] [lite] [kit-undo-dup-select](roadmap/P5/kit-undo-dup-select.md) — Bug: /next-roadmap-item kit-undo-dup-select
 - [ ] [feature] [interface-size-modals](roadmap/P5/interface-size-modals.md) — Bug: /next-roadmap-item interface-size-modals
