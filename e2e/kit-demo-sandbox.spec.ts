@@ -347,7 +347,8 @@ test('v8.1 #/demo walk: per-book state, own site, filmstrip label, path, library
   const film2 = (await filmHead.innerText()).trim()
   // v8.1 P1-3 demo filmstrip: one plain label 'Photos · N · M used', no Photos/Templates capsule
   expect.soft(film, J([film, film2, tabs])).toMatch(/^Photos · \d+ · \d+ used$/)
-  expect.soft(film2).toMatch(/^Photos · \d+ · \d+ used$/)
+  // P11: the demo folder holds one low-res photo (p02), counted after "used"
+  expect.soft(film2).toMatch(/^Photos · \d+ · \d+ used · 1 low-res$/)
   expect.soft(tabs).toBe(0)
 
   // edit: cover photo + front title, master A columns
