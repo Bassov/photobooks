@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item design-r48-esc-resize
+Status: done
 
 Design Round 48 (Designer parity cycle-layouts p3, 2026-11-22, M159). Kit only; M157 / M158 stay as they are.
 
