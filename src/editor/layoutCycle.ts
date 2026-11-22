@@ -50,8 +50,9 @@ export function layoutCycleOf(
   const { items, aliases } = pickerLayouts(book, spreadIndex, spread, mine)
   const set = cycleSet(items, photoSlotCount(spread))
   const stored = spread.templateId
-  const current =
-    stored === undefined ? undefined : (aliases.get(stored) ?? stored)
+  // No stored id looks up nothing and stays undefined (Custom).
+  const lookup: ReadonlyMap<string | undefined, string> = aliases
+  const current = lookup.get(stored) ?? stored
   const index = set.findIndex((item) => item.id === current)
   return {
     set,

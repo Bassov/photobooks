@@ -20,21 +20,36 @@ const stop = (event: PointerEvent) => {
   event.stopPropagation()
 }
 
+const CYCLE_BUTTONS = {
+  [-1]: {
+    label: 'Previous layout',
+    testId: 'layout-cycle-prev',
+    icon: 'chevronLeft',
+    keys: '⇧[',
+  },
+  [1]: {
+    label: 'Next layout',
+    testId: 'layout-cycle-next',
+    icon: 'chevronRight',
+    keys: '⇧]',
+  },
+} as const
+
 function CycleButton({ spreadId, dir }: { spreadId: string; dir: 1 | -1 }) {
-  const label = dir > 0 ? 'Next layout' : 'Previous layout'
+  const { label, testId, icon, keys } = CYCLE_BUTTONS[dir]
   return (
     <TooltipTrigger>
       <Button
         className="layout-cycle-button"
         aria-label={label}
-        data-testid={dir > 0 ? 'layout-cycle-next' : 'layout-cycle-prev'}
+        data-testid={testId}
         onPress={() => {
           cycleLayout(spreadId, dir)
         }}
       >
-        <Icon name={dir > 0 ? 'chevronRight' : 'chevronLeft'} size={16} />
+        <Icon name={icon} size={16} />
       </Button>
-      <Tooltip placement="top">{`${label} ${dir > 0 ? '⇧]' : '⇧['}`}</Tooltip>
+      <Tooltip placement="top">{`${label} ${keys}`}</Tooltip>
     </TooltipTrigger>
   )
 }

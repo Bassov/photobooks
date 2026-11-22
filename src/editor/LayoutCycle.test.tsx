@@ -79,6 +79,44 @@ describe('LayoutCycle', () => {
     expect(spread?.frames.map((frame) => frame.id)).toEqual(['f0', 'f1'])
   })
 
+  it('marks the first layout 1/n, not Custom; each button has its glyph and keys', () => {
+    seed(2, 'one-per-page')
+    render(<LayoutCycle spreadId="s1" slotIndex={1} side={null} gapPx={106} />)
+    expect(screen.getByTestId('layout-cycle-pos').textContent).toBe('1/2')
+    const name = screen.getByTestId('layout-cycle-name')
+    expect(name.textContent).toBe('One per page')
+    expect(name.parentElement?.dataset.custom).toBeUndefined()
+    const prev = screen.getByTestId('layout-cycle-prev')
+    const next = screen.getByTestId('layout-cycle-next')
+    expect(prev.getAttribute('aria-label')).toBe('Previous layout')
+    expect(next.getAttribute('aria-label')).toBe('Next layout')
+    expect(prev.querySelector('[data-icon]')?.getAttribute('data-icon')).toBe(
+      'chevronLeft',
+    )
+    expect(next.querySelector('[data-icon]')?.getAttribute('data-icon')).toBe(
+      'chevronRight',
+    )
+    for (const [button, tip] of [
+      [prev, 'Previous layout ⇧['],
+      [next, 'Next layout ⇧]'],
+    ] as const) {
+      fireEvent.keyDown(document.body, { key: 'Tab' })
+      act(() => {
+        button.focus()
+      })
+      expect(screen.getByRole('tooltip').textContent).toBe(tip)
+      act(() => {
+        button.blur()
+      })
+    }
+  })
+
+  it('renders nothing for a slot past the last spread', () => {
+    seed(2)
+    render(<LayoutCycle spreadId="s1" slotIndex={9} side={null} gapPx={106} />)
+    expect(screen.queryByTestId('layout-cycle')).toBeNull()
+  })
+
   it('centres a single page on its side; slot 0 passes no gap', () => {
     seed(2)
     render(<LayoutCycle spreadId="s0" slotIndex={0} side="right" gapPx={20} />)

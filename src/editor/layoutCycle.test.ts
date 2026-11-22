@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fc } from '@fast-check/vitest'
 import type { Book, Frame } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
@@ -8,7 +8,10 @@ import {
   resetBookStore,
   undoBook,
 } from './bookStore'
+import { enterCropMode, exitCropMode } from './cropMode'
 import { cycleSet, stepLayout } from './layoutCatalog'
+import { clearLiveGeometry, publishLiveGeometry } from './liveGeometry'
+import { cancelTextEdit, startTextEdit } from './textEditStore'
 import {
   cycleLayout,
   layoutCycleBlocked,
@@ -244,5 +247,42 @@ describe('layoutCycleBlocked', () => {
     off()
     setLeftPanelTab('pages')
     expect(calls).toBe(1)
+  })
+
+  it('blocks during a crop, a text edit and a live frame gesture', () => {
+    seed(
+      makeBook({
+        spreads: [
+          makeSpread({
+            id: 's1',
+            frames: [makeFrame({ id: 'f0', assetId: 'a0' })],
+          }),
+        ],
+      }),
+    )
+    enterCropMode('s1', 'f0')
+    expect(layoutCycleBlocked()).toBe(true)
+    exitCropMode()
+    expect(layoutCycleBlocked()).toBe(false)
+    startTextEdit({ spreadId: 's1', frameId: 'caption' })
+    expect(layoutCycleBlocked()).toBe(true)
+    cancelTextEdit()
+    expect(layoutCycleBlocked()).toBe(false)
+    const raf = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((cb) => {
+        cb(0)
+        return 1
+      })
+    publishLiveGeometry({
+      spreadId: 's1',
+      frameId: 'f0',
+      rect: { x: 0, y: 0, width: 10, height: 10 },
+      rotationDeg: 0,
+    })
+    expect(layoutCycleBlocked()).toBe(true)
+    clearLiveGeometry()
+    raf.mockRestore()
+    expect(layoutCycleBlocked()).toBe(false)
   })
 })

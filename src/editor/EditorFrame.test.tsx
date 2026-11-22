@@ -1,6 +1,12 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
+import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import { EditorFrame, PanelToggles } from './EditorFrame'
+import {
+  resetActiveSpreadIdForTests,
+  setActiveSpreadId,
+} from './photoRootSession'
 import type { EditorPanels } from './editorChromePanels'
 import { getGridVisible, setGridVisible } from './gridView'
 
@@ -72,6 +78,44 @@ describe('EditorFrame', () => {
     fireEvent.keyDown(window, { key: "'", ctrlKey: true })
     expect(getGridVisible()).toBe(true)
     setGridVisible(false)
+  })
+
+  it('arms Shift+] layout cycling while mounted and releases it on unmount', () => {
+    resetBookStore({
+      book: makeBook({
+        spreads: ['s0', 's1', 's2'].map((id, index) =>
+          makeSpread({
+            id,
+            frames: Array.from({ length: index === 1 ? 2 : 1 }, (_, i) =>
+              makeFrame({ id: `${id}-f${String(i)}`, z: i }),
+            ),
+          }),
+        ),
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    setActiveSpreadId('s1')
+    const template = () => getBookStoreSnapshot().book.spreads[1]?.templateId
+    const { unmount } = render(
+      <EditorFrame
+        panels={{ l: true, b: true, r: true }}
+        onPanelsChange={vi.fn()}
+        top={null}
+        left={null}
+        right={null}
+        dock={null}
+        canvas={null}
+      />,
+    )
+    fireEvent.keyDown(window, { code: 'BracketRight', shiftKey: true })
+    expect(template()).toBe('one-per-page')
+    unmount()
+    fireEvent.keyDown(window, { code: 'BracketRight', shiftKey: true })
+    expect(template()).toBe('one-per-page')
+    resetBookStore()
+    resetActiveSpreadIdForTests()
   })
 
   it('marks closed panels hidden and arms Space pan', () => {

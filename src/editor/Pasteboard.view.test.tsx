@@ -21,6 +21,7 @@ import {
   stubIntersectionObserverCapture,
 } from './intersectionObserver.test-helpers'
 import { Pasteboard } from './Pasteboard'
+import { layoutCycleFits } from './pageLabelsModel'
 import { REVEAL_TRY_CEILING } from './pasteboardReveal'
 import {
   PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
@@ -324,6 +325,29 @@ describe('Pasteboard view wiring', () => {
     for (const slot of inactive) {
       expect(slot.getAttribute('data-active')).toBe('false')
     }
+  })
+
+  it('anchors one layout pill right before the active slot, as wide as it', () => {
+    resetBookStore()
+    commitZoom(4, 0, 0)
+    stubViewport(1600, 1200)
+    const hooks = stubPaceFrameHooks()
+    render(<Pasteboard />)
+    flushPaceSteps(hooks)
+    const slots = screen.getAllByTestId('pasteboard-slot')
+    // Precondition: the other slots' gaps would hold a pill too.
+    expect(slots.length).toBeGreaterThan(1)
+    expect(
+      layoutCycleFits(
+        1,
+        Number.parseFloat(slots[1]?.style.paddingBottom ?? ''),
+      ),
+    ).toBe(true)
+    const anchors = screen.getAllByTestId('layout-cycle-anchor')
+    expect(anchors).toHaveLength(1)
+    expect(slots[0]?.getAttribute('data-active')).toBe('true')
+    expect(anchors[0]?.nextElementSibling).toBe(slots[0])
+    expect(anchors[0]?.style.width).toBe(slots[0]?.style.width)
   })
 
   it('paces newly mounted slots across frames when zoom-out grows the window', () => {

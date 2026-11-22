@@ -295,6 +295,7 @@ export function stepLayout<T extends { id: string }>(
   dir: 1 | -1,
 ): T | undefined {
   const index = set.findIndex((item) => item.id === current)
-  const from = index < 0 ? (dir > 0 ? -1 : 0) : index
+  // Custom: › lands on the first (from -1), ‹ on the last (from 0).
+  const from = index < 0 ? Math.min(-dir, 0) : index
   return set[(from + dir + set.length) % set.length]
 }

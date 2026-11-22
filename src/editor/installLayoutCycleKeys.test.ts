@@ -110,6 +110,12 @@ describe('installLayoutCycleKeys', () => {
     expect(template()).toBeUndefined()
   })
 
+  it('stops listening once disposed', () => {
+    dispose()
+    window.dispatchEvent(key('BracketRight'))
+    expect(template()).toBeUndefined()
+  })
+
   it('leaves the default when the spread has no cycle', () => {
     seed(5)
     const event = key('BracketRight')
