@@ -185,6 +185,29 @@ test('cycle-layouts CL2 (#/demo): the pill sits centred 8 px above the paper, 28
   )
   expect(Math.abs(b.y + b.height - (p.y - 8))).toBeLessThanOrEqual(0.5)
   expect(b.height).toBe(28)
+  // design-r46 M156: the pill inherits the kit chrome face, so it is as wide
+  // as prod's (before: an unregistered "Inter" fell back, 234.09 / 156.78).
+  // This book's spread 2–3 has one photo; the parity widths are for the
+  // Hero + two set, whose widest name sizes the cell (D7). Measure with that
+  // name as one more hidden width span, then drop it.
+  expect(await pill.evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(
+    /^"Inter Variable"/,
+  )
+  const parity = await pill.evaluate((el) => {
+    const cell = el.querySelector('.lc-name')
+    if (cell === null) throw new Error('no name cell')
+    const w = cell.appendChild(document.createElement('span'))
+    w.className = 'lc-w'
+    w.textContent = 'Landscape + 2 portraits'
+    const sizes = {
+      pill: el.getBoundingClientRect().width,
+      cell: cell.getBoundingClientRect().width,
+    }
+    w.remove()
+    return sizes
+  })
+  expect(Math.abs(parity.pill - 226.38), 'pill width').toBeLessThanOrEqual(0.5)
+  expect(Math.abs(parity.cell - 148.48), 'name cell').toBeLessThanOrEqual(0.5)
   // Spec numbers at Fit 1440×900 on spread 2–3: x 676, y 71.02–99.02
   expect(
     Math.abs(b.x + b.width / 2 - 676),

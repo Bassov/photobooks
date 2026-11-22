@@ -63,6 +63,13 @@ body:has(> [data-testid='marquee']) .layout-cycle,
   cursor: default;
   outline: none;
 }
+/* The top-bar dark tooltip (`.e7-tip > .e7-tt`, editorChromeTokens) sits
+   6 px above the button here, like the kit pill; the extra class outranks
+   the runtime chrome CSS. */
+.layout-cycle > .layout-cycle-button > .e7-tt {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
 .layout-cycle-button[data-hovered] {
   background: var(--field);
   color: var(--foreground);

@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { dispatchCtrlWheel } from './fixtures/dispatchCtrlWheel'
 import { openSessionEditor } from './fixtures/openSessionEditor'
-import { topAt } from './fixtures/paintProbe'
+import { pixelsAt, topAt } from './fixtures/paintProbe'
 import { waitForPasteboardSettled } from './fixtures/pasteboardSettled'
 import { chooseZoom } from './fixtures/zoomMenu'
 
@@ -119,6 +119,61 @@ test('the pill sits 8 px over the paper top centre at Fit and keeps its width', 
   }
   expect(names.size).toBeGreaterThan(1)
   expect(widths.size).toBe(1)
+})
+
+test('‹ › hover shows the top-bar dark tooltip 6 px above the button (design-r46 M155)', async ({
+  page,
+}) => {
+  await openSpread23(page)
+  for (const [id, label, keys] of [
+    ['layout-cycle-prev', 'Previous layout', '⇧['],
+    ['layout-cycle-next', 'Next layout', '⇧]'],
+  ] as const) {
+    const button = page.getByTestId(id)
+    const tip = button.locator('.e7-tt')
+    // Before: the light Snap-style RAC tooltip (rgb 225, 12 px, r 8).
+    await button.hover()
+    await expect(tip).toHaveCSS('opacity', '1')
+    await expect(page.getByRole('tooltip')).toHaveCount(0)
+    expect(await tip.evaluate((el) => el.firstChild?.textContent)).toBe(label)
+    const look = await tip.evaluate((el) => {
+      const s = getComputedStyle(el)
+      const k = el.querySelector('kbd')
+      const ks = k === null ? null : getComputedStyle(k)
+      return {
+        bg: s.backgroundColor,
+        color: s.color,
+        size: s.fontSize,
+        weight: s.fontWeight,
+        radius: s.borderRadius,
+        padding: s.padding,
+        kbd: ks && {
+          text: k?.textContent,
+          opacity: ks.opacity,
+          marginLeft: ks.marginLeft,
+        },
+      }
+    })
+    expect(look).toEqual({
+      bg: 'rgb(83, 81, 82)',
+      color: 'rgb(242, 242, 242)',
+      size: '11px',
+      weight: '400',
+      radius: '5px',
+      padding: '3px 7px',
+      kbd: { text: keys, opacity: '0.7', marginLeft: '6px' },
+    })
+    const b = await boxOf(button)
+    const t = await boxOf(tip)
+    expect(Math.abs(b.y - (t.y + t.height) - 6)).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(t.x + t.width / 2 - (b.x + b.width / 2))).toBeLessThan(1)
+    expect(t.height).toBeCloseTo(22, 0)
+    // Painted: the left padding of the tip is the dark ink on screen.
+    const [px] = await pixelsAt(tip, [{ x: 3, y: t.height / 2 }])
+    expect(px?.slice(0, 3)).toEqual([83, 81, 82])
+    await page.mouse.move(0, 899)
+    await expect(tip).toHaveCSS('opacity', '0')
+  }
 })
 
 test('⇧] cycles while ] still toggles the inspector; 3 presses undo in one step; caption kept', async ({
