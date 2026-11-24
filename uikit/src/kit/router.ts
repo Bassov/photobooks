@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react"
 
-/* Hash routing so the kit works from file:// — #/  ·  #/components  ·  #/guide[/<chapter>]  ·  #/screen/<id>  ·  #/feature/<slug>  (legacy alias: #/f/<slug>) */
-export type Route = { name: "index" } | { name: "components" } | { name: "feature"; slug: string } | { name: "screen"; id: string } | { name: "full"; id: string } | { name: "credits" } | { name: "demo" } | { name: "guide"; chapter?: string }
+/* Hash routing so the kit works from file:// — #/  ·  #/components  ·  #/guide[/<chapter>]  ·  #/archive[/<slug>]  ·  #/screen/<id>  ·  #/feature/<slug>  (legacy alias: #/f/<slug>) */
+export type Route = { name: "index" } | { name: "components" } | { name: "feature"; slug: string } | { name: "screen"; id: string } | { name: "full"; id: string } | { name: "credits" } | { name: "demo" } | { name: "guide"; chapter?: string } | { name: "archive"; slug?: string }
 export function parse(hash = location.hash): Route {
   const h = hash.replace(/^#\/?/, "")
   const m = /^(?:feature|f)\/(.+)$/.exec(h)
@@ -13,6 +13,9 @@ export function parse(hash = location.hash): Route {
   if (f) return { name: "full", id: decodeURIComponent(f[1].split("?")[0]) }
   const g = /^guide(?:\/(.+))?$/.exec(h)
   if (g) return g[1] ? { name: "guide", chapter: decodeURIComponent(g[1]) } : { name: "guide" }
+  // #/archive[/<slug>][?books=…|?phone=<slug>]: Site demos (archive), not a design source
+  const a = /^archive(?:\/([^?]+))?(?:\?.*)?$/.exec(h)
+  if (a) return a[1] ? { name: "archive", slug: decodeURIComponent(a[1]) } : { name: "archive" }
   if (h === "components") return { name: "components" }
   if (h === "credits") return { name: "credits" }
   if (h === "demo") return { name: "demo" }
@@ -24,4 +27,4 @@ window.addEventListener("hashchange", () => { current = parse(); subs.forEach((f
 export function useRoute() {
   return useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f) }, () => current)
 }
-export const href = { index: "#/", components: "#/components", demo: "#/demo", guide: (chapter?: string) => (chapter ? `#/guide/${chapter}` : "#/guide"), feature: (slug: string) => `#/feature/${slug}`, screen: (id: string) => `#/screen/${id}` }
+export const href = { index: "#/", components: "#/components", demo: "#/demo", guide: (chapter?: string) => (chapter ? `#/guide/${chapter}` : "#/guide"), archive: (slug?: string) => (slug ? `#/archive/${slug}` : "#/archive"), feature: (slug: string) => `#/feature/${slug}`, screen: (id: string) => `#/screen/${id}` }

@@ -1,0 +1,60 @@
+/* Photographer site, demo 4 v2 "Desk" (Spec site-awards-v2 §4): a pale table in window light, the books top-down on it.
+   Type and the reader page come from ../site-demo-1/v2.css. */
+[data-surface="site-demo-4"] {
+  --sv2-ink: #1C1A17; --sv2-muted: #5C564D; --sv2-rule: rgb(28 26 23 / .12); --sv2-pill: #F4F1EB;
+  --sv4-rest: 8px 14px 26px -8px rgb(40 30 20 / .35), 0 0 0 transparent;
+  --sv4-lift: 0 20px 22px -14px rgb(40 30 20 / .28), 28px 54px 90px -6px rgb(40 30 20 / .36);
+  background:
+    linear-gradient(115deg, transparent 30%, rgb(255 255 255 / .30) 42%, transparent 52%, rgb(255 255 255 / .22) 60%, transparent 70%),
+    radial-gradient(120% 90% at 20% 0%, #EFEBE4, #DCD6CC), #E6E2DA;
+}
+/* open: the muted text of the reader page sits on the dimmed table */
+[data-surface="site-demo-4"][data-open] { --sv2-muted: #2E2A25 }
+[data-open] .sv2-header { opacity: 0; visibility: hidden; transition: opacity 300ms var(--sv2-ease), visibility 0s 300ms }
+.sv2-header { transition: opacity 300ms var(--sv2-ease) }
+.sv4.sv2-narrow .sv2-header { background: rgb(234 230 223 / .88); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px) }
+/* the reader's controls lie over the dimmed books: a paper slip under them */
+.sv4 .sv2-read-foot { left: 50%; right: auto; transform: translateX(-50%); padding: 4px 18px; border-radius: 20px; white-space: nowrap;
+  background: rgb(236 232 225 / .92); box-shadow: 0 6px 18px -8px rgb(40 30 20 / .35) }
+
+/* the caption: a fixed box, only its text changes */
+.sv4-cap { position: absolute; z-index: 15; display: flex; flex-direction: column; justify-content: flex-end; pointer-events: none }
+.sv4-cap button { pointer-events: auto }
+.sv4-fade { animation: sv2-fade 180ms var(--sv2-ease) both }
+.sv4-text { margin: 8px 0 0; font-size: 15px; line-height: 1.45; color: var(--sv2-muted); text-wrap: pretty }
+.sv4-hint { margin-top: 10px; font-weight: 500; font-size: 14px; line-height: 1.3; color: var(--sv2-ink); text-decoration: underline 1px; text-underline-offset: 4px; align-self: flex-start }
+
+/* the books: book (the slot, JS) > pose (hover / drag, CSS) > face */
+.sv4-desk { position: absolute; inset: 0 }
+.sv4-book { position: absolute; left: 0; top: 0; display: block; transform-origin: 50% 50%; touch-action: none; -webkit-tap-highlight-color: transparent }
+.sv4-desk[data-glide] .sv4-book { transition: transform 600ms var(--sv2-ease) }
+.sv4-book[data-hidden] { visibility: hidden }
+.sv4-desk[data-still] { pointer-events: none }
+.sv4-pose { position: absolute; inset: 0; display: block; border-radius: 1px 3px 3px 1px; box-shadow: var(--edge), var(--sv4-rest);
+  transition: transform 280ms var(--sv2-ease), box-shadow 280ms var(--sv2-ease) }
+.sv4-face { position: absolute; inset: 0; display: block; overflow: hidden; border-radius: inherit }
+@media (hover: hover) {
+  .sv4-desk:not([data-still]) .sv4-book:hover { z-index: 30 !important }
+  .sv4-desk:not([data-still]) .sv4-book:hover .sv4-pose { transform: scale(1.045) rotate(calc(var(--rz) * -.7deg)); box-shadow: var(--edge), var(--sv4-lift) }
+}
+.sv4-desk:not([data-still]) .sv4-book:focus-visible { z-index: 30 !important; outline: none }
+.sv4-desk:not([data-still]) .sv4-book:focus-visible .sv4-pose { transform: scale(1.045) rotate(calc(var(--rz) * -.7deg)); box-shadow: var(--edge), var(--sv4-lift);
+  outline: 2px solid var(--sv2-ink); outline-offset: 8px }
+.sv4-desk .sv4-book[data-drag] { z-index: 30 !important }
+.sv4-desk .sv4-book[data-drag] .sv4-pose { transform: scale(1.045); box-shadow: var(--edge), var(--sv4-lift); cursor: grabbing }
+
+/* open: the table dims */
+.sv4-dim { position: absolute; inset: 0; z-index: 20; pointer-events: none; opacity: 0; background: rgb(28 26 23 / .35); transition: opacity 400ms var(--sv2-ease) }
+[data-open] .sv4-dim { opacity: 1 }
+
+/* phone: one book per row, zigzag */
+.sv4-rows { margin: 36px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 36px }
+.sv4-row { display: flex; align-items: flex-end; gap: 16px }
+.sv4-book-phone { position: relative; flex: none; touch-action: manipulation }
+.sv4-book-phone:focus-visible { outline: none }
+.sv4-book-phone:focus-visible .sv4-pose { outline: 2px solid var(--sv2-ink); outline-offset: 6px }
+.sv4-row-cap { flex: 1; min-width: 0; padding-bottom: 4px }
+.sv4-row-t { font-size: 20px; line-height: 1.15; letter-spacing: -.02em; color: var(--sv2-ink) }
+@media (prefers-reduced-motion: reduce) {
+  .sv4-desk .sv4-book:is(:hover, :focus-visible, [data-drag]) .sv4-pose { transform: none }
+}
