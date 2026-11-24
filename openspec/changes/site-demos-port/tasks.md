@@ -10,3 +10,5 @@
 1. Kit home → "Site demos (archive)" → index shows the archive note and 12 rows.
 2. Open demo 6 (dark wall): books on the dark wall, Books switch top centre, a click opens the reading room.
 3. Phone link of fresh B: 390 × 844 frame shows the row.
+
+Evidence (agent manual-qa cannot drive kit routes; kit-only change): scenarios 1–3 are walked by `e2e/kit-site-archive.spec.ts` (nav → index, 12 rows, note; each demo desktop + phone paints on a 9 × 9 pixel grid, no page overflow, 0 console errors; 39/39 with `--repeat-each=3`); `pnpm uikit:qa:quick` 63 passed, 0 console errors. OK: ui-review — kit tokens + KitBar, focus rings on links, empty / happy / interact covered by e2e; no blockers.
