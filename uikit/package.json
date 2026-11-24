@@ -16,7 +16,8 @@
     "qa": "node scripts/qa.mjs",
     "qa:quick": "node scripts/qa.mjs --quick",
     "demo:baseline": "node scripts/demo-baseline.mjs",
-    "demo:diff": "node scripts/demo-diff.mjs"
+    "demo:diff": "node scripts/demo-diff.mjs",
+    "guide:shots": "node scripts/guide-shots.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
