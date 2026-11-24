@@ -1,0 +1,131 @@
+/* Site demo 6, Gallery on the system: the wall and the spotlights; the book and its pose are Book3D's (site-stand S1). */
+.ss6-wall {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.ss6-track {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+.ss6-floor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--line);
+  pointer-events: none;
+}
+.ss6-ex {
+  position: absolute;
+}
+.ss6-spot {
+  position: absolute;
+  pointer-events: none;
+  background: radial-gradient(40% 46% at 50% 52%, rgb(255 240 220 / 0.1), rgb(255 240 220 / 0));
+  opacity: 0.55;
+  transition: opacity 500ms var(--ease-out);
+}
+.ss6-ex:has(.ss6-book:is(:hover, :focus-visible)) .ss6-spot {
+  opacity: 1;
+}
+.ss6-book {
+  position: relative;
+  display: block;
+}
+.ss6-book:focus-visible {
+  outline-offset: 8px;
+}
+.ss6-label {
+  position: absolute;
+  left: 0;
+  width: max-content;
+  text-align: left;
+}
+/* site-stand-v2 W: edge fades while the row continues that way (under the header), the floor scrubber */
+.ss6-lead {
+  z-index: 2;
+}
+.ss6-fade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 160px;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms var(--ease-out);
+}
+.ss6-fade[data-on] {
+  opacity: 1;
+}
+.ss6-fade-r {
+  right: 0;
+  background: linear-gradient(90deg, rgb(17 17 16 / 0), #111110);
+}
+.ss6-fade-l {
+  left: 0;
+  background: linear-gradient(270deg, rgb(17 17 16 / 0), #111110);
+}
+/* 24 px hit area, its centre line is the track (bottom 40) */
+.ss6-scrub {
+  position: absolute;
+  bottom: 29px;
+  height: 24px;
+  z-index: 2;
+  cursor: pointer;
+  touch-action: none;
+}
+.ss6-rail,
+.ss6-thumb {
+  position: absolute;
+  top: 11px;
+  height: 2px;
+  transition:
+    top 200ms var(--ease-out),
+    height 200ms var(--ease-out);
+}
+.ss6-rail {
+  left: 0;
+  right: 0;
+  background: rgb(236 234 230 / 0.16);
+}
+.ss6-thumb {
+  left: 0;
+  background: rgb(236 234 230 / 0.6);
+  will-change: transform;
+}
+.ss6-scrub:is(:hover, [data-drag]) :is(.ss6-rail, .ss6-thumb) {
+  top: 10px;
+  height: 4px;
+}
+.ss6-scrub-label {
+  position: absolute;
+  bottom: 23px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms var(--ease-out);
+}
+.ss6-scrub:is(:hover, [data-drag]) .ss6-scrub-label {
+  opacity: 1;
+}
+.ss6-phone {
+  position: absolute;
+  inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+}
+.ss6-screen {
+  position: relative;
+  scroll-snap-align: start;
+  overflow: hidden;
+}
+.ss6-spot-m {
+  opacity: 0.8;
+}

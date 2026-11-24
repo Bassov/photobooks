@@ -11,7 +11,7 @@ import { GuidePage } from "./kit/guide/GuidePage"
 import { PAGES, MANIFEST, SCREENS, pageIndex, screenIndex, featuresOn } from "./kit/pages"
 import { SCREEN_DEFS } from "./features/screen-demos"
 import { FEATURES } from "./features/registry"
-
+import SiteArchive from "./features/site-archive"
 /** #/full/<screen-id | feature-slug> — the demo alone, full viewport (theme via ?theme=) */
 function FullPage({ id }: { id: string }) {
   const def = SCREEN_DEFS[id]
@@ -44,12 +44,13 @@ function App() {
     return () => window.removeEventListener("keydown", on)
   }, [])
   useEffect(() => {
-    document.title = r.name === "feature" ? `${r.slug} · Photobooks UI kit` : r.name === "screen" ? `${SCREENS.find((s) => s.id === r.id)?.title ?? r.id} · Photobooks UI kit` : r.name === "demo" ? "Interactive demo · Photobooks UI kit" : r.name === "components" ? "Components · Photobooks UI kit" : r.name === "guide" ? "Walkthrough · Photobooks UI kit" : r.name === "credits" ? "Photo credits · Photobooks UI kit" : "Photobooks UI kit"
+    document.title = r.name === "feature" ? `${r.slug} · Photobooks UI kit` : r.name === "screen" ? `${SCREENS.find((s) => s.id === r.id)?.title ?? r.id} · Photobooks UI kit` : r.name === "demo" ? "Interactive demo · Photobooks UI kit" : r.name === "components" ? "Components · Photobooks UI kit" : r.name === "guide" ? "Walkthrough · Photobooks UI kit" : r.name === "archive" ? "Site demos (archive) · Photobooks UI kit" : r.name === "credits" ? "Photo credits · Photobooks UI kit" : "Photobooks UI kit"
   }, [r])
   if (r.name === "full") return <FullPage key={r.id} id={r.id} />
   if (r.name === "demo") return <DemoApp />
   if (r.name === "components") return <ComponentsPage />
   if (r.name === "guide") return <GuidePage chapter={r.chapter} />
+  if (r.name === "archive") return <SiteArchive key={r.slug ?? ""} slug={r.slug} />
   if (r.name === "credits") return <CreditsPage />
   if (r.name === "feature") return <FeaturePage key={r.slug} slug={r.slug} />
   if (r.name === "screen") return <ScreenPage key={r.id} id={r.id} />

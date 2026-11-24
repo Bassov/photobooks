@@ -1,0 +1,45 @@
+/* Site demo 8, Desk on the system: flat books turned ≤ 3°; hover lifts the one book (rotation × .3, scale 1.02, the lift
+   shadow, 0.3 s ease-out); dragging follows the pointer without a transition. */
+.ss8-desk {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.ss8-book {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 1px 2px 2px 1px;
+  box-shadow: var(--sh);
+  transform: translate(var(--dx), var(--dy)) rotate(calc(var(--rot) * 1deg));
+  transition:
+    transform 300ms var(--ease-out),
+    box-shadow 300ms var(--ease-out);
+  cursor: grab;
+}
+.ss8-book:focus-visible {
+  outline-offset: 6px;
+}
+.ss8-desk .ss8-book:is(:hover, :focus-visible),
+.ss8-book[data-held] {
+  z-index: 3;
+  box-shadow: var(--sh-up);
+  transform: translate(var(--dx), var(--dy)) rotate(calc(var(--rot) * 0.3deg)) scale(1.02);
+}
+.ss8-book[data-held] {
+  cursor: grabbing;
+  transition:
+    box-shadow 300ms var(--ease-out),
+    rotate 300ms;
+}
+.ss8-cap {
+  animation: ss-in 200ms var(--ease) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ss8-book {
+    transition: none;
+  }
+  .ss8-desk .ss8-book:is(:hover, :focus-visible),
+  .ss8-book[data-held] {
+    transform: translate(var(--dx), var(--dy)) rotate(calc(var(--rot) * 1deg));
+  }
+}
