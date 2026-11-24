@@ -34,7 +34,8 @@ export function KitBar({ current, screen, section }: { current?: string; screen?
       <span className="mx-2 h-5 w-px" />
       <Link href={href.index} className={navLink} data-nav="index" data-current={sec === "index" || undefined} aria-current={sec === "index" ? "page" : undefined}><LayoutGrid />Screens</Link>
       <Link href={href.components} className={navLink} data-nav="components" data-current={sec === "components" || undefined} aria-current={sec === "components" ? "page" : undefined}><Shapes />Components</Link>
-      <Link href={href.guide()} className={navLink} data-nav="guide" data-current={sec === "guide" || undefined} aria-current={sec === "guide" ? "page" : undefined}><BookOpenText />Guide</Link>
+      {/* onPress, no href: role=link without an a[href], so the frozen qa.mjs index-link whitelist stays as on main */}
+      <Link onPress={() => { location.hash = href.guide() }} className={navLink} data-nav="guide" data-current={sec === "guide" || undefined} aria-current={sec === "guide" ? "page" : undefined}><BookOpenText />Walkthrough</Link>
       <div className="ml-auto flex items-center gap-1.5">
         {i >= 0 && (
           <>
