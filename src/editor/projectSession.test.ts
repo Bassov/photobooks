@@ -50,6 +50,7 @@ import {
   regrantLibrary,
   regrantLibraryWithHandleForTests,
   renameBookInLibrary,
+  flushBeforeReload,
   resetProjectSessionForTests,
   saveBookNow,
   selectRecentLibrary,
@@ -78,6 +79,15 @@ describe('projectSession', () => {
     const first = getProjectSessionSnapshot()
     const second = getProjectSessionSnapshot()
     expect(Object.is(first, second)).toBe(true)
+  })
+
+  it('flushBeforeReload refuses without a library and passes with one', async () => {
+    expect(await flushBeforeReload()).toBe(false)
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({ session, createStorage: () => storage })
+    await attachLibraryForTests({ storage, session })
+    expect(await flushBeforeReload()).toBe(true)
   })
 
   it('My templates follow the bound library and clear when the session resets', async () => {
