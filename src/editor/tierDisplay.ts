@@ -1,3 +1,4 @@
+import { holdObjectUrl } from '../lib/objectUrlRevoke'
 import { restoreAspectFromImage } from './previewAspect'
 
 const notes = new Map<string, ReadonlyMap<string, number>>()
@@ -18,6 +19,8 @@ interface SwapJob {
   assetId: string
   tier: number
   url: string
+  /** The detached decode `Image` is invisible to the revoke DOM check. */
+  release: () => void
 }
 
 const decodeQueue: SwapJob[] = []
@@ -74,7 +77,7 @@ export function queueTierSwap(
     return
   }
   queued.add(key)
-  decodeQueue.push({ assetId, tier, url })
+  decodeQueue.push({ assetId, tier, url, release: holdObjectUrl(url) })
   if (!pumping) {
     pumping = true
     void pumpSwaps()
@@ -102,7 +105,9 @@ export function resetTierDisplay(): void {
   desired.clear()
   shown.clear()
   queued.clear()
-  decodeQueue.length = 0
+  for (const job of decodeQueue.splice(0)) {
+    job.release()
+  }
   pumping = false
   emit()
 }
@@ -125,39 +130,47 @@ async function pumpSwaps(): Promise<void> {
     if (job === undefined) {
       break
     }
-    const key = swapKey(job.assetId, job.tier, job.url)
-    // Pre-decode gate: skip work when desired already moved; post-decode
-    // re-check below is the authoritative publish guard.
-    // Stryker disable next-line ConditionalExpression: redundant with post-decode acceptsSwap
-    if (!acceptsSwap(job.assetId, job.tier)) {
-      queued.delete(key)
-      continue
-    }
-    const image = new Image()
-    image.decoding = 'async'
-    image.src = job.url
     try {
-      await image.decode()
-    } catch {
-      queued.delete(key)
-      continue
+      await runSwap(job)
+    } finally {
+      // After the publish frame: React has put a shown URL in the DOM.
+      job.release()
     }
-    if (!acceptsSwap(job.assetId, job.tier)) {
-      queued.delete(key)
-      continue
-    }
-    queued.delete(key)
-    // The crop box is sized for the session aspect; a placeholder would stretch.
-    restoreAspectFromImage(job.assetId, image.naturalWidth, image.naturalHeight)
-    shown.set(job.assetId, { url: job.url, tier: job.tier })
-    emit()
-    await new Promise<void>((resolve) => {
-      requestAnimationFrame(() => {
-        resolve()
-      })
-    })
   }
   pumping = false
+}
+
+async function runSwap(job: SwapJob): Promise<void> {
+  const key = swapKey(job.assetId, job.tier, job.url)
+  // Pre-decode gate: skip work when desired already moved; post-decode
+  // re-check below is the authoritative publish guard.
+  // Stryker disable next-line ConditionalExpression: redundant with post-decode acceptsSwap
+  if (!acceptsSwap(job.assetId, job.tier)) {
+    queued.delete(key)
+    return
+  }
+  const image = new Image()
+  image.decoding = 'async'
+  image.src = job.url
+  try {
+    await image.decode()
+  } catch {
+    queued.delete(key)
+    return
+  }
+  queued.delete(key)
+  if (!acceptsSwap(job.assetId, job.tier)) {
+    return
+  }
+  // The crop box is sized for the session aspect; a placeholder would stretch.
+  restoreAspectFromImage(job.assetId, image.naturalWidth, image.naturalHeight)
+  shown.set(job.assetId, { url: job.url, tier: job.tier })
+  emit()
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      resolve()
+    })
+  })
 }
 
 /**

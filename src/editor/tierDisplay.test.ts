@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  getDeferredRevokeCountForTests,
+  revokeObjectUrlWhenUnused,
+} from '../lib/objectUrlRevoke'
+import {
   clearSpreadTiers,
   clearStaleDisplayedPreview,
   getDisplayedPreview,
@@ -264,5 +268,103 @@ describe('tierDisplay', () => {
     expect(getTierDisplaySnapshot().urls.get('a')?.tier).toBe(320)
     expect(seen.length).toBeGreaterThan(0)
     unsubscribe()
+  })
+
+  it('holds a queued URL from revoke until its publish frame', async () => {
+    const revoke = vi
+      .spyOn(URL, 'revokeObjectURL')
+      .mockImplementation(() => undefined)
+    let decoded: () => void = () => undefined
+    vi.spyOn(HTMLImageElement.prototype, 'decode').mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          decoded = resolve
+        }),
+    )
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback): number =>
+      frames.push(cb),
+    )
+    setSpreadTiers('s0', new Map([['a', 320]]))
+    queueTierSwap('a', 320, 'blob:queued')
+    // The tier cache replaces the URL while the detached Image decodes it.
+    revokeObjectUrlWhenUnused('blob:queued')
+    expect(revoke).not.toHaveBeenCalled()
+
+    decoded()
+    await vi.waitFor(() => {
+      expect(frames).toHaveLength(1)
+    })
+    expect(getDisplayedPreview('a')).toBe('blob:queued')
+    expect(getDeferredRevokeCountForTests()).toBe(1)
+
+    expect(revoke).not.toHaveBeenCalled()
+
+    frames[0]?.(0)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    // Released: a revoke of it no longer waits on the decode.
+    revokeObjectUrlWhenUnused('blob:queued')
+    expect(revoke.mock.calls).toEqual([['blob:queued']])
+  })
+
+  it('decodes a URL again once a swap finished with it, shown or dropped', async () => {
+    const decode = vi
+      .spyOn(HTMLImageElement.prototype, 'decode')
+      .mockResolvedValue()
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
+    setSpreadTiers('s0', new Map([['a', 320]]))
+    queueTierSwap('a', 320, 'blob:first')
+    await settle()
+    queueTierSwap('a', 320, 'blob:second')
+    await settle()
+    expect(getDisplayedPreview('a')).toBe('blob:second')
+    queueTierSwap('a', 320, 'blob:first')
+    await settle()
+    expect(getDisplayedPreview('a')).toBe('blob:first')
+
+    // Dropped while it waits behind another decode (desired moved away).
+    setSpreadTiers('s1', new Map([['b', 320]]))
+    queueTierSwap('a', 320, 'blob:third')
+    queueTierSwap('b', 320, 'blob:b')
+    clearSpreadTiers('s1')
+    const calls = decode.mock.calls.length
+    await settle()
+    // The pre-decode gate skips its decode work.
+    expect(decode.mock.calls.length).toBe(calls)
+    expect(getDisplayedPreview('b')).toBeUndefined()
+    setSpreadTiers('s1', new Map([['b', 320]]))
+    queueTierSwap('b', 320, 'blob:b')
+    await settle()
+    expect(decode.mock.calls.length).toBe(calls + 1)
+    expect(getDisplayedPreview('b')).toBe('blob:b')
+  })
+
+  it('releases queued URLs on reset', () => {
+    const revoke = vi
+      .spyOn(URL, 'revokeObjectURL')
+      .mockImplementation(() => undefined)
+    vi.spyOn(HTMLImageElement.prototype, 'decode').mockReturnValue(
+      new Promise<void>(() => undefined),
+    )
+    setSpreadTiers(
+      's0',
+      new Map([
+        ['a', 320],
+        ['b', 320],
+      ]),
+    )
+    queueTierSwap('a', 320, 'blob:decoding')
+    queueTierSwap('b', 320, 'blob:waiting')
+    resetTierDisplay()
+
+    revokeObjectUrlWhenUnused('blob:waiting')
+    expect(revoke.mock.calls).toEqual([['blob:waiting']])
   })
 })
