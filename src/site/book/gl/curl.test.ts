@@ -59,9 +59,16 @@ const uniformsOf = (m: Mesh) =>
   )
 /** the curl's scene, as drawn (the renderer gets it) */
 const sceneOf = (curl: PageCurl) => (curl as unknown as { scene: Scene }).scene
+/** narrows a scene child to a Mesh; throws when it is not one */
+const isMesh = (o: unknown): o is Mesh => o instanceof THREE.Mesh
+const asMesh = (o: unknown): Mesh => {
+  if (!isMesh(o)) throw new Error('expected a THREE.Mesh')
+  return o
+}
 const layers = (curl: PageCurl) => {
-  const [under, shadow, top] = sceneOf(curl).children as Mesh[]
-  return { under, shadow, top } as { under: Mesh; shadow: Mesh; top: Mesh }
+  const [under, shadow, top] = sceneOf(curl).children.map(asMesh)
+  if (!under || !shadow || !top) throw new Error('expected three curl layers')
+  return { under, shadow, top }
 }
 
 describe('hex', () => {

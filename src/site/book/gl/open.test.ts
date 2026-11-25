@@ -33,10 +33,22 @@ const settle = () =>
   new Promise<void>((resolve) => {
     setTimeout(resolve, 0)
   })
-const group = (o: OpenBook) => o.scene.children[3] as Group
+/** narrows a scene child to a Group; throws when it is not one */
+const isGroup = (o: unknown): o is Group => o instanceof THREE.Group
+const asGroup = (o: unknown): Group => {
+  if (!isGroup(o)) throw new Error('expected a THREE.Group')
+  return o
+}
+/** narrows a scene child to a Mesh; throws when it is not one */
+const isMesh = (o: unknown): o is Mesh => o instanceof THREE.Mesh
+const asMesh = (o: unknown): Mesh => {
+  if (!isMesh(o)) throw new Error('expected a THREE.Mesh')
+  return o
+}
+const group = (o: OpenBook) => asGroup(o.scene.children[3])
 /** the image on a mesh's material map: a panel id or a canvas */
 const imageOf = (m: unknown) => {
-  const mat = (m as Mesh).material as MeshStandardMaterial
+  const mat = asMesh(m).material as MeshStandardMaterial
   const img = mat.map?.image as { id?: string } | undefined
   return img instanceof HTMLCanvasElement ? 'canvas' : img?.id
 }
@@ -140,7 +152,7 @@ describe('OpenBook', () => {
     flat.set(3, 90)
 
     const leafTip = (o: OpenBook) => {
-      const leaf = group(o).children.at(-3) as Mesh
+      const leaf = asMesh(group(o).children.at(-3))
       leaf.geometry.computeBoundingBox()
       return leaf.geometry.boundingBox?.max.y ?? 0
     }
