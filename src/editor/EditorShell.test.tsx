@@ -361,7 +361,10 @@ describe('EditorShell viewport containment', () => {
     const present = screen.getByTestId('present')
     fireEvent.click(present)
     expect(screen.getByTestId('site-preview-bar')).toBeTruthy()
-    const scroll = await screen.findByTestId('site-preview-scroll')
+    // Awaits the lazy chunk itself, not findBy's 1 s wall-clock budget: a
+    // cold import of the site modules under load can take longer.
+    await act(() => import('./SitePreview'))
+    const scroll = screen.getByTestId('site-preview-scroll')
     expect(scroll.className).toContain('site')
     expect(screen.getByTestId('site-label').textContent).toBe('Cover')
     expect(screen.queryByTestId('editor-status')).not.toBeNull()

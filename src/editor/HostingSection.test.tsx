@@ -17,6 +17,14 @@ import {
 } from '../publish/credentials'
 import { HostingSection } from './HostingSection'
 
+vi.mock('../publish/credentials', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../publish/credentials')>()
+  return { ...actual, loadHostingSummary: vi.fn(actual.loadHostingSummary) }
+})
+const { loadHostingSummary: readSummary } = await vi.importActual<
+  typeof import('../publish/credentials')
+>('../publish/credentials')
+
 const ROW = 'flex min-h-13 items-center gap-4 px-4 py-2'
 const rule = () => <div data-testid="settings-rule" />
 
@@ -71,10 +79,31 @@ function fillValid() {
   fireEvent.blur(input('hosting-url'))
 }
 
+/**
+ * Resolves once the section's next summary read (mount or reload) has settled
+ * and every state update chained on it has run (a macrotask comes after them
+ * all). Waits on the read itself, not on `findBy`'s 1 s wall-clock budget,
+ * which a CPU-starved worker spends before fake-indexeddb's queued steps run.
+ */
+function nextSummaryRead(): Promise<void> {
+  return new Promise((resolve) => {
+    vi.mocked(loadHostingSummary).mockImplementationOnce(() => {
+      const read = readSummary()
+      const settle = () => {
+        setTimeout(resolve, 0)
+      }
+      read.then(settle, settle)
+      return read
+    })
+  })
+}
+
 /** Not connected opens the guided setup; these tests switch to the manual form. */
 async function renderSection() {
+  const read = nextSummaryRead()
   render(<HostingSection row={ROW} rule={rule} />)
-  const shown = await screen.findByTestId(/^hosting-(setup|connected)$/)
+  await act(() => read)
+  const shown = screen.getByTestId(/^hosting-(setup|connected)$/)
   if (shown.dataset.testid === 'hosting-connected') return shown
   fireEvent.click(screen.getByTestId('hosting-manual'))
   return screen.getByTestId('hosting-form')
@@ -192,8 +221,10 @@ describe('HostingSection', () => {
     expect(
       screen.getByTestId('hosting-connect').hasAttribute('data-disabled'),
     ).toBe(false)
+    const read = nextSummaryRead()
     fireEvent.click(screen.getByTestId('hosting-connect'))
-    await screen.findByTestId('hosting-connected')
+    await act(() => read)
+    expect(screen.getByTestId('hosting-connected')).toBeTruthy()
     expect(fetchMock.mock.calls.map(([, init]) => init?.method)).toEqual([
       'PUT',
       'HEAD',
@@ -249,11 +280,12 @@ describe('HostingSection', () => {
     )
     fireEvent.keyDown(input('hosting-bucket'), { key: 'Enter' })
     expect(fetchMock).toHaveBeenCalledTimes(1)
+    const read = nextSummaryRead()
     await act(async () => {
       release(new Response(null, { status: 200 }))
-      await Promise.resolve()
+      await read
     })
-    await screen.findByTestId('hosting-connected')
+    expect(screen.getByTestId('hosting-connected')).toBeTruthy()
   })
 
   it('a rejected key rings key and secret, stores nothing', async () => {
@@ -388,8 +420,10 @@ describe('HostingSection', () => {
     await screen.findByTestId('hosting-form')
     type('hosting-key', 'b'.repeat(28) + '1234')
     type('hosting-secret', SECRET)
+    const read = nextSummaryRead()
     fireEvent.click(screen.getByTestId('hosting-connect'))
-    await screen.findByTestId('hosting-connected')
+    await act(() => read)
+    expect(screen.getByTestId('hosting-connected')).toBeTruthy()
     expect(screen.getByTestId('hosting-stored-key').textContent).toBe('…1234')
   })
 

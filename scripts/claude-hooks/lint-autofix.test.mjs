@@ -13,6 +13,15 @@ import {
   main,
 } from './lint-autofix.mjs'
 
+// The hook imports these lazily on its first call. Load them with the file, so
+// that cold load is not charged to whichever test runs first: under load it
+// alone can spend the test's 5 s budget.
+await Promise.all([
+  import('prettier'),
+  import('eslint'),
+  import('typescript-eslint'),
+])
+
 const SCRIPT = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   'lint-autofix.mjs',
