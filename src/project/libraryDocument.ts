@@ -61,7 +61,7 @@ function makeTemplateSchema() {
  * dropped on its own so one bad template never loses the others.
  */
 export function parseSavedTemplates(input: unknown): SavedTemplate[] {
-  return parseEach(input, makeTemplateSchema())
+  return parseEach(input, makeTemplateSchema)
 }
 
 /**
@@ -69,10 +69,11 @@ export function parseSavedTemplates(input: unknown): SavedTemplate[] {
  * every one was saved on a two-page spread.
  */
 export function parseLegacySavedTemplates(input: unknown): SavedTemplate[] {
-  const legacy = makeTemplateSchema()
-    .omit({ pages: true })
-    .transform((entry) => ({ ...entry, pages: 2 as const }))
-  return parseEach(input, legacy)
+  return parseEach(input, () =>
+    makeTemplateSchema()
+      .omit({ pages: true })
+      .transform((entry) => ({ ...entry, pages: 2 as const })),
+  )
 }
 
 /**
@@ -82,7 +83,7 @@ export function parseLegacySavedTemplates(input: unknown): SavedTemplate[] {
  */
 export function parsePrintProfiles(input: unknown): PrintProfile[] {
   const builtInIds = new Set(builtInPrintProfiles().map(({ id }) => id))
-  return parseEach(input, printProfileSchema()).filter(
+  return parseEach(input, printProfileSchema).filter(
     ({ id }) => !builtInIds.has(id),
   )
 }
@@ -128,11 +129,18 @@ export function parseSiteSettings(input: unknown): SiteSettings | undefined {
   return Object.keys(site).length === 0 ? undefined : site
 }
 
-function parseEach<T>(input: unknown, schema: z.ZodType<T>): T[] {
+/**
+ * The schema is built on the first entry, not per call: most libraries hold
+ * no templates or custom profiles, and building a schema costs far more than
+ * parsing an empty list.
+ */
+function parseEach<T>(input: unknown, makeSchema: () => z.ZodType<T>): T[] {
   if (!Array.isArray(input)) {
     return []
   }
+  let schema: z.ZodType<T> | undefined
   return input.flatMap((entry: unknown) => {
+    schema ??= makeSchema()
     const parsed = schema.safeParse(entry)
     return parsed.success ? [parsed.data] : []
   })
