@@ -6,6 +6,7 @@ import {
   resetDecodeScrollQuietForTests,
 } from '../photo/decodeScrollQuiet'
 import { makeBook } from '../core/testing/fixtures'
+import { DEFERRED_REVOKE_RECHECK_MS } from '../lib/objectUrlRevoke'
 import {
   getAssetAspectSnapshot,
   getAssetCacheKey,
@@ -641,6 +642,29 @@ describe('thumbCache', () => {
       entries: 2,
       bytes: 4,
     })
+  })
+
+  it('a replaced thumb an img still shows is revoked only after the img updates', async () => {
+    vi.useFakeTimers()
+    const revoke = mockObjectUrls('shown')
+    listen('a')
+    setThumbUrl('a', bytes(1), 'image/jpeg')
+    const img = document.createElement('img')
+    img.setAttribute('src', 'blob:shown-1')
+    document.body.append(img)
+    try {
+      setThumbUrl('a', bytes(2), 'image/jpeg')
+      expect(getThumbUrl('a')).toBe('blob:shown-2')
+      expect(getThumbCacheStatsForTests().entries).toBe(1)
+      expect(revoke).not.toHaveBeenCalled()
+
+      img.setAttribute('src', 'blob:shown-2')
+      await vi.advanceTimersByTimeAsync(DEFERRED_REVOKE_RECHECK_MS)
+      expect(revoke).toHaveBeenCalledWith('blob:shown-1')
+      expect(revoke).not.toHaveBeenCalledWith('blob:shown-2')
+    } finally {
+      img.remove()
+    }
   })
 
   it('keeps mounted thumbs past the byte budget', () => {

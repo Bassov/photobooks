@@ -1,3 +1,4 @@
+import { revokeObjectUrlWhenUnused } from '../lib/objectUrlRevoke'
 import { measureHandlerSync } from '../perf/measureHandler'
 import { aspectRatio } from './aspectRatio'
 import { processAsset, resetAssetPool, warmAssetPool } from './assetPool'
@@ -55,5 +56,5 @@ export async function loadPhoto(file: File): Promise<PhotoCardModel> {
 }
 
 export function revokePhotoPreview(model: PhotoCardModel): void {
-  URL.revokeObjectURL(model.previewUrl)
+  revokeObjectUrlWhenUnused(model.previewUrl)
 }
