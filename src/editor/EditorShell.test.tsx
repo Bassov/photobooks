@@ -377,6 +377,34 @@ describe('EditorShell viewport containment', () => {
     vi.unstubAllGlobals()
   })
 
+  it('opens Settings over the inert editor; Back returns focus to ⚙', () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {
+          return undefined
+        }
+        disconnect() {
+          return undefined
+        }
+      },
+    )
+    render(<EditorShell />)
+    const gear = screen.getByTestId('editor-settings-open')
+    fireEvent.click(gear)
+    const settings = screen.getByTestId('editor-settings')
+    const shell = screen.getByTestId('editor-shell')
+    expect(shell.hasAttribute('inert')).toBe(true)
+    // Outside the shell (and the top bar's stacking context).
+    expect(shell.contains(settings)).toBe(false)
+
+    fireEvent.click(screen.getByTestId('editor-settings-back'))
+    expect(screen.queryByTestId('editor-settings')).toBeNull()
+    expect(shell.hasAttribute('inert')).toBe(false)
+    expect(document.activeElement).toBe(gear)
+    vi.unstubAllGlobals()
+  })
+
   it('opening Preview ends photo pick mode (FM4), even by keyboard', () => {
     vi.stubGlobal(
       'ResizeObserver',

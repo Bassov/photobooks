@@ -6,6 +6,7 @@ import {
 import { setCoverSelected } from './coverSelection'
 import type { Key } from 'react-aria-components'
 import { useEffect, useState, useSyncExternalStore } from 'react'
+import { createPortal, flushSync } from 'react-dom'
 import { Button } from '../ui/Button'
 import '../ui/Button.css'
 import { Icon } from '../ui/Icon'
@@ -276,11 +277,14 @@ export function EditorTopBar({
   panels,
   onPanelsChange,
   onPresent,
+  onSettingsOpenChange,
 }: {
   chromeImport: ChromeImportApi
   panels: EditorPanels
   onPanelsChange: (next: EditorPanels) => void
   onPresent: () => void
+  /** Settings covers the editor: the shell goes inert under it (as Preview). */
+  onSettingsOpenChange?: (open: boolean) => void
 }) {
   const spreadCount = useSyncExternalStore(
     subscribeBookStore,
@@ -308,6 +312,20 @@ export function EditorTopBar({
   // The section Settings opens on (Publish → Hosting), `null` while closed.
   const [settingsSection, setSettingsSection] =
     useState<SettingsSectionId | null>(null)
+  const openSettings = (section: SettingsSectionId) => {
+    setSettingsSection(section)
+    onSettingsOpenChange?.(true)
+  }
+  // Back to the book: commit (the editor is no longer inert), then focus ⚙.
+  const closeSettings = () => {
+    flushSync(() => {
+      setSettingsSection(null)
+      onSettingsOpenChange?.(false)
+    })
+    document
+      .querySelector<HTMLElement>('[data-testid="editor-settings-open"]')
+      ?.focus()
+  }
   const libraryReady = project.libraryOpen
   const writeBlocked = project.accessPhase === 'locked-elsewhere'
   const pickerBusy = chromeImport.pickerBusy
@@ -413,7 +431,7 @@ export function EditorTopBar({
             aria-label="Settings"
             title="Settings"
             onClick={() => {
-              setSettingsSection('library')
+              openSettings('library')
             }}
           >
             <Icon name="settings" size={16} />
@@ -423,21 +441,24 @@ export function EditorTopBar({
           <PublishButton
             disabled={spreadCount === 0 || writeBlocked}
             onOpenHosting={() => {
-              setSettingsSection('hosting')
+              openSettings('hosting')
             }}
           />
         </div>
       </div>
-      {settingsSection === null ? null : (
-        <EditorSettings
-          libraryPath={project.libraryLabel ?? 'Library'}
-          changeDisabled={chromeBusy}
-          initialSection={settingsSection}
-          onClose={() => {
-            setSettingsSection(null)
-          }}
-        />
-      )}
+      {/* A body portal: inside the header's z-10 stacking context the
+          canvas chrome (layout-cycle pill, z 20) painted over Settings. */}
+      {settingsSection === null
+        ? null
+        : createPortal(
+            <EditorSettings
+              libraryPath={project.libraryLabel ?? 'Library'}
+              changeDisabled={chromeBusy}
+              initialSection={settingsSection}
+              onClose={closeSettings}
+            />,
+            document.body,
+          )}
     </header>
   )
 }

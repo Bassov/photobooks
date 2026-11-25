@@ -60,6 +60,7 @@ export function EditorShell() {
   const [toastQueue] = useState(() => createToastQueue())
   const [panels, setPanels] = useState(DEFAULT_EDITOR_PANELS)
   const [previewing, setPreviewing] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const chromeImport = useChromeImport({
     // External store: progress ticks must not re-render Pasteboard / top bar.
     onImportProgress: setImportProgress,
@@ -78,12 +79,13 @@ export function EditorShell() {
       <EditorFrame
         panels={panels}
         onPanelsChange={setPanels}
-        inert={previewing}
+        inert={previewing || settingsOpen}
         top={
           <EditorTopBar
             chromeImport={chromeImport}
             panels={panels}
             onPanelsChange={setPanels}
+            onSettingsOpenChange={setSettingsOpen}
             onPresent={() => {
               endPhotoPick()
               setPreviewing(true)
