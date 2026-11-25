@@ -329,6 +329,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [interface-size-core](roadmap/P5/interface-size-core.md) — Bug: /next-roadmap-item interface-size-core
 - [ ] [feature] [interface-size-pointer](roadmap/P5/interface-size-pointer.md) — Bug: /next-roadmap-item interface-size-pointer
 - [ ] [lite] [prod-qa-walkthrough](roadmap/P5/prod-qa-walkthrough.md) — Bug: /next-roadmap-item prod-qa-walkthrough
+- [ ] [feature] [qa-blob-revoked](roadmap/P5/qa-blob-revoked.md) — Bug: /next-roadmap-item qa-blob-revoked
 - [ ] [lite] [design-r48-esc-resize](roadmap/P5/design-r48-esc-resize.md) — Bug: /next-roadmap-item design-r48-esc-resize
 - [ ] [lite] [design-r49-esc-resize-select](roadmap/P5/design-r49-esc-resize-select.md) — Bug: /next-roadmap-item design-r49-esc-resize-select
 - [ ] [lite] [design-r47-esc-tooltip](roadmap/P5/design-r47-esc-tooltip.md) — Bug: /next-roadmap-item design-r47-esc-tooltip
