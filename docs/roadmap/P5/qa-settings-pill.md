@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item qa-settings-pill
+Status: done
 
 ## Scope
 
