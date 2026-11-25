@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item qa-preview-cover
+Status: done
 
 Fixes QA-3 of the prod QA report (`docs/qa/prod-qa-2026-11-25.md`): Preview opens on a closed book with plain cloth and the title only, without the cover photo the editor shows. The guide says Preview shows the book as the published site does.
 
