@@ -68,7 +68,7 @@ export function TextSection({ live = false }: { live?: boolean }) {
         <div className="mt-3 flex flex-col gap-2 pt-3" data-testid="live-caption">
           {/* disabled only when the spread has no image frame: the row at .5 (the track keeps full opacity inside it) */}
           <Switch size="sm" data-testid="live-caption-switch" isSelected={!!f.live} isDisabled={!imgs.length} onChange={setLive}
-            className="w-full flex-row-reverse justify-between gap-3 text-sm font-normal data-[disabled]:cursor-default data-[disabled]:opacity-50 data-[disabled]:[&_.sw-track]:cursor-default! data-[disabled]:[&_.sw-track]:opacity-100!">Live from photo metadata</Switch>
+            className="w-full flex-row-reverse justify-between gap-3 text-sm leading-(--text-sm--line-height) font-normal data-[disabled]:cursor-default data-[disabled]:opacity-50 data-[disabled]:[&_.sw-track]:cursor-default! data-[disabled]:[&_.sw-track]:opacity-100!">Live from photo metadata</Switch>
           {!imgs.length ? <p data-testid="live-caption-hint" className="text-2xs leading-3.5 text-muted-foreground">Add a photo frame to this spread to use its metadata.</p> : <>
             {f.live && <SelectRow label="Anchored to" value={f.anchor ?? ""} onChange={(v) => set({ anchor: v }, "Anchor caption")} items={imgs.map((x, i) => [x.id, `Frame ${i + 1} · ${x.photo ? P(x.photo).name : "empty"}`] as [string, string])} />}
             <div className="flex flex-wrap gap-1" data-testid="live-tokens">{TOKENS.map((t) => (
