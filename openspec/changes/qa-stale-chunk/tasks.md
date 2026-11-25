@@ -10,3 +10,5 @@
 
 1. Session editor, stale `SitePreview-*.js` served as text/html: Preview → "Reload" error over the editor, Esc returns to the editor.
 2. Library book, same stale chunk: Preview → one reload; again → "Reload" error, no further reload.
+
+manual-qa 2026-11-25: problem (harness) — both scenarios blocked at the welcome screen: the `start-session` click is intercepted by the welcome header (known harness issue). Evidence instead: `e2e/stale-chunk.spec.ts` (2 passed locally: scenario 1 and 2, incl. paint `topAt` and message box asserts).
