@@ -6,6 +6,7 @@ import { bookFormatFromTrim } from '../render/bookObjectLayout'
 import { CoverView } from '../render/CoverView'
 import { siteBookFacts, siteMetaOf } from '../site/siteModel'
 import { SiteRoom, type BookInput } from '../site/SiteRoom'
+import { HostCoverUrl } from '../site/hostCoverUrl'
 import '../site/siteSystem.css'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
@@ -15,7 +16,7 @@ import { useTierPreviewUrl } from './useTierPreviewUrl'
 
 const readBook = (): Book => getBookStoreSnapshot().book
 
-/** the room's cover title ink (no published cover photo in the preview) */
+/** the room's cover title ink (the published site's ink on a cover photo) */
 const INK = '#F5F5F5'
 /** the year the room's meta shows: nothing is published yet */
 const OPENED_AT = Date.now()
@@ -103,6 +104,12 @@ export default function SitePreview({ onExit }: { onExit: () => void }) {
     [book],
   )
   const embedded = useMemo(() => ({ slide, onSlide: setSlide }), [slide])
+  // the closed book's front photo: the editor's working preview, as the
+  // published site shows its cover photo (an object URL, not page data)
+  const coverUrl = useTierPreviewUrl(
+    book.cover.front.assetId,
+    'cover:preview-closed',
+  ).url
 
   return (
     // the room's views: the cover, the spreads, the back cover
@@ -120,13 +127,15 @@ export default function SitePreview({ onExit }: { onExit: () => void }) {
         style={{ minHeight: 0, zoom: 'calc(1 / var(--ui-scale))' }}
         data-testid="site-preview-scroll"
       >
-        <SiteRoom
-          input={input}
-          embedded={embedded}
-          allBooks={false}
-          share={false}
-          renderSlide={renderSlide}
-        />
+        <HostCoverUrl value={coverUrl}>
+          <SiteRoom
+            input={input}
+            embedded={embedded}
+            allBooks={false}
+            share={false}
+            renderSlide={renderSlide}
+          />
+        </HostCoverUrl>
       </div>
     </SitePreviewFrame>
   )

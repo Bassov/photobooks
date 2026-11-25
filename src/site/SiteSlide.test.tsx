@@ -1,6 +1,7 @@
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { bookInput } from './siteRoom.test-helpers'
+import { HostCoverUrl } from './hostCoverUrl'
 import { CoverFace, PageFace, SlideContent, type Images } from './SiteSlide'
 
 // `alps`: 190 × 230 mm, 11 spreads (the first and the last one page);
@@ -178,6 +179,22 @@ describe('CoverFace', () => {
     const title = container.querySelector<HTMLElement>('.sd-b3-title')
     expect(title?.style.fontSize).toBe('calc(var(--cover-k) * 150px)')
     expect(title?.style.top).toBe('9%')
+  })
+
+  it.each([
+    ['over the published photo', true],
+    ['with no published photo', false],
+  ])('paints the host cover URL as is %s', (_, published) => {
+    const { entry } = alps()
+    const b = published ? entry : { ...entry, cover: null }
+    const { container } = render(
+      <HostCoverUrl value="blob:http://localhost/c-1">
+        <CoverFace b={b} w={300} h={450} />
+      </HostCoverUrl>,
+    )
+    expect(imgs(container).map((i) => i.getAttribute('src'))).toStrictEqual([
+      'blob:http://localhost/c-1',
+    ])
   })
 
   it('keeps the site sans (.sd-it) for a sans Title font', () => {

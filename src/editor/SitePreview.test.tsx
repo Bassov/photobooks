@@ -8,6 +8,7 @@ import {
 } from './bookStore'
 import SitePreview, { PreviewSlide } from './SitePreview'
 import { resetSiteSettingsForTests, setSiteSettings } from './siteSettingsStore'
+import * as thumbCache from './thumbCache'
 
 const book = makeBook({
   title: 'Lake trip',
@@ -98,6 +99,34 @@ describe('SitePreview', () => {
     const head = screen.getByText('Lake trip', { selector: '.sb-back' })
     expect(head.tagName).toBe('SPAN')
     expect(screen.getByTestId('site-room').querySelector('a')).toBeNull()
+  })
+
+  it('closes the book on the editor cover photo, cloth without one', () => {
+    stubLayout()
+    vi.spyOn(thumbCache, 'getThumbUrl').mockImplementation((id) =>
+      id === 'a1' ? 'blob:http://localhost/a1' : undefined,
+    )
+    const view = render(<SitePreview onExit={vi.fn()} />)
+    const covers = () =>
+      [
+        ...screen.getByTestId('site-room').querySelectorAll('.sb-cover img'),
+      ].map((i) => i.getAttribute('src'))
+    expect(covers()).toStrictEqual([])
+    view.unmount()
+    resetBookStore({
+      book: {
+        ...book,
+        cover: { ...book.cover, front: { ...book.cover.front, assetId: 'a1' } },
+      },
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<SitePreview onExit={vi.fn()} />)
+    expect(covers().length).toBeGreaterThan(0)
+    expect(new Set(covers())).toStrictEqual(
+      new Set(['blob:http://localhost/a1']),
+    )
   })
 
   it('heads the room with the author, else the site title, live', () => {
