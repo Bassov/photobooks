@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item qa-guide-frame-move
+Status: done
 
 ## Scope
 
