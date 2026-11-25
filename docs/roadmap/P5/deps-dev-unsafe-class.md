@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item deps-dev-unsafe-class
+Status: done
 
 ## Scope
 
