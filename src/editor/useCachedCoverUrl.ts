@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getDerivedCache } from '../assets/derivedCache/instance'
 import { THUMB_PRESET_ID, tierPresetId } from '../assets/derivedCache/presets'
+import { revokeObjectUrlWhenUnused } from '../lib/objectUrlRevoke'
 import { WORKING_PREVIEW_EDGE } from '../photo/imageTiers'
 
 /** Library cover sources, sharpest first: working preview, then filmstrip thumb. */
@@ -49,7 +50,7 @@ export function useCachedCoverUrl(
     return () => {
       cancelled = true
       if (url !== undefined) {
-        URL.revokeObjectURL(url)
+        revokeObjectUrlWhenUnused(url)
       }
     }
   }, [cacheKey])

@@ -1,9 +1,12 @@
+import { revokeObjectUrlWhenUnused } from '../lib/objectUrlRevoke'
+
 export interface ObjectUrlLruOptions {
   capacity: number
 }
 
 /**
- * Bounded object-URL cache. Evicted entries are revoked.
+ * Bounded object-URL cache. Evicted entries leave at once; their URLs are
+ * revoked once no mounted element references them.
  * Values are opaque URL strings created by the caller.
  */
 export class ObjectUrlLru {
@@ -35,7 +38,7 @@ export class ObjectUrlLru {
     const existing = this.urls.get(key)
     if (existing !== undefined) {
       if (existing !== url) {
-        URL.revokeObjectURL(existing)
+        revokeObjectUrlWhenUnused(existing)
       }
       this.urls.set(key, url)
       this.touch(key)
@@ -56,7 +59,7 @@ export class ObjectUrlLru {
     if (url === undefined) {
       return false
     }
-    URL.revokeObjectURL(url)
+    revokeObjectUrlWhenUnused(url)
     this.urls.delete(key)
     const index = this.order.indexOf(key)
     if (index >= 0) {
@@ -67,7 +70,7 @@ export class ObjectUrlLru {
 
   clear(): void {
     for (const url of this.urls.values()) {
-      URL.revokeObjectURL(url)
+      revokeObjectUrlWhenUnused(url)
     }
     this.urls.clear()
     this.order.length = 0
@@ -89,7 +92,7 @@ export class ObjectUrlLru {
       }
       const url = this.urls.get(oldest)
       if (url !== undefined) {
-        URL.revokeObjectURL(url)
+        revokeObjectUrlWhenUnused(url)
       }
       this.urls.delete(oldest)
     }

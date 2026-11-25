@@ -1,4 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  DEFERRED_REVOKE_RECHECK_MS,
+  getDeferredRevokeCountForTests,
+} from '../lib/objectUrlRevoke'
 import { ObjectUrlLru } from './objectUrlLru'
 
 describe('ObjectUrlLru', () => {
@@ -85,6 +89,66 @@ describe('ObjectUrlLru', () => {
     lru.set('a', 'blob:same')
     expect(revoke).not.toHaveBeenCalled()
     expect(lru.get('a')).toBe('blob:same')
+  })
+
+  describe('a URL still referenced by a mounted element', () => {
+    afterEach(() => {
+      document.body.replaceChildren()
+      vi.useRealTimers()
+    })
+
+    function mountImage(attr: 'src' | 'srcset', value: string) {
+      const img = document.createElement('img')
+      img.setAttribute(attr, value)
+      document.body.append(img)
+      return img
+    }
+
+    it('eviction keeps the cap but holds the revoke until the img drops the URL', async () => {
+      vi.useFakeTimers()
+      const revoke = vi
+        .spyOn(URL, 'revokeObjectURL')
+        .mockImplementation(() => undefined)
+      const img = mountImage('src', 'blob:held')
+      const lru = new ObjectUrlLru({ capacity: 2 })
+      lru.set('a', 'blob:held')
+      lru.set('b', 'blob:b')
+      lru.set('c', 'blob:c')
+      expect(lru.size).toBe(2)
+      expect(lru.has('a')).toBe(false)
+      expect(revoke).not.toHaveBeenCalled()
+
+      await vi.advanceTimersByTimeAsync(DEFERRED_REVOKE_RECHECK_MS)
+      expect(revoke).not.toHaveBeenCalled()
+
+      img.setAttribute('src', 'blob:c')
+      await vi.advanceTimersByTimeAsync(DEFERRED_REVOKE_RECHECK_MS)
+      expect(revoke).toHaveBeenCalledWith('blob:held')
+      expect(revoke).toHaveBeenCalledTimes(1)
+      expect(getDeferredRevokeCountForTests()).toBe(0)
+    })
+
+    it('replace, delete and clear hold URLs a srcset still lists', async () => {
+      vi.useFakeTimers()
+      const revoke = vi
+        .spyOn(URL, 'revokeObjectURL')
+        .mockImplementation(() => undefined)
+      const img = mountImage('srcset', 'blob:old 320w, blob:d 640w')
+      const lru = new ObjectUrlLru({ capacity: 4 })
+      lru.set('a', 'blob:old')
+      lru.set('a', 'blob:new')
+      lru.set('d', 'blob:d')
+      lru.delete('d')
+      lru.set('e', 'blob:e')
+      lru.clear()
+      expect(revoke.mock.calls).toEqual([['blob:new'], ['blob:e']])
+
+      img.remove()
+      await vi.advanceTimersByTimeAsync(DEFERRED_REVOKE_RECHECK_MS)
+      expect(revoke).toHaveBeenCalledWith('blob:old')
+      expect(revoke).toHaveBeenCalledWith('blob:d')
+      expect(revoke).toHaveBeenCalledTimes(4)
+    })
   })
 
   it('delete removes and revokes; missing delete returns false', () => {

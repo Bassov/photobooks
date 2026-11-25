@@ -1,5 +1,6 @@
 import { getDerivedCache } from '../assets/derivedCache/instance'
 import { THUMB_PRESET_ID } from '../assets/derivedCache/presets'
+import { revokeObjectUrlWhenUnused } from '../lib/objectUrlRevoke'
 import { noteDecodeScrollActivity } from '../photo/decodeScrollQuiet'
 import type {
   DerivedCacheEntry,
@@ -127,7 +128,8 @@ function notifyAsset(assetId: string): void {
 function removeEntry(assetId: string, entry: ThumbEntry): void {
   entries.delete(assetId)
   totalBytes -= entry.byteLength
-  URL.revokeObjectURL(entry.url)
+  // A mounted img may still show it until its notify lands.
+  revokeObjectUrlWhenUnused(entry.url)
 }
 
 function evictOverBudget(): void {
