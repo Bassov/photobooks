@@ -23,8 +23,8 @@ export function SliderRow({ label, className, ...props }: React.ComponentProps<t
   return (
     <Slider {...props} className={cn("flex-col items-stretch gap-2", className as string)}>
       <div className="flex items-center justify-between">
-        <Label className="text-xs font-normal text-muted-foreground">{label}</Label>
-        {range ? <SliderOutput className="text-xs font-medium tabular-nums text-foreground" /> : <SliderValueField label={label} className="text-xs font-medium tabular-nums text-foreground" />}
+        <Label className="text-xs leading-(--text-xs--line-height) font-normal text-muted-foreground">{label}</Label>
+        {range ? <SliderOutput className="text-xs leading-(--text-xs--line-height) font-medium tabular-nums text-foreground" /> : <SliderValueField label={label} className="text-xs font-medium tabular-nums text-foreground" />}
       </div>
       <SliderTrack>
         {range ? <RangeFill /> : <SliderFillTrack />}
@@ -37,7 +37,7 @@ export function SliderRow({ label, className, ...props }: React.ComponentProps<t
 
 export function SwitchRow({ children, ...props }: React.ComponentProps<typeof Switch>) {
   return (
-    <Switch size="sm" {...props} className="w-full flex-row-reverse justify-between gap-3 text-sm font-normal">
+    <Switch size="sm" {...props} className="w-full flex-row-reverse justify-between gap-3 text-sm leading-(--text-sm--line-height) font-normal">
       {children as React.ReactNode}
     </Switch>
   )
@@ -92,7 +92,7 @@ export function Segmented({ items, defaultValue, value, onChange, label, classNa
 export function SelectRow({ label, items, defaultValue, value, onChange, className }: { label: string; items: [string, string][]; defaultValue?: string; value?: string; onChange?: (v: string) => void; className?: string }) {
   return (
     <Select defaultSelectedKey={defaultValue} selectedKey={value} onSelectionChange={(k) => k !== null && onChange?.(String(k))} className={cn("flex flex-col gap-1.5", className)}>
-      <Label className="text-xs font-normal text-muted-foreground">{label}</Label>
+      <Label className="text-xs leading-(--text-xs--line-height) font-normal text-muted-foreground">{label}</Label>
       <SelectTrigger className="h-8 px-3 text-sm shadow-xs data-[focus-visible]:ring-offset-0"><SelectValue /></SelectTrigger>
       <SelectPopover><SelectListBox>{items.map(([id, l]) => <SelectItem key={id} id={id} textValue={l}>{l}</SelectItem>)}</SelectListBox></SelectPopover>
     </Select>

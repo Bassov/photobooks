@@ -45,11 +45,13 @@ import {
   isLibraryBacked,
   leaveEditorForLibrary,
   listLibraryBooks,
+  loadLibraryBook,
   openBookFromHome,
   openLibrary,
   regrantLibrary,
   regrantLibraryWithHandleForTests,
   renameBookInLibrary,
+  flushBeforeReload,
   resetProjectSessionForTests,
   saveBookNow,
   selectRecentLibrary,
@@ -78,6 +80,44 @@ describe('projectSession', () => {
     const first = getProjectSessionSnapshot()
     const second = getProjectSessionSnapshot()
     expect(Object.is(first, second)).toBe(true)
+  })
+
+  it('flushBeforeReload refuses without a library and passes with one', async () => {
+    expect(await flushBeforeReload()).toBe(false)
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({ session, createStorage: () => storage })
+    await attachLibraryForTests({ storage, session })
+    expect(await flushBeforeReload()).toBe(true)
+  })
+
+  it('flushBeforeReload saves a pending edit, and refuses when the save fails', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+      autosaveDebounceMs: 60_000,
+    })
+    await attachLibraryForTests({ storage, session })
+    const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
+    assert(spreadId !== undefined, 'expected a spread')
+
+    dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
+    expect(getProjectSessionSnapshot().dirty).toBe(true)
+    expect(await flushBeforeReload()).toBe(true)
+    expect(getProjectSessionSnapshot().dirty).toBe(false)
+    const saved = await storage.loadBook(getBookStoreSnapshot().book.id)
+    assert(saved.ok, 'expected the flushed book')
+    expect(saved.value.spreads[0]?.templateId).toBe('2-up')
+
+    vi.spyOn(storage, 'saveBook').mockResolvedValueOnce({
+      ok: false,
+      code: 'corrupted',
+    })
+    dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '4-grid' })
+    expect(await flushBeforeReload()).toBe(false)
+    expect(getProjectSessionSnapshot().dirty).toBe(true)
   })
 
   it('My templates follow the bound library and clear when the session resets', async () => {
@@ -646,6 +686,72 @@ describe('projectSession', () => {
     expect(after.value.map((b) => b.id).sort()).toEqual([...beforeIds].sort())
   })
 
+  it('duplicate and delete refuse without a bound library', async () => {
+    expect(await duplicateBookInLibrary('any')).toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    expect(getProjectSessionSnapshot().homeError).toBe(
+      'Could not duplicate book.',
+    )
+    expect(await deleteBookInLibrary('any')).toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    expect(getProjectSessionSnapshot().homeError).toBe('Could not remove book.')
+  })
+
+  it('duplicate and delete of a missing book report not-found', async () => {
+    await attachMemoryLibraryForTests()
+    expect(await duplicateBookInLibrary('missing-book')).toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    expect(getProjectSessionSnapshot().homeError).not.toBeNull()
+    expect(await deleteBookInLibrary('missing-book')).toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    expect(getProjectSessionSnapshot().homeError).not.toBeNull()
+  })
+
+  it('deleting the open book unbinds it from the session', async () => {
+    await attachMemoryLibraryForTests()
+    const created = await createBookInLibrary('Open')
+    assert(created.ok, 'expected create')
+    expect(getProjectSessionSnapshot().bookId).toBe(created.value.id)
+
+    expect(await deleteBookInLibrary(created.value.id)).toEqual({
+      ok: true,
+      value: undefined,
+    })
+    expect(getProjectSessionSnapshot().bookId).toBeNull()
+  })
+
+  it('loadLibraryBook loads a stored book and maps misses to not-found', async () => {
+    expect(await loadLibraryBook('any')).toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({ session, createStorage: () => storage })
+    await attachLibraryForTests({ storage, session })
+    const created = await createBookInLibrary('Loaded')
+    assert(created.ok, 'expected create')
+
+    expect(await loadLibraryBook('')).toEqual({ ok: false, code: 'not-found' })
+    const loaded = await loadLibraryBook(created.value.id)
+    assert(loaded.ok, 'expected load')
+    expect(loaded.value.title).toBe('Loaded')
+
+    vi.spyOn(storage, 'loadBook').mockRejectedValueOnce(new Error('io'))
+    expect(await loadLibraryBook(created.value.id)).toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+  })
+
   it('home rename refuses when the book lock is held elsewhere', async () => {
     const storage = createMemoryLibraryStorage()
     const session = createMemorySessionState()
@@ -714,6 +820,22 @@ describe('projectSession', () => {
     const renamed = await renameBookInLibrary('missing-book', 'X')
     expect(renamed).toEqual({ ok: false, code: 'not-found' })
     expect(getProjectSessionSnapshot().homeError).toBe('Could not rename book.')
+  })
+
+  it('home rename reports a recent library that cannot be recalled', async () => {
+    const session = createMemorySessionState()
+    configureProjectSession({ session })
+    const missing = await renameBookInLibrary('book', 'X', 'lib-unknown')
+    expect(missing.ok).toBe(false)
+    expect(getProjectSessionSnapshot().homeError).not.toBeNull()
+
+    vi.spyOn(session, 'recallLibraryHandle').mockRejectedValueOnce(
+      new Error('idb'),
+    )
+    expect(await renameBookInLibrary('book', 'X', 'lib-unknown')).toEqual({
+      ok: false,
+      code: 'not-found',
+    })
   })
 
   it('library rename uses bound storage after leave (no recall needed)', async () => {

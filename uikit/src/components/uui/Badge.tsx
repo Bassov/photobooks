@@ -24,7 +24,7 @@ export function Badge({ color = "gray", size = "sm", type = "badge-color", icon,
 }) {
   return (
     <span data-color={color} className={cn(
-      "pb-badge inline-flex w-max shrink-0 items-center whitespace-nowrap font-medium leading-none tracking-[0.01em] tabular-nums [&>svg]:shrink-0",
+      "pb-badge inline-flex w-max shrink-0 items-center whitespace-nowrap font-medium tracking-[0.01em] tabular-nums [&>svg]:shrink-0",
       type === "pill-color" ? "rounded-full" : size === "lg" ? "rounded-sm" : "rounded-sm",
       sizes[size], dot && pad[size], className,
     )}>

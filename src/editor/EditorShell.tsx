@@ -35,6 +35,8 @@ import { MastersCanvas } from './MastersCanvas'
 import { Pasteboard } from './Pasteboard'
 import { SitePreviewFrame } from './SitePreviewBar'
 import { endPhotoPick } from './photoPick'
+import { StaleChunkBoundary } from './StaleChunkBoundary'
+import { installStaleChunkReload } from './staleChunkSession'
 import { installThumbBackgroundWarm } from './thumbBackgroundWarm'
 import { useChromeImport } from './useChromeImport'
 import './EditorShell.css'
@@ -56,6 +58,7 @@ export function EditorShell() {
   useEffect(() => installFrameHandleGesture(), [])
   useEffect(() => installPhotoGesture(), [])
   useEffect(() => installThumbBackgroundWarm(), [])
+  useEffect(() => installStaleChunkReload(), [])
 
   const [toastQueue] = useState(() => createToastQueue())
   const [panels, setPanels] = useState(DEFAULT_EDITOR_PANELS)
@@ -125,9 +128,11 @@ export function EditorShell() {
         }
       />
       {previewing && (
-        <Suspense fallback={<SitePreviewFrame onExit={closePreview} />}>
-          <SitePreview onExit={closePreview} />
-        </Suspense>
+        <StaleChunkBoundary onExit={closePreview}>
+          <Suspense fallback={<SitePreviewFrame onExit={closePreview} />}>
+            <SitePreview onExit={closePreview} />
+          </Suspense>
+        </StaleChunkBoundary>
       )}
     </>
   )

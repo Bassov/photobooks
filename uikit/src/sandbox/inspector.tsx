@@ -28,7 +28,7 @@ export function MmField({ label, prefix, value, onChange, unit = "mm", step = 1,
   return (
     <NumberField value={round(value, 1)} onChange={(v) => !Number.isNaN(v) && onChange(v)} step={step} minValue={min} maxValue={max} isDisabled={isDisabled}
       aria-label={prefix ? label : undefined} formatOptions={{ maximumFractionDigits: 1 }} className={cn("group flex min-w-0 flex-col gap-1.5", className)}>
-      {!prefix && <Label className="flex items-center text-xs font-normal text-muted-foreground">{label}{source}</Label>}
+      {!prefix && <Label className="flex items-center text-xs leading-(--text-xs--line-height) font-normal text-muted-foreground">{label}{source}</Label>}
       <FieldGroup className="h-(--control-sm) gap-1.5 rounded-md px-3 py-0 text-sm shadow-xs  data-[focus-within]:ring-[3px] data-[focus-within]:ring-ring/30 data-[focus-within]:ring-offset-0 data-[disabled]:opacity-60">
         {prefix && <span className="min-w-3 shrink-0 text-xs text-muted-foreground">{prefix}</span>}
         <NumberFieldInput className="bg-transparent pr-0 tabular-nums" />

@@ -1,5 +1,10 @@
 import { PDFDocument } from '@cantoo/pdf-lib'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// The cover painter imports fontkit lazily on its first font. Load it with the
+// file, so that cold load is not charged to whichever test runs first: under
+// load it alone can spend the test's 5 s budget.
+await import('@pdf-lib/fontkit')
 import { makeBook, makeFrame, makeSpread } from '../../core/testing/fixtures'
 import {
   runPdfCheck,

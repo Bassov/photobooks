@@ -1239,6 +1239,17 @@ async function persistBookSnapshot(
   }
 }
 
+/**
+ * Awaitable save before a page reload. False when the book could not be
+ * saved, or has no library to save into (a reload would lose a session book).
+ */
+export async function flushBeforeReload(): Promise<boolean> {
+  if (storage === null) {
+    return false
+  }
+  return (await flushPendingSaveBeforeRelease()).ok
+}
+
 export function saveBookNow(): void {
   if (!storage) {
     setStatus({ kind: 'error', code: 'not-found', action: 'save' })
