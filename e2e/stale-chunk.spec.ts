@@ -34,6 +34,10 @@ async function expectEditorWithReloadError(page: Page): Promise<void> {
   await expect(error.getByRole('button', { name: 'Reload' })).toBeVisible()
   // Painted on top, not hidden under the editor chrome.
   expect((await topAt(error))[0]).toContain('site-preview-load-error')
+  // The message reads in one or two lines, not crushed into a column.
+  const message = await error.locator('p').boundingBox()
+  expect(message?.width).toBeGreaterThan(300)
+  expect(message?.height).toBeLessThan(60)
 }
 
 test('a stale Preview chunk without a library shows Reload and keeps the editor', async ({
