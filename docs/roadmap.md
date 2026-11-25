@@ -272,6 +272,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 **Review cut:** someone else gets their own library and site. **Kit-first:** Designer drafts the P5 kit pages (onboarding / account, own library + site, hosting / connect) before items are sliced (call D6); `printer-presets` and `connect-own-hosting` have a partial kit (Settings → Print presets / Hosting rows). `onboarding-others` is held in `docs/backlog/` until then.
 
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
+- [ ] [lite] [qa-settings-pill](roadmap/P5/qa-settings-pill.md) — Bug: /next-roadmap-item qa-settings-pill
 - [ ] [feature] [qa-stale-chunk](roadmap/P5/qa-stale-chunk.md) — Bug: /next-roadmap-item qa-stale-chunk
 - [ ] [lite] [design-r42-fill-popover-prod](roadmap/P5/design-r42-fill-popover-prod.md) — Bug: /next-roadmap-item design-r42-fill-popover-prod
 - [ ] [lite] [design-r34-is-kit](roadmap/P5/design-r34-is-kit.md) — Bug: /next-roadmap-item design-r34-is-kit
@@ -329,6 +330,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [deps-dev-unsafe-class](roadmap/P5/deps-dev-unsafe-class.md) — Bug: /next-roadmap-item deps-dev-unsafe-class
 - [ ] [feature] [interface-size-core](roadmap/P5/interface-size-core.md) — Bug: /next-roadmap-item interface-size-core
 - [ ] [feature] [interface-size-pointer](roadmap/P5/interface-size-pointer.md) — Bug: /next-roadmap-item interface-size-pointer
+- [ ] [lite] [prod-qa-walkthrough](roadmap/P5/prod-qa-walkthrough.md) — Bug: /next-roadmap-item prod-qa-walkthrough
 - [ ] [lite] [design-r48-esc-resize](roadmap/P5/design-r48-esc-resize.md) — Bug: /next-roadmap-item design-r48-esc-resize
 - [ ] [lite] [design-r49-esc-resize-select](roadmap/P5/design-r49-esc-resize-select.md) — Bug: /next-roadmap-item design-r49-esc-resize-select
 - [ ] [lite] [design-r47-esc-tooltip](roadmap/P5/design-r47-esc-tooltip.md) — Bug: /next-roadmap-item design-r47-esc-tooltip
