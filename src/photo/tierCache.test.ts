@@ -1007,6 +1007,53 @@ describe('tierCache', () => {
     expect(blobType).toBe('image/jpeg')
   })
 
+  it('keeps one URL for a tier requested again before its frame publishes it', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback): number =>
+      callbacks.push(cb),
+    )
+    let created = 0
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(() => {
+      created += 1
+      return `blob:once-${String(created)}`
+    })
+    const revoke = vi
+      .spyOn(URL, 'revokeObjectURL')
+      .mockImplementation(() => undefined)
+    mockWorkerSuccess({
+      ok: true,
+      name: 'a.jpg',
+      mimeType: 'image/jpeg',
+      byteLength: 1,
+      width: 2,
+      height: 2,
+      correctedWidth: 2,
+      correctedHeight: 2,
+      orientation: 1,
+      previewBuffer: new Uint8Array([1]).buffer,
+      previewMimeType: 'image/jpeg',
+    })
+    retainAssetSource('a', jpeg('a.jpg'))
+    requestTier('a', 320)
+    await vi.waitFor(() => {
+      expect(callbacks).toHaveLength(1)
+    })
+    // Encoded and waiting for its frame: neither cached nor in flight.
+    requestTier('a', 320)
+    retainAssetSource('b', jpeg('b.jpg'))
+    requestTier('b', 320)
+    await vi.waitFor(() => {
+      for (const callback of callbacks.splice(0)) {
+        callback(0)
+      }
+      expect(getTierUrl('b', 320)).toBe('blob:once-2')
+    })
+
+    expect(getTierUrl('a', 320)).toBe('blob:once-1')
+    expect(created).toBe(2)
+    expect(revoke).not.toHaveBeenCalled()
+  })
+
   it('ranks the 2560 step below working-preview jobs', () => {
     expect(tierJobPriority(WORKING_PREVIEW_EDGE)).toBe('zoom')
     expect(tierJobPriority(HIDPI_PREVIEW_EDGE)).toBe('prefetch')

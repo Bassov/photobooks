@@ -61,7 +61,13 @@ export function requestTier(
   cacheKey?: string,
 ): void {
   const key = tierCacheKey(assetId, tier)
-  if (lru.has(key) || inflight.has(key)) {
+  // A finished job waits in `pending` for its frame; a second one would
+  // replace (and revoke) the URL the first publishes.
+  if (
+    lru.has(key) ||
+    inflight.has(key) ||
+    pending.some((item) => item.key === key)
+  ) {
     return
   }
   const controller = new AbortController()

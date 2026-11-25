@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   DEFERRED_REVOKE_RECHECK_MS,
   getDeferredRevokeCountForTests,
+  holdObjectUrl,
   revokeObjectUrlWhenUnused,
 } from './objectUrlRevoke'
 
@@ -76,6 +77,29 @@ describe('revokeObjectUrlWhenUnused', () => {
     revokeObjectUrlWhenUnused('blob:c')
     expect(revoke.mock.calls).toEqual([['blob:b']])
     expect(getDeferredRevokeCountForTests()).toBe(2)
+  })
+
+  it('holds a URL a detached loader reads until every hold is released', async () => {
+    const first = holdObjectUrl('blob:decode')
+    const second = holdObjectUrl('blob:decode')
+    const other = holdObjectUrl('blob:other')
+    revokeObjectUrlWhenUnused('blob:decode')
+    expect(revoke).not.toHaveBeenCalled()
+    revokeObjectUrlWhenUnused('blob:free')
+    expect(revoke.mock.calls).toEqual([['blob:free']])
+    revoke.mockClear()
+
+    first()
+    first()
+    await vi.advanceTimersByTimeAsync(DEFERRED_REVOKE_RECHECK_MS)
+    expect(revoke).not.toHaveBeenCalled()
+
+    second()
+    await vi.advanceTimersByTimeAsync(DEFERRED_REVOKE_RECHECK_MS)
+    expect(revoke.mock.calls).toEqual([['blob:decode']])
+    other()
+    revokeObjectUrlWhenUnused('blob:other')
+    expect(revoke.mock.calls).toEqual([['blob:decode'], ['blob:other']])
   })
 
   it('revokes at once without a document (workers)', () => {

@@ -172,11 +172,12 @@ test('TOC and deep links land the chapter under the bar; the 2-up / 4-up panel s
     'aria-current',
     'location',
   )
-  const top = () =>
+  // under the 72px bar; the scroll lands on a whole pixel, the chapter top may sit on a fraction
+  const offBar = (id: string) => () =>
     page
-      .locator('#print-home')
-      .evaluate((e) => Math.round(e.getBoundingClientRect().top))
-  await expect.poll(top).toBe(72)
+      .locator(`#${id}`)
+      .evaluate((e) => Math.abs(e.getBoundingClientRect().top - 72))
+  await expect.poll(offBar('print-home')).toBeLessThan(1)
 
   const panel = page.getByTestId('guide-imposition')
   const sheets = panel.locator('[data-sheet]')
@@ -189,13 +190,7 @@ test('TOC and deep links land the chapter under the bar; the 2-up / 4-up panel s
 
   await page.goto('/uikit/#/')
   await page.goto('/uikit/#/guide/hosting')
-  await expect
-    .poll(() =>
-      page
-        .locator('#hosting')
-        .evaluate((e) => Math.round(e.getBoundingClientRect().top)),
-    )
-    .toBe(72)
+  await expect.poll(offBar('hosting')).toBeLessThan(1)
   expect(errors).toEqual([])
 })
 

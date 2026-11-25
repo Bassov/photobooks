@@ -31,8 +31,27 @@ function blobReferences(): string[] {
   return found
 }
 
+/** URLs a detached loader (an `Image` outside the document) still reads. */
+const held = new Set<{ url: string }>()
+
 function isReferenced(url: string): boolean {
-  return blobReferences().some((value) => value.includes(url))
+  return (
+    [...held].some((hold) => hold.url === url) ||
+    blobReferences().some((value) => value.includes(url))
+  )
+}
+
+/**
+ * Keep `url` alive for a loader the DOM scan cannot see (a detached `Image`
+ * decode). A revoke asked for meanwhile waits for the returned release and
+ * then for the usual DOM check.
+ */
+export function holdObjectUrl(url: string): () => void {
+  const hold = { url }
+  held.add(hold)
+  return () => {
+    held.delete(hold)
+  }
 }
 
 function recheckPending(): void {
