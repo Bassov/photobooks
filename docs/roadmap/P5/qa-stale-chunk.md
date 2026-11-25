@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P5
 Title: Bug: /next-roadmap-item qa-stale-chunk
+Status: done
 
 QA-1 (major) from the prod QA report of 2026-11-25 (PR #725): after a redeploy an open tab that presses Preview loads a missing lazy chunk; prod answers `/assets/SitePreview-<old>.js` with 200 `text/html` (the SPA index.html), the dynamic import throws and the app goes blank.
 
