@@ -9,9 +9,9 @@ QA-1 (major) from the prod QA report of 2026-11-25 (PR #725): after a redeploy a
 
 ## Scope
 
-- [ ] Chunk-load failure never blanks the app: an error boundary around the lazy Site preview keeps the editor; on a chunk-load error (incl. `vite:preloadError`) the app saves pending edits, then reloads once (sessionStorage guard against a loop), or shows an error with "Reload" when it cannot or already did.
-- [ ] Missing hashed `/assets/*` return 404, not index.html (site Worker), while SPA routes still fall back to index.html.
-- [ ] Every dynamic `import(` and worker URL caller is listed in the PR body as fixed or left out with a reason.
+- [x] Chunk-load failure never blanks the app: an error boundary around the lazy Site preview keeps the editor; on a chunk-load error (incl. `vite:preloadError`) the app saves pending edits, then reloads once (sessionStorage guard against a loop), or shows an error with "Reload" when it cannot or already did.
+- [x] Missing hashed `/assets/*` return 404, not index.html (site Worker), while SPA routes still fall back to index.html.
+- [x] Every dynamic `import(` and worker URL caller is listed in the PR body as fixed or left out with a reason.
 - **Browser check:** `e2e/stale-chunk.spec.ts` — stale `SitePreview-*.js` served as text/html: Preview keeps the editor, one reload or a "Reload" error, no loop.
 
 ## Done when
