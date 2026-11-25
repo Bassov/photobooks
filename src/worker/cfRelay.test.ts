@@ -740,6 +740,54 @@ describe('worker entry', () => {
     expect(await response.text()).toBe('asset')
   })
 
+  describe('with the SPA fallback of the assets binding', () => {
+    const INDEX_HTML = '<!doctype html><div id="root"></div>'
+    const spaEnv = {
+      ASSETS: {
+        fetch: vi.fn((request: Request) => {
+          const { pathname } = new URL(request.url)
+          return Promise.resolve(
+            pathname === '/assets/index-abc.js'
+              ? new Response('export {}', {
+                  headers: { 'Content-Type': 'text/javascript' },
+                })
+              : new Response(INDEX_HTML, {
+                  headers: { 'Content-Type': 'text/html; charset=utf-8' },
+                }),
+          )
+        }),
+      },
+    }
+
+    it('answers a missing hashed asset with 404, not index.html', async () => {
+      const response = await worker.fetch(
+        new Request(`${ORIGIN}/assets/missing-abc.js`),
+        spaEnv,
+      )
+      expect(response.status).toBe(404)
+      expect(response.headers.get('Content-Type')).not.toMatch(/html/)
+      expect(response.headers.get('Cache-Control')).toBe('no-store')
+    })
+
+    it('passes an existing hashed asset through', async () => {
+      const response = await worker.fetch(
+        new Request(`${ORIGIN}/assets/index-abc.js`),
+        spaEnv,
+      )
+      expect(response.status).toBe(200)
+      expect(await response.text()).toBe('export {}')
+    })
+
+    it('keeps the index.html fallback for SPA routes', async () => {
+      const response = await worker.fetch(
+        new Request(`${ORIGIN}/books/x`),
+        spaEnv,
+      )
+      expect(response.status).toBe(200)
+      expect(await response.text()).toBe(INDEX_HTML)
+    })
+  })
+
   it('relays /api/cf/* through the global fetch', async () => {
     const fetchStub = vi.fn(() => Promise.resolve(Response.json({ ok: 1 })))
     vi.stubGlobal('fetch', fetchStub)
