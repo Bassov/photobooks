@@ -1,7 +1,7 @@
 import { useMemo, useSyncExternalStore, type PointerEvent } from 'react'
 import { Button } from 'react-aria-components'
 import { Icon } from '../ui/Icon'
-import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
+import { getLayoutBookSnapshot, subscribeBookStore } from './bookStore'
 import {
   cycleLayout,
   layoutCycleBlocked,
@@ -12,7 +12,7 @@ import { LAYOUT_CYCLE_MIN_GAP_PX } from './pageLabelsModel'
 import { getSavedTemplates, subscribeSavedTemplates } from './savedTemplates'
 import './LayoutCycle.css'
 
-const readBook = () => getBookStoreSnapshot().book
+const readBook = getLayoutBookSnapshot
 
 // Grey-click activation and the pasteboard's own handlers stay out of it.
 const stop = (event: PointerEvent) => {

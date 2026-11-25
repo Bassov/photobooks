@@ -8,7 +8,7 @@ import {
 } from '../core'
 import {
   dispatchBookOp,
-  getBookStoreSnapshot,
+  getLayoutBookSnapshot,
   subscribeBookStore,
 } from './bookStore'
 import { Button } from '../ui/Button'
@@ -39,7 +39,7 @@ const MASTER_TEST_IDS = {
 } as const
 
 function readBook() {
-  return getBookStoreSnapshot().book
+  return getLayoutBookSnapshot()
 }
 
 /**

@@ -47,7 +47,7 @@ import {
   thumbSlots,
 } from './layoutThumb'
 import { applyMarkedSpreadTemplate } from './applyMarkedSpreadTemplate'
-import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
+import { getLayoutBookSnapshot, subscribeBookStore } from './bookStore'
 import {
   addSavedTemplate,
   deleteSavedTemplate,
@@ -63,7 +63,7 @@ import { setTemplatePreview } from './templatePreview'
 import './LayoutSection.css'
 
 function readBook() {
-  return getBookStoreSnapshot().book
+  return getLayoutBookSnapshot()
 }
 
 /**

@@ -5,7 +5,7 @@ import { Icon } from '../ui/Icon'
 import { Select } from '../ui/Select'
 import {
   dispatchBookOp,
-  getBookStoreSnapshot,
+  getLayoutBookSnapshot,
   subscribeBookStore,
 } from './bookStore'
 import { setFrameSource } from './frameSelection'
@@ -33,7 +33,7 @@ const MARGIN_MAX_MM = 30
 const GAP_MAX_MM = 20
 
 function readBook() {
-  return getBookStoreSnapshot().book
+  return getLayoutBookSnapshot()
 }
 
 function useSpread(spreadId: string) {
