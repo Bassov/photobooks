@@ -656,6 +656,37 @@ export function getBookStoreSnapshot(): BookStoreState {
   return state
 }
 
+/** Photo-pool keys: import, relink and hash patches change only these. */
+const PHOTO_POOL_KEYS: ReadonlySet<string> = new Set(['gallery', 'assets'])
+let layoutBook: Book = state.book
+
+function sameOutsidePhotoPool(a: Book, b: Book): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)])
+  for (const key of keys) {
+    if (
+      !PHOTO_POOL_KEYS.has(key) &&
+      !Object.is(a[key as keyof Book], b[key as keyof Book])
+    ) {
+      return false
+    }
+  }
+  return true
+}
+
+/**
+ * The book for readers of layout fields only (spreads, parents, settings,
+ * grid, cover…). Keeps its identity across publishes that change nothing
+ * but `gallery` / `assets`, so the layout inspector does not re-render on
+ * every import chunk (QA-4 LoAF). Its `gallery` / `assets` may be stale:
+ * readers of those use {@link getBookStoreSnapshot}.
+ */
+export function getLayoutBookSnapshot(): Book {
+  if (!sameOutsidePhotoPool(layoutBook, state.book)) {
+    layoutBook = state.book
+  }
+  return layoutBook
+}
+
 /** Mint a unique ephemeral asset id for this session. */
 export function mintAssetId(fileName: string): string {
   assetSeq += 1

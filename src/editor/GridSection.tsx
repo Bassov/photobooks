@@ -12,7 +12,7 @@ import { Disclosure } from '../ui/Disclosure'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import {
   dispatchBookOp,
-  getBookStoreSnapshot,
+  getLayoutBookSnapshot,
   subscribeBookStore,
 } from './bookStore'
 import { SUB } from './editorChromeTokens'
@@ -38,7 +38,7 @@ const SPREAD_TEST_IDS = {
 } as const
 
 function readBook() {
-  return getBookStoreSnapshot().book
+  return getLayoutBookSnapshot()
 }
 
 function useGridShown() {
