@@ -276,7 +276,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [qa-stale-chunk](roadmap/P5/qa-stale-chunk.md) — Bug: /next-roadmap-item qa-stale-chunk
 - [ ] [lite] [design-r42-fill-popover-prod](roadmap/P5/design-r42-fill-popover-prod.md) — Bug: /next-roadmap-item design-r42-fill-popover-prod
 - [ ] [lite] [design-r34-is-kit](roadmap/P5/design-r34-is-kit.md) — Bug: /next-roadmap-item design-r34-is-kit
-- [ ] [feature] [qa-guide-frame-move](roadmap/P5/qa-guide-frame-move.md) — Bug: /next-roadmap-item qa-guide-frame-move
+- [ ] [lite] [qa-guide-frame-move](roadmap/P5/qa-guide-frame-move.md) — Bug: /next-roadmap-item qa-guide-frame-move
 - [ ] [lite] [ci-apt-retry](roadmap/P5/ci-apt-retry.md) — Bug: /next-roadmap-item ci-apt-retry
 - [ ] [lite] [design-r44-relink-border-prod](roadmap/P5/design-r44-relink-border-prod.md) — Bug: /next-roadmap-item design-r44-relink-border-prod
 - [ ] [lite] [e2e-burn-in-cap](roadmap/P5/e2e-burn-in-cap.md) — Bug: /next-roadmap-item e2e-burn-in-cap

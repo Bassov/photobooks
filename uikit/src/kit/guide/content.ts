@@ -304,7 +304,7 @@ export const CHAPTERS: Chapter[] = [
     solves: 'exact control where a layout is not enough.',
     steps: [
       s(
-        'Click a frame; drag to move, handles to resize; it snaps to the grid and guides. `Alt` drags without snapping, `Shift` keeps one axis or the proportions.',
+        'Click a frame; handles resize it, and it snaps to the grid and guides. `Alt` drags without snapping, `Shift` keeps one axis or the proportions. Drag an empty frame to move it; dragging a photo frame moves its photo (a swap), so move a photo frame with the arrow keys (`Shift`: 10 mm steps), X / Y in Position & size, or by dragging it as part of a selection of several.',
       ),
       s(
         'Select several by dragging a box from the grey around the page, then align, distribute or arrange them in the inspector.',
