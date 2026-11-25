@@ -292,9 +292,9 @@ const SPECS: Spec[] = [
         <div className="mt-3 [&_label]:text-sm"><JollyCheckboxGroup label="Export" defaultValue={["pdf"]} className="[&>label]:text-xs [&>label]:text-muted-foreground"><Checkbox value="pdf">Print PDF</Checkbox><Checkbox value="jpeg">JPEG spreads</Checkbox><Checkbox value="report">Print report</Checkbox></JollyCheckboxGroup></div>
         <Sub>Switch</Sub>
         <StateRow cells={[
-          ["sm off", <Switch size="sm" className="text-sm font-normal">Snap</Switch>], ["sm on", <Switch size="sm" defaultSelected className="text-sm font-normal">Snap</Switch>],
-          ["default", <Switch defaultSelected className="text-sm font-normal">Grid</Switch>], ["focus-visible", <Force state={["focus-visible"]}><Switch size="sm" className="text-sm font-normal">Focus</Switch></Force>],
-          ["disabled", <Switch size="sm" isDisabled defaultSelected className="text-sm font-normal">Locked</Switch>],
+          ["sm off", <Switch size="sm" className="text-sm leading-(--text-sm--line-height) font-normal">Snap</Switch>], ["sm on", <Switch size="sm" defaultSelected className="text-sm leading-(--text-sm--line-height) font-normal">Snap</Switch>],
+          ["default", <Switch defaultSelected className="text-sm leading-(--text-sm--line-height) font-normal">Grid</Switch>], ["focus-visible", <Force state={["focus-visible"]}><Switch size="sm" className="text-sm leading-(--text-sm--line-height) font-normal">Focus</Switch></Force>],
+          ["disabled", <Switch size="sm" isDisabled defaultSelected className="text-sm leading-(--text-sm--line-height) font-normal">Locked</Switch>],
         ]} />
         <div className="mt-3 flex w-[280px] flex-col gap-2"><SwitchRow defaultSelected>Mirror on facing pages</SwitchRow><SwitchRow>Snap to other frames</SwitchRow></div>
       </>

@@ -81,7 +81,7 @@ export function NumField({ label, value, unit = "mm", prefix, className }: {
   return (
     <NumberField defaultValue={value} aria-label={prefix ? label : undefined} className={cn("group flex min-w-0 flex-col gap-1.5", className)}
       formatOptions={{ maximumFractionDigits: 1 }}>
-      {!prefix && <Label className="text-xs font-normal text-muted-foreground">{label}</Label>}
+      {!prefix && <Label className="text-xs leading-(--text-xs--line-height) font-normal text-muted-foreground">{label}</Label>}
       <FieldGroup className="h-8 gap-1.5 rounded-md px-3 py-0 text-sm shadow-xs data-[focus-within]:ring-offset-0 data-[focus-within]:ring-[3px] data-[focus-within]:ring-ring/30 ">
         {prefix && <span className="min-w-3 shrink-0 text-xs text-muted-foreground">{prefix}</span>}
         <NumberFieldInput className="bg-transparent pr-0 tabular-nums" />
