@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from 'react'
+import { memo, use, type ReactNode } from 'react'
 import type { Book } from '../core'
 // Not the barrel: it would pull the zod schemas into the viewer entry.
 import { resolveSpread } from '../core/geometry/resolveSpread'
@@ -7,6 +7,7 @@ import { siteTitleStyle } from '../render/coverTitleFace'
 import { SpreadView } from '../render/SpreadView'
 import type { ImageRef, SiteCatalogBook } from './siteInput'
 import { spreadSide } from './siteModel'
+import { HostCoverUrl } from './hostCoverUrl'
 import { imageSrc } from './siteUrl'
 
 export type Images = Readonly<Record<string, ImageRef>>
@@ -147,11 +148,11 @@ export function CoverFace({
   w: number
   h: number
 }) {
+  const hostUrl = use(HostCoverUrl)
+  const src = hostUrl ?? (b.cover === null ? undefined : imageSrc(b.cover.src))
   return (
     <div className="sb-cover" style={{ background: b.spine.cloth }}>
-      {b.cover === null ? null : (
-        <img src={imageSrc(b.cover.src)} alt="" decoding="async" />
-      )}
+      {src === undefined ? null : <img src={src} alt="" decoding="async" />}
       <div className="sd-b3-hinge" style={{ width: Math.max(8, h / 30) }} />
       <div
         className="sd-it sd-b3-title"
