@@ -2,7 +2,8 @@
 
 Records the real kit interactions as DPR-2 clips for the promo video. The motion step (roadmap item
 `promo-video-motion`, Remotion) puts them together; it never redraws the UI. Script, storyboard and layout values:
-Designer spec `promo-video/spec.md` (2026-11-26, Q-29).
+Designer spec `promo-video/spec.md` (2026-11-26, Q-29). With `--stills` the same walk writes DPR-3 PNG stills for the
+Instagram carousels instead (see «Stills for the carousels»).
 
 This folder is not a workspace package and not part of the product build, lint budgets or CSP. It uses the repo's
 Playwright (`@playwright/test`, its Chromium and its bundled ffmpeg); no new dependency.
@@ -32,7 +33,7 @@ contact sheet ≈ 10 s). Environment: `CHROME_PATH` (another Chromium), `FFMPEG`
 | `clips/9x16/02…05-*.webm`          | 2–5 in the 900×860 window of the 9:16 layout                          | 1800×1720 | same   |
 | `clips/9x16/06-site-shelf.webm`    | 6: phone shelf (390 wide), one touch scroll                           | 780×1114  | 2.90 s |
 | `clips/9x16/07-book-swipe.webm`    | 7: tap the face-out book → reading room → one swipe turns the page    | 780×1114  | 3.97 s |
-| `stills/<format>/08-end-cover.png` | 8: the "Lake trip 2026" front cover for the end card                  | 2×        | —      |
+| `stills/<format>/08-end-cover.png` | 8: the "Lake trip 2026" front cover for the end card (`--stills`: 3×) | 2×        | —      |
 | `contact-sheet.png`                | first / middle / last frame of every clip, decoded from the webm      | —         | —      |
 | `clips.json`                       | per clip: format, scene, file, width, height, duration (read back)    | —         | —      |
 
@@ -43,6 +44,37 @@ not kit UI: the motion step builds them from `uikit/dist/photos/p01–p21.jpg` a
 Sizes: 16:9 is the 1440×900 kit window at DPR 2. In 9:16 the editor scenes are filmed in a 900×860 window (the spec's
 9:16 window size, so the clip is exactly 2× its placed size); the site scenes are a 390×557 phone screen (390 wide, the
 700×1000 card's aspect) at DPR 2.
+
+## Stills for the carousels (`--stills`)
+
+```sh
+node promo/capture.mjs --stills            # both formats; or: node promo/capture.mjs --stills 16x9 | 9x16
+```
+
+The Instagram carousels (Designer spec `promo-carousel/spec.md`, «Tooling → Stills»; composed by
+`promo/carousel.mjs`) need sharper pictures than the clips: their tightest Stories crop is 300 CSS px for a 960 px box.
+So this pass walks the same scenes with the same photo swaps in a browser at `--force-device-scale-factor=3` (rule for
+any recrop: crop CSS width × 3 ≥ 0.9 × box width). The clock still steps frame by frame, so each picture is the clip's
+end-HOLD frame, but no frame is screenshotted on the way and nothing is encoded. One lossless PNG per scene, without the
+cursor overlay (hover states stay). The clips, `clips.json` and the contact sheet are left as they are.
+
+| File (`promo/out/stills/<format>/`) | Picture (carousel beat)                                                   | 16x9 pixels | 9x16 pixels |
+| ----------------------------------- | ------------------------------------------------------------------------- | ----------- | ----------- |
+| `02-add-folder.png`                 | 2: filmstrip "Photos · 20", the cover above                               | 4320×2700   | 2700×2580   |
+| `03-drop-in-frame.png`              | 3: the dropped photo in spread 2–3's frame, layout pill                   | 4320×2700   | 2700×2580   |
+| `04-fill-book.png`                  | 4: the Fill book popover open over the filled spread (taken before Enter) | 4320×2700   | 2700×2580   |
+| `05-cover-title.png`                | 5: the cover with its photo and "Lake trip 2026"                          | 4320×2700   | 2700×2580   |
+| `06-site-shelf.png`                 | 6: site shelf, `books=12` (16x9: 1440 wide, pointer on the face-out book) | 4320×2700   | 1170×1671   |
+| `07-book-turn.png` / `-swipe.png`   | 7: the open book after one turn (16x9: GL reader; 9x16: phone)            | 4320×2700   | 1170×1671   |
+| `08-end-cover.png`                  | 8: the front cover element for the end card                               | 1116×1584   | 408×576     |
+
+`stills/stills.json` lists every PNG with `format`, `scene`, `file`, `width`, `height` (read back from the PNG) and
+`dsf`; a run of one format keeps the other format's entries. Scene 1's collage is not a capture (the render step builds
+it from p01–p21). At the end the script prints every image file the pages were served and the `photos/hi` ids they asked
+for (each answered with its swap), and fails if a `photos/hi` file was ever served.
+
+Run time on the dev box (WSL, 2026-11-26): about 5.3 min for both formats (16:9 ≈ 265 s, most of it the site's
+software-GL book at 3×; 9:16 ≈ 50 s). Clip mode rewrites `08-end-cover.png` at 2×, so run `--stills` after the clips.
 
 ## How it records (and why not `recordVideo`)
 

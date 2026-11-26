@@ -272,7 +272,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 **Review cut:** someone else gets their own library and site. **Kit-first:** Designer drafts the P5 kit pages (onboarding / account, own library + site, hosting / connect) before items are sliced (call D6); `printer-presets` and `connect-own-hosting` have a partial kit (Settings → Print presets / Hosting rows). `onboarding-others` is held in `docs/backlog/` until then.
 
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
-- [ ] [feature] [promo-carousel-stills](roadmap/P5/promo-carousel-stills.md) — Bug: /next-roadmap-item promo-carousel-stills
+- [ ] [lite] [promo-carousel-stills](roadmap/P5/promo-carousel-stills.md) — Bug: /next-roadmap-item promo-carousel-stills
 - [ ] [lite] [qa-settings-pill](roadmap/P5/qa-settings-pill.md) — Bug: /next-roadmap-item qa-settings-pill
 - [ ] [feature] [qa-stale-chunk](roadmap/P5/qa-stale-chunk.md) — Bug: /next-roadmap-item qa-stale-chunk
 - [ ] [lite] [qa-preview-cover](roadmap/P5/qa-preview-cover.md) — Bug: /next-roadmap-item qa-preview-cover
