@@ -9,6 +9,10 @@
 // stopped while a clip records, moved on by exactly 1/30 s, and a 2× screenshot is taken. The animations play at their
 // real speed in the clip and nothing is zeroed; the run time only depends on the screenshot speed.
 // The walk follows uikit/scripts/demo-capture.mjs (same selectors and order of the editor steps).
+//
+// `--stills` (carousel step, promo-carousel/spec.md «Tooling → Stills»): the same walk at --force-device-scale-factor=3,
+// still on the frame-stepped clock but with no per-frame screenshots and no encoding; one lossless PNG per scene at its
+// end-HOLD frame (Fill book: with its popover open) → promo/out/stills/<format>/<NN-scene>.png + promo/out/stills/stills.json.
 import { chromium } from '@playwright/test'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
@@ -19,6 +23,11 @@ import path from 'node:path'
 const ROOT = path.dirname(new URL(import.meta.url).pathname)
 const DIST = path.join(ROOT, '../uikit/dist')
 const OUT = path.join(ROOT, 'out')
+const ARGS = process.argv.slice(2)
+const STILLS = ARGS.includes('--stills')
+// device pixels per CSS pixel: 2 for clips; 3 for stills, so that no carousel crop is upscaled more than 1.1×
+// (spec rule: crop CSS width × 3 ≥ 0.9 × box width)
+const DSF = STILLS ? 3 : 2
 const FPS = 30
 const DT = 1000 / FPS
 const HOLD = 500 // ms of still picture before and after each interaction (cut handles for the motion step)
@@ -69,11 +78,18 @@ const MIME = {
 }
 // The kit over http, not file://: the site's GL book needs a module import, which file:// blocks (gl/three.ts glWanted).
 // /out/ serves promo/out for the contact sheet (same origin, so its canvas can be read back).
+// SERVED: every image file the pages received (after the swap) and every hi photo asked for, for the licence check.
+const SERVED = { images: new Set(), hiAsked: new Set() }
 function serve() {
   const srv = http.createServer((req, res) => {
     let p = decodeURIComponent(new URL(req.url, 'http://x').pathname)
     const hi = p.match(/^\/photos\/hi\/([\w-]+)\.jpg$/)
-    if (hi) p = `/photos/${HI_SWAP[hi[1]] ?? 'p01'}.jpg`
+    if (hi) {
+      SERVED.hiAsked.add(hi[1])
+      p = `/photos/${HI_SWAP[hi[1]] ?? 'p01'}.jpg`
+    }
+    if (/\.(jpe?g|png|webp|avif|gif)$/i.test(p) && !p.startsWith('/out/'))
+      SERVED.images.add(p)
     const file = p.startsWith('/out/')
       ? path.join(OUT, p.slice(5))
       : path.join(DIST, p === '/' ? 'index.html' : p)
@@ -192,6 +208,7 @@ function clockInit([fixed]) {
 function cursorInit() {
   addEventListener('DOMContentLoaded', () => {
     const c = document.createElement('div')
+    c.id = 'promo-cursor'
     c.style.cssText =
       'position:fixed;left:0;top:0;width:22px;height:22px;z-index:2147483647;pointer-events:none;display:none'
     c.innerHTML =
@@ -288,7 +305,7 @@ function encode(frames, file) {
 }
 
 async function main() {
-  const only = process.argv.slice(2)
+  const only = ARGS.filter((a) => !a.startsWith('--'))
   if (!fs.existsSync(path.join(DIST, 'index.html')))
     throw new Error('uikit/dist missing: run `pnpm uikit:build` first')
   const srv = await serve()
@@ -297,7 +314,7 @@ async function main() {
     executablePath: process.env.CHROME_PATH || undefined,
     args: [
       '--no-sandbox',
-      '--force-device-scale-factor=2',
+      `--force-device-scale-factor=${DSF}`,
       '--window-size=1440,900',
       '--font-render-hinting=none',
       '--force-color-profile=srgb',
@@ -306,24 +323,42 @@ async function main() {
     ],
   })
   const clips = [],
-    encodes = []
+    encodes = [],
+    stills = []
   try {
     for (const [fmt, cfg] of Object.entries(FORMATS)) {
       if (only.length && !only.includes(fmt)) continue
       const dir = path.join(OUT, 'clips', fmt)
-      fs.rmSync(dir, { recursive: true, force: true })
-      fs.mkdirSync(dir, { recursive: true })
-      fs.mkdirSync(path.join(OUT, 'stills', fmt), { recursive: true })
+      const stillDir = path.join(OUT, 'stills', fmt)
+      if (STILLS) fs.rmSync(stillDir, { recursive: true, force: true })
+      else {
+        fs.rmSync(dir, { recursive: true, force: true })
+        fs.mkdirSync(dir, { recursive: true })
+      }
+      fs.mkdirSync(stillDir, { recursive: true })
       for (const part of [editorWalk, siteWalk])
-        await part({ browser, BASE, fmt, cfg, dir, clips, encodes })
+        await part({
+          browser,
+          BASE,
+          fmt,
+          cfg,
+          dir,
+          stillDir,
+          clips,
+          encodes,
+          stills,
+        })
     }
-    await Promise.all(encodes)
-    log('encoded')
-    await contactSheet(browser, BASE, clips)
+    if (!STILLS) {
+      await Promise.all(encodes)
+      log('encoded')
+      await contactSheet(browser, BASE, clips)
+    }
   } finally {
     await browser.close()
     srv.close()
   }
+  if (STILLS) return writeStills(stills)
   fs.writeFileSync(
     path.join(OUT, 'clips.json'),
     JSON.stringify(clips, null, 1) + '\n',
@@ -335,7 +370,37 @@ async function main() {
   )
 }
 
-// One page with its own CDP session: metrics override (CSS size; DPR stays the forced 2), clock, cursor, film helpers.
+// promo/out/stills/stills.json for the carousel render step; a run of one format keeps the other format's entries.
+// Then the licence check: every image the pages were served, and the hi photos that were asked for (all swapped).
+function writeStills(stills) {
+  const file = path.join(OUT, 'stills', 'stills.json')
+  const ran = new Set(stills.map((s) => s.format))
+  const kept = fs.existsSync(file)
+    ? JSON.parse(fs.readFileSync(file, 'utf8')).filter(
+        (s) => !ran.has(s.format),
+      )
+    : []
+  const all = [...kept, ...stills].sort((a, b) => a.file.localeCompare(b.file))
+  fs.writeFileSync(file, JSON.stringify(all, null, 1) + '\n')
+  for (const s of stills)
+    console.log(`${s.file}  ${s.width}×${s.height}  DSF ${s.dsf}`)
+  const images = [...SERVED.images].sort()
+  const bad = images.filter((p) => /^\/photos\/hi\//.test(p))
+  console.log(`images served: ${images.join(' ')}`)
+  console.log(
+    `hi photos asked for (each served as its CC0 swap): ${[...SERVED.hiAsked].sort().join(' ') || 'none'}`,
+  )
+  if (bad.length) throw new Error(`hi photos served unswapped: ${bad}`)
+  log(`done: ${stills.length} stills, ${path.relative(process.cwd(), file)}`)
+}
+
+// PNG size from its IHDR chunk (bytes 16–23), so stills.json reports what was written.
+const pngSize = (file) => {
+  const b = fs.readFileSync(file)
+  return { width: b.readUInt32BE(16), height: b.readUInt32BE(20) }
+}
+
+// One page with its own CDP session: metrics override (CSS size; DPR stays the forced DSF), clock, cursor, film helpers.
 async function openPage(browser, vp, ctl) {
   const ctx = await browser.newContext({
     viewport: null,
@@ -346,7 +411,8 @@ async function openPage(browser, vp, ctl) {
   await ctx.addInitScript(clockInit, [FIXED])
   if (!vp.mobile) await ctx.addInitScript(cursorInit)
   const page = await ctx.newPage()
-  page.setDefaultTimeout(8000)
+  // at DSF 3 the site's software-GL book renders 2.25× the pixels: a frame can take seconds
+  page.setDefaultTimeout(STILLS ? 60000 : 8000)
   const cdp = await ctx.newCDPSession(page)
   await cdp.send('Emulation.setDeviceMetricsOverride', {
     width: vp.width,
@@ -378,6 +444,12 @@ async function openPage(browser, vp, ctl) {
         DT,
       )
       const t1 = Date.now()
+      if (STILLS) {
+        // stills: the clock still steps frame by frame (same picture as the clip), but only the end frame is kept
+        frames.push(null)
+        cost.step += t1 - t
+        continue
+      }
       const r = await cdp.send('Page.captureScreenshot', {
         format: 'jpeg',
         quality: 92,
@@ -470,25 +542,58 @@ async function openPage(browser, vp, ctl) {
     await wait(70)
     await touch('touchEnd', [])
   }
-  // one clip: HOLD still, the interaction, HOLD still
+  // stills: one lossless PNG of the viewport (or of `loc`) as it stands, without the cursor overlay
+  const snap = async (scene, loc) => {
+    const file = path.join(ctl.stillDir, `${scene}.png`)
+    await page.evaluate(() => {
+      const c = document.getElementById('promo-cursor')
+      if (c) c.style.visibility = 'hidden'
+    })
+    if (loc) await loc.screenshot({ path: file })
+    else {
+      const r = await cdp.send('Page.captureScreenshot', { format: 'png' })
+      fs.writeFileSync(file, Buffer.from(r.data, 'base64'))
+    }
+    await page.evaluate(() => {
+      const c = document.getElementById('promo-cursor')
+      if (c) c.style.visibility = ''
+    })
+    ctl.stills.push({
+      format: ctl.fmt,
+      scene,
+      file: path.relative(ROOT, file),
+      ...pngSize(file),
+      dsf: DSF,
+    })
+    log(`${ctl.fmt}/${scene}: still ${path.relative(ROOT, file)}`)
+  }
+  // one clip: HOLD still, the interaction, HOLD still. Stills mode: the PNG is the end-HOLD frame, unless the scene
+  // calls `still()` earlier (Fill book: the popover is the picture, not the spreads after it).
   const record = async (scene, act) => {
     const t = Date.now()
     frames = []
     cost.step = cost.shot = 0
+    let snapped = false
+    const still = async () => {
+      if (STILLS && !snapped) await snap(scene)
+      snapped = true
+    }
     await page.evaluate(() => window.__film(true))
     await wait(HOLD)
-    await act()
+    await act(still)
     await wait(HOLD)
+    if (STILLS) await still()
     const shot = frames
     frames = null
     await page.evaluate(() => window.__film(false))
+    if (STILLS) return
     const out = path.join(ctl.dir, `${scene}.webm`)
     const clip = {
       format: ctl.fmt,
       scene,
       file: path.relative(ROOT, out),
-      width: vp.width * 2,
-      height: vp.height * 2,
+      width: vp.width * DSF,
+      height: vp.height * DSF,
       duration: shot.length / FPS,
       frames: shot.length,
     }
@@ -512,6 +617,7 @@ async function openPage(browser, vp, ctl) {
     swipe,
     tap,
     record,
+    snap,
     rest,
   }
 }
@@ -592,9 +698,12 @@ async function editorWalk(ctl) {
     await glide(rest.x, rest.y, 500)
     await settle(500)
   })
-  await page
-    .locator('[data-testid="cover-front"]')
-    .screenshot({ path: path.join(OUT, 'stills', fmt, '08-end-cover.png') })
+  const cover = page.locator('[data-testid="cover-front"]')
+  if (STILLS) await P.snap('08-end-cover', cover)
+  else
+    await cover.screenshot({
+      path: path.join(ctl.stillDir, '08-end-cover.png'),
+    })
   // 03: a filmstrip thumbnail dragged into spread 1's frame
   await c('[data-item="p1"]')
   await settle(400)
@@ -605,11 +714,12 @@ async function editorWalk(ctl) {
   })
   await settle(2600) // the drop's status line clears
   // 04: the Fill book chip → its popover → Enter fills every spread; then one spread per beat (0.5 s) for the montage
-  await record('04-fill-book', async () => {
+  await record('04-fill-book', async (still) => {
     await press(
       page.locator('[data-testid="demo"] [data-testid="film-fill-book"]'),
     )
     await settle(700)
+    await still() // the carousel's picture: the popover open over the spread
     await page.keyboard.press('Enter')
     await settle(900)
     for (const s of ['p2', 'p3', 'p4', 'p5']) {
