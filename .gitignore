@@ -76,3 +76,6 @@ openspec/changes/archive/
 .fix-task.md
 .fix-agent.*
 .claude/settings.local.json
+
+# Promo video capture output (clips, frames, contact sheet): never committed
+promo/out/
