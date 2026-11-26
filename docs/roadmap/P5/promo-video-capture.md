@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item promo-video-capture
+Status: done
 
 ## Scope
 
