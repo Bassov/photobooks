@@ -1,0 +1,20 @@
+{
+  "name": "photobooks-promo-motion",
+  "private": true,
+  "version": "0.0.0",
+  "description": "15 s promo video (16:9 + 9:16) composited in Remotion from promo/capture.mjs clips. Not part of the product build.",
+  "type": "module",
+  "scripts": {
+    "studio": "node scripts/render.mjs --prepare-only && remotion studio src/index.jsx --public-dir ../out/motion-public",
+    "render": "node scripts/render.mjs"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.547",
+    "@remotion/cli": "4.0.547",
+    "@remotion/fonts": "4.0.547",
+    "@remotion/renderer": "4.0.547",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.547"
+  }
+}
