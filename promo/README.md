@@ -98,6 +98,62 @@ The kit is served over a local http server rather than `file://`, because the si
 The walk follows `uikit/scripts/demo-capture.mjs` (same selectors; welcome → library → new book "Lake trip" off camera).
 Order of filming: 02, 05, 03, 04 (the cover gets its photo before the spread drops, as in the demo walk).
 
+## Carousels (`promo/carousel.mjs`)
+
+```sh
+pnpm uikit:build && node promo/capture.mjs --stills && node promo/carousel.mjs --sheet
+```
+
+Composes the Instagram carousels (Designer spec `promo-carousel/spec.md`, «Feed», «Stories», «Tooling → Compositor»)
+from the stills above: one HTML page per slide at its final size, DPR 1, element screenshot (sRGB PNG). The slide list,
+copy and crop boxes are the data table at the top of the script (copied from the Designer's `sheet.mjs`, crops re-aimed
+at these stills). Without the stills it says to run `node promo/capture.mjs --stills` first and exits 1.
+
+| Output (`promo/out/carousel/`)         | What                                                                      |
+| -------------------------------------- | ------------------------------------------------------------------------- |
+| `feed/01-hook.png` … `feed/08-cta.png` | 8 feed slides, 1080×1350 (4:5); slide 1 has the "Swipe →" chip            |
+| `stories/01-hook.png` … `08-cta.png`   | 8 Stories frames, 1080×1920 (9:16); frame 8 leaves the link sticker area  |
+| `carousel.json`                        | measured boxes per slide (title, chip, CTA, window, radius, crop upscale) |
+| `contact-sheet.png` (with `--sheet`)   | all 16, labelled, for review                                              |
+
+Beats: `01-hook`, `02-add-folder`, `03-drag`, `04-fill-book`, `05-cover`, `06-site`, `07-real-book`, `08-cta`.
+
+The script fails (exit 1, every violation listed) unless:
+
+- the pages loaded nothing but the stills in `stills.json`, the CC0 photos p01–p21 (the slide 1 collage) and the kit's
+  Inter / Lora woff2: every other request is refused, so no `photos/hi` file, fog photo or Designer mockup PNG can
+  reach a slide;
+- Inter and Lora are loaded (`document.fonts.check` and every `FontFace` loaded) before each screenshot;
+- the Spec layout holds in DOM boxes: title at 96/112 (hook 150) in the feed and 80/270 (hook 290) in Stories, windows
+  at 96, 400, 1080×1040 (feed) and 60, 620, 960×900 (Stories), radius 24 (phone card 56, cover card 4), the Swipe chip
+  72 from the right and 64 from the bottom, every feed title ending at x ≤ 1020;
+- no text, chip, CTA or framed picture sits in a safe zone (feed: 60 px sides, the top-right 200×120 counter; Stories:
+  250 top, 340 bottom, 60 sides, and nothing over the link sticker box 340, 1420, 400×110). The feed windows and the
+  full-width pictures (collage, open book) bleed off the edges by design;
+- no crop is upscaled past 1.1× (crop CSS width × 3 ≥ 0.9 × box width) or runs off its still;
+- every PNG is exactly 1080×1350 / 1080×1920 (read from its header).
+
+Run time on the dev box (WSL, 2026-11-26): about 16 s for the 16 slides and the sheet (plus ≈ 5.5 min for the stills).
+
+Post text (English, not on the image; from the Spec):
+
+- Caption: "Thousands of photos, not a single book? Drop a folder in, fill a whole book in one click, then print it or
+  put it on your own site. Link in bio."
+- Alt text per slide = its caption line plus the visual line:
+
+  | #   | Alt text                                                                                                                         |
+  | --- | -------------------------------------------------------------------------------------------------------------------------------- |
+  | 1   | Thousands of photos. Not a single book. A camera-roll collage of sample photos.                                                  |
+  | 2   | Add a folder — every shot at hand. The editor after adding a folder: the page list and the filmstrip "Photos · 20".              |
+  | 3   | Drag a photo in — the spread is done. A photo just dropped into its frame on a spread.                                           |
+  | 4   | The whole book — in one click. The Fill book popover over a filled spread.                                                       |
+  | 5   | Your cover, your title. The book cover with a photo and the title "Lake trip 2026".                                              |
+  | 6   | Print to PDF — or your own site. A personal website showing a bookshelf with the book face out.                                  |
+  | 7   | Like a real book. The book open in the website's reader, one spread.                                                             |
+  | 8   | Photobooks. A quiet place for your books. Make your first book. The "Lake trip 2026" cover; link in bio (Stories: tap the link). |
+
+The site header in `07-book-turn.png` shows the kit's sample site owner name; the slide 7 crops stay below it.
+
 ## Licences
 
 - Photos: only the CC0 1.0 sample photos p01–p21 (`uikit/dist/photos/credits.json`).
