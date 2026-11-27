@@ -1,0 +1,654 @@
+{
+  "checked": "2026-11-27",
+  "note": "Licences checked 2026-11-27 on each page below. Spec §3 Music B/C (Scott Buckley, CC BY 4.0) are not used: his licensing page (scottbuckley.com.au/library/licensing/) marks Web Advertising as not covered by CC BY without a separate agreement (paid Web License, 40 AUD per track), so B and C use the spec's CC0 fallback (HoliznaCC0). FMA's own download button needs a login; the files below are the public storage files the track page itself embeds (sound.mjs checks the page names them).",
+  "sources": {
+    "fma-holiznacc0": {
+      "name": "Free Music Archive / HoliznaCC0, album \"Public Domain Lofi\"",
+      "author": "HoliznaCC0",
+      "licence": "CC0-1.0",
+      "marker": "CC0 1.0 Universal License",
+      "pageNamesFile": true
+    },
+    "bigsoundbank": {
+      "name": "BigSoundBank (Joseph Sardin)",
+      "author": "Joseph Sardin (BigSoundBank)",
+      "licence": "CC0-1.0",
+      "marker": "CC0 (public domain)",
+      "terms": "https://bigsoundbank.com/licenses.html"
+    },
+    "kenney": {
+      "name": "Kenney \"Interface Sounds\"",
+      "author": "Kenney (kenney.nl)",
+      "licence": "CC0-1.0",
+      "marker": "creativecommons.org/publicdomain/zero/1.0/"
+    }
+  },
+  "packs": [
+    {
+      "id": "kenney-interface-sounds",
+      "source": "kenney",
+      "title": "Interface Sounds (100 files)",
+      "page": "https://kenney.nl/assets/interface-sounds",
+      "downloadId": "6173736574732f696e746572666163652d736f756e6473",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232"
+    }
+  ],
+  "candidates": {
+    "a": [
+      "walking-away",
+      "bubbles",
+      "projector-screen",
+      "summer-break",
+      "the-best-of-times",
+      "tetrapod"
+    ],
+    "b": [
+      "ease-into-night",
+      "tokyo-sunset",
+      "down-time",
+      "yet-again",
+      "transient"
+    ],
+    "c": [
+      "one-good-day",
+      "doodles",
+      "ocean-breeze",
+      "warm-fuzz",
+      "wave-maker",
+      "orbs-in-a-photo",
+      "on-the-other-side-of-bad"
+    ]
+  },
+  "music": [
+    {
+      "id": "walking-away",
+      "title": "Walking Away",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/walking-away-lofi-peaceful-motivating/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/WOtcP3GhbgTD8CuC6sEgpQOEXMyNeXYbTNmHjgN6.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "fd8a618a4076b76f02f69414d6beb4ad7ddf3b8c26164085bd6dc1a9fd2f7610"
+    },
+    {
+      "id": "bubbles",
+      "title": "Bubbles",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/bubbles-lofi-bright-relaxed/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/zh5usndkyEfVvKOz8dvsrCd1Ga0jfz4xIcLUendD.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "73efb557d8cfcca0f5cf3b435d3a0157bf9a702115b55266b8a2529f3997b542"
+    },
+    {
+      "id": "projector-screen",
+      "title": "Projector Screen",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/projector-screen-lofi-happy-mp3/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/SrYI6LJrSooBuV1Vz7XocwyKdkoXRFyNpgzn0lI4.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "b757435f375fc9290483e6ffabf763598664b1bb37fcd4644712529ba3dd5e04"
+    },
+    {
+      "id": "summer-break",
+      "title": "Summer Break",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/summer-break-lofi-nostalgic-mp3/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/9lO4AYmwyGCp44JI80uCvfg0XgX1NgCvd8EgzKZN.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "f6c5c67a3b682ff574f8073e22cb70bef3e5cc502a41ec62783ac70ebbb3159f"
+    },
+    {
+      "id": "the-best-of-times",
+      "title": "The Best Of Times",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/HCZ95XWg57g1Y9ZyGLt8Fo9od9G1BzKhJySWaSPt.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "801ea470975db34c9b1e624860b97d693b6594c799b80bc0b5364018903fd6e3"
+    },
+    {
+      "id": "tetrapod",
+      "title": "Tetrapod",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/tetrapod-lofi-relaxing-mp3/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/72xovHrx2omG9GVZFccmSNfUYd59V4HdR7Rt9ioJ.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "676320de208dfcc3464132e793ddc571b745c0538bb8af135a901d816c180e24"
+    },
+    {
+      "id": "ease-into-night",
+      "title": "Ease into Night",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/XobMN43VCXdGmXCTuVc964P0O4gzMe0p2RoPTLKC.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "24a6b97a0239b252dc2f552584bbcfe767e74bf57c9d6adddc34daa39f45fa96"
+    },
+    {
+      "id": "tokyo-sunset",
+      "title": "Tokyo Sunset",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/tokyo-sunset-lofi-peaceful-soft/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/Xnd9Hr5AVzB68IlWcImKtXPlwCePD2G2m8ZFSVj4.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "83b9208ab781af9b2da86e6885c4ec0fc1270457848609a1f96267539518fb9b"
+    },
+    {
+      "id": "down-time",
+      "title": "Down Time",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/HXpGyFBObrT0P6D50O8gDWbuEmcOeFRZfcqKsc6C.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "cb849614674aca861fdab3599d4e50272bacfc1cd169a91c5ce22725ca4f66a4"
+    },
+    {
+      "id": "yet-again",
+      "title": "Yet Again",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/rila38RsMi1HTH23WeP4RunH9OdUqllcSjmbLuBZ.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "3357e69d264446d82fa8cee13a6b4d9393946d2a0d5788668ff678e189221616"
+    },
+    {
+      "id": "transient",
+      "title": "Transient",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/transient-lofi-nostalgic-mp3/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/pWffJMWaygHLNlmFdUcviCsvakZzUne5QSkfgGv9.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "31190a4a16ea8fcb0b9e283ec0a685b83df4fce92635c9781332b4f68a89a171"
+    },
+    {
+      "id": "one-good-day",
+      "title": "One Good Day",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/one-good-day/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/AQCAheI92mWqsSgQeYLB6CZ3J1hiaGZgtmA9VCes.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "dd6f973da34bad28bc16b794601b952bd1506472ed7fb979b3e41369bd831427"
+    },
+    {
+      "id": "doodles",
+      "title": "Doodles",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/doodles-lofi-happy-mp3/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/rQGj86J7JXRwu3BRKtB6GIfnwCwI5slkTwfTWqvI.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "84db72387b14fa51294ba76a0bb3f72f39172527e5eb7964da8567596561ae72"
+    },
+    {
+      "id": "ocean-breeze",
+      "title": "Ocean Breeze",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/7ahdWvuUuDCVriuh5RvYsl96eUmAJuaVvC30sqlW.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "3dbc9713e17d3e23d942d36510ba046210f69d4e2df4ebb07e7d2ce4c2e6b358"
+    },
+    {
+      "id": "warm-fuzz",
+      "title": "Warm Fuzz",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/warm-fuzz-lofi-retro/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/Qrd0JkjTC7XXJwtS6LvCHIJ9K1FLXewdrYOQHhc5.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "974ffd083b09aecbe60412f3376db07fb241adbbb0abf89698a22229a2de02c6"
+    },
+    {
+      "id": "wave-maker",
+      "title": "Wave Maker",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/wave-maker-lofi-dreamy-retro/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/SbPJTWMnBmT5yBsXP4jLfp6RsvWLhfOnbw2PxXol.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "e525e8c2953e4a10c31ea6ca42449f793f57bf11066a570b52a2389820a782f7"
+    },
+    {
+      "id": "orbs-in-a-photo",
+      "title": "Orbs In A Photo",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/orbs-in-a-photo-lofi-chill-mp3/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/8VYwiA4OCIwhSUIblz3LrYKmMwjbm0kqXE1ex72s.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "c756c55fdf759298283a88a005540b51665864cdc56ab1b7e27349351d270945"
+    },
+    {
+      "id": "on-the-other-side-of-bad",
+      "title": "On The Other Side Of Bad",
+      "source": "fma-holiznacc0",
+      "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/on-the-other-side-of-bad-lofi-nostalgic-mp3/",
+      "url": "https://files.freemusicarchive.org/storage-freemusicarchive-org/tracks/SydUxNdOMKNpndCo54UUoWpEpCSZucGf1O4RiniB.mp3",
+      "licence": "CC0-1.0",
+      "credit": null,
+      "checked": "2026-11-27",
+      "sha256": "ee76ba822901f9da3806ea5ad9b83b2511cbe9fc000855c96bc54726527e9ae0"
+    }
+  ],
+  "sfx": [
+    {
+      "id": "bsb-2210",
+      "cues": ["page", "fill"],
+      "title": "Pages that turn #3",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/pages-that-turn-3-s2210.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/2210.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "5b34d5f08dbf392609c12f62eebf6db23a18be06dc662636b7b969405920fc54"
+    },
+    {
+      "id": "bsb-2211",
+      "cues": ["page", "fill"],
+      "title": "Pages that turn #4",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/pages-that-turn-4-s2211.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/2211.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "8772cbece59069476785f94850611e48abb6beda71667151199602e71716d16d"
+    },
+    {
+      "id": "bsb-2212",
+      "cues": ["page", "fill", "flutter"],
+      "title": "Pages that Turn #5",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/pages-that-turn-5-s2212.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/2212.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "24defd28f3166c0188708dfab4fcb0df01e8ef9e0c69ed02fed73b389223b049"
+    },
+    {
+      "id": "bsb-2213",
+      "cues": ["page", "fill"],
+      "title": "Pages that turn #6",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/pages-that-turn-6-s2213.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/2213.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "bd4c4e7d3694a1be339a8ee206fae2027f9fb1d632f67b0021e0970ac5f48e45"
+    },
+    {
+      "id": "bsb-0164",
+      "cues": ["page", "fill"],
+      "title": "Turned Page",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/turned-page-s0164.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/0164.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "bb3e704ba55c9b023b67df80013c498875cd55db61a0e16fd43f9fe259cca3ad"
+    },
+    {
+      "id": "bsb-2214",
+      "cues": ["pageSlow"],
+      "title": "Pages that turn #7",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/pages-that-turn-7-s2214.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/2214.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "101b833a322dd153bac6c5eaccc6d7704fb0eeba3ed43e6810b220f33fa16ad5"
+    },
+    {
+      "id": "bsb-2215",
+      "cues": ["pageSlow"],
+      "title": "Pages that turn #8",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/pages-that-turn-8-s2215.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/2215.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "fde48a6a1bd64f250826c76fdb3150289eff4733dbbefcd9f9272e1ce302efff"
+    },
+    {
+      "id": "bsb-2216",
+      "cues": ["pageSlow"],
+      "title": "Pages that Turn #9",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/pages-that-turn-9-s2216.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/2216.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "502d9b25a1a0ba550a76179b9a49a6eba3c3c64882c5040bc0f92bc993f242a8"
+    },
+    {
+      "id": "bsb-0362",
+      "cues": ["pageSlow"],
+      "title": "Great Page that Turns #1",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/great-page-that-turns-1-s0362.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/0362.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "d214149f0098fa52f7b92ea9e578a030692fe9e932747152d7e7a81cde750113"
+    },
+    {
+      "id": "bsb-0363",
+      "cues": ["pageSlow"],
+      "title": "Great page that turns #1",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/great-page-that-turns-1-s0363.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/0363.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "5466912f427930849ab0de1e9f6de2db020e0feb0c58cbc9765028b1300f6a18"
+    },
+    {
+      "id": "bsb-1250",
+      "cues": ["flutter"],
+      "title": "News paper, pages",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/news-paper-pages-s1250.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/1250.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "441267fbc7ecb69db1b7e9d9368688c4057bc52dc4f0cdb3fd8b722c4437d662"
+    },
+    {
+      "id": "bsb-1251",
+      "cues": ["flutter"],
+      "title": "News Paper, Manipulations",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/news-paper-manipulations-s1251.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/1251.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "03173ee8e0ed9665d4523030465b9c196271b2f9ea1073e81da730a3c1700d21"
+    },
+    {
+      "id": "bsb-1410",
+      "cues": ["wood", "cover", "impact"],
+      "title": "Closed book #1",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/closed-book-1-s1410.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/1410.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "47701240425828d8c63fd53b13a479c75d4c4a9bdd19d8049dd5715f27949908"
+    },
+    {
+      "id": "bsb-1411",
+      "cues": ["wood", "cover", "impact"],
+      "title": "Closed book #2",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/closed-book-2-s1411.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/1411.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "c7552463666c6e5ef55c83a6224e7b762e8387469ce806621d160df1ed3af006"
+    },
+    {
+      "id": "bsb-1412",
+      "cues": ["wood", "cover", "impact"],
+      "title": "Closed book #3",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/closed-book-3-s1412.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/1412.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "162b80926c449c5994ca43ea759ad6d9dfc0c29c969120f2f70632a1347c3418"
+    },
+    {
+      "id": "bsb-0572",
+      "cues": ["swish"],
+      "title": "Whoosh #1",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/whoosh-1-s0572.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/0572.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "ff06c297efb8cf1c9438473ed558d5ba0063638b0727687b8ab78fd6e9733769"
+    },
+    {
+      "id": "bsb-0573",
+      "cues": ["swish"],
+      "title": "Whoosh #2",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/whoosh-2-s0573.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/0573.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "b18b4f6a630f4cc696a139a6fe44024c9d0056380b3fcb00869007326d24a201"
+    },
+    {
+      "id": "bsb-1795",
+      "cues": ["swish"],
+      "title": "Whoosh #3",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/whoosh-3-s1795.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/1795.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "09117c6e7d1f5c9a6fc30c0be573ab715fb5c65e006650a3f9a19f4d8b7372ef"
+    },
+    {
+      "id": "bsb-1796",
+      "cues": ["swish"],
+      "title": "Whoosh #4",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/whoosh-4-s1796.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/1796.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "e0f841b5f734daccbab4def7103872399c9ab59e21efda705e5465047229e6b5"
+    },
+    {
+      "id": "bsb-1797",
+      "cues": ["swish"],
+      "title": "Whoosh #5",
+      "source": "bigsoundbank",
+      "page": "https://bigsoundbank.com/whoosh-5-s1797.html",
+      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/1797.wav",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "c0e71fd98dcde43e674092f967b32458b6fd827ec32d78395c9f498538dbc5c7"
+    },
+    {
+      "id": "kenney-click-001",
+      "cues": ["click"],
+      "title": "click_001",
+      "source": "kenney",
+      "pack": "kenney-interface-sounds",
+      "entry": "Audio/click_001.ogg",
+      "page": "https://kenney.nl/assets/interface-sounds",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "ccfb7fa0cccdd9faec0eb16033c732b1e308d139d80f799161495d58f7adcdb9"
+    },
+    {
+      "id": "kenney-click-002",
+      "cues": ["click"],
+      "title": "click_002",
+      "source": "kenney",
+      "pack": "kenney-interface-sounds",
+      "entry": "Audio/click_002.ogg",
+      "page": "https://kenney.nl/assets/interface-sounds",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "adcd1f4adc35f1b41bc1b5bbefeff7aa44f2f3f0d96d3199b544140c7c1e761c"
+    },
+    {
+      "id": "kenney-click-003",
+      "cues": ["click"],
+      "title": "click_003",
+      "source": "kenney",
+      "pack": "kenney-interface-sounds",
+      "entry": "Audio/click_003.ogg",
+      "page": "https://kenney.nl/assets/interface-sounds",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "2fa929138bc3a0f432696588f66eac94b8f6d463905ec8808c6461ce4b054292"
+    },
+    {
+      "id": "kenney-click-004",
+      "cues": ["click"],
+      "title": "click_004",
+      "source": "kenney",
+      "pack": "kenney-interface-sounds",
+      "entry": "Audio/click_004.ogg",
+      "page": "https://kenney.nl/assets/interface-sounds",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "09e2c1b643b71b9aff9932b4e02d78db116446b9a14b00a5b2a9b28d2668fd8e"
+    },
+    {
+      "id": "kenney-select-001",
+      "cues": ["pick"],
+      "title": "select_001",
+      "source": "kenney",
+      "pack": "kenney-interface-sounds",
+      "entry": "Audio/select_001.ogg",
+      "page": "https://kenney.nl/assets/interface-sounds",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "aec0c31ea934a35936ae0d2ab8fac8123c93aa5647f935853a58dbaf90278b7a"
+    },
+    {
+      "id": "kenney-select-002",
+      "cues": ["pick"],
+      "title": "select_002",
+      "source": "kenney",
+      "pack": "kenney-interface-sounds",
+      "entry": "Audio/select_002.ogg",
+      "page": "https://kenney.nl/assets/interface-sounds",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "4cc6ac5341b9b2c86fef80c347de028e9ab9f2e037586ac7d9fa59a403a1c012"
+    },
+    {
+      "id": "kenney-select-003",
+      "cues": ["pick"],
+      "title": "select_003",
+      "source": "kenney",
+      "pack": "kenney-interface-sounds",
+      "entry": "Audio/select_003.ogg",
+      "page": "https://kenney.nl/assets/interface-sounds",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "9a612fd2f513d52a296906b41071c990f75defe56be3bee60d2d4e2423b51b8b"
+    },
+    {
+      "id": "kenney-tick-001",
+      "cues": ["key"],
+      "title": "tick_001",
+      "source": "kenney",
+      "pack": "kenney-interface-sounds",
+      "entry": "Audio/tick_001.ogg",
+      "page": "https://kenney.nl/assets/interface-sounds",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "9d057b918024c787bbe6c00beed13a7ef72a3fa0c259add3cef36582792f4230"
+    },
+    {
+      "id": "kenney-tick-002",
+      "cues": ["key"],
+      "title": "tick_002",
+      "source": "kenney",
+      "pack": "kenney-interface-sounds",
+      "entry": "Audio/tick_002.ogg",
+      "page": "https://kenney.nl/assets/interface-sounds",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "869442f54214be902ec7437f79e400dc91c1bfd90d18a6dd2d5b7e41ffbf457b"
+    },
+    {
+      "id": "kenney-tick-004",
+      "cues": ["key"],
+      "title": "tick_004",
+      "source": "kenney",
+      "pack": "kenney-interface-sounds",
+      "entry": "Audio/tick_004.ogg",
+      "page": "https://kenney.nl/assets/interface-sounds",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "0253d5f7d8d2afbbc370eac2a4539bb844239f0c98343e516d376b137c06d27c"
+    },
+    {
+      "id": "kenney-drop-001",
+      "cues": ["drop"],
+      "title": "drop_001",
+      "source": "kenney",
+      "pack": "kenney-interface-sounds",
+      "entry": "Audio/drop_001.ogg",
+      "page": "https://kenney.nl/assets/interface-sounds",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "692ee3a6f1821402ca649ff735bee9591dc4846c8098fc7d6a90fd15fa57c1af"
+    },
+    {
+      "id": "kenney-drop-002",
+      "cues": ["drop"],
+      "title": "drop_002",
+      "source": "kenney",
+      "pack": "kenney-interface-sounds",
+      "entry": "Audio/drop_002.ogg",
+      "page": "https://kenney.nl/assets/interface-sounds",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "4ac4d1cef7e936965cbf795852ca2020300b9e2ba7daa59f2bf4f1f7bf416218"
+    },
+    {
+      "id": "kenney-drop-003",
+      "cues": ["drop"],
+      "title": "drop_003",
+      "source": "kenney",
+      "pack": "kenney-interface-sounds",
+      "entry": "Audio/drop_003.ogg",
+      "page": "https://kenney.nl/assets/interface-sounds",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "43d086d50f90493a98cd2e09aa6dbf150d164f1578e1ec768d21cb185571ad87"
+    },
+    {
+      "id": "kenney-drop-004",
+      "cues": ["drop"],
+      "title": "drop_004",
+      "source": "kenney",
+      "pack": "kenney-interface-sounds",
+      "entry": "Audio/drop_004.ogg",
+      "page": "https://kenney.nl/assets/interface-sounds",
+      "licence": "CC0-1.0",
+      "checked": "2026-11-27",
+      "sha256": "10738707f9300f9b963ceba46d5da2ed4a221faf7d39484a643c2d3bc151c5f2"
+    }
+  ]
+}
