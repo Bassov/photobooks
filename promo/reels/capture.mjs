@@ -48,7 +48,7 @@ export const GEOM_TARGETS = [
   },
   {
     name: 'geom:page',
-    sel: '[data-testid="ps-paper"], [data-testid="pt-sheet"]',
+    sel: '[data-testid="ps-paper"], [data-testid="pt-sheet"], [data-testid="spread-layer"]',
     all: true,
   },
 ]

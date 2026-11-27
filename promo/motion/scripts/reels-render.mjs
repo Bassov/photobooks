@@ -536,8 +536,9 @@ const aspectOff = ([w, h], [iw, ih]) => Math.abs((w / h) * (ih / iw) - 1)
 
 /** img / video / canvas: box aspect = intrinsic aspect (± 0.3 %) or object-fit: cover. */
 export function mediaProblem({ tag, box, intrinsic, fit }) {
-  if (!intrinsic || !intrinsic[0] || !intrinsic[1] || !box[0] || !box[1])
-    return null
+  if (!box[0] || !box[1]) return null
+  if (!intrinsic || !intrinsic[0] || !intrinsic[1])
+    return `${tag} ${box.join('×')} media size unknown`
   const off = aspectOff(box, intrinsic)
   if (off > GEO.aspectTol && fit !== 'cover')
     return `${tag} ${box.join('×')} shows ${intrinsic.join('×')} with object-fit ${fit}`
@@ -723,9 +724,10 @@ export const PIXEL_KINDS = new Set(['handle', 'page', 'endbook', 'screen'])
 /**
  * 10. G1 pixels: every round handle in frame has |w/h − 1| ≤ 0.04; every page / book / screen's output aspect
  * (pixels, and its DOM box) equals its CSS aspect within 0.5 %. `measures` = [{ frame, kind, css: [w, h],
- * out: [x, y, w, h], px: { w, h } | null }].
+ * out: [x, y, w, h], px: { w, h } | null }]. `uiClips` = the table names a `ui.clip`: then nothing measured on a
+ * page / end book / screen fails (Designer decision 2026-11-28: an empty measure is not a pass).
  */
-export function check10(measures) {
+export function check10(measures, { uiClips = false } = {}) {
   if (!measures)
     return { ...result(['no rendered video to measure']), numbers: {} }
   const t = tally()
@@ -760,8 +762,13 @@ export function check10(measures) {
         t.add(`${m.kind} pixel aspect off`, m.frame, off)
     }
   }
+  const p = t.lines()
+  if (uiClips && n.page === 0)
+    p.push(
+      'the table films UI clips but 0 page / end book / screen boxes were measured',
+    )
   return {
-    ...result(t.lines(), [
+    ...result(p, [
       `${n.handle} handle and ${n.page} page/book/screen measurements in range (${n.unmeasured} at the frame edge)`,
     ]),
     numbers: { ...n, worstHandle, worstPage },
@@ -800,11 +807,15 @@ const median = (xs) => {
 
 /**
  * 11. G2 / G3 / G6: no full-width band ≥ 96 rows with every channel < 28 in any frame; photo share (median of the
- * shot's sampled frames) ≥ .45 in M / Md, ≥ .25 in W; UI-only shots (`uiOnly`) ≤ 0.6 s, at most two; one of frames
- * 0–4 ≥ .45 photo; the end-card book ≥ 780 px wide (B: the phone ≥ 700). `bands` = [{ frame, rows, start }] (all
- * frames), `shares` = Map frame → share, `end` = the last frame's geom boxes.
+ * shot's sampled frames) ≥ .45 in M / Md, ≥ .25 in W, none for UI-only shots (`uiOnly`, G3), which last ≤ 0.6 s, at
+ * most two; one of frames 0–4 ≥ .45 photo; the end-card book ≥ 780 px wide (B: the phone ≥ 700, 0.5 px tolerance);
+ * no focus (Focus.jsx `data-focus`) on a W shot or a frame showing a sheet / phone / screen. `bands` = [{ frame, rows,
+ * start }] (all frames), `shares` = Map frame → share, `end` = the last frame's geom boxes, `logs` = REEL_GEOM entries.
  */
-export function check11(reel, table, { bands, shares, end }) {
+export const FOCUS_FREE_KINDS = new Set(['sheet', 'phone', 'screen'])
+export const WIDTH_TOL = 0.5
+
+export function check11(reel, table, { bands, shares, end, logs = [] }) {
   const p = []
   const t = tally()
   if (!bands) p.push('no rendered video to scan for bands')
@@ -818,7 +829,7 @@ export function check11(reel, table, { bands, shares, end }) {
   const perShot = {}
   for (const s of table.shots) {
     const min = GEO.share[s.scale]
-    if (min == null) continue
+    if (min == null || s.uiOnly) continue
     const xs = [...shares]
       .filter(([f]) => f >= s.from && f < s.to)
       .map(([, v]) => v)
@@ -835,6 +846,23 @@ export function check11(reel, table, { bands, shares, end }) {
       )
   if (ui.length > GEO.uiOnly.count)
     p.push(`${ui.length} UI-only moments > ${GEO.uiOnly.count}`)
+  const tf = tally()
+  let focusFrames = 0
+  for (const l of logs) {
+    if (!l.focus?.length) continue
+    focusFrames++
+    const s = table.shots.find((x) => l.frame >= x.from && l.frame < x.to)
+    const kinds = (l.geom ?? [])
+      .map((g) => g.kind)
+      .filter((k) => FOCUS_FREE_KINDS.has(k))
+    if (s?.scale === 'W') tf.add(`${s.id}: focus on a W shot`, l.frame)
+    else if (kinds.length)
+      tf.add(
+        `${s?.id ?? '?'}: focus over a ${[...new Set(kinds)].join(' / ')}`,
+        l.frame,
+      )
+  }
+  p.push(...tf.lines())
   let first = 0
   for (let f = 0; f <= GEO.first.within; f++)
     first = Math.max(first, shares.get(f) ?? 0)
@@ -846,17 +874,20 @@ export function check11(reel, table, { bands, shares, end }) {
   const min = reel === 'b' ? 700 : 780
   const hero = (end ?? []).filter((g) => g.kind === kind)
   const endW = hero.length ? Math.max(...hero.map((g) => g.out[2])) : 0
-  if (endW < min) p.push(`end card ${kind} ${endW.toFixed(0)} px wide < ${min}`)
+  if (endW < min - WIDTH_TOL)
+    p.push(`end card ${kind} ${endW.toFixed(1)} px wide < ${min}`)
   return {
     ...result(p, [
-      `worst dark band ${worstBand} rows; frame 0–4 photo share ${first.toFixed(2)}; end ${kind} ${endW.toFixed(0)} px`,
+      `worst dark band ${worstBand} rows; frame 0–4 photo share ${first.toFixed(2)}; end ${kind} ${endW.toFixed(1)} px; ` +
+        `${focusFrames} focus frames`,
     ]),
     numbers: {
       worstBand,
       firstShare: +first.toFixed(3),
       perShot,
-      endWidth: endW,
+      endWidth: +endW.toFixed(1),
       uiOnly: ui.length,
+      focusFrames,
     },
   }
 }
@@ -1262,7 +1293,13 @@ async function runChecks(reel, table, pub, files, extra = {}) {
           clips: clipSizes(table, clipsRoot, pub),
         }),
     ],
-    ['10 G1 pixels', () => check10(pixels?.measures ?? null)],
+    [
+      '10 G1 pixels',
+      () =>
+        check10(pixels?.measures ?? null, {
+          uiClips: table.shots.some((s) => s.ui?.clip),
+        }),
+    ],
     [
       '11 G2/G3/G6 frame',
       () =>
@@ -1270,6 +1307,7 @@ async function runChecks(reel, table, pub, files, extra = {}) {
           bands: pixels?.bands ?? null,
           shares,
           end: last?.geom,
+          logs: geomLogs,
         }),
     ],
   ]
@@ -1523,6 +1561,35 @@ async function selftest() {
   const end11 = [
     { kind: 'endbook', css: [860, 606], out: [110, 300, 860, 606] },
   ]
+  // 11 focus: a focus hole on a W shot and over a PDF sheet (Designer decision 2026-11-28).
+  const shotW = good.shots.find((s) => s.scale === 'W')
+  const shotM = good.shots.find(
+    (s) => s.scale === 'M' && s.from > GEO.first.within,
+  )
+  const hole = [[300, 600, 480, 720]]
+  const sheetGeom = [
+    { kind: 'sheet', css: [1050, 549], out: [15, 685, 1050, 549] },
+  ]
+  const logs11 = [
+    { frame: shotW.from, focus: hole, geom: [] },
+    { frame: shotM.from, focus: hole, geom: sheetGeom },
+  ]
+  // 9 media: an <img> whose intrinsic size the probe could not read.
+  const in9media = {
+    logs: [
+      {
+        frame: 0,
+        transforms: [],
+        media: [
+          { el: 'img', tag: 'img', box: [1080, 1920], intrinsic: [0, 0] },
+        ],
+        masks: [],
+      },
+    ],
+    frames: [0],
+    sources: [],
+    clips: [],
+  }
 
   const cases = [
     ['1 ffprobe', () => check1(badProbe)],
@@ -1538,6 +1605,21 @@ async function selftest() {
     [
       '11 G2 black band (120 rows)',
       () => check11('a', good, { bands: bands11, shares: full, end: end11 }),
+    ],
+    ['9 G1 media size unknown', () => check9(in9media)],
+    [
+      '10 G1 pixels (UI clips, nothing measured)',
+      () => check10([], { uiClips: true }),
+    ],
+    [
+      '11 focus on a W shot / over a sheet',
+      () =>
+        check11('a', good, {
+          bands: [{ frame: 0, rows: 0, start: -1 }],
+          shares: full,
+          end: end11,
+          logs: logs11,
+        }),
     ],
   ]
   let ok = true
@@ -1620,10 +1702,37 @@ async function selftest() {
       end: end11,
     },
   )
+  // A UI-only shot (G3, 18 frames) with no photo at all, a focus hole on an M shot over UI only, and B's phone at
+  // 699.94 px (within the 0.5 px tolerance).
+  const uiShot = { ...shotM, uiOnly: true, to: shotM.from + GEO.uiOnly.frames }
+  const uiShares = new Map(
+    [...full].map(([f, v]) => [f, f >= uiShot.from && f < uiShot.to ? 0 : v]),
+  )
+  const goodUi11 = check11(
+    'a',
+    {
+      ...good,
+      shots: good.shots.map((s) => (s.id === shotM.id ? uiShot : s)),
+    },
+    {
+      bands: [{ frame: 0, rows: 0, start: -1 }],
+      shares: uiShares,
+      end: end11,
+      logs: [{ frame: shotM.from, focus: hole, geom: [] }],
+    },
+  )
+  const goodB = await loadTable('b')
+  const goodPhone11 = check11('b', goodB, {
+    bands: [{ frame: 0, rows: 0, start: -1 }],
+    shares: new Map(Array.from({ length: goodB.frames }, (_, f) => [f, 1])),
+    end: [{ kind: 'phone', css: [700, 1482], out: [190, 219, 699.94, 1482] }],
+  })
   for (const [name, r] of [
     ['9 (uniform, cover, shared/** source)', good9],
     ['10 (round handle 40×40)', check10([handleAt(20, 20)])],
     ['11 (90-row band, full photo, end book 860)', good11],
+    ['11 (UI-only shot at share 0, focus on M over UI)', goodUi11],
+    ['11 (reel b phone 699.94 px)', goodPhone11],
   ]) {
     console.log(
       `${r.ok ? 'ok' : 'FAIL'} — good fixture, check ${name}: ${r.notes.slice(0, 4).join('; ')}`,

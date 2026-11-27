@@ -90,7 +90,7 @@ function intrinsic(el) {
 /**
  * Raw facts only (the Node side decides): transforms that are not `none`, every img / video / canvas with its
  * layout box, intrinsic size and object-fit, every mask / background image sized `100% 100%` with its image size,
- * and the output boxes (root px, 1080×1920) of `[data-geom]` and `[data-photo]` elements.
+ * and the output boxes (root px, 1080×1920) of `[data-geom]`, `[data-photo]` and `[data-focus]` (Focus.jsx) elements.
  */
 async function geomProbe(root) {
   const media = [...root.querySelectorAll('img, video, canvas')]
@@ -165,5 +165,6 @@ async function geomProbe(root) {
     id: el.getAttribute('data-photo'),
     out: box(el),
   }))
-  return { transforms, media: mediaOut, masks, geom, photos }
+  const focus = [...root.querySelectorAll('[data-focus]')].map(box)
+  return { transforms, media: mediaOut, masks, geom, photos, focus }
 }

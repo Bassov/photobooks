@@ -8,6 +8,7 @@ import {
 } from 'remotion'
 import { loadFont } from '@remotion/fonts'
 import { fitBox, springAt } from './Springs.js'
+import { phoneBody } from './Phone.jsx'
 
 // Spec v2 G7: Inter with the optical-size axis (kit file), opsz 32, weights 600 / 400.
 export const INTER = 'fonts/inter-latin-opsz-normal.woff2'
@@ -36,14 +37,19 @@ export const END_TEXT = {
  * its lower half.
  */
 export const END_BOX = { x: 110, y: 300, w: 860, h: 606 }
-export const END_PHONE_BOX = { x: 190, y: 219, w: 700, h: 1482.15 }
+export const END_PHONE_BOX = phoneBody()
 /** Checks 10–11: the end-card book is ≥ 780 px wide, the phone ≥ 700. */
 export const END_MIN_W = { book: 780, phone: 700 }
 export const FOOT_MAX_W = 834
 
-/** Spec v2 G7 scrim over the shot's ground (never a flat fill): B .82, A and C .62. */
+/**
+ * Spec v2 G7 scrim over the shot's ground (never a flat fill), warm grey so its floor stays above G2's level 28
+ * (Designer decision 2026-11-28): B .82, A and C .74.
+ */
+export const SCRIM_RGB = 'rgb(40 37 34'
+export const SCRIM_ALPHA = { a: 0.74, b: 0.82, c: 0.74 }
 export const endScrim = (reel) =>
-  `linear-gradient(180deg, rgb(12 11 10 / 0) 900px, rgb(12 11 10 / ${reel === 'b' ? 0.82 : 0.62}) 1240px)`
+  `linear-gradient(180deg, ${SCRIM_RGB} / 0) 900px, ${SCRIM_RGB} / ${SCRIM_ALPHA[reel] ?? SCRIM_ALPHA.a}) 1240px)`
 
 /**
  * `{ x, y, s }` moving `rect` (output px at the start of the end card) into `box` (END_BOX, or END_PHONE_BOX) with

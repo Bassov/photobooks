@@ -5,17 +5,22 @@ import { AbsoluteFill, Img } from 'remotion'
  * Spec v2 G2 «No letterbox» grounds, seen behind W shots, the PDF sheet and the phone. Never flat, never black:
  * A = v1 (the current shot's main photo at cover × 1.2, blur 60 px, brightness .85, saturate 1.1; it changes on
  * each cut). B and C = a warm dark radial plus the shot's main photo at cover × 1.2, blur 80 px, brightness .30,
- * opacity .5.
+ * opacity .5, screen blend (Designer decision 2026-11-28: it only lifts the radial, so a dark photo never pulls the
+ * ground under G2's level 28). The ground never follows the camera.
  */
-export const GROUND = 'radial-gradient(90% 60% at 50% 44%, #33302D, #171615)'
+export const GROUND = 'radial-gradient(90% 60% at 50% 44%, #3F3B37, #262321)'
 // Reel A without a photo (stub, or a shot that names none): a warm daylight wash, still not flat.
 export const WARM =
   'radial-gradient(120% 80% at 50% 40%, #6E7F7A, #3B4744 60%, #262C2B)'
 
 export const GROUND_PHOTO = {
-  a: { filter: 'blur(60px) brightness(0.85) saturate(1.1)', opacity: 1 },
-  b: { filter: 'blur(80px) brightness(0.3)', opacity: 0.5 },
-  c: { filter: 'blur(80px) brightness(0.3)', opacity: 0.5 },
+  a: {
+    filter: 'blur(60px) brightness(0.85) saturate(1.1)',
+    opacity: 1,
+    blend: 'normal',
+  },
+  b: { filter: 'blur(80px) brightness(0.3)', opacity: 0.5, blend: 'screen' },
+  c: { filter: 'blur(80px) brightness(0.3)', opacity: 0.5, blend: 'screen' },
 }
 
 /** `photo` = the shot's main photo (staticFile URL) or nothing. */
@@ -39,6 +44,7 @@ export const Background = ({ reel, photo }) => {
             transform: 'scale(1.2)',
             filter: look.filter,
             opacity: look.opacity,
+            mixBlendMode: look.blend,
           }}
         />
       )}

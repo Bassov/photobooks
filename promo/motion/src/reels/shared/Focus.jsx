@@ -57,6 +57,9 @@ const masked = (mask) => ({
 /**
  * One action point per frame. `box` (output px, follows rects.json) is the action box; null = no focus. `render`
  * draws the content: once, plus a blurred copy outside the box + 60 px when the reel blurs (A, B).
+ * Designer decision 2026-11-28: no focus where the ground shows in a full-width band (W, PDF-sheet and phone shots):
+ * pass `box = null` there. An empty `data-focus` box marks the hole for reels-render.mjs check 11, which fails a
+ * focus on a W shot or on a frame that shows a `sheet`, `phone` or `screen`.
  */
 export const Focus = ({ reel, box, render }) => {
   if (!box) return <AbsoluteFill>{render()}</AbsoluteFill>
@@ -64,6 +67,16 @@ export const Focus = ({ reel, box, render }) => {
   return (
     <AbsoluteFill>
       <AbsoluteFill>{render()}</AbsoluteFill>
+      <div
+        data-focus=""
+        style={{
+          position: 'absolute',
+          left: box.x,
+          top: box.y,
+          width: box.w,
+          height: box.h,
+        }}
+      />
       {look.blur > 0 && (
         <AbsoluteFill
           style={{

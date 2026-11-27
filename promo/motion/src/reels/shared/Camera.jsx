@@ -7,8 +7,11 @@ import { cameraAt, cameraSpeed } from './Springs.js'
 export const BLUR = { shutterAngle: 180, samples: 10 }
 export const BLUR_SPEED = 12
 
-/** Spec v2 G5 parallax: how far each layer follows the camera's travel since the shot's first frame. */
-export const PARALLAX = { ground: 0.9, plane: 1, cursor: 1.03, drag: 1.03 }
+/**
+ * Spec v2 G5 parallax: how far each layer follows the camera's travel since the shot's first frame. The ground
+ * (Background.jsx) does not follow the camera (Designer decision 2026-11-28): it is full-frame, outside `<Camera>`.
+ */
+export const PARALLAX = { plane: 1, cursor: 1.03, drag: 1.03 }
 
 /** A dragged photo: 62 % of the target frame's width, this shadow, tilt ≤ 3° from its velocity. */
 export const DRAG = {
