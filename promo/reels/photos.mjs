@@ -339,6 +339,12 @@ async function main() {
     next.push(entry)
     return next.sort((a, b) => order.indexOf(a.src) - order.indexOf(b.src))
   }
+  // written after every entry (atomic rename), so a killed run keeps what it finished
+  const save = () => {
+    fs.mkdirSync(OUT, { recursive: true })
+    fs.writeFileSync(`${mfFile}.part`, JSON.stringify(manifest, null, 1) + '\n')
+    fs.renameSync(`${mfFile}.part`, mfFile)
+  }
   const write = async (src, file, edge, grade) => {
     const f = await download(bySrc.get(src))
     const { b64, w, h } = await page.evaluate(renderInPage, {
@@ -367,6 +373,7 @@ async function main() {
         },
         order,
       )
+      save()
       console.log(`${e.set}/${e.src} ${size.w}×${size.h}`)
     }
     for (const reel of reels) {
@@ -395,13 +402,14 @@ async function main() {
           },
           order,
         )
+        save()
       }
       console.log(`graded ${reel}: ${items.length}`)
     }
   } finally {
     await browser.close()
     server.close()
-    fs.writeFileSync(mfFile, JSON.stringify(manifest, null, 1) + '\n')
+    save()
     console.log(`wrote ${path.relative(process.cwd(), mfFile)}`)
   }
   const want = reels.flatMap((r) =>

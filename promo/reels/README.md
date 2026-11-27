@@ -18,7 +18,8 @@ node promo/reels/capture.mjs --clip a-folder-drop  # one clip (or --clip id1,id2
 `photos.mjs` options: `--check` (licence check only), `--reel a|b|c` (only that reel's sets), `--only L18,L4` (only
 these photos), `--list <file>` (another list with the same shape), `--import <file>` (rebuild `photos.json` from a
 Designer list: it adds licence, author and `checked`). Re-runs reuse the downloaded originals and merge
-`manifest.json`, so partial runs add to it. Commons answers bursts with HTTP 429 and `Retry-After` (often 600 s).
+`manifest.json`, so partial runs add to it. The manifest is rewritten after every photo, so a killed run keeps what it
+finished. `capture.mjs` exits 1 when the manifest lacks any photo `photos.json` lists for the reel's sets. Commons answers bursts with HTTP 429 and `Retry-After` (often 600 s).
 The script waits and retries, so a cold full run takes a few hours. Later runs take minutes.
 
 `capture.mjs` options: `--png` writes lossless frames (default: JPEG q 95, ≈ 1.2 MB per 3840×4320 frame). Env:

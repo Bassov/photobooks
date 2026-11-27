@@ -76,6 +76,16 @@ function reelPhotos(reel) {
     throw new Error(
       `photos for reel ${reel} missing: run node promo/reels/photos.mjs --reel ${reel}`,
     )
+  // every photo photos.json lists for the reel's sets must be graded: no silent cycling over a partial manifest
+  const want = (LIST.reels?.[reel] ?? []).flatMap((set) =>
+    LIST.sets[set].map((e) => e.src),
+  )
+  const have = new Set(items.map((it) => it.src))
+  const missing = want.filter((s) => !have.has(s))
+  if (missing.length)
+    throw new Error(
+      `reel ${reel}: manifest has ${items.length} of ${want.length} photos (missing ${missing.slice(0, 8).join(' ')}${missing.length > 8 ? ' …' : ''}): run node promo/reels/photos.mjs --reel ${reel}`,
+    )
   const meta = new Map(
     Object.values(LIST.sets)
       .flat()
