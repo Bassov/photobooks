@@ -2,11 +2,12 @@
 //
 //   node scripts/reels-mix.mjs --analyse --reel a [--music <file>]
 //       Track gate over sound.json's candidates for the reel (or one file): tempo by onset-flux autocorrelation, beat
-//       confidence, last-third rise, beat contrast, music floor, phone loss and hero-bar lift (2.5–8 dB) of a downbeat
-//       excerpt (C: own tempo first, half tempo only when none passes; nothing passes: again at lift ≥ 2 dB). First
-//       passing track wins; prints it and 2 runners-up (none: the best 3) and writes
-//       promo/out/reels/sound/<reel>.beats.json (with liftBar, liftDb, barRmsDb[], contrast, floorDb, phoneLossDb);
-//       a failed gate removes the reel's old beats.json.
+//       confidence, last-third rise, beat contrast, onsets on the half-beat grid, music floor, phone loss and hero-bar
+//       lift (2.5–8 dB) of a downbeat excerpt. Rounds (GATE.rounds): lift ≥ 2.5, then ≥ 2, then R3 (rise ≥ 1, lift
+//       ≥ 1.5), all at the own tempo before any half-tempo round (C only). A track that won an earlier reel (a, b, c;
+//       its beats.json) is skipped. First passing track wins; prints it and 2 runners-up (none: the best 3) and writes
+//       promo/out/reels/sound/<reel>.beats.json (with liftBar, liftDb, barRmsDb[], contrast, onGrid, floorDb,
+//       phoneLossDb); a failed gate removes the reel's old beats.json.
 //   node scripts/reels-mix.mjs --reel a --cues <json | sample> [--music <file>] [--beats <json>] [--out <dir>] [--seed <n>]
 //       Mix in Playwright Chromium (decode + OfflineAudioContext, 48 kHz stereo) → <out>/<reel>-{music,sfx,mix}.wav and
 //       <reel>-mix.json, then check 12. `--cues sample` builds a demo cue list (every cue type) on the reel's beats.
@@ -63,10 +64,25 @@ export const GATE = {
   riseDb: 2,
   contrast: 1.5,
   liftDb: 2.5,
-  /** no excerpt of any candidate passes at 2.5 dB: the reel's gate runs again with this lift minimum */
-  liftFallbackDb: 2,
+  /**
+   * Rounds in order (Designer decisions 2026-11-28): the reel's gate stops at the first round any candidate passes;
+   * every own-tempo round runs before any half-tempo round.
+   */
+  rounds: [
+    { name: 'R1', liftMin: 2.5, riseMin: 2 },
+    { name: 'R2', liftMin: 2, riseMin: 2 },
+    { name: 'R3', liftMin: 1.5, riseMin: 1 },
+  ],
   /** a larger lift is a quiet intro, not a lift (Designer decision 2026-11-28) */
   liftMaxDb: 8,
+  /** share of the excerpt's onsets within `onGridTolSec` of the half-beat lattice (the grid is the track's metre) */
+  onGrid: 0.7,
+  onGridTolSec: 0.04,
+  /** an onset is a local maximum of the onset flux ≥ this share of the excerpt's maximum */
+  onsetShare: 0.15,
+  /** passing excerpts within this of the largest lift: the one whose liftBar / bars is closest to `heroAt` wins */
+  liftTieDb: 0.25,
+  heroAt: 0.31,
   /** momentary loudness from 0 to length − 1.2 s ≥ integrated − 10 dB (no music holes) */
   floorDb: -10,
   /** integrated loudness high-passed at 300 Hz − full band (phone speaker) */
@@ -768,19 +784,46 @@ const rmsDb = (x, a, b) => {
  * Full gate analysis of one track (mono at `sr`): tempo, grid, downbeat, then the best downbeat excerpt of whole bars
  * inside 15–20 s (closest to the reel's v1 length). Guards: no quarter-second inside the excerpt is > 24 dB under its
  * mean, its first third is ≥ track RMS − 12 dB, and it ends 0.5 s before the track does. Among the excerpts that pass
- * the guards, rise (last third vs first third ≥ 2 dB) and beat contrast (mean flux on the beats / on the half-beats
- * ≥ 1.5), floor (momentary loudness from 0 to length − 1.2 s ≥ integrated − 10 dB) and phone loss (integrated
- * loudness high-passed at 300 Hz − full band ≥ −4 dB), the one with the largest lift wins: the largest RMS step up
- * from the bar before inside the hero window (`HERO_BARS`), `liftMin` (2.5 dB) ≤ lift ≤ 8 dB. `half` analyses the
- * reel's half-tempo window instead of its own tempo.
+ * the guards, rise (last third vs first third ≥ `round.riseMin`: 2 dB, R3 1 dB) and beat contrast (mean flux on the beats / on the half-beats
+ * ≥ 1.5), onsets on the half-beat lattice (`onGrid` ≥ 0.70), floor (momentary loudness from 0 to length − 1.2 s ≥
+ * integrated − 10 dB) and phone loss (integrated loudness high-passed at 300 Hz − full band ≥ −4 dB) decide; of the
+ * passing ones, those within 0.25 dB of the largest lift (the largest RMS step up from the bar before inside the hero
+ * window `HERO_BARS`, `round.liftMin` ≤ lift ≤ 8 dB) compete: liftBar / bars closest to 0.31, then the larger rise.
+ * `half` analyses the reel's half-tempo window instead of its own tempo; `round` = one of `GATE.rounds`.
  */
 export function analyseTrack(
   mono,
   sr,
   reel,
-  { half = false, liftMin = GATE.liftDb } = {},
+  { half = false, round = GATE.rounds[0] } = {},
 ) {
-  return judgeTrack(excerptsOf(mono, sr, reel, half), liftMin)
+  return judgeTrack(excerptsOf(mono, sr, reel, half), round)
+}
+
+/**
+ * Onsets between `t0` and `t1` (s) = local maxima of the onset flux ≥ `GATE.onsetShare` of the window's maximum;
+ * `onGrid` = the share of them within `GATE.onGridTolSec` of the lattice `t0 + n · step`. `{ onGrid, onsets }`, onset
+ * times relative to `t0`.
+ */
+export function onGridShare({ flux, offset, hop }, t0, t1, step) {
+  const f0 = Math.max(0, Math.round((t0 - offset) / hop))
+  const f1 = Math.min(flux.length, Math.round((t1 - offset) / hop))
+  let mx = 0
+  for (let f = f0; f < f1; f++) mx = Math.max(mx, flux[f])
+  const onsets = []
+  for (let f = f0 + 1; f < f1 - 1; f++)
+    if (
+      mx > 0 &&
+      flux[f] >= GATE.onsetShare * mx &&
+      flux[f] >= flux[f - 1] &&
+      flux[f] > flux[f + 1]
+    )
+      onsets.push(f * hop + offset - t0)
+  const hit = onsets.filter(
+    (t) =>
+      Math.abs(t / step - Math.round(t / step)) * step <= GATE.onGridTolSec,
+  ).length
+  return { onGrid: onsets.length ? hit / onsets.length : 0, onsets }
 }
 
 /** Tempo, grid and every guarded downbeat excerpt with its measurements (the part of the gate that needs audio). */
@@ -862,6 +905,12 @@ function excerptsOf(mono, sr, reel, half) {
       lift,
       liftBar,
       contrast: on / Math.max(offBeat, 1e-9),
+      onGrid: onGridShare(
+        { flux, offset, hop },
+        beatAt(k),
+        beatAt(k) + len,
+        period / 2,
+      ).onGrid,
     })
   }
   if (!excerpts.length)
@@ -889,11 +938,19 @@ function excerptsOf(mono, sr, reel, half) {
   }
 }
 
-/** What an excerpt fails at lift minimum `liftMin` (empty = passes). */
-function excerptFails(e, liftMin) {
+/** A gate round; a bare number (older callers) is a lift minimum at the default rise. */
+const roundOf = (r) =>
+  typeof r === 'number'
+    ? { name: `lift ${r}`, liftMin: r, riseMin: GATE.riseDb }
+    : r
+
+/** What an excerpt fails in gate round `r` (empty = passes). */
+function excerptFails(e, r) {
+  const { liftMin, riseMin } = roundOf(r)
   return [
-    e.rise >= GATE.riseDb ? '' : 'rise < 2 dB',
+    e.rise >= riseMin ? '' : `rise < ${riseMin} dB`,
     e.contrast >= GATE.contrast ? '' : 'contrast < 1.5',
+    e.onGrid >= GATE.onGrid ? '' : `onGrid < ${GATE.onGrid}`,
     e.floor >= GATE.floorDb ? '' : `floor < ${GATE.floorDb} dB`,
     e.phoneLoss >= GATE.phoneLossDb
       ? ''
@@ -904,29 +961,46 @@ function excerptFails(e, liftMin) {
 }
 
 /**
- * Gate verdict of an analysed track at lift minimum `liftMin`: the passing excerpt with the largest lift; when none
+ * Gate verdict of an analysed track in gate round `r`: of the passing excerpts, those within 0.25 dB of the largest
+ * lift compete — liftBar / bars closest to 0.31 (Fill book at 22–40 % of the reel), then the larger rise; when none
  * passes, the excerpt failing the fewest criteria (then the largest lift ≤ 8 dB) is reported with its reasons.
  */
-function judgeTrack(raw, liftMin) {
+function judgeTrack(raw, r) {
   if (!raw.excerpts) return raw
+  const gr = roundOf(r)
   const { out, excerpts, track, beatsOf, len, bars, period } = raw
-  const scored = excerpts.map((e) => ({ e, fails: excerptFails(e, liftMin) }))
+  const scored = excerpts.map((e) => ({ e, fails: excerptFails(e, gr) }))
   const capped = (x) => (x.e.lift <= GATE.liftMaxDb ? x.e.lift : -99)
-  const { e: best, fails: own } = scored.reduce((a, b) =>
-    b.fails.length < a.fails.length ||
-    (b.fails.length === a.fails.length && capped(b) > capped(a))
-      ? b
-      : a,
-  )
+  const passing = scored.filter((x) => !x.fails.length)
+  const topLift = Math.max(...passing.map((x) => x.e.lift))
+  const heroOff = (x) => Math.abs(x.e.liftBar / bars - GATE.heroAt)
+  const { e: best, fails: own } = passing.length
+    ? passing
+        .filter((x) => x.e.lift >= topLift - GATE.liftTieDb)
+        .reduce((a, b) =>
+          heroOff(b) < heroOff(a) - 1e-9 ||
+          (Math.abs(heroOff(b) - heroOff(a)) <= 1e-9 && b.e.rise > a.e.rise)
+            ? b
+            : a,
+        )
+    : scored.reduce((a, b) =>
+        b.fails.length < a.fails.length ||
+        (b.fails.length === a.fails.length && capped(b) > capped(a))
+          ? b
+          : a,
+      )
   const fails = [...track, ...own]
   const beats = beatsOf(best)
   return {
     ...out,
     ok: !fails.length,
     why: fails.join(', '),
-    liftMin,
+    round: gr.name,
+    liftMin: gr.liftMin,
+    riseMin: gr.riseMin,
     riseDb: round(best.rise, 2),
     contrast: round(best.contrast, 2),
+    onGrid: round(best.onGrid, 2),
     floorDb: round(best.floor, 2),
     phoneLossDb: round(best.phoneLoss, 2),
     liftBar: best.liftBar,
@@ -948,16 +1022,20 @@ const analysisCache = new Map()
 /**
  * Track gate for a reel over `manifest.candidates[reel]` (or `only`: one file path): analyses each, picks the first
  * that passes and the next two passing as runners-up (else the best failing ones), writes `<reel>.beats.json` to
- * `out`. Returns `{ ok, lines, winner, runnersUp, beats }`.
+ * `out`. A candidate that won an earlier reel (order a, b, c: the track of its `<reel>.beats.json` in `out`) is
+ * skipped (Designer decision 2026-11-28). Returns `{ ok, lines, winner, runnersUp, beats }`.
  */
 export async function trackGate(reel, manifest, out = SOUND_OUT, only = null) {
   reelConfig(reel)
+  const taken = only ? new Map() : earlierWinners(reel, out)
   const items = only
     ? [{ id: musicIdOf(only, manifest) ?? path.basename(only), file: only }]
-    : manifest.candidates[reel].map((id) => ({
-        id,
-        file: path.resolve(out, manifest.files[id].path),
-      }))
+    : manifest.candidates[reel]
+        .filter((id) => !taken.has(id))
+        .map((id) => ({
+          id,
+          file: path.resolve(out, manifest.files[id].path),
+        }))
   const modes = HALF_TEMPO[reel] ? [false, true] : [false]
   const cacheKey = (it, half) => `${reel}:${half ? 'half' : 'own'}:${it.file}`
   const todo = items.filter((it) =>
@@ -979,19 +1057,17 @@ export async function trackGate(reel, manifest, out = SOUND_OUT, only = null) {
       await close()
     }
   }
-  const resultsOf = (half, liftMin) =>
+  const resultsOf = (half, gr) =>
     items.map((it) => ({
       ...it,
-      ...judgeTrack(analysisCache.get(cacheKey(it, half)), liftMin),
+      ...judgeTrack(analysisCache.get(cacheKey(it, half)), gr),
     }))
-  // own tempo first; the half-tempo reading of the same candidates only when none passes (Designer 2026-11-28);
-  // no excerpt of any reading passes: the same order again with the lift minimum lowered to 2 dB (floor kept)
-  const rounds = [GATE.liftDb, GATE.liftFallbackDb].flatMap((liftMin) =>
-    modes.map((half) => [half, liftMin]),
-  )
+  // every own-tempo round (2.5 dB, 2 dB, R3) before any half-tempo round (Designer 2026-11-28): the grid must be the
+  // metre of the track; the first round any candidate passes ends the gate
+  const rounds = modes.flatMap((half) => GATE.rounds.map((gr) => [half, gr]))
   let results = []
-  for (const [half, liftMin] of rounds) {
-    results = [...results, ...resultsOf(half, liftMin)]
+  for (const [half, gr] of rounds) {
+    results = [...results, ...resultsOf(half, gr)]
     if (results.some((r) => r.ok)) break
   }
   const winner = results.find((r) => r.ok) ?? null
@@ -1014,9 +1090,17 @@ export async function trackGate(reel, manifest, out = SOUND_OUT, only = null) {
   const sign = (v, unit = ' dB') =>
     v == null ? '   —  ' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}${unit}`
   const fmt = (tag, r) =>
-    `${reel}  ${tag.padEnd(9)} ${r.id.padEnd(26)} BPM ${String(r.bpm).padStart(6)}${r.half ? ' (½)' : '    '}  conf ${r.confidence.toFixed(2)}  rise ${sign(r.riseDb)}  contrast ${r.contrast == null ? '—' : r.contrast.toFixed(2)}  floor ${sign(r.floorDb)}  phone ${sign(r.phoneLossDb)}  lift ${sign(r.liftDb)}${r.liftBar == null ? '' : ` @bar ${r.liftBar}`}${r.liftMin === GATE.liftDb || r.liftMin == null ? '' : ` (min ${r.liftMin})`}${r.start == null ? '' : `  start ${r.start.toFixed(2)} s  ${r.bars} bars ${r.length.toFixed(2)} s`}${r.ok ? '' : `  [${r.why}]`}`
-  const skipped = winner ? results.slice(0, results.indexOf(winner)) : []
+    `${reel}  ${tag.padEnd(9)} ${r.id.padEnd(26)} BPM ${String(r.bpm).padStart(6)}${r.half ? ' (½)' : '    '}  conf ${r.confidence.toFixed(2)}  rise ${sign(r.riseDb)}  contrast ${r.contrast == null ? '—' : r.contrast.toFixed(2)}  onGrid ${r.onGrid == null ? '—' : r.onGrid.toFixed(2)}  floor ${sign(r.floorDb)}  phone ${sign(r.phoneLossDb)}  lift ${sign(r.liftDb)}${r.liftBar == null ? '' : ` @bar ${r.liftBar}`}${r.round == null ? '' : ` ${r.round}`}${r.start == null ? '' : `  start ${r.start.toFixed(2)} s  ${r.bars} bars ${r.length.toFixed(2)} s`}${r.ok ? '' : `  [${r.why}]`}`
+  // tracks tried before the winner, one row per reading (its last round)
+  const skipped = winner
+    ? [...latest.values()].filter(
+        (r) =>
+          results.indexOf(r) < results.indexOf(winner) &&
+          !runnersUp.some((u) => u.id === r.id && u.half === r.half),
+      )
+    : []
   const lines = [
+    ...[...taken].map(([id, r]) => `${reel}  skipped   ${id} (won reel ${r})`),
     ...skipped
       .filter((r) => !runnersUp.includes(r))
       .map((r) => fmt('skipped', r)),
@@ -1037,8 +1121,11 @@ export async function trackGate(reel, manifest, out = SOUND_OUT, only = null) {
       confidence: winner.confidence,
       riseDb: winner.riseDb,
       contrast: winner.contrast,
+      onGrid: winner.onGrid,
       floorDb: winner.floorDb,
       phoneLossDb: winner.phoneLossDb,
+      round: winner.round,
+      riseMin: winner.riseMin,
       liftMin: winner.liftMin,
       liftBar: winner.liftBar,
       liftDb: winner.liftDb,
@@ -1058,6 +1145,7 @@ export async function trackGate(reel, manifest, out = SOUND_OUT, only = null) {
         confidence: r.confidence,
         riseDb: r.riseDb ?? null,
         contrast: r.contrast ?? null,
+        onGrid: r.onGrid ?? null,
         floorDb: r.floorDb ?? null,
         phoneLossDb: r.phoneLossDb ?? null,
         liftDb: r.liftDb ?? null,
@@ -1077,6 +1165,18 @@ export async function trackGate(reel, manifest, out = SOUND_OUT, only = null) {
     }
   }
   return { ok: Boolean(winner), lines, winner, runnersUp, beats }
+}
+
+/** Tracks of the reels before `reel` (order a, b, c) that have a beats.json in `out`: id → reel. */
+function earlierWinners(reel, out) {
+  const order = ['a', 'b', 'c']
+  const taken = new Map()
+  for (const r of order.slice(0, Math.max(0, order.indexOf(reel)))) {
+    const file = path.join(out, `${r}.beats.json`)
+    if (fs.existsSync(file))
+      taken.set(JSON.parse(fs.readFileSync(file, 'utf8')).track, r)
+  }
+  return taken
 }
 
 function musicIdOf(file, manifest) {
@@ -1940,9 +2040,31 @@ export function cueOnsets(left, right, cues, sr = SR) {
 }
 
 /**
+ * Share of the music stem's onsets (0 … `t1` s) on the half-beat lattice of `beats` (the stem starts on beat 0):
+ * stereo 48 kHz → mono at the gate's analysis rate, the gate's onset flux and `onGridShare`.
+ */
+export function stemOnGrid([left, right], beats, t1, sr = SR) {
+  const k = Math.max(1, Math.round(sr / ANALYSIS_SR))
+  const mono = new Float32Array(Math.floor(left.length / k))
+  for (let i = 0; i < mono.length; i++) {
+    let s = 0
+    for (let j = 0; j < k; j++) s += left[i * k + j] + right[i * k + j]
+    mono[i] = s / (2 * k)
+  }
+  const fx = onsetFlux(mono, sr / k)
+  return onGridShare(
+    fx,
+    0,
+    Math.min(t1, mono.length / (sr / k)),
+    beats.period / 2,
+  )
+}
+
+/**
  * Check 12 (spec §5): every audio file is in sound.json with an accepted licence and its sha256; the music comes from
  * a listed track; mix −14 LUFS ± 0.5, true peak ≤ −1 dBTP, no sample ≥ 0.99; every sound cue has an onset in the
- * SFX stem within ± 1 frame; every cut is within ± 1 frame of a beat (0 cues or 0 cuts fail: nothing was measured);
+ * SFX stem within ± 1 frame; every cut is within ± 1 frame of a beat (0 cues or 0 cuts fail: nothing was measured) and
+ * ≥ 70 % of the music stem's onsets before the fade lie within 40 ms of the half-beat grid;
  * no silence > 150 ms; momentary loudness ≥ −24 LUFS before the fade (breath windows excepted); the mix high-passed
  * at 300 Hz (4th order) ≥ −18 LUFS; every foley slice reaches its type's minimum length; RMS-levelled cues (loudest 100 ms of the
  * SFX stem vs the music stem's RMS around the cue) spread ≤ 4 dB per type and every swish ≤ music − 8 dB.
@@ -2015,16 +2137,21 @@ export function checkSound({
   )
   const cutDist = cuts.map((f) => ({ f, d: nearestBeatDistance(beats, f) }))
   const offCuts = cutDist.filter((c) => c.d > 1)
+  const fadeStart = meta.plan?.fade?.start ?? mix[0].length / SR
+  // the grid must be the metre of the music: its onsets in the music stem sit on the half-beat lattice
+  const grid = music ? stemOnGrid(music, beats, fadeStart) : null
   line(
-    cuts.length > 0 && !offCuts.length,
-    `12g cuts on beats: ${cuts.length ? `${cuts.length} cuts, max ${Math.max(0, ...cutDist.map((c) => c.d))} frame(s) from a beat` : 'no cuts given'}${offCuts.length ? `; off: ${offCuts.map((c) => `${c.f} (${c.d} f)`).join(', ')}` : ''}`,
+    cuts.length > 0 &&
+      !offCuts.length &&
+      grid != null &&
+      grid.onGrid >= GATE.onGrid,
+    `12g cuts on beats: ${cuts.length ? `${cuts.length} cuts, max ${Math.max(0, ...cutDist.map((c) => c.d))} frame(s) from a beat` : 'no cuts given'}${offCuts.length ? `; off: ${offCuts.map((c) => `${c.f} (${c.d} f)`).join(', ')}` : ''}; music onsets on the half-beat grid ${grid ? `${grid.onGrid.toFixed(2)} of ${grid.onsets.length}` : '— (no music stem)'} (≥ ${GATE.onGrid.toFixed(2)})`,
   )
   const silence = longestSilenceMs(...mix)
   line(
     silence <= SILENCE.ms,
     `12h longest silence ${silence} ms (≤ 150 ms under −60 dBFS)`,
   )
-  const fadeStart = meta.plan?.fade?.start ?? mix[0].length / SR
   const breaths = meta.plan?.music?.breaths ?? []
   const counted = momentary(...mix).filter(
     (b) =>
@@ -2095,6 +2222,7 @@ export function checkSound({
       maxCueOffsetMs: maxMs,
       cues: onsets.length,
       cuts: cuts.length,
+      musicOnGrid: grid ? round(grid.onGrid, 2) : null,
       longestSilenceMs: silence,
       minMomentaryLufs: round(lowest.lufs, 2),
       minMomentaryAt: lowest.t == null ? null : round(lowest.t, 1),
