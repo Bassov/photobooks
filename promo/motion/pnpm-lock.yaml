@@ -17,6 +17,9 @@ importers:
       '@remotion/fonts':
         specifier: 4.0.547
         version: 4.0.547(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@remotion/motion-blur':
+        specifier: 4.0.547
+        version: 4.0.547(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@remotion/renderer':
         specifier: 4.0.547
         version: 4.0.547(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -391,6 +394,12 @@ packages:
 
   '@remotion/media@4.0.547':
     resolution: {integrity: sha512-sSju9IKs/J3rz0A4g0t5zC5yM0RxwAdlhVh+xNVAWl/SkhOGqkXhOGx0w4YAK288ITYkuyl92Zv68mp03A1skA==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+
+  '@remotion/motion-blur@4.0.547':
+    resolution: {integrity: sha512-HEH03+jepFWvmAChznx7SadJ0cS5/Cw4uTG81G/OuT+pKMfGPs9CBNuzDYGMyi9SmT/6CVyM6A3Xy5izvkoPxw==}
     peerDependencies:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
@@ -1724,6 +1733,12 @@ snapshots:
       react-dom: 19.2.0(react@19.2.0)
       remotion: 4.0.547(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       zod: 4.6.7
+
+  '@remotion/motion-blur@4.0.547(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+    dependencies:
+      react: 19.2.0
+      react-dom: 19.2.0(react@19.2.0)
+      remotion: 4.0.547(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
 
   '@remotion/openai-whisper@4.0.547':
     dependencies:
