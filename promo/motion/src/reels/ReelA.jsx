@@ -19,7 +19,7 @@ import { EndCard, endMove } from './shared/EndCard.jsx'
 import { Focus } from './shared/Focus.jsx'
 import { Grain } from './shared/Grain.jsx'
 import { CAPTURE } from './a.capture.js'
-import { CARDS, FOLD, PLANE, STRIP } from './a.shots.js'
+import { BEAT, CARDS, DROP_BOX, FOLD, OFFSET, PLANE, STRIP } from './a.shots.js'
 
 // Reel A «Одна поездка» (Designer promo-reels-3 §3): warm, daytime, tactile. The kit clips (filmed in real time at
 // DPR 3, a.capture.js) play at rate 1 under the shot table's crop camera; Remotion only adds what the product does not
@@ -43,24 +43,59 @@ const easeOut = (t) => 1 - (1 - t) ** 3
 // copy's OffthreadVideo re-fetches the same 3840×4320 frame from the compositor (`cache: 'no-store'`, ≈ 8 s each), so
 // one blurred frame took 95–200 s and the render hit the 30 s delayRender timeout. While rendering, a clip frame is
 // fetched once from the same proxy URL OffthreadVideo uses and every sample draws that one blob through <Img>.
+// The 0.5 s sheet (ReelSheetA: 36 cells mounted at once, `probe` false) fetches its frames one at a time and keeps
+// them at plane size (1280 px wide: a 270 px cell needs less), so 36 × 50 MB BMPs never sit in one tab.
+const LONG = 10 * 60 * 1000
+const SheetMode = React.createContext(false)
 const FRAME_CACHE = new Map()
 const FRAME_CACHE_MAX = 6
-function clipFrameUrl(src, frame) {
+const LANES = 8
+let busy = 0
+const waiting = []
+const serial = (job) =>
+  new Promise((resolve, reject) => {
+    const start = () => {
+      busy++
+      job()
+        .then(resolve, reject)
+        .finally(() => {
+          busy--
+          waiting.shift()?.()
+        })
+    }
+    if (busy < LANES) start()
+    else waiting.push(start)
+  })
+async function fetchFrame(url, small) {
+  const res = await fetch(url)
+  if (res.status !== 200)
+    throw new Error(`clip frame ${url}: HTTP ${res.status}`)
+  const blob = new Blob([await res.arrayBuffer()], {
+    type: res.headers.get('Content-Type') ?? '',
+  })
+  if (!small) return URL.createObjectURL(blob)
+  const bmp = await createImageBitmap(blob, {
+    resizeWidth: PLANE.w,
+    resizeHeight: PLANE.h,
+    resizeQuality: 'high',
+  })
+  const canvas = new OffscreenCanvas(PLANE.w, PLANE.h)
+  canvas.getContext('2d').drawImage(bmp, 0, 0)
+  bmp.close()
+  const jpeg = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 })
+  return URL.createObjectURL(jpeg)
+}
+function clipFrameUrl(src, frame, small) {
   const abs = new URL(src, window.location.origin).href
   const time = frame / FPS
   const url = `http://localhost:${window.remotion_proxyPort}/proxy?src=${encodeURIComponent(abs)}&time=${encodeURIComponent(Math.max(0, time))}&transparent=false&toneMapped=true`
-  let hit = FRAME_CACHE.get(url)
+  const key = `${small ? 's' : 'f'} ${url}`
+  let hit = FRAME_CACHE.get(key)
   if (!hit) {
-    hit = fetch(url).then(async (res) => {
-      if (res.status !== 200)
-        throw new Error(`clip frame ${url}: HTTP ${res.status}`)
-      const blob = new Blob([await res.arrayBuffer()], {
-        type: res.headers.get('Content-Type') ?? '',
-      })
-      return URL.createObjectURL(blob)
-    })
-    FRAME_CACHE.set(url, hit)
-    while (FRAME_CACHE.size > FRAME_CACHE_MAX) {
+    hit = small ? serial(() => fetchFrame(url, true)) : fetchFrame(url, false)
+    FRAME_CACHE.set(key, hit)
+    // the sheet keeps all of its (small) frames; a video tab renders one frame at a time and drops old ones
+    while (!small && FRAME_CACHE.size > FRAME_CACHE_MAX) {
       const [old, p] = FRAME_CACHE.entries().next().value
       FRAME_CACHE.delete(old)
       p.then((u) => setTimeout(() => URL.revokeObjectURL(u), 60000)).catch(
@@ -72,26 +107,34 @@ function clipFrameUrl(src, frame) {
 }
 
 const CachedFrame = ({ src, frame }) => {
+  const small = React.useContext(SheetMode)
   const [img, setImg] = React.useState(null)
   const { delayRender, continueRender, cancelRender } = useDelayRender()
   React.useLayoutEffect(() => {
     let live = true
-    const handle = delayRender(`clip frame ${src} @ ${frame}`)
+    const handle = delayRender(`clip frame ${src} @ ${frame}`, {
+      timeoutInMilliseconds: LONG,
+    })
     const done = () => {
       if (!live) return
       live = false
       continueRender(handle)
     }
-    clipFrameUrl(src, frame)
+    clipFrameUrl(src, frame, small)
       .then((u) => {
         if (live) setImg(u)
         done()
       })
       .catch((e) => cancelRender(e))
     return done
-  }, [src, frame, delayRender, continueRender, cancelRender])
-  return img ? <Img src={img} style={FILL} /> : null
+  }, [src, frame, small, delayRender, continueRender, cancelRender])
+  return img ? <Pic src={img} style={FILL} /> : null
 }
+
+/** <Img> that may wait behind the clip frames (the sheet mounts 36 frames at once). */
+const Pic = (props) => (
+  <Img delayRenderTimeoutInMilliseconds={LONG} {...props} />
+)
 
 /** One frame of a kit clip, drawn over the plane (the clip's CSS viewport; its 3× pixels give the crop its sharpness). */
 const Clip = ({ id, f }) => {
@@ -158,7 +201,7 @@ const Card = ({ card, frame }) => {
         overflow: 'hidden',
       }}
     >
-      <Img
+      <Pic
         src={photo(card.photo)}
         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
       />
@@ -204,14 +247,23 @@ const Unfill = ({ frame }) => {
 
 // ---------------------------------------------------------------- per-shot plane content
 
-const Landing = ({ land, frame }) => {
-  const k = frame - land.at
-  if (k < 0) return null
-  const q = springAt(k, 'light')
-  const scale = 1 + 0.06 * (1 - q)
-  const [x, y, w, h] = land.box
-  // removed once within 0.5 px of the measured frame box (the clip already shows the photo underneath)
-  if (k > 14 && Math.abs(scale - 1) * w * 3 < 0.5) return null
+// A4–A5: the kit draws no visible drag ghost, so the held photo is an overlay (spec §1 "photo flights"): the graded
+// L18 lifts off thumb 1 on the pick, rides the captured pointer, and on the drop springs from that ghost box into
+// spread 1's measured frame (light spring) over the real empty-frame still of the frame before the drop.
+const GHOST_W = 250
+const GHOST = { from: BEAT.pick, to: BEAT.drop }
+function ghostBox(frame) {
+  const f = frame + OFFSET['a-drop']
+  const p = pointerAt('a-drop', f)
+  const [, , tw] = CAPTURE['a-filled'].cards.rows[0].box
+  const t = easeOut(clamp((frame - GHOST.from + 1) / 9, 0, 1))
+  const w = lerp(tw, GHOST_W, t)
+  const h = (w * DROP_BOX[3]) / DROP_BOX[2]
+  return [p.x - w / 2, p.y - h / 2, w, h]
+}
+
+const PhotoCard = ({ name, box, spin = 0, lift = 1 }) => {
+  const [x, y, w, h] = box
   return (
     <div
       style={{
@@ -221,15 +273,51 @@ const Landing = ({ land, frame }) => {
         width: w,
         height: h,
         overflow: 'hidden',
-        transform: `scale(${scale})`,
-        boxShadow: `0 ${10 * (scale - 1) * 16}px ${24 * (scale - 1) * 16}px rgb(0 0 0 / .3)`,
+        transform: `rotate(${spin}deg)`,
+        boxShadow: `0 ${14 * lift}px ${34 * lift}px rgb(0 0 0 / ${0.35 * lift})`,
       }}
     >
-      <Img
-        src={photo(land.photo)}
+      <Pic
+        src={photo(name)}
         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
       />
     </div>
+  )
+}
+
+const Ghost = ({ frame }) => {
+  if (frame < GHOST.from || frame >= GHOST.to) return null
+  const t = easeOut(clamp((frame - GHOST.from + 1) / 9, 0, 1))
+  return <PhotoCard name="L18" box={ghostBox(frame)} spin={-3 * t} />
+}
+
+const Landing = ({ land, frame }) => {
+  const k = frame - land.at
+  if (k < 0) return null
+  const q = springAt(k, 'light')
+  const from = ghostBox(land.at - 1)
+  const box = land.box.map((v, i) => lerp(from[i], v, q))
+  // removed once within 0.5 px of the measured frame box (the clip already shows the photo underneath)
+  const off = Math.max(...box.map((v, i) => Math.abs(v - land.box[i])))
+  if (k > 14 && off < 0.5) return null
+  const [x, y, w, h] = land.box
+  return (
+    <>
+      <div
+        style={{
+          ...FILL,
+          clipPath: `inset(${y}px ${PLANE.w - x - w}px ${PLANE.h - y - h}px ${x}px)`,
+        }}
+      >
+        <Clip id="a-drop" f={land.at - 1 + OFFSET['a-drop']} />
+      </div>
+      <PhotoCard
+        name={land.photo}
+        box={box}
+        spin={-3 * clamp(1 - q, 0, 1)}
+        lift={clamp(1 - q, 0, 1)}
+      />
+    </>
   )
 }
 
@@ -238,7 +326,7 @@ const Through = ({ shot, frame }) => {
   const k = frame - shot.from
   if (k >= through.frames)
     return (
-      <Img src={photo(through.photo)} style={{ ...FILL, objectFit: 'cover' }} />
+      <Pic src={photo(through.photo)} style={{ ...FILL, objectFit: 'cover' }} />
     )
   const t = easeIn((k + 1) / through.frames)
   const [x, y, w, h] = through.box
@@ -273,6 +361,7 @@ const Scene = ({ shot }) => {
       }}
     >
       {at && <Clip id={at.id} f={at.f} />}
+      {at?.id === 'a-drop' && <Ghost frame={frame} />}
       {shot.land && <Landing land={shot.land} frame={frame} />}
     </div>
   )
@@ -323,7 +412,11 @@ function focusBox(shot, frame) {
       return box([p.x - 120, p.y - 34, 240, 68])
     }
     case 'pick':
-      return box(CAPTURE['a-filled'].cards.rows[0].box)
+      return box(
+        frame >= GHOST.from
+          ? ghostBox(frame)
+          : CAPTURE['a-filled'].cards.rows[0].box,
+      )
     case 'drop':
       return box(shot.land.box)
     case 'cover':
@@ -380,25 +473,29 @@ export const ReelA = ({ reel, table, audio = true, probe = true }) => {
     />
   )
   return (
-    <AbsoluteFill>
-      <Background reel={reel} photo={photo(shot.bg)} />
-      {move ? (
-        <AbsoluteFill
-          style={{
-            transformOrigin: '0 0',
-            transform: `translate(${move.x}px, ${move.y}px) scale(${move.s})`,
-            filter: 'drop-shadow(0 40px 50px rgb(0 0 0 / 0.45))',
-          }}
-        >
-          <AbsoluteFill style={{ clipPath: clip }}>{picture}</AbsoluteFill>
-        </AbsoluteFill>
-      ) : (
-        picture
-      )}
-      {cursor && <Cursor at={cursor} />}
-      {end && <EndCard from={end.from} beatFrames={beatFrames} probe={probe} />}
-      <Grain reel={reel} />
-      {audio && <Audio src={staticFile(`audio/${reel}.wav`)} />}
-    </AbsoluteFill>
+    <SheetMode.Provider value={!probe}>
+      <AbsoluteFill>
+        <Background reel={reel} photo={photo(shot.bg)} />
+        {move ? (
+          <AbsoluteFill
+            style={{
+              transformOrigin: '0 0',
+              transform: `translate(${move.x}px, ${move.y}px) scale(${move.s})`,
+              filter: 'drop-shadow(0 40px 50px rgb(0 0 0 / 0.45))',
+            }}
+          >
+            <AbsoluteFill style={{ clipPath: clip }}>{picture}</AbsoluteFill>
+          </AbsoluteFill>
+        ) : (
+          picture
+        )}
+        {cursor && <Cursor at={cursor} />}
+        {end && (
+          <EndCard from={end.from} beatFrames={beatFrames} probe={probe} />
+        )}
+        <Grain reel={reel} />
+        {audio && <Audio src={staticFile(`audio/${reel}.wav`)} />}
+      </AbsoluteFill>
+    </SheetMode.Provider>
   )
 }

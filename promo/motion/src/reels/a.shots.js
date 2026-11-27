@@ -297,9 +297,10 @@ const shots = [
     from: b(16),
     to: b(19),
     scale: 'W',
+    // the shelf sits in the middle of the frame (the site's empty page below it stays out of the crop)
     cam: [
-      { cx: 640, cy: 720, w: 810 },
-      { cx: 630, cy: 716, w: 784 },
+      { cx: 640, cy: 560, w: 810 },
+      { cx: 630, cy: 556, w: 784 },
     ],
     fast: [{ from: b(16), to: b(16) + 4 }],
     ui: { clip: 'a-shelf', rate: 1, offset: OFFSET['a-shelf'] },
@@ -389,6 +390,9 @@ for (const s of shots) {
       file: `${s.land.photo}.jpg`,
       outW: Math.ceil(s.land.box[2] * 1.06 * sMax),
     })
+  // the held L18 card of the drag (ReelA Ghost, at most 250 plane px wide)
+  if (s.id === 'A4' || s.id === 'A5')
+    list.push({ file: 'L18.jpg', outW: Math.ceil(250 * sMax) })
   if (s.through)
     list.push({
       file: `${s.through.photo}.jpg`,
