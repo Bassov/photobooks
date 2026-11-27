@@ -132,3 +132,31 @@ spinner (`.animate-spin`, `*spinner*`, lucide loader) and every class token / `d
 The others (`a-gl-turn`, `a-fill-book`, `a-cover-title`, `a-breath`, `b-hero-drop`, `b-hero-cover`, `b-site`, `c-layouts`,
 `c-fill-undo`, `c-cover-print`, `c-shelf`) are stubs. Their walks land in promo-reel-a / b / c: add `targets`, `setup`
 and `act` to the entry in `CLIPS` and drop `stub`.
+
+## v2 geometry (promo-reels-v2 spec G1–G3, checks 9–11)
+
+- **Clip size.** Every captured frame must be exactly viewport × DPR (square pixels); any other size fails the clip.
+  `<clip>.json` and `rects.json` carry `sar: "1:1"` and `theme`. `reels-render.mjs` check 9 compares each clip a shot
+  names (`ui.clip`) against `pixels` (ffprobe for webm/mp4, the first frame for a frames directory).
+- **Geometry targets.** Every clip also logs `geom:handle` (`rotate-knob`, `photo-handle`, the round handles) and
+  `geom:page` (`ps-paper`, `pt-sheet`, the editor's `spread-layer`) with `all: true`, on top of its own `targets`. Walks may add `geom:photo`
+  boxes (visible photos) for the photo share of check 11. Check 10 maps every `geom:*` box through the shot camera
+  (`ui.start` = first clip frame, `ui.rate` −1 plays backwards) and measures it in the output frames.
+- **Site theme.** B and C film the site (site / phone viewports) in the kit's Dark theme if `uikit/dist` has one
+  (`data-theme="procreate-dark"`), else Light as it is. Today the kit has one theme, so every clip is light. Walks keep
+  their `?theme=procreate-light` URLs; `runClip` swaps the reel's theme in.
+- **Composition side.** `shared/Finish.jsx` (the last layer: vignette + grain) logs `REEL_GEOM` per frame:
+  computed transforms, img / video / canvas boxes vs their intrinsic size, `100% 100%` masks vs their image, and the
+  boxes of `[data-geom]` (`endbook`, `phone`, `screen`, `sheet`, `page`, `handle`), `[data-photo]` and
+  `[data-focus]` elements. Reels tag their photo overlays `data-photo` and wrap the end-card hero in `EndHero`
+  (EndCard.jsx); B passes `reel` to `EndCard` for its darker scrim.
+- **Ground and focus.** The ground (`shared/Background.jsx`) is full-frame and does not follow the camera: there is
+  no ground parallax (`PARALLAX` in `Camera.jsx` has plane, cursor and drag only). Focus (`shared/Focus.jsx`) gets
+  `box = null` on W, PDF-sheet and phone shots, where the ground shows in a full-width band; check 11 fails a focus
+  hole on a W shot or over a `sheet` / `phone` / `screen`. UI-only shots (`uiOnly`) have no photo-share minimum.
+- **Empty measures fail.** Check 10 fails when the table films UI clips but no page / end book / screen was
+  measured; check 9 reports an img / video / canvas whose intrinsic size is unknown.
+- **Checks.** `node promo/motion/scripts/reels-render.mjs --reel x [--checks-only]` runs 1–11 and writes
+  `reel-x-checks.json` (`{ reel, music, results[{ name, ok, notes, numbers }] }`; the numbers go into RESULT-x.md).
+  `--selftest` proves each check fails on a bad fixture and passes its good twin. `--music <file>` stages a track
+  for promo-reels-v2-sound's mix.
