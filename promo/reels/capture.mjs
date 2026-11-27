@@ -417,8 +417,9 @@ function probeInit() {
 // ---------------------------------------------------------------- pointer (§2 Cursor: the overlay replays this path)
 
 /** Spec glide: T = 180 + 120·log2(D/40 + 1) ms, minimum-jerk easing, arc sin(πt)·0.08·D perpendicular, 6 px overshoot
- *  past the target settling with spring {mass .4, stiffness 300, damping 18}. Returns one point per frame. */
-export function glidePath(from, to, ms) {
+ *  past the target settling with spring {mass .4, stiffness 300, damping 18}. Returns one point per frame.
+ *  `bow` overrides the 0.08 arc: finger swipes use a flat one, since the kit's swipe dies when |dy| > 10 comes first. */
+export function glidePath(from, to, ms, bow = 0.08) {
   const dx = to.x - from.x
   const dy = to.y - from.y
   const D = Math.hypot(dx, dy)
@@ -432,7 +433,7 @@ export function glidePath(from, to, ms) {
   for (let i = 1; i <= n; i++) {
     const s = i / n
     const e = s * s * s * (10 - 15 * s + 6 * s * s)
-    const arc = Math.sin(Math.PI * s) * 0.08 * D
+    const arc = Math.sin(Math.PI * s) * bow * D
     pts.push({
       x: from.x + (over.x - from.x) * e - uy * arc,
       y: from.y + (over.y - from.y) * e + ux * arc,
@@ -557,9 +558,9 @@ async function openPage(browser, vpName, server) {
     } else await page.mouse.move(x, y)
   }
   // filmed: one move per frame on the spec path; setup: one jump
-  const glide = async (x, y, ms) => {
+  const glide = async (x, y, ms, bow) => {
     if (!shot) return moveTo(x, y)
-    for (const p of glidePath({ x: ptr.x, y: ptr.y }, { x, y }, ms)) {
+    for (const p of glidePath({ x: ptr.x, y: ptr.y }, { x, y }, ms, bow)) {
       await moveTo(p.x, p.y)
       await frame()
     }
@@ -914,10 +915,20 @@ export const CLIPS = {
         const y = st.y + st.height * 0.5
         await P.moveTo(st.x + st.width * 0.85, y)
         await P.down()
-        await P.glide(st.x + st.width * 0.1, y, 1300)
+        await P.glide(st.x + st.width * 0.1, y, 1300, 0.01)
         await P.up()
         await P.wait(900)
       }
+    },
+    async check(P) {
+      const si = await P.page
+        .locator('[data-testid="pt-stage"]')
+        .first()
+        .getAttribute('data-si')
+      if (si !== '1')
+        throw new Error(
+          `finger drag did not turn the page (pt-stage data-si=${si})`,
+        )
     },
   },
   // Deliberate failure: Print → Export starts the PDF job, its pill shows data-state=running → the clip must exit 1.

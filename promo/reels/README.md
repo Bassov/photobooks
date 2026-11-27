@@ -114,7 +114,8 @@ spinner (`.animate-spin`, `*spinner*`, lucide loader) and every class token / `d
   advances 33.33 ms per filmed frame. Setup runs in real time and is not filmed.
 - Human timing: click down 70 ms, drag 800 ms (spec range 600–900), typing 60 ms per letter. Pointer moves follow the
   spec glide: T = 180 + 120·log2(D/40 + 1) ms, minimum-jerk easing, arc sin(πt)·0.08·D, a 6 px overshoot that
-  settles with spring {mass .4, stiffness 300, damping 18} (`glidePath`, exported).
+  settles with spring {mass .4, stiffness 300, damping 18} (`glidePath`, exported). Finger swipes pass a flat arc
+  (`bow` 0.01): the kit's page drag is dropped when |dy| > 10 px comes before |dx| > 10 px.
 
 ## Walk table
 

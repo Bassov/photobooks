@@ -254,6 +254,7 @@ function renderInPage({ url, edge, grade, q }) {
     g.imageSmoothingEnabled = true
     g.imageSmoothingQuality = 'high'
     g.drawImage(bmp, 0, 0, w, h)
+    bmp.close()
     if (grade) {
       const img = g.getImageData(0, 0, w, h)
       const d = img.data
@@ -321,8 +322,16 @@ async function main() {
   const server = await serve(ORIG)
   const base = `http://127.0.0.1:${server.address().port}`
   const browser = await chromium.launch()
-  const page = await browser.newPage()
-  await page.goto(`${base}/none`).catch(() => {})
+  // a fresh page every RECYCLE renders: one long-lived page fills Chromium's blob storage (~280 renders in, every
+  // fetch().blob() then fails with NotReadableError)
+  const RECYCLE = 40
+  let page = null
+  let renders = 0
+  const freshPage = async () => {
+    await page?.close()
+    page = await browser.newPage()
+    await page.goto(`${base}/none`).catch(() => {})
+  }
   const mfFile = path.join(OUT, 'manifest.json')
   const old = fs.existsSync(mfFile)
     ? JSON.parse(fs.readFileSync(mfFile, 'utf8'))
@@ -347,6 +356,7 @@ async function main() {
   }
   const write = async (src, file, edge, grade) => {
     const f = await download(bySrc.get(src))
+    if (renders++ % RECYCLE === 0) await freshPage()
     const { b64, w, h } = await page.evaluate(renderInPage, {
       url: `${base}/${path.basename(f)}`,
       edge,
