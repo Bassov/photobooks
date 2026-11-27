@@ -199,10 +199,13 @@ async function serveReel(reel) {
       blocked.push(p)
       res.writeHead(404).end()
       return
-    } else file = path.join(DIST, p === '/' ? 'index.html' : p)
-    if (!file.startsWith(DIST) && !file.startsWith(PHOTOS)) {
-      res.writeHead(403).end()
-      return
+    } else {
+      // only paths under uikit/dist are served (photo answers above come from the manifest, not the request)
+      file = path.resolve(DIST, p === '/' ? 'index.html' : '.' + p)
+      if (!file.startsWith(DIST + path.sep)) {
+        res.writeHead(403).end()
+        return
+      }
     }
     fs.readFile(file, (err, buf) => {
       if (err) {
