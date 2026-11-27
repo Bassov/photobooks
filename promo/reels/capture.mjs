@@ -11,6 +11,7 @@ import { chromium } from '@playwright/test'
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
+import { WALKS_A } from './walks-a.mjs'
 
 const HERE = path.dirname(new URL(import.meta.url).pathname)
 const DIST = path.resolve(HERE, '../../uikit/dist')
@@ -700,7 +701,7 @@ const FRAME = `${SPREAD} [data-testid="frame"]`
 
 /** #/demo off camera, in real time: library → book with the reel's title (demo-capture steps 2–8), spreads list `[` and
  *  inspector `]` hidden, dock shown, pointer at rest. */
-async function editorBook(P, reel, item = 'p1') {
+export async function editorBook(P, reel, item = 'p1') {
   const { page, settle } = P
   const c = (sel) => page.locator(sel).first().click()
   await page.goto(`${P.base}/index.html?theme=procreate-light#/demo`)
@@ -737,7 +738,7 @@ async function panels(P) {
 }
 
 /** §2 Zoom: Md = current spread 700–740 CSS px wide, W = 400–440; zoom steps (×1.25) happen off camera. Asserted. */
-async function zoomSpread(P, [lo, hi]) {
+export async function zoomSpread(P, [lo, hi]) {
   const { page, settle } = P
   const box = async () => page.locator(SPREAD).first().boundingBox()
   // kit steps: the zoom buttons ×1.25, the wheel ×1.1 (to the cursor; the cursor sits on the spread's centre).
@@ -777,7 +778,7 @@ async function zoomSpread(P, [lo, hi]) {
 export const MD = [700, 740]
 export const W = [400, 440]
 
-const chooseButton = (page) =>
+export const chooseButton = (page) =>
   page
     .locator('[role=dialog]')
     .getByRole('button', { name: /Choose|Select|Use|Add/i })
@@ -970,30 +971,7 @@ export const CLIPS = {
     },
   },
   // Per-reel walks (promo-reel-a / b / c fill these in; §3–§5 shot tables)
-  'a-gl-turn': {
-    reel: 'a',
-    viewport: 'site',
-    stub: 'promo-reel-a',
-    about: 'A1: GL reader books=1, the right leaf turns (macro)',
-  },
-  'a-fill-book': {
-    reel: 'a',
-    viewport: 'editor',
-    stub: 'promo-reel-a',
-    about: 'A6: W zoom, chip → popover → Enter: every spread fills',
-  },
-  'a-cover-title': {
-    reel: 'a',
-    viewport: 'editor',
-    stub: 'promo-reel-a',
-    about: 'A8: cover title types in, 60 ms/letter',
-  },
-  'a-breath': {
-    reel: 'a',
-    viewport: 'site',
-    stub: 'promo-reel-a',
-    about: 'A11: slow 1300 ms drag turn in the reading room',
-  },
+  ...WALKS_A,
   'b-hero-drop': {
     reel: 'b',
     viewport: 'editor',
