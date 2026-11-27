@@ -9,7 +9,9 @@ import {
 import { loadFont } from '@remotion/fonts'
 import { fitBox, springAt } from './Springs.js'
 
-export const INTER = 'fonts/inter-latin-wght-normal.woff2'
+// Spec v2 G7: Inter with the optical-size axis (kit file), opsz 32, weights 600 / 400.
+export const INTER = 'fonts/inter-latin-opsz-normal.woff2'
+export const OPSZ = 32
 const SANS = 'Inter'
 const INK = '#1A1918'
 const LIGHT = '#F5F3EF'
@@ -28,13 +30,27 @@ export const END_TEXT = {
   foot: 'Runs in Chrome or Edge. No sign-up, no uploads. · link in bio',
 }
 
-/** Where the book / phone eases to under the text (output px), `heavy` spring. */
-export const END_BOX = { x: 150, y: 250, w: 780, h: 690 }
+/**
+ * Spec v2 G7: where the book eases to under the text (output px, `heavy` spring): the open spread 860×606 at x 110,
+ * y 300, at its own aspect and one scale. B keeps the phone 700 wide (its body box, Phone.jsx); the text sits over
+ * its lower half.
+ */
+export const END_BOX = { x: 110, y: 300, w: 860, h: 606 }
+export const END_PHONE_BOX = { x: 190, y: 219, w: 700, h: 1482.15 }
+/** Checks 10–11: the end-card book is ≥ 780 px wide, the phone ≥ 700. */
+export const END_MIN_W = { book: 780, phone: 700 }
 export const FOOT_MAX_W = 834
 
-/** `{ x, y, s }` moving `rect` (output px at the start of the end card) into END_BOX with the heavy spring. */
-export function endMove(rect, frame, from) {
-  const fit = fitBox(rect, END_BOX)
+/** Spec v2 G7 scrim over the shot's ground (never a flat fill): B .82, A and C .62. */
+export const endScrim = (reel) =>
+  `linear-gradient(180deg, rgb(12 11 10 / 0) 900px, rgb(12 11 10 / ${reel === 'b' ? 0.82 : 0.62}) 1240px)`
+
+/**
+ * `{ x, y, s }` moving `rect` (output px at the start of the end card) into `box` (END_BOX, or END_PHONE_BOX) with
+ * the heavy spring. One scale for both axes (fitBox is a contain fit).
+ */
+export function endMove(rect, frame, from, box = END_BOX) {
+  const fit = fitBox(rect, box)
   const p = springAt(frame - from, 'heavy')
   const s = 1 + (fit.s - 1) * p
   // Transform-origin 0 0: the rect's corner travels from where it is to the fitted spot.
@@ -105,9 +121,9 @@ const RISE = 24
  * Common end card over the continuing last shot: scrim, then four lines rising 24 px + fading in on the `text`
  * spring, staggered 3 frames from `from` (the downbeat); the CTA arrow nudges 6 px right on the next beat, once.
  * Inter only, weights 600 + 400. With `probe` it logs `REEL_TEXT {json}` every frame: its text boxes and any other
- * text node in the document (reels-render.mjs check 6).
+ * text node in the document (reels-render.mjs check 6). `reel` picks the scrim (B is darker).
  */
-export const EndCard = ({ from, beatFrames, probe = true }) => {
+export const EndCard = ({ from, beatFrames, reel, probe = true }) => {
   const frame = useCurrentFrame()
   const root = useRef(null)
   const foot = useRef(null)
@@ -142,16 +158,16 @@ export const EndCard = ({ from, beatFrames, probe = true }) => {
   return (
     <AbsoluteFill
       ref={root}
-      style={{ fontFamily: SANS, pointerEvents: 'none' }}
+      style={{
+        fontFamily: SANS,
+        fontVariationSettings: `'opsz' ${OPSZ}`,
+        pointerEvents: 'none',
+      }}
     >
       {local >= 0 && (
         <>
           <AbsoluteFill
-            style={{
-              opacity: scrim,
-              background:
-                'linear-gradient(180deg, rgb(12 11 10 / 0) 820px, rgb(12 11 10 / 0.78) 1194px)',
-            }}
+            style={{ opacity: scrim, background: endScrim(reel) }}
           />
           {LINES.map((line, k) => {
             const p = springAt(local - k * STAGGER, 'text')
@@ -193,6 +209,46 @@ export const EndCard = ({ from, beatFrames, probe = true }) => {
         </>
       )}
     </AbsoluteFill>
+  )
+}
+
+/**
+ * The end-card hero: `children` drawn in a `rect.w × rect.h` box (output px where the shot leaves it), eased by
+ * `endMove` into `box` from frame `from`. `kind` is the `data-geom` the checks read: 'endbook' (≥ 780 px wide) or
+ * 'phone' (Phone.jsx tags its own body; pass END_PHONE_BOX).
+ */
+export const EndHero = ({
+  rect,
+  from,
+  box = END_BOX,
+  kind = 'endbook',
+  children,
+}) => {
+  const frame = useCurrentFrame()
+  const m = endMove(rect, frame, from, box)
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        transformOrigin: '0 0',
+        transform: `translate(${m.x}px, ${m.y}px) scale(${m.s})`,
+      }}
+    >
+      <div
+        data-geom={kind === 'phone' ? undefined : kind}
+        style={{
+          position: 'absolute',
+          left: rect.x,
+          top: rect.y,
+          width: rect.w,
+          height: rect.h,
+        }}
+      >
+        {children}
+      </div>
+    </div>
   )
 }
 
