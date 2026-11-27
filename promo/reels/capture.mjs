@@ -39,6 +39,60 @@ export const VIEWPORTS = {
   phone: { width: 390, height: 844, mobile: true },
 }
 
+/** promo-reels-v2 check 10: every clip also logs the round handles and the book pages, as rects.json targets
+ *  `geom:<kind>` (reels-render.mjs maps them through the shot camera and measures them in the output frames). */
+export const GEOM_TARGETS = [
+  {
+    name: 'geom:handle',
+    sel: '[data-testid="rotate-knob"], [data-testid="photo-handle"]',
+    all: true,
+  },
+  {
+    name: 'geom:page',
+    sel: '[data-testid="ps-paper"], [data-testid="pt-sheet"], [data-testid="spread-layer"]',
+    all: true,
+  },
+]
+
+/** promo-reels-v2 «Shelf and room theme»: B and C film the site in the kit's Dark theme if the kit has one, else
+ *  Light as it is (the kit has a single Procreate-light theme today). A and the editor stay light. */
+export const THEMES = { light: 'procreate-light', dark: 'procreate-dark' }
+let kitDark = null
+export function siteTheme(reel, viewport) {
+  if (kitDark == null) {
+    const dir = path.join(DIST, 'assets')
+    kitDark = fs.existsSync(dir)
+      ? fs
+          .readdirSync(dir)
+          .filter((f) => f.endsWith('.css'))
+          .some((f) =>
+            fs
+              .readFileSync(path.join(dir, f), 'utf8')
+              .includes(`data-theme="${THEMES.dark}"`),
+          )
+      : false
+  }
+  return viewport !== 'editor' && reel !== 'a' && kitDark
+    ? THEMES.dark
+    : THEMES.light
+}
+
+/** `{ w, h }` of a PNG or JPEG buffer (the captured frame), else null. */
+export function frameSize(b) {
+  if (b.readUInt32BE(0) === 0x89504e47)
+    return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) }
+  if (b[0] === 0xff && b[1] === 0xd8) {
+    for (let p = 2; p + 9 < b.length;) {
+      if (b[p] !== 0xff) return null
+      const m = b[p + 1]
+      if (m >= 0xc0 && m <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(m))
+        return { w: b.readUInt16BE(p + 7), h: b.readUInt16BE(p + 5) }
+      p += 2 + b.readUInt16BE(p + 2)
+    }
+  }
+  return null
+}
+
 /** §2 Feeding the kit: per reel the book title and (C only) the 412-item demo gallery. The site owner is "Your Name". */
 export const REELS = {
   a: { title: 'Lake trip 2026' },
@@ -535,7 +589,17 @@ async function openPage(browser, vpName, server) {
       'frames',
       `${String(f).padStart(6, '0')}.${PNG ? 'png' : 'jpg'}`,
     )
-    fs.writeFileSync(file, Buffer.from(r.data, 'base64'))
+    const png = Buffer.from(r.data, 'base64')
+    // v2 G1: a frame is exactly viewport × DPR (square pixels); anything else fails the clip
+    const size = frameSize(png)
+    if (!size || size.w !== vp.width * DPR || size.h !== vp.height * DPR)
+      shot.bad.push({
+        f,
+        bad: [
+          `frame ${size ? `${size.w}×${size.h}` : 'unreadable'}, wanted ${vp.width * DPR}×${vp.height * DPR}`,
+        ],
+      })
+    fs.writeFileSync(file, png)
     shot.rects.push({ f, t: +(f * DT).toFixed(3), rects: pr.rects })
     shot.pointer.push({
       f,
@@ -1031,15 +1095,28 @@ async function runClip(browser, id, server) {
   const b0 = server.blocked.length
   const P = await openPage(browser, def.viewport, server)
   P.base = server.base
+  // v2 site theme: the walks keep their `?theme=procreate-light` URLs; the reel's theme is swapped in here
+  const theme = siteTheme(def.reel, def.viewport)
+  const goto = P.page.goto.bind(P.page)
+  P.page.goto = (url, o) =>
+    goto(url.replace(`theme=${THEMES.light}`, `theme=${theme}`), o)
+  const targets = [...(def.targets ?? []), ...GEOM_TARGETS]
   const t = Date.now()
   try {
     await def.setup(P)
-    const s = await P.film(id, def.targets, () => def.act(P))
+    const s = await P.film(id, targets, () => def.act(P))
     if (def.check) await def.check(P)
+    const shown = await P.page.evaluate(() =>
+      new URLSearchParams(location.search).get('theme'),
+    )
+    if (shown && shown !== theme)
+      s.bad.push({ f: 0, bad: [`theme ${shown}, wanted ${theme}`] })
     const vp = P.vp
     const meta = {
       fps: FPS,
       dpr: DPR,
+      sar: '1:1',
+      theme,
       viewport: {
         name: def.viewport,
         width: vp.width,
@@ -1075,7 +1152,7 @@ async function runClip(browser, id, server) {
         JSON.stringify(data) + '\n',
       )
     w('json', clip)
-    w('rects.json', { ...meta, targets: def.targets, frames: s.rects })
+    w('rects.json', { ...meta, targets, frames: s.rects })
     w('pointer.json', { ...meta, frames: s.pointer, events: s.events })
     w('dom.json', { ...meta, frames: s.dom })
     log(

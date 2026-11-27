@@ -3,7 +3,7 @@ import { AbsoluteFill, Audio, staticFile } from 'remotion'
 import { reelConfig } from './shared/beats.js'
 import { shotAt } from './shared/Springs.js'
 import { Background } from './shared/Background.jsx'
-import { Camera, boxToOutput } from './shared/Camera.jsx'
+import { Camera } from './shared/Camera.jsx'
 import { Cursor } from './shared/Cursor.jsx'
 import { EndCard } from './shared/EndCard.jsx'
 import { Focus } from './shared/Focus.jsx'
@@ -65,10 +65,8 @@ export const ReelStub = ({ reel, table, audio = true, probe = true }) => {
   const { beatFrames } = reelConfig(reel)
   const shot = shotAt(table.shots, frame)
   const end = table.shots.find((s) => s.scale === 'end')
-  const focus =
-    shot.scale === 'M' || shot.scale === 'Md'
-      ? boxToOutput(shot, frame, sheetBox(table.plane))
-      : null
+  // The stub's plane is a PDF sheet on the ground: no focus (Designer decision 2026-11-28, Focus.jsx).
+  const focus = null
   return (
     <AbsoluteFill>
       <Background reel={reel} />
@@ -84,7 +82,14 @@ export const ReelStub = ({ reel, table, audio = true, probe = true }) => {
       {table.cursor && frame < (end?.from ?? table.frames) && (
         <Cursor track={table.cursor} />
       )}
-      {end && <EndCard from={end.from} beatFrames={beatFrames} probe={probe} />}
+      {end && (
+        <EndCard
+          from={end.from}
+          beatFrames={beatFrames}
+          reel={reel}
+          probe={probe}
+        />
+      )}
       <Grain reel={reel} />
       {audio && <Audio src={staticFile(`audio/${reel}.wav`)} />}
     </AbsoluteFill>
