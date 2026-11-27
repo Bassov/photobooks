@@ -276,6 +276,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [promo-carousel-render](roadmap/P5/promo-carousel-render.md) — Bug: /next-roadmap-item promo-carousel-render
 - [ ] [lite] [promo-carousel-4x5](roadmap/P5/promo-carousel-4x5.md) — Bug: /next-roadmap-item promo-carousel-4x5
 - [ ] [feature] [promo-reels-motion](roadmap/P5/promo-reels-motion.md) — Bug: /next-roadmap-item promo-reels-motion
+- [ ] [lite] [promo-reels-capture](roadmap/P5/promo-reels-capture.md) — Bug: /next-roadmap-item promo-reels-capture
 - [ ] [lite] [qa-settings-pill](roadmap/P5/qa-settings-pill.md) — Bug: /next-roadmap-item qa-settings-pill
 - [ ] [feature] [qa-stale-chunk](roadmap/P5/qa-stale-chunk.md) — Bug: /next-roadmap-item qa-stale-chunk
 - [ ] [feature] [promo-reel-b](roadmap/P5/promo-reel-b.md) — Bug: /next-roadmap-item promo-reel-b
