@@ -5,10 +5,12 @@ import {
   Freeze,
   Img,
   OffthreadVideo,
+  getRemotionEnvironment,
   staticFile,
   useCurrentFrame,
+  useDelayRender,
 } from 'remotion'
-import { WIDTH, HEIGHT, reelConfig } from './shared/beats.js'
+import { FPS, WIDTH, HEIGHT, reelConfig } from './shared/beats.js'
 import { cameraAt, clickScaleAt, shotAt, springAt } from './shared/Springs.js'
 import { Background } from './shared/Background.jsx'
 import { Camera, boxToOutput, toOutput } from './shared/Camera.jsx'
@@ -37,12 +39,72 @@ const lerp = (a, b, t) => a + (b - a) * t
 const easeIn = (t) => t * t * t
 const easeOut = (t) => 1 - (1 - t) ** 3
 
+// Local wrapper (shared Camera.jsx bug, named in the PR): CameraMotionBlur mounts 11 copies of the plane, and each
+// copy's OffthreadVideo re-fetches the same 3840×4320 frame from the compositor (`cache: 'no-store'`, ≈ 8 s each), so
+// one blurred frame took 95–200 s and the render hit the 30 s delayRender timeout. While rendering, a clip frame is
+// fetched once from the same proxy URL OffthreadVideo uses and every sample draws that one blob through <Img>.
+const FRAME_CACHE = new Map()
+const FRAME_CACHE_MAX = 6
+function clipFrameUrl(src, frame) {
+  const abs = new URL(src, window.location.origin).href
+  const time = frame / FPS
+  const url = `http://localhost:${window.remotion_proxyPort}/proxy?src=${encodeURIComponent(abs)}&time=${encodeURIComponent(Math.max(0, time))}&transparent=false&toneMapped=true`
+  let hit = FRAME_CACHE.get(url)
+  if (!hit) {
+    hit = fetch(url).then(async (res) => {
+      if (res.status !== 200)
+        throw new Error(`clip frame ${url}: HTTP ${res.status}`)
+      const blob = new Blob([await res.arrayBuffer()], {
+        type: res.headers.get('Content-Type') ?? '',
+      })
+      return URL.createObjectURL(blob)
+    })
+    FRAME_CACHE.set(url, hit)
+    while (FRAME_CACHE.size > FRAME_CACHE_MAX) {
+      const [old, p] = FRAME_CACHE.entries().next().value
+      FRAME_CACHE.delete(old)
+      p.then((u) => setTimeout(() => URL.revokeObjectURL(u), 60000)).catch(
+        () => {},
+      )
+    }
+  }
+  return hit
+}
+
+const CachedFrame = ({ src, frame }) => {
+  const [img, setImg] = React.useState(null)
+  const { delayRender, continueRender, cancelRender } = useDelayRender()
+  React.useLayoutEffect(() => {
+    let live = true
+    const handle = delayRender(`clip frame ${src} @ ${frame}`)
+    const done = () => {
+      if (!live) return
+      live = false
+      continueRender(handle)
+    }
+    clipFrameUrl(src, frame)
+      .then((u) => {
+        if (live) setImg(u)
+        done()
+      })
+      .catch((e) => cancelRender(e))
+    return done
+  }, [src, frame, delayRender, continueRender, cancelRender])
+  return img ? <Img src={img} style={FILL} /> : null
+}
+
 /** One frame of a kit clip, drawn over the plane (the clip's CSS viewport; its 3× pixels give the crop its sharpness). */
-const Clip = ({ id, f }) => (
-  <Freeze frame={clamp(Math.round(f), 0, CAPTURE[id].frames - 1)}>
-    <OffthreadVideo src={staticFile(`clips/${id}.mp4`)} muted style={FILL} />
-  </Freeze>
-)
+const Clip = ({ id, f }) => {
+  const frame = clamp(Math.round(f), 0, CAPTURE[id].frames - 1)
+  const src = staticFile(`clips/${id}.mp4`)
+  if (getRemotionEnvironment().isRendering)
+    return <CachedFrame src={src} frame={frame} />
+  return (
+    <Freeze frame={frame}>
+      <OffthreadVideo src={src} muted style={FILL} />
+    </Freeze>
+  )
+}
 
 /** Clip frame of a UI shot at reel `frame` (rate 1; A2 opens with its rewind). */
 function clipAt(shot, frame) {
