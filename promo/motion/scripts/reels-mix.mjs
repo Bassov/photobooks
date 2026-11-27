@@ -2,9 +2,11 @@
 //
 //   node scripts/reels-mix.mjs --analyse --reel a [--music <file>]
 //       Track gate over sound.json's candidates for the reel (or one file): tempo by onset-flux autocorrelation, beat
-//       confidence, last-third rise, beat contrast and hero-bar lift of a downbeat excerpt (C: own tempo first, half
-//       tempo only when none passes). First passing track wins; prints it and 2 runners-up and writes
-//       promo/out/reels/sound/<reel>.beats.json (with liftBar, liftDb, barRmsDb[], contrast).
+//       confidence, last-third rise, beat contrast, music floor, phone loss and hero-bar lift (2.5–8 dB) of a downbeat
+//       excerpt (C: own tempo first, half tempo only when none passes; nothing passes: again at lift ≥ 2 dB). First
+//       passing track wins; prints it and 2 runners-up (none: the best 3) and writes
+//       promo/out/reels/sound/<reel>.beats.json (with liftBar, liftDb, barRmsDb[], contrast, floorDb, phoneLossDb);
+//       a failed gate removes the reel's old beats.json.
 //   node scripts/reels-mix.mjs --reel a --cues <json | sample> [--music <file>] [--beats <json>] [--out <dir>] [--seed <n>]
 //       Mix in Playwright Chromium (decode + OfflineAudioContext, 48 kHz stereo) → <out>/<reel>-{music,sfx,mix}.wav and
 //       <reel>-mix.json, then check 12. `--cues sample` builds a demo cue list (every cue type) on the reel's beats.
@@ -61,12 +63,23 @@ export const GATE = {
   riseDb: 2,
   contrast: 1.5,
   liftDb: 2.5,
+  /** no excerpt of any candidate passes at 2.5 dB: the reel's gate runs again with this lift minimum */
+  liftFallbackDb: 2,
+  /** a larger lift is a quiet intro, not a lift (Designer decision 2026-11-28) */
+  liftMaxDb: 8,
+  /** momentary loudness from 0 to length − 1.2 s ≥ integrated − 10 dB (no music holes) */
+  floorDb: -10,
+  /** integrated loudness high-passed at 300 Hz − full band (phone speaker) */
+  phoneLossDb: -4,
   minSec: 15,
   maxSec: 20,
 }
 /** Spec §3 master targets. */
 export const TARGET = { lufs: -14, tol: 0.5, truePeak: -1, samplePeak: 0.99 }
 const SILENCE = { db: -60, ms: 150 }
+/** Check 12k/12l (Designer decision 2026-11-28): no music holes before the fade, enough level on a phone speaker. */
+const HOLES = { momentaryLufs: -24 }
+const PHONE = { lufs: -18 }
 
 /**
  * Foley cue types (spec §3 "Foley cues"). `group` = sound.json `cues` tag of the variants, `bus` foley (high-pass
@@ -193,36 +206,109 @@ function lowpass(f, sr, q = Math.SQRT1_2) {
   }
 }
 
-/** BS.1770-4 K-weighting at 48 kHz (shelf + RLB high-pass). */
-const K1 = {
-  b: [1.53512485958697, -2.69169618940638, 1.19839281085285],
-  a: [1, -1.69065929318241, 0.73248077421585],
+/**
+ * BS.1770-4 K-weighting (shelf + RLB high-pass) at any rate, from the analogue prototypes (at 48 kHz these are the
+ * published coefficients).
+ */
+function kWeighting(sr) {
+  const shelf = (() => {
+    const K = Math.tan((Math.PI * 1681.974450955533) / sr)
+    const Q = 0.7071752369554196
+    const Vh = 10 ** (3.999843853973347 / 20)
+    const Vb = Vh ** 0.4996667741545416
+    const a0 = 1 + K / Q + K * K
+    return {
+      b: [
+        (Vh + (Vb * K) / Q + K * K) / a0,
+        (2 * (K * K - Vh)) / a0,
+        (Vh - (Vb * K) / Q + K * K) / a0,
+      ],
+      a: [1, (2 * (K * K - 1)) / a0, (1 - K / Q + K * K) / a0],
+    }
+  })()
+  const rlb = (() => {
+    const K = Math.tan((Math.PI * 38.13547087602444) / sr)
+    const Q = 0.5003270373238773
+    const a0 = 1 + K / Q + K * K
+    return {
+      b: [1, -2, 1],
+      a: [1, (2 * (K * K - 1)) / a0, (1 - K / Q + K * K) / a0],
+    }
+  })()
+  return [shelf, rlb]
 }
-const K2 = { b: [1, -2, 1], a: [1, -1.99004745483398, 0.99007225036621] }
 
-/** Integrated loudness (LUFS, BS.1770-4: 400 ms blocks, 75 % overlap, −70 LUFS absolute and −10 LU relative gate). */
-export function loudness(left, right, sr = SR) {
-  if (sr !== 48000) throw new Error('loudness: 48 kHz only')
-  const chans = [left, right].map((c) => {
-    const y = biquad(biquad(c, K1.b, K1.a), K2.b, K2.a)
+/** RBJ high-pass coefficients. */
+function highpass(f, sr, q = Math.SQRT1_2) {
+  const w = (2 * Math.PI * f) / sr
+  const al = Math.sin(w) / (2 * q)
+  const c = Math.cos(w)
+  const a0 = 1 + al
+  return {
+    b: [(1 + c) / 2 / a0, -(1 + c) / a0, (1 + c) / 2 / a0],
+    a: [1, (-2 * c) / a0, (1 - al) / a0],
+  }
+}
+
+/** Phone speaker model (Designer decision 2026-11-28): 4th-order Butterworth high-pass at 300 Hz (two biquads). */
+export const PHONE_HZ = 300
+const phoneHighpass = (sr) => [
+  highpass(PHONE_HZ, sr, 0.5411961),
+  highpass(PHONE_HZ, sr, 1.306563),
+]
+
+/**
+ * Cumulative K-weighted power per channel (`phone`: high-passed at 300 Hz first), for 400 ms blocks at any offset.
+ */
+function kPower(chans, sr, phone = false) {
+  const stages = [...(phone ? phoneHighpass(sr) : []), ...kWeighting(sr)]
+  return chans.map((c) => {
+    let y = c
+    for (const s of stages) y = biquad(y, s.b, s.a)
     const cum = new Float64Array(y.length + 1)
     for (let i = 0; i < y.length; i++) cum[i + 1] = cum[i] + y[i] * y[i]
     return cum
   })
+}
+
+const lk = (v) => -0.691 + 10 * Math.log10(v)
+
+/** Mean-square block powers (400 ms, 100 ms hop) of `cums` from sample `from` to `to`. */
+function blockPowers(cums, sr, from = 0, to = cums[0].length - 1) {
   const block = Math.round(0.4 * sr)
   const hop = Math.round(0.1 * sr)
   const z = []
-  for (let s = 0; s + block <= left.length; s += hop) {
+  for (let s = Math.round(from); s + block <= to; s += hop) {
     let sum = 0
-    for (const cum of chans) sum += (cum[s + block] - cum[s]) / block
+    for (const cum of cums) sum += (cum[s + block] - cum[s]) / block
     z.push(sum)
   }
-  const lk = (v) => -0.691 + 10 * Math.log10(v)
+  return z
+}
+
+/** BS.1770-4 gating (−70 LUFS absolute, −10 LU relative) of block powers → LUFS. */
+function gatedLufs(z) {
   const abs = z.filter((v) => v > 0 && lk(v) > -70)
   if (!abs.length) return -Infinity
   const rel = lk(abs.reduce((a, b) => a + b, 0) / abs.length) - 10
   const gated = abs.filter((v) => lk(v) > rel)
   return lk(gated.reduce((a, b) => a + b, 0) / gated.length)
+}
+
+/**
+ * Integrated loudness (LUFS, BS.1770-4: 400 ms blocks, 75 % overlap, −70 LUFS absolute and −10 LU relative gate).
+ * `phone`: of the signal high-passed at 300 Hz (4th order) first.
+ */
+export function loudness(left, right, sr = SR, { phone = false } = {}) {
+  return gatedLufs(blockPowers(kPower([left, right], sr, phone), sr))
+}
+
+/** Momentary loudness (LUFS, 400 ms K-weighted blocks, 100 ms hop): `[{ t, lufs }]`, `t` = block start (s). */
+export function momentary(left, right, sr = SR) {
+  return blockPowers(kPower([left, right], sr), sr).map((v, i) => ({
+    t: i * 0.1,
+    lufs: v > 0 ? lk(v) : -Infinity,
+  }))
 }
 
 /** 4× oversampling interpolator (BS.1770 Annex 2 style, 48-tap windowed sinc, 12 taps per phase). */
@@ -683,10 +769,22 @@ const rmsDb = (x, a, b) => {
  * inside 15–20 s (closest to the reel's v1 length). Guards: no quarter-second inside the excerpt is > 24 dB under its
  * mean, its first third is ≥ track RMS − 12 dB, and it ends 0.5 s before the track does. Among the excerpts that pass
  * the guards, rise (last third vs first third ≥ 2 dB) and beat contrast (mean flux on the beats / on the half-beats
- * ≥ 1.5), the one with the largest lift wins: the largest RMS step up from the bar before inside the hero window
- * (`HERO_BARS`), which must be ≥ 2.5 dB. `half` analyses the reel's half-tempo window instead of its own tempo.
+ * ≥ 1.5), floor (momentary loudness from 0 to length − 1.2 s ≥ integrated − 10 dB) and phone loss (integrated
+ * loudness high-passed at 300 Hz − full band ≥ −4 dB), the one with the largest lift wins: the largest RMS step up
+ * from the bar before inside the hero window (`HERO_BARS`), `liftMin` (2.5 dB) ≤ lift ≤ 8 dB. `half` analyses the
+ * reel's half-tempo window instead of its own tempo.
  */
-export function analyseTrack(mono, sr, reel, { half = false } = {}) {
+export function analyseTrack(
+  mono,
+  sr,
+  reel,
+  { half = false, liftMin = GATE.liftDb } = {},
+) {
+  return judgeTrack(excerptsOf(mono, sr, reel, half), liftMin)
+}
+
+/** Tempo, grid and every guarded downbeat excerpt with its measurements (the part of the gate that needs audio). */
+function excerptsOf(mono, sr, reel, half) {
   const windows = half ? HALF_TEMPO[reel] : TEMPO[reel]
   const out = { half, duration: round(mono.length / sr, 2) }
   if (!windows)
@@ -720,6 +818,8 @@ export function analyseTrack(mono, sr, reel, { half = false } = {}) {
   const trackRms = rmsDb(mono, 0, mono.length)
   const fluxAt = (t) => interp(flux, (t - offset) / hop)
   const [h0, h1] = HERO_BARS[reel]
+  const kFull = kPower([mono], sr)
+  const kPhone = kPower([mono], sr, true)
   const excerpts = []
   for (let k = down; beatAt(k) + len <= mono.length / sr - 0.5; k += 4) {
     const s = beatAt(k) * sr
@@ -747,7 +847,13 @@ export function analyseTrack(mono, sr, reel, { half = false } = {}) {
       on += fluxAt(beatAt(k + j))
       offBeat += fluxAt(beatAt(k + j) + period / 2)
     }
+    const integrated = gatedLufs(blockPowers(kFull, sr, s, s + L))
+    const head = blockPowers(kFull, sr, s, s + L - FADE_SEC * sr)
+    const floor = lk(Math.max(Math.min(...head), 1e-12)) - integrated
+    const phoneLoss = gatedLufs(blockPowers(kPhone, sr, s, s + L)) - integrated
     excerpts.push({
+      floor,
+      phoneLoss,
       k,
       start: beatAt(k),
       rise: last - first,
@@ -760,34 +866,69 @@ export function analyseTrack(mono, sr, reel, { half = false } = {}) {
   }
   if (!excerpts.length)
     return { ...out, ok: false, why: 'no excerpt passes the guards' }
-  // the largest lift among excerpts that pass rise + contrast; else among those that pass rise; else the best rise
-  const most = (xs, key) => xs.reduce((a, b) => (b[key] > a[key] ? b : a))
-  const risen = excerpts.filter((e) => e.rise >= GATE.riseDb)
-  const clear = risen.filter((e) => e.contrast >= GATE.contrast)
-  const best = clear.length
-    ? most(clear, 'lift')
-    : risen.length
-      ? most(risen, 'lift')
-      : most(excerpts, 'rise')
-  const beats = []
-  for (let k = best.k; beatAt(k) < best.start + len - 1e-6; k++)
-    beats.push(round(beatAt(k) - best.start, 4))
   // the grid tempo, or (half-tempo window) the felt tempo, inside the window
   const felt = half ? out.bpm / 2 : out.bpm
   const tempoOk = windows.some(([lo, hi]) => felt >= lo && felt <= hi)
-  const fails = [
-    tempoOk ? '' : 'tempo out of range',
-    tempo.confidence >= GATE.confidence ? '' : 'confidence < 0.30',
-    best.rise >= GATE.riseDb ? '' : 'rise < 2 dB',
-    best.contrast >= GATE.contrast ? '' : 'contrast < 1.5',
-    best.lift >= GATE.liftDb ? '' : 'lift < 2.5 dB',
+  const beatsOf = (e) => {
+    const beats = []
+    for (let k = e.k; beatAt(k) < e.start + len - 1e-6; k++)
+      beats.push(round(beatAt(k) - e.start, 4))
+    return beats
+  }
+  return {
+    out,
+    excerpts,
+    track: [
+      tempoOk ? '' : 'tempo out of range',
+      tempo.confidence >= GATE.confidence ? '' : 'confidence < 0.30',
+    ].filter(Boolean),
+    beatsOf,
+    len,
+    bars,
+    period,
+  }
+}
+
+/** What an excerpt fails at lift minimum `liftMin` (empty = passes). */
+function excerptFails(e, liftMin) {
+  return [
+    e.rise >= GATE.riseDb ? '' : 'rise < 2 dB',
+    e.contrast >= GATE.contrast ? '' : 'contrast < 1.5',
+    e.floor >= GATE.floorDb ? '' : `floor < ${GATE.floorDb} dB`,
+    e.phoneLoss >= GATE.phoneLossDb
+      ? ''
+      : `phone loss < ${GATE.phoneLossDb} dB`,
+    e.lift >= liftMin ? '' : `lift < ${liftMin} dB`,
+    e.lift <= GATE.liftMaxDb ? '' : `lift > ${GATE.liftMaxDb} dB`,
   ].filter(Boolean)
+}
+
+/**
+ * Gate verdict of an analysed track at lift minimum `liftMin`: the passing excerpt with the largest lift; when none
+ * passes, the excerpt failing the fewest criteria (then the largest lift ≤ 8 dB) is reported with its reasons.
+ */
+function judgeTrack(raw, liftMin) {
+  if (!raw.excerpts) return raw
+  const { out, excerpts, track, beatsOf, len, bars, period } = raw
+  const scored = excerpts.map((e) => ({ e, fails: excerptFails(e, liftMin) }))
+  const capped = (x) => (x.e.lift <= GATE.liftMaxDb ? x.e.lift : -99)
+  const { e: best, fails: own } = scored.reduce((a, b) =>
+    b.fails.length < a.fails.length ||
+    (b.fails.length === a.fails.length && capped(b) > capped(a))
+      ? b
+      : a,
+  )
+  const fails = [...track, ...own]
+  const beats = beatsOf(best)
   return {
     ...out,
     ok: !fails.length,
     why: fails.join(', '),
+    liftMin,
     riseDb: round(best.rise, 2),
     contrast: round(best.contrast, 2),
+    floorDb: round(best.floor, 2),
+    phoneLossDb: round(best.phoneLoss, 2),
     liftBar: best.liftBar,
     liftDb: round(best.lift, 2),
     barRmsDb: best.barRms.map((v) => round(v, 2)),
@@ -831,31 +972,49 @@ export async function trackGate(reel, manifest, out = SOUND_OUT, only = null) {
         for (const half of modes)
           analysisCache.set(
             cacheKey(it, half),
-            analyseTrack(mono, ANALYSIS_SR, reel, { half }),
+            excerptsOf(mono, ANALYSIS_SR, reel, half),
           )
       }
     } finally {
       await close()
     }
   }
-  const resultsOf = (half) =>
-    items.map((it) => ({ ...it, ...analysisCache.get(cacheKey(it, half)) }))
-  // own tempo first; the half-tempo reading of the same candidates only when none passes (Designer 2026-11-28)
-  let results = resultsOf(false)
-  if (!results.some((r) => r.ok) && modes.includes(true))
-    results = [...results, ...resultsOf(true)]
+  const resultsOf = (half, liftMin) =>
+    items.map((it) => ({
+      ...it,
+      ...judgeTrack(analysisCache.get(cacheKey(it, half)), liftMin),
+    }))
+  // own tempo first; the half-tempo reading of the same candidates only when none passes (Designer 2026-11-28);
+  // no excerpt of any reading passes: the same order again with the lift minimum lowered to 2 dB (floor kept)
+  const rounds = [GATE.liftDb, GATE.liftFallbackDb].flatMap((liftMin) =>
+    modes.map((half) => [half, liftMin]),
+  )
+  let results = []
+  for (const [half, liftMin] of rounds) {
+    results = [...results, ...resultsOf(half, liftMin)]
+    if (results.some((r) => r.ok)) break
+  }
   const winner = results.find((r) => r.ok) ?? null
-  const rest = results.filter((r) => r !== winner)
+  // one row per reading of a track: its last (lowest lift minimum) round
+  const latest = new Map(results.map((r) => [`${r.id}:${r.half}`, r]))
+  const rest = [...latest.values()].filter(
+    (r) =>
+      r !== winner && `${r.id}:${r.half}` !== `${winner?.id}:${winner?.half}`,
+  )
+  const failCount = (r) => (r.why ? r.why.split(', ').length : 99)
   const runnersUp = [
     ...rest.filter((r) => r.ok),
     ...rest
       .filter((r) => !r.ok)
-      .sort((x, y) => (y.liftDb ?? -99) - (x.liftDb ?? -99)),
-  ].slice(0, 2)
+      .sort(
+        (x, y) =>
+          failCount(x) - failCount(y) || (y.liftDb ?? -99) - (x.liftDb ?? -99),
+      ),
+  ].slice(0, winner ? 2 : 3)
   const sign = (v, unit = ' dB') =>
     v == null ? '   —  ' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}${unit}`
   const fmt = (tag, r) =>
-    `${reel}  ${tag.padEnd(9)} ${r.id.padEnd(26)} BPM ${String(r.bpm).padStart(6)}${r.half ? ' (½)' : '    '}  conf ${r.confidence.toFixed(2)}  rise ${sign(r.riseDb)}  contrast ${r.contrast == null ? '—' : r.contrast.toFixed(2)}  lift ${sign(r.liftDb)}${r.liftBar == null ? '' : ` @bar ${r.liftBar}`}${r.start == null ? '' : `  start ${r.start.toFixed(2)} s  ${r.bars} bars ${r.length.toFixed(2)} s`}${r.ok ? '' : `  [${r.why}]`}`
+    `${reel}  ${tag.padEnd(9)} ${r.id.padEnd(26)} BPM ${String(r.bpm).padStart(6)}${r.half ? ' (½)' : '    '}  conf ${r.confidence.toFixed(2)}  rise ${sign(r.riseDb)}  contrast ${r.contrast == null ? '—' : r.contrast.toFixed(2)}  floor ${sign(r.floorDb)}  phone ${sign(r.phoneLossDb)}  lift ${sign(r.liftDb)}${r.liftBar == null ? '' : ` @bar ${r.liftBar}`}${r.liftMin === GATE.liftDb || r.liftMin == null ? '' : ` (min ${r.liftMin})`}${r.start == null ? '' : `  start ${r.start.toFixed(2)} s  ${r.bars} bars ${r.length.toFixed(2)} s`}${r.ok ? '' : `  [${r.why}]`}`
   const skipped = winner ? results.slice(0, results.indexOf(winner)) : []
   const lines = [
     ...skipped
@@ -878,6 +1037,9 @@ export async function trackGate(reel, manifest, out = SOUND_OUT, only = null) {
       confidence: winner.confidence,
       riseDb: winner.riseDb,
       contrast: winner.contrast,
+      floorDb: winner.floorDb,
+      phoneLossDb: winner.phoneLossDb,
+      liftMin: winner.liftMin,
       liftBar: winner.liftBar,
       liftDb: winner.liftDb,
       barRmsDb: winner.barRmsDb,
@@ -896,6 +1058,8 @@ export async function trackGate(reel, manifest, out = SOUND_OUT, only = null) {
         confidence: r.confidence,
         riseDb: r.riseDb ?? null,
         contrast: r.contrast ?? null,
+        floorDb: r.floorDb ?? null,
+        phoneLossDb: r.phoneLossDb ?? null,
         liftDb: r.liftDb ?? null,
         why: r.why || null,
       })),
@@ -904,6 +1068,13 @@ export async function trackGate(reel, manifest, out = SOUND_OUT, only = null) {
     const file = path.join(out, `${reel}.beats.json`)
     fs.writeFileSync(file, `${JSON.stringify(beats, null, 2)}\n`)
     lines.push(`${reel}  beats → ${file}`)
+  } else {
+    // a failed gate leaves no beats behind: an older winner must not reach the mix or the render
+    const stale = path.join(out, `${reel}.beats.json`)
+    if (fs.existsSync(stale)) {
+      fs.unlinkSync(stale)
+      lines.push(`${reel}  removed stale ${stale}`)
+    }
   }
   return { ok: Boolean(winner), lines, winner, runnersUp, beats }
 }
@@ -1772,7 +1943,8 @@ export function cueOnsets(left, right, cues, sr = SR) {
  * Check 12 (spec §5): every audio file is in sound.json with an accepted licence and its sha256; the music comes from
  * a listed track; mix −14 LUFS ± 0.5, true peak ≤ −1 dBTP, no sample ≥ 0.99; every sound cue has an onset in the
  * SFX stem within ± 1 frame; every cut is within ± 1 frame of a beat (0 cues or 0 cuts fail: nothing was measured);
- * no silence > 150 ms; every foley slice reaches its type's minimum length; RMS-levelled cues (loudest 100 ms of the
+ * no silence > 150 ms; momentary loudness ≥ −24 LUFS before the fade (breath windows excepted); the mix high-passed
+ * at 300 Hz (4th order) ≥ −18 LUFS; every foley slice reaches its type's minimum length; RMS-levelled cues (loudest 100 ms of the
  * SFX stem vs the music stem's RMS around the cue) spread ≤ 4 dB per type and every swish ≤ music − 8 dB.
  * `{ ok, lines, numbers }`.
  */
@@ -1852,6 +2024,27 @@ export function checkSound({
     silence <= SILENCE.ms,
     `12h longest silence ${silence} ms (≤ 150 ms under −60 dBFS)`,
   )
+  const fadeStart = meta.plan?.fade?.start ?? mix[0].length / SR
+  const breaths = meta.plan?.music?.breaths ?? []
+  const counted = momentary(...mix).filter(
+    (b) =>
+      b.t + 0.4 <= fadeStart + 1e-6 &&
+      !breaths.some(([a, z]) => b.t < z && b.t + 0.4 > a),
+  )
+  const lowest = counted.reduce((a, b) => (b.lufs < a.lufs ? b : a), {
+    t: null,
+    lufs: Infinity,
+  })
+  const holes = counted.filter((b) => b.lufs < HOLES.momentaryLufs)
+  line(
+    counted.length > 0 && !holes.length,
+    `12k music holes: min momentary ${lowest.lufs.toFixed(1)} LUFS at ${lowest.t?.toFixed(1)} s before the fade at ${fadeStart.toFixed(2)} s, ${breaths.length} breath window(s) excepted (≥ ${HOLES.momentaryLufs})${holes.length ? `; under: ${holes.length} blocks from ${holes[0].t.toFixed(1)} s` : ''}`,
+  )
+  const phone = loudness(...mix, SR, { phone: true })
+  line(
+    phone >= PHONE.lufs,
+    `12l phone speaker: ${phone.toFixed(2)} LUFS high-passed at ${PHONE_HZ} Hz (4th order) (≥ ${PHONE.lufs.toFixed(1)})`,
+  )
   const events = meta.plan?.events ?? []
   const short = events.filter((e) => e.sliceLen < e.minLen - 1e-6)
   const minOf = (type) =>
@@ -1903,6 +2096,9 @@ export function checkSound({
       cues: onsets.length,
       cuts: cuts.length,
       longestSilenceMs: silence,
+      minMomentaryLufs: round(lowest.lufs, 2),
+      minMomentaryAt: lowest.t == null ? null : round(lowest.t, 1),
+      phoneLufs: round(phone, 2),
       shortSlices: short.length,
       levels,
     },
