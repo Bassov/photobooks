@@ -61,6 +61,7 @@ export const PdfSheet = ({
   const px = (v) => (v + slug) * pxPerMm
   return (
     <div
+      data-geom="sheet"
       style={{
         position: 'absolute',
         left: x,
