@@ -75,13 +75,19 @@ const opt = (name) => {
 }
 
 const stripHtml = (s) => {
-  let t = String(s ?? '')
-  // Repeat until stable so nested fragments cannot reassemble a tag, then drop stray brackets.
-  for (let prev = null; prev !== t;) {
-    prev = t
-    t = t.replace(/<[^>]*>/g, '')
+  // Regex-free scan: skip `<` … next `>` (a tag), drop any unmatched `<` / `>`.
+  const src = String(s ?? '')
+  let t = ''
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i]
+    if (c === '<') {
+      const end = src.indexOf('>', i + 1)
+      if (end >= 0) i = end
+      continue
+    }
+    if (c !== '>') t += c
   }
-  return t.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim()
+  return t.replace(/\s+/g, ' ').trim()
 }
 /** File page URL → title without the `File:` namespace (callers add it back). */
 const fileTitle = (page) =>
