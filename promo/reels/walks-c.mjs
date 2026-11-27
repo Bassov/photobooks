@@ -472,6 +472,37 @@ function pack() {
     )
     if (r.status !== 0)
       throw new Error(`${id}: ffmpeg failed: ${r.stderr || r.error}`)
+    // DPR-1 copy for the motion-blur frames only (ReelC `lo`): 10 blur samples of the 3840×4320 clip cost ≈ 40 s a
+    // frame in Remotion (its 30 s per-frame timeout); under a 1600 px whip the blurred picture can't show the difference.
+    const lo = spawnSync(
+      ffmpeg,
+      [
+        '-y',
+        '-v',
+        'error',
+        '-i',
+        mp4,
+        '-vf',
+        `scale=${meta.viewport.width}:${meta.viewport.height}:flags=area`,
+        '-c:v',
+        'libx264',
+        '-preset',
+        'medium',
+        '-crf',
+        '16',
+        '-pix_fmt',
+        'yuv420p',
+        '-movflags',
+        '+faststart',
+        path.join(outDir, `${id}.lo.mp4`),
+      ],
+      {
+        env: { ...process.env, LD_LIBRARY_PATH: path.dirname(ffmpeg) },
+        encoding: 'utf8',
+      },
+    )
+    if (lo.status !== 0)
+      throw new Error(`${id}: ffmpeg (lo) failed: ${lo.stderr || lo.error}`)
     const frames = rects.frames.map((fr, k) => ({
       ...fr,
       busy: dom.frames[k]?.bad ?? ['no DOM log'],

@@ -9,7 +9,13 @@ import {
   useCurrentFrame,
 } from 'remotion'
 import { reelConfig } from './shared/beats.js'
-import { cameraAt, clickScaleAt, shotAt, springAt } from './shared/Springs.js'
+import {
+  cameraAt,
+  clickScaleAt,
+  isFast,
+  shotAt,
+  springAt,
+} from './shared/Springs.js'
 import { Background } from './shared/Background.jsx'
 import { Camera, boxToOutput } from './shared/Camera.jsx'
 import { Cursor } from './shared/Cursor.jsx'
@@ -44,11 +50,18 @@ const clipFrame = (shot, frame) =>
     ),
   )
 
-/** The kit clip at one frame, the full CSS viewport in plane px. */
-const ClipFrame = ({ shot, frame, style }) => (
+/** True on the reel frames under motion blur (set from the real frame, outside the blur's sub-frame samples). */
+const LoRes = React.createContext(false)
+
+/** The kit clip at one frame, the full CSS viewport in plane px. Under motion blur the DPR-1 copy (`.lo.mp4`, from
+ *  walks-c.mjs --pack): 10 samples of the 3840×4320 clip run past Remotion's 30 s per-frame timeout. */
+const ClipFrame = ({ shot, frame, style, onVideoFrame }) => (
   <Freeze frame={clipFrame(shot, frame)}>
     <OffthreadVideo
-      src={staticFile(`clips/${shot.ui.clip}.mp4`)}
+      src={staticFile(
+        `clips/${shot.ui.clip}${React.useContext(LoRes) ? '.lo' : ''}.mp4`,
+      )}
+      onVideoFrame={onVideoFrame}
       muted
       style={{
         position: 'absolute',
@@ -62,31 +75,97 @@ const ClipFrame = ({ shot, frame, style }) => (
   </Freeze>
 )
 
-/** A window of the clip: plane box `src` drawn at plane box `dst` (same size), optionally moved by `dy`. */
-const ClipCut = ({ shot, frame, src, dx = 0, dy = 0 }) => (
-  <div
-    style={{
-      position: 'absolute',
-      left: src.x + dx,
-      top: src.y + dy,
-      width: src.w,
-      height: src.h,
-      overflow: 'hidden',
-    }}
-  >
-    <div
+/** The plane's one decoded clip frame, shared by its cut-outs (ClipCut). A second OffthreadVideo per cut-out would
+ *  fetch the same 3840×4320 frame again (Remotion fetches with `no-store`), and C8's 8 cut-outs ran past the 30 s
+ *  per-frame timeout. */
+const Cuts = React.createContext(null)
+
+function makeCuts() {
+  let img = null
+  const canvases = new Set()
+  const draw = (c) => {
+    if (!img || !img.naturalWidth) return
+    const k = img.naturalWidth / VP.w
+    const { x, y, w, h } = JSON.parse(c.dataset.src)
+    const ctx = c.getContext('2d')
+    ctx.clearRect(0, 0, c.width, c.height)
+    ctx.drawImage(img, x * k, y * k, w * k, h * k, 0, 0, c.width, c.height)
+    if (!c.dataset.match) return
+    // patch from another part of the wall: per-channel gain = wall above the slot / wall above the patch source
+    const { ref, from } = JSON.parse(c.dataset.match)
+    const gain = [0, 1, 2].map(
+      (ch) => mean(ref, ch) / Math.max(1, mean(from, ch)),
+    )
+    const px = ctx.getImageData(0, 0, c.width, c.height)
+    for (let i = 0; i < px.data.length; i += 4)
+      for (let ch = 0; ch < 3; ch++) px.data[i + ch] *= gain[ch]
+    ctx.putImageData(px, 0, 0)
+  }
+  /** Mean of channel `ch` over plane box `b` of the current frame. */
+  const mean = (b, ch) => {
+    const k = img.naturalWidth / VP.w
+    const s = document.createElement('canvas')
+    s.width = Math.max(1, Math.round(b.w * k))
+    s.height = Math.max(1, Math.round(b.h * k))
+    const sx = s.getContext('2d')
+    sx.drawImage(
+      img,
+      b.x * k,
+      b.y * k,
+      b.w * k,
+      b.h * k,
+      0,
+      0,
+      s.width,
+      s.height,
+    )
+    const d = sx.getImageData(0, 0, s.width, s.height).data
+    let sum = 0
+    for (let i = ch; i < d.length; i += 4) sum += d[i]
+    return sum / (d.length / 4)
+  }
+  return {
+    frame: (i) => {
+      img = i
+      canvases.forEach(draw)
+    },
+    add: (c) => {
+      canvases.add(c)
+      draw(c)
+    },
+    remove: (c) => canvases.delete(c),
+  }
+}
+
+/** A window of the clip: plane box `src` drawn at the same size, moved by `dx`, `dy`. `match` = { ref, from }: scale
+ *  the colours so plane box `from` would read like plane box `ref` (wall patches). */
+const ClipCut = ({ src, dst = src, dx = 0, dy = 0, match }) => {
+  const cuts = React.useContext(Cuts)
+  const ref = React.useRef(null)
+  const key = JSON.stringify(src)
+  const matchKey = match ? JSON.stringify(match) : ''
+  React.useLayoutEffect(() => {
+    const c = ref.current
+    c.dataset.src = key
+    c.dataset.match = matchKey
+    cuts.add(c)
+    return () => cuts.remove(c)
+  }, [cuts, key, matchKey])
+  return (
+    <canvas
+      ref={ref}
+      width={Math.round(dst.w * 3)}
+      height={Math.round(dst.h * 3)}
       style={{
         position: 'absolute',
-        left: -src.x,
-        top: -src.y,
-        width: VP.w,
-        height: VP.h,
+        left: dst.x + dx,
+        top: dst.y + dy,
+        width: dst.w,
+        height: dst.h,
       }}
-    >
-      <ClipFrame shot={shot} frame={frame} />
-    </div>
-  </div>
-)
+    />
+  )
+}
 
 /** §2 photo landing: the graded photo springs (`light`) from 1.06 to the frame box, then gives way to the clip. */
 const Landing = ({ land, frame }) => {
@@ -116,38 +195,28 @@ const Landing = ({ land, frame }) => {
   )
 }
 
-/** C8: spine books drop 60 px onto the shelf (`heavy`); before its drop a book's slot shows the case's back wall. */
+/** C8: spine books wait 60 px above their places and drop in one per beat (`heavy`). Only the 60 px under a raised
+ *  book needs the case's back wall: one wall column (SHELF_PATCH_X) stretched over it, colour-matched to the wall
+ *  above the book. */
+const DROP = 60
 const Drops = ({ shot, frame }) => (
   <>
     {shot.drops.map((d, k) => {
-      const slot = {
-        x: d.box.x - 3,
-        y: d.box.y - 6,
-        w: d.box.w + 6,
-        h: d.box.h + 6,
-      }
       const t = frame - d.from
-      if (t < 0)
-        return (
-          <ClipCut
-            key={k}
-            shot={shot}
-            frame={frame}
-            src={{ ...slot, x: SHELF_PATCH_X }}
-            dx={slot.x - SHELF_PATCH_X}
-          />
-        )
-      const p = springAt(t, 'heavy')
       if (t > 40) return null
+      // the book's own box, 1.5 px short on the right: a wider cut would carry a sliver of the next spine / wall
+      const slot = { x: d.box.x, y: d.box.y, w: d.box.w - 1.5, h: d.box.h }
+      const gap = { ...slot, y: slot.y + slot.h - DROP - 2, h: DROP + 2 }
+      const strip = { x: slot.x, y: slot.y - 10, w: slot.w, h: 6 }
+      const lift = t < 0 ? DROP : DROP * (1 - springAt(t, 'heavy'))
       return (
         <React.Fragment key={k}>
           <ClipCut
-            shot={shot}
-            frame={frame}
-            src={{ ...slot, x: SHELF_PATCH_X }}
-            dx={slot.x - SHELF_PATCH_X}
+            src={{ ...gap, x: SHELF_PATCH_X, w: 1 }}
+            dst={{ ...gap, x: gap.x - 1, w: gap.w + 2 }}
+            match={{ ref: strip, from: { ...strip, x: SHELF_PATCH_X, w: 1 } }}
           />
-          <ClipCut shot={shot} frame={frame} src={slot} dy={-60 * (1 - p)} />
+          <ClipCut src={slot} dy={-lift} />
         </React.Fragment>
       )
     })}
@@ -171,6 +240,7 @@ function roomMask(frame, shot) {
 const UiPlane = ({ shot }) => {
   const frame = useCurrentFrame()
   const mask = shot.room ? roomMask(frame, shot) : null
+  const cuts = React.useMemo(makeCuts, [])
   return (
     <div
       style={{
@@ -189,8 +259,16 @@ const UiPlane = ({ shot }) => {
           : null),
       }}
     >
-      <ClipFrame shot={shot} frame={frame} />
-      {shot.drops && <Drops shot={shot} frame={frame} />}
+      <ClipFrame
+        shot={shot}
+        frame={frame}
+        onVideoFrame={shot.drops ? cuts.frame : undefined}
+      />
+      {shot.drops && (
+        <Cuts.Provider value={cuts}>
+          <Drops shot={shot} frame={frame} />
+        </Cuts.Provider>
+      )}
       {shot.land && <Landing land={shot.land} frame={frame} />}
     </div>
   )
@@ -322,7 +400,9 @@ export const ReelC = ({ table, audio = true, probe = true }) => {
             : undefined
         }
       >
-        <Focus reel={REEL} box={focus} render={content} />
+        <LoRes.Provider value={isFast(shot, frame)}>
+          <Focus reel={REEL} box={focus} render={content} />
+        </LoRes.Provider>
       </AbsoluteFill>
       {cursor && <Cursor at={cursor} />}
       {end && <EndCard from={end.from} beatFrames={beatFrames} probe={probe} />}
