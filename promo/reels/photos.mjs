@@ -74,11 +74,15 @@ const opt = (name) => {
   return i >= 0 ? args[i + 1] : undefined
 }
 
-const stripHtml = (s) =>
-  String(s ?? '')
-    .replace(/<[^>]*>/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
+const stripHtml = (s) => {
+  let t = String(s ?? '')
+  // Repeat until stable so nested fragments cannot reassemble a tag, then drop stray brackets.
+  for (let prev = null; prev !== t;) {
+    prev = t
+    t = t.replace(/<[^>]*>/g, '')
+  }
+  return t.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim()
+}
 /** File page URL → title without the `File:` namespace (callers add it back). */
 const fileTitle = (page) =>
   decodeURIComponent(page.split('/wiki/')[1])
