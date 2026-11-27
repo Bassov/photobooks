@@ -21,6 +21,8 @@ import {
 } from './reels/shared/beats.js'
 import { ReelStub } from './reels/ReelStub.jsx'
 import { stubShots } from './reels/stub.shots.js'
+import { ReelB } from './reels/ReelB.jsx'
+import bShots from './reels/b.shots.js'
 
 // Input props come from scripts/render.mjs (clip durations read from promo/out/clips.json, music on/off).
 const defaultProps = { clips: {}, music: false }
@@ -33,6 +35,7 @@ const REEL_PARTS = Object.fromEntries(
     { Component: ReelStub, table: stubShots(reel) },
   ]),
 )
+REEL_PARTS.b = { Component: ReelB, table: bShots }
 
 const Reel = ({ reel, audio }) => {
   const { Component, table } = REEL_PARTS[reel]
