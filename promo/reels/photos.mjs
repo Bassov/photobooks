@@ -202,7 +202,11 @@ async function download(e) {
     ORIG,
     `${e.src}${path.extname(new URL(e.url).pathname).toLowerCase() || '.jpg'}`,
   )
-  if (fs.existsSync(file) && fs.statSync(file).size > 0) return file
+  try {
+    if (fs.statSync(file).size > 0) return file
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e
+  }
   // upload.wikimedia.org answers 429 to bursts: pace the downloads and back off (Retry-After when it sends one)
   await sleep(1500)
   for (let attempt = 1; ; attempt++) {
@@ -228,19 +232,23 @@ const sleep = (ms) => new Promise((res) => setTimeout(res, ms))
 /** Local server so Chromium can read the originals (no file:// canvas taint). */
 function serve(dir) {
   const server = http.createServer((req, res) => {
-    const f = path.join(
+    const f = path.resolve(
       dir,
-      path.basename(decodeURIComponent(req.url.split('?')[0])),
+      '.' + path.sep + path.basename(decodeURIComponent(req.url.split('?')[0])),
     )
-    if (!fs.existsSync(f)) {
-      res.writeHead(404).end()
+    if (!f.startsWith(dir + path.sep)) {
+      res.writeHead(403).end()
       return
     }
-    res.writeHead(200, {
-      'Content-Type': 'image/jpeg',
-      'Access-Control-Allow-Origin': '*',
-    })
-    fs.createReadStream(f).pipe(res)
+    const s = fs.createReadStream(f)
+    s.on('error', () => res.writeHead(404).end())
+    s.on('open', () =>
+      res.writeHead(200, {
+        'Content-Type': 'image/jpeg',
+        'Access-Control-Allow-Origin': '*',
+      }),
+    )
+    s.pipe(res)
   })
   return new Promise((res) => server.listen(0, '127.0.0.1', () => res(server)))
 }
@@ -337,9 +345,12 @@ async function main() {
     await page.goto(`${base}/none`).catch(() => {})
   }
   const mfFile = path.join(OUT, 'manifest.json')
-  const old = fs.existsSync(mfFile)
-    ? JSON.parse(fs.readFileSync(mfFile, 'utf8'))
-    : {}
+  let old = {}
+  try {
+    old = JSON.parse(fs.readFileSync(mfFile, 'utf8'))
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e
+  }
   const manifest = {
     checked: list.checked,
     generated: new Date().toISOString(),

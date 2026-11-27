@@ -67,11 +67,16 @@ const OLD_TITLE = /Lake trip(?: 2026| ’26)?/g
 /** The reel's graded 2400 px kit photos in set order (p01 = the first photo of the reel's first set). */
 function reelPhotos(reel) {
   const mf = path.join(PHOTOS, 'manifest.json')
-  if (!fs.existsSync(mf))
+  let manifest
+  try {
+    manifest = JSON.parse(fs.readFileSync(mf, 'utf8'))
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e
     throw new Error(
       'no promo/out/reels/photos/manifest.json: run node promo/reels/photos.mjs first',
     )
-  const items = JSON.parse(fs.readFileSync(mf, 'utf8')).reels?.[reel]
+  }
+  const items = manifest.reels?.[reel]
   if (!items?.length)
     throw new Error(
       `photos for reel ${reel} missing: run node promo/reels/photos.mjs --reel ${reel}`,
@@ -1153,9 +1158,12 @@ async function main() {
     for (const s of servers.values()) s.srv.close()
   }
   const idx = path.join(OUT, 'index.json')
-  const prev = fs.existsSync(idx)
-    ? JSON.parse(fs.readFileSync(idx, 'utf8'))
-    : {}
+  let prev = {}
+  try {
+    prev = JSON.parse(fs.readFileSync(idx, 'utf8'))
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e
+  }
   for (const c of clips)
     prev[c.id] = {
       reel: c.reel,
