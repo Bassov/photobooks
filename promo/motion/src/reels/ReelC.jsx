@@ -87,7 +87,7 @@ function makeCuts() {
     if (!img || !img.naturalWidth) return
     const k = img.naturalWidth / VP.w
     const { x, y, w, h } = JSON.parse(c.dataset.src)
-    const ctx = c.getContext('2d')
+    const ctx = c.getContext('2d', { willReadFrequently: true })
     ctx.clearRect(0, 0, c.width, c.height)
     ctx.drawImage(img, x * k, y * k, w * k, h * k, 0, 0, c.width, c.height)
     if (!c.dataset.match) return
@@ -107,7 +107,7 @@ function makeCuts() {
     const s = document.createElement('canvas')
     s.width = Math.max(1, Math.round(b.w * k))
     s.height = Math.max(1, Math.round(b.h * k))
-    const sx = s.getContext('2d')
+    const sx = s.getContext('2d', { willReadFrequently: true })
     sx.drawImage(
       img,
       b.x * k,
@@ -400,7 +400,9 @@ export const ReelC = ({ table, audio = true, probe = true }) => {
             : undefined
         }
       >
-        <LoRes.Provider value={isFast(shot, frame)}>
+        {/* probe off = a 270×480 sheet cell (Root ReelSheet): 34 full-res clip frames in one still pass the
+            30 s timeout, and a cell shows the clip at ≤ 0.75 px per CSS px, so the DPR-1 copy loses nothing */}
+        <LoRes.Provider value={!probe || isFast(shot, frame)}>
           <Focus reel={REEL} box={focus} render={content} />
         </LoRes.Provider>
       </AbsoluteFill>

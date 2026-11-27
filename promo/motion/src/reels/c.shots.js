@@ -149,6 +149,7 @@ function shotC1() {
   const choose = rect(id, 'choose', at) ?? rect(id, 'dialog', at)
   const strip = rect(id, 'filmstrip', at + 10)
   const c = centre(choose)
+  const clickY = clip(id).events.find((e) => e[1] === 'down')[3]
   // the flick: first frame after the pointer settled on the strip
   const ptr = clip(id).ptr
   let still = ev(id, 'up')
@@ -161,9 +162,12 @@ function shotC1() {
     to: bf(3),
     scale: 'M',
     ui: UI(id, at),
+    // not clamped to the viewport: the strip is its bottom 153 px, so an in-plane crop leaves it under output y 1640
+    // (Reels caption zone). The crop runs past the page onto the black ground: frame 0 has the Choose click at output
+    // y ≈ 300, then the push puts the full strip at y ≈ 940–1365 for the flick.
     cam: [
-      crop(c.x + 20, strip.y + strip.h - 426, 480),
-      crop(c.x + 44, strip.y + strip.h - 420, 456),
+      { cx: c.x + 20, cy: clickY + 293, w: 480 },
+      { cx: c.x + 44, cy: strip.y + strip.h / 2 - 70, w: 400 },
     ],
     drift: { x: -6, y: 0 },
     push: 0.012,
