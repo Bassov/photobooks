@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P5
 Title: Bug: /next-roadmap-item promo-carousel-4x5
+Status: done
 
 ## Scope
 
