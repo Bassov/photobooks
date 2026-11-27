@@ -283,6 +283,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [qa-preview-cover](roadmap/P5/qa-preview-cover.md) — Bug: /next-roadmap-item qa-preview-cover
 - [ ] [lite] [design-r42-fill-popover-prod](roadmap/P5/design-r42-fill-popover-prod.md) — Bug: /next-roadmap-item design-r42-fill-popover-prod
 - [ ] [lite] [promo-reels-v2-core](roadmap/P5/promo-reels-v2-core.md) — Bug: /next-roadmap-item promo-reels-v2-core
+- [ ] [lite] [promo-reels-v2-sound](roadmap/P5/promo-reels-v2-sound.md) — Bug: /next-roadmap-item promo-reels-v2-sound
 - [ ] [lite] [design-r34-is-kit](roadmap/P5/design-r34-is-kit.md) — Bug: /next-roadmap-item design-r34-is-kit
 - [ ] [lite] [qa-guide-frame-move](roadmap/P5/qa-guide-frame-move.md) — Bug: /next-roadmap-item qa-guide-frame-move
 - [ ] [feature] [promo-reels-v2-c](roadmap/P5/promo-reels-v2-c.md) — Bug: /next-roadmap-item promo-reels-v2-c
