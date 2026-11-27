@@ -125,11 +125,14 @@ The script fails (exit 1, every violation listed) unless:
   reach a slide;
 - Inter and Lora are loaded (`document.fonts.check` and every `FontFace` loaded) before each screenshot;
 - the Spec layout holds in DOM boxes: title at 96/112 (hook 150) in the feed and 80/270 (hook 290) in Stories, windows
-  at 96, 400, 1080×1040 (feed) and 60, 620, 960×900 (Stories), radius 24 (phone card 56, cover card 4), the Swipe chip
-  72 from the right and 64 from the bottom, every feed title ending at x ≤ 1020;
-- no text, chip, CTA or framed picture sits in a safe zone (feed: 60 px sides, the top-right 200×120 counter; Stories:
-  250 top, 340 bottom, 60 sides, and nothing over the link sticker box 340, 1420, 400×110). The feed windows and the
-  full-width pictures (collage, open book) bleed off the edges by design;
+  at 65, 400, 950×1040 (feed; slide 7 at 65, 340, 950×1010) and 60, 620, 960×900 (Stories), radius 24 (phone card 56,
+  cover card 4), the Swipe chip 72 from the right and 64 from the bottom, every feed title ending at x ≤ 1020;
+- feed side margin 65 px (6 % of 1080, Owner 2026-11-27): nothing but the background (the slide 1 collage) comes
+  within 65 px of the left or right edge (every title, chip, CTA, window, and the tilted cover card by its rotated
+  bounding box); the feed windows bleed off the bottom edge only. `carousel.json` records each slide's `x` span;
+- no text, chip, CTA or framed picture sits in a safe zone (feed: also the top-right 200×120 counter; Stories:
+  250 top, 340 bottom, 60 sides, and nothing over the link sticker box 340, 1420, 400×110). The Stories collage and
+  open book bleed off the edges by design;
 - no crop is upscaled past 1.1× (crop CSS width × 3 ≥ 0.9 × box width) or runs off its still;
 - every PNG is exactly 1080×1350 / 1080×1920 (read from its header).
 
