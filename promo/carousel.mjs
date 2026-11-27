@@ -37,7 +37,8 @@ const SRC = {
 }
 const FEED = { w: 1080, h: 1350, head: [96, 112, 84], hook: 150 }
 const STORY = { w: 1080, h: 1920, head: [80, 270, 80], hook: 290 }
-const FWIN = [96, 400, 1080, 1040]
+// feed window: 65 → 1015 (6 % side margins, Owner 2026-11-27); it bleeds off the bottom edge only
+const FWIN = [65, 400, 950, 1040]
 const SWIN = [60, 620, 960, 900]
 const PHONE = [220, 600, 640, 920]
 // the end-card cover: the whole cover element, trimmed top and bottom to the card's aspect
@@ -54,39 +55,39 @@ const feed = [
   {
     beat: 'add-folder',
     head: ['Add a folder —', 'every shot at hand.'],
-    img: ['strip', [0, 280, 700], FWIN],
+    img: ['strip', [0, 262, 638], FWIN],
     visual:
       'the editor after Add folder: the page list and the filmstrip "Photos · 20"',
   },
   {
     beat: 'drag',
     head: ['Drag a photo in —', 'the spread is done.'],
-    img: ['drop', [250, 70, 760], FWIN],
+    img: ['drop', [250, 70, 692], FWIN],
     visual: 'a photo just dropped into its frame, the layout pill above',
   },
   {
     beat: 'fill-book',
     head: ['The whole book —', 'in one click.'],
-    img: ['fill', [430, 360, 520], FWIN],
+    img: ['fill', [430, 360, 474], FWIN],
     visual: 'the Fill book popover over a filled spread',
   },
   {
     beat: 'cover',
     head: ['Your cover,', 'your title.'],
-    img: ['cover', [600, 110, 640], FWIN],
+    img: ['cover', [600, 110, 583], FWIN],
     visual: 'the cover with its photo and the title "Lake trip 2026"',
   },
   {
     beat: 'site',
     head: ['Print to PDF —', 'or your own site.'],
-    img: ['shelf', [280, 130, 870], FWIN],
+    img: ['shelf', [280, 107, 793], FWIN],
     visual: 'the personal site home: the shelf with the face-out book',
   },
   {
     beat: 'real-book',
     head: ['Like a <i>real book.</i>'],
-    img: ['spread', [310, 60, 820], [0, 340, 1080, 1010], 'bleed'],
-    visual: 'the open book in the site reader, one spread, full width',
+    img: ['spread', [310, 28, 820], [65, 340, 950, 1010]],
+    visual: 'the open book in the site reader, one spread, in the window frame',
   },
   {
     beat: 'cta',
@@ -156,7 +157,7 @@ const SETS = [
 const STICKER = [340, 1420, 400, 110]
 // Spec safe zones (slide px)
 const SAFE = {
-  feed: { sides: 60, corner: [1080 - 200, 0, 200, 120] },
+  feed: { sides: 65, corner: [1080 - 200, 0, 200, 120] },
   stories: { sides: 60, top: 250, bottom: 340 },
 }
 const UPSCALE_MIN = 0.9 // device px of the crop ≥ 0.9 × box px (spec: crop CSS width × 3 ≥ 0.9 × box width)
@@ -352,13 +353,12 @@ function checkSlide(set, sl, i, m, img) {
     const r = { win: '24px', phone: '56px', card: '4px', bleed: '0px' }[f.c]
     if (f.radius !== r) fail(`${f.c} radius ${f.radius} ≠ ${r}`)
   }
-  // Safe zones. Text, the chip, the CTA and every framed picture stay out; the feed windows and the full-width
-  // pictures (collage, open book) bleed off the edges by design (Spec «Direction»: the cut says "more →").
+  // Safe zones. Text, the chip, the CTA and every framed picture stay out (the card by its rotated bounding box).
+  // Feed: every element but the background (the slide 1 collage) stays 65 px off the sides; the windows bleed off the
+  // bottom edge only. Stories: the full-width open book bleeds off the sides by design.
   const keep = [
     ...m.text,
-    ...m.frames.filter(
-      (f) => f.c !== 'bleed' && !(set.name === 'feed' && f.c === 'win'),
-    ),
+    ...m.frames.filter((f) => set.name === 'feed' || f.c !== 'bleed'),
   ]
   const z = SAFE[set.name]
   for (const e of keep) {
@@ -472,6 +472,11 @@ async function render(browser, stills) {
         beat: sl.beat,
         file: path.relative(ROOT, file),
         ...size,
+        // leftmost and rightmost x of every non-background element (rotated card by its bounding box)
+        x: [
+          Math.min(...[...m.text, ...m.frames].map((e) => box(e.r).l)),
+          Math.max(...[...m.text, ...m.frames].map((e) => box(e.r).r)),
+        ],
         text: m.text.map((t) => ({ c: t.c, ...box(t.r) })),
         frames: m.frames.map((f) => ({ c: f.c, box: f.off, radius: f.radius })),
         crop: img && {
