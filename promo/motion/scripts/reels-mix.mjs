@@ -2,8 +2,9 @@
 //
 //   node scripts/reels-mix.mjs --analyse --reel a [--music <file>]
 //       Track gate over sound.json's candidates for the reel (or one file): tempo by onset-flux autocorrelation, beat
-//       confidence, last-third rise of a downbeat excerpt. First passing track wins; prints it and 2 runners-up and
-//       writes promo/out/reels/sound/<reel>.beats.json.
+//       confidence, last-third rise, beat contrast and hero-bar lift of a downbeat excerpt (C: own tempo first, half
+//       tempo only when none passes). First passing track wins; prints it and 2 runners-up and writes
+//       promo/out/reels/sound/<reel>.beats.json (with liftBar, liftDb, barRmsDb[], contrast).
 //   node scripts/reels-mix.mjs --reel a --cues <json | sample> [--music <file>] [--beats <json>] [--out <dir>] [--seed <n>]
 //       Mix in Playwright Chromium (decode + OfflineAudioContext, 48 kHz stereo) → <out>/<reel>-{music,sfx,mix}.wav and
 //       <reel>-mix.json, then check 12. `--cues sample` builds a demo cue list (every cue type) on the reel's beats.
@@ -39,34 +40,57 @@ const SR = SAMPLE_RATE
 export const MIX_TAG = 'photobooks reels-mix'
 const ANALYSIS_SR = 12000
 
-/** Spec §3 track gate: tempo window(s) per reel (C also takes its half tempo), confidence and rise. */
+/** Spec §3 track gate: own tempo window per reel, confidence, rise, beat contrast and hero-bar lift. */
 export const TEMPO = {
   a: [[80, 110]],
   b: [[60, 100]],
-  c: [
-    [108, 132],
-    [54, 66],
-  ],
+  c: [[108, 132]],
 }
-export const GATE = { confidence: 0.3, riseDb: 2, minSec: 15, maxSec: 20 }
+/**
+ * Half-tempo window (C only): a track whose felt tempo is twice its pulse. Tried only when no candidate passes with
+ * its own tempo (Designer decision 2026-11-28, Owner Q-36: C's pacing is the reference).
+ */
+export const HALF_TEMPO = { c: [[54, 66]] }
+/**
+ * Hero window (0-based bars): the bar whose RMS steps up most from the bar before it is `liftBar`, where the reel puts
+ * Fill book / the cover drop (Designer decision 2026-11-28).
+ */
+export const HERO_BARS = { a: [1, 3], b: [1, 2], c: [1, 3] }
+export const GATE = {
+  confidence: 0.3,
+  riseDb: 2,
+  contrast: 1.5,
+  liftDb: 2.5,
+  minSec: 15,
+  maxSec: 20,
+}
 /** Spec §3 master targets. */
 export const TARGET = { lufs: -14, tol: 0.5, truePeak: -1, samplePeak: 0.99 }
 const SILENCE = { db: -60, ms: 150 }
 
 /**
- * Foley cue types (spec §3 "Foley cues"). `group` = sound.json `cues` tag of the variants, `peak` = clip peak in dBFS
- * before the master gain, `bus` foley (high-pass 80 Hz + room send) or ui (dry), `sub` = sine sub under it,
- * `duck` = −3 dB music duck for 180 ms, `maxLen` = longest slice of the file (s), `flicks` = staggered copies,
- * `onset: 'peak'` = check 12 measures the loudest point (a swell has no attack).
+ * Foley cue types (spec §3 "Foley cues"). `group` = sound.json `cues` tag of the variants, `bus` foley (high-pass
+ * 80 Hz + room send) or ui (dry), `sub` = sine sub under it, `duck` = −3 dB music duck for 180 ms, `minLen` / `maxLen`
+ * = shortest / longest slice of the file (s; a variant whose event is shorter than `minLen` fails sound.mjs and check
+ * 12), `flicks` = staggered copies, `onset: 'peak'` = check 12 measures the loudest point (a swell has no attack).
+ * Level: `rms` = the slice's loudest 100 ms RMS in the SFX stem, dB against the music stem's RMS around the cue
+ * (Designer decision 2026-11-28; `fill`: the first flick); `peak` = the slice's sample peak in dBFS before the master.
  */
 export const CUES = {
-  page: { group: 'page', peak: -10, bus: 'foley', maxLen: 1.2 },
-  pageSlow: { group: 'pageSlow', peak: -10, bus: 'foley', maxLen: 1.8 },
+  page: { group: 'page', rms: -15, bus: 'foley', minLen: 0.25, maxLen: 1.2 },
+  pageSlow: {
+    group: 'pageSlow',
+    rms: -13,
+    bus: 'foley',
+    minLen: 0.45,
+    maxLen: 1.8,
+  },
   flutter: {
     group: 'flutter',
-    peak: -14,
+    rms: -18,
     bus: 'foley',
     reverse: true,
+    minLen: 0.4,
     maxLen: 0.9,
     onset: 'peak',
   },
@@ -83,26 +107,29 @@ export const CUES = {
   },
   fill: {
     group: 'fill',
-    peak: -14,
+    rms: -20,
     bus: 'foley',
     flicks: [5, 7],
+    minLen: 0.04,
     maxLen: 0.3,
   },
   swish: {
     group: 'swish',
-    peak: -14,
+    rms: -12,
     bus: 'foley',
+    minLen: 0.2,
     maxLen: 1.0,
     onset: 'peak',
   },
-  wood: { group: 'wood', peak: -8, bus: 'foley', maxLen: 0.8 },
-  cover: { group: 'cover', peak: -8, bus: 'foley', maxLen: 0.8 },
+  wood: { group: 'wood', peak: -8, bus: 'foley', minLen: 0.15, maxLen: 0.8 },
+  cover: { group: 'cover', peak: -8, bus: 'foley', minLen: 0.15, maxLen: 0.8 },
   impact: {
     group: 'impact',
     peak: -6,
     bus: 'foley',
     sub: true,
     duck: true,
+    minLen: 0.15,
     maxLen: 1.0,
   },
   /** Music dip (−6 dB, low-pass 1.2 kHz) for the cue's `frames`; no sound of its own. */
@@ -112,7 +139,11 @@ const MUSIC_RMS_DB = -20
 const SUB = { hz: 50, ms: 155, peakDb: -14 }
 const SEND_DB = -14
 const SEND_END_DB = -6
+/** Music → room send in the ending: 0 until the fade starts, rising linearly to this at its end. */
+const MUSIC_SEND_END_DB = -6
 const FADE_SEC = 1.2
+/** Check 12j: per-type spread of the RMS-levelled cues, and how far every swish stays under the music. */
+const LEVELS = { spreadDb: 4, swishUnderDb: 8, jitterDb: 1.5 }
 
 const db = (x) => 20 * Math.log10(Math.max(x, 1e-12))
 const undb = (d) => 10 ** (d / 20)
@@ -445,11 +476,12 @@ const fromB64 = (s) => {
 
 /**
  * Decodes files in the page (at 48 kHz they stay there as AudioBuffers for the render); returns the mono mix of each
- * key in `keys` (keys in `keep` are decoded but not sent back).
+ * key in `keys` (keys in `keep` are decoded but not sent back); with `power`, also `<key>:pow` = the per-sample stereo
+ * power the mix carries.
  */
-async function decodeMono(page, keys, sr, keep = []) {
+async function decodeMono(page, keys, sr, keep = [], power = false) {
   const out = await page.evaluate(
-    async ({ keys, sr, keep }) => {
+    async ({ keys, sr, keep, power }) => {
       const res = {}
       for (const key of [...keep, ...keys]) {
         const ab = await (
@@ -473,16 +505,23 @@ async function decodeMono(page, keys, sr, keep = []) {
         if (sr === 48000) window.__bufs.set(key, buf)
         if (kept) continue
         const mono = new Float32Array(buf.length)
-        for (let c = 0; c < buf.numberOfChannels; c++) {
+        // stereo power as the mix will carry it: (L² + R²) / 2, where a mono file goes through an equal-power
+        // StereoPannerNode (L² + R² = x² at any pan), so its power is x² / 2
+        const pow = new Float32Array(buf.length)
+        const nc = buf.numberOfChannels
+        for (let c = 0; c < nc; c++) {
           const d = buf.getChannelData(c)
-          for (let i = 0; i < d.length; i++)
-            mono[i] += d[i] / buf.numberOfChannels
+          for (let i = 0; i < d.length; i++) {
+            mono[i] += d[i] / nc
+            pow[i] += (d[i] * d[i]) / 2
+          }
         }
         res[key] = window.__b64(mono)
+        if (power) res[`${key}:pow`] = window.__b64(pow)
       }
       return res
     },
-    { keys, sr, keep },
+    { keys, sr, keep, power },
   )
   return Object.fromEntries(
     Object.entries(out).map(([k, v]) => [k, fromB64(v)]),
@@ -570,10 +609,11 @@ export function onsetFlux(mono, sr, size = 1024, hop = 128) {
 }
 
 /**
- * Tempo by autocorrelation of the (mean-removed) flux inside the reel's tempo windows. Confidence = ACF peak / zero
- * lag (spec §3). A half-tempo window (C) puts the grid on the doubled tempo. Returns `{ bpm, lag, confidence, half }`.
+ * Tempo by autocorrelation of the (mean-removed) flux inside the given tempo windows. Confidence = ACF peak / zero
+ * lag (spec §3). `half` (a half-tempo window) puts the grid on the doubled tempo. Returns
+ * `{ bpm, lag, confidence, half }`.
  */
-export function tempoOf(flux, rate, windows) {
+export function tempoOf(flux, rate, windows, half = false) {
   const n = flux.length
   let mean = 0
   for (const v of flux) mean += v / n
@@ -586,7 +626,7 @@ export function tempoOf(flux, rate, windows) {
     return s / r0
   }
   let best = null
-  windows.forEach(([lo, hi], w) => {
+  windows.forEach(([lo, hi]) => {
     const l0 = Math.floor((60 * rate) / hi)
     const l1 = Math.ceil((60 * rate) / lo)
     const vals = new Map()
@@ -602,11 +642,11 @@ export function tempoOf(flux, rate, windows) {
         const c = at(l + 1)
         const den = a - 2 * v + c
         const frac = den < 0 ? (0.5 * (a - c)) / den : 0
-        best = { lag: l + frac, confidence: v, half: w > 0 }
+        best = { lag: l + frac, confidence: v, half }
       }
     }
   })
-  if (!best) return { bpm: 0, lag: 0, confidence: 0, half: false }
+  if (!best) return { bpm: 0, lag: 0, confidence: 0, half }
   const lag = best.half ? best.lag / 2 : best.lag
   return { ...best, lag, bpm: (60 * rate) / lag }
 }
@@ -640,19 +680,21 @@ const rmsDb = (x, a, b) => {
 
 /**
  * Full gate analysis of one track (mono at `sr`): tempo, grid, downbeat, then the best downbeat excerpt of whole bars
- * inside 15–20 s (closest to the reel's v1 length) whose last third is loudest against its first third. Guards: no
- * quarter-second inside the excerpt is > 24 dB under its mean, its first third is ≥ track RMS − 12 dB, and it ends
- * 0.5 s before the track does.
+ * inside 15–20 s (closest to the reel's v1 length). Guards: no quarter-second inside the excerpt is > 24 dB under its
+ * mean, its first third is ≥ track RMS − 12 dB, and it ends 0.5 s before the track does. Among the excerpts that pass
+ * the guards, rise (last third vs first third ≥ 2 dB) and beat contrast (mean flux on the beats / on the half-beats
+ * ≥ 1.5), the one with the largest lift wins: the largest RMS step up from the bar before inside the hero window
+ * (`HERO_BARS`), which must be ≥ 2.5 dB. `half` analyses the reel's half-tempo window instead of its own tempo.
  */
-export function analyseTrack(mono, sr, reel) {
+export function analyseTrack(mono, sr, reel, { half = false } = {}) {
+  const windows = half ? HALF_TEMPO[reel] : TEMPO[reel]
+  const out = { half, duration: round(mono.length / sr, 2) }
+  if (!windows)
+    return { ...out, bpm: 0, confidence: 0, ok: false, why: 'no window' }
   const { flux, rate, offset, hop } = onsetFlux(mono, sr)
-  const tempo = tempoOf(flux, rate, TEMPO[reel])
-  const out = {
-    bpm: round(tempo.bpm, 2),
-    confidence: round(tempo.confidence, 3),
-    half: tempo.half,
-    duration: round(mono.length / sr, 2),
-  }
+  const tempo = tempoOf(flux, rate, windows, half)
+  out.bpm = round(tempo.bpm, 2)
+  out.confidence = round(tempo.confidence, 3)
   if (!tempo.lag) return { ...out, ok: false, why: 'no tempo peak' }
   const grid = fitGrid(flux, tempo.lag)
   const period = grid.period * hop
@@ -676,7 +718,9 @@ export function analyseTrack(mono, sr, reel) {
   if (!bars) return { ...out, ok: false, why: 'no whole-bar length in 15–20 s' }
   const len = bars * bar
   const trackRms = rmsDb(mono, 0, mono.length)
-  let best = null
+  const fluxAt = (t) => interp(flux, (t - offset) / hop)
+  const [h0, h1] = HERO_BARS[reel]
+  const excerpts = []
   for (let k = down; beatAt(k) + len <= mono.length / sr - 0.5; k += 4) {
     const s = beatAt(k) * sr
     const L = len * sr
@@ -687,45 +731,66 @@ export function analyseTrack(mono, sr, reel) {
     for (let q = s; q + 0.25 * sr <= s + L; q += 0.25 * sr)
       minQ = Math.min(minQ, rmsDb(mono, q, q + 0.25 * sr))
     if (minQ < mean - 24 || first < trackRms - 12) continue
-    const rise = last - first
-    if (!best || rise > best.rise)
-      best = { k, start: beatAt(k), rise, mean, first }
+    const barRms = Array.from({ length: bars }, (_, b) =>
+      rmsDb(mono, s + b * bar * sr, s + (b + 1) * bar * sr),
+    )
+    let lift = -Infinity
+    let liftBar = h0
+    for (let b = h0; b <= Math.min(h1, bars - 1); b++)
+      if (barRms[b] - barRms[b - 1] > lift) {
+        lift = barRms[b] - barRms[b - 1]
+        liftBar = b
+      }
+    let on = 0
+    let offBeat = 0
+    for (let j = 0; j < bars * 4; j++) {
+      on += fluxAt(beatAt(k + j))
+      offBeat += fluxAt(beatAt(k + j) + period / 2)
+    }
+    excerpts.push({
+      k,
+      start: beatAt(k),
+      rise: last - first,
+      mean,
+      barRms,
+      lift,
+      liftBar,
+      contrast: on / Math.max(offBeat, 1e-9),
+    })
   }
-  if (!best) return { ...out, ok: false, why: 'no excerpt passes the guards' }
+  if (!excerpts.length)
+    return { ...out, ok: false, why: 'no excerpt passes the guards' }
+  // the largest lift among excerpts that pass rise + contrast; else among those that pass rise; else the best rise
+  const most = (xs, key) => xs.reduce((a, b) => (b[key] > a[key] ? b : a))
+  const risen = excerpts.filter((e) => e.rise >= GATE.riseDb)
+  const clear = risen.filter((e) => e.contrast >= GATE.contrast)
+  const best = clear.length
+    ? most(clear, 'lift')
+    : risen.length
+      ? most(risen, 'lift')
+      : most(excerpts, 'rise')
   const beats = []
   for (let k = best.k; beatAt(k) < best.start + len - 1e-6; k++)
     beats.push(round(beatAt(k) - best.start, 4))
-  let strongestBar = 0
-  let strongest = -Infinity
-  for (let b = 0; b < bars; b++) {
-    const s = (best.start + b * bar) * sr
-    const v = rmsDb(mono, s, s + bar * sr)
-    if (v > strongest) {
-      strongest = v
-      strongestBar = b
-    }
-  }
-  // the grid tempo, or (half-tempo window) the felt tempo, inside a window
-  const tempoOk = TEMPO[reel].some(
-    ([lo, hi]) =>
-      (out.bpm >= lo && out.bpm <= hi) ||
-      (tempo.half && out.bpm / 2 >= lo && out.bpm / 2 <= hi),
-  )
-  const ok =
-    tempoOk && tempo.confidence >= GATE.confidence && best.rise >= GATE.riseDb
+  // the grid tempo, or (half-tempo window) the felt tempo, inside the window
+  const felt = half ? out.bpm / 2 : out.bpm
+  const tempoOk = windows.some(([lo, hi]) => felt >= lo && felt <= hi)
+  const fails = [
+    tempoOk ? '' : 'tempo out of range',
+    tempo.confidence >= GATE.confidence ? '' : 'confidence < 0.30',
+    best.rise >= GATE.riseDb ? '' : 'rise < 2 dB',
+    best.contrast >= GATE.contrast ? '' : 'contrast < 1.5',
+    best.lift >= GATE.liftDb ? '' : 'lift < 2.5 dB',
+  ].filter(Boolean)
   return {
     ...out,
-    ok,
-    why: ok
-      ? ''
-      : [
-          tempoOk ? '' : 'tempo out of range',
-          tempo.confidence >= GATE.confidence ? '' : 'confidence < 0.30',
-          best.rise >= GATE.riseDb ? '' : 'rise < 2 dB',
-        ]
-          .filter(Boolean)
-          .join(', '),
+    ok: !fails.length,
+    why: fails.join(', '),
     riseDb: round(best.rise, 2),
+    contrast: round(best.contrast, 2),
+    liftBar: best.liftBar,
+    liftDb: round(best.lift, 2),
+    barRmsDb: best.barRms.map((v) => round(v, 2)),
     start: round(best.start, 4),
     length: round(len, 4),
     frames: Math.round(len * FPS),
@@ -733,7 +798,6 @@ export function analyseTrack(mono, sr, reel) {
     period: round(period, 5),
     beats,
     downbeats: beats.map((_, i) => i).filter((i) => i % 4 === 0),
-    strongestBar,
     excerptRmsDb: round(best.mean, 2),
   }
 }
@@ -753,36 +817,45 @@ export async function trackGate(reel, manifest, out = SOUND_OUT, only = null) {
         id,
         file: path.resolve(out, manifest.files[id].path),
       }))
-  const todo = items.filter((it) => !analysisCache.has(`${reel}:${it.file}`))
+  const modes = HALF_TEMPO[reel] ? [false, true] : [false]
+  const cacheKey = (it, half) => `${reel}:${half ? 'half' : 'own'}:${it.file}`
+  const todo = items.filter((it) =>
+    modes.some((half) => !analysisCache.has(cacheKey(it, half))),
+  )
   if (todo.length) {
     const files = new Map(todo.map((it) => [it.id, it.file]))
     const { page, close } = await openAudioPage(files)
     try {
       for (const it of todo) {
         const mono = (await decodeMono(page, [it.id], ANALYSIS_SR))[it.id]
-        analysisCache.set(
-          `${reel}:${it.file}`,
-          analyseTrack(mono, ANALYSIS_SR, reel),
-        )
+        for (const half of modes)
+          analysisCache.set(
+            cacheKey(it, half),
+            analyseTrack(mono, ANALYSIS_SR, reel, { half }),
+          )
       }
     } finally {
       await close()
     }
   }
-  const results = items.map((it) => ({
-    ...it,
-    ...analysisCache.get(`${reel}:${it.file}`),
-  }))
+  const resultsOf = (half) =>
+    items.map((it) => ({ ...it, ...analysisCache.get(cacheKey(it, half)) }))
+  // own tempo first; the half-tempo reading of the same candidates only when none passes (Designer 2026-11-28)
+  let results = resultsOf(false)
+  if (!results.some((r) => r.ok) && modes.includes(true))
+    results = [...results, ...resultsOf(true)]
   const winner = results.find((r) => r.ok) ?? null
   const rest = results.filter((r) => r !== winner)
   const runnersUp = [
     ...rest.filter((r) => r.ok),
     ...rest
       .filter((r) => !r.ok)
-      .sort((x, y) => (y.riseDb ?? -99) - (x.riseDb ?? -99)),
+      .sort((x, y) => (y.liftDb ?? -99) - (x.liftDb ?? -99)),
   ].slice(0, 2)
+  const sign = (v, unit = ' dB') =>
+    v == null ? '   —  ' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}${unit}`
   const fmt = (tag, r) =>
-    `${reel}  ${tag.padEnd(9)} ${r.id.padEnd(26)} BPM ${String(r.bpm).padStart(6)}${r.half ? ' (½)' : '    '}  conf ${r.confidence.toFixed(2)}  rise ${r.riseDb == null ? '   —  ' : `${r.riseDb >= 0 ? '+' : ''}${r.riseDb.toFixed(1)} dB`}${r.start == null ? '' : `  start ${r.start.toFixed(2)} s  ${r.bars} bars ${r.length.toFixed(2)} s`}${r.ok ? '' : `  [${r.why}]`}`
+    `${reel}  ${tag.padEnd(9)} ${r.id.padEnd(26)} BPM ${String(r.bpm).padStart(6)}${r.half ? ' (½)' : '    '}  conf ${r.confidence.toFixed(2)}  rise ${sign(r.riseDb)}  contrast ${r.contrast == null ? '—' : r.contrast.toFixed(2)}  lift ${sign(r.liftDb)}${r.liftBar == null ? '' : ` @bar ${r.liftBar}`}${r.start == null ? '' : `  start ${r.start.toFixed(2)} s  ${r.bars} bars ${r.length.toFixed(2)} s`}${r.ok ? '' : `  [${r.why}]`}`
   const skipped = winner ? results.slice(0, results.indexOf(winner)) : []
   const lines = [
     ...skipped
@@ -804,20 +877,27 @@ export async function trackGate(reel, manifest, out = SOUND_OUT, only = null) {
       half: winner.half,
       confidence: winner.confidence,
       riseDb: winner.riseDb,
+      contrast: winner.contrast,
+      liftBar: winner.liftBar,
+      liftDb: winner.liftDb,
+      barRmsDb: winner.barRmsDb,
       start: winner.start,
       length: winner.length,
       frames: winner.frames,
       bars: winner.bars,
-      strongestBar: winner.strongestBar,
       excerptRmsDb: winner.excerptRmsDb,
       downbeats: winner.downbeats,
       beats: winner.beats,
       runnersUp: runnersUp.map((r) => ({
         track: r.id,
         ok: r.ok,
+        half: r.half,
         bpm: r.bpm,
         confidence: r.confidence,
         riseDb: r.riseDb ?? null,
+        contrast: r.contrast ?? null,
+        liftDb: r.liftDb ?? null,
+        why: r.why || null,
       })),
     }
     fs.mkdirSync(out, { recursive: true })
@@ -839,67 +919,184 @@ function musicIdOf(file, manifest) {
 
 // ---------------------------------------------------------------- foley plan
 
+/** Foley segmentation (Designer decision 2026-11-28): 20 ms RMS envelope; an event ends only after ≥ 150 ms > 30 dB under its peak. */
+export const SEGMENT = { winMs: 20, hopMs: 5, quietDb: -30, quietMs: 150 }
+
 /**
- * The slice of a foley file around its loudest transient: back ≤ `pre` s until 30 ms under −40 dB of the peak, forward
- * until 80 ms under −50 dB or `maxLen`, and never into a neighbouring event of the same file. Times in seconds;
- * `transient` is the loudest sample.
+ * The slice of a foley file around its loudest transient, on a 20 ms RMS envelope (5 ms hop). Another event of the
+ * same file starts only where the envelope rises back over −30 dB (re its peak) after ≥ 150 ms under it; shorter gaps
+ * (paper crackle) stay inside the event. Forward: to 20 ms before the next event, where the tail has stayed under
+ * −50 dB for 80 ms, or `maxLen`. Back, at most `pre` s: to 20 ms after the previous event, or where the lead-in has
+ * stayed under −40 dB for 30 ms.
+ * `pow` = the per-sample stereo power the mix carries (decodeMono `:pow`; default mono² / 2). Returns seconds:
+ * `{ start, end, len, transient, peak, rmsDb }`, `transient` = the loudest sample, `rmsDb` = the slice's loudest
+ * 100 ms RMS (dBFS of that power).
  */
-export function segmentHit(mono, sr, maxLen = 1.5, pre = 0.25) {
-  const blk = Math.round(sr / 1000)
-  const nb = Math.floor(mono.length / blk)
-  const env = new Float32Array(nb)
+export function segmentHit(mono, sr, maxLen = 1.5, pre = 0.25, pow = null) {
   let peak = 0
   let peakI = 0
-  for (let i = 0; i < nb * blk; i++) {
+  for (let i = 0; i < mono.length; i++) {
     const v = Math.abs(mono[i])
-    const b = Math.floor(i / blk)
-    if (v > env[b]) env[b] = v
     if (v > peak) {
       peak = v
       peakI = i
     }
   }
-  const pb = Math.floor(peakI / blk)
-  const lo = peak * undb(-40)
-  // a file with several events (page turns, whooshes): the slice stops in the dip (≥ 20 dB down) before another
-  // event that comes back within 10 dB of the peak
-  const dipLevel = peak * undb(-20)
-  const other = peak * undb(-10)
-  let start = pb
-  let dip = { at: pb, v: Infinity }
-  for (let quiet = 0; start > 0 && pb - start < pre * 1000; start--) {
-    const v = env[start - 1]
-    if (v < dip.v) dip = { at: start - 1, v }
-    if (dip.v < dipLevel && v > other) {
-      start = dip.at + 1
+  const cum = new Float64Array(mono.length + 1)
+  for (let i = 0; i < mono.length; i++) cum[i + 1] = cum[i] + mono[i] ** 2
+  const hop = Math.round((SEGMENT.hopMs / 1000) * sr)
+  const half = Math.round((SEGMENT.winMs / 2000) * sr)
+  const nb = Math.ceil(mono.length / hop)
+  const env = new Float64Array(nb)
+  let envPeak = 0
+  for (let j = 0; j < nb; j++) {
+    const lo = Math.max(0, j * hop - half)
+    const hi = Math.min(mono.length, j * hop + half)
+    env[j] = (cum[hi] - cum[lo]) / Math.max(1, hi - lo)
+    if (env[j] > envPeak) envPeak = env[j]
+  }
+  const quiet = envPeak * undb(SEGMENT.quietDb) ** 2
+  const runBlocks = Math.round(SEGMENT.quietMs / SEGMENT.hopMs)
+  const jp = Math.min(nb - 1, Math.round(peakI / hop))
+  // the event keeps its decay: it ends where the tail has stayed under −50 dB for 80 ms, or 20 ms before another
+  // event, i.e. a rise back over −30 dB after a ≥ 150 ms quiet run (shorter dips are crackle of the same event)
+  const tail = envPeak * undb(-50) ** 2
+  const tailBlocks = Math.round(80 / SEGMENT.hopMs)
+  const lead = Math.round(20 / SEGMENT.hopMs)
+  let end = nb
+  for (let j = jp, run = 0, low = 0, apart = false; j < nb; j++) {
+    run = env[j] < quiet ? run + 1 : 0
+    low = env[j] < tail ? low + 1 : 0
+    if (run >= runBlocks) apart = true
+    if (apart && !run) {
+      end = Math.max(jp + 1, j - lead)
       break
     }
-    quiet = v < lo ? quiet + 1 : 0
-    if (quiet >= 30) {
-      start += 30
+    if (low >= tailBlocks) {
+      end = j - low + 1
       break
     }
   }
-  const tail = peak * undb(-50)
-  let end = pb
-  dip = { at: pb, v: Infinity }
-  for (let quiet = 0; end < nb && end - start < maxLen * 1000; end++) {
-    const v = env[end]
-    if (v < dip.v) dip = { at: end, v }
-    if (dip.v < dipLevel && v > other) {
-      end = dip.at
+  // back, at most `pre` s: from where the lead-in has been under −40 dB for 30 ms, or 20 ms after an earlier event
+  const head = envPeak * undb(-40) ** 2
+  const headBlocks = Math.round(30 / SEGMENT.hopMs)
+  const preBlocks = Math.round((pre * sr) / hop)
+  let start = Math.max(0, jp - preBlocks)
+  for (
+    let j = jp, run = 0, low = 0, apart = false;
+    j >= Math.max(0, jp - preBlocks);
+    j--
+  ) {
+    run = env[j] < quiet ? run + 1 : 0
+    low = env[j] < head ? low + 1 : 0
+    if (run >= runBlocks) apart = true
+    if (apart && !run) {
+      start = Math.min(jp, j + lead)
       break
     }
-    quiet = v < tail ? quiet + 1 : 0
-    if (quiet >= 80) break
+    if (low >= headBlocks) {
+      start = j + low - 1
+      break
+    }
+  }
+  // ≥ 4 ms before the transient, so the 3 ms fade-in stays ahead of it; ends with half a window of decay
+  const t0 = Math.max(0, Math.min((start * hop) / sr, peakI / sr - 0.004))
+  const t1 = Math.min(mono.length / sr, t0 + maxLen, (end * hop + half) / sr)
+  const p = pow ?? Float32Array.from(mono, (v) => (v * v) / 2)
+  const pc = new Float64Array(p.length + 1)
+  for (let i = 0; i < p.length; i++) pc[i + 1] = pc[i] + p[i]
+  const w = Math.round(0.1 * sr)
+  const a = Math.round(t0 * sr)
+  const b = Math.round(t1 * sr)
+  let loud = 0
+  for (let s = a; s === a || s + w <= b; s += Math.round(sr / 1000)) {
+    const e = (pc[Math.min(b, s + w)] - pc[s]) / w
+    if (e > loud) loud = e
   }
   return {
-    // ≥ 4 ms before the transient, so the 3 ms fade-in stays ahead of it
-    start: Math.max(0, Math.min((start * blk) / sr, peakI / sr - 0.004)),
-    end: Math.min(mono.length, end * blk) / sr,
+    start: t0,
+    end: t1,
+    len: t1 - t0,
     transient: peakI / sr,
     peak,
+    rmsDb: 10 * Math.log10(Math.max(loud, 1e-14)),
   }
+}
+
+/**
+ * Slice check over every foley file of the manifest (sound.mjs): each variant's slice per cue type it serves, against
+ * the type's `minLen`. Returns `{ ok, lines, slices }`.
+ */
+export async function sliceCheck(manifest, out = SOUND_OUT) {
+  const groups = {}
+  const files = new Map()
+  for (const [id, f] of Object.entries(manifest.files)) {
+    if (f.kind !== 'sfx') continue
+    files.set(id, path.resolve(out, f.path))
+    for (const c of f.cues) (groups[c] ??= []).push(id)
+  }
+  const { page, close } = await openAudioPage(files)
+  let decoded
+  try {
+    decoded = await decodeMono(page, [...files.keys()], SR, [], true)
+  } finally {
+    await close()
+  }
+  const pows = Object.fromEntries(
+    [...files.keys()].map((id) => [id, decoded[`${id}:pow`]]),
+  )
+  const { segs, short } = sliceAll(groups, decoded, pows)
+  const lines = []
+  const slices = []
+  for (const [type, def] of Object.entries(CUES)) {
+    if (def.music) continue
+    for (const id of groups[def.group] ?? []) {
+      const s = segs[sliceKey(def, id)]
+      const bad = def.minLen && s.len < def.minLen - 1e-6
+      slices.push({
+        type,
+        id,
+        ms: Math.round(s.len * 1000),
+        rmsDb: round(s.rmsDb, 1),
+      })
+      lines.push(
+        `${bad ? 'FAIL' : 'ok  '} ${type.padEnd(9)} ${id.padEnd(20)} ${String(Math.round(s.len * 1000)).padStart(5)} ms${def.minLen ? ` (≥ ${Math.round(def.minLen * 1000)})` : ''}  transient +${Math.round((s.transient - s.start) * 1000)} ms  loudest 100 ms ${s.rmsDb.toFixed(1)} dBFS`,
+      )
+    }
+  }
+  return { ok: !short.length, lines, slices }
+}
+
+/** Slice key of a cue type's variant: `<id>[:rev]@<maxLen>`. */
+const sliceKey = (def, id) => `${def.reverse ? `${id}:rev` : id}@${def.maxLen}`
+
+/**
+ * Slices of every variant of every cue type (`monos[id]`, `pows[id]` at 48 kHz) → `{ segs, short }`; `short` lists the
+ * variants whose slice is under the type's `minLen` (sound.mjs and check 12 fail on them).
+ */
+export function sliceAll(groups, monos, pows, types = Object.keys(CUES)) {
+  const segs = {}
+  const short = []
+  for (const type of types) {
+    const def = CUES[type]
+    if (def.music) continue
+    for (const id of groups[def.group] ?? []) {
+      const key = sliceKey(def, id)
+      if (segs[key]) continue
+      const rev = (x) => (def.reverse ? x.slice().reverse() : x)
+      const seg = segmentHit(
+        rev(monos[id]),
+        SR,
+        def.maxLen,
+        def.pre ?? 0.25,
+        pows?.[id] ? rev(pows[id]) : null,
+      )
+      segs[key] = seg
+      if (def.minLen && seg.len < def.minLen - 1e-6)
+        short.push({ type, id, len: round(seg.len, 3), minLen: def.minLen })
+    }
+  }
+  return { segs, short }
 }
 
 /** Cue list from a file or `sample` (every type, cycling on the beats; cuts on every 2nd downbeat). */
@@ -973,18 +1170,36 @@ function merge(intervals) {
 /**
  * Mix plan (pure): music timing + automation, one event per foley clip with variant, slice, pitch, level, pan and
  * start so the slice's loudest transient lands on the cue frame. `segs[key]` = segmentHit of each (reversed) file.
+ * `musicDb(t)` = the music stem's RMS (dB) around time t as rendered before the master; RMS-levelled cues (`rms`) are
+ * set against it (without it: the music's target RMS).
  */
-export function buildPlan({ reel, cues, beats, groups, segs, seed, musicKey }) {
+export function buildPlan({
+  reel,
+  cues,
+  beats,
+  groups,
+  segs,
+  seed,
+  musicKey,
+  musicDb = () => MUSIC_RMS_DB,
+}) {
   const length = (cues.frames ?? beats.frames) / FPS
   const random = rng(seed ?? reel.charCodeAt(0) * 7919)
   const last = {}
+  let lastFile = null
+  // never the file of the last event of the group, nor of the previous foley event (wood / cover / impact share files)
   const pickVariant = (group) => {
     const ids = groups[group]
     if (!ids?.length) throw new Error(`no sound for cue group "${group}"`)
-    let id
-    do id = ids[Math.floor(random() * ids.length)]
-    while (ids.length > 1 && id === last[group])
+    const fresh = ids.filter((id) => id !== last[group] && id !== lastFile)
+    const pool = fresh.length
+      ? fresh
+      : ids.filter((id) => id !== lastFile).length
+        ? ids.filter((id) => id !== lastFile)
+        : ids
+    const id = pool[Math.floor(random() * pool.length)]
     last[group] = id
+    lastFile = id
     return id
   }
   const events = []
@@ -1010,11 +1225,17 @@ export function buildPlan({ reel, cues, beats, groups, segs, seed, musicKey }) {
     for (let j = 0; j < count; j++) {
       const id = pickVariant(def.group)
       const key = def.reverse ? `${id}:rev` : id
-      const seg = segs[`${key}@${def.maxLen}`]
+      const seg = segs[sliceKey(def, id)]
       const rate = 2 ** ((random() * 2 - 1) / 12)
-      const jitter = (random() * 2 - 1) * 1.5
+      const jitter = (random() * 2 - 1) * LEVELS.jitterDb
       const at = t + j * 0.04
-      const gain = undb(def.peak - 2 * j + jitter) / seg.peak
+      // RMS-levelled: the slice's loudest 100 ms lands at this level (dB, before the master gain)
+      const level =
+        def.rms != null ? musicDb(t) + def.rms - 2 * j + jitter : null
+      const gain =
+        level != null
+          ? undb(level - seg.rmsDb)
+          : undb(def.peak - 2 * j + jitter) / seg.peak
       let when = at - (seg.transient - seg.start) / rate
       let offset = seg.start
       if (when < 0) {
@@ -1034,6 +1255,10 @@ export function buildPlan({ reel, cues, beats, groups, segs, seed, musicKey }) {
         gain: round(gain, 6),
         pan: round(pan + (j % 2 ? 0.05 : 0), 3),
         at: round(at, 6),
+        sliceLen: round(seg.len, 4),
+        levelDb: level == null ? null : round(level, 2),
+        sliceRmsDb: round(seg.rmsDb, 2),
+        minLen: def.minLen ?? 0,
       })
     }
     if (def.sub) subs.push({ when: t, gain: undb(SUB.peakDb) })
@@ -1058,7 +1283,7 @@ export function buildPlan({ reel, cues, beats, groups, segs, seed, musicKey }) {
     events,
     subs,
     sub: SUB,
-    send: { db: SEND_DB, endDb: SEND_END_DB },
+    send: { db: SEND_DB, endDb: SEND_END_DB, musicEndDb: MUSIC_SEND_END_DB },
     fade: { start: Math.max(0, length - FADE_SEC), end: length },
   }
 }
@@ -1156,6 +1381,20 @@ async function renderPlan(page, plan, parts) {
         join.connect(comp).connect(fade).connect(ctx.destination)
         fade.gain.setValueAtTime(1, plan.fade.start)
         fade.gain.exponentialRampToValueAtTime(0.01, plan.fade.end)
+        // one room for the foley send and, in the ending, the music send
+        const irL = fromB64(ir[0])
+        const irBuf = new AudioBuffer({
+          numberOfChannels: 2,
+          length: irL.length,
+          sampleRate: SRATE,
+        })
+        irBuf.copyToChannel(irL, 0)
+        irBuf.copyToChannel(fromB64(ir[1]), 1)
+        const verb = new ConvolverNode(ctx, {
+          disableNormalization: true,
+          buffer: irBuf,
+        })
+        verb.connect(sum)
 
         if (part !== 'sfx') {
           const m = plan.music
@@ -1182,6 +1421,15 @@ async function renderPlan(page, plan, parts) {
             .connect(duck)
             .connect(breath)
             .connect(sum)
+          // the ending: the music's room send rises from 0 at the fade start to −6 dB at its end
+          const musicSend = new GainNode(ctx, { gain: 0 })
+          breath.connect(musicSend).connect(verb)
+          musicSend.gain.setValueAtTime(0, 0)
+          musicSend.gain.setValueAtTime(0, plan.fade.start)
+          musicSend.gain.linearRampToValueAtTime(
+            undb(plan.send.musicEndDb),
+            plan.fade.end,
+          )
           base.gain.setValueAtTime(0, 0)
           base.gain.linearRampToValueAtTime(m.gain, 0.003)
           base.gain.setValueAtTime(m.gain, plan.length - 0.003)
@@ -1223,20 +1471,8 @@ async function renderPlan(page, plan, parts) {
           })
           foley.connect(sum)
           ui.connect(sum)
-          const irL = fromB64(ir[0])
-          const irBuf = new AudioBuffer({
-            numberOfChannels: 2,
-            length: irL.length,
-            sampleRate: SRATE,
-          })
-          irBuf.copyToChannel(irL, 0)
-          irBuf.copyToChannel(fromB64(ir[1]), 1)
-          const verb = new ConvolverNode(ctx, {
-            disableNormalization: true,
-            buffer: irBuf,
-          })
           const send = new GainNode(ctx, { gain: undb(plan.send.db) })
-          foley.connect(send).connect(verb).connect(sum)
+          foley.connect(send).connect(verb)
           send.gain.setValueAtTime(undb(plan.send.db), plan.fade.start)
           send.gain.linearRampToValueAtTime(
             undb(plan.send.endDb),
@@ -1297,6 +1533,63 @@ async function renderPlan(page, plan, parts) {
 
 // ---------------------------------------------------------------- mix
 
+/** `t → dB`: RMS of a stereo stem ((L² + R²) / 2) over t ± 0.5 s. */
+export function localRmsDb(left, right, sr = SR) {
+  const cum = new Float64Array(left.length + 1)
+  for (let i = 0; i < left.length; i++)
+    cum[i + 1] = cum[i] + (left[i] ** 2 + right[i] ** 2) / 2
+  return (t) => {
+    const a = Math.max(0, Math.round((t - 0.5) * sr))
+    const b = Math.min(left.length, Math.round((t + 0.5) * sr))
+    return (
+      10 * Math.log10(Math.max((cum[b] - cum[a]) / Math.max(1, b - a), 1e-14))
+    )
+  }
+}
+
+const LEVEL_PASSES = 4
+
+/**
+ * One level pass (mutates `plan.events`): per RMS-levelled cue, its loudest 100 ms in the SFX stem (before the master)
+ * against its planned `levelDb` (`fill`: the flick burst against the first flick's level); the cue's events take the
+ * difference (± 12 dB). Returns true when any cue moved by more than 0.3 dB.
+ */
+export function levelCorrect(plan, left, right) {
+  let moved = false
+  const byCue = new Map()
+  for (const e of plan.events)
+    if (e.levelDb != null) {
+      const k = `${e.type}@${e.cue}`
+      if (!byCue.has(k)) byCue.set(k, [])
+      byCue.get(k).push(e)
+    }
+  for (const evs of byCue.values()) {
+    const got = cueRmsDb(left, right, evs[0].cue / FPS)
+    const delta = Math.max(-12, Math.min(12, evs[0].levelDb - got))
+    if (Math.abs(delta) <= 0.3) continue
+    moved = true
+    for (const e of evs) e.gain = round(e.gain * undb(delta), 6)
+  }
+  return moved
+}
+
+/** Loudest 100 ms RMS (dB, (L² + R²) / 2, 10 ms hop) of a stereo stem within [t − 150 ms, t + 250 ms]. */
+export function cueRmsDb(left, right, t, sr = SR) {
+  const w = Math.round(0.1 * sr)
+  let best = 0
+  for (
+    let s = Math.round((t - 0.15) * sr);
+    s + w <= Math.round((t + 0.25) * sr);
+    s += Math.round(0.01 * sr)
+  ) {
+    let e = 0
+    for (let i = Math.max(0, s); i < Math.min(left.length, s + w); i++)
+      e += (left[i] ** 2 + right[i] ** 2) / 2
+    if (e / w > best) best = e / w
+  }
+  return 10 * Math.log10(Math.max(best, 1e-14))
+}
+
 /** Sound list lookups: id → entry with its local path; cue group → ids. */
 function soundIndex(list = loadSound(SOUND_JSON)) {
   const byId = new Map()
@@ -1326,29 +1619,30 @@ export async function mixReel({ reel, music, cues, beats, out, seed }) {
   for (const id of sfxIds) files.set(id, byId.get(id).file)
   const { page, close } = await openAudioPage(files)
   try {
-    const monos = await decodeMono(page, [...new Set(sfxIds)], SR, ['music'])
-    const segs = {}
-    for (const type of new Set(cues.cues.map((c) => c.type))) {
-      const def = CUES[type]
-      if (def.music) continue
-      for (const id of groups[def.group] ?? []) {
-        const mono = def.reverse ? monos[id].slice().reverse() : monos[id]
-        segs[`${def.reverse ? `${id}:rev` : id}@${def.maxLen}`] = segmentHit(
-          mono,
-          SR,
-          def.maxLen,
-        )
-      }
+    const decoded = await decodeMono(
+      page,
+      [...new Set(sfxIds)],
+      SR,
+      ['music'],
+      true,
+    )
+    const pows = Object.fromEntries(
+      sfxIds.map((id) => [id, decoded[`${id}:pow`]]),
+    )
+    const { segs } = sliceAll(groups, decoded, pows, [
+      ...new Set(cues.cues.map((c) => c.type)),
+    ])
+    const args = { reel, cues, beats, groups, segs, seed, musicKey: 'music' }
+    // the music stem as it will be rendered (ducks, breaths, intro filter), so RMS-levelled foley sits on it
+    const [ml, mr] = (await renderPlan(page, buildPlan(args), ['music'])).music
+    const musicDb = localRmsDb(ml, mr)
+    const plan = buildPlan({ ...args, musicDb })
+    // closed loop: measure each RMS-levelled cue in the rendered SFX stem as check 12j does (stereo files, pan, the
+    // room send and neighbouring tails make the slice model miss by up to ~8 dB) and correct its events' gain
+    for (let pass = 0; pass < LEVEL_PASSES; pass++) {
+      const [sl, sr] = (await renderPlan(page, plan, ['sfx'])).sfx
+      if (!levelCorrect(plan, sl, sr)) break
     }
-    const plan = buildPlan({
-      reel,
-      cues,
-      beats,
-      groups,
-      segs,
-      seed,
-      musicKey: 'music',
-    })
     const stems = await renderPlan(page, plan, ['mix', 'music', 'sfx'])
     const master = masterCurve(...stems.mix)
     const done = Object.fromEntries(
@@ -1477,12 +1771,16 @@ export function cueOnsets(left, right, cues, sr = SR) {
 /**
  * Check 12 (spec §5): every audio file is in sound.json with an accepted licence and its sha256; the music comes from
  * a listed track; mix −14 LUFS ± 0.5, true peak ≤ −1 dBTP, no sample ≥ 0.99; every sound cue has an onset in the
- * SFX stem within ± 1 frame; every cut is within ± 1 frame of a beat; no silence > 150 ms. `{ ok, lines, numbers }`.
+ * SFX stem within ± 1 frame; every cut is within ± 1 frame of a beat (0 cues or 0 cuts fail: nothing was measured);
+ * no silence > 150 ms; every foley slice reaches its type's minimum length; RMS-levelled cues (loudest 100 ms of the
+ * SFX stem vs the music stem's RMS around the cue) spread ≤ 4 dB per type and every swish ≤ music − 8 dB.
+ * `{ ok, lines, numbers }`.
  */
 export function checkSound({
   meta,
   mix,
   sfx,
+  music,
   beats,
   cuts = meta.cuts,
   list = loadSound(SOUND_JSON),
@@ -1540,19 +1838,59 @@ export function checkSound({
   const off = onsets.filter((o) => Math.abs(o.offsetFrames) > 1)
   const maxMs = Math.max(0, ...onsets.map((o) => Math.abs(o.offsetMs)))
   line(
-    !off.length,
+    onsets.length > 0 && !off.length,
     `12f cue onsets: ${onsets.length} cues, max |offset| ${maxMs.toFixed(1)} ms (± 1 frame = 33.3 ms)${off.length ? `; off: ${off.map((o) => `${o.type}@${o.frame} ${o.offsetFrames} f`).join(', ')}` : ''}`,
   )
   const cutDist = cuts.map((f) => ({ f, d: nearestBeatDistance(beats, f) }))
   const offCuts = cutDist.filter((c) => c.d > 1)
   line(
-    !offCuts.length,
+    cuts.length > 0 && !offCuts.length,
     `12g cuts on beats: ${cuts.length ? `${cuts.length} cuts, max ${Math.max(0, ...cutDist.map((c) => c.d))} frame(s) from a beat` : 'no cuts given'}${offCuts.length ? `; off: ${offCuts.map((c) => `${c.f} (${c.d} f)`).join(', ')}` : ''}`,
   )
   const silence = longestSilenceMs(...mix)
   line(
     silence <= SILENCE.ms,
     `12h longest silence ${silence} ms (≤ 150 ms under −60 dBFS)`,
+  )
+  const events = meta.plan?.events ?? []
+  const short = events.filter((e) => e.sliceLen < e.minLen - 1e-6)
+  const minOf = (type) =>
+    Math.min(
+      ...events.filter((e) => e.type === type).map((e) => e.sliceLen * 1000),
+    )
+  const sliceTypes = [
+    ...new Set(events.filter((e) => e.minLen).map((e) => e.type)),
+  ]
+  line(
+    events.length > 0 && !short.length,
+    `12i foley slices: ${events.length} events, shortest ${sliceTypes.map((t) => `${t} ${Math.round(minOf(t))}/${Math.round(CUES[t].minLen * 1000)} ms`).join(', ')}${short.length ? `; short: ${short.map((e) => `${e.type}@${e.cue} ${e.id} ${Math.round(e.sliceLen * 1000)} ms`).join(', ')}` : ''}`,
+  )
+  const levels = {}
+  if (music) {
+    const musicAt = localRmsDb(...music)
+    for (const c of meta.cues) {
+      if (CUES[c.type]?.rms == null) continue
+      const t = c.frame / FPS
+      ;(levels[c.type] ??= []).push(round(cueRmsDb(...sfx, t) - musicAt(t), 1))
+    }
+  }
+  const spread = (v) => Math.max(...v) - Math.min(...v)
+  const wide = Object.entries(levels).filter(
+    ([, v]) => spread(v) > LEVELS.spreadDb,
+  )
+  const loudSwish = (levels.swish ?? []).filter((v) => v > -LEVELS.swishUnderDb)
+  line(
+    Boolean(music) && !wide.length && !loudSwish.length,
+    `12j foley levels vs music: ${
+      music
+        ? Object.entries(levels)
+            .map(
+              ([t, v]) =>
+                `${t} ${Math.min(...v).toFixed(1)}…${Math.max(...v).toFixed(1)} dB (spread ${spread(v).toFixed(1)})`,
+            )
+            .join(', ') || 'no RMS-levelled cues'
+        : 'no music stem'
+    } (spread ≤ ${LEVELS.spreadDb} dB, swish ≤ −${LEVELS.swishUnderDb} dB)${loudSwish.length ? `; loud swish: ${loudSwish.join(', ')}` : ''}`,
   )
   return {
     ok,
@@ -1565,6 +1903,8 @@ export function checkSound({
       cues: onsets.length,
       cuts: cuts.length,
       longestSilenceMs: silence,
+      shortSlices: short.length,
+      levels,
     },
     onsets,
   }
@@ -1595,6 +1935,7 @@ export function checkSoundFiles({
     meta,
     mix: wav('mix'),
     sfx: wav('sfx'),
+    music: wav('music'),
     beats,
     cuts: cuts ?? meta.cuts,
   })
@@ -1675,6 +2016,7 @@ async function main() {
     meta: res.meta,
     mix: res.stems.mix,
     sfx: res.stems.sfx,
+    music: res.stems.music,
     beats,
   })
   for (const l of check.lines) console.log(l)

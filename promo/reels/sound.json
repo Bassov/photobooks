@@ -1,6 +1,6 @@
 {
   "checked": "2026-11-27",
-  "note": "Licences checked 2026-11-27 on each page below. Spec §3 Music B/C (Scott Buckley, CC BY 4.0) are not used: his licensing page (scottbuckley.com.au/library/licensing/) marks Web Advertising as not covered by CC BY without a separate agreement (paid Web License, 40 AUD per track), so B and C use the spec's CC0 fallback (HoliznaCC0). FMA's own download button needs a login; the files below are the public storage files the track page itself embeds (sound.mjs checks the page names them).",
+  "note": "Licences checked 2026-11-27 on each page below. Spec §3 Music B/C (Scott Buckley, CC BY 4.0) are not used: his licensing page (scottbuckley.com.au/library/licensing/) marks Web Advertising as not covered by CC BY without a separate agreement (paid Web License, 40 AUD per track), so B and C use the spec's CC0 fallback (HoliznaCC0). FMA's own download button needs a login; the files below are the public storage files the track page itself embeds (sound.mjs checks the page names them). 2026-11-28: BigSoundBank Whoosh #1 / #2 (0572, 0573) dropped, their loudest whoosh is shorter than the 200 ms swish minimum (Designer review of #745); Kenney select_003 → select_007 (select_003 is a multi-note figure whose strongest attack falls 43 ms after its loudest sample, so the pick onset missed ± 1 frame).",
   "sources": {
     "fma-holiznacc0": {
       "name": "Free Music Archive / HoliznaCC0, album \"Public Domain Lofi\"",
@@ -54,10 +54,10 @@
     "c": [
       "one-good-day",
       "doodles",
-      "ocean-breeze",
       "warm-fuzz",
-      "wave-maker",
       "orbs-in-a-photo",
+      "ocean-breeze",
+      "wave-maker",
       "on-the-other-side-of-bad"
     ]
   },
@@ -428,28 +428,6 @@
       "sha256": "162b80926c449c5994ca43ea759ad6d9dfc0c29c969120f2f70632a1347c3418"
     },
     {
-      "id": "bsb-0572",
-      "cues": ["swish"],
-      "title": "Whoosh #1",
-      "source": "bigsoundbank",
-      "page": "https://bigsoundbank.com/whoosh-1-s0572.html",
-      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/0572.wav",
-      "licence": "CC0-1.0",
-      "checked": "2026-11-27",
-      "sha256": "ff06c297efb8cf1c9438473ed558d5ba0063638b0727687b8ab78fd6e9733769"
-    },
-    {
-      "id": "bsb-0573",
-      "cues": ["swish"],
-      "title": "Whoosh #2",
-      "source": "bigsoundbank",
-      "page": "https://bigsoundbank.com/whoosh-2-s0573.html",
-      "url": "https://bigsoundbank.com/UPLOAD/bwf-en/0573.wav",
-      "licence": "CC0-1.0",
-      "checked": "2026-11-27",
-      "sha256": "b18b4f6a630f4cc696a139a6fe44024c9d0056380b3fcb00869007326d24a201"
-    },
-    {
       "id": "bsb-1795",
       "cues": ["swish"],
       "title": "Whoosh #3",
@@ -555,16 +533,16 @@
       "sha256": "4cc6ac5341b9b2c86fef80c347de028e9ab9f2e037586ac7d9fa59a403a1c012"
     },
     {
-      "id": "kenney-select-003",
+      "id": "kenney-select-007",
       "cues": ["pick"],
-      "title": "select_003",
+      "title": "select_007",
       "source": "kenney",
       "pack": "kenney-interface-sounds",
-      "entry": "Audio/select_003.ogg",
+      "entry": "Audio/select_007.ogg",
       "page": "https://kenney.nl/assets/interface-sounds",
       "licence": "CC0-1.0",
-      "checked": "2026-11-27",
-      "sha256": "9a612fd2f513d52a296906b41071c990f75defe56be3bee60d2d4e2423b51b8b"
+      "checked": "2026-11-28",
+      "sha256": "cd4390dd2b24f09016a5fa1be63334fa0f1859811f4cf29c02e8e2750f6a2cd0"
     },
     {
       "id": "kenney-tick-001",

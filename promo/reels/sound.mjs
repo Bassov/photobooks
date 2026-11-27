@@ -1,10 +1,11 @@
 // Reels sound layer (Designer promo-reels-v2 spec §3): check the licence page of every music track and foley file in
-// sound.json, download them to the gitignored promo/out/reels/sound/, verify each file's sha256, then run the track
-// gate of reels-mix.mjs for reels A/B/C and write `<reel>.beats.json`. Audio files are never committed.
+// sound.json, download them to the gitignored promo/out/reels/sound/, verify each file's sha256, slice every foley
+// variant (each must reach its cue type's minimum length), then run the track gate of reels-mix.mjs for reels A/B/C
+// and write `<reel>.beats.json`. Audio files are never committed.
 //
-//   node promo/reels/sound.mjs                 licence check + download + sha256 + track gate (exit 1 on any failure)
+//   node promo/reels/sound.mjs                 licence check + download + sha256 + slices + track gate (exit 1 on any failure)
 //   node promo/reels/sound.mjs --check         licence pages only (no downloads)
-//   node promo/reels/sound.mjs --no-gate       skip the track gate
+//   node promo/reels/sound.mjs --no-gate       skip the track gate (the slice check still runs)
 //   node promo/reels/sound.mjs --reel a        gate only reel a (a | b | c)
 //   node promo/reels/sound.mjs --pin           write the sha256 of entries that have none yet (a set hash never changes)
 //   node promo/reels/sound.mjs --pack-list <id>  list the files inside a downloaded pack (to pick sfx entries)
@@ -321,10 +322,16 @@ async function main() {
   if (!ok) return 1
   const manifest = writeManifest(list)
   console.log(`manifest: ${path.join(SOUND_OUT, 'manifest.json')}`)
+
+  console.log('— foley slices (minimum length per cue type)')
+  const { sliceCheck, trackGate } =
+    await import('../motion/scripts/reels-mix.mjs')
+  const slices = await sliceCheck(manifest, SOUND_OUT)
+  for (const line of slices.lines) console.log(line)
+  if (!slices.ok) return 1
   if (flag('--no-gate')) return 0
 
   console.log('— track gate')
-  const { trackGate } = await import('../motion/scripts/reels-mix.mjs')
   const reels = opt('--reel') ? [opt('--reel')] : Object.keys(list.candidates)
   let gateOk = true
   for (const reel of reels) {

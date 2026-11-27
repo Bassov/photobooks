@@ -109,8 +109,10 @@ export function sheetSize(frames) {
 
 // ---------------------------------------------------------------- v2: the cut follows the track's beats
 // promo-reels-v2 spec §3 "Cut to the music": a reel's grid is its `<reel>.beats.json` (written by the track gate in
-// scripts/reels-mix.mjs): `{ bpm, start, period, frames, bars, downbeats[], strongestBar, beats[] }`, beats in seconds
-// from frame 0 of the reel (= `start` s into the track). frame = round(beat time × 30). Pass the parsed JSON in.
+// scripts/reels-mix.mjs): `{ bpm, start, period, frames, bars, downbeats[], liftBar, liftDb, barRmsDb[], beats[] }`,
+// beats in seconds from frame 0 of the reel (= `start` s into the track). frame = round(beat time × 30). `liftBar` is
+// the hero bar (largest RMS step up from the bar before it): Fill book Enter / the cover drop go on its downbeat
+// (`liftFrame`). Pass the parsed JSON in.
 
 /** Frame of beat `beat` of a beats.json grid (half / quarter beats interpolate; past the end the period extends). */
 export function gridBeatFrame(beats, beat, offset = 0) {
@@ -142,6 +144,9 @@ export function gridCue(beats, beat, type, extra = {}) {
     ...extra,
   }
 }
+
+/** Frame of the hero bar's downbeat (`liftBar`; Designer 2026-11-28: Fill book Enter / the cover drop sit on it). */
+export const liftFrame = (beats) => gridBeatFrame(beats, beats.liftBar * 4)
 
 /** Distance in frames from `frame` to the nearest beat of the grid. */
 export function nearestBeatDistance(beats, frame) {
