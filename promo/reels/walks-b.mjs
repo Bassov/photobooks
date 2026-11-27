@@ -182,12 +182,19 @@ export function walksB() {
       reel: 'b',
       viewport: 'phone',
       about:
-        'B8–B10: phone, the reader on the B cover (opened off camera); tap opens the cover, one slow 1300 ms finger drag closes it',
+        'B8–B10: phone, the reader on the B cover (opened off camera); tap opens the cover onto the title page, one slow 1300 ms finger drag turns it onto spread 1 = the hero',
       targets: [
         { name: 'stage', sel: '[data-testid="pt-stage"]' },
         { name: 'paper', sel: '[data-testid="ps-paper"]', all: true },
       ],
       async setup(P) {
+        // Spread 1 of the face-out book (its full-spread frame, data-si 2) is kit p10; reel B feeds it the hero, as the
+        // editor walks put the hero on spread 1. The rewritten request still goes through capture's server (graded L68).
+        await P.page.route(/\/photos\/p10\.jpg(\?.*)?$/, (route) =>
+          route.fallback({
+            url: route.request().url().replace('/p10.jpg', '/p01.jpg'),
+          }),
+        )
         await P.page.goto(SITE(P))
         await P.page.waitForSelector(FACE())
         await P.settle(1500)
@@ -204,29 +211,30 @@ export function walksB() {
         await P.moveTo(st.x + st.width * 0.7, st.y + st.height * 0.5)
       },
       async act(P) {
-        await P.wait(660)
+        await P.wait(1330)
         await P.down()
         await P.wait(70)
         await P.up()
-        await P.wait(2260)
+        // the cover opens (GL, 1000 ms); the breath starts on b19.5 = 30 frames after the tap, as the open settles
+        await P.wait(930)
         const stage = P.page.locator('[data-testid="pt-stage"]')
         P.openedSi = await stage.getAttribute('data-si')
-        // the breath: one slow finger drag to the right closes the cover again, back onto the hero
+        // the breath: one slow finger drag to the left turns the title page onto spread 1 (the hero)
         const st = await stage.boundingBox()
         const y = st.y + st.height * 0.5
-        await P.moveTo(st.x + st.width * 0.1, y)
+        await P.moveTo(st.x + st.width * 0.92, y)
         await P.down()
-        await P.glide(st.x + st.width * 0.92, y, 1300, 0.01)
+        await P.glide(st.x + st.width * 0.08, y, 1300, 0.01)
         await P.up()
-        await P.wait(3000)
+        await P.wait(4100)
       },
       async check(P) {
         const si = await P.page
           .locator('[data-testid="pt-stage"]')
           .getAttribute('data-si')
-        if (P.openedSi !== '1' || si !== '0')
+        if (P.openedSi !== '1' || si !== '2')
           throw new Error(
-            `tap should open the cover (data-si 1, got ${P.openedSi}) and the drag close it (0, got ${si})`,
+            `tap should open the cover (data-si 1, got ${P.openedSi}) and the drag turn onto spread 1 (2, got ${si})`,
           )
       },
     },
@@ -262,37 +270,47 @@ function stage() {
       JSON.stringify(rects) + '\n',
     )
     // Every frame kept (-g 1 would bloat; -g 15 keeps OffthreadVideo seeks cheap), DPR 3 pixels untouched.
-    const res = spawnSync(
-      REMOTION,
-      [
-        'ffmpeg',
-        '-y',
-        '-v',
-        'error',
-        '-framerate',
-        '30',
-        '-i',
-        path.join(dir, 'frames', '%06d.jpg'),
-        '-c:v',
-        'libx264',
-        '-preset',
-        'medium',
-        '-crf',
-        '12',
-        '-g',
-        '15',
-        '-pix_fmt',
-        'yuv420p',
-        path.join(dest, `${id}.mp4`),
-      ],
-      { encoding: 'utf8', maxBuffer: 64 << 20 },
-    )
-    if (res.status !== 0)
-      throw new Error(`${id}: ffmpeg failed: ${res.stderr || res.stdout}`)
+    encode(id, dir, path.join(dest, `${id}.mp4`), ['-crf', '12', '-g', '15'])
+    // The 0.5 s sheet's proxy (ReelB.jsx ClipFrame): DPR 1, every frame a keyframe.
+    encode(id, dir, path.join(dest, `${id}.sheet.mp4`), [
+      '-vf',
+      'scale=iw/3:ih/3:flags=lanczos',
+      '-crf',
+      '16',
+      '-g',
+      '1',
+    ])
     console.log(
-      `${id}: ${meta.frames} frames → clips/b/${id}.mp4 + rects (busy from the DOM log)`,
+      `${id}: ${meta.frames} frames → clips/b/${id}.mp4 (+ .sheet.mp4) + rects (busy from the DOM log)`,
     )
   }
+}
+
+function encode(id, dir, out, args) {
+  const res = spawnSync(
+    REMOTION,
+    [
+      'ffmpeg',
+      '-y',
+      '-v',
+      'error',
+      '-framerate',
+      '30',
+      '-i',
+      path.join(dir, 'frames', '%06d.jpg'),
+      '-c:v',
+      'libx264',
+      '-preset',
+      'medium',
+      ...args,
+      '-pix_fmt',
+      'yuv420p',
+      out,
+    ],
+    { encoding: 'utf8', maxBuffer: 64 << 20 },
+  )
+  if (res.status !== 0)
+    throw new Error(`${id}: ffmpeg failed: ${res.stderr || res.stdout}`)
 }
 
 if (

@@ -7,11 +7,13 @@ import {
   OffthreadVideo,
   staticFile,
   useCurrentFrame,
+  useVideoConfig,
 } from 'remotion'
 import { reelConfig } from './shared/beats.js'
 import {
   cameraAt,
   clickScaleAt,
+  isFast,
   minJerk,
   shotAt,
   springAt,
@@ -85,15 +87,22 @@ export function rackBlur(table, f) {
 
 // ---------------------------------------------------------------- contexts (drawn in plane px under the camera)
 
-/** A kit clip at reel frame `f` (rate 1, clamped to its first / last frame). */
+/**
+ * A kit clip at reel frame `f` (rate 1, clamped to its first / last frame). The 0.5 s sheet (Root's `ReelSheetB`)
+ * draws 36 cells of 270 × 480 in one page; 72 extractions of the DPR-3 clip there exceed the 30 s delayRender limit,
+ * so the sheet reads the DPR-1 proxy `<clip>.sheet.mp4` (walks-b.mjs --stage), still ≥ 1.4 px per cell px.
+ */
 const ClipFrame = ({ clip, f }) => {
   const { frames, plane } = CLIP[clip]
+  const { id } = useVideoConfig()
+  const file = id.startsWith('ReelSheet') ? `${clip}.sheet` : clip
   const k = Math.min(frames - 1, Math.max(0, f - OFFSET[clip]))
   return (
     <Freeze frame={k}>
       <OffthreadVideo
-        src={staticFile(`clips/${clip}.mp4`)}
+        src={staticFile(`clips/${file}.mp4`)}
         muted
+        toneMapped={false}
         style={{
           position: 'absolute',
           left: 0,
@@ -264,6 +273,20 @@ function ghostBox(shot, f, clip, fallback) {
   return inside ? g : fallback
 }
 
+/**
+ * The drag image under the pointer while a filmstrip thumb is dragged (B2: onto spread 1; B3–B4: onto the cover).
+ * Chromium does not paint the OS drag image into a CDP screenshot, so the capture has none; a real browser shows the
+ * thumb's photo there, and this draws it: the hero, thumb-sized, centred on the pointer.
+ */
+function dragGhost(shot, f) {
+  const clip = ['B2', 'B3', 'B4'].includes(shot.id) ? shot.ui.clip : null
+  if (!clip) return null
+  const [down] = downFrames(clip)
+  const up = POINTER[clip].events.find((e) => e.type === 'up').f + OFFSET[clip]
+  if (f < down || f >= up) return null
+  return ghostBox(shot, f, clip, null)
+}
+
 export function heroBox(table, shot, f) {
   const clip = shot.ui?.clip
   switch (shot.id) {
@@ -302,6 +325,69 @@ export function heroBox(table, shot, f) {
     default:
       return null
   }
+}
+
+/**
+ * Local stand-in for shared `Camera` on the kit clip contexts. Shared `Camera` motion-blurs fast frames with a
+ * 10-sample `CameraMotionBlur`, and every sample re-extracts the 3840×4320 clip frame (1.2–7 s each; ×2 under
+ * RackFocus). B4/B5 then exceed the 30 s delayRender timeout that reels-render.mjs leaves at its default. The clip
+ * frame is frozen across the samples anyway (`ClipFrame`), so here the same camera transform gets one extraction and
+ * fast frames get a directional blur along the camera's own motion: a 180° shutter smears half of the frame's travel.
+ */
+const ClipCamera = ({ shot, plane, children }) => {
+  const f = useCurrentFrame()
+  const id = `b-mblur-${React.useId().replace(/:/g, '')}`
+  const c = cameraAt(shot, f)
+  let sigma = null
+  if (isFast(shot, f)) {
+    const p = cameraAt(shot, f - 1)
+    const at = (k, x, y) => ({ x: x * k.s + k.tx, y: y * k.s + k.ty })
+    const mid = (k) => at(k, plane.w / 2, plane.h / 2)
+    const edge = (k) => at(k, 0, 0)
+    const m0 = mid(p)
+    const m1 = mid(c)
+    // the zoom's share: how far the plane corner moves relative to the centre
+    const zx = Math.abs(edge(c).x - m1.x - (edge(p).x - m0.x))
+    const zy = Math.abs(edge(c).y - m1.y - (edge(p).y - m0.y))
+    // a box smear of length L ≈ a gaussian of σ = L / 3; zoom blur is radial, so half its edge travel on each axis
+    const smear = (d, z) => (0.5 * (d + z / 2)) / 3
+    sigma = {
+      x: smear(Math.abs(m1.x - m0.x), zx),
+      y: smear(Math.abs(m1.y - m0.y), zy),
+    }
+  }
+  return (
+    <AbsoluteFill
+      style={{
+        overflow: 'hidden',
+        filter: sigma ? `url(#${id})` : undefined,
+      }}
+    >
+      {sigma && (
+        <svg width="0" height="0" style={{ position: 'absolute' }}>
+          <filter id={id} x="-5%" y="-5%" width="110%" height="110%">
+            <feGaussianBlur
+              stdDeviation={`${sigma.x.toFixed(2)} ${sigma.y.toFixed(2)}`}
+              edgeMode="duplicate"
+            />
+          </filter>
+        </svg>
+      )}
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: plane.w,
+          height: plane.h,
+          transformOrigin: '0 0',
+          transform: `translate(${c.tx}px, ${c.ty}px) scale(${c.s})`,
+        }}
+      >
+        {children}
+      </div>
+    </AbsoluteFill>
+  )
 }
 
 /** Focus B with the rack: outside the hero .35 brightness + 8 px blur (+ the rack blur); the hero box stays sharp. */
@@ -366,6 +452,7 @@ export const ReelB = ({ reel = R, table, audio = true, probe = true }) => {
   // during the shrink the editor (B2's camera) is already under the photo
   const ctxShot = shrink ? B2 : shot
   const land = shot.land ? landing(table, f) : null
+  const ghost = dragGhost(shot, f)
   const cursor = cursorAt(shot, f)
   // end card: the phone body (as it is when the end card starts) settles into y 250–940 on the heavy spring
   let move = null
@@ -383,11 +470,17 @@ export const ReelB = ({ reel = R, table, audio = true, probe = true }) => {
     <RackFocus
       box={shrink ? shrink.clip : heroBox(table, shot, f)}
       extra={rackBlur(table, f)}
-      render={() => (
-        <Camera shot={ctxShot} plane={ctxShot.plane}>
-          <Context shot={ctxShot} f={f} />
-        </Camera>
-      )}
+      render={() =>
+        CLIP[ctxShot.context] ? (
+          <ClipCamera shot={ctxShot} plane={ctxShot.plane}>
+            <Context shot={ctxShot} f={f} />
+          </ClipCamera>
+        ) : (
+          <Camera shot={ctxShot} plane={ctxShot.plane}>
+            <Context shot={ctxShot} f={f} />
+          </Camera>
+        )
+      }
     />
   )
   return (
@@ -413,6 +506,7 @@ export const ReelB = ({ reel = R, table, audio = true, probe = true }) => {
         />
       )}
       {land && <PhotoIn clip={land.box} scale={land.scale} />}
+      {ghost && <PhotoIn clip={ghost} radius={4} />}
       {cursor && <Cursor at={cursor} />}
       <EndCard from={end.from} beatFrames={beatFrames} probe={probe} />
       <Grain reel={reel} />

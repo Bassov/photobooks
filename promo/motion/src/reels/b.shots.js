@@ -15,8 +15,11 @@ const b = (beat) => beat * BEAT
 
 // ---------------------------------------------------------------- measured (CSS px of each clip's viewport)
 
-/** Hero photo: graded L68, 4000 × 2667 (promo/out/reels/photos/manifest.json reels.b). */
-export const HERO = { file: 'L68.jpg', w: 4000, h: 2667, walkerX: 0.58 }
+/**
+ * Hero photo: graded L68, 4000 × 2667 (promo/out/reels/photos/manifest.json reels.b). The walker stands at x 21–35 %
+ * (measured on the graded file; the spec's 58 % is the backpack rocks), so the B1 crop centres on 30 %.
+ */
+export const HERO = { file: 'L68.jpg', w: 4000, h: 2667, walkerX: 0.3 }
 
 export const CLIP = {
   'b-hero-drop': {
@@ -44,7 +47,7 @@ export const CLIP = {
     roomFrame: 54,
   },
   'b-phone': {
-    frames: 226,
+    frames: 239,
     plane: { w: 390, h: 844 },
     paper: { x: 16, y: 180, w: 358, h: 448 },
   },
@@ -165,8 +168,9 @@ export const OFFSET = {
   'b-hero-cover': b(7) - eventFrame('b-hero-cover', 'up'),
   // the room's closed cover is on screen at the b16 rack (clip frames 54–62); the click lands at 312 = b15.5 + 2
   'b-site': b(16) - 58,
-  // tap on b17 = 340; the breath drag then starts on b20.5 = 410
-  'b-phone': b(17) - 20,
+  // tap on b18 = 360 (spec: b17; one beat later so the title page under the cover is on screen for ~half a beat
+  // only); the cover opens (1000 ms) onto the title page; the breath drag starts on b19.5 = 390
+  'b-phone': b(18) - 40, // b-phone.pointer.json: tap down on clip frame 40, breath drag down on 70
 }
 
 const box = (x, y, w, h) => ({ x, y, w, h })
@@ -348,7 +352,7 @@ const B7 = add({
     { cx: S.room.x + S.room.w / 2 - 20, cy: 720, w: 790 },
   ],
 })
-// B8 16–19 W: rack focus on b16 → the phone reader on the B cover; tap on b17 opens it (GL, 1000 ms).
+// B8 16–19 W: rack focus on b16 → the phone reader on the B cover; tap on b18 opens it (GL, 1000 ms).
 const PHONE_W = {
   cx: 195,
   cy: (HEIGHT / 2 - 260) / (580 / 390),
@@ -365,7 +369,8 @@ const B8 = add({
   rack: b(16),
   cam: [lock(P.paper, endBox(B7, S.room)), PHONE_W],
 })
-// B9 19–23 M (breath): push into the page; from b20.5 one slow 1300 ms finger drag closes the cover onto the hero.
+// B9 19–23 M (breath): push into the page; from b19.5 (as soon as the cover has opened onto the title page, so the
+// hero is off screen for about half a beat) one slow 1300 ms finger drag turns the next page: spread 1 = the hero.
 const B9 = add({
   id: 'B9',
   from: b(19),
@@ -376,7 +381,7 @@ const B9 = add({
   ui: { clip: 'b-phone', rate: 1 },
   cam: [PHONE_W, frameOn(P.paper, 960, { x: 540, y: 900 })],
   push: 0.006,
-  breath: { from: b(20.5), to: b(20.5) + 39 },
+  breath: { from: b(19.5), to: b(19.5) + 39 },
 })
 // B10 23–27 end: the camera holds (0.5 %/s push, drift) and the phone settles into y 250–940 on the heavy spring.
 add({
@@ -436,7 +441,7 @@ const GRAB = b(2.5) + 2
 const DROP = b(4)
 const COVER_DROP = b(7)
 const SITE_CLICK = b(15.5) + 2
-const TAP = b(17)
+const TAP = b(18)
 if (GRAB !== eventFrame('b-hero-drop', 'down') + OFFSET['b-hero-drop'])
   throw new Error('b.shots: the grab is off its cue')
 if (SITE_CLICK !== eventFrame('b-site', 'down') + OFFSET['b-site'])
@@ -460,9 +465,9 @@ const cues = [
     ...pointOut(B7, SITE_CLICK, clipPointer('b-site', SITE_CLICK)),
   }),
   cue(R, 16, 'air'),
-  cue(R, 17, 'click', pointOut(B8, TAP, { x: 273, y: 404 })),
-  cue(R, 17, 'rustle'),
-  cue(R, 20.5, 'rustle'),
+  cue(R, 18, 'click', pointOut(B8, TAP, { x: 273, y: 404 })),
+  cue(R, 18, 'rustle'),
+  cue(R, 19.5, 'rustle'),
 ]
 
 export default {
