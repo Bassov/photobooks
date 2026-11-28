@@ -120,15 +120,32 @@ export const CAMERA_MIN = { scale: 0.0002, translate: 0.15 }
 export const BLUR_SPEED = 40
 
 /**
+ * The crop keys around `frame` and the eased progress between them. A shot's first key sits on `shot.from`, its last
+ * on `shot.to`; keys in between name their reel frame `at` (a travel that ends before the shot does, then a push),
+ * and each segment eases on its own. Two keys without `at` = one ease over the whole shot.
+ */
+function cameraSegment(shot, frame) {
+  const keys = shot.cam.length > 1 ? shot.cam : [shot.cam[0], shot.cam[0]]
+  const at = (k, i) =>
+    i === 0 ? shot.from : i === keys.length - 1 ? (k.at ?? shot.to) : k.at
+  let i = 1
+  while (i < keys.length - 1 && frame >= at(keys[i], i)) i++
+  const a = at(keys[i - 1], i - 1)
+  const b = at(keys[i], i)
+  if (!Number.isFinite(a) || !Number.isFinite(b))
+    throw new Error(`${shot.id}: a middle camera key needs \`at\``)
+  const e = cameraEase(clamp01((frame - a) / Math.max(1, b - a)))
+  return { k0: keys[i - 1], k1: keys[i], e }
+}
+
+/**
  * Output transform of shot `shot` at `frame`: the crop `{cx, cy, w}` (plane px, 9:16) eased between `shot.cam[0]` and
  * `shot.cam[1]`, then drift (output px/s), push (fraction/s) and camera punches (`medium` spring, fraction).
  * Returns `{ s, tx, ty }`: plane point p lands at (p·s + t) in the 1080×1920 frame.
  */
 export function cameraAt(shot, frame) {
-  const [k0, k1 = k0] = shot.cam
-  const length = Math.max(1, shot.to - shot.from)
   const local = frame - shot.from
-  const e = cameraEase(clamp01(local / length))
+  const { k0, k1, e } = cameraSegment(shot, frame)
   const cx = lerp(k0.cx, k1.cx, e)
   const cy = lerp(k0.cy, k1.cy, e)
   const w = lerp(k0.w, k1.w, e)

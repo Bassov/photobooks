@@ -13,7 +13,9 @@ import { phoneBody } from './Phone.jsx'
 // Spec v2 G7: Inter with the optical-size axis (kit file), opsz 32, weights 600 / 400.
 export const INTER = 'fonts/inter-latin-opsz-normal.woff2'
 export const OPSZ = 32
-const SANS = 'Inter'
+// Own family name: Promo.jsx registers its wght-only Inter file as `Inter`, and two faces under one family let the
+// render pick the one without the opsz axis (reel A drew the wordmark 682 px wide instead of 640).
+export const SANS = 'Reels Inter'
 const INK = '#1A1918'
 const LIGHT = '#F5F3EF'
 

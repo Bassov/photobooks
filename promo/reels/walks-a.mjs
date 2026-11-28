@@ -34,6 +34,11 @@ const FRAME = `${SPREAD} [data-testid="frame"]`
 const ALL_FRAMES = '[data-testid="canvas"] [data-testid="frame"]'
 const ROW = '[data-testid="filmstrip"] [role="row"]'
 const CHIP = '[data-testid="demo"] [data-testid="film-fill-book"]'
+const PAN = '[data-testid="crop-grabber"]'
+/** a-drop's pick point below the thumb's top edge (CSS px). */
+const PICK_DY = 10
+/** a-drop's release point from spread 1's frame centre (CSS px). */
+const DROP_OFF = { x: 110, y: 80 }
 const COVER = '[data-testid="cover-front"]'
 const FACE = '[data-testid="ss9-book"][data-kind="face"]'
 const READER = '[data-testid="ps-reader"]'
@@ -310,6 +315,9 @@ export const WALKS_A = {
       { name: 'frame', sel: FRAME, all: true },
       { name: 'row', sel: ROW, all: true },
       { name: 'chip', sel: CHIP },
+      // the dropped photo's round pan handle (A3 end, A4): capture.mjs's shared GEOM_TARGETS do not name it, so
+      // ReelA tags it `data-geom="handle"` on every frame it shows and check 10 measures it there
+      { name: 'pan', sel: PAN, all: true },
     ],
     async setup(P) {
       await K.editorBook(P, 'a')
@@ -323,10 +331,16 @@ export const WALKS_A = {
       const { pick, drop, chip } = plan()
       const s = START['a-drop']()
       // the hand comes in from the right and goes down on thumb 1 exactly on the pick
-      const a = await P.center(P.page.locator(ROW).first())
+      // on the thumb's upper edge (row top + 10 px): the strip sits 153 px above the plane's bottom, and A3's crop
+      // stays inside the plane, so only a point this high clears the bottom safe zone at a crop scale ≤ 3
+      const row = await P.page.locator(ROW).first().boundingBox()
+      const a = { x: row.x + row.width / 2, y: row.y + PICK_DY }
       await clickDown(P, a, pick - s, 'pick', 520)
       // the drag arrives (glide + its spring settle) and goes up exactly on the drop, one beat after the pick
-      const t = await P.center(P.page.locator(FRAME).first())
+      // released off the frame's centre: the kit puts the photo's pan handle there, and a pointer resting on it
+      // would hide the handle check 10 measures
+      const c = await P.center(P.page.locator(FRAME).first())
+      const t = { x: c.x + DROP_OFF.x, y: c.y + DROP_OFF.y }
       const gap = drop - pick
       let ms = 760
       while (ms > 300 && 2 + glideLen(P, t, ms) + 1 > gap) ms -= 20
@@ -480,7 +494,7 @@ const CAPTURE_JS = path.join(
 /** The per-frame boxes ReelA / a.shots.js read (the full logs stay in clips/a/<clip>.rects.json). */
 const KEEP = {
   'a-gl-turn': ['geom:page'],
-  'a-drop': ['frame', 'row', 'chip'],
+  'a-drop': ['frame', 'row', 'chip', 'pan'],
   'a-fill': ['frame'],
   'a-shelf': ['face', 'geom:page'],
   'a-breath': ['geom:page'],

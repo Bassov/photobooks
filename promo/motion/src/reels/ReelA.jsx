@@ -35,6 +35,7 @@ import {
   FILLED_ROWS,
   FILLED_STAY,
   GHOST_W,
+  GRIP,
   OFFSET,
   PLANE,
   ROWS,
@@ -291,7 +292,9 @@ function ghostBox(frame) {
   const t = easeOut(clamp((frame - GHOST.from + 1) / 9, 0, 1))
   const w = lerp(tw, GHOST_W, t)
   const h = (w * DROP_BOX[3]) / DROP_BOX[2]
-  return [p.x - w / 2, p.y - h / 2, w, h]
+  // the grip scales with the photo (GRIP is measured at GHOST_W)
+  const g = w / GHOST_W
+  return [p.x - GRIP.x * g - w / 2, p.y - GRIP.y * g - h / 2, w, h]
 }
 /** Tilt from the pointer's horizontal velocity (output px per frame). */
 function ghostTilt(shot, frame) {
@@ -363,6 +366,24 @@ const Landing = ({ land, frame }) => {
   )
 }
 
+/**
+ * The kit's round pan handle on the dropped photo (a-drop's `pan` log), tagged for check 10 on every frame it shows:
+ * from the frame the landing card has settled (before that the card covers the take's handle).
+ */
+const PanTag = ({ shot, f, frame }) => {
+  if (shot.land && landingAt(shot.land, frame)) return null
+  const log = CAPTURE['a-drop'].rects.pan
+  const pan = log[clamp(Math.round(f), 0, log.length - 1)]?.[0]
+  if (!pan) return null
+  const [x, y, w, h] = pan
+  return (
+    <div
+      data-geom="handle"
+      style={{ position: 'absolute', left: x, top: y, width: w, height: h }}
+    />
+  )
+}
+
 // ---------------------------------------------------------------- per-shot plane content
 
 /** The photos the take shows at clip frame `f` (boxes the checks cannot read from the clip itself). */
@@ -397,6 +418,7 @@ const Scene = ({ shot }) => {
     <>
       <Clip id={shot.ui.clip} f={f} />
       {shot.land && <Landing land={shot.land} frame={frame} />}
+      {shot.ui.clip === 'a-drop' && <PanTag shot={shot} f={f} frame={frame} />}
       <Tags id={shot.id} boxes={photosOf(shot, f)} />
     </>
   )

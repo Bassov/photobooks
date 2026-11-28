@@ -369,9 +369,18 @@ export function check5(reel, table, clipsDir) {
   ])
 }
 
-/** 6. Safe zones for text, CTA and click/drop points; the end card text byte for byte; no other text. */
+/** EndCard.jsx's own family name (its opsz Inter file; Promo.jsx registers another Inter file as `Inter`). */
+export const END_FONT = 'Reels Inter'
+/** Spec v2 G7: the settled wordmark is 640 px wide (Inter opsz 32, 600, 128 px); 682 px = the face without opsz. */
+export const END_WORDMARK = { w: 640, tol: 2 }
+
+/**
+ * 6. Safe zones for text, CTA and click/drop points; the end card text byte for byte in END_FONT; the wordmark
+ * on the last frame END_WORDMARK wide; no other text.
+ */
 export function check6(table, logs, posterFrame) {
   const p = []
+  const font = new RegExp(`^"?${END_FONT}"?(,|$)`)
   const byFrame = new Map(logs.map((l) => [l.frame, l]))
   const missing = []
   for (let f = 0; f < table.frames; f++) if (!byFrame.has(f)) missing.push(f)
@@ -392,7 +401,7 @@ export function check6(table, logs, posterFrame) {
       else if (it.text !== EXPECTED_TEXT[it.role])
         p.push(`frame ${log.frame}: ${it.role} = ${JSON.stringify(it.text)}`)
       if (
-        !/^"?Inter"?/.test(it.font) ||
+        !font.test(it.font) ||
         it.style !== 'normal' ||
         !['400', '600'].includes(String(it.weight))
       ) {
@@ -422,6 +431,17 @@ export function check6(table, logs, posterFrame) {
   }
   for (const role of Object.keys(EXPECTED_TEXT))
     if (!seen.has(role)) p.push(`end card ${role} never shown`)
+  const last = logs.reduce((a, l) => (!a || l.frame > a.frame ? l : a), null)
+  const mark = last?.items.find((it) => it.role === 'wordmark')
+  let markW = null
+  if (!mark) p.push('no wordmark on the last frame')
+  else {
+    markW = mark.w
+    if (Math.abs(mark.w - END_WORDMARK.w) > END_WORDMARK.tol)
+      p.push(
+        `wordmark ${mark.w.toFixed(1)} px wide on frame ${last.frame} (want ${END_WORDMARK.w} ± ${END_WORDMARK.tol})`,
+      )
+  }
   for (const c of table.cues.filter((x) => x.x != null)) {
     if (c.x < 0 || c.x > SAFE.right || c.y < SAFE.top || c.y > SAFE.bottom) {
       p.push(
@@ -437,7 +457,9 @@ export function check6(table, logs, posterFrame) {
   }
   return result(
     [...first.values()],
-    [`${logs.length} frames probed, end card text exact, no other text`],
+    [
+      `${logs.length} frames probed, end card text exact in ${END_FONT}, wordmark ${markW?.toFixed(1)} px, no other text`,
+    ],
   )
 }
 
@@ -1560,7 +1582,7 @@ async function selftest() {
     y: 1000 + k * 140,
     w: 700,
     h: 60,
-    font: 'Inter',
+    font: END_FONT,
     weight: '400',
     style: 'normal',
   }))

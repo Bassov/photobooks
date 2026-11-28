@@ -3,7 +3,7 @@
 // beat grid (a.plan.js), the hero downbeat (b8) carries Fill book's Enter. Every UI shot plays its kit clip at rate 1
 // with a constant offset (clip frame = reel frame + OFFSET); the offsets come from the captured pointer / key events,
 // and this module throws when an event the plan relies on missed its beat, so a re-capture never drifts silently.
-import { gridCue } from './shared/beats.js'
+import { HEIGHT, WIDTH, gridCue } from './shared/beats.js'
 import { cameraAt } from './shared/Springs.js'
 import { CAPTURE, GRID } from './a.capture.js'
 import { planA } from './a.plan.js'
@@ -200,6 +200,11 @@ const pick = pointerAt('a-drop', BEAT.pick + OFFSET['a-drop'])
 const dropC = centre(DROP_BOX)
 const faceC = centre(FACE)
 const bookC = { x: BOOK.x + BOOK.w / 2, y: BOOK.y + BOOK.h / 2 }
+/** A crop `w` wide that puts plane point `p` at output height `y` (frame centre column). */
+const placeAt = (p, w, y) => ({ cx: p.x, cy: p.y + ((960 - y) * w) / 1080, w })
+/** The reader's two pages (CSS px): A9 follows the leaf from the right page's centre to the left one's. */
+const PAGE_R = { x: 928, y: bookC.y }
+const PAGE_L = { x: 359, y: bookC.y }
 
 const shots = [
   {
@@ -242,8 +247,19 @@ const shots = [
     from: C[2],
     to: C[3],
     scale: 'M',
-    // ends low on the frame: the selected frame's rotate handle (over the layout pill) stays above the crop
-    cam: [at({ x: pick.x + 156, y: 1150 }, 420), at(dropC, 440, 125)],
+    // the travel ends 2 frames before the drop (Designer review 1, finding 4): the drop box sits centred at
+    // y 712 (≤ 120 px above the 800 the review asks: the crop's top stays under the frame's rotate knob, which sits on
+    // the layout pill's text) when the photo lands, then the punch and a push. The start crop sits on the plane's
+    // bottom edge at w 376: the pick (on the thumb's upper edge, walks-a.mjs) then clears the bottom safe zone
+    cam: [
+      {
+        cx: Math.max(pick.x + 150, 190),
+        cy: PLANE.h - (376 * 8) / 9 - 0.5,
+        w: 376,
+      },
+      { ...placeAt(dropC, 396, 712), at: BEAT.drop - 2 },
+      placeAt(dropC, 384, 718),
+    ],
     punches: [{ frame: BEAT.drop, amount: 0.015 }],
     ui: ui('a-drop', C[2]),
     focus: 'drag',
@@ -253,16 +269,20 @@ const shots = [
     bg: 'L10',
   },
   {
-    // pull back: spread 1 with L18, the strip and the Fill book chip, clicked on b7
+    // down to the strip: L18's lower half with its pan handle, the strip and the Fill book chip, clicked on b7.
+    // The chip sits 177 px above the plane's bottom edge, so its click clears the bottom safe zone (y ≤ 1520) only
+    // at w ≤ 478 with the crop inside the plane (Designer review 1, finding 3); framed so from the cut, since a
+    // travel from the photo would be a blurred whip over the handle (check 10)
     id: 'A4',
     from: C[3],
     to: C[4],
     scale: 'Md',
-    // the crop's top stays under the rotate handle; the chip click stays above the bottom safe zone (y ≤ 1520)
     cam: [
-      { cx: 660, cy: 966, w: 600 },
-      { cx: 668, cy: 968, w: 584 },
+      // w 464–468 on the plane's bottom edge: the chip click at y ≤ 1514 and the pan handle ≥ 24 px below the top
+      { cx: 726, cy: 1023, w: 468 },
+      { cx: 720, cy: 1025, w: 464 },
     ],
+    push: 0.004,
     ui: ui('a-drop', C[3]),
     cursor: true,
     bg: 'L10',
@@ -273,9 +293,10 @@ const shots = [
     from: C[4],
     to: C[5],
     scale: 'W',
+    // inside the plane and under the editor top bar (Designer review 1: w 700, cy 670–818, spreads ≈ 625 px)
     cam: [
-      { cx: 640, cy: 720, w: 860 },
-      { cx: 640, cy: 716, w: 828 },
+      { cx: 640, cy: 745, w: 700 },
+      { cx: 640, cy: 742, w: 676 },
     ],
     ui: ui('a-fill', C[4]),
     cursor: true,
@@ -321,14 +342,19 @@ const shots = [
     bg: 'L10',
   },
   {
-    // the breath, wide: the next leaf dragged slowly across (1300 ms) under a music dip, it lands on L18 (Page 6);
-    // the crop drifts right → left with it
+    // the breath, one page (G3): the next leaf dragged slowly across (1300 ms) under a music dip; the crop (page
+    // ≈ 943 px wide, the pager below the crop) follows the leaf from the right page to the left one until it lands
+    // on L18 (Page 6), then pushes in on that page to the end card
     id: 'A9',
     from: C[8],
     to: C[9],
-    scale: 'W',
-    cam: [at({ x: bookC.x + 40, y: bookC.y }, 856), at(bookC, 836)],
-    push: 0.006,
+    scale: 'Md',
+    cam: [
+      at(PAGE_R, 660),
+      { ...at(PAGE_L, 648), at: BEAT.breath + 40 },
+      at(PAGE_L, 566),
+    ],
+    push: 0.012,
     breath: { from: BEAT.breath, to: BEAT.breath + 39 },
     ui: ui('a-breath', C[8]),
     cursor: true,
@@ -349,6 +375,32 @@ const shots = [
 ]
 for (const s of shots.filter((x) => x.ui && !x.still))
   covers(s.ui.clip, s.from, s.to)
+
+/** The editor's top bar (CSS px of the editor clips): Designer G3 keeps it out of frame. */
+export const EDITOR_BAR = 48
+const EDITOR_CLIPS = new Set(['a-filled', 'a-drop', 'a-fill'])
+/** The plane box (CSS px) the crop of `shot` shows at `frame`. */
+export const cropAt = (shot, frame) => {
+  const c = cameraAt(shot, frame)
+  return [-c.tx / c.s, -c.ty / c.s, (WIDTH - c.tx) / c.s, (HEIGHT - c.ty) / c.s]
+}
+// Designer G3 (review 1): a clip shot's crop never leaves the 1280 × 1440 plane (no hard edge of the take over the
+// ground); editor shots also keep the top bar out. Every frame, with drift, push and punches.
+for (const s of shots.filter((x) => x.ui && !x.endBook)) {
+  const top = EDITOR_CLIPS.has(s.ui.clip) ? EDITOR_BAR : 0
+  for (let f = s.from; f < s.to; f++) {
+    const [x0, y0, x1, y1] = cropAt(s, f)
+    if (
+      x0 < -1e-6 ||
+      y0 < top - 1e-6 ||
+      x1 > PLANE.w + 1e-6 ||
+      y1 > PLANE.h + 1e-6
+    )
+      throw new Error(
+        `a.shots: ${s.id} frame ${f} crop ${[x0, y0, x1, y1].map(Math.round).join(',')} leaves the plane (top ${top})`,
+      )
+  }
+}
 
 // ---------------------------------------------------------------- A2 cards (filled editor → strip)
 
@@ -385,6 +437,12 @@ const bgOutW = (file) => {
 }
 /** The held photo while it rides the pointer (spec v2 G5 DRAG: 62 % of the target frame's width, plane px). */
 export const GHOST_W = 0.62 * DROP_BOX[2]
+/**
+ * Where the hand holds the photo (plane px from its centre, at GHOST_W): the walk releases off the frame's centre
+ * (the pan handle's spot), so the held photo hangs this far up-left of the pointer and lands concentric with the frame.
+ */
+const release = pointerAt('a-drop', BEAT.drop + OFFSET['a-drop'])
+export const GRIP = { x: release.x - dropC.x, y: release.y - dropC.y }
 for (const s of shots) {
   const list = [{ file: `${s.bg}.jpg`, outW: bgOutW(s.bg) }]
   const sMax = Math.max(cameraAt(s, s.from).s, cameraAt(s, s.to - 1).s)
