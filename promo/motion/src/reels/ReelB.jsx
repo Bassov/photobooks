@@ -9,23 +9,29 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion'
-import { reelConfig } from './shared/beats.js'
 import {
   cameraAt,
   clickScaleAt,
-  isFast,
   minJerk,
   shotAt,
   springAt,
 } from './shared/Springs.js'
 import { Background } from './shared/Background.jsx'
-import { Camera } from './shared/Camera.jsx'
+import {
+  Camera,
+  DRAG,
+  PARALLAX,
+  boxToOutput,
+  dragTilt,
+  dragWidth,
+  isFast,
+} from './shared/Camera.jsx'
 import { Cursor } from './shared/Cursor.jsx'
-import { EndCard, endMove } from './shared/EndCard.jsx'
-import { focusMask } from './shared/Focus.jsx'
-import { Grain } from './shared/Grain.jsx'
+import { EndCard } from './shared/EndCard.jsx'
+import { Finish } from './shared/Finish.jsx'
+import { Focus } from './shared/Focus.jsx'
 import { PdfSheet, PDF_BLEED_MM, pdfSheetSize } from './shared/PdfSheet.jsx'
-import { PHONE, Phone, phoneBody } from './shared/Phone.jsx'
+import { PHONE, Phone } from './shared/Phone.jsx'
 import {
   CLIP,
   HERO,
@@ -33,28 +39,30 @@ import {
   POINTER,
   SHEET,
   SHEET_FRONT,
-  SHEET_FRONT_MARKS,
+  b,
   outBox,
 } from './b.shots.js'
 
-// Reel B «Один снимок» (spec §4): one hero, one camera path, the context changes around it. The picture per frame:
-// dusk background → the current context (a kit clip, the hero macro, the PDF sheet, or the phone) under the shot's
-// camera, dimmed + blurred outside the hero (focus B) and blurred harder through each rack focus → the overlays the
-// product doesn't draw (the hero shrinking into the strip, the landing on spread 1, the cursor) → end card → grain.
+// Reel B «Один снимок», v2 (promo-reels-v2 spec §2 G1–G8 over promo-reels-3 §4): one hero, one camera path, the
+// context changes around it. Per frame: the warm dark ground with the hero photo (G2) → the current context (the hero
+// macro, a kit clip, the PDF sheet or the phone) under the shot's camera, with focus B outside the hero on M / Md shots
+// (G4; none on W, sheet and phone frames) and a short focus pull on each rack cut → the overlays the product doesn't
+// draw (the hero shrinking into the strip, the drag photo, its landing, the cursor) → end card → vignette + grain (G8).
 
 const R = 'b'
 const HERO_SRC = () => staticFile(`photos/${HERO.file}`)
-const K = PHONE.screen.w / PHONE.capture.w
+const HERO_ASPECT = HERO.w / HERO.h
+const K = PHONE.scale
 const RACK = { up: 6, down: 8, blur: 24 }
 const LAND = 18
 
 const shotById = (table, id) => table.shots.find((s) => s.id === id)
-const lerp = (a, b, t) => a + (b - a) * t
-const lerpBox = (a, b, t) => ({
-  x: lerp(a.x, b.x, t),
-  y: lerp(a.y, b.y, t),
-  w: lerp(a.w, b.w, t),
-  h: lerp(a.h, b.h, t),
+const lerp = (a, z, t) => a + (z - a) * t
+const lerpBox = (a, z, t) => ({
+  x: lerp(a.x, z.x, t),
+  y: lerp(a.y, z.y, t),
+  w: lerp(a.w, z.w, t),
+  h: lerp(a.h, z.h, t),
 })
 const around = (p, size) => ({
   x: p.x - size.w / 2,
@@ -69,12 +77,10 @@ function pointerAt(clip, f) {
   const k = Math.min(fr.length - 1, Math.max(0, f - OFFSET[clip]))
   return fr[k]
 }
-const downFrames = (clip) =>
-  POINTER[clip].events
-    .filter((e) => e.type === 'down')
-    .map((e) => e.f + OFFSET[clip])
+const eventAt = (clip, type) =>
+  POINTER[clip].events.find((e) => e.type === type).f + OFFSET[clip]
 
-/** Extra context blur of the rack focuses: 0 → 24 px over the 6 frames before the downbeat, 24 → 0 over 8 after. */
+/** Context blur of the rack cuts: 0 → 24 px over the 6 frames before the cut, 24 → 0 over the 8 after. */
 export function rackBlur(table, f) {
   for (const s of table.shots) {
     if (s.rack == null) continue
@@ -89,8 +95,8 @@ export function rackBlur(table, f) {
 
 /**
  * A kit clip at reel frame `f` (rate 1, clamped to its first / last frame). The 0.5 s sheet (Root's `ReelSheetB`)
- * draws 36 cells of 270 × 480 in one page; 72 extractions of the DPR-3 clip there exceed the 30 s delayRender limit,
- * so the sheet reads the DPR-1 proxy `<clip>.sheet.mp4` (walks-b.mjs --stage), still ≥ 1.4 px per cell px.
+ * reads the DPR-1 proxy `<clip>.sheet.mp4` (walks-b.mjs --stage): 72 extractions of the DPR-3 clip exceed the 30 s
+ * delayRender limit there. Box = the clip's CSS viewport, the file is viewport × DPR: same aspect (G1).
  */
 const ClipFrame = ({ clip, f }) => {
   const { frames, plane } = CLIP[clip]
@@ -117,6 +123,7 @@ const ClipFrame = ({ clip, f }) => {
 
 const HeroPlane = () => (
   <Img
+    data-photo="hero"
     src={HERO_SRC()}
     style={{ position: 'absolute', width: HERO.w, height: HERO.h }}
   />
@@ -136,54 +143,110 @@ const PdfPlane = () => {
       cover={{ spine: SHEET.spine, spineX: SHEET.spineX }}
     >
       <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: '#FFFFFF',
-        }}
-      />
-      <Img
-        src={HERO_SRC()}
+        data-photo="hero"
         style={{
           position: 'absolute',
           left: SHEET_FRONT.x - art,
           top: SHEET_FRONT.y - art,
           width: SHEET_FRONT.w,
           height: SHEET_FRONT.h,
-          objectFit: 'cover',
+          overflow: 'hidden',
         }}
-      />
+      >
+        <Img
+          src={HERO_SRC()}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      </div>
     </PdfSheet>
   )
 }
 
-/** The phone body (§2, output geometry) drawn in the phone capture's CSS px, so the camera works in UI px. */
-const PhonePlane = ({ f }) => (
-  <div
-    style={{
-      position: 'absolute',
-      left: 0,
-      top: 0,
-      transformOrigin: '0 0',
-      transform: `scale(${1 / K}) translate(${-PHONE.screen.x}px, ${-PHONE.screen.y}px)`,
-    }}
-  >
-    <Phone>
-      <ClipFrame clip="b-phone" f={f} />
-    </Phone>
-  </div>
-)
+/** The phone body (G3 B8/B9, output geometry) drawn in the phone capture's CSS px, so the camera works in UI px. */
+const PhonePlane = ({ f }) => {
+  const k = f - OFFSET['b-phone']
+  // The site pages draw the photo as a CSS background (no <img>), so the filmed photo regions are marked here
+  // (G3): the full-bleed cover until the tap opens it, the hero spread band once the page turn lands.
+  const photo =
+    k <= PHONE_PHOTO.coverUntil
+      ? CLIP['b-phone'].paper
+      : k >= PHONE_PHOTO.bandFrom
+        ? PHONE_PHOTO.band
+        : null
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        transformOrigin: '0 0',
+        transform: `scale(${1 / K}) translate(${-PHONE.screen.x}px, ${-PHONE.screen.y}px)`,
+      }}
+    >
+      <Phone>
+        <ClipFrame clip="b-phone" f={f} />
+        {photo && (
+          <div
+            data-photo="phone"
+            style={{
+              position: 'absolute',
+              left: photo.x,
+              top: photo.y,
+              width: photo.w,
+              height: photo.h,
+            }}
+          />
+        )}
+      </Phone>
+    </div>
+  )
+}
+
+/**
+ * Read from the capture's frames: the cover stays flat until 4 frames after the tap, the breath drag (1300 ms) lands
+ * the hero page 52 frames after its down (the leaf clears 6 frames after the finger's up); the hero band on that
+ * page (CSS px).
+ */
+const PHONE_PHOTO = {
+  coverUntil: CLIP['b-phone'].touch.tap + 4,
+  bandFrom: CLIP['b-phone'].touch.drag + 52,
+  band: { x: 42, y: 292, w: 332, h: 223 },
+}
+
+/** The site clip; once the room shows the closed GL cover (not a DOM box) its measured box is the hero photo (G3). */
+const SitePlane = ({ f }) => {
+  const s = CLIP['b-site']
+  const k = f - OFFSET['b-site']
+  return (
+    <>
+      <ClipFrame clip="b-site" f={f} />
+      {k >= s.roomFrame && (
+        <div
+          data-photo="room-cover"
+          style={{
+            position: 'absolute',
+            left: s.room.x,
+            top: s.room.y,
+            width: s.room.w,
+            height: s.room.h,
+          }}
+        />
+      )}
+    </>
+  )
+}
 
 const Context = ({ shot, f }) => {
   if (shot.context === 'hero') return <HeroPlane />
   if (shot.context === 'pdf') return <PdfPlane />
   if (shot.context === 'b-phone') return <PhonePlane f={f} />
+  if (shot.context === 'b-site') return <SitePlane f={f} />
   return <ClipFrame clip={shot.context} f={f} />
 }
 
 // ---------------------------------------------------------------- the hero overlays
 
-/** B1 tail: the full-frame photo shrinks into filmstrip thumb 1 (B2's camera), minimum-jerk over 10 frames. */
+/** B1 tail: the full-frame photo shrinks into filmstrip thumb 1 (B2's camera), minimum-jerk. */
 function heroShrink(table, f) {
   const B1 = shotById(table, 'B1')
   const B2 = shotById(table, 'B2')
@@ -193,7 +256,7 @@ function heroShrink(table, f) {
   const full = { x: cam.tx, y: cam.ty, w: HERO.w * cam.s, h: HERO.h * cam.s }
   const thumb = outBox(B2, f, CLIP['b-hero-drop'].thumb)
   // the kit thumb cover-fits the photo (thumb 1.30 < photo 1.5: the height fills)
-  const pw = thumb.h * (HERO.w / HERO.h)
+  const pw = thumb.h * HERO_ASPECT
   const inThumb = {
     x: thumb.x + (thumb.w - pw) / 2,
     y: thumb.y,
@@ -207,39 +270,73 @@ function heroShrink(table, f) {
   }
 }
 
-/** B3: the dropped hero springs (`light`) from the drag ghost (B2, at the drop) onto spread 1's frame. */
+/** The clip whose drag a shot films, the drop target box (plane px) and the down / up reel frames. */
+function dragOf(shot) {
+  if (shot.id === 'B2')
+    return {
+      clip: 'b-hero-drop',
+      target: CLIP['b-hero-drop'].frame,
+      down: eventAt('b-hero-drop', 'down'),
+      up: eventAt('b-hero-drop', 'up'),
+    }
+  if (['B3', 'B4'].includes(shot.id))
+    return {
+      clip: 'b-hero-cover',
+      target: CLIP['b-hero-cover'].coverFront,
+      down: eventAt('b-hero-cover', 'down'),
+      up: eventAt('b-hero-cover', 'up'),
+    }
+  return null
+}
+
+/**
+ * G5 drag photo: the hero, 62 % of the drop target's output width, centred on the pointer (parallax 1.03 like the
+ * cursor), shadow, tilt ≤ 3° from its horizontal velocity. Chromium does not paint the OS drag image into a CDP
+ * screenshot, so the capture has none; a real browser shows the photo there.
+ */
+function dragPhoto(shot, f) {
+  const d = dragOf(shot)
+  if (!d || f < d.down || f >= d.up) return null
+  const at = (k) =>
+    boxToOutput(shot, k, { ...pointerAt(d.clip, k), w: 0, h: 0 }, PARALLAX.drag)
+  const p = at(f)
+  const w = dragWidth(outBox(shot, f, d.target).w)
+  return {
+    box: around(p, { w, h: w / HERO_ASPECT }),
+    tilt: dragTilt(p.x - at(f - 1).x),
+  }
+}
+
+/** B3: the dropped hero springs (`light`) from the drag photo (B2, at the drop) onto spread 1's frame. */
 function landing(table, f) {
   const B2 = shotById(table, 'B2')
   const B3 = shotById(table, 'B3')
   const k = f - B3.land.from
   if (k < 0 || k >= LAND) return null
-  const ghost = around(
-    outBox(B2, B3.from - 1, {
-      ...pointerAt('b-hero-drop', B3.from - 1),
-      w: 0,
-      h: 0,
-    }),
-    {
-      w: CLIP['b-hero-drop'].thumb.w * cameraAt(B2, B3.from - 1).s,
-      h: CLIP['b-hero-drop'].thumb.h * cameraAt(B2, B3.from - 1).s,
-    },
-  )
+  const last =
+    dragPhoto(B2, B3.from - 1)?.box ??
+    outBox(B2, B3.from - 1, CLIP['b-hero-drop'].frame)
   const frame = outBox(B3, f, CLIP['b-hero-cover'].frame)
   const p = springAt(k, 'light')
-  return { box: lerpBox(ghost, frame, p), scale: 1 + 0.06 * (1 - p) }
+  return { box: lerpBox(last, frame, p), scale: 1 + 0.06 * (1 - p) }
 }
 
-const PhotoIn = ({ clip, photo, radius = 0, scale = 1 }) => (
+const PhotoIn = ({ box, photo, radius = 0, scale = 1, tilt = 0, shadow }) => (
   <div
+    data-photo="hero"
     style={{
       position: 'absolute',
-      left: clip.x,
-      top: clip.y,
-      width: clip.w,
-      height: clip.h,
+      left: box.x,
+      top: box.y,
+      width: box.w,
+      height: box.h,
       overflow: 'hidden',
       borderRadius: radius,
-      transform: `scale(${scale})`,
+      boxShadow: shadow,
+      transform:
+        scale !== 1 || tilt
+          ? `rotate(${tilt.toFixed(3)}deg) scale(${scale})`
+          : undefined,
     }}
   >
     <Img
@@ -248,8 +345,8 @@ const PhotoIn = ({ clip, photo, radius = 0, scale = 1 }) => (
         photo
           ? {
               position: 'absolute',
-              left: photo.x - clip.x,
-              top: photo.y - clip.y,
+              left: photo.x - box.x,
+              top: photo.y - box.y,
               width: photo.w,
               height: photo.h,
             }
@@ -261,78 +358,43 @@ const PhotoIn = ({ clip, photo, radius = 0, scale = 1 }) => (
 
 // ---------------------------------------------------------------- focus: where the hero is (output px)
 
-/** Ghost of a drag: thumb-sized box on the pointer, or `fallback` while it is still outside the picture. */
-function ghostBox(shot, f, clip, fallback) {
-  const s = cameraAt(shot, f).s
-  const p = outBox(shot, f, { ...pointerAt(clip, f), w: 0, h: 0 })
-  const g = around(p, {
-    w: CLIP[clip].thumb.w * s,
-    h: CLIP[clip].thumb.h * s,
-  })
-  const inside = p.x > 0 && p.x < 1080 && p.y > 0 && p.y < 1920
-  return inside ? g : fallback
-}
-
-/**
- * The drag image under the pointer while a filmstrip thumb is dragged (B2: onto spread 1; B3–B4: onto the cover).
- * Chromium does not paint the OS drag image into a CDP screenshot, so the capture has none; a real browser shows the
- * thumb's photo there, and this draws it: the hero, thumb-sized, centred on the pointer.
- */
-function dragGhost(shot, f) {
-  const clip = ['B2', 'B3', 'B4'].includes(shot.id) ? shot.ui.clip : null
-  if (!clip) return null
-  const [down] = downFrames(clip)
-  const up = POINTER[clip].events.find((e) => e.type === 'up').f + OFFSET[clip]
-  if (f < down || f >= up) return null
-  return ghostBox(shot, f, clip, null)
-}
-
+/** The action box of focus B on M / Md shots; null on W shots, the phone and the end card (G4, check 11). */
 export function heroBox(table, shot, f) {
-  const clip = shot.ui?.clip
+  if (shot.scale === 'W' || shot.scale === 'end' || shot.context === 'b-phone')
+    return null
+  const drag = dragPhoto(shot, f)
+  if (drag) return drag.box
   switch (shot.id) {
     case 'B1':
       return heroShrink(table, f)?.clip ?? null
     case 'B2':
-      return f < downFrames('b-hero-drop')[0]
-        ? outBox(shot, f, CLIP[clip].thumb)
-        : ghostBox(shot, f, clip, outBox(shot, f, CLIP[clip].frame))
-    case 'B3':
-    case 'B4': {
-      const c = CLIP['b-hero-cover']
-      const down = downFrames('b-hero-cover')[0]
-      const up = POINTER['b-hero-cover'].events[1].f + OFFSET['b-hero-cover']
-      if (shot.id === 'B3' && f - shot.from < LAND) return landing(table, f).box
-      if (f < down) return outBox(shot, f, c.frame)
-      if (f < up) return ghostBox(shot, f, clip, outBox(shot, f, c.frame))
-      return outBox(shot, f, c.coverFront)
+      return f < eventAt('b-hero-drop', 'down')
+        ? outBox(shot, f, CLIP['b-hero-drop'].thumb)
+        : outBox(shot, f, CLIP['b-hero-drop'].frame)
+    case 'B3': {
+      if (f - shot.from < LAND) return landing(table, f).box
+      return outBox(shot, f, CLIP['b-hero-cover'].frame)
     }
     case 'B5':
-      return outBox(shot, f, CLIP[clip].coverFront)
-    case 'B6':
-      return outBox(shot, f, SHEET_FRONT_MARKS)
+      return outBox(shot, f, CLIP['b-hero-cover'].coverFront)
     case 'B7': {
       const s = CLIP['b-site']
       const k = f - OFFSET['b-site']
-      const down = downFrames('b-site')[0] - OFFSET['b-site']
-      if (k >= down + 2) return outBox(shot, f, s.room)
+      if (k >= s.roomFrame) return outBox(shot, f, s.room)
       const [a, z] = s.liftFrames
       const t = Math.min(1, Math.max(0, (k - a) / (z - a)))
       return outBox(shot, f, lerpBox(s.face, s.lifted, t))
     }
-    case 'B8':
-    case 'B9':
-      return outBox(shot, f, CLIP['b-phone'].paper)
     default:
       return null
   }
 }
 
 /**
- * Local stand-in for shared `Camera` on the kit clip contexts. Shared `Camera` motion-blurs fast frames with a
- * 10-sample `CameraMotionBlur`, and every sample re-extracts the 3840×4320 clip frame (1.2–7 s each; ×2 under
- * RackFocus). B4/B5 then exceed the 30 s delayRender timeout that reels-render.mjs leaves at its default. The clip
- * frame is frozen across the samples anyway (`ClipFrame`), so here the same camera transform gets one extraction and
- * fast frames get a directional blur along the camera's own motion: a 180° shutter smears half of the frame's travel.
+ * Camera for the kit clip contexts. Shared `Camera` motion-blurs fast frames with a 10-sample `CameraMotionBlur`, and
+ * every sample re-extracts the 3840×4320 clip frame (memory: 30 s delayRender timeouts). The clip frame is frozen
+ * across the samples anyway (`ClipFrame`), so here the same camera transform gets one extraction and fast frames
+ * (G5: > 12 px/frame) get a directional blur along the camera's own motion: a 180° shutter smears half the travel.
  */
 const ClipCamera = ({ shot, plane, children }) => {
   const f = useCurrentFrame()
@@ -346,10 +408,8 @@ const ClipCamera = ({ shot, plane, children }) => {
     const edge = (k) => at(k, 0, 0)
     const m0 = mid(p)
     const m1 = mid(c)
-    // the zoom's share: how far the plane corner moves relative to the centre
     const zx = Math.abs(edge(c).x - m1.x - (edge(p).x - m0.x))
     const zy = Math.abs(edge(c).y - m1.y - (edge(p).y - m0.y))
-    // a box smear of length L ≈ a gaussian of σ = L / 3; zoom blur is radial, so half its edge travel on each axis
     const smear = (d, z) => (0.5 * (d + z / 2)) / 3
     sigma = {
       x: smear(Math.abs(m1.x - m0.x), zx),
@@ -358,10 +418,7 @@ const ClipCamera = ({ shot, plane, children }) => {
   }
   return (
     <AbsoluteFill
-      style={{
-        overflow: 'hidden',
-        filter: sigma ? `url(#${id})` : undefined,
-      }}
+      style={{ overflow: 'hidden', filter: sigma ? `url(#${id})` : undefined }}
     >
       {sigma && (
         <svg width="0" height="0" style={{ position: 'absolute' }}>
@@ -390,39 +447,6 @@ const ClipCamera = ({ shot, plane, children }) => {
   )
 }
 
-/** Focus B with the rack: outside the hero .35 brightness + 8 px blur (+ the rack blur); the hero box stays sharp. */
-const RackFocus = ({ box, extra, render }) => {
-  const { brightness, blur } = reelConfig(R).focus
-  if (!box)
-    return (
-      <AbsoluteFill style={extra ? { filter: `blur(${extra}px)` } : undefined}>
-        {render()}
-      </AbsoluteFill>
-    )
-  const mask = focusMask(box)
-  return (
-    <AbsoluteFill>
-      <AbsoluteFill
-        style={{
-          filter: `brightness(${brightness}) blur(${blur + extra}px)`,
-        }}
-      >
-        {render()}
-      </AbsoluteFill>
-      <AbsoluteFill
-        style={{
-          maskImage: mask,
-          WebkitMaskImage: mask,
-          maskSize: '100% 100%',
-          WebkitMaskSize: '100% 100%',
-        }}
-      >
-        {render()}
-      </AbsoluteFill>
-    </AbsoluteFill>
-  )
-}
-
 // ---------------------------------------------------------------- cursor (the replayed walk path, output px)
 
 const CURSOR_SHOTS = {
@@ -436,15 +460,22 @@ const CURSOR_SHOTS = {
 function cursorAt(shot, f) {
   const clip = CURSOR_SHOTS[shot.id]
   if (!clip) return null
-  const p = outBox(shot, f, { ...pointerAt(clip, f), w: 0, h: 0 })
-  return { x: p.x, y: p.y, scale: clickScaleAt(downFrames(clip), f) }
+  const p = boxToOutput(
+    shot,
+    f,
+    { ...pointerAt(clip, f), w: 0, h: 0 },
+    PARALLAX.cursor,
+  )
+  const downs = POINTER[clip].events
+    .filter((e) => e.type === 'down')
+    .map((e) => e.f + OFFSET[clip])
+  return { x: p.x, y: p.y, scale: clickScaleAt(downs, f) }
 }
 
 // ---------------------------------------------------------------- the reel
 
 export const ReelB = ({ reel = R, table, audio = true, probe = true }) => {
   const f = useCurrentFrame()
-  const { beatFrames } = reelConfig(reel)
   const shot = shotAt(table.shots, f)
   const end = table.shots.find((s) => s.scale === 'end')
   const B2 = shotById(table, 'B2')
@@ -452,64 +483,65 @@ export const ReelB = ({ reel = R, table, audio = true, probe = true }) => {
   // during the shrink the editor (B2's camera) is already under the photo
   const ctxShot = shrink ? B2 : shot
   const land = shot.land ? landing(table, f) : null
-  const ghost = dragGhost(shot, f)
+  const drag = dragPhoto(shot, f)
   const cursor = cursorAt(shot, f)
-  // end card: the phone body (as it is when the end card starts) settles into y 250–940 on the heavy spring
-  let move = null
-  if (shot.scale === 'end') {
-    const body = phoneBody()
-    const plane = {
-      x: (body.x - PHONE.screen.x) / K,
-      y: (body.y - PHONE.screen.y) / K,
-      w: body.w / K,
-      h: body.h / K,
-    }
-    move = endMove(outBox(shot, end.from, plane), f, end.from)
-  }
+  const rack = rackBlur(table, f)
+  // End card: B10's own camera pulls the phone back to its 700 px body box (G7, b.shots.js), so no extra move here.
+  const content = () => (
+    <AbsoluteFill style={rack ? { filter: `blur(${rack}px)` } : undefined}>
+      {CLIP[ctxShot.context] ? (
+        <ClipCamera shot={ctxShot} plane={ctxShot.plane}>
+          <Context shot={ctxShot} f={f} />
+        </ClipCamera>
+      ) : (
+        <Camera shot={ctxShot} plane={ctxShot.plane}>
+          <Context shot={ctxShot} f={f} />
+        </Camera>
+      )}
+    </AbsoluteFill>
+  )
   const picture = (
-    <RackFocus
-      box={shrink ? shrink.clip : heroBox(table, shot, f)}
-      extra={rackBlur(table, f)}
-      render={() =>
-        CLIP[ctxShot.context] ? (
-          <ClipCamera shot={ctxShot} plane={ctxShot.plane}>
-            <Context shot={ctxShot} f={f} />
-          </ClipCamera>
-        ) : (
-          <Camera shot={ctxShot} plane={ctxShot.plane}>
-            <Context shot={ctxShot} f={f} />
-          </Camera>
-        )
+    <Focus
+      reel={reel}
+      // no focus while the ground shows in a full-width band (Focus.jsx, Designer decision 2026-11-28)
+      box={
+        ctxShot.groundBand
+          ? null
+          : shrink
+            ? shrink.clip
+            : heroBox(table, shot, f)
       }
+      render={content}
     />
   )
   return (
     <AbsoluteFill>
-      <Background reel={reel} />
-      {move ? (
-        <AbsoluteFill
-          style={{
-            transformOrigin: '0 0',
-            transform: `translate(${move.x}px, ${move.y}px) scale(${move.s})`,
-          }}
-        >
-          {picture}
-        </AbsoluteFill>
-      ) : (
-        picture
-      )}
+      <Background reel={reel} photo={HERO_SRC()} />
+      {picture}
       {shrink && (
         <PhotoIn
-          clip={shrink.clip}
+          box={shrink.clip}
           photo={shrink.photo}
           radius={shrink.radius}
         />
       )}
-      {land && <PhotoIn clip={land.box} scale={land.scale} />}
-      {ghost && <PhotoIn clip={ghost} radius={4} />}
+      {land && <PhotoIn box={land.box} scale={land.scale} />}
+      {drag && (
+        <PhotoIn
+          box={drag.box}
+          radius={4}
+          tilt={drag.tilt}
+          shadow={DRAG.shadow}
+        />
+      )}
       {cursor && <Cursor at={cursor} />}
-      <EndCard from={end.from} beatFrames={beatFrames} probe={probe} />
-      <Grain reel={reel} />
+      <EndCard
+        from={end.from}
+        beatFrames={b(25) - b(24)}
+        reel={reel}
+        probe={probe}
+      />
+      <Finish reel={reel} probe={probe} />
       {audio && <Audio src={staticFile(`audio/${reel}.wav`)} />}
     </AbsoluteFill>
   )

@@ -36,8 +36,10 @@ import {
   SHEET_CELL,
   SHEET_COLS,
   WIDTH,
+  gridBeatFrame,
   isCueOnGrid,
   isCutOnGrid,
+  isOnBeat,
   reelConfig,
   sheetSize,
 } from '../src/reels/shared/beats.js'
@@ -188,10 +190,21 @@ export function check1(probe) {
   ])
 }
 
-/** 2. Shot table: scale class alternates, 0.5–2.0 s shots (breath + end excepted), cuts and cues on the beat grid. */
+/**
+ * 2. Shot table: scale class alternates, 0.5–2.0 s shots (breath + end excepted), cuts and cues on the beat grid.
+ * A v2 table carries its track's grid (`table.beats`, spec v2 §3): cuts within ± 1 frame of a beat (§5.12), cues at
+ * `beat` + `offset` frames of that grid; else the v1 fixed grid of beats.js.
+ */
 export function check2(reel, table) {
   const p = []
-  const { shots } = table
+  const { shots, beats } = table
+  const cutOk = (f) => (beats ? isOnBeat(beats, f) : isCutOnGrid(reel, f))
+  const cueOk = (c) =>
+    beats
+      ? Number.isInteger(c.frame) &&
+        Number.isInteger((c.beat ?? NaN) * 4) &&
+        gridBeatFrame(beats, c.beat, c.offset ?? 0) === c.frame
+      : isCueOnGrid(reel, c)
   if (shots[0]?.from !== 0) p.push('first shot does not start at 0')
   if (shots.at(-1)?.to !== table.frames) p.push('shots do not cover the reel')
   shots.forEach((s, k) => {
@@ -200,7 +213,7 @@ export function check2(reel, table) {
       p.push(`${s.id} does not start where ${prev.id} ends`)
     if (prev && s.scale === prev.scale)
       p.push(`${prev.id} → ${s.id} both ${s.scale}`)
-    if (k > 0 && !isCutOnGrid(reel, s.from))
+    if (k > 0 && !cutOk(s.from))
       p.push(`${s.id} cut at frame ${s.from} off the grid`)
     const len = s.to - s.from
     if (s.breath) {
@@ -218,7 +231,7 @@ export function check2(reel, table) {
     p.push('the breath is not the shot before the end card')
   if (end !== shots.length - 1) p.push('the end card is not the last shot')
   for (const c of table.cues)
-    if (!isCueOnGrid(reel, c)) p.push(`cue ${c.sfx} @ ${c.frame} off the grid`)
+    if (!cueOk(c)) p.push(`cue ${c.sfx ?? c.type} @ ${c.frame} off the grid`)
   return result(p, [
     `${shots.length} shots, ${table.cues.length} cues on the grid`,
   ])
@@ -389,7 +402,7 @@ export function manifestNames(file = MANIFEST) {
 }
 
 /** 7. Every staged image is a CC0 manifest photo or a generated grain tile; audio is our WAV; no kit originals. */
-export function check7(pubDir, names, clipsDir) {
+export function check7(pubDir, names, clipsDir, mixed = new Map()) {
   const p = []
   const files = walk(pubDir)
   for (const f of files) {
@@ -400,6 +413,10 @@ export function check7(pubDir, names, clipsDir) {
       const grain = /^grain\/grain-\d+\.png$/.test(rel)
       const photo = rel.startsWith('photos/') && names?.has(basename(rel))
       if (!grain && !photo) p.push(`image not in photos.json: ${rel}`)
+    } else if (AUDIO.has(ext) && mixed.has(rel)) {
+      // spec v2 §5: item 7's "audio is generated only" is replaced by 12; the staged file must be that mix, byte for byte
+      if (!readFileSync(f).equals(mixed.get(rel)))
+        p.push(`audio differs from the reels-mix.mjs mix: ${rel}`)
     } else if (AUDIO.has(ext)) {
       let tag = null
       try {
@@ -425,7 +442,7 @@ export function check7(pubDir, names, clipsDir) {
     }
   }
   return result(p, [
-    `${files.length} staged files: CC0 photos, generated grain + audio, kit clips`,
+    `${files.length} staged files: CC0 photos, generated grain, generated or mixed audio, kit clips`,
   ])
 }
 
@@ -900,9 +917,23 @@ const findFile = (root, name) => walk(root).find((f) => basename(f) === name)
 const clipFrame = (s, f) =>
   (s.ui.start ?? 0) + (f - s.from) * (s.ui.rate === -1 ? -1 : 1)
 
+const pageList = (rects) => {
+  const v = rects?.['geom:page']
+  if (!v) return []
+  return Array.isArray(v[0]) ? v : [v]
+}
+/** Page rects a clip logs at rest (its fewest, ignoring frames without pages); more = a leaf is turning. */
+function restingPages(log) {
+  const counts = (log.frames ?? [])
+    .map((fr) => pageList(fr?.rects).length)
+    .filter((n) => n > 0)
+  return counts.length ? Math.min(...counts) : 0
+}
+
 /**
  * Geometry from the clips: rects.json targets named `geom:<kind>` (capture.mjs adds handles and pages to every clip)
- * mapped through the shot camera into output px. Returns Map frame → [{ kind, css, out }].
+ * mapped through the shot camera into output px. Returns Map frame → [{ kind, css, out, turning? }] (`turning`: a
+ * page on a clip frame that logs more pages than at rest, i.e. while a leaf turns over it).
  */
 export function clipGeom(table, clipsRoot) {
   const byFrame = new Map()
@@ -914,10 +945,12 @@ export function clipGeom(table, clipsRoot) {
     }
     const log = cache.get(s.ui.clip)
     if (!log) continue
+    const resting = restingPages(log)
     for (let f = s.from; f < s.to; f++) {
       const rects = log.frames?.[clipFrame(s, f)]?.rects
       if (!rects) continue
       const cam = cameraAt(s, f)
+      const turning = pageList(rects).length > resting
       for (const [name, v] of Object.entries(rects)) {
         if (!name.startsWith('geom:') || !v) continue
         for (const [x, y, w, h] of Array.isArray(v[0]) ? v : [v]) {
@@ -925,6 +958,7 @@ export function clipGeom(table, clipsRoot) {
             kind: name.slice(5),
             css: [w, h],
             out: [x * cam.s + cam.tx, y * cam.s + cam.ty, w * cam.s, h * cam.s],
+            ...(turning && name === 'geom:page' && { turning: true }),
           }
           byFrame.set(f, [...(byFrame.get(f) ?? []), item])
         }
@@ -1106,9 +1140,31 @@ function decodeFrames(video, onFrame) {
   })
 }
 
+/**
+ * True when a text box (end card) crosses one of measureBox's four edge-search strips (3 px wide along the rect's
+ * centre row / column, ± `pad` around each expected side): the edge found there would be the text's, not the box's.
+ */
+export function searchOccluded(rect, pad, boxes) {
+  const cx = rect.x + rect.w / 2
+  const cy = rect.y + rect.h / 2
+  const strips = [
+    [rect.x - pad, cy - 1.5, 2 * pad, 3],
+    [rect.x + rect.w - pad, cy - 1.5, 2 * pad, 3],
+    [cx - 1.5, rect.y - pad, 3, 2 * pad],
+    [cx - 1.5, rect.y + rect.h - pad, 3, 2 * pad],
+  ]
+  return boxes.some((b) =>
+    strips.some(
+      ([x, y, w, h]) =>
+        b.x < x + w && b.x + b.w > x && b.y < y + h && b.y + b.h > y,
+    ),
+  )
+}
+
 /** One pass over the output frames: dark bands per frame, pixel sizes of every geom box in frame. */
-async function pixelPass(video, logs, cgeom) {
+async function pixelPass(video, logs, cgeom, textLogs = []) {
   const geomAt = new Map(logs.map((l) => [l.frame, l.geom ?? []]))
+  const textAt = new Map(textLogs.map((l) => [l.frame, l.items ?? []]))
   const bands = []
   const measures = []
   await decodeFrames(video, (f, rgb) => {
@@ -1117,9 +1173,16 @@ async function pixelPass(video, logs, cgeom) {
       if (g.kind === 'photo') continue
       const [x, y, w, h] = g.out
       const rect = { x, y, w, h }
-      const px = PIXEL_KINDS.has(g.kind)
-        ? measureBox(rgb, WIDTH, HEIGHT, rect, measurePad(g.kind, rect))
-        : null
+      const pad = measurePad(g.kind, rect)
+      // Not measured (counted as unmeasured; the DOM box is still checked): a page under a turning leaf (the leaf's
+      // 3D pixels cross its layout box) and a box whose edge search runs under end-card text (B's phone page bottom
+      // sits under the CTA by the spec's G7 geometry).
+      const px =
+        PIXEL_KINDS.has(g.kind) &&
+        !g.turning &&
+        !searchOccluded(rect, pad, textAt.get(f) ?? [])
+          ? measureBox(rgb, WIDTH, HEIGHT, rect, pad)
+          : null
       measures.push({ frame: f, ...g, px })
     }
   })
@@ -1278,7 +1341,7 @@ async function runChecks(reel, table, pub, files, extra = {}) {
   let pixels = null
   if (existsSync(files.video)) {
     console.log('checks 10–11: decoding the output frames …')
-    pixels = await pixelPass(files.video, geomLogs, cgeom)
+    pixels = await pixelPass(files.video, geomLogs, cgeom, logs)
   }
   const shares = photoShares(geomLogs, cgeom)
   const last = geomLogs.length ? geomLogs[geomLogs.length - 1] : null
@@ -1311,6 +1374,21 @@ async function runChecks(reel, table, pub, files, extra = {}) {
         }),
     ],
   ]
+  if (table.beats) {
+    // spec v2 §5.12 on the stems this render mixed (reels-mix.mjs checkSoundFiles)
+    const { checkSoundFiles } = await import('./reels-mix.mjs')
+    v2.push([
+      '12 sound',
+      () => {
+        const r = checkSoundFiles({
+          reel,
+          dir: soundDir(reel),
+          cuts: tableCuts(table),
+        })
+        return { ok: r.ok, notes: r.lines, numbers: r.numbers }
+      },
+    ])
+  }
   const checks = [
     ['1 ffprobe', () => check1(ffprobe(files.video))],
     ['2 shot table', () => check2(reel, table)],
@@ -1321,7 +1399,10 @@ async function runChecks(reel, table, pub, files, extra = {}) {
     ['4 camera never still', () => check4(table)],
     ['5 real time, no busy UI', () => check5(reel, table, clipsDir)],
     ['6 safe zones + text', () => check6(table, logs, reelConfig(reel).poster)],
-    ['7 licences', () => check7(pub, manifestNames(), clipsDir)],
+    [
+      '7 licences',
+      () => check7(pub, manifestNames(), clipsDir, mixedAudio(reel, table)),
+    ],
     ['8 sheet', () => check8(files.sheet, table.frames)],
     ...v2,
   ]
@@ -1344,6 +1425,69 @@ async function runChecks(reel, table, pub, files, extra = {}) {
     JSON.stringify({ reel, music: extra.music ?? null, results }, null, 1),
   )
   return results.every((r) => r.ok)
+}
+
+// ---------------------------------------------------------------- v2 sound (spec v2 §3; reels-mix.mjs)
+
+const soundOut = join(out, 'sound')
+const soundDir = (reel) => join(soundOut, 'mix', `render-${reel}`)
+/** Cut frames of the shot table (every shot start after the first). */
+const tableCuts = (table) => table.shots.slice(1).map((s) => s.from)
+/** Check 7 input: a v2 table's staged `audio/<reel>.wav` → the bytes of the mix it must be (check 12 judges the mix). */
+function mixedAudio(reel, table) {
+  const mix = join(soundDir(reel), `${reel}-mix.wav`)
+  return table.beats && existsSync(mix)
+    ? new Map([[`audio/${reel}.wav`, readFileSync(mix)]])
+    : new Map()
+}
+
+/**
+ * A v2 table (`table.beats` = its track's grid) is mixed from its own cue list with the recorded music + foley:
+ * the grid must be the track gate's `<reel>.beats.json` (same track, excerpt and beats), the stems go to
+ * promo/out/reels/sound/mix/render-<reel>/, and the mix is staged as the reel's audio.
+ */
+async function mixSound(reel, table, audioDir) {
+  const { mixReel } = await import('./reels-mix.mjs')
+  const gateFile = join(soundOut, `${reel}.beats.json`)
+  if (!existsSync(gateFile))
+    throw new Error(
+      `no ${relative(repo, gateFile)}: run node promo/reels/sound.mjs --reel ${reel}`,
+    )
+  const gate = JSON.parse(readFileSync(gateFile, 'utf8'))
+  const same =
+    gate.sha256 === table.beats.sha256 &&
+    gate.start === table.beats.start &&
+    gate.frames === table.frames &&
+    JSON.stringify(gate.beats) === JSON.stringify(table.beats.beats)
+  if (!same)
+    throw new Error(
+      `${reel}.shots.js cuts to another grid than ${relative(repo, gateFile)} (${gate.track} @ ${gate.start} s): copy its grid into the table`,
+    )
+  const manifest = JSON.parse(
+    readFileSync(join(soundOut, 'manifest.json'), 'utf8'),
+  )
+  const music = resolve(soundOut, manifest.files[gate.track].path)
+  const dir = soundDir(reel)
+  mkdirSync(dir, { recursive: true })
+  copyFileSync(gateFile, join(dir, `${reel}.beats.json`))
+  const cues = {
+    frames: table.frames,
+    cuts: tableCuts(table),
+    cues: table.cues.map(({ frame, type, x, frames }) => ({
+      frame,
+      type,
+      ...(x != null && { x }),
+      ...(frames != null && { frames }),
+    })),
+  }
+  writeFileSync(join(dir, `${reel}-cues.json`), JSON.stringify(cues, null, 1))
+  const res = await mixReel({ reel, music, cues, beats: gate, out: dir })
+  mkdirSync(audioDir, { recursive: true })
+  copyFileSync(join(dir, `${reel}-mix.wav`), join(audioDir, `${reel}.wav`))
+  console.log(
+    `sound: ${gate.title} (${gate.track}) from ${gate.start} s, ${cues.cues.length} cues → ${relative(repo, dir)}`,
+  )
+  return res
 }
 
 async function runReel(reel, { checksOnly, publish, music }) {
@@ -1374,9 +1518,13 @@ async function runReel(reel, { checksOnly, publish, music }) {
       mkdirSync(join(pub, 'audio'), { recursive: true })
       copyFileSync(music, join(pub, 'audio', `music${extname(music)}`))
     }
-    const audio = await buildAudio(reel, join(pub, 'audio'), table)
-    for (const line of audio.lines) console.log(`audio: ${line}`)
-    if (!audio.ok) throw new Error('audio check failed')
+    if (table.beats) {
+      await mixSound(reel, table, join(pub, 'audio'))
+    } else {
+      const audio = await buildAudio(reel, join(pub, 'audio'), table)
+      for (const line of audio.lines) console.log(`audio: ${line}`)
+      if (!audio.ok) throw new Error('audio check failed')
+    }
     await renderAll(reel, pub, files, table)
   }
   const ok = await runChecks(reel, table, pub, files, {

@@ -34,6 +34,12 @@ function COVER() {
 function COVER_FRONT() {
   return `${COVER()} [data-testid="frame"]`
 }
+function SPREAD1() {
+  return '[data-testid="canvas"] [data-testid="spread"][data-spread="1"]'
+}
+function SPREAD1_FRAME() {
+  return `${SPREAD1()} [data-testid="frame"]`
+}
 function FACE() {
   return '[data-testid="ss9-book"][data-kind="face"]'
 }
@@ -73,7 +79,10 @@ async function dragTo(P, to, ms) {
   await P.down()
   await P.wait(70)
   await P.glide(b.x, b.y, ms)
+  // v2: the kit takes a drop on a filled frame only after a short dwell (as dropOffCamera)
+  await P.wait(120)
   await P.up()
+  return b
 }
 
 function heroThumb(P) {
@@ -87,7 +96,55 @@ function editorTargets() {
     { name: 'coverFront', sel: COVER_FRONT(), all: true },
     { name: 'row', sel: FILM, all: true },
     { name: 'filmstrip', sel: '[data-testid="filmstrip"]' },
+    // v2 G3: photo share = every filled frame on the canvas and every strip thumb (reels-render.mjs check 11)
+    {
+      name: 'geom:photo',
+      sel: '[data-testid="canvas"] [data-testid="frame"]:has(img), [data-testid="filmstrip"] [role="row"] img',
+      all: true,
+    },
   ]
+}
+
+const srcOf = (P, sel) =>
+  P.page.locator(`${sel} img`).first().getAttribute('src')
+
+/**
+ * v2 G3: the B book is full (Fill book, off camera), so the editor shots are photo-filled; the hero (p01) then must not
+ * already sit on spread 1 (or, with `cover`, on the cover front): another strip photo goes there first, so the filmed
+ * drop is the hero replacing it.
+ */
+async function fullBook(P) {
+  await P.page
+    .locator('[data-testid="demo"] [data-testid="film-fill-book"]')
+    .first()
+    .click()
+  await P.settle(500)
+  await P.page.keyboard.press('Enter')
+  await P.settle(1200)
+  // Fill book puts the hero (p01) on the cover front and makes the cover current: p03 goes onto the cover instead,
+  // then spread 1 (its full-spread frame, p02) is made current again.
+  if (/p01/.test((await srcOf(P, COVER_FRONT())) ?? ''))
+    await dropOffCamera(
+      P,
+      P.page.locator(FILM).nth(2),
+      P.page.locator(COVER_FRONT()).first(),
+    )
+  for (const sel of [COVER_FRONT(), SPREAD1_FRAME()])
+    if (/p01/.test((await srcOf(P, sel)) ?? ''))
+      throw new Error(`${sel} still shows the hero after Fill book`)
+  await P.page.keyboard.press('Escape')
+  for (let k = 0; k < 4; k++) {
+    if (await P.page.locator(`${SPREAD1()}[data-current]`).count()) break
+    const cover = await P.page.locator(`${COVER()}[data-current]`).count()
+    // the canvas viewport's keys: ← / → step the current spread while nothing is selected (focus off the chip)
+    await P.page.evaluate(() => document.activeElement?.blur())
+    await P.page.keyboard.press('Escape')
+    await P.page.keyboard.press(cover ? 'ArrowRight' : 'ArrowLeft')
+    await P.settle(300)
+  }
+  await P.moveTo(P.rest.x, P.rest.y)
+  if (!(await P.page.locator(`${SPREAD1()}[data-current]`).count()))
+    throw new Error('spread 1 is not current after Fill book')
 }
 
 /** The reel B clip entries for capture.mjs `CLIPS` (§4 B2–B10). */
@@ -101,6 +158,7 @@ export function walksB() {
       targets: editorTargets(),
       async setup(P) {
         await stripBook(P)
+        await fullBook(P)
         await zoomSpread(P, MD)
         const t = await P.center(heroThumb(P))
         await P.moveTo(t.x + 260, t.y - 330)
@@ -129,15 +187,28 @@ export function walksB() {
       targets: editorTargets(),
       async setup(P) {
         await stripBook(P)
+        await fullBook(P)
         await dropOffCamera(P, heroThumb(P), P.page.locator(FRAME).first())
+        // v2 check 10: no selection handles on spread 1 (the landing overlay and the drag would hide them)
+        await P.page.evaluate(() => document.activeElement?.blur())
+        await P.page.keyboard.press('Escape')
+        await P.settle(300)
+        if (await P.page.locator('[data-testid="photo-handle"]').count())
+          throw new Error('spread 1 frame still selected')
         await zoomSpread(P, W)
         const t = await P.center(heroThumb(P))
         await P.moveTo(t.x, t.y)
       },
       async act(P) {
-        await P.wait(1200)
-        await dragTo(P, P.page.locator(COVER_FRONT()).first(), 700)
-        await P.wait(2600)
+        // v2: the reel plays this clip over 157 frames (B3–B5); the cover drop lands on the hero bar's downbeat
+        await P.wait(1600)
+        const c = await dragTo(P, P.page.locator(COVER_FRONT()).first(), 700)
+        // v2 check 10: the drop leaves no selection (its round handles straddle the cover's edges in B5's crop) and
+        // the pointer leaves the cover
+        await P.page.keyboard.press('Escape')
+        await P.wait(200)
+        await P.glide(c.x + 140, c.y + 170, 450)
+        await P.wait(1950)
       },
       async check(P) {
         const src = await P.page
@@ -158,6 +229,7 @@ export function walksB() {
         { name: 'book3d', sel: '[data-testid="book3d"]' },
         { name: 'reader', sel: '[data-testid="ps-reader"]' },
         { name: 'readerGl', sel: '[data-testid="ps-reader-canvas"]' },
+        { name: 'geom:photo', sel: FACE(), all: true },
       ],
       async setup(P) {
         await P.page.goto(SITE(P))
@@ -182,10 +254,15 @@ export function walksB() {
       reel: 'b',
       viewport: 'phone',
       about:
-        'B8–B10: phone, the reader on the B cover (opened off camera); tap opens the cover onto the title page, one slow 1300 ms finger drag turns it onto spread 1 = the hero',
+        'B8–B10: phone, the reader on the B cover (opened off camera); a late tap (b22) opens the cover onto the title page, one slow 1300 ms finger drag turns it onto spread 1 = the hero under the end card',
       targets: [
         { name: 'stage', sel: '[data-testid="pt-stage"]' },
         { name: 'paper', sel: '[data-testid="ps-paper"]', all: true },
+        {
+          name: 'geom:photo',
+          sel: '[data-testid="pt-sheet"][data-role="top"] img',
+          all: true,
+        },
       ],
       async setup(P) {
         // Spread 1 of the face-out book (its full-spread frame, data-si 2) is kit p10; reel B feeds it the hero, as the
@@ -211,7 +288,8 @@ export function walksB() {
         await P.moveTo(st.x + st.width * 0.7, st.y + st.height * 0.5)
       },
       async act(P) {
-        await P.wait(1330)
+        // v2 G3: B9 (M) holds on the cover page, so the tap comes late (b22, clip frame 103)
+        await P.wait(3430)
         await P.down()
         await P.wait(70)
         await P.up()
@@ -226,7 +304,7 @@ export function walksB() {
         await P.down()
         await P.glide(st.x + st.width * 0.08, y, 1300, 0.01)
         await P.up()
-        await P.wait(4100)
+        await P.wait(2000)
       },
       async check(P) {
         const si = await P.page

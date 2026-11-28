@@ -1,48 +1,58 @@
-// Reel B «Один снимок» shot table (Designer promo-reels-3 spec §4; contract in stub.shots.js). One hero, L68, followed
-// from a full-frame macro into the filmstrip, onto spread 1, onto the cover, onto the PDF cover sheet, onto the site
-// shelf and into the phone reader. There are no cuts: every context change keeps the hero's output rect where the
-// previous context left it (`lock`), so the camera path reads as one move; three of them are rack focuses on a downbeat.
+// Reel B «Один снимок» shot table, v2 (Designer promo-reels-v2 spec §1–§4 on top of promo-reels-3 §4; contract in
+// stub.shots.js). One hero, L68, followed from a full-frame macro into the filmstrip, onto spread 1, onto the cover,
+// onto the PDF cover sheet, onto the site shelf and into the phone reader. Every context change keeps the hero's output
+// rect where the previous context left it (`lock`), so the camera path reads as one move.
 //
-// Plain JS (Node imports it too: reels-audio.mjs / reels-render.mjs). The boxes below are CSS px measured from the
-// capture logs of promo/reels/walks-b.mjs (promo/out/reels/clips/<clip>/<clip>.{rects,pointer}.json); the pointer paths
-// are rebuilt from the walks' own steps with capture's `glidePath`, so the overlay cursor is the filmed path.
-import { HEIGHT, WIDTH, cue, reelConfig } from './shared/beats.js'
-import { cameraAt } from './shared/Springs.js'
+// v2: the cut follows the track (b.beats.js, Tetrapod, 91.38 BPM, 552 frames): every cut is on a beat frame, the cover
+// drop on the hero bar's downbeat (frame 158), the rack into the PDF sheet is a cut + impact on frame 236 (Designer
+// review 4: it covers the track's 169 ms break at 7.71–7.88 s), the end card on the last downbeat (473).
+// The editor book is full (walks-b.mjs `fullBook`), so the editor shots are photo-filled (G3).
+//
+// Plain JS (Node imports it too: reels-render.mjs). The boxes below are CSS px measured from the capture logs of
+// promo/reels/walks-b.mjs (promo/out/reels/clips/<clip>/<clip>.{rects,pointer}.json); the pointer paths are rebuilt
+// from the walks' own steps with capture's `glidePath`, so the overlay cursor is the filmed path.
+import { HEIGHT, SAFE, WIDTH, gridBeatFrame } from './shared/beats.js'
+import { cameraAt, shotAt } from './shared/Springs.js'
+import BEATS from './b.beats.js'
 
 const R = 'b'
-const BEAT = reelConfig(R).beatFrames // 20
-const b = (beat) => beat * BEAT
+/** Frame of beat `k` of the track grid (b(8) = 158, the hero bar's downbeat). */
+export const b = (k) => gridBeatFrame(BEATS, k)
 
 // ---------------------------------------------------------------- measured (CSS px of each clip's viewport)
 
 /**
  * Hero photo: graded L68, 4000 × 2667 (promo/out/reels/photos/manifest.json reels.b). The walker stands at x 21–35 %
- * (measured on the graded file; the spec's 58 % is the backpack rocks), so the B1 crop centres on 30 %.
+ * (measured on the graded file), so the B1 crop centres on 30 %.
  */
 export const HERO = { file: 'L68.jpg', w: 4000, h: 2667, walkerX: 0.3 }
 
 export const CLIP = {
+  // v2 capture (full book): the strip is scrolled 40 px, so thumb 1 starts at x −28
   'b-hero-drop': {
-    frames: 98,
+    frames: 102,
     plane: { w: 1280, h: 1440 },
-    thumb: { x: 12, y: 1287, w: 183, h: 141 },
-    frame: { x: 279, y: 401, w: 721, h: 512 },
+    thumb: { x: -28, y: 1287.15, w: 183, h: 140.85 },
+    frame: { x: 279.4, y: 397.49, w: 721.2, h: 511.66 },
+    events: { down: 40, up: 72 },
   },
   'b-hero-cover': {
-    frames: 144,
+    frames: 160,
     plane: { w: 1280, h: 1440 },
-    thumb: { x: 12, y: 1287, w: 183, h: 141 },
-    frame: { x: 437, y: 443, w: 406, h: 288 },
-    coverFront: { x: 656, y: 144, w: 170, h: 207 },
+    thumb: { x: -28, y: 1287.15, w: 183, h: 140.85 },
+    frame: { x: 437.2, y: 442.65, w: 405.6, h: 287.76 },
+    coverFront: { x: 656.22, y: 144.28, w: 170.35, h: 207.18 },
+    events: { down: 48, up: 82 },
   },
   'b-site': {
     frames: 97,
     plane: { w: 1280, h: 1440 },
     // face-out book: rest, then lifted under the pointer (book3d box, clip frames 0 → 24); the room's closed cover
     // (pixel bbox of the frames 54–62, the GL cover is not a DOM box)
-    face: { x: 319, y: 317, w: 336, h: 399 },
-    lifted: { x: 312, y: 290, w: 349, h: 414 },
-    liftFrames: [16, 24],
+    face: { x: 319.43, y: 317.37, w: 336, h: 399.24 },
+    lifted: { x: 312.46, y: 290.14, w: 349.44, h: 414.03 },
+    liftFrames: [14, 24],
+    events: { down: 50, up: 52 },
     room: { x: 357, y: 369, w: 580, h: 700 },
     roomFrame: 54,
   },
@@ -50,31 +60,40 @@ export const CLIP = {
     frames: 239,
     plane: { w: 390, h: 844 },
     paper: { x: 16, y: 180, w: 358, h: 448 },
+    tap: { x: 273, y: 404 },
+    // b-phone.pointer.json: tap down, breath drag down (clip frames)
+    touch: { tap: 103, drag: 133 },
   },
 }
 
 /** Walk steps of each clip (walks-b.mjs), for the pointer replay: start point, then glides / waits / down / up. */
 const WALK = {
   'b-hero-drop': [
-    ['at', 363.5, 1027.58],
+    ['at', 323.5, 1027.58],
     ['wait', 400],
-    ['glide', 103.5, 1357.58],
+    ['glide', 63.5, 1357.58],
     ['wait', 100],
     ['down'],
     ['wait', 70],
-    ['glide', 640, 656.65, 640],
+    ['glide', 640, 653.32, 640],
+    ['wait', 120],
     ['up'],
   ],
   'b-hero-cover': [
-    ['at', 103.5, 1357.58],
-    ['wait', 1200],
+    ['at', 63.5, 1357.58],
+    ['wait', 1600],
     ['down'],
     ['wait', 70],
     ['glide', 741.39, 247.87, 700],
+    ['wait', 120],
     ['up'],
+    // the pointer leaves the cover's round handle (check 10)
+    ['wait', 200],
+    ['glide', 881.39, 417.87, 450],
+    ['wait', 1950],
   ],
   'b-site': [
-    ['at', 873.5, 806.61],
+    ['at', 873.65, 806.61],
     ['wait', 300],
     ['glide', 493.65, 506.61],
     ['wait', 500],
@@ -157,24 +176,47 @@ export const POINTER = Object.fromEntries(
 )
 const eventFrame = (id, type, k = 0) =>
   POINTER[id].events.filter((e) => e.type === type)[k].f
+// the replay must put down / up on the frames the capture logged (<clip>.pointer.json `events`)
+for (const [id, c] of Object.entries(CLIP))
+  for (const [type, f] of Object.entries(c.events ?? {}))
+    if (eventFrame(id, type) !== f)
+      throw new Error(
+        `b.shots: ${id} ${type} replays on frame ${eventFrame(id, type)}, filmed on ${f}`,
+      )
 
 // ---------------------------------------------------------------- reel timing: which clip frame plays at a reel frame
 
-/** Reel frame − offset = clip frame (rate 1). Each clip is placed so its action lands on the beat. */
+/** The beats the actions land on (frames of the track grid). */
+export const ACT = {
+  drop: b(4), // 79: the hero lands on spread 1 (cut B2 → B3)
+  coverDrop: b(8), // 158: the hero bar's downbeat
+  pdf: b(12), // 236: cut + impact into the PDF sheet
+  // 323: the room's closed cover (clip frames 54–62) is on screen until the rack into the phone on b17 (clip 62)
+  siteClick: b(16) + 8,
+  // 433: the phone tap opens the cover (GL, 1000 ms) late in B9, so the M push holds on the cover page (G3: the
+  // reader's later pages show the hero only as a band, ≤ 0.32 of the frame at UI scale 3)
+  tap: b(22),
+  end: b(24), // 473: the last downbeat
+}
+
+/** Reel frame − offset = clip frame (rate 1). Each clip is placed so its action lands on its beat. */
 export const OFFSET = {
-  // drop (up) on b4 = 80
-  'b-hero-drop': b(4) - eventFrame('b-hero-drop', 'up'),
-  // drop on the cover on b7 = 140
-  'b-hero-cover': b(7) - eventFrame('b-hero-cover', 'up'),
-  // the room's closed cover is on screen at the b16 rack (clip frames 54–62); the click lands at 312 = b15.5 + 2
-  'b-site': b(16) - 58,
-  // tap on b18 = 360 (spec: b17; one beat later so the title page under the cover is on screen for ~half a beat
-  // only); the cover opens (1000 ms) onto the title page; the breath drag starts on b19.5 = 390
-  'b-phone': b(18) - 40, // b-phone.pointer.json: tap down on clip frame 40, breath drag down on 70
+  'b-hero-drop': ACT.drop - eventFrame('b-hero-drop', 'up'),
+  'b-hero-cover': ACT.coverDrop - eventFrame('b-hero-cover', 'up'),
+  'b-site': ACT.siteClick - eventFrame('b-site', 'down'),
+  'b-phone': ACT.tap - CLIP['b-phone'].touch.tap,
+}
+/** The breath: the slow finger drag that turns the title page onto the hero (b-phone.pointer.json, 1300 ms). */
+export const BREATH = {
+  from: OFFSET['b-phone'] + CLIP['b-phone'].touch.drag,
+  frames: 39,
 }
 
 const box = (x, y, w, h) => ({ x, y, w, h })
 const centre = (r) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 })
+/** `r` scaled by `k` about its centre. */
+const grow = (r, k) =>
+  box(r.x - (r.w * (k - 1)) / 2, r.y - (r.h * (k - 1)) / 2, r.w * k, r.h * k)
 
 /** Plane box → output box of `shot` at `frame`. */
 export function outBox(shot, frame, r) {
@@ -220,25 +262,41 @@ export const SHEET_FRONT = box(
   mm(124),
   mm(151),
 )
-/** Front panel up to the media edge: the crop marks there are part of the sharp area. */
-export const SHEET_FRONT_MARKS = box(
-  mm(SHEET.spineX + SHEET.spine),
-  0,
-  mm(148 + 2 * SHEET.slugMm),
-  mm(SHEET.trimH + 2 * SHEET.slugMm),
+/** The front panel's trim box (v2 G3 B6: framed ≥ 800 px wide with its crop marks at top, right and bottom). */
+export const SHEET_PANEL = box(
+  mm(SHEET.slugMm + SHEET.spineX + SHEET.spine),
+  mm(SHEET.slugMm),
+  mm(148),
+  mm(SHEET.trimH),
 )
 export const SHEET_PLANE = {
   w: mm(SHEET.trimW + 2 * SHEET.slugMm),
   h: mm(SHEET.trimH + 2 * SHEET.slugMm),
 }
+/** Panel width in output px at the end of B6 (spec ≥ 800). */
+export const PANEL_OUT_W = 900
+
+// ---------------------------------------------------------------- the phone (v2 G3 B8/B9: body 700 × 1482 at 190, 219)
+
+/** Capture px → output: the screen's 672 px over the 390 px capture, at x 204, y 233. */
+const PHONE_K = 672 / 390
+const PHONE_SCREEN = { x: 204, y: 233 }
+/** Crop showing the phone exactly at its spec box (capture px plane). */
+export const PHONE_W = {
+  cx: (WIDTH / 2 - PHONE_SCREEN.x) / PHONE_K,
+  cy: (HEIGHT / 2 - PHONE_SCREEN.y) / PHONE_K,
+  w: WIDTH / PHONE_K,
+}
 
 // ---------------------------------------------------------------- shots
 
 const HERO_PLANE = { w: HERO.w, h: HERO.h }
-const heroCrop = (w) => ({
+/** 9:16 crop at zoom `z` over the full height, its top on the photo's top: the dark ground at the bottom stays under
+ * G2's 96 rows. */
+const heroCrop = (z) => ({
   cx: HERO.w * HERO.walkerX,
-  cy: HERO.h / 2,
-  w,
+  cy: HERO.h / (2 * z),
+  w: (HERO.h * 9) / 16 / z,
 })
 const D = CLIP['b-hero-drop']
 const C = CLIP['b-hero-cover']
@@ -252,8 +310,11 @@ const add = (shot) => {
 }
 /** Hero output box at the end of `shot` (the frame the next context starts on). */
 const endBox = (shot, r) => outBox(shot, shot.to, r)
+/** Clip frame of a shot's first frame (reels-render.mjs maps the clip's rects through `ui.start`). */
+const ui = (clip, from) => ({ clip, rate: 1, start: from - OFFSET[clip] })
 
-// B1 0–2 M: the hero macro, full height (2667 px → 1920), centred on the walker, push 1.00 → 1.03.
+// B1 b0–b2 M: the hero macro, top-anchored 1.04 → 1.07 of full height, centred on the walker; from b1.5 it shrinks
+// into thumb 1.
 const B1 = add({
   id: 'B1',
   from: 0,
@@ -261,141 +322,174 @@ const B1 = add({
   scale: 'M',
   context: 'hero',
   plane: HERO_PLANE,
-  cam: [heroCrop((HERO.h * 9) / 16), heroCrop((HERO.h * 9) / 16 / 1.03)],
+  cam: [heroCrop(1.04), heroCrop(1.07)],
   push: 0,
   drift: { x: -9, y: 0 },
-  // from b1.5 the photo shrinks into filmstrip thumb 1 (ReelB `heroShrink`)
   shrink: { from: b(1.5), to: b(2) },
 })
-// B2 2–4 Md: the editor (Md zoom); thumb 1 is the hero; grab (b2.5 + 2), drag, drop on b4.
+// B2 b2–b4 Md: the full editor book (Md zoom); thumb 1 is the hero; grab, drag, drop on spread 1 on b4.
 const B2 = add({
   id: 'B2',
   from: b(2),
-  to: b(4),
+  to: ACT.drop,
   scale: 'Md',
   context: 'b-hero-drop',
   plane: D.plane,
-  ui: { clip: 'b-hero-drop', rate: 1 },
+  ui: ui('b-hero-drop', b(2)),
   cam: [
-    { cx: 400, cy: 960, w: 800 },
-    { cx: 410, cy: 950, w: 790 },
+    // the grab on thumb 1 stays inside the safe zone (y ≤ 1520)
+    { cx: 400, cy: 980, w: 800 },
+    { cx: 430, cy: 930, w: 770 },
   ],
 })
-// B3 4–6 M: W clip with the hero already on spread 1: the landing overlay springs onto it; macro on the spread.
+// B3 b4–b6 M: macro on spread 1: the landing overlay springs onto it (the W clip already has the hero there).
 const B3 = add({
   id: 'B3',
-  from: b(4),
+  from: ACT.drop,
   to: b(6),
   scale: 'M',
   context: 'b-hero-cover',
   plane: C.plane,
-  ui: { clip: 'b-hero-cover', rate: 1 },
+  ui: ui('b-hero-cover', ACT.drop),
   cam: [
     frameOn(C.frame, 1000, { x: 540, y: 900 }),
-    frameOn(C.frame, 900, { x: 540, y: 880 }),
+    frameOn(C.frame, 930, { x: 540, y: 880 }),
   ],
-  land: { from: b(4) },
+  land: { from: ACT.drop },
   drift: { x: -6, y: -9 },
 })
-// B4 6–8 W: the camera rises up the W stack to the cover; the hero thumb comes up from below onto the cover front.
+// B4 b6–b9 W: the camera rises up the W stack to the cover; the hero comes up from the strip onto the cover front
+// and drops on b8 (the hero bar).
 const B4 = add({
   id: 'B4',
   from: b(6),
-  to: b(8),
+  to: b(9),
   scale: 'W',
   context: 'b-hero-cover',
   plane: C.plane,
-  ui: { clip: 'b-hero-cover', rate: 1 },
-  cam: [B3.cam[1], { cx: 600, cy: 720, w: 800 }],
+  ui: ui('b-hero-cover', b(6)),
+  cam: [B3.cam[1], { cx: 640, cy: 620, w: 864 }],
 })
-// B5 8–10 Md: push onto the cover.
+// B5 b9–b12 Md: cut in on b9 to the cover with the hero on its front, spread 1 (the hero again) under it; UI scale
+// ≤ 3 (check 3) keeps the cover itself at ≤ 0.15 of the frame, so the crop holds both (G3 ≥ 0.45).
+const B5_X = C.coverFront.x + C.coverFront.w / 2
 const B5 = add({
   id: 'B5',
-  from: b(8),
-  to: b(10),
+  from: b(9),
+  to: ACT.pdf,
   scale: 'Md',
   context: 'b-hero-cover',
   plane: C.plane,
-  ui: { clip: 'b-hero-cover', rate: 1 },
-  cam: [B4.cam[1], { cx: 700, cy: 470, w: 612 }],
-  push: 0.015,
+  ui: ui('b-hero-cover', b(9)),
+  cam: [
+    { cx: B5_X - 6, cy: 432, w: 384 },
+    { cx: B5_X, cy: 420, w: 374 },
+  ],
+  push: 0.012,
 })
-// B6 10–13 W: rack focus on b10 → the cover PDF sheet; its front panel takes the hero's rect; the sheet slides left
-// and the camera closes in on the front (its end size sets the site book's scale ≥ 1.35).
+// B6 b12–b14 W: cut + impact on b12 → the cover PDF sheet; its front frame takes the hero's rect, then the camera
+// frames the front panel + spine 900 px wide with the marks at top, right and bottom; the white sheet runs out left.
 const B6 = add({
   id: 'B6',
-  from: b(10),
-  to: b(13),
+  from: ACT.pdf,
+  to: b(14),
   scale: 'W',
   context: 'pdf',
   plane: SHEET_PLANE,
-  rack: b(10),
+  rack: ACT.pdf,
   cam: [
     lock(SHEET_FRONT, endBox(B5, C.coverFront)),
-    frameOn(SHEET_FRONT, 480, { x: 470, y: 900 }),
+    lock(
+      SHEET_PANEL,
+      box(
+        110,
+        HEIGHT / 2 - (PANEL_OUT_W * SHEET_PANEL.h) / SHEET_PANEL.w / 2 - 20,
+        PANEL_OUT_W,
+        (PANEL_OUT_W * SHEET_PANEL.h) / SHEET_PANEL.w,
+      ),
+    ),
   ],
-  drift: { x: -14, y: 0 },
+  drift: { x: -10, y: 0 },
 })
-// B7 13–16 Md: rack focus on b13 → the site home, face-out B book (cover = hero); lift, click (b15.5 + 2): the room
-// opens on the closed cover.
+// B7 b14–b17 M: rack on b14 → the site home, face-out B book (cover = hero); lift, click on b16: the room opens on
+// the closed cover, framed one page ≥ 900 px wide.
 const B7 = add({
   id: 'B7',
-  from: b(13),
-  to: b(16),
-  scale: 'Md',
+  from: b(14),
+  to: b(17),
+  scale: 'M',
   context: 'b-site',
   plane: S.plane,
-  ui: { clip: 'b-site', rate: 1 },
-  rack: b(13),
+  ui: ui('b-site', b(14)),
+  rack: b(14),
+  // the face-out cover starts at 1.2 × the sheet front's last rect (the rack hides the step) and grows to 960 wide
+  // lifted (G3 M ≥ 0.45; UI scale 2.75 ≤ 3); the room's closed cover then overfills the frame until the rack on b17
   cam: [
-    lock(S.face, endBox(B6, SHEET_FRONT)),
-    { cx: S.room.x + S.room.w / 2 - 20, cy: 720, w: 790 },
+    lock(S.face, grow(endBox(B6, SHEET_FRONT), 1.2)),
+    frameOn(S.lifted, 960, { x: 540, y: 900 }),
   ],
 })
-// B8 16–19 W: rack focus on b16 → the phone reader on the B cover; tap on b18 opens it (GL, 1000 ms).
-const PHONE_W = {
-  cx: 195,
-  cy: (HEIGHT / 2 - 260) / (580 / 390),
-  w: (390 * WIDTH) / 580,
+// B8 b17–b19 W: rack on b17 → the phone reader on the B cover (= the hero) at UI scale 3, pulling back until the
+// whole body shows (page 1070 → 800 px, < 12 px/frame: no motion blur on the page edges, check 10; while the rack
+// blurs, the page edges are still outside the frame). The end card brings the body to the spec's 700 px box.
+const PAGE_AT = {
+  x: PHONE_SCREEN.x + centre(P.paper).x * PHONE_K,
+  y: PHONE_SCREEN.y + centre(P.paper).y * PHONE_K,
 }
 const B8 = add({
   id: 'B8',
-  from: b(16),
+  from: b(17),
   to: b(19),
   scale: 'W',
   context: 'b-phone',
   plane: P.plane,
-  ui: { clip: 'b-phone', rate: 1 },
-  rack: b(16),
-  cam: [lock(P.paper, endBox(B7, S.room)), PHONE_W],
+  ui: ui('b-phone', b(17)),
+  rack: b(17),
+  cam: [frameOn(P.paper, 1070, PAGE_AT), frameOn(P.paper, 800, PAGE_AT)],
+  push: 0.004,
+  drift: { x: -6, y: 0 },
 })
-// B9 19–23 M (breath): push into the page; from b19.5 (as soon as the cover has opened onto the title page, so the
-// hero is off screen for about half a beat) one slow 1300 ms finger drag turns the next page: spread 1 = the hero.
+// B9 b19–b24 M → Md: cut in on b19 to the cover page 960 wide, easing back to 900; the tap on b22 opens the cover
+// (GL, 1000 ms) onto the title page and the breath (one slow 1300 ms finger drag) starts as the open settles.
 const B9 = add({
   id: 'B9',
   from: b(19),
-  to: b(23),
+  to: ACT.end,
   scale: 'M',
   context: 'b-phone',
   plane: P.plane,
-  ui: { clip: 'b-phone', rate: 1 },
-  cam: [PHONE_W, frameOn(P.paper, 960, { x: 540, y: 900 })],
-  push: 0.006,
-  breath: { from: b(19.5), to: b(19.5) + 39 },
+  ui: ui('b-phone', b(19)),
+  cam: [
+    frameOn(P.paper, 960, { x: 540, y: 900 }),
+    frameOn(P.paper, 900, { x: 540, y: 900 }),
+  ],
+  push: 0,
+  breath: { from: BREATH.from, to: BREATH.from + BREATH.frames },
 })
-// B10 23–27 end: the camera holds (0.5 %/s push, drift) and the phone settles into y 250–940 on the heavy spring.
+// B10 b24–end: the phone pulls back to its 700 px body box under the text (the camera does it, so the clip's page
+// rects map 1:1 for check 10) while the breath lands the turned page on the hero.
 add({
   id: 'B10',
-  from: b(23),
-  to: b(27),
+  from: ACT.end,
+  to: BEATS.frames,
   scale: 'end',
   context: 'b-phone',
   plane: P.plane,
-  cam: [B9.cam[1], B9.cam[1]],
+  ui: ui('b-phone', ACT.end),
+  cam: [B9.cam[1], PHONE_W],
   push: 0.005,
   drift: { x: -6, y: 0 },
-  endFrom: B9,
 })
+
+// A UI shot whose plane leaves ≥ 90 rows of ground above or below it (B2: the strip sits at the viewport's foot, the
+// grab must stay in the safe zone) has no focus: the focus layers would push that ground under G2's level 28.
+for (const s of shots.filter((x) => x.ui && x.context !== 'b-phone')) {
+  for (let f = s.from; f < s.to && !s.groundBand; f++) {
+    const c = cameraAt(s, f)
+    const below = HEIGHT - (c.ty + s.plane.h * c.s)
+    if (c.ty >= 90 || below >= 90) s.groundBand = true
+  }
+}
 
 // ---------------------------------------------------------------- photos shown (largest output width per shot)
 
@@ -407,7 +501,6 @@ B1.photos = [
   },
 ]
 {
-  // landing overlay: the hero cover-fits spread 1's frame (aspect 1.41 < 1.5, so the photo's height fills it)
   const fr = outBox(B3, B3.from, C.frame)
   B3.photos = [
     {
@@ -428,51 +521,78 @@ B1.photos = [
   ]
 }
 
-// ---------------------------------------------------------------- cues (sound + click / drop points, output px)
+// ---------------------------------------------------------------- cues (mix types, output px of click / drop points)
 
 const pointOut = (shot, frame, p) => {
+  // A grab just outside the frame (B4: the hero leaves the strip below-left) pans from the nearest edge.
   const o = outBox(shot, frame, box(p.x, p.y, 0, 0))
-  return { x: Math.round(o.x), y: Math.round(o.y) }
+  const clamp = (v, lo, hi) => Math.round(Math.min(hi, Math.max(lo, v)))
+  const inside = o.x >= 0 && o.x <= WIDTH && o.y >= 0 && o.y <= HEIGHT
+  // an on-screen point stays as it is (check 6 judges it); only an off-screen grab is pulled to the safe edge
+  if (inside) return { x: Math.round(o.x), y: Math.round(o.y) }
+  return {
+    x: clamp(o.x, SAFE.left, SAFE.right),
+    y: clamp(o.y, SAFE.top, SAFE.bottom),
+  }
 }
 const clipPointer = (id, reelFrame) =>
   POINTER[id].frames[reelFrame - OFFSET[id]]
 
-const GRAB = b(2.5) + 2
-const DROP = b(4)
-const COVER_DROP = b(7)
-const SITE_CLICK = b(15.5) + 2
-const TAP = b(18)
-if (GRAB !== eventFrame('b-hero-drop', 'down') + OFFSET['b-hero-drop'])
-  throw new Error('b.shots: the grab is off its cue')
-if (SITE_CLICK !== eventFrame('b-site', 'down') + OFFSET['b-site'])
-  throw new Error('b.shots: the site click is off its cue')
+/** A cue at `frame`, written as the last beat at or before it + whole frames (beats.js gridCue). */
+function cueAt(frame, type, extra = {}) {
+  let k = 0
+  while (b(k + 1) <= frame) k++
+  return {
+    beat: k,
+    offset: frame - b(k),
+    frame,
+    type,
+    ...extra,
+  }
+}
+
+const GRAB = eventFrame('b-hero-drop', 'down') + OFFSET['b-hero-drop']
+const COVER_GRAB = eventFrame('b-hero-cover', 'down') + OFFSET['b-hero-cover']
+const SHRINK = B1.shrink.from + 4
 
 const cues = [
-  cue(R, 2, 'air'),
-  cue(R, 2.5, 'click', {
-    offset: 2,
-    ...pointOut(B2, GRAB, clipPointer('b-hero-drop', GRAB)),
-  }),
-  cue(R, 4, 'snap', pointOut(B3, DROP, centre(C.frame))),
-  cue(R, 7, 'snap', pointOut(B4, COVER_DROP, centre(C.coverFront))),
-  cue(R, 9, 'riser'),
-  cue(R, 10, 'air'),
-  cue(R, 12, 'riser'),
-  cue(R, 13, 'air'),
-  cue(R, 15, 'riser'),
-  cue(R, 15.5, 'click', {
-    offset: 2,
-    ...pointOut(B7, SITE_CLICK, clipPointer('b-site', SITE_CLICK)),
-  }),
-  cue(R, 16, 'air'),
-  cue(R, 18, 'click', pointOut(B8, TAP, { x: 273, y: 404 })),
-  cue(R, 18, 'rustle'),
-  cue(R, 19.5, 'rustle'),
+  cueAt(SHRINK, 'swish', { x: 540 }),
+  cueAt(GRAB, 'pick', pointOut(B2, GRAB, clipPointer('b-hero-drop', GRAB))),
+  cueAt(ACT.drop, 'drop', pointOut(B3, ACT.drop, centre(C.frame))),
+  cueAt(
+    COVER_GRAB,
+    'pick',
+    pointOut(
+      shotAt(shots, COVER_GRAB),
+      COVER_GRAB,
+      clipPointer('b-hero-cover', COVER_GRAB),
+    ),
+  ),
+  cueAt(
+    ACT.coverDrop,
+    'drop',
+    pointOut(B4, ACT.coverDrop, centre(C.coverFront)),
+  ),
+  cueAt(ACT.pdf, 'impact', { x: 540 }),
+  cueAt(b(14), 'swish', { x: 540 }),
+  cueAt(
+    ACT.siteClick,
+    'click',
+    pointOut(B7, ACT.siteClick, clipPointer('b-site', ACT.siteClick)),
+  ),
+  cueAt(b(17), 'swish', { x: 540 }),
+  cueAt(ACT.tap, 'click', pointOut(B9, ACT.tap, P.tap)),
+  cueAt(ACT.tap + 3, 'cover', { x: 600 }),
+  // the slow turn; no music `breath` duck here: it would run over the end card's last downbeat (473)
+  cueAt(BREATH.from, 'pageSlow', { x: 620 }),
+  cueAt(ACT.end, 'impact', { x: 540 }),
 ]
 
 export default {
   reel: R,
-  frames: reelConfig(R).frames,
+  frames: BEATS.frames,
+  beats: BEATS,
+  poster: 20,
   plane: D.plane,
   shots,
   cues,
