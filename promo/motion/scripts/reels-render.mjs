@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Renders and checks one Instagram reel (Designer promo-reels-3 spec §2, §7):
 //   prepare → audio → render (H.264 High CRF 14 preset slow, yuv420p, +faststart, AAC 48 kHz stereo 192k) → poster
-//   → 0.5 s sheet → checks 1–8 of spec §7 and 9–11 of promo-reels-v2 §5. Exit 1 on any failed check.
+//   → 0.5 s sheet → checks 1–8 of spec §7 and 9–12 of promo-reels-v2 §5. Exit 1 on any failed check.
+//   A v2 table (`grid` from <x>.capture.js) is cut and cued on its track's beats and mixed by reels-mix.mjs (check 12);
+//   the other tables keep the synthesised v1 audio (reels-audio.mjs).
 //
 //   node scripts/reels-render.mjs --reel a|b|c [--checks-only] [--publish <dir>] [--music <file>]
 //   node scripts/reels-render.mjs --selftest        # every check must fail on its deliberately bad fixture
@@ -38,11 +40,14 @@ import {
   WIDTH,
   isCueOnGrid,
   isCutOnGrid,
+  gridBeatFrame,
+  nearestBeatDistance,
   reelConfig,
   sheetSize,
 } from '../src/reels/shared/beats.js'
 import { CAMERA_MIN, cameraAt, shotAt } from '../src/reels/shared/Springs.js'
 import { AUDIO_TAG, buildAudio, loadTable, readWav } from './reels-audio.mjs'
+import { MIX_TAG, checkSoundFiles } from './reels-mix.mjs'
 
 const motion = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const repo = resolve(motion, '..', '..')
@@ -57,6 +62,56 @@ const FONT_FILES = [
 ]
 const MANIFEST = join(repo, 'promo', 'reels', 'photos.json')
 const REMOTION = join(motion, 'node_modules', '.bin', 'remotion')
+// v2 sound (promo-reels-v2 §3): reels-mix.mjs writes <reel>-{mix,music,sfx}.wav + <reel>-mix.json here; check 12 reads it.
+const SOUND_MIX = join(out, 'sound', 'mix')
+const MIX_CLI = join(motion, 'scripts', 'reels-mix.mjs')
+
+/** The poster frame: the shot table's own (`poster`, v2 tables) or the reel's config. */
+const STILL_TIMEOUT = 10 * 60 * 1000
+const posterFrame = (reel, table) => table.poster ?? reelConfig(reel).poster
+
+/** reels-mix cue list from a v2 table: cues carry the reels-mix `type` (+ `x` pan, `frames` of a breath). */
+export const mixCues = (table) => ({
+  frames: table.frames,
+  cuts: table.shots.slice(1).map((s) => s.from),
+  cues: table.cues.map((c) => ({
+    frame: c.frame,
+    type: c.type,
+    ...(c.x != null ? { x: c.x } : {}),
+    ...(c.frames != null ? { frames: c.frames } : {}),
+  })),
+})
+
+/**
+ * Mixes a v2 table's sound with reels-mix (Chromium OfflineAudioContext) and stages `<reel>-mix.wav` as the reel's
+ * audio. The mix must use the track the table was cut to (`table.grid`): another sha256 / start = stale clips.
+ */
+function mixSound(reel, table, pub) {
+  mkdirSync(SOUND_MIX, { recursive: true })
+  const cuesFile = join(SOUND_MIX, `${reel}-cues.json`)
+  writeFileSync(cuesFile, `${JSON.stringify(mixCues(table), null, 1)}\n`)
+  rmSync(join(SOUND_MIX, `${reel}-mix.json`), { force: true })
+  const r = spawnSync(
+    process.execPath,
+    [MIX_CLI, '--reel', reel, '--cues', cuesFile, '--out', SOUND_MIX],
+    { stdio: 'inherit', cwd: repo },
+  )
+  const metaFile = join(SOUND_MIX, `${reel}-mix.json`)
+  if (!existsSync(metaFile))
+    throw new Error(`reels-mix wrote no ${reel}-mix.json (exit ${r.status})`)
+  const meta = JSON.parse(readFileSync(metaFile, 'utf8'))
+  const g = table.grid
+  if (meta.music.sha256 !== g.sha256 || meta.music.start !== g.start)
+    throw new Error(
+      `the mix uses ${meta.music.id} @ ${meta.music.start} s, the table was cut to ${g.track} @ ${g.start} s: re-run the walks and the bridge`,
+    )
+  mkdirSync(join(pub, 'audio'), { recursive: true })
+  copyFileSync(
+    join(SOUND_MIX, `${reel}-mix.wav`),
+    join(pub, 'audio', `${reel}.wav`),
+  )
+  return r.status === 0
+}
 
 /** Spec §2 end card text, kept here as its own copy so a drift in EndCard.jsx fails check 6. */
 export const EXPECTED_TEXT = {
@@ -188,6 +243,25 @@ export function check1(probe) {
   ])
 }
 
+/**
+ * v2 (spec §3 «Cut to the music»): a table that carries its track's `grid` (beats.json) puts cuts on the grid's
+ * beat frames and writes cues as `{ beat, offset, frame }` with frame = gridBeatFrame(grid, beat, offset).
+ */
+const onTableGrid = (reel, table, frame) =>
+  table.grid
+    ? Number.isInteger(frame) && nearestBeatDistance(table.grid, frame) === 0
+    : isCutOnGrid(reel, frame)
+function cueOnTableGrid(reel, table, c) {
+  if (!table.grid) return isCueOnGrid(reel, c)
+  const offset = c.offset ?? 0
+  return (
+    Number.isInteger(c.frame) &&
+    Number.isInteger(c.beat * 4) &&
+    Number.isInteger(offset) &&
+    gridBeatFrame(table.grid, c.beat, offset) === c.frame
+  )
+}
+
 /** 2. Shot table: scale class alternates, 0.5–2.0 s shots (breath + end excepted), cuts and cues on the beat grid. */
 export function check2(reel, table) {
   const p = []
@@ -200,7 +274,7 @@ export function check2(reel, table) {
       p.push(`${s.id} does not start where ${prev.id} ends`)
     if (prev && s.scale === prev.scale)
       p.push(`${prev.id} → ${s.id} both ${s.scale}`)
-    if (k > 0 && !isCutOnGrid(reel, s.from))
+    if (k > 0 && !onTableGrid(reel, table, s.from))
       p.push(`${s.id} cut at frame ${s.from} off the grid`)
     const len = s.to - s.from
     if (s.breath) {
@@ -218,7 +292,8 @@ export function check2(reel, table) {
     p.push('the breath is not the shot before the end card')
   if (end !== shots.length - 1) p.push('the end card is not the last shot')
   for (const c of table.cues)
-    if (!isCueOnGrid(reel, c)) p.push(`cue ${c.sfx} @ ${c.frame} off the grid`)
+    if (!cueOnTableGrid(reel, table, c))
+      p.push(`cue ${c.sfx ?? c.type} @ ${c.frame} off the grid`)
   return result(p, [
     `${shots.length} shots, ${table.cues.length} cues on the grid`,
   ])
@@ -407,8 +482,8 @@ export function check7(pubDir, names, clipsDir) {
       } catch {
         tag = null
       }
-      if (tag !== AUDIO_TAG)
-        p.push(`audio not generated by reels-audio: ${rel}`)
+      if (tag !== AUDIO_TAG && tag !== MIX_TAG)
+        p.push(`audio not generated by reels-audio / reels-mix: ${rel}`)
     }
   }
   for (const log of walk(clipsDir).filter((f) =>
@@ -1242,7 +1317,7 @@ async function renderAll(reel, pub, files, table) {
     files.geom,
     JSON.stringify([...geom.values()].sort((a, b) => a.frame - b.frame)),
   )
-  const { poster } = reelConfig(reel)
+  const poster = posterFrame(reel, table)
   await renderStill({
     composition,
     serveUrl,
@@ -1250,18 +1325,21 @@ async function renderAll(reel, pub, files, table) {
     imageFormat: 'jpeg',
     jpegQuality: 92,
     output: files.poster,
+    timeoutInMilliseconds: STILL_TIMEOUT,
   })
   const sheet = await selectComposition({
     serveUrl,
     id: `ReelSheet${id}`,
     inputProps: {},
   })
+  // the sheet mounts every 0.5 s cell at once: 36 DPR-3 clip frames extracted 8 at a time outlast the 30 s default
   await renderStill({
     composition: sheet,
     serveUrl,
     frame: 0,
     imageFormat: 'png',
     output: files.sheet,
+    timeoutInMilliseconds: STILL_TIMEOUT,
   })
 }
 
@@ -1310,6 +1388,22 @@ async function runChecks(reel, table, pub, files, extra = {}) {
           logs: geomLogs,
         }),
     ],
+    // 12 (promo-reels-v2 §5.12): the reels-mix stems of a v2 table, against the table's own cuts
+    ...(table.grid
+      ? [
+          [
+            '12 sound',
+            () => {
+              const r = checkSoundFiles({
+                reel,
+                dir: SOUND_MIX,
+                cuts: table.shots.slice(1).map((s) => s.from),
+              })
+              return { ok: r.ok, notes: r.lines }
+            },
+          ],
+        ]
+      : []),
   ]
   const checks = [
     ['1 ffprobe', () => check1(ffprobe(files.video))],
@@ -1320,7 +1414,10 @@ async function runChecks(reel, table, pub, files, extra = {}) {
     ],
     ['4 camera never still', () => check4(table)],
     ['5 real time, no busy UI', () => check5(reel, table, clipsDir)],
-    ['6 safe zones + text', () => check6(table, logs, reelConfig(reel).poster)],
+    [
+      '6 safe zones + text',
+      () => check6(table, logs, posterFrame(reel, table)),
+    ],
     ['7 licences', () => check7(pub, manifestNames(), clipsDir)],
     ['8 sheet', () => check8(files.sheet, table.frames)],
     ...v2,
@@ -1374,9 +1471,15 @@ async function runReel(reel, { checksOnly, publish, music }) {
       mkdirSync(join(pub, 'audio'), { recursive: true })
       copyFileSync(music, join(pub, 'audio', `music${extname(music)}`))
     }
-    const audio = await buildAudio(reel, join(pub, 'audio'), table)
-    for (const line of audio.lines) console.log(`audio: ${line}`)
-    if (!audio.ok) throw new Error('audio check failed')
+    if (table.grid) {
+      // v2 table: the reels-mix master is the audio; its check 12 runs with the others below
+      if (!mixSound(reel, table, pub))
+        console.log('audio: reels-mix check 12 failed (see check 12 below)')
+    } else {
+      const audio = await buildAudio(reel, join(pub, 'audio'), table)
+      for (const line of audio.lines) console.log(`audio: ${line}`)
+      if (!audio.ok) throw new Error('audio check failed')
+    }
     await renderAll(reel, pub, files, table)
   }
   const ok = await runChecks(reel, table, pub, files, {

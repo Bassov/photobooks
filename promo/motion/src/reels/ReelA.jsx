@@ -1,4 +1,5 @@
 import React from 'react'
+import { flushSync } from 'react-dom'
 import {
   AbsoluteFill,
   Audio,
@@ -11,20 +12,45 @@ import {
   useDelayRender,
 } from 'remotion'
 import { FPS, WIDTH, HEIGHT, reelConfig } from './shared/beats.js'
-import { cameraAt, clickScaleAt, shotAt, springAt } from './shared/Springs.js'
+import { clickScaleAt, shotAt, springAt } from './shared/Springs.js'
 import { Background } from './shared/Background.jsx'
-import { Camera, boxToOutput, toOutput } from './shared/Camera.jsx'
+import {
+  Camera,
+  DRAG,
+  PARALLAX,
+  boxToOutput,
+  dragTilt,
+  toOutput,
+} from './shared/Camera.jsx'
 import { Cursor } from './shared/Cursor.jsx'
-import { EndCard, endMove } from './shared/EndCard.jsx'
+import { EndCard, EndHero } from './shared/EndCard.jsx'
 import { Focus } from './shared/Focus.jsx'
 import { Grain } from './shared/Grain.jsx'
 import { CAPTURE } from './a.capture.js'
-import { BEAT, CARDS, DROP_BOX, FOLD, OFFSET, PLANE, STRIP } from './a.shots.js'
+import {
+  BEAT,
+  CARDS,
+  DROP_BOX,
+  FACE,
+  FILLED_ROWS,
+  FILLED_STAY,
+  GHOST_W,
+  OFFSET,
+  PLANE,
+  ROWS,
+  pointerAt,
+  readerPhotosAt,
+  rectAt,
+  rectsAt,
+} from './a.shots.js'
 
-// Reel A «Одна поездка» (Designer promo-reels-3 §3): warm, daytime, tactile. The kit clips (filmed in real time at
-// DPR 3, a.capture.js) play at rate 1 under the shot table's crop camera; Remotion only adds what the product does not
-// draw: the cursor (replaying the captured pointer path), the A2 rewind cards, the A5 landing spring, the A7
-// zoom-through, the A8 pull-out, the A8 → A9 whip pan, the end card move. Text: the end card only.
+// Reel A v2 «Одна поездка» (Designer promo-reels-v2 §3–§4 item 3; v1 reel C sets the pacing, Owner Q-36): warm,
+// daytime, tactile, cut on the Walking Away grid (a.plan.js). The kit clips (filmed frame-stepped at DPR 3,
+// a.capture.js) play at rate 1 under the shared crop camera (G1, one scale); Remotion only adds what the product does
+// not draw: the cursor (the captured pointer path, G5 parallax), the A2 rewind cards, the held photo of the A3 drag
+// (G5 DRAG) and its landing spring, the focus holes (G4) and the end-card book (G7). Text: the end card only.
+// Every photo on screen carries a `data-photo` box (plane px through the camera) for check 11's photo share; the GL
+// reader draws its pages in WebGL, so its photo boxes are the measured `READER_PHOTOS`.
 
 const FILL = {
   position: 'absolute',
@@ -36,15 +62,15 @@ const FILL = {
 const photo = (name) => staticFile(`photos/${name}.jpg`)
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
 const lerp = (a, b, t) => a + (b - a) * t
-const easeIn = (t) => t * t * t
 const easeOut = (t) => 1 - (1 - t) ** 3
+const asBox = ([x, y, w, h]) => ({ x, y, w, h })
 
-// Local wrapper (shared Camera.jsx bug, named in the PR): CameraMotionBlur mounts 11 copies of the plane, and each
-// copy's OffthreadVideo re-fetches the same 3840×4320 frame from the compositor (`cache: 'no-store'`, ≈ 8 s each), so
-// one blurred frame took 95–200 s and the render hit the 30 s delayRender timeout. While rendering, a clip frame is
-// fetched once from the same proxy URL OffthreadVideo uses and every sample draws that one blob through <Img>.
-// The 0.5 s sheet (ReelSheetA: 36 cells mounted at once, `probe` false) fetches its frames one at a time and keeps
-// them at plane size (1280 px wide: a 270 px cell needs less), so 36 × 50 MB BMPs never sit in one tab.
+// ---------------------------------------------------------------- clip frames (v1 cache, kept)
+
+// CameraMotionBlur mounts 11 copies of the plane, and each copy's OffthreadVideo re-fetches the same 3840×4320 frame
+// from the compositor (`cache: 'no-store'`), so one blurred frame could hit the delayRender timeout. While rendering,
+// a clip frame is fetched once from the proxy URL OffthreadVideo uses and every sample draws that one blob through
+// <Img>. The 0.5 s sheet (36 cells mounted at once, `probe` false) fetches its frames 8 at a time at plane size.
 const LONG = 10 * 60 * 1000
 const SheetMode = React.createContext(false)
 const FRAME_CACHE = new Map()
@@ -106,9 +132,18 @@ function clipFrameUrl(src, frame, small) {
   return hit
 }
 
+/** <Img> that may wait behind the clip frames (the sheet mounts 36 frames at once). */
+const Pic = (props) => (
+  <Img delayRenderTimeoutInMilliseconds={LONG} {...props} />
+)
+
+// The drawn image is keyed by its clip frame: a new frame never shows the previous frame's (possibly revoked) blob
+// while its own loads, so the geometry probe (Finish.jsx, same commit) never reads a broken <img>.
 const CachedFrame = ({ src, frame }) => {
   const small = React.useContext(SheetMode)
-  const [img, setImg] = React.useState(null)
+  const key = `${small ? 's' : 'f'} ${src} ${frame}`
+  const [loaded, setLoaded] = React.useState(null)
+  const img = loaded?.key === key ? loaded.url : null
   const { delayRender, continueRender, cancelRender } = useDelayRender()
   React.useLayoutEffect(() => {
     let live = true
@@ -122,21 +157,17 @@ const CachedFrame = ({ src, frame }) => {
     }
     clipFrameUrl(src, frame, small)
       .then((u) => {
-        if (live) setImg(u)
+        // committed before the handle is released: the frame's own <Img> then holds the render until it decodes
+        if (live) flushSync(() => setLoaded({ key, url: u }))
         done()
       })
       .catch((e) => cancelRender(e))
     return done
-  }, [src, frame, small, delayRender, continueRender, cancelRender])
+  }, [key, src, frame, small, delayRender, continueRender, cancelRender])
   return img ? <Pic src={img} style={FILL} /> : null
 }
 
-/** <Img> that may wait behind the clip frames (the sheet mounts 36 frames at once). */
-const Pic = (props) => (
-  <Img delayRenderTimeoutInMilliseconds={LONG} {...props} />
-)
-
-/** One frame of a kit clip, drawn over the plane (the clip's CSS viewport; its 3× pixels give the crop its sharpness). */
+/** One frame of a kit clip over the plane (the clip's CSS viewport; its 3× pixels give the crop its sharpness). */
 const Clip = ({ id, f }) => {
   const frame = clamp(Math.round(f), 0, CAPTURE[id].frames - 1)
   const src = staticFile(`clips/${id}.mp4`)
@@ -149,123 +180,27 @@ const Clip = ({ id, f }) => {
   )
 }
 
-/** Clip frame of a UI shot at reel `frame` (rate 1; A2 opens with its rewind). */
-function clipAt(shot, frame) {
-  const { ui } = shot
-  if (!ui) return null
-  if (shot.rewind && frame < shot.from + shot.rewind)
-    return { id: ui.clip, f: ui.from - (frame - shot.from) }
-  if (ui.rate === 1) return { id: ui.clip, f: frame + ui.offset }
-  return null
-}
+/** Clip frame a UI shot shows at reel `frame` (rate 1: `ui.start` at the shot's first frame). */
+const clipF = (shot, frame) => shot.ui.start + (frame - shot.from)
 
-const pointerAt = (id, f) => {
-  const p = CAPTURE[id].pointer
-  const [x, y] = p[clamp(f, 0, p.length - 1)]
-  return { x, y }
-}
-
-/** Output px a whip moves the plane by: 1600 px of output, in plane px. */
-const whipShift = (shot, frame) => {
-  const { s } = cameraAt(shot, frame)
-  const k = frame - shot.from
-  if (shot.whipIn && k < shot.whipIn)
-    return (1600 / s) * (1 - easeOut((k + 1) / (shot.whipIn + 1)))
-  const left = shot.to - frame
-  if (shot.whipOut && left <= shot.whipOut)
-    return (-1600 / s) * easeIn((shot.whipOut - left + 1) / (shot.whipOut + 1))
-  return 0
-}
-
-// ---------------------------------------------------------------- A2: the filled spread un-fills into the strip
-
-const PAPER = '#ECEAE6'
-
-const Card = ({ card, frame }) => {
-  const p = springAt(frame - card.start, 'light')
-  const arc = Math.sin(Math.PI * clamp(p, 0, 1))
-  const [x0, y0, w0, h0] = card.from
-  const [x1, y1, w1, h1] = card.to
-  const w = lerp(w0, w1, p)
-  const h = lerp(h0, h1, p)
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        left: lerp(x0, x1, p),
-        top: lerp(y0, y1, p) - 140 * arc,
-        width: w,
-        height: h,
-        transform: `rotate(${card.spin * arc}deg) scale(${1 + 0.06 * arc})`,
-        boxShadow: `0 ${18 * arc}px ${40 * arc}px rgb(0 0 0 / ${0.35 * arc})`,
-        overflow: 'hidden',
-      }}
-    >
-      <Pic
-        src={photo(card.photo)}
-        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-      />
-    </div>
-  )
-}
-
-const Unfill = ({ frame }) => {
-  const q = clamp((frame - FOLD.from + 1) / FOLD.frames, 0, 1)
-  return (
-    <>
-      <Clip id="a-filled" f={0} />
-      {CARDS.filter((c) => frame >= c.start).map((c) => (
-        <div
-          key={`p${c.photo}`}
-          style={{
-            position: 'absolute',
-            left: c.from[0],
-            top: c.from[1],
-            width: c.from[2],
-            height: Math.min(c.from[3], STRIP.y - c.from[1]),
-            background: PAPER,
-          }}
-        />
-      ))}
-      {CARDS.map((c) => (
-        <Card key={c.photo} card={c} frame={frame} />
-      ))}
-      {q > 0 && (
-        // the strip folds right → left: the empty strip of the same editor (a-drop, before Add folder) takes over
-        <div
-          style={{
-            ...FILL,
-            clipPath: `inset(${STRIP.y}px 0 ${PLANE.h - STRIP.y - STRIP.h}px ${PLANE.w * (1 - easeOut(q))}px)`,
-          }}
-        >
-          <Clip id="a-drop" f={0} />
-        </div>
-      )}
-    </>
-  )
-}
-
-// ---------------------------------------------------------------- per-shot plane content
-
-// A4–A5: the kit draws no visible drag ghost, so the held photo is an overlay (spec §1 "photo flights"): the graded
-// L18 lifts off thumb 1 on the pick, rides the captured pointer, and on the drop springs from that ghost box into
-// spread 1's measured frame (light spring) over the real empty-frame still of the frame before the drop.
-const GHOST_W = 250
-const GHOST = { from: BEAT.pick, to: BEAT.drop }
-function ghostBox(frame) {
-  const f = frame + OFFSET['a-drop']
-  const p = pointerAt('a-drop', f)
-  const [, , tw] = CAPTURE['a-filled'].cards.rows[0].box
-  const t = easeOut(clamp((frame - GHOST.from + 1) / 9, 0, 1))
-  const w = lerp(tw, GHOST_W, t)
-  const h = (w * DROP_BOX[3]) / DROP_BOX[2]
-  return [p.x - w / 2, p.y - h / 2, w, h]
-}
-
-const PhotoCard = ({ name, box, spin = 0, lift = 1 }) => {
+/** Empty box tagging a photo for check 11 (plane px; the probe reads it through the camera). */
+const Tag = ({ id, box }) => {
   const [x, y, w, h] = box
   return (
     <div
+      data-photo={id}
+      style={{ position: 'absolute', left: x, top: y, width: w, height: h }}
+    />
+  )
+}
+const Tags = ({ id, boxes }) =>
+  boxes.map((b, k) => <Tag key={`${id}${k}`} id={`${id}${k}`} box={b} />)
+
+const PhotoCard = ({ name, box, spin = 0, lift = 1, shadow, tag }) => {
+  const [x, y, w, h] = box
+  return (
+    <div
+      data-photo={tag}
       style={{
         position: 'absolute',
         left: x,
@@ -273,8 +208,10 @@ const PhotoCard = ({ name, box, spin = 0, lift = 1 }) => {
         width: w,
         height: h,
         overflow: 'hidden',
-        transform: `rotate(${spin}deg)`,
-        boxShadow: `0 ${14 * lift}px ${34 * lift}px rgb(0 0 0 / ${0.35 * lift})`,
+        transform: spin ? `rotate(${spin}deg)` : undefined,
+        boxShadow:
+          shadow ??
+          `0 ${14 * lift}px ${34 * lift}px rgb(0 0 0 / ${0.35 * lift})`,
       }}
     >
       <Pic
@@ -285,22 +222,126 @@ const PhotoCard = ({ name, box, spin = 0, lift = 1 }) => {
   )
 }
 
-const Ghost = ({ frame }) => {
-  if (frame < GHOST.from || frame >= GHOST.to) return null
-  const t = easeOut(clamp((frame - GHOST.from + 1) / 9, 0, 1))
-  return <PhotoCard name="L18" box={ghostBox(frame)} spin={-3 * t} />
+// ---------------------------------------------------------------- A2: the filled book un-fills into the strip
+
+const PAPER = '#ECEAE6'
+
+/** A card's box at `frame` (light spring from its frame to its thumbnail, lifted on an arc). */
+function cardAt(card, frame) {
+  const p = springAt(frame - card.start, 'light')
+  const arc = Math.sin(Math.PI * clamp(p, 0, 1))
+  const [x0, y0, w0, h0] = card.from
+  const [x1, y1, w1, h1] = card.to
+  return {
+    box: [
+      lerp(x0, x1, p),
+      lerp(y0, y1, p) - 140 * arc,
+      lerp(w0, w1, p),
+      lerp(h0, h1, p),
+    ],
+    arc,
+  }
 }
 
-const Landing = ({ land, frame }) => {
+const Unfill = ({ frame }) => (
+  <>
+    <Clip id="a-filled" f={0} />
+    {CARDS.filter((c) => frame >= c.start).map((c) => (
+      <div
+        key={`paper${c.photo}`}
+        style={{
+          position: 'absolute',
+          left: c.from[0],
+          top: c.from[1],
+          width: c.from[2],
+          height: c.from[3],
+          background: PAPER,
+        }}
+      />
+    ))}
+    {CARDS.map((c) => {
+      if (frame < c.start)
+        return <Tag key={c.photo} id={c.photo} box={c.from} />
+      const { box, arc } = cardAt(c, frame)
+      return (
+        <PhotoCard
+          key={c.photo}
+          tag={c.photo}
+          name={c.photo}
+          box={box}
+          spin={c.spin * arc}
+          lift={arc}
+        />
+      )
+    })}
+    <Tags id="stay" boxes={FILLED_STAY} />
+    <Tags id="row" boxes={FILLED_ROWS} />
+  </>
+)
+
+// ---------------------------------------------------------------- A3: the held photo (G5 DRAG) and its landing
+
+const GHOST = { from: BEAT.pick, to: BEAT.drop }
+const DROP_CLIP = (frame) => frame + OFFSET['a-drop']
+
+/** The held photo's box (plane px of the drag layer) at reel `frame`: the thumb grows to 62 % of the target width. */
+function ghostBox(frame) {
+  const p = pointerAt('a-drop', DROP_CLIP(frame))
+  const tw = ROWS[0][2]
+  const t = easeOut(clamp((frame - GHOST.from + 1) / 9, 0, 1))
+  const w = lerp(tw, GHOST_W, t)
+  const h = (w * DROP_BOX[3]) / DROP_BOX[2]
+  return [p.x - w / 2, p.y - h / 2, w, h]
+}
+/** Tilt from the pointer's horizontal velocity (output px per frame). */
+function ghostTilt(shot, frame) {
+  const a = toOutput(
+    shot,
+    frame - 1,
+    pointerAt('a-drop', DROP_CLIP(frame - 1)),
+    PARALLAX.drag,
+  )
+  const b = toOutput(
+    shot,
+    frame,
+    pointerAt('a-drop', DROP_CLIP(frame)),
+    PARALLAX.drag,
+  )
+  return dragTilt(b.x - a.x)
+}
+
+const Ghost = ({ shot }) => {
+  const frame = useCurrentFrame()
+  if (frame < GHOST.from || frame >= GHOST.to) return null
+  return (
+    <PhotoCard
+      tag="ghost"
+      name="L18"
+      box={ghostBox(frame)}
+      spin={ghostTilt(shot, frame)}
+      shadow={DRAG.shadow}
+    />
+  )
+}
+
+/** The landing: the held photo springs into spread 1's frame over the empty frame of the take (light spring). */
+function landingAt(land, frame) {
   const k = frame - land.at
   if (k < 0) return null
   const q = springAt(k, 'light')
   const from = ghostBox(land.at - 1)
   const box = land.box.map((v, i) => lerp(from[i], v, q))
-  // removed once within 0.5 px of the measured frame box (the clip already shows the photo underneath)
   const off = Math.max(...box.map((v, i) => Math.abs(v - land.box[i])))
+  // gone once within 0.5 px of the measured frame (the take already shows the photo there)
   if (k > 14 && off < 0.5) return null
+  return { box, q }
+}
+
+const Landing = ({ land, frame }) => {
+  const l = landingAt(land, frame)
+  if (!l) return null
   const [x, y, w, h] = land.box
+  const rest = clamp(1 - l.q, 0, 1)
   return (
     <>
       <div
@@ -309,140 +350,135 @@ const Landing = ({ land, frame }) => {
           clipPath: `inset(${y}px ${PLANE.w - x - w}px ${PLANE.h - y - h}px ${x}px)`,
         }}
       >
-        <Clip id="a-drop" f={land.at - 1 + OFFSET['a-drop']} />
+        <Clip id="a-drop" f={DROP_CLIP(land.at - 1)} />
       </div>
       <PhotoCard
+        tag="landing"
         name={land.photo}
-        box={box}
-        spin={-3 * clamp(1 - q, 0, 1)}
-        lift={clamp(1 - q, 0, 1)}
+        box={l.box}
+        spin={-DRAG.maxTilt * rest}
+        lift={rest}
       />
     </>
   )
 }
 
-const Through = ({ shot, frame }) => {
-  const { through, still } = shot
-  const k = frame - shot.from
-  if (k >= through.frames)
-    return (
-      <Pic src={photo(through.photo)} style={{ ...FILL, objectFit: 'cover' }} />
-    )
-  const t = easeIn((k + 1) / through.frames)
-  const [x, y, w, h] = through.box
-  const c = { x: x + w / 2, y: y + h / 2 }
-  const z = 1 + (through.zoom - 1) * t
-  return (
-    <div
-      style={{
-        ...FILL,
-        transformOrigin: `${c.x}px ${c.y}px`,
-        transform: `translate(${(PLANE.w / 2 - c.x) * t}px, ${(PLANE.h / 2 - c.y) * t}px) scale(${z})`,
-      }}
-    >
-      <Clip id={still.clip} f={still.frame} />
-    </div>
-  )
+// ---------------------------------------------------------------- per-shot plane content
+
+/** The photos the take shows at clip frame `f` (boxes the checks cannot read from the clip itself). */
+function photosOf(shot, f) {
+  const id = shot.ui.clip
+  switch (id) {
+    case 'a-drop': {
+      const rows = rectsAt('a-drop', 'row', f)
+      // spread 1's frame holds L18 once the kit has dropped it (the landing overlay tags itself before)
+      const filled = f >= BEAT.drop + OFFSET['a-drop'] ? [DROP_BOX] : []
+      return [...rows, ...filled]
+    }
+    case 'a-fill': {
+      const frames =
+        f > CAPTURE['a-fill'].events.find((e) => e[1] === 'key')[0]
+          ? rectsAt('a-fill', 'frame', f)
+          : []
+      return [...frames, ...ROWS]
+    }
+    case 'a-shelf':
+      return [rectAt('a-shelf', 'face', f)]
+    default:
+      return readerPhotosAt(id, f)
+  }
 }
 
 const Scene = ({ shot }) => {
   const frame = useCurrentFrame()
-  if (shot.through) return <Through shot={shot} frame={frame} />
-  if (shot.id === 'A2' && frame >= shot.from + shot.rewind)
-    return <Unfill frame={frame} />
-  const at = clipAt(shot, frame)
-  const t = inner(shot, frame)
+  if (shot.id === 'A2') return <Unfill frame={frame} />
+  const f = clipF(shot, frame)
   return (
-    <div
-      style={{
-        ...FILL,
-        transformOrigin: `${t.ox}px ${t.oy}px`,
-        transform: `translate(${t.dx}px, ${t.dy}px) scale(${t.z})`,
-      }}
-    >
-      {at && <Clip id={at.id} f={at.f} />}
-      {at?.id === 'a-drop' && <Ghost frame={frame} />}
+    <>
+      <Clip id={shot.ui.clip} f={f} />
       {shot.land && <Landing land={shot.land} frame={frame} />}
-    </div>
+      <Tags id={shot.id} boxes={photosOf(shot, f)} />
+    </>
   )
 }
 
-/**
- * Plane-space move a shot adds on top of its crop camera: `pullOut` (A4's 6-frame whip-out zoom from the button; A8
- * opening on L18 filling the frame width and pulling out with the medium spring) and the A8 → A9 whip pan.
- * Point p → o + z·(p − o) + d.
- */
-function inner(shot, frame) {
-  const t = { z: 1, ox: 0, oy: 0, dx: whipShift(shot, frame), dy: 0 }
-  if (!shot.pullOut) return t
-  const k = frame - shot.from
-  const { box, frames, whip } = shot.pullOut
-  const p = whip
-    ? easeOut(clamp((k + 1) / frames, 0, 1))
-    : clamp(springAt(k, 'medium'), 0, 1.2)
-  const [x, y, w, h] = box
-  const c = { x: x + w / 2, y: y + h / 2 }
-  const crop = shot.cam[0]
-  return {
-    z: 1 + (crop.w / w - 1) * (1 - p),
-    ox: c.x,
-    oy: c.y,
-    dx: t.dx + (crop.cx - c.x) * (1 - p),
-    dy: (crop.cy - c.y) * (1 - p),
-  }
+// ---------------------------------------------------------------- the end card book (G7)
+
+/** Keyline width in the hero's px (it shrinks to ≈ 0.63 × on the way into END_BOX). */
+const KEY = 2
+/** A10: the page block of the take's last frame, cut out at its output box and eased into END_BOX. */
+const EndBook = ({ shot }) => {
+  const b = shot.endBook
+  const rect = boxToOutput(shot, shot.from, b)
+  const s = rect.w / b.w
+  return (
+    <EndHero rect={rect} from={shot.from}>
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          overflow: 'hidden',
+          boxShadow: `0 0 0 ${1.5 * KEY}px rgb(26 25 24), 0 40px 80px -30px rgb(0 0 0 / 0.55)`,
+        }}
+      >
+        <div
+          style={{
+            ...FILL,
+            left: -b.x * s,
+            top: -b.y * s,
+            transformOrigin: '0 0',
+            transform: `scale(${s})`,
+          }}
+        >
+          <Clip id={shot.still.clip} f={shot.still.frame} />
+        </div>
+        {/* the cut edge as one strong step: a light keyline just inside (print border), the ink ring just outside;
+            it reads on a light ground (the sky) and a dark one alike, wherever the page or photo sits (check 10) */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            boxShadow: `inset 0 0 0 ${KEY}px rgb(245 243 239)`,
+          }}
+        />
+      </div>
+    </EndHero>
+  )
 }
-const innerPoint = (t, p) => ({
-  x: t.ox + t.z * (p.x - t.ox) + t.dx,
-  y: t.oy + t.z * (p.y - t.oy) + t.dy,
-})
 
 // ---------------------------------------------------------------- overlays in output px
 
-/** The focus box (output px) of a shot: the one action point; null = the whole frame is the action. */
+/** The focus box (output px) of a shot: its one action point; null = the frame is the action (and on every W). */
 function focusBox(shot, frame) {
-  const t = inner(shot, frame)
-  const box = (b) => {
-    const p = innerPoint(t, { x: b[0], y: b[1] })
-    return boxToOutput(shot, frame, { ...p, w: b[2] * t.z, h: b[3] * t.z })
-  }
-  const at = clipAt(shot, frame)
+  if (shot.scale === 'W') return null
+  const out = (box, k = 1) => boxToOutput(shot, frame, asBox(box), k)
   switch (shot.focus) {
-    case 'choose': {
-      const p = pointerAt('a-drop', at.f)
-      return box([p.x - 120, p.y - 34, 240, 68])
+    case 'drag': {
+      if (frame < GHOST.to) return out(ghostBox(frame), PARALLAX.drag)
+      const l = landingAt(shot.land, frame)
+      return l ? out(l.box) : null
     }
-    case 'pick':
-      return box(
-        frame >= GHOST.from
-          ? ghostBox(frame)
-          : CAPTURE['a-filled'].cards.rows[0].box,
-      )
-    case 'drop':
-      return box(shot.land.box)
-    case 'cover':
-      return box(shot.pullOut.box)
-    case 'book':
-      return box([64, 360, 1152, 705])
+    case 'face':
+      return out(rectAt('a-shelf', 'face', clipF(shot, frame)))
     default:
       return null
   }
 }
 
 function cursorOf(shot, frame) {
-  if (!shot.cursor) return null
-  if (shot.whipIn && frame - shot.from < shot.whipIn) return null
-  const at = clipAt(shot, frame)
-  if (!at) return null
+  if (!shot.cursor || !shot.ui) return null
+  const id = shot.ui.clip
   const p = toOutput(
     shot,
     frame,
-    innerPoint(inner(shot, frame), pointerAt(at.id, at.f)),
+    pointerAt(id, clipF(shot, frame)),
+    PARALLAX.cursor,
   )
   if (p.x < -20 || p.y < -20 || p.x > WIDTH + 20 || p.y > HEIGHT + 20)
     return null
-  const clicks = CAPTURE[at.id].events
+  const clicks = CAPTURE[id].events
     .filter((e) => e[1] === 'down')
-    .map((e) => e[0] - shot.ui.offset)
+    .map((e) => e[0] - shot.ui.start + shot.from)
   return { ...p, scale: clickScaleAt(clicks, frame) }
 }
 
@@ -452,48 +488,40 @@ export const ReelA = ({ reel, table, audio = true, probe = true }) => {
   const shot = shotAt(table.shots, frame)
   const end = table.shots.find((s) => s.scale === 'end')
   const cursor = cursorOf(shot, frame)
-  let move = null
-  let clip = null
-  if (shot.endBook) {
-    const b = shot.endBook
-    const start = boxToOutput(shot, end.from, b)
-    const now = boxToOutput(shot, frame, b)
-    move = endMove(start, frame, end.from)
-    clip = `inset(${now.y}px ${WIDTH - now.x - now.w}px ${HEIGHT - now.y - now.h}px ${now.x}px round 6px)`
-  }
-  const picture = (
-    <Focus
-      reel={reel}
-      box={focusBox(shot, frame)}
-      render={() => (
-        <Camera shot={shot} plane={table.plane}>
-          <Scene shot={shot} />
-        </Camera>
-      )}
-    />
-  )
   return (
     <SheetMode.Provider value={!probe}>
       <AbsoluteFill>
         <Background reel={reel} photo={photo(shot.bg)} />
-        {move ? (
-          <AbsoluteFill
-            style={{
-              transformOrigin: '0 0',
-              transform: `translate(${move.x}px, ${move.y}px) scale(${move.s})`,
-              filter: 'drop-shadow(0 40px 50px rgb(0 0 0 / 0.45))',
-            }}
-          >
-            <AbsoluteFill style={{ clipPath: clip }}>{picture}</AbsoluteFill>
-          </AbsoluteFill>
+        {shot.endBook ? (
+          <EndBook shot={shot} />
         ) : (
-          picture
+          <Focus
+            reel={reel}
+            box={focusBox(shot, frame)}
+            render={() => (
+              <>
+                <Camera shot={shot} plane={table.plane}>
+                  <Scene shot={shot} />
+                </Camera>
+                {shot.focus === 'drag' && (
+                  <Camera shot={shot} plane={table.plane} layer="drag">
+                    <Ghost shot={shot} />
+                  </Camera>
+                )}
+              </>
+            )}
+          />
         )}
         {cursor && <Cursor at={cursor} />}
         {end && (
-          <EndCard from={end.from} beatFrames={beatFrames} probe={probe} />
+          <EndCard
+            from={end.from}
+            beatFrames={beatFrames}
+            reel={reel}
+            probe={probe}
+          />
         )}
-        <Grain reel={reel} />
+        <Grain reel={reel} probe={probe} />
         {audio && <Audio src={staticFile(`audio/${reel}.wav`)} />}
       </AbsoluteFill>
     </SheetMode.Provider>
