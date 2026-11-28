@@ -40,6 +40,7 @@ import {
   SHEET,
   SHEET_FRONT,
   b,
+  offsetAt,
   outBox,
 } from './b.shots.js'
 
@@ -102,7 +103,7 @@ const ClipFrame = ({ clip, f }) => {
   const { frames, plane } = CLIP[clip]
   const { id } = useVideoConfig()
   const file = id.startsWith('ReelSheet') ? `${clip}.sheet` : clip
-  const k = Math.min(frames - 1, Math.max(0, f - OFFSET[clip]))
+  const k = Math.min(frames - 1, Math.max(0, f - offsetAt(clip, f)))
   return (
     <Freeze frame={k}>
       <OffthreadVideo
@@ -164,15 +165,24 @@ const PdfPlane = () => {
 
 /** The phone body (G3 B8/B9, output geometry) drawn in the phone capture's CSS px, so the camera works in UI px. */
 const PhonePlane = ({ f }) => {
-  const k = f - OFFSET['b-phone']
+  const k = f - offsetAt('b-phone', f)
   // The site pages draw the photo as a CSS background (no <img>), so the filmed photo regions are marked here
   // (G3): the full-bleed cover until the tap opens it, the hero spread band once the page turn lands.
+  const P = CLIP['b-phone']
+  // during the drag: the part of the band the lifting leaf has uncovered, read from the capture (from the right)
+  const open = P.reveal.share[k - P.reveal.from]
   const photo =
-    k <= PHONE_PHOTO.coverUntil
-      ? CLIP['b-phone'].paper
-      : k >= PHONE_PHOTO.bandFrom
-        ? PHONE_PHOTO.band
-        : null
+    k <= P.photo.coverUntil
+      ? P.paper
+      : k >= P.photo.bandFrom
+        ? P.band
+        : open
+          ? {
+              ...P.band,
+              x: P.band.x + P.band.w * (1 - open),
+              w: P.band.w * open,
+            }
+          : null
   return (
     <div
       style={{
@@ -200,17 +210,6 @@ const PhonePlane = ({ f }) => {
       </Phone>
     </div>
   )
-}
-
-/**
- * Read from the capture's frames: the cover stays flat until 4 frames after the tap, the breath drag (1300 ms) lands
- * the hero page 52 frames after its down (the leaf clears 6 frames after the finger's up); the hero band on that
- * page (CSS px).
- */
-const PHONE_PHOTO = {
-  coverUntil: CLIP['b-phone'].touch.tap + 4,
-  bandFrom: CLIP['b-phone'].touch.drag + 52,
-  band: { x: 42, y: 292, w: 332, h: 223 },
 }
 
 /** The site clip; once the room shows the closed GL cover (not a DOM box) its measured box is the hero photo (G3). */
@@ -279,7 +278,7 @@ function dragOf(shot) {
       down: eventAt('b-hero-drop', 'down'),
       up: eventAt('b-hero-drop', 'up'),
     }
-  if (['B3', 'B4'].includes(shot.id))
+  if (shot.id === 'B4')
     return {
       clip: 'b-hero-cover',
       target: CLIP['b-hero-cover'].coverFront,
@@ -316,7 +315,7 @@ function landing(table, f) {
   const last =
     dragPhoto(B2, B3.from - 1)?.box ??
     outBox(B2, B3.from - 1, CLIP['b-hero-drop'].frame)
-  const frame = outBox(B3, f, CLIP['b-hero-cover'].frame)
+  const frame = outBox(B3, f, CLIP['b-hero-drop'].frame)
   const p = springAt(k, 'light')
   return { box: lerpBox(last, frame, p), scale: 1 + 0.06 * (1 - p) }
 }
@@ -371,12 +370,13 @@ export function heroBox(table, shot, f) {
       return f < eventAt('b-hero-drop', 'down')
         ? outBox(shot, f, CLIP['b-hero-drop'].thumb)
         : outBox(shot, f, CLIP['b-hero-drop'].frame)
-    case 'B3': {
-      if (f - shot.from < LAND) return landing(table, f).box
-      return outBox(shot, f, CLIP['b-hero-cover'].frame)
-    }
+    case 'B3':
+      // the spread from the cut on (not the landing photo): a small hole would dim the clip's hero, already in the
+      // frame, into a black band (G2)
+      return outBox(shot, f, CLIP['b-hero-drop'].frame)
     case 'B5':
-      return outBox(shot, f, CLIP['b-hero-cover'].coverFront)
+      // the cover page, not its photo frame: the white page around the frame would read as a glow (G4)
+      return outBox(shot, f, CLIP['b-hero-cover'].coverPage)
     case 'B7': {
       const s = CLIP['b-site']
       const k = f - OFFSET['b-site']
@@ -451,7 +451,7 @@ const ClipCamera = ({ shot, plane, children }) => {
 
 const CURSOR_SHOTS = {
   B2: 'b-hero-drop',
-  B3: 'b-hero-cover',
+  B3: 'b-hero-drop',
   B4: 'b-hero-cover',
   B5: 'b-hero-cover',
   B7: 'b-site',

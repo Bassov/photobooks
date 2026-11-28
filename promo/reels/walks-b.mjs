@@ -16,7 +16,6 @@ import {
   FRAME,
   MD,
   SPREAD,
-  W,
   chooseButton,
   editorBook,
   zoomSpread,
@@ -43,6 +42,10 @@ function SPREAD1_FRAME() {
 function FACE() {
   return '[data-testid="ss9-book"][data-kind="face"]'
 }
+/** B4/B5 film the cover at this spread width (CSS px): front frame ≈ 370 CSS px (Designer review, PR #746). */
+const COVER_ZOOM = [860, 900]
+/** The sample author on the phone's title page (no "Your Name" placeholder on screen). */
+const PHONE_AUTHOR = 'Mara Lind'
 function SITE(P) {
   return `${P.base}/index.html?theme=procreate-light#/full/personal-site?books=6`
 }
@@ -168,7 +171,9 @@ export function walksB() {
         await P.glide(...Object.values(await P.center(heroThumb(P))))
         await P.wait(100)
         await dragTo(P, P.page.locator(FRAME).first(), 640)
-        await P.wait(1000)
+        // B3 films the landed hero at UI scale 2.2: no selection handles on it
+        await P.page.keyboard.press('Escape')
+        await P.wait(1400)
       },
       async check(P) {
         const src = await P.page
@@ -183,7 +188,7 @@ export function walksB() {
       reel: 'b',
       viewport: 'editor',
       about:
-        'B3–B5: W zoom, the hero already on spread 1 (off camera); thumb 1 dragged up onto the cover front',
+        'B4–B5: the cover current at a big zoom (front frame ≥ 340 CSS px), the hero already on spread 1 (off camera); thumb 1 dragged up onto the cover front',
       targets: editorTargets(),
       async setup(P) {
         await stripBook(P)
@@ -195,20 +200,34 @@ export function walksB() {
         await P.settle(300)
         if (await P.page.locator('[data-testid="photo-handle"]').count())
           throw new Error('spread 1 frame still selected')
-        await zoomSpread(P, W)
+        // Designer review (PR #746): the cover is the hero's stage in B4/B5, so it is the current spread and big
+        for (let k = 0; k < 4; k++) {
+          if (await P.page.locator(`${COVER()}[data-current]`).count()) break
+          await P.page.evaluate(() => document.activeElement?.blur())
+          await P.page.keyboard.press('Escape')
+          await P.page.keyboard.press('ArrowLeft')
+          await P.settle(300)
+        }
+        if (!(await P.page.locator(`${COVER()}[data-current]`).count()))
+          throw new Error('the cover is not current')
+        await zoomSpread(P, COVER_ZOOM)
+        const front = await P.page.locator(COVER_FRONT()).first().boundingBox()
+        if (!front || front.width < 340)
+          throw new Error(`cover front ${front?.width} CSS px wide, want ≥ 340`)
         const t = await P.center(heroThumb(P))
         await P.moveTo(t.x, t.y)
       },
       async act(P) {
-        // v2: the reel plays this clip over 157 frames (B3–B5); the cover drop lands on the hero bar's downbeat
+        // the reel plays this clip over B4–B5; the cover drop lands on the hero bar's downbeat
         await P.wait(1600)
         const c = await dragTo(P, P.page.locator(COVER_FRONT()).first(), 700)
         // v2 check 10: the drop leaves no selection (its round handles straddle the cover's edges in B5's crop) and
         // the pointer leaves the cover
         await P.page.keyboard.press('Escape')
         await P.wait(200)
-        await P.glide(c.x + 140, c.y + 170, 450)
-        await P.wait(1950)
+        // the pointer leaves B5's crop (down-right), so B5 is the cover alone
+        await P.glide(c.x + 260, c.y + 380, 600)
+        await P.wait(2200)
       },
       async check(P) {
         const src = await P.page
@@ -254,7 +273,7 @@ export function walksB() {
       reel: 'b',
       viewport: 'phone',
       about:
-        'B8–B10: phone, the reader on the B cover (opened off camera); a late tap (b22) opens the cover onto the title page, one slow 1300 ms finger drag turns it onto spread 1 = the hero under the end card',
+        'B8–B10: phone, the reader on the B cover (opened off camera); a tap 10 frames after the phone appears opens the cover onto the title page (author set), a 1000 ms finger drag right after the open turns it onto spread 1 = the hero',
       targets: [
         { name: 'stage', sel: '[data-testid="pt-stage"]' },
         { name: 'paper', sel: '[data-testid="ps-paper"]', all: true },
@@ -265,6 +284,13 @@ export function walksB() {
         },
       ],
       async setup(P) {
+        // Designer review (PR #746): no placeholder copy on the title page. capture's name swap leaves the kit
+        // author as "Your Name"; this clip's B book gets a sample author instead.
+        await P.page.route(/\/assets\/[^?]*\.js(\?.*)?$/, async (route) => {
+          const res = await route.fetch()
+          const js = (await res.text()).split('Your Name').join(PHONE_AUTHOR)
+          await route.fulfill({ response: res, body: js })
+        })
         // Spread 1 of the face-out book (its full-spread frame, data-si 2) is kit p10; reel B feeds it the hero, as the
         // editor walks put the hero on spread 1. The rewritten request still goes through capture's server (graded L68).
         await P.page.route(/\/photos\/p10\.jpg(\?.*)?$/, (route) =>
@@ -288,13 +314,14 @@ export function walksB() {
         await P.moveTo(st.x + st.width * 0.7, st.y + st.height * 0.5)
       },
       async act(P) {
-        // v2 G3: B9 (M) holds on the cover page, so the tap comes late (b22, clip frame 103)
-        await P.wait(3430)
+        // Designer review (PR #746): the tap comes 10 frames after the phone appears (B8)
+        await P.wait(600)
         await P.down()
         await P.wait(70)
         await P.up()
-        // the cover opens (GL, 1000 ms); the breath starts on b19.5 = 30 frames after the tap, as the open settles
-        await P.wait(930)
+        // the cover opens (GL, 1000 ms); the drag starts as soon as it lands (a press during the open would drag the
+        // cover's leaf), so the title page is on screen for ≈ 0.6 s only
+        await P.wait(1070)
         const stage = P.page.locator('[data-testid="pt-stage"]')
         P.openedSi = await stage.getAttribute('data-si')
         // the breath: one slow finger drag to the left turns the title page onto spread 1 (the hero)
@@ -302,9 +329,10 @@ export function walksB() {
         const y = st.y + st.height * 0.5
         await P.moveTo(st.x + st.width * 0.92, y)
         await P.down()
-        await P.glide(st.x + st.width * 0.08, y, 1300, 0.01)
+        await P.glide(st.x + st.width * 0.08, y, 1000, 0.01)
         await P.up()
-        await P.wait(2000)
+        // B9 resumes the clip 0.6 s later (b.shots.js CLIP skip): the clip runs to the reel's last frame
+        await P.wait(5400)
       },
       async check(P) {
         const si = await P.page

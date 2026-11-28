@@ -968,16 +968,33 @@ export function clipGeom(table, clipsRoot) {
   return byFrame
 }
 
-/** Map frame → photo share (DOM `data-photo` boxes + clip `geom:photo` boxes) for the logged frames. */
+/** `a` ∩ `b` ([x, y, w, h]), or null when they do not overlap. */
+const clipRect = ([ax, ay, aw, ah], [bx, by, bw, bh]) => {
+  const x = Math.max(ax, bx)
+  const y = Math.max(ay, by)
+  const w = Math.min(ax + aw, bx + bw) - x
+  const h = Math.min(ay + ah, by + bh) - y
+  return w > 0 && h > 0 ? [x, y, w, h] : null
+}
+
+/**
+ * Map frame → photo share (DOM `data-photo` boxes + clip `geom:photo` boxes) for the logged frames. G3 counts a photo
+ * only where it is shown at full brightness (Designer decision, Fable review of PR #746): on a frame with a focus
+ * hole (`l.focus`, Focus.jsx `data-focus`) only the part inside the hole; on a frame without focus all of it.
+ */
 export function photoShares(logs, cgeom) {
   const shares = new Map()
   for (const l of logs) {
-    const rects = [
+    let rects = [
       ...(l.photos ?? []).map((x) => x.out),
       ...(cgeom.get(l.frame) ?? [])
         .filter((g) => g.kind === 'photo')
         .map((g) => g.out),
     ]
+    if (l.focus?.length)
+      rects = rects.flatMap((r) =>
+        l.focus.map((f) => clipRect(r, f)).filter(Boolean),
+      )
     shares.set(l.frame, photoShare(rects))
   }
   return shares
@@ -1875,12 +1892,28 @@ async function selftest() {
     shares: new Map(Array.from({ length: goodB.frames }, (_, f) => [f, 1])),
     end: [{ kind: 'phone', css: [700, 1482], out: [190, 219, 699.94, 1482] }],
   })
+  // G3 counting: a full-frame photo under a focus hole over the left half counts as 0.5 (the rest is dimmed)
+  const lit = photoShares(
+    [
+      {
+        frame: 0,
+        photos: [{ out: [0, 0, WIDTH, HEIGHT] }],
+        focus: [[0, 0, WIDTH / 2, HEIGHT]],
+      },
+    ],
+    new Map(),
+  ).get(0)
+  const litHalf = result(
+    Math.abs(lit - 0.5) < 0.01 ? [] : [`lit share ${lit} ≠ 0.5`],
+    [`lit share ${lit}`],
+  )
   for (const [name, r] of [
     ['9 (uniform, cover, shared/** source)', good9],
     ['10 (round handle 40×40)', check10([handleAt(20, 20)])],
     ['11 (90-row band, full photo, end book 860)', good11],
     ['11 (UI-only shot at share 0, focus on M over UI)', goodUi11],
     ['11 (reel b phone 699.94 px)', goodPhone11],
+    ['11 (photo counted inside the focus hole only)', litHalf],
   ]) {
     console.log(
       `${r.ok ? 'ok' : 'FAIL'} — good fixture, check ${name}: ${r.notes.slice(0, 4).join('; ')}`,

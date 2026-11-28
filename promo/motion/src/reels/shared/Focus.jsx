@@ -9,7 +9,8 @@ import { HEIGHT, WIDTH } from './beats.js'
  */
 export const FOCUS = {
   a: { hard: 0.22, soft: 0.25, blur: 4 },
-  b: { hard: 0.5, soft: 0.76, blur: 8 },
+  // Designer decision (Fable review of PR #746): far field 27 % instead of 12 %, edge / far ×1.2 instead of ×2.6
+  b: { hard: 0.62, soft: 0.3, blur: 8 },
   c: { hard: 0.3, soft: 0.35, blur: 0 },
 }
 export const FOCUS_INK = '#09090A'
