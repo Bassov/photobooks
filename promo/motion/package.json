@@ -8,7 +8,9 @@
     "studio": "node scripts/render.mjs --prepare-only && remotion studio src/index.jsx --public-dir ../out/motion-public",
     "render": "node scripts/render.mjs",
     "reels:audio": "node scripts/reels-audio.mjs",
-    "reels:render": "node scripts/reels-render.mjs"
+    "reels:render": "node scripts/reels-render.mjs",
+    "reels:sound": "node ../reels/sound.mjs",
+    "reels:mix": "node scripts/reels-mix.mjs"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.547",
