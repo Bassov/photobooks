@@ -43,6 +43,7 @@ import {
 } from '../src/reels/shared/beats.js'
 import { CAMERA_MIN, cameraAt, shotAt } from '../src/reels/shared/Springs.js'
 import { AUDIO_TAG, buildAudio, loadTable, readWav } from './reels-audio.mjs'
+import * as mix from './reels-mix.mjs'
 
 const motion = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const repo = resolve(motion, '..', '..')
@@ -1265,6 +1266,48 @@ async function renderAll(reel, pub, files, table) {
   })
 }
 
+/**
+ * Reels whose audio is the promo-reels-v2 mix (reels-mix.mjs: the gate's track + foley on the shot table's
+ * `sound` cues) instead of the v1 synth, and that run check 12 on it. Each reel item adds its own letter.
+ */
+export const MIX_REELS = new Set(['c'])
+const SOUND_DIR = join(out, 'sound')
+const MIX_DIR = join(SOUND_DIR, 'mix')
+
+/**
+ * Mixes `table.sound` on the reel's gate beats (`sound/<x>.beats.json`, which must be the grid the table cut to) and
+ * stages `<x>-mix.wav` as the composition's `audio/<x>.wav`.
+ */
+async function stageMix(reel, pub, table) {
+  const beats = JSON.parse(
+    readFileSync(join(SOUND_DIR, `${reel}.beats.json`), 'utf8'),
+  )
+  if (!table.sound) throw new Error(`reel ${reel}: the table has no sound`)
+  if (table.grid && table.grid.sha256 !== beats.sha256)
+    throw new Error(
+      `reel ${reel}: the table cuts to ${table.grid.track}, the gate picked ${beats.track}`,
+    )
+  const manifest = JSON.parse(
+    readFileSync(join(SOUND_DIR, 'manifest.json'), 'utf8'),
+  )
+  const music = resolve(SOUND_DIR, manifest.files[beats.track].path)
+  mkdirSync(MIX_DIR, { recursive: true })
+  copyFileSync(
+    join(SOUND_DIR, `${reel}.beats.json`),
+    join(MIX_DIR, `${reel}.beats.json`),
+  )
+  const res = await mix.mixReel({
+    reel,
+    music,
+    cues: table.sound,
+    beats,
+    out: MIX_DIR,
+  })
+  console.log(`audio: mixed ${beats.track} + ${table.sound.cues.length} cues`)
+  mkdirSync(join(pub, 'audio'), { recursive: true })
+  copyFileSync(res.files.mix, join(pub, 'audio', `${reel}.wav`))
+}
+
 async function runChecks(reel, table, pub, files, extra = {}) {
   const clipsDir = join(out, 'clips', reel)
   const logs = existsSync(files.text)
@@ -1324,6 +1367,21 @@ async function runChecks(reel, table, pub, files, extra = {}) {
     ['7 licences', () => check7(pub, manifestNames(), clipsDir)],
     ['8 sheet', () => check8(files.sheet, table.frames)],
     ...v2,
+    ...(MIX_REELS.has(reel)
+      ? [
+          [
+            '12 sound',
+            () => {
+              const r = mix.checkSoundFiles({
+                reel,
+                dir: MIX_DIR,
+                cuts: table.sound.cuts,
+              })
+              return { ...r, notes: r.lines }
+            },
+          ],
+        ]
+      : []),
   ]
   const results = checks.map(([name, fn]) => {
     let r
@@ -1374,9 +1432,12 @@ async function runReel(reel, { checksOnly, publish, music }) {
       mkdirSync(join(pub, 'audio'), { recursive: true })
       copyFileSync(music, join(pub, 'audio', `music${extname(music)}`))
     }
-    const audio = await buildAudio(reel, join(pub, 'audio'), table)
-    for (const line of audio.lines) console.log(`audio: ${line}`)
-    if (!audio.ok) throw new Error('audio check failed')
+    if (MIX_REELS.has(reel)) await stageMix(reel, pub, table)
+    else {
+      const audio = await buildAudio(reel, join(pub, 'audio'), table)
+      for (const line of audio.lines) console.log(`audio: ${line}`)
+      if (!audio.ok) throw new Error('audio check failed')
+    }
     await renderAll(reel, pub, files, table)
   }
   const ok = await runChecks(reel, table, pub, files, {

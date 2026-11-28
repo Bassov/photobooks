@@ -1,12 +1,14 @@
 // Reel C «Без ожидания» capture walks (promo-reels-3 spec §5): the clip entries capture.mjs spreads into CLIPS, plus
 // `--pack`, which turns the filmed clips into what the Remotion side reads.
 //
-//   node promo/reels/capture.mjs --clip c-open,c-drop,c-layouts,c-fill-undo,c-cover,c-print,c-shelf
+//   node promo/reels/capture.mjs --clip c-open,c-drop,c-layouts,c-fill,c-cover,c-print,c-shelf
 //   node promo/reels/walks-c.mjs --pack
 //
-// Every walk is real time on the capture clock. The reel cuts hard on its beat grid (14 frames), so a walk only has to
-// keep the spacing between its own actions on the grid (multiples of 7 frames); c.shots.js lines the clip up with the
-// beat by its pointer events. One action per clip: a hard cut between clips needs no continuity of the pointer.
+// Every walk is real time on the capture clock. v2: the reel cuts on its track's beats (c.beats.json, Warm Fuzz at
+// 126.51 BPM: 14.23 frames a beat), so a walk keeps the spacing between its own actions within a frame of the grid
+// (7 frames a half-beat, 14 a beat); c.shots.js lines the clip up with the beat by its pointer events. One action per
+// clip: a hard cut between clips needs no continuity of the pointer. Editor clips run with the strip's largest thumbs
+// and log the visible photos as `geom:photo` (v2 G3, check 11).
 //
 // `--pack` (needs ffmpeg: $FFMPEG, else the one Remotion ships in promo/motion/node_modules) writes per clip
 // `clips/c/<id>.mp4` (H.264, every frame at DPR 3), `clips/c/<id>.rects.json` (the rects log plus `busy` = the
@@ -78,6 +80,7 @@ async function box(P, sel, k = 0) {
 async function editorFull(P, item, zoom) {
   const c = await cap()
   await c.editorBook(P, 'c', item)
+  await bigThumbs(P)
   await P.page.locator('[data-testid="demo-add-folder"]').first().click()
   await P.settle(600)
   await c.chooseButton(P.page).click()
@@ -121,31 +124,67 @@ async function coverFront(P) {
   return { x: b.x + b.width * 0.76, y: b.y + b.height * 0.5 }
 }
 
+/** promo-reels-v2 G3 / check 11: the visible photos of an editor clip (placed frames, the cover's front board, the
+ *  strip's thumbs), logged as `geom:photo` boxes for the photo share. */
+const PHOTO_EDITOR = {
+  name: 'geom:photo',
+  sel: `[data-testid="canvas"] [data-testid="frame"]:has(img), [data-testid="canvas"] [class*="group/front"][data-photo-id], [data-testid="filmstrip"] img`,
+  all: true,
+}
+/** The site case: the face-out covers are photos (the spines are cloth). */
+const PHOTO_SITE = {
+  name: 'geom:photo',
+  sel: `${BOOK}[data-kind="face"]`,
+  all: true,
+}
+
 const editorTargets = (extra = []) => [
   { name: 'spread', sel: SPREAD },
   { name: 'frame', sel: FRAME, all: true },
   { name: 'filmstrip', sel: '[data-testid="filmstrip"]' },
   { name: 'row', sel: FILM, all: true },
   { name: 'dialog', sel: '[role=dialog]' },
+  PHOTO_EDITOR,
   ...extra,
 ]
+
+/** Off camera: the strip's thumbs at the kit's largest size (dock edge resizer, End = max: 240 px at 1440 tall), so
+ *  the photos carry the editor shots (v2 G3). */
+async function bigThumbs(P) {
+  const r = P.page.locator('[data-testid="thumb-resizer"]').first()
+  await r.focus()
+  await P.page.keyboard.press('End')
+  await r.evaluate((e) => e.blur())
+  await P.settle(300)
+  const h = await r.getAttribute('aria-valuenow')
+  if (Number(h) < 200) throw new Error(`strip thumbs ${h} px after End`)
+}
 
 /** The reel's rows: thumb 1 = T7 (the working book's cover photo), thumb 6 = T14 (photos.json set order). */
 const ROW_T7 = 0
 const ROW_T14 = 5
+
+/** Site clip: `books=30` puts two face-out covers on the case (v2 G3: the photos carry the shelf). */
+const SHELF_BOOKS = 30
+/** c-shelf clip frames of the two clicked turns past the title, the breath drag's press and the teaser turn's click
+ *  (c.shots.js reads the events back). */
+const SHELF_OPEN_TURNS = [144, 172]
+const SHELF_BREATH = 217
+const SHELF_TURN = 322
 
 export const WALKS_C = {
   'c-open': {
     reel: 'c',
     viewport: 'editor',
     about:
-      'C1: the pointer on Choose in the 412-photo folder picker, click on frame 3 (strip full on the next frame), glide to the strip, a fast wheel flick through it',
+      'C2: the pointer on Choose in the 412-photo folder picker, click on frame 3, the strip (largest thumbs) is full on the next frame',
     targets: editorTargets([
       { name: 'choose', sel: '[role=dialog] button:last-of-type' },
     ]),
     async setup(P) {
       const c = await cap()
       await c.editorBook(P, 'c')
+      await bigThumbs(P)
       await P.page.locator('[data-testid="demo-add-folder"]').first().click()
       await P.settle(600)
       const b = await P.center(c.chooseButton(P.page))
@@ -156,17 +195,7 @@ export const WALKS_C = {
       const T = clock(P, glidePath)
       await T.to(3)
       await T.click()
-      await T.wait(3)
-      const s = await box(P, '[data-testid="filmstrip"]')
-      await T.glide({ x: s.x + s.width * 0.62, y: s.y + s.height * 0.55 })
-      // the flick: one wheel notch per frame, fast then easing off (a human fling on a trackpad)
-      for (const dy of [
-        180, 360, 520, 600, 600, 520, 420, 320, 240, 160, 100, 60,
-      ]) {
-        await P.page.mouse.wheel(0, dy)
-        await T.wait(1)
-      }
-      await T.wait(20)
+      await T.wait(24)
     },
     async check(P) {
       if (!(await P.page.locator(FILM).count()))
@@ -194,11 +223,13 @@ export const WALKS_C = {
       await P.down()
       await T.wait(3)
       await T.glide({ x: a.x + 12, y: a.y - 8 }, 130)
-      const to = mid(await box(P, FRAME, 0))
+      // off the frame's centre: the round move handle comes up there on the release, clear of the pointer (check 10)
+      const f = await box(P, FRAME, 0)
+      const to = { x: f.x + f.width * 0.64, y: f.y + f.height * 0.66 }
       await T.glide(to, 800)
       await T.wait(3)
       await P.up()
-      await T.wait(30)
+      await T.wait(45)
     },
   },
   'c-layouts': {
@@ -213,12 +244,16 @@ export const WALKS_C = {
     async setup(P) {
       await editorFull(P, 'p1', 'md')
       await placeOff(P, ROW_T7, mid(await box(P, FRAME, 0)))
+      // drop the frame selection: its rotate handle sits on the pill once a layout puts the frame at the top
+      await P.page.keyboard.press('Escape')
+      await P.settle(300)
       const n = mid(await box(P, '[data-testid="layout-cycle-next"]'))
       await P.moveTo(n.x + 40, n.y + 60)
     },
     async act(P) {
       const { glidePath } = await cap()
       const T = clock(P, glidePath)
+      await T.wait(6)
       const n = mid(await box(P, '[data-testid="layout-cycle-next"]'))
       await T.glide(n)
       await T.wait(3)
@@ -229,11 +264,11 @@ export const WALKS_C = {
       await T.wait(24)
     },
   },
-  'c-fill-undo': {
+  'c-fill': {
     reel: 'c',
     viewport: 'editor',
     about:
-      'C4: W zoom, Fill book chip → Enter (every spread fills), Ctrl+Z (all empty again), chip → Enter (fills again)',
+      'C5: W zoom, Fill book chip → Enter on the hero downbeat: every spread fills at once',
     targets: editorTargets([
       { name: 'chip', sel: FILL },
       { name: 'canvas', sel: '[data-testid="canvas"]' },
@@ -241,6 +276,9 @@ export const WALKS_C = {
     async setup(P) {
       await editorFull(P, 'p1', 'w')
       await placeOff(P, ROW_T7, mid(await box(P, FRAME, 0)))
+      // no frame selection: the W shot is about the fill, not one frame's handles
+      await P.page.keyboard.press('Escape')
+      await P.settle(300)
       const c = mid(await box(P, FILL))
       await P.moveTo(c.x - 150, c.y - 110)
     },
@@ -252,15 +290,10 @@ export const WALKS_C = {
       await T.wait(3)
       const start = T.f
       await T.click() // chip: popover
+      // c.shots.js: chip on b11, Enter on b12 (the track's lift bar): 14 frames apart on this grid
       await T.to(start + 14)
       await P.key('Enter') // fill
-      await T.to(start + 28)
-      await P.key('Control+z') // undo
-      await T.to(start + 35)
-      await T.click() // chip again
-      await T.to(start + 42)
-      await P.key('Enter') // fill again
-      await T.wait(24)
+      await T.wait(40)
     },
   },
   'c-cover': {
@@ -333,23 +366,24 @@ export const WALKS_C = {
       await T.wait(3)
       // down only: the export starts on release, so the clip ends on the pressed frame (spec §5 C6: cut before running)
       await P.down()
-      await T.wait(2)
+      await T.wait(7)
     },
   },
   'c-shelf': {
     reel: 'c',
     viewport: 'site',
     about:
-      'C8–C11: site books=6 case (plates), the pointer lifts "Desert road", click: the room opens (cover 1000 ms), a slow 1300 ms drag turn (breath), then the open book holds for the end card',
+      'C9–C12 + C1: site books=30 case (plates), the pointer lifts "Desert road", click: the room opens (cover 1000 ms), two clicked turns to pages 4–5, a slow 1300 ms drag turn back onto the full-bleed 2–3 (breath), the open book holds for the end card, then one clicked page turn (the C1 teaser)',
     targets: [
       { name: 'books', sel: BOOK, all: true },
       { name: 'desert', sel: `${BOOK}[data-kind="face"]` },
       { name: 'reader', sel: READER },
       { name: 'canvas', sel: '[data-testid="ps-reader-canvas"]' },
+      PHOTO_SITE,
     ],
     async setup(P) {
       await P.page.goto(
-        `${P.base}/index.html?theme=procreate-light#/full/personal-site?books=6`,
+        `${P.base}/index.html?theme=procreate-light#/full/personal-site?books=${SHELF_BOOKS}`,
       )
       await P.page.waitForSelector(BOOK)
       await P.settle(1500)
@@ -369,21 +403,35 @@ export const WALKS_C = {
       await T.wait(60) // the plate the C8 drops are cut from
       const face = mid(await box(P, `${BOOK}[data-kind="face"]`))
       await T.glide(face)
-      // c.shots.js: the click is reel b23 and the breath drag b26.5 on one mapping (clip frame + 222), so the
-      // click is clip frame 100 and the drag starts 49 frames later; the hand heads for the page while the cover opens
+      // c.shots.js (SHELF): the click is reel b25 (clip frame 100, mapping + 256); C11 cuts in later in the take with
+      // its own mapping, so the breath drag (b29) can follow the two turns past the title spread
       await T.to(100, 'shelf click') // hover lift until then
       await T.click()
       await T.wait(10)
       const r = await box(P, READER)
       const y = r.y + r.height * 0.5
-      const grab = { x: r.x + r.width * 0.88, y }
-      await T.to(149 - 3 - T.frames(grab), 'glide to the page')
+      // the cover turns for 1000 ms (to ~130); two clicked turns (820 ms each) pass the title spread and the full-bleed
+      // desert spread (2–3) to the framed 4–5, so the breath can turn back onto 2–3
+      const turn = { x: r.x + r.width * 0.86, y: r.y + r.height * 0.62 }
+      await T.glide(turn)
+      await T.to(SHELF_OPEN_TURNS[0], 'turn to 2–3')
+      await T.click()
+      await T.to(SHELF_OPEN_TURNS[1], 'turn to 4–5')
+      await T.click()
+      const grab = { x: r.x + r.width * 0.14, y }
+      await T.to(SHELF_BREATH - 3 - T.frames(grab), 'glide to the page')
       await T.glide(grab)
-      await T.to(149, 'breath drag')
+      await T.to(SHELF_BREATH, 'breath drag')
       await P.down()
-      await T.glide({ x: r.x + r.width * 0.14, y }, 1300, 0.01)
+      await T.glide({ x: r.x + r.width * 0.86, y }, 1300, 0.01)
       await P.up()
-      await T.wait(100) // the end card plays over the open book
+      // the end card plays over the open 2–3 (clip frames ~247–304); the hand stays off the pages until then
+      await T.to(SHELF_TURN - 2 - T.frames(turn), 'end card hold')
+      // C1 teaser: one clicked turn (820 ms) of the right page
+      await T.glide(turn)
+      await T.to(SHELF_TURN, 'teaser turn')
+      await T.click()
+      await T.wait(40)
     },
   },
 }
@@ -399,10 +447,10 @@ const USED = {
   'c-open': ['choose', 'dialog', 'filmstrip'],
   'c-drop': ['frame', 'spread'],
   'c-layouts': ['next', 'pill', 'spread'],
-  'c-fill-undo': ['chip', 'spread', 'filmstrip', 'dialog'],
-  'c-cover': ['front'],
-  'c-print': ['printDialog', 'dialog'],
-  'c-shelf': ['books', 'desert'],
+  'c-fill': ['chip', 'spread', 'filmstrip', 'dialog', 'canvas'],
+  'c-cover': ['front', 'cover'],
+  'c-print': ['printDialog', 'dialog', 'go'],
+  'c-shelf': ['books', 'desert', 'canvas', 'reader'],
 }
 
 function ffmpegBin() {
@@ -459,6 +507,10 @@ function pack() {
         'medium',
         '-crf',
         '14',
+        // a keyframe every half second: Remotion seeks each frame, and a far seek in a 3840×4320 clip with x264's
+        // default 250-frame GOP decodes past its 28 s delayRender timeout on a loaded machine
+        '-g',
+        '15',
         '-pix_fmt',
         'yuv420p',
         '-movflags',
