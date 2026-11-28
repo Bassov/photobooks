@@ -36,6 +36,7 @@ import {
   SHEET_CELL,
   SHEET_COLS,
   WIDTH,
+  gridBeatFrame,
   isCueOnGrid,
   isCutOnGrid,
   reelConfig,
@@ -189,6 +190,34 @@ export function check1(probe) {
   ])
 }
 
+/**
+ * v2 grids (`table.grid`, the track's beats.json): a cut lands on a whole or half beat of that grid; a cue on a
+ * whole / half / quarter beat plus whole frames. Without a grid the v1 fixed-tempo tests apply.
+ */
+export function cutOnGrid(reel, table, frame) {
+  const g = table.grid
+  if (!g) return isCutOnGrid(reel, frame)
+  if (!Number.isInteger(frame)) return false
+  for (let b = 0; ; b += 0.5) {
+    const f = gridBeatFrame(g, b)
+    if (f === frame) return true
+    if (f > frame) return false
+  }
+}
+
+export function cueOnGrid(reel, table, cue) {
+  const g = table.grid
+  if (!g) return isCueOnGrid(reel, cue)
+  const offset = cue.offset ?? 0
+  return (
+    Number.isInteger(cue.frame) &&
+    typeof cue.beat === 'number' &&
+    Number.isInteger(cue.beat * 4) &&
+    Number.isInteger(offset) &&
+    gridBeatFrame(g, cue.beat, offset) === cue.frame
+  )
+}
+
 /** 2. Shot table: scale class alternates, 0.5–2.0 s shots (breath + end excepted), cuts and cues on the beat grid. */
 export function check2(reel, table) {
   const p = []
@@ -201,7 +230,7 @@ export function check2(reel, table) {
       p.push(`${s.id} does not start where ${prev.id} ends`)
     if (prev && s.scale === prev.scale)
       p.push(`${prev.id} → ${s.id} both ${s.scale}`)
-    if (k > 0 && !isCutOnGrid(reel, s.from))
+    if (k > 0 && !cutOnGrid(reel, table, s.from))
       p.push(`${s.id} cut at frame ${s.from} off the grid`)
     const len = s.to - s.from
     if (s.breath) {
@@ -219,7 +248,8 @@ export function check2(reel, table) {
     p.push('the breath is not the shot before the end card')
   if (end !== shots.length - 1) p.push('the end card is not the last shot')
   for (const c of table.cues)
-    if (!isCueOnGrid(reel, c)) p.push(`cue ${c.sfx} @ ${c.frame} off the grid`)
+    if (!cueOnGrid(reel, table, c))
+      p.push(`cue ${c.sfx ?? c.type} @ ${c.frame} off the grid`)
   return result(p, [
     `${shots.length} shots, ${table.cues.length} cues on the grid`,
   ])
@@ -389,8 +419,11 @@ export function manifestNames(file = MANIFEST) {
   return names
 }
 
-/** 7. Every staged image is a CC0 manifest photo or a generated grain tile; audio is our WAV; no kit originals. */
-export function check7(pubDir, names, clipsDir) {
+/**
+ * 7. Every staged image is a CC0 manifest photo or a generated grain tile; no kit originals; audio is our WAV unless
+ * `mix` (v2 mix reels: check 12 replaces "audio is generated only" with the licensed track + foley checks).
+ */
+export function check7(pubDir, names, clipsDir, { mix = false } = {}) {
   const p = []
   const files = walk(pubDir)
   for (const f of files) {
@@ -401,7 +434,7 @@ export function check7(pubDir, names, clipsDir) {
       const grain = /^grain\/grain-\d+\.png$/.test(rel)
       const photo = rel.startsWith('photos/') && names?.has(basename(rel))
       if (!grain && !photo) p.push(`image not in photos.json: ${rel}`)
-    } else if (AUDIO.has(ext)) {
+    } else if (AUDIO.has(ext) && !mix) {
       let tag = null
       try {
         tag = ext === '.wav' ? readWav(readFileSync(f)).tag : null
@@ -1364,7 +1397,11 @@ async function runChecks(reel, table, pub, files, extra = {}) {
     ['4 camera never still', () => check4(table)],
     ['5 real time, no busy UI', () => check5(reel, table, clipsDir)],
     ['6 safe zones + text', () => check6(table, logs, reelConfig(reel).poster)],
-    ['7 licences', () => check7(pub, manifestNames(), clipsDir)],
+    [
+      '7 licences',
+      () =>
+        check7(pub, manifestNames(), clipsDir, { mix: MIX_REELS.has(reel) }),
+    ],
     ['8 sheet', () => check8(files.sheet, table.frames)],
     ...v2,
     ...(MIX_REELS.has(reel)
@@ -1445,8 +1482,13 @@ async function runReel(reel, { checksOnly, publish, music }) {
   })
   if (ok && publish) {
     mkdirSync(publish, { recursive: true })
-    for (const f of [files.video, files.poster, files.sheet])
-      copyFileSync(f, join(publish, basename(f)))
+    // the published names of spec v2 §4: reel-x.mp4, reel-x.jpg (the poster), reel-x-sheet.png
+    for (const [f, name] of [
+      [files.video, basename(files.video)],
+      [files.poster, `reel-${reel}.jpg`],
+      [files.sheet, basename(files.sheet)],
+    ])
+      copyFileSync(f, join(publish, name))
     console.log(`published to ${publish}`)
   }
   return ok
@@ -1545,6 +1587,17 @@ async function selftest() {
   // 8: a 3×2 sheet of 320×180 cells.
   const sheet8 = join(dir, 'sheet.png')
   writeFileSync(sheet8, pngGrey(960, 360, Buffer.alloc(960 * 360, 40)))
+
+  // 2 (v2 grid): reel C's beats.json table with its 2nd cut and 1st cue one frame off the track's beat.
+  const goodC = await loadTable('c')
+  const t2c = JSON.parse(JSON.stringify(goodC))
+  t2c.shots[1].from += 1
+  t2c.shots[0].to += 1
+  t2c.cues[0].frame += 1
+  // 7 (mix reel): an untagged WAV (the licensed mix) and nothing else staged.
+  const pub7mix = join(dir, 'public-mix')
+  mkdirSync(join(pub7mix, 'audio'), { recursive: true })
+  writeFileSync(join(pub7mix, 'audio', 'c.wav'), Buffer.from('RIFF'))
 
   // 9: an element under scaleX(1.2) (its computed value is matrix(1.2, 0, 0, 1, 0, 0)), an <img> stretched into the
   // frame, a square mask sized 100% 100% on the frame, the same transform written in source, a clip encoded at
@@ -1661,6 +1714,18 @@ async function selftest() {
     ['6 safe zones + text', () => check6(t6, logs6, 525)],
     ['7 licences', () => check7(pub7, new Set(['L18.jpg']), clips5)],
     ['8 sheet', () => check8(sheet8, t6.frames)],
+    [
+      '2 shot table (beats.json grid: a cut + a cue 1 frame off)',
+      () => check2('c', t2c),
+    ],
+    [
+      '7 licences (mix reel: kit thumb still caught)',
+      () => check7(pub7, new Set(['L18.jpg']), clips5, { mix: true }),
+    ],
+    [
+      '7 licences (v1 reel: untagged WAV)',
+      () => check7(pub7mix, new Set(), clips5),
+    ],
     ['9 G1 static geometry', () => check9(in9)],
     ['10 G1 pixels (1.1 handle)', () => check10([handleAt(22, 20)])],
     [
@@ -1789,6 +1854,11 @@ async function selftest() {
     end: [{ kind: 'phone', css: [700, 1482], out: [190, 219, 699.94, 1482] }],
   })
   for (const [name, r] of [
+    ['2 (reel c on its beats.json grid)', check2('c', goodC)],
+    [
+      '7 (mix reel, untagged WAV)',
+      check7(pub7mix, new Set(), clips5, { mix: true }),
+    ],
     ['9 (uniform, cover, shared/** source)', good9],
     ['10 (round handle 40×40)', check10([handleAt(20, 20)])],
     ['11 (90-row band, full photo, end book 860)', good11],

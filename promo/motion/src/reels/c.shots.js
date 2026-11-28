@@ -279,7 +279,7 @@ function shotC2() {
   return {
     id: 'C2',
     from,
-    to: bf(3, 1),
+    to: bf(3),
     scale: 'M',
     uiOnly: true,
     ui: UI(id, at),
@@ -294,7 +294,7 @@ function shotC2() {
 function shotC3() {
   // C3 Md: T7 already in flight from the strip, dropped onto spread 1's big frame on b4.5, `light` landing
   const id = 'c-drop'
-  const from = bf(3, 1)
+  const from = bf(3)
   const drop = bf(4.5)
   const at = ev(id, 'up') - (drop - from)
   const target = rect(id, 'frame', ev(id, 'up') + 6, 0)
@@ -394,26 +394,29 @@ function shotC5() {
   return {
     id: 'C5',
     from,
-    to: bf(14),
+    to: bf(13),
     scale: 'W',
     ui: UI(id, at),
     // the chip sits at the kit's bottom edge: frame it at output y ≈ 1490 (safe zone); the ground shows below
     cam: [chipCrop(cx, chip, 800), chipCrop(cx - 6, chip, 776)],
     drift: { x: -6, y: 0 },
-    push: 0.008,
+    // 0.012: over 28 frames the ease-out and the punch's settle cancel a 0.008 push on the last frame (check 4)
+    push: 0.012,
     punches: [{ frame: enter + 1, amount: 0.02 }],
     whipOut: true,
-    fast: [{ from: bf(14) - 3, to: bf(14) }],
+    fast: [{ from: bf(13) - 3, to: bf(13) }],
     ground: 'T7.jpg',
     marks: { chip: from, enter },
   }
 }
 
 function shotC6() {
-  // C6 M: whip in; macro on the cover's front board, T14 dragged up from the strip lands on b15, replacing T7
+  // C6 M: whip in; macro on the cover's front board, T14 dragged up from the strip lands on b14, replacing T7
+  // (b13–b15: cuts sit on whole beats (check 2 + reels-mix 12g); C7 needs b15–b16, the one beat here that rounds to
+  // 15 frames, so C6 starts a beat early)
   const id = 'c-cover'
-  const from = bf(14)
-  const drop = bf(15)
+  const from = bf(13)
+  const drop = bf(14)
   const at = ev(id, 'up') - (drop - from)
   const front = rect(id, 'front', ev(id, 'up') + 6)
   const c = centre(front)
@@ -421,7 +424,7 @@ function shotC6() {
   return {
     id: 'C6',
     from,
-    to: bf(16),
+    to: bf(15),
     scale: 'M',
     ui: UI(id, at),
     cam: [crop(c.x, c.y + 70, w), crop(c.x + 6, c.y + 60, w - 18)],
@@ -445,10 +448,11 @@ function shotC6() {
 
 function shotC7() {
   // C7 Md, UI-only (0.5 s): the print dialog (opened off camera once its preflight finished); Export pressed 10
-  // frames in, the cut 5 frames later comes before the release (the job starts on release: no running state)
+  // frames in, the cut 5 frames later comes before the release (the job starts on release: no running state).
+  // b15–b16: one beat that rounds to 15 frames on this grid (b16–b17 is 14, under check 2's 0.5 s)
   const id = 'c-print'
-  const from = bf(16)
-  const to = bf(17, 1)
+  const from = bf(15)
+  const to = bf(16)
   const press = from + 10
   const at = ev(id, 'down') - (press - from)
   const dialog = rect(id, 'printDialog', at) ?? rect(id, 'dialog', at)
@@ -486,7 +490,7 @@ export const PDF_PAGES = [
     spine: 6,
     spineX: 146,
     photos: ['T7.jpg', 'T14.jpg'],
-    land: bf(17.5),
+    land: bf(16.5),
     y: 24,
   },
   {
@@ -494,7 +498,7 @@ export const PDF_PAGES = [
     trimW: 292,
     trimH: 210,
     photos: ['T7.jpg'],
-    land: bf(18),
+    land: bf(17),
     y: 640,
   },
   {
@@ -502,13 +506,13 @@ export const PDF_PAGES = [
     trimW: 292,
     trimH: 210,
     photos: ['T1.jpg', 'T3.jpg'],
-    land: bf(18.5),
+    land: bf(17.5),
     y: 1256,
   },
 ].map((p) => ({ ...p, at: p.land - SHEET_LAND }))
 
 function shotC8() {
-  const from = bf(17, 1)
+  const from = bf(16)
   return {
     id: 'C8',
     from,
@@ -682,42 +686,59 @@ function buildCues(shots) {
     const s = byId(shots, id)
     return at(id, frame, pointerAt(s.ui.clip, frame - s.from + s.ui.at))
   }
-  const cue = (frame, type, extra = {}) => ({
-    frame,
-    type,
-    sfx: type,
-    ...extra,
-  })
+  // every cue names the grid beat it hangs on; `offset` = frames past it (less than a beat: a cue placed off its beat
+  // by a re-timing throws here instead of drifting)
+  const cue = (frame, beat, type, extra = {}) => {
+    const offset = frame - bf(beat)
+    if (Math.abs(offset) >= BEAT_FRAMES)
+      throw new Error(
+        `cue ${type} at frame ${frame} is ${offset} f off b${beat}`,
+      )
+    return { frame, beat, offset, type, sfx: type, ...extra }
+  }
   const S = Object.fromEntries(shots.map((s) => [s.id, s]))
   const C3 = S.C3
   const C6 = S.C6
   return [
-    cue(S.C1.marks.click, 'page', { x: 760 }),
-    cue(S.C2.marks.click, 'click', ptr('C2', S.C2.marks.click)),
-    cue(C3.marks.drop, 'drop', at('C3', C3.marks.drop, centre(C3.drag.target))),
-    ...S.C4.marks.downs.map((d) => cue(d, 'click', ptr('C4', d))),
-    cue(S.C5.marks.chip, 'click', ptr('C5', S.C5.marks.chip)),
-    cue(S.C5.marks.enter, 'key', { x: 540 }),
-    cue(S.C5.marks.enter + 1, 'fill', { x: 540 }),
-    cue(S.C5.to - 2, 'swish', { x: 300 }),
-    cue(C6.marks.drop, 'drop', at('C6', C6.marks.drop, centre(C6.drag.target))),
-    cue(S.C7.marks.press, 'click', ptr('C7', S.C7.marks.press)),
-    ...PDF_PAGES.map((p, k) => cue(p.land, k ? 'drop' : 'cover', { x: 540 })),
-    cue(S.C8.to - 2, 'swish', { x: 300 }),
-    ...S.C9.drops.map((d) =>
+    cue(S.C1.marks.click, 0, 'page', { x: 760 }),
+    cue(S.C2.marks.click, 2, 'click', ptr('C2', S.C2.marks.click)),
+    cue(
+      C3.marks.drop,
+      4.5,
+      'drop',
+      at('C3', C3.marks.drop, centre(C3.drag.target)),
+    ),
+    ...S.C4.marks.downs.map((d, k) => cue(d, 8 + k / 2, 'click', ptr('C4', d))),
+    cue(S.C5.marks.chip, 11, 'click', ptr('C5', S.C5.marks.chip)),
+    cue(S.C5.marks.enter, GRID.liftBar * 4, 'key', { x: 540 }),
+    cue(S.C5.marks.enter + 1, GRID.liftBar * 4, 'fill', { x: 540 }),
+    cue(S.C5.to - 2, 13, 'swish', { x: 300 }),
+    cue(
+      C6.marks.drop,
+      14,
+      'drop',
+      at('C6', C6.marks.drop, centre(C6.drag.target)),
+    ),
+    cue(S.C7.marks.press, 15, 'click', ptr('C7', S.C7.marks.press)),
+    ...PDF_PAGES.map((p, k) =>
+      cue(p.land, 16.5 + k / 2, k ? 'drop' : 'cover', { x: 540 }),
+    ),
+    cue(S.C8.to - 2, 20, 'swish', { x: 300 }),
+    ...S.C9.drops.map((d, i) =>
       cue(
         d.from + DROP_LAND,
+        20 + i,
         'wood',
         at('C9', d.from + DROP_LAND, centre(d.box)),
       ),
     ),
-    cue(S.C10.marks.click, 'click', ptr('C10', S.C10.marks.click)),
+    cue(S.C10.marks.click, 25, 'click', ptr('C10', S.C10.marks.click)),
     // the cover swings open over 1000 ms from the click (seen at the end of C10); C11 cuts in on a leaf in flight
-    cue(S.C10.marks.click + 7, 'cover', { x: 600 }),
-    cue(S.C11.from, 'page', { x: 640 }),
-    cue(S.C11.breath.from, 'pageSlow', { x: 600 }),
-    cue(S.C11.breath.from, 'breath', { x: 540, frames: 39 }),
-    cue(S.C12.from, 'impact', { x: 540 }),
+    cue(S.C10.marks.click + 7, 25, 'cover', { x: 600 }),
+    cue(S.C11.from, 26, 'page', { x: 640 }),
+    cue(S.C11.breath.from, 29, 'pageSlow', { x: 600 }),
+    cue(S.C11.breath.from, 29, 'breath', { x: 540, frames: 39 }),
+    cue(S.C12.from, 32, 'impact', { x: 540 }),
   ].sort((a, b) => a.frame - b.frame)
 }
 
