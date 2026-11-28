@@ -1,15 +1,28 @@
 import React from 'react'
 
-/** Spec §2 «Phone»: the 390×844 capture in a body; screen 580×1255.4 at x 250, y 260 (output px). */
+/**
+ * Spec v2 G3 B8/B9 «Phone»: body 700×1482 at x 190, y 219 (output px), bezel 14, radius 64 outside / 52 screen.
+ * The 390×844 capture is scaled by 672/390 on both axes (one scale, G1), so the screen is 672 × 1454.2.
+ */
+const CAPTURE = { w: 390, h: 844 }
+const BEZEL = 14
+const SCREEN_W = 672
+const SCALE = SCREEN_W / CAPTURE.w
 export const PHONE = {
-  capture: { w: 390, h: 844 },
-  screen: { x: 250, y: 260, w: 580, h: 1255.4 },
-  bezel: 14,
+  capture: CAPTURE,
+  scale: SCALE,
+  screen: {
+    x: 190 + BEZEL,
+    y: 219 + BEZEL,
+    w: SCREEN_W,
+    h: CAPTURE.h * SCALE,
+  },
+  bezel: BEZEL,
   radius: 64,
   screenRadius: 52,
 }
 
-/** Outer body box in output px (screen + bezel). */
+/** Outer body box in output px (screen + bezel): 700 × 1482.2 at x 190, y 219. */
 export const phoneBody = () => ({
   x: PHONE.screen.x - PHONE.bezel,
   y: PHONE.screen.y - PHONE.bezel,
@@ -18,13 +31,12 @@ export const phoneBody = () => ({
 })
 
 /**
- * Phone body: 14 px #0E0E0E bezel, radius 64 outside / 52 screen, shadow. It never tilts; no notch, no buttons.
- * `children` are drawn at the 390×844 capture size and scaled into the screen. `move = { x, y, s }` moves the whole
- * body (the end card's `heavy` ease into y 250–940).
+ * Phone body: 14 px #0E0E0E bezel, shadow. It never tilts; no notch, no buttons. `children` are drawn at the
+ * 390×844 capture size and scaled into the screen. `move = { x, y, s }` moves the whole body (one scale).
+ * The body carries `data-geom="phone"` (reels-render.mjs checks 10, 11 read its box).
  */
 export const Phone = ({ move = { x: 0, y: 0, s: 1 }, children }) => {
   const body = phoneBody()
-  const k = PHONE.screen.w / PHONE.capture.w
   return (
     <div
       style={{
@@ -36,6 +48,7 @@ export const Phone = ({ move = { x: 0, y: 0, s: 1 }, children }) => {
       }}
     >
       <div
+        data-geom="phone"
         style={{
           position: 'absolute',
           left: body.x,
@@ -48,6 +61,7 @@ export const Phone = ({ move = { x: 0, y: 0, s: 1 }, children }) => {
         }}
       />
       <div
+        data-geom="screen"
         style={{
           position: 'absolute',
           left: PHONE.screen.x,
@@ -56,7 +70,7 @@ export const Phone = ({ move = { x: 0, y: 0, s: 1 }, children }) => {
           height: PHONE.screen.h,
           borderRadius: PHONE.screenRadius,
           overflow: 'hidden',
-          background: '#000',
+          background: '#0E0E0E',
         }}
       >
         <div
@@ -64,7 +78,7 @@ export const Phone = ({ move = { x: 0, y: 0, s: 1 }, children }) => {
             width: PHONE.capture.w,
             height: PHONE.capture.h,
             transformOrigin: '0 0',
-            transform: `scale(${k})`,
+            transform: `scale(${PHONE.scale})`,
           }}
         >
           {children}

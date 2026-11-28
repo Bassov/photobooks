@@ -107,6 +107,58 @@ export function sheetSize(frames) {
   }
 }
 
+// ---------------------------------------------------------------- v2: the cut follows the track's beats
+// promo-reels-v2 spec §3 "Cut to the music": a reel's grid is its `<reel>.beats.json` (written by the track gate in
+// scripts/reels-mix.mjs): `{ bpm, start, period, frames, bars, downbeats[], liftBar, liftDb, barRmsDb[], beats[] }`,
+// beats in seconds from frame 0 of the reel (= `start` s into the track). frame = round(beat time × 30). `liftBar` is
+// the hero bar (largest RMS step up from the bar before it): Fill book Enter / the cover drop go on its downbeat
+// (`liftFrame`). Pass the parsed JSON in.
+
+/** Frame of beat `beat` of a beats.json grid (half / quarter beats interpolate; past the end the period extends). */
+export function gridBeatFrame(beats, beat, offset = 0) {
+  const t = beats.beats
+  const i = Math.floor(beat)
+  const frac = beat - i
+  const period = beats.period ?? (t.length > 1 ? t[1] - t[0] : 0)
+  const at = (k) =>
+    k < t.length ? t[k] : t[t.length - 1] + (k - t.length + 1) * period
+  const time = at(i) + frac * (at(i + 1) - at(i))
+  return Math.round(time * FPS) + offset
+}
+
+/** Frames of every beat of the grid. */
+export const gridFrames = (beats) => beats.beats.map((t) => Math.round(t * FPS))
+
+/** Frames of the downbeats (bar starts). */
+export const gridBarFrames = (beats) =>
+  beats.downbeats.map((i) => gridBeatFrame(beats, i))
+
+/** A cue on beat `beat` (+ `offset` frames) of the grid, in the reels-mix.mjs cue shape `{ frame, type, beat, … }`. */
+export function gridCue(beats, beat, type, extra = {}) {
+  const offset = extra.offset ?? 0
+  return {
+    beat,
+    offset,
+    frame: gridBeatFrame(beats, beat, offset),
+    type,
+    ...extra,
+  }
+}
+
+/** Frame of the hero bar's downbeat (`liftBar`; Designer 2026-11-28: Fill book Enter / the cover drop sit on it). */
+export const liftFrame = (beats) => gridBeatFrame(beats, beats.liftBar * 4)
+
+/** Distance in frames from `frame` to the nearest beat of the grid. */
+export function nearestBeatDistance(beats, frame) {
+  let best = Infinity
+  for (const f of gridFrames(beats)) best = Math.min(best, Math.abs(f - frame))
+  return best
+}
+
+/** A cut is on the beat when it is within `tol` frames (spec §5.12: ± 1) of a beat. */
+export const isOnBeat = (beats, frame, tol = 1) =>
+  nearestBeatDistance(beats, frame) <= tol
+
 /** Safe zones (spec §2): points x ≤ 930, 250 ≤ y ≤ 1520; text also x ≥ 96; poster text inside y 240–1680. */
 export const SAFE = {
   left: 96,
