@@ -121,12 +121,13 @@ export const BLUR_SPEED = 40
 
 /**
  * Output transform of shot `shot` at `frame`: the crop `{cx, cy, w}` (plane px, 9:16) eased between `shot.cam[0]` and
- * `shot.cam[1]`, then drift (output px/s), push (fraction/s) and camera punches (`medium` spring, fraction).
+ * `shot.cam[1]` (over the shot, or until frame `shot.camTo` when set), then drift (output px/s), push (fraction/s)
+ * and camera punches (`medium` spring, fraction).
  * Returns `{ s, tx, ty }`: plane point p lands at (p·s + t) in the 1080×1920 frame.
  */
 export function cameraAt(shot, frame) {
   const [k0, k1 = k0] = shot.cam
-  const length = Math.max(1, shot.to - shot.from)
+  const length = Math.max(1, (shot.camTo ?? shot.to) - shot.from)
   const local = frame - shot.from
   const e = cameraEase(clamp01(local / length))
   const cx = lerp(k0.cx, k1.cx, e)
