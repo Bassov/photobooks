@@ -118,6 +118,16 @@ async function placeOff(P, row, to) {
   await P.settle(500)
 }
 
+/** Off camera: no selection (frame or cover title) and no text selection, the pointer back at rest. */
+async function deselect(P) {
+  await P.moveTo(P.rest.x, P.rest.y)
+  await P.page.keyboard.press('Escape')
+  await P.settle(150)
+  await P.page.keyboard.press('Escape')
+  await P.page.evaluate(() => window.getSelection()?.removeAllRanges())
+  await P.settle(300)
+}
+
 /** Front board of the cover sheet: the right part of `cover-sheet` (back | spine | front). */
 async function coverFront(P) {
   const b = await box(P, COVER)
@@ -160,9 +170,10 @@ async function bigThumbs(P) {
   if (Number(h) < 200) throw new Error(`strip thumbs ${h} px after End`)
 }
 
-/** The reel's rows: thumb 1 = T7 (the working book's cover photo), thumb 6 = T14 (photos.json set order). */
+/** The reel's rows: thumb 1 = T7 (the working book's cover photo). At the largest thumbs only 4 rows are in view, so
+ *  the cover take's first front photo is thumb 2 (a drag from an off-screen row does nothing). */
 const ROW_T7 = 0
-const ROW_T14 = 5
+const ROW_FRONT = 1
 
 /** Site clip: `books=30` puts two face-out covers on the case (v2 G3: the photos carry the shelf). */
 const SHELF_BOOKS = 30
@@ -172,6 +183,31 @@ const SHELF_OPEN_TURNS = [144, 172]
 const SHELF_BREATH = 217
 const SHELF_TURN = 322
 
+/**
+ * Off camera, before the site loads: the case shows every cover once and every title once (Designer review of #748).
+ * The kit's placeholders (books 13+) take cover `p${k % 21 + 1}`, so the first one ("Quiet harbour", face-out on the
+ * second shelf) wears p01 = T7, the working book's cover; the kit's own sample "Desert road" (2024, a spine on the top
+ * shelf) shares the reel's title. The served bundle gets the placeholder covers shifted by two photos (p03, p14, p20
+ * for the three placeholder face-outs) and that sample book renamed; each rewrite must match once.
+ */
+async function shelfFeed(P) {
+  const rewrites = [
+    [/cover:`p\$\{(\w+)\((\w+)%21\+1\)\}`/g, 'cover:`p${$1(($2+2)%21+1)}`'],
+    [/(id:`desert-road`,title:)`Desert road`/g, '$1`White dunes`'],
+  ]
+  await P.page.route(/\/assets\/kit\.js(\?|$)/, async (route) => {
+    const res = await route.fetch()
+    let js = await res.text()
+    for (const [re, to] of rewrites) {
+      const n = js.match(re)?.length ?? 0
+      if (n !== 1)
+        throw new Error(`c-shelf feed: ${re} matched ${n} times in kit.js`)
+      js = js.replace(re, to)
+    }
+    await route.fulfill({ response: res, body: js })
+  })
+}
+
 export const WALKS_C = {
   'c-open': {
     reel: 'c',
@@ -179,7 +215,8 @@ export const WALKS_C = {
     about:
       'C2: the pointer on Choose in the 412-photo folder picker, click on frame 3, the strip (largest thumbs) is full on the next frame',
     targets: editorTargets([
-      { name: 'choose', sel: '[role=dialog] button:last-of-type' },
+      // the clicked button itself (`Select "Photobooks"`, capture.mjs chooseButton): the C2 focus box
+      { name: 'choose', sel: '[data-reel-choose]' },
     ]),
     async setup(P) {
       const c = await cap()
@@ -187,6 +224,9 @@ export const WALKS_C = {
       await bigThumbs(P)
       await P.page.locator('[data-testid="demo-add-folder"]').first().click()
       await P.settle(600)
+      await c
+        .chooseButton(P.page)
+        .evaluate((e) => e.setAttribute('data-reel-choose', ''))
       const b = await P.center(c.chooseButton(P.page))
       await P.moveTo(b.x, b.y)
     },
@@ -229,6 +269,10 @@ export const WALKS_C = {
       await T.glide(to, 800)
       await T.wait(3)
       await P.up()
+      // Escape with the release: a full-bleed frame's rotate handle sits on the layout pill's text (a product issue),
+      // where no frame of it reads as a clean circle (check 10's edge search meets the letters: w/h 1.10–1.23 over
+      // frames 64–70 of the first take); the layouts and fill takes deselect as well
+      await P.key('Escape')
       await T.wait(45)
     },
   },
@@ -300,7 +344,7 @@ export const WALKS_C = {
     reel: 'c',
     viewport: 'editor',
     about:
-      'C5: the cover current (T7 on the front, off camera); T14 (thumb 6) dragged up from the strip onto the front board',
+      'C6: the cover current (thumb 2 on the front, off camera, nothing selected); T7 (thumb 1, the shelf cover) dragged up from the strip onto the front board',
     targets: editorTargets([
       { name: 'cover', sel: COVER },
       { name: 'front', sel: `${COVER} [class*="group/front"]` },
@@ -308,16 +352,21 @@ export const WALKS_C = {
     async setup(P) {
       await editorFull(P, 'cover', null)
       await zoomBox(P, COVER, [900, 1000])
-      await placeOff(P, ROW_T7, await coverFront(P))
-      await P.moveTo(P.rest.x, P.rest.y)
-      await P.settle(300)
-      const a = mid(await box(P, FILM, ROW_T14))
+      await placeOff(P, ROW_FRONT, await coverFront(P))
+      if (
+        !(await P.page
+          .locator(`${COVER} [class*="group/front"][data-photo-id]`)
+          .count())
+      )
+        throw new Error('c-cover: the front has no photo after the setup')
+      await deselect(P)
+      const a = mid(await box(P, FILM, ROW_T7))
       await P.moveTo(a.x - 60, a.y - 70)
     },
     async act(P) {
       const { glidePath } = await cap()
       const T = clock(P, glidePath)
-      const a = mid(await box(P, FILM, ROW_T14))
+      const a = mid(await box(P, FILM, ROW_T7))
       await T.glide(a)
       await T.wait(2)
       await P.down()
@@ -340,7 +389,11 @@ export const WALKS_C = {
       { name: 'go', sel: '[data-testid="print-go"]' },
     ]),
     async setup(P) {
-      await editorFull(P, 'p1', 'md')
+      // the cover gets its photo first (as C6 left it), so the dialog's Check has no "Front cover has no photo" row
+      await editorFull(P, 'cover', null)
+      await zoomBox(P, COVER, [900, 1000])
+      await placeOff(P, ROW_T7, await coverFront(P))
+      await deselect(P)
       await P.page.locator(FILL).first().click()
       await P.settle(500)
       await P.page.keyboard.press('Enter')
@@ -382,10 +435,15 @@ export const WALKS_C = {
       PHOTO_SITE,
     ],
     async setup(P) {
+      await shelfFeed(P)
       await P.page.goto(
         `${P.base}/index.html?theme=procreate-light#/full/personal-site?books=${SHELF_BOOKS}`,
       )
       await P.page.waitForSelector(BOOK)
+      // no clipped lead line at the crop's top edge (C9 / C10): the lead keeps its place, the case does not move
+      await P.page.addStyleTag({
+        content: '[data-testid="site-lead"] { visibility: hidden; }',
+      })
       await P.settle(1500)
       const books = await P.page.$$eval(BOOK, (els) =>
         els.map((e) => ({
@@ -403,7 +461,7 @@ export const WALKS_C = {
       await T.wait(60) // the plate the C8 drops are cut from
       const face = mid(await box(P, `${BOOK}[data-kind="face"]`))
       await T.glide(face)
-      // c.shots.js (SHELF): the click is reel b25 (clip frame 100, mapping + 256); C11 cuts in later in the take with
+      // c.shots.js (SHELF): the click is reel b25 − 1, C10's last frame (clip frame 100, mapping + 255); C11 cuts in later in the take with
       // its own mapping, so the breath drag (b29) can follow the two turns past the title spread
       await T.to(100, 'shelf click') // hover lift until then
       await T.click()
